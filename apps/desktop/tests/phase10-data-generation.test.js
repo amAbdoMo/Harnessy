@@ -5,13 +5,13 @@ import { tmpdir } from 'node:os'
 import { dirname, join, relative } from 'node:path'
 import { test } from 'node:test'
 
-function write(root, path, value) {
+function writeFixtureFile(root, path, value) {
   const target = join(root, path)
   mkdirSync(dirname(target), { recursive: true })
   writeFileSync(target, value)
 }
 
-function manifest(root) {
+function fileManifest(root) {
   const records = []
   const visit = directory => {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
@@ -40,37 +40,37 @@ test('cold backup and whole-generation rollback preserve representative product 
   const quarantine = join(root, 'failed-candidate')
 
   try {
-    write(live, 'Harness/sessions/project/session/session.v2.jsonl', '{"type":"session","version":2}\n')
-    write(live, 'Harness/attachments/v1/sha256/fixture', 'image-object')
-    write(live, 'Harness/settings.yaml', 'ui:\n  locale: en\n')
-    write(live, 'Harness/.credentials.yaml', 'version: 1\nrefs: {}\nrecords: {}\n')
-    write(live, 'Harness/storages/workspace.json', '{"version":2,"data":{}}\n')
-    write(live, 'Harness/storages/session_projcache/sessions/session.json', '{"version":5,"data":{}}\n')
-    write(live, 'Harness/storages/message_feedback.json', '{"version":0,"data":{}}\n')
-    write(live, 'Harness/profiles/custom-harness/package.json', '{"private":true}\n')
-    write(live, 'Harness/.agent-presets/default/preset.yml', 'name: default\n')
-    write(live, 'Harness/skills/home/SKILL.md', '# Home skill\n')
-    write(live, 'Agents/skills/agent/SKILL.md', '# Agent skill\n')
-    write(live, 'Harness/.anonymous-user-id', '00000000-0000-4000-8000-000000000000\n')
-    write(live, 'Cache/DesktopUserData/Local Storage/leveldb/CURRENT', 'MANIFEST-000001\n')
-    write(live, 'Logs/desktop.log', 'synthetic diagnostic\n')
+    writeFixtureFile(live, 'Harness/sessions/project/session/session.v2.jsonl', '{"type":"session","version":2}\n')
+    writeFixtureFile(live, 'Harness/attachments/v1/sha256/fixture', 'image-object')
+    writeFixtureFile(live, 'Harness/settings.yaml', 'ui:\n  locale: en\n')
+    writeFixtureFile(live, 'Harness/.credentials.yaml', 'version: 1\nrefs: {}\nrecords: {}\n')
+    writeFixtureFile(live, 'Harness/storages/workspace.json', '{"version":2,"data":{}}\n')
+    writeFixtureFile(live, 'Harness/storages/session_projcache/sessions/session.json', '{"version":5,"data":{}}\n')
+    writeFixtureFile(live, 'Harness/storages/message_feedback.json', '{"version":0,"data":{}}\n')
+    writeFixtureFile(live, 'Harness/profiles/custom-harness/package.json', '{"private":true}\n')
+    writeFixtureFile(live, 'Harness/.agent-presets/default/preset.yml', 'name: default\n')
+    writeFixtureFile(live, 'Harness/skills/home/SKILL.md', '# Home skill\n')
+    writeFixtureFile(live, 'Agents/skills/agent/SKILL.md', '# Agent skill\n')
+    writeFixtureFile(live, 'Harness/.anonymous-user-id', '00000000-0000-4000-8000-000000000000\n')
+    writeFixtureFile(live, 'Cache/DesktopUserData/Local Storage/leveldb/CURRENT', 'MANIFEST-000001\n')
+    writeFixtureFile(live, 'Logs/desktop.log', 'synthetic diagnostic\n')
 
-    const before = manifest(live)
+    const before = fileManifest(live)
     cpSync(live, backup, { recursive: true, errorOnExist: true })
-    assert.deepEqual(manifest(backup), before)
+    assert.deepEqual(fileManifest(backup), before)
 
-    write(live, 'Harness/sessions/project/session/session.v3.jsonl', '{"type":"session","version":3}\n')
-    write(live, 'Harness/settings.yaml', 'ui:\n  locale: zh-CN\n')
-    write(live, 'Cache/DesktopUserData/Local Storage/leveldb/000002.log', 'candidate-state')
+    writeFixtureFile(live, 'Harness/sessions/project/session/session.v3.jsonl', '{"type":"session","version":3}\n')
+    writeFixtureFile(live, 'Harness/settings.yaml', 'ui:\n  locale: zh-CN\n')
+    writeFixtureFile(live, 'Cache/DesktopUserData/Local Storage/leveldb/000002.log', 'candidate-state')
 
     cpSync(backup, stage, { recursive: true, errorOnExist: true })
-    assert.deepEqual(manifest(stage), before)
+    assert.deepEqual(fileManifest(stage), before)
     renameSync(live, quarantine)
     renameSync(stage, live)
 
-    assert.deepEqual(manifest(live), before)
-    assert.equal(manifest(live).some(record => record.path.endsWith('session.v3.jsonl')), false)
-    assert.equal(manifest(quarantine).some(record => record.path.endsWith('session.v3.jsonl')), true)
+    assert.deepEqual(fileManifest(live), before)
+    assert.equal(fileManifest(live).some(record => record.path.endsWith('session.v3.jsonl')), false)
+    assert.equal(fileManifest(quarantine).some(record => record.path.endsWith('session.v3.jsonl')), true)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
