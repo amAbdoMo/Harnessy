@@ -37,6 +37,9 @@ describe('desktop package target', () => {
     expect(parseDesktopPackageInvocation(['mac-arm64', '--dir'], 'darwin', 'arm64').directory).toBe(true)
     expect(parseDesktopPackageInvocation([], 'darwin', 'arm64').target.name).toBe('mac-arm64')
     expect(parseDesktopPackageInvocation(['--prepare-only'], 'darwin', 'arm64').prepareOnly).toBe(true)
+    expect(parseDesktopPackageInvocation(['win-x64', '--local-unsigned'], 'win32', 'x64').localUnsigned).toBe(true)
+    expect(() => parseDesktopPackageInvocation(['mac-arm64', '--local-unsigned'], 'darwin', 'arm64'))
+      .toThrow(/only win-x64/u)
     expect(() => parseDesktopPackageInvocation(['mac-arm64', 'mac-x64'], 'darwin', 'arm64'))
       .toThrow(/at most one target/u)
   })
@@ -54,6 +57,11 @@ describe('desktop package target', () => {
       'never',
     ])
     expect(desktopElectronBuilderArguments(target, true)).toContain('--dir')
+    expect(desktopElectronBuilderArguments(
+      resolveDesktopPackageTarget('win-x64', 'win32', 'x64'),
+      false,
+      'electron-builder.local-windows.config.mjs',
+    )).toContain('electron-builder.local-windows.config.mjs')
   })
 
   it('keeps Windows signing fields out of build and seed preparation subprocesses', () => {

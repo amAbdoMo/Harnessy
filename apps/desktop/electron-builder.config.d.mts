@@ -20,6 +20,15 @@ export interface DesktopElectronBuilderConfig {
     readonly sign: boolean
     readonly writeUpdateInfo: boolean
   }
+  readonly win: {
+    readonly forceCodeSigning: boolean
+    readonly executableName: string
+    readonly signtoolOptions?: {
+      readonly sign: unknown
+      readonly signingHashAlgorithms: readonly ['sha256']
+    }
+    readonly target: readonly ['nsis']
+  }
   readonly artifactBuildCompleted: (artifact: { readonly file: string }) => Promise<void> | undefined
   readonly publish?: never
 }
@@ -29,12 +38,14 @@ export interface DesktopElectronBuilderConfig {
  * @param env - Packaging environment.
  * @param hostPlatform - Build-host platform used when no explicit target is present.
  * @param hostArch - Build-host architecture used when no explicit target is present.
+ * @param windowsSigningPolicy - Whether Windows packaging requires the release signer.
  * @returns electron-builder configuration.
  */
 export function createElectronBuilderConfig(
   env?: NodeJS.ProcessEnv,
   hostPlatform?: NodeJS.Platform,
   hostArch?: string,
+  windowsSigningPolicy?: 'required' | 'local-unsigned',
 ): DesktopElectronBuilderConfig
 
 declare const electronBuilderConfig: DesktopElectronBuilderConfig

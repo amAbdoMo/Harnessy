@@ -149,6 +149,7 @@ interface DesktopPackageInvocation {
   readonly target: DesktopPackageTarget
   readonly directory: boolean
   readonly prepareOnly: boolean
+  readonly localUnsigned: boolean
 }
 
 function hostTargetName(platform: NodeJS.Platform, arch: string): DesktopPackageTargetName {
@@ -175,14 +176,20 @@ export function parseDesktopPackageInvocation(
     options: {
       dir: { type: 'boolean', default: false },
       'prepare-only': { type: 'boolean', default: false },
+      'local-unsigned': { type: 'boolean', default: false },
     },
   })
   if (positionals.length > 1) throw new Error('desktop package: expected at most one target')
   const name = positionals[0] ?? hostTargetName(hostPlatform, hostArch)
+  const target = resolveDesktopPackageTarget(name, hostPlatform, hostArch)
+  if (values['local-unsigned'] && target.platform !== 'win32') {
+    throw new Error('desktop package: local unsigned packaging supports only win-x64')
+  }
   return {
-    target: resolveDesktopPackageTarget(name, hostPlatform, hostArch),
+    target,
     directory: values.dir,
     prepareOnly: values['prepare-only'],
+    localUnsigned: values['local-unsigned'],
   }
 }
 
@@ -195,12 +202,13 @@ export function parseDesktopPackageInvocation(
 export function desktopElectronBuilderArguments(
   target: DesktopPackageTarget,
   directory: boolean,
+  configFilename = 'electron-builder.config.mjs',
 ): readonly string[] {
   return [
     'exec',
     'electron-builder',
     '--config',
-    'electron-builder.config.mjs',
+    configFilename,
     target.builderPlatform,
     target.builderArch,
     '--publish',
@@ -284,8 +292,11 @@ async function main(): Promise<void> {
   await runPnpm(['run', 'prepare:packages'], targetEnv)
   await runPnpm(['run', 'prepare:seed'], targetEnv)
   if (invocation.prepareOnly) return
-  await runPnpm(desktopElectronBuilderArguments(target, invocation.directory), electronBuilderEnv)
-  if (!invocation.directory) writeReleaseRecord(target, buildPaths.artifacts)
+  const configFilename = invocation.localUnsigned
+    ? 'electron-builder.local-windows.config.mjs'
+    : 'electron-builder.config.mjs'
+  await runPnpm(desktopElectronBuilderArguments(target, invocation.directory, configFilename), electronBuilderEnv)
+  if (!invocation.directory && !invocation.localUnsigned) writeReleaseRecord(target, buildPaths.artifacts)
 }
 
 if (process.argv[1] !== undefined && import.meta.filename === resolve(process.argv[1])) await main()

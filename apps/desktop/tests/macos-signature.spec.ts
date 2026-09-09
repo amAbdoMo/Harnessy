@@ -76,6 +76,24 @@ describe('desktop macOS release signature', () => {
     }, 'win32')).toThrow(/DSH_DESKTOP_WINDOWS_CER_FILE/u)
   })
 
+  it('allows only the explicit local Windows config to omit signing', async () => {
+    const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
+    const config = createElectronBuilderConfig({
+      DSH_DESKTOP_TARGET_PLATFORM: 'win32',
+      DSH_DESKTOP_TARGET_ARCH: 'x64',
+    }, 'win32', 'x64', 'local-unsigned')
+    expect(config.win).toMatchObject({
+      forceCodeSigning: false,
+      executableName: 'CustomHarness',
+      target: ['nsis'],
+    })
+    expect(config.win).not.toHaveProperty('signtoolOptions')
+    expect(() => createElectronBuilderConfig({
+      DSH_DESKTOP_TARGET_PLATFORM: 'darwin',
+      DSH_DESKTOP_TARGET_ARCH: 'arm64',
+    }, 'darwin', 'arm64', 'local-unsigned')).toThrow(/only the Windows target/u)
+  })
+
   it('accepts the configured authority and team', () => {
     const expected = resolveMacOSSigningEnvironment(RELEASE_ENVIRONMENT)
     expect(() => {
