@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
 import { assertCustomHarnessBuildRecord, desktopEnvironment } from './run-custom-harness-desktop.ts'
 
@@ -17,7 +19,10 @@ test('desktop source launcher passes the named profile and isolated paths', () =
   assert.equal(environment.CUSTOM_HARNESS_PRODUCT_NAME, 'Custom Harness')
   assert.equal(environment.CUSTOM_HARNESS_DESKTOP_APP_ID, 'com.amabdmo.customharness')
   assert.equal(environment.CUSTOM_HARNESS_DESKTOP_LOG_DIR, paths.logs)
-  assert.match(environment.CUSTOM_HARNESS_DESKTOP_WORKING_DIRECTORY, /deepseek-harness-dsh-v0\.1\.2-rc\.1$/u)
+  assert.equal(
+    environment.CUSTOM_HARNESS_DESKTOP_WORKING_DIRECTORY,
+    resolve(fileURLToPath(new URL('..', import.meta.url))),
+  )
   assert.match(environment.CUSTOM_HARNESS_DESKTOP_DSH_ENTRY, /apps[\\/]cli[\\/]lib[\\/]bin\.js$/u)
 })
 

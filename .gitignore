@@ -27,6 +27,8 @@ tmp/
 .idea
 mise.toml
 dist-exe/
+/dist/
+apps/desktop/.desktop-build/
 python/sdk-runtime/src/deepseek_harness_runtime/runtime/deepseek-harness-sdk-runtime-*
 python/sdk-runtime/src/deepseek_harness_runtime/runtime/node/
 python/**/__pycache__/
@@ -44,3 +46,4 @@ worktrees/
 apps/desktop/assets/windows-job-launcher.exe
 apps/desktop/.package-stage/
 apps/desktop/dist/
+native/system/test/bin/

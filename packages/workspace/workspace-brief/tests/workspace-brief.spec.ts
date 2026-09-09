@@ -2,7 +2,7 @@ import { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import CommandRuntime, { CommandId, type CommandInvocation } from '@deepseek-ai/dsh-commands'
 import { FsError } from '@deepseek-ai/dsh-fs'
-import { Session, SessionId, SESSION_FORMAT_VERSION } from '@deepseek-ai/dsh-session'
+import { Session, SessionId, SESSION_FORMAT_VERSION, type SessionHeader } from '@deepseek-ai/dsh-session'
 import type { ShellRunResult } from '@deepseek-ai/dsh-shell'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as workspaceBrief from '../src/index.ts'
@@ -275,7 +275,7 @@ describe('workspace-brief command lifecycle', () => {
     await fiber.await()
 
     const id = SessionId('workspace-brief-lifecycle')
-    const header = {
+    const header: SessionHeader = {
       version: SESSION_FORMAT_VERSION,
       id,
       createdAt: 1,
