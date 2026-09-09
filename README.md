@@ -1,7 +1,5 @@
 # Custom Harness
 
-English | [中文](README.zh.md)
-
 Custom Harness is a personal Windows desktop AI harness maintained by [amAbdoMo](https://github.com/amAbdoMo). It is built from [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) and keeps the upstream plugin-based runtime while providing independent branding, isolated application data, and a compact Windows installer.
 
 This repository is the source-code backup and version history for the customized application. Stable versions are published as installers under [GitHub Releases](https://github.com/amAbdoMo/Harnessy/releases).
