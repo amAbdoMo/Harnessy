@@ -1,8 +1,8 @@
 # Agent Note: Custom Harness upstream Desktop adoption
 
-English | [中文](2026-09-09-custom-harness-upstream-desktop-adoption.zh.md)
-
 Status: proposed
+
+English | [中文](2026-09-09-custom-harness-upstream-desktop-adoption.zh.md)
 
 ## Problem
 

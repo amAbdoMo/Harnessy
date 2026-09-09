@@ -1,8 +1,8 @@
 # Agent Note: Custom Harness 采用上游桌面端
 
-[English](2026-09-09-custom-harness-upstream-desktop-adoption.md) | 中文
-
 Status: proposed
+
+[English](2026-09-09-custom-harness-upstream-desktop-adoption.md) | 中文
 
 ## Problem
 

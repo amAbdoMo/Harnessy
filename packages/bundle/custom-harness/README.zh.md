@@ -11,12 +11,23 @@ kind: "package-bundle"
 
 本包是随附 `custom-harness` profile 在 `dsh-base` 和 `dsh-web-app` 之后应用的窄产品层。它替换原有品牌、禁用逐消息评分与备注，并添加有界只读 Workspace Brief 操作，不会重命名共享框架包、模型提供方名称、协议或兼容性表层。
 
+## 目录
+
+- [使用本包](#use-this-package)
+- [已禁用的逐消息反馈](#disabled-per-message-feedback)
+- [Workspace Brief](#workspace-brief)
+- [模型体验](#model-experience)
+- [已知限制与延期工作](#known-limitations-and-deferred-work)
+- [开发备注](#dev-note)
+
+<a id="use-this-package"></a>
 ## 使用本包
 
 先运行一次 `pnpm run build:custom-harness`，再通过 `pnpm run custom-harness -- --no-open` 启动产品。启动器会选择 `dsh --profile custom-harness`，并用 Custom Harness 数据目录中的产品专属 home 替换环境里可能存在的原有 `DSH_HOME`。
 
 Windows 默认位置为 `%LOCALAPPDATA%\CustomHarness\Harness`、`%LOCALAPPDATA%\CustomHarness\Logs` 和 `%LOCALAPPDATA%\CustomHarness\Cache`。测试或托管部署可以使用产品专属的 `CUSTOM_HARNESS_*` 变量重定向这些目录；启动器不会自动导入原有状态。
 
+<a id="disabled-per-message-feedback"></a>
 ## 已禁用的逐消息反馈
 
 此 profile 同时禁用 `message-feedback` Host 行与 `ui-message-feedback` 客户端行。因此浏览器不会提供“Good response”“Bad response”或“Add a note”操作，直接发送的 `messageFeedback/list`、`messageFeedback/put` 和 `messageFeedback/delete` Remote 请求无人接管，并返回 HTTP 404。
@@ -25,12 +36,14 @@ Windows 默认位置为 `%LOCALAPPDATA%\CustomHarness\Harness`、`%LOCALAPPDATA%
 
 会话级 `/feedback` 命令仍然可用。遥测反馈门控、身份验证、审批、权限预设、沙箱和文件系统策略也保持不变；它们属于独立的运行、隐私和安全控制。
 
+<a id="workspace-brief"></a>
 ## Workspace Brief
 
 此 profile 插入 `workspace-brief` 宿主行与 `ui-workspace-brief` 客户端行。已打开会话可以为其所选已注册 Git 工作区创建有界 Markdown 摘要；键入 `/workspace-brief --git` 会添加有界短状态行。该命令不接受任意路径、不写入文件、不执行网络或模型请求，并通过普通命令日志持久化其结果。
 
 禁用任一行会移除体验的对应一半，而不改变已存储会话。缺少专用客户端行时，已记录简报仍可通过通用命令 renderer 阅读；重连和重新启动绝不会自动重新运行仓库检查。
 
+<a id="model-experience"></a>
 ## 模型体验
 
 间接影响来自继承的 base 与 Web 组合；此 patch 层自身不注册 prompt 或工具 schema，Workspace Brief 也保持为仅人类可用的日志事件。
@@ -43,7 +56,7 @@ Windows 默认位置为 `%LOCALAPPDATA%\CustomHarness\Harness`、`%LOCALAPPDATA%
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **源码启动器**——本阶段提供仓库启动器与产品元数据，而不是桌面可执行文件或安装器。
+- **Bundle 范围**——本包提供产品 profile 和仓库启动器；可执行文件与安装程序由[桌面应用](../../../apps/desktop/README.zh.md)负责。
 - **默认状态独立**——需要原有状态时，用户必须明确迁移所选内容；启动器从不自动复制。
 
 <a id="dev-note"></a>

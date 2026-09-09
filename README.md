@@ -1,63 +1,78 @@
-# DeepSeek Harness
+# Custom Harness
 
 English | [中文](README.zh.md)
 
-DeepSeek Harness (`dsh`) is an open-source agent harness developed by [DeepSeek AI](https://deepseek.com).
+Custom Harness is a personal Windows desktop AI harness maintained by [amAbdoMo](https://github.com/amAbdoMo). It is built from [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) and keeps the upstream plugin-based runtime while providing independent branding, isolated application data, and a compact Windows installer.
 
-It is built on an **everything-is-a-plugin** architecture and powered by [Cordis](https://github.com/cordiverse/cordis), whose design is described in [_A Programming Paradigm for Spatiotemporal Composability_](https://arxiv.org/abs/2608.25512).
+This repository is the source-code backup and version history for the customized application. Stable versions are published as installers under [GitHub Releases](https://github.com/amAbdoMo/Harnessy/releases).
 
-Documentation: [https://deepseek-harness.github.io/deepseek-harness/](https://deepseek-harness.github.io/deepseek-harness/)
+## Project goals
 
-## Developer preview
+- Preserve the desktop harness features and UI used by the personal build.
+- Install and launch like a normal Windows application without a terminal window.
+- Keep Custom Harness data separate from other Harness installations.
+- Record each source adjustment in Git and provide restorable installers for stable versions.
+- Keep upstream DeepSeek Harness available as a source of compatible fixes and improvements.
 
-DeepSeek Harness is in _developer preview_ and iterating rapidly. **THERE WILL BE COMPATIBILITY-BREAKING CHANGES.**
+<a id="run"></a>
 
-Review the [safety notice](SAFETY.md) before running the project.
+## Install on Windows
 
-## Run
+The personal Custom Harness release currently targets Windows x64.
 
-### Run from `npm`
+1. Open the [latest release](https://github.com/amAbdoMo/Harnessy/releases/latest).
+2. Download the `CustomHarness-Setup-*-win-x64.exe` asset.
+3. Run the installer and choose an installation directory when prompted.
+4. Launch **Custom Harness** after installation.
 
-Install `Node.js`, then run:
+The personal installer is not code-signed, so Windows SmartScreen may display a warning. Confirm that the installer came from this repository's Releases page before running it.
 
-```sh
-npx @deepseek-ai/dsh web
+## Use the application
+
+Open **Settings** to configure the model providers and credentials you intend to use. Select a workspace, create a session, choose its model and permission mode, and enter a task in the composer.
+
+Application state is stored under `%LOCALAPPDATA%\CustomHarness`. Installing a newer Custom Harness version uses the same product data directory; source code and installers do not contain your local sessions or credentials.
+
+Custom Harness does not currently check for or install updates automatically. Install a newer version from GitHub Releases when one is published.
+
+## Version and backup flow
+
+Git commits preserve individual source changes. A version tag identifies each stable snapshot, and the matching GitHub Release carries its Windows installer. This keeps development history separate from the smaller set of versions intended for installation.
+
+Personal application data is not committed to GitHub. Back up `%LOCALAPPDATA%\CustomHarness` separately when you need a copy of local sessions and settings, and protect any credentials stored there.
+
+<a id="run-from-source"></a>
+
+## Build a personal installer
+
+Building requires Windows x64, Node.js 24, and pnpm 11.7.0.
+
+```powershell
+git clone https://github.com/amAbdoMo/Harnessy.git
+cd Harnessy
+pnpm install --frozen-lockfile
+pnpm run package:desktop:win:x64:local
 ```
 
-The command starts the Web UI at `http://127.0.0.1:3080` by default and opens it in the default browser for a local launch. An SSH launch only prints the host URL because the SSH client or editor owns the local forwarded address. Pass `--no-open` to run the server without opening a browser. See [Web UI guide](docs/user/guide/index.md).
+The unsigned installer is written to `apps/desktop/.desktop-build/targets/win-x64/artifacts/`. Build outputs and installed dependencies are intentionally excluded from Git so the repository remains a source backup rather than a copy of generated files.
 
-### Run from source
+The upstream signed packaging commands remain separate and fail when the required signing credentials are unavailable. The `:local` command is the explicit path for this personal unsigned Windows build.
 
-To run from a repository checkout:
+## Development checks
 
-```sh
-git clone https://github.com/deepseek-ai/deepseek-harness.git
-cd deepseek-harness
-pnpm install
-pnpm run build
-pnpm dsh web
+For changes to the local Windows packaging path, run:
+
+```powershell
+pnpm exec tsc -b tsconfig.host.json --pretty false
+pnpm exec vitest run apps/desktop/tests/package-target.spec.ts apps/desktop/tests/macos-signature.spec.ts
 ```
 
-`pnpm run build` prepares the repository artifacts. `pnpm dsh web` uses those built artifacts without rebuilding.
+GitHub runs the same focused desktop checks on Windows for pushes and pull requests. Inherited upstream multi-platform, sandbox, and live-API workflows are disabled by default because they require DeepSeek's runners and secrets.
 
-## Community and support
+## Relationship to DeepSeek Harness
 
-- Submit feedback or bug reports through [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions).
-- Add the [`dsh-plugin`](https://github.com/topics/dsh-plugin) topic to your plugin repository for discoverability.
-- Join <a href="https://discord.gg/Ycq5dCaS4">DeepSeek Harness Discord community</a>.
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## Development
-
-Start with the [development guide](docs/development.md) and [architecture documentation](docs/architecture.md).
-
-For agents, follow [AGENTS.md](AGENTS.md).
+Custom Harness is an independent personal derivative and is not an official DeepSeek product. The upstream project, its documentation, and its community are available from the [DeepSeek Harness repository](https://github.com/deepseek-ai/deepseek-harness).
 
 ## License
 
-[MIT](LICENSE)
-
-Third-party dependencies and their licenses are disclosed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+The source remains available under the [MIT License](LICENSE). Third-party dependencies and their licenses are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

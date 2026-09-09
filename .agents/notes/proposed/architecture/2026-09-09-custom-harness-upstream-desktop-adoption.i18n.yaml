@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/proposed/architecture/2026-09-09-custom-harness-upstream-desktop-adoption.md
-2026-09-09-custom-harness-upstream-desktop-adoption.md: 4ad7f4fdeac3a79f5abbd7cbe0938df56e647666
-2026-09-09-custom-harness-upstream-desktop-adoption.zh.md: 6cf973250db9c84116bbe1a9bc640ce372078fa8
+2026-09-09-custom-harness-upstream-desktop-adoption.md: 27933bc12ce57c743227a494dc9ce38d075e6231
+2026-09-09-custom-harness-upstream-desktop-adoption.zh.md: b90441d2ac44d5e512529f452758a56f1b38b6e8
