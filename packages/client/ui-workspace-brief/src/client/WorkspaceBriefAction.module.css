@@ -12,6 +12,7 @@
   padding: 3px 10px;
   border: 0.5px solid var(--dsw-alias-border-l1);
   border-radius: 999px;
+  corner-shape: round;
   background: color-mix(in srgb, var(--dsw-alias-bg-base) 82%, var(--dsw-alias-brand-primary));
   color: var(--dsw-alias-label-secondary);
   font-size: 12px;

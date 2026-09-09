@@ -170,7 +170,7 @@ describe('ui-workspace-brief plugin lifecycle', () => {
 
   it('dispatches the exact bounded command and rejects transport or command failures', async () => {
     const test = await pluginBench()
-    const injectAction = test.actionEntry()?.inject as ((sessionId: SessionId) => WorkspaceBriefActionInjected)
+    const injectAction = test.actionEntry()?.inject as unknown as ((sessionId: SessionId) => WorkspaceBriefActionInjected)
     const face = injectAction(sid('selected'))
     await expect(face.createBrief()).resolves.toBeUndefined()
     expect(test.calls).toEqual([{ sessionId: 'selected', command: '/workspace-brief', attachments: [] }])
