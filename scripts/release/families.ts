@@ -12,6 +12,7 @@
 import { globSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
+  customHarnessClientBuildEnvironment,
   officialClientBuildEnvironment,
   readClientBuildRecord,
 } from '../client-build-environment.ts'
@@ -112,7 +113,7 @@ export abstract class ReleaseFamily {
    * Families without environment-selected artifacts accept every build tree.
    * @param _root - repository root containing generated artifacts.
    */
-  verifyBuildArtifacts(_root: string): void {}
+  verifyBuildArtifacts(_root: string, _clientProfile: 'official' | 'custom-harness' = 'official'): void {}
 
   /**
    * Discover this family's members.
@@ -325,8 +326,11 @@ class DshFamily extends ReleaseFamily {
   readonly tagPrefix = 'dsh-v'
 
   /** Require current artifacts from a complete official client build. */
-  override verifyBuildArtifacts(root: string): void {
-    readClientBuildRecord(root, officialClientBuildEnvironment(root))
+  override verifyBuildArtifacts(root: string, clientProfile: 'official' | 'custom-harness' = 'official'): void {
+    const environment = clientProfile === 'custom-harness'
+      ? customHarnessClientBuildEnvironment(root)
+      : officialClientBuildEnvironment(root)
+    readClientBuildRecord(root, environment)
   }
 
   /**

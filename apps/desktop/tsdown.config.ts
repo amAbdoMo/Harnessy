@@ -1,4 +1,7 @@
+import { resolve } from 'node:path'
 import { defineConfig } from 'tsdown'
+
+const productRuntime = resolve(import.meta.dirname, '../../scripts/custom-harness-product.mjs')
 
 export default defineConfig([
   {
@@ -10,6 +13,9 @@ export default defineConfig([
     fixedExtension: false,
     dts: false,
     clean: false,
+    alias: {
+      '../../../scripts/custom-harness-product.mjs': productRuntime,
+    },
     deps: { neverBundle: ['electron'] },
   },
   {

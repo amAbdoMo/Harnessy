@@ -60,11 +60,19 @@ async function launchElectron(projectDir: string): Promise<void> {
   const mainPort = debugPort('DSH_DESKTOP_MAIN_INSPECT_PORT', 9229)
   const rendererPort = debugPort('DSH_DESKTOP_RENDERER_DEBUG_PORT', 9222)
   const hostPort = debugPort('DSH_DESKTOP_HOST_INSPECT_PORT', 9230)
-  const home = resolve(process.env.DSH_HOME ?? join(DEVELOPMENT_ROOT, 'home'))
-  const userData = join(DEVELOPMENT_ROOT, 'electron-user-data')
+  const home = resolve(process.env.DSH_HOME ?? join(DEVELOPMENT_ROOT, 'Harness'))
+  const agents = resolve(process.env.DSH_AGENTS_HOME ?? join(DEVELOPMENT_ROOT, 'Agents'))
+  const logs = join(DEVELOPMENT_ROOT, 'Logs')
+  const cache = join(DEVELOPMENT_ROOT, 'Cache')
+  const userData = join(cache, 'DesktopUserData')
   const environment: NodeJS.ProcessEnv = {
     ...process.env,
     DSH_HOME: home,
+    DSH_AGENTS_HOME: agents,
+    CUSTOM_HARNESS_DATA_DIR: DEVELOPMENT_ROOT,
+    CUSTOM_HARNESS_AGENTS_DIR: agents,
+    CUSTOM_HARNESS_LOG_DIR: logs,
+    CUSTOM_HARNESS_CACHE_DIR: cache,
     DSH_DESKTOP_DEV_PROJECT_DIR: projectDir,
     DSH_DESKTOP_HOST_INSPECT_PORT: String(hostPort),
     DSH_DESKTOP_NODE_BINARY: process.execPath,

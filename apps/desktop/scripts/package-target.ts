@@ -6,9 +6,9 @@ import { parseArgs } from 'node:util'
 import { join, resolve } from 'node:path'
 import {
   desktopBuildRecordFilename,
-  resolveDesktopAutoUpdateConfig,
 } from './desktop-auto-update-environment.mjs'
 import { desktopTargetBuildPaths } from './desktop-build-paths.mjs'
+import { CUSTOM_HARNESS_PRODUCT } from '../../../scripts/custom-harness-product.mjs'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
@@ -25,7 +25,6 @@ const DESKTOP_UPLOAD_CREDENTIAL_ENV_NAMES = new Set([
   'DOWNLOAD_PROD_COS_SECRET_ID',
   'DOWNLOAD_PROD_COS_SECRET_KEY',
 ])
-
 /** Fixed platform and architecture identifiers exposed by package scripts. */
 export type DesktopPackageTargetName = 'mac-arm64' | 'mac-x64' | 'win-x64'
 
@@ -96,7 +95,6 @@ function packageVersion(path: string, label: string): string {
 
 function writeReleaseRecord(
   target: DesktopPackageTarget,
-  environment: NodeJS.ProcessEnv,
   artifactsRoot: string,
 ): void {
   const desktopVersion = packageVersion(join(APP_ROOT, 'package.json'), 'desktop package')
@@ -104,15 +102,14 @@ function writeReleaseRecord(
   if (desktopVersion !== dshVersion) {
     throw new Error(`desktop package: desktop version ${desktopVersion} does not match dsh version ${dshVersion}`)
   }
-  const update = resolveDesktopAutoUpdateConfig(environment, target.platform, target.arch)
   const recordPath = join(artifactsRoot, desktopBuildRecordFilename(target.name))
   const temporaryPath = `${recordPath}.tmp`
   writeFileSync(temporaryPath, `${JSON.stringify({
     schemaVersion: 1,
     target: target.name,
     version: dshVersion,
-    environment: update.environment,
-    publicUrl: update.publicUrl,
+    product: CUSTOM_HARNESS_PRODUCT.slug,
+    automaticUpdates: CUSTOM_HARNESS_PRODUCT.automaticUpdates,
   }, null, 2)}\n`)
   renameSync(temporaryPath, recordPath)
 }
@@ -254,8 +251,17 @@ async function main(): Promise<void> {
   for (const name of WINDOWS_SIGNING_ENV_NAMES) {
     if (process.env[name] !== undefined) electronBuilderEnv[name] = process.env[name]
   }
-  await runPnpm(['run', 'build:official'], buildEnv, REPOSITORY_ROOT)
-  await runPnpm(['run', 'release:pack', '--family', 'dsh', '--out', buildPaths.packedDsh], buildEnv, REPOSITORY_ROOT)
+  await runPnpm(['run', 'build:custom-harness'], buildEnv, REPOSITORY_ROOT)
+  await runPnpm([
+    'run',
+    'release:pack',
+    '--family',
+    'dsh',
+    '--client-profile',
+    'custom-harness',
+    '--out',
+    buildPaths.packedDsh,
+  ], buildEnv, REPOSITORY_ROOT)
   await runPnpm([
     '--dir',
     'apps/desktop-host',
@@ -279,7 +285,7 @@ async function main(): Promise<void> {
   await runPnpm(['run', 'prepare:seed'], targetEnv)
   if (invocation.prepareOnly) return
   await runPnpm(desktopElectronBuilderArguments(target, invocation.directory), electronBuilderEnv)
-  if (!invocation.directory) writeReleaseRecord(target, electronBuilderEnv, buildPaths.artifacts)
+  if (!invocation.directory) writeReleaseRecord(target, buildPaths.artifacts)
 }
 
 if (process.argv[1] !== undefined && import.meta.filename === resolve(process.argv[1])) await main()

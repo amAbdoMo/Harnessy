@@ -13,13 +13,13 @@
  */
 
 import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { parseArgs } from 'node:util'
 import { releaseFamily } from './families.ts'
 import { attempt, attemptEchoed, isEntry } from './process.ts'
-import { packedIdentity, readPublishOrder } from './tarball.ts'
+import { PUBLISH_DISABLED_FILE, packedIdentity, readPublishOrder } from './tarball.ts'
 
 /**
  * Registry codes that answer a write which did not settle, rather than a
@@ -40,6 +40,13 @@ const PUBLISH_ATTEMPTS = 4
  * to back publishes are what produce `E409`.
  */
 const PUBLISH_SPACING_MS = 2_000
+
+/** Reject package bytes created for a private product before any registry read or write. */
+export function assertPublishablePackageSet(directory: string): void {
+  if (existsSync(join(directory, PUBLISH_DISABLED_FILE))) {
+    throw new Error('release publish: this package set is product-specific and publication is disabled')
+  }
+}
 
 /** What the registry knows about one version. */
 type RegistryState =
@@ -139,6 +146,7 @@ async function main(): Promise<void> {
 
   const family = releaseFamily(values.family)
   const directory = resolve(process.cwd(), values.from)
+  assertPublishablePackageSet(directory)
 
   // Every entry in the order settles as either published or already present, so
   // one counter answers "how far along is this run" for whoever is watching a

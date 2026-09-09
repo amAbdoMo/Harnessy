@@ -58,6 +58,11 @@ function writeCorePackageSet(seed: string, version: string): void {
   const packages = [
     { name: '@deepseek-ai/dsh', file: `deepseek-ai-dsh-${version}.tgz`, body: Buffer.from(`dsh-${version}`) },
     {
+      name: '@deepseek-ai/dsh-custom-harness',
+      file: `deepseek-ai-dsh-custom-harness-${version}.tgz`,
+      body: Buffer.from(`custom-harness-${version}`),
+    },
+    {
       name: '@deepseek-ai/dsh-desktop-host',
       file: `deepseek-ai-dsh-desktop-host-${version}.tgz`,
       body: Buffer.from(`desktop-host-${version}`),
@@ -110,7 +115,9 @@ rmSync(join(project, 'node_modules'), { recursive: true, force: true })
 for (const [name, version] of Object.entries(manifest.dependencies)) {
   const packageRoot = join(project, 'node_modules', ...name.split('/'))
   mkdirSync(packageRoot, { recursive: true })
-  const core = name === '@deepseek-ai/dsh' || name === '@deepseek-ai/dsh-desktop-host'
+  const core = name === '@deepseek-ai/dsh'
+    || name === '@deepseek-ai/dsh-custom-harness'
+    || name === '@deepseek-ai/dsh-desktop-host'
   const plugin = !core
   const installedVersion = plugin
     ? version
@@ -401,6 +408,7 @@ describe('desktop project transactions', () => {
     expect(profile.dsh.profile.bundles).toEqual([
       '@deepseek-ai/dsh-base',
       '@deepseek-ai/dsh-web-app',
+      '@deepseek-ai/dsh-custom-harness',
       '@scope/plugin',
     ])
     expect(readFileSync(join(paths.pnpm.store, 'release-1'), 'utf8')).toBe('one')

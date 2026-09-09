@@ -6,6 +6,7 @@ import { resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import type { DesktopPackageTargetName } from './package-target.ts'
+import { CUSTOM_HARNESS_PRODUCT } from '../../../scripts/custom-harness-product.mjs'
 import {
   createDesktopUploadPlan,
   type DesktopUploadArtifact,
@@ -52,6 +53,9 @@ async function putArtifact(
 }
 
 async function main(): Promise<void> {
+  if (!CUSTOM_HARNESS_PRODUCT.automaticUpdates) {
+    throw new Error('desktop upload: automatic updates are disabled for Custom Harness')
+  }
   const { positionals } = parseArgs({ args: process.argv.slice(2), allowPositionals: true })
   const target = positionals[0]
   if (target === undefined || positionals.length !== 1) {

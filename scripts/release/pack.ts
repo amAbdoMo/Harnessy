@@ -13,10 +13,16 @@ import { parseArgs } from 'node:util'
 import { pnpmInvocation } from '../pnpm-invocation.ts'
 import { releaseFamily, tarballName, type ReleaseFamily, type ReleaseMember } from './families.ts'
 import { isEntry, runConcurrent } from './process.ts'
-import { PUBLISH_ORDER_FILE, tarballFiles } from './tarball.ts'
+import { PUBLISH_DISABLED_FILE, PUBLISH_ORDER_FILE, tarballFiles } from './tarball.ts'
 
 /** Where pack output lands when `--out` is omitted. */
 const DEFAULT_OUTPUT = 'dist/npm'
+const CUSTOM_HARNESS_PACKAGE = '@deepseek-ai/dsh-custom-harness'
+
+/** Keep every release-family package set containing the fork's product bundle off the upstream registry. */
+export function releasePublicationDisabled(members: readonly ReleaseMember[]): boolean {
+  return members.some(member => member.name === CUSTOM_HARNESS_PACKAGE)
+}
 
 /**
  * Pack one member and check what its tarball carries.
@@ -52,17 +58,27 @@ function parseConcurrency(raw: string | undefined): number {
 /** Pack the family named by `--family` into `--out`. */
 async function main(): Promise<void> {
   const { values } = parseArgs({
-    options: { family: { type: 'string' }, out: { type: 'string' }, concurrency: { type: 'string' } },
+    options: {
+      family: { type: 'string' },
+      out: { type: 'string' },
+      concurrency: { type: 'string' },
+      'client-profile': { type: 'string' },
+    },
     allowPositionals: false,
   })
   if (values.family === undefined) throw new Error('usage: pack.ts --family <dsh|vendor> [--out dist/npm] [--concurrency 1]')
   const concurrency = parseConcurrency(values.concurrency)
+  const clientProfile = values['client-profile'] ?? 'official'
+  if (clientProfile !== 'official' && clientProfile !== 'custom-harness') {
+    throw new Error(`--client-profile must be "official" or "custom-harness", got ${JSON.stringify(clientProfile)}`)
+  }
 
   const family = releaseFamily(values.family)
   const root = process.cwd()
   const destination = resolve(root, values.out ?? DEFAULT_OUTPUT)
   const members = family.publishOrder(family.members(root)).order
-  family.verifyBuildArtifacts(root)
+  const productSpecific = releasePublicationDisabled(members)
+  family.verifyBuildArtifacts(root, clientProfile)
   family.verifyVersions(members)
 
   rmSync(destination, { recursive: true, force: true })
@@ -83,6 +99,12 @@ async function main(): Promise<void> {
     }
   }))
   writeFileSync(join(destination, PUBLISH_ORDER_FILE), `${order.join('\n')}\n`)
+  if (productSpecific) {
+    writeFileSync(
+      join(destination, PUBLISH_DISABLED_FILE),
+      'Custom Harness desktop package input; upstream npm publication is disabled.\n',
+    )
+  }
 
   console.log(`release pack: family ${family.id}, ${String(order.length)} tarball(s) in ${values.out ?? DEFAULT_OUTPUT}`)
 }

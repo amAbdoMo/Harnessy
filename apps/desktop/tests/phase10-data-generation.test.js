@@ -32,7 +32,7 @@ function fileManifest(root) {
   return records.sort((left, right) => left.path.localeCompare(right.path))
 }
 
-test('cold backup and whole-generation rollback preserve representative product data', () => {
+test('cold backup and whole-generation rollback preserve representative predecessor markers', () => {
   const root = mkdtempSync(join(tmpdir(), 'custom-harness-phase10-'))
   const live = join(root, 'CustomHarness')
   const backup = join(root, 'pre-upgrade')
@@ -40,7 +40,11 @@ test('cold backup and whole-generation rollback preserve representative product 
   const quarantine = join(root, 'failed-candidate')
 
   try {
-    writeFixtureFile(live, 'Harness/sessions/project/session/session.v2.jsonl', '{"type":"session","version":2}\n')
+    writeFixtureFile(
+      live,
+      'Harness/sessions/project/session/session.jsonl',
+      '{"type":"session","version":0,"id":"session","createdAt":0,"delegationDepth":0}\n',
+    )
     writeFixtureFile(live, 'Harness/attachments/v1/sha256/fixture', 'image-object')
     writeFixtureFile(live, 'Harness/settings.yaml', 'ui:\n  locale: en\n')
     writeFixtureFile(live, 'Harness/.credentials.yaml', 'version: 1\nrefs: {}\nrecords: {}\n')
@@ -48,6 +52,10 @@ test('cold backup and whole-generation rollback preserve representative product 
     writeFixtureFile(live, 'Harness/storages/session_projcache/sessions/session.json', '{"version":5,"data":{}}\n')
     writeFixtureFile(live, 'Harness/storages/message_feedback.json', '{"version":0,"data":{}}\n')
     writeFixtureFile(live, 'Harness/profiles/custom-harness/package.json', '{"private":true}\n')
+    writeFixtureFile(live, 'Harness/profiles/desktop/package.json', '{"private":true}\n')
+    writeFixtureFile(live, 'Harness/desktop/pnpm/store/index/fixture.json', '{}\n')
+    writeFixtureFile(live, 'Harness/desktop/pending.json', '{"schemaVersion":1}\n')
+    writeFixtureFile(live, 'Harness/desktop/rollback/profile/package.json', '{"private":true}\n')
     writeFixtureFile(live, 'Harness/.agent-presets/default/preset.yml', 'name: default\n')
     writeFixtureFile(live, 'Harness/skills/home/SKILL.md', '# Home skill\n')
     writeFixtureFile(live, 'Agents/skills/agent/SKILL.md', '# Agent skill\n')

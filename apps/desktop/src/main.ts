@@ -1,5 +1,6 @@
 /** Electron shell: desktop project ownership, custom protocol, windows, and lifecycle. */
 
+import { mkdirSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import { extname, join, normalize, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -11,7 +12,14 @@ import {
   Menu,
   protocol,
   type IpcMainInvokeEvent,
+  type MenuItemConstructorOptions,
 } from 'electron'
+import {
+  CUSTOM_HARNESS_PRODUCT,
+  resolveDevelopmentCustomHarnessDesktopState,
+  resolvePackagedCustomHarnessDesktopState,
+  type CustomHarnessDesktopState,
+} from '../../../scripts/custom-harness-product.mjs'
 import { resolveDesktopPaths } from './paths.ts'
 import { DesktopProjectManager, type DesktopProjectHooks } from './project-manager.ts'
 import { DesktopHostProcess } from './host-process.ts'
@@ -22,6 +30,33 @@ import { DesktopUpdateCoordinator } from './update-coordinator.ts'
 
 const SCHEME = 'dsh-app'
 let focusPrimaryWindow = (): void => {}
+
+function customHarnessDesktopState(): CustomHarnessDesktopState {
+  const localApplicationData = process.env.LOCALAPPDATA ?? app.getPath('appData')
+  const developmentData = join(localApplicationData, CUSTOM_HARNESS_PRODUCT.dataDirectoryName, 'Development')
+  return app.isPackaged
+    ? resolvePackagedCustomHarnessDesktopState(localApplicationData)
+    : resolveDevelopmentCustomHarnessDesktopState(developmentData)
+}
+
+function configureCustomHarnessProductIdentity(state: CustomHarnessDesktopState): void {
+  process.env.DSH_HOME = state.home
+  process.env.DSH_AGENTS_HOME = state.agents
+  process.env.CUSTOM_HARNESS_DATA_DIR = state.data
+  process.env.CUSTOM_HARNESS_AGENTS_DIR = state.agents
+  process.env.CUSTOM_HARNESS_LOG_DIR = state.logs
+  process.env.CUSTOM_HARNESS_CACHE_DIR = state.cache
+  app.setName(CUSTOM_HARNESS_PRODUCT.displayName)
+  app.setAppUserModelId(CUSTOM_HARNESS_PRODUCT.windowsAppId)
+  app.setPath('userData', state.userData)
+}
+
+function prepareCustomHarnessProductState(state: CustomHarnessDesktopState): void {
+  for (const directory of [state.data, state.home, state.agents, state.logs, state.cache, state.userData]) {
+    mkdirSync(directory, { recursive: true, mode: 0o700 })
+  }
+  app.setAppLogsPath(state.logs)
+}
 
 function errorOf(reason: unknown, fallback: string): Error {
   return reason instanceof Error ? reason : new Error(fallback)
@@ -132,7 +167,7 @@ async function serveShellAsset(request: Request): Promise<Response> {
 
 async function main(): Promise<void> {
   const resources = runtimeResources()
-  const paths = resolveDesktopPaths()
+  const paths = resolveDesktopPaths(desktopProductState.home)
   const development = developmentProject()
   const activeProject = development ?? paths.profile
   const hostInspectPort = developmentHostInspectPort(development !== undefined)
@@ -219,6 +254,8 @@ async function main(): Promise<void> {
       host = undefined
       await active?.stop()
     },
+    undefined,
+    () => CUSTOM_HARNESS_PRODUCT.automaticUpdates,
   )
 
   protocol.handle(SCHEME, (request) => {
@@ -325,19 +362,22 @@ async function main(): Promise<void> {
     void pluginWindow.loadURL(`${SCHEME}://shell/plugin-manager.html`)
   }
 
+  const applicationMenu: MenuItemConstructorOptions[] = [
+    {
+      label: development === undefined ? messages.pluginsMenu : messages.pluginsMenuPackagedOnly,
+      accelerator: 'CmdOrCtrl+,',
+      enabled: development === undefined,
+      click: openPluginWindow,
+    },
+    ...(CUSTOM_HARNESS_PRODUCT.automaticUpdates
+      ? [{ label: messages.checkUpdatesMenu, click: (): void => { void checkAndPrompt(true) }}]
+      : []),
+    { type: 'separator' },
+    { role: 'quit' },
+  ]
   Menu.setApplicationMenu(Menu.buildFromTemplate([{
     label: process.platform === 'darwin' ? app.name : messages.application,
-    submenu: [
-      {
-        label: development === undefined ? messages.pluginsMenu : messages.pluginsMenuPackagedOnly,
-        accelerator: 'CmdOrCtrl+,',
-        enabled: development === undefined,
-        click: openPluginWindow,
-      },
-      { label: messages.checkUpdatesMenu, click: () => { void checkAndPrompt(true) } },
-      { type: 'separator' },
-      { role: 'quit' },
-    ],
+    submenu: applicationMenu,
   }]))
 
   const createMainWindow = (): BrowserWindow => {
@@ -365,7 +405,9 @@ async function main(): Promise<void> {
     mainWindow.webContents.openDevTools({ mode: 'detach' })
   }
   publishUpdate(updateState)
-  setTimeout(() => { void checkAndPrompt(false) }, 10_000)
+  if (CUSTOM_HARNESS_PRODUCT.automaticUpdates) {
+    setTimeout(() => { void checkAndPrompt(false) }, 10_000)
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) focusPrimaryWindow()
@@ -383,15 +425,20 @@ async function main(): Promise<void> {
   })
 }
 
+const desktopProductState = customHarnessDesktopState()
+configureCustomHarnessProductIdentity(desktopProductState)
 const ownsDesktopInstance = claimDesktopSingleInstance(app, () => { focusPrimaryWindow() })
 
-if (ownsDesktopInstance) void app.whenReady().then(main).catch(async (error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error)
-  console.error(error)
-  const diagnosticFile = process.env.DSH_DESKTOP_DIAGNOSTIC_FILE
-  if (diagnosticFile !== undefined) {
-    await writeFile(diagnosticFile, `${error instanceof Error ? error.stack ?? message : message}\n`).catch(() => undefined)
-  }
-  dialog.showErrorBox(resolveDesktopLocale(app.getLocale()).messages.startupFailed, message)
-  app.exit(1)
-})
+if (ownsDesktopInstance) {
+  prepareCustomHarnessProductState(desktopProductState)
+  void app.whenReady().then(main).catch(async (error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error)
+    console.error(error)
+    const diagnosticFile = process.env.DSH_DESKTOP_DIAGNOSTIC_FILE
+    if (diagnosticFile !== undefined) {
+      await writeFile(diagnosticFile, `${error instanceof Error ? error.stack ?? message : message}\n`).catch(() => undefined)
+    }
+    dialog.showErrorBox(resolveDesktopLocale(app.getLocale()).messages.startupFailed, message)
+    app.exit(1)
+  })
+}

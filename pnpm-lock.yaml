@@ -570,6 +570,9 @@ importers:
       '@deepseek-ai/dsh-cmdline':
         specifier: workspace:^
         version: link:../../packages/boot/cmdline
+      '@deepseek-ai/dsh-custom-harness':
+        specifier: workspace:^
+        version: link:../../packages/bundle/custom-harness
       '@deepseek-ai/dsh-host-directory-picker-native':
         specifier: workspace:^
         version: link:../../packages/host/directory-picker-native

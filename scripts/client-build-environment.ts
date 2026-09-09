@@ -148,6 +148,18 @@ export function officialClientBuildEnvironment(
   }
 }
 
+/** Resolve the exact public environment required by an independently branded Custom Harness build. */
+export function customHarnessClientBuildEnvironment(
+  root: string,
+  environment: NodeJS.ProcessEnv = process.env,
+): Readonly<Record<`DSH_CLIENT_${string}`, string>> {
+  return {
+    DSH_CLIENT_COMMIT_HASH: repositoryCommitHash(root, environment),
+    DSH_CLIENT_VERSION: repositoryVersion(root),
+    ...CUSTOM_HARNESS_CLIENT_BUILD_ENVIRONMENT,
+  }
+}
+
 /** Digest of every client artifact produced by the complete root build. */
 interface ClientArtifactDigest {
   /** Number of files covered by the digest. */

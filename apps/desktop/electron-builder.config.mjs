@@ -1,16 +1,15 @@
 import {
-  resolveDesktopAppId,
   resolveMacOSNotarizationEnvironment,
   resolveMacOSSigningEnvironment,
 } from './scripts/desktop-release-environment.mjs'
+import { CUSTOM_HARNESS_PRODUCT } from '../../scripts/custom-harness-product.mjs'
 import { notarizeMacOSDiskImageArtifact } from './scripts/notarize-macos-disk-images.mjs'
 import { verifyMacOSSignatureAfterSign } from './scripts/verify-macos-signature.mjs'
 import {
   createWindowsTokenSigner,
   installWindowsNsisBootstrapSigner,
 } from './scripts/windows-sign.mjs'
-import { resolveDesktopAutoUpdateConfig } from './scripts/desktop-auto-update-environment.mjs'
-import { desktopTargetBuildPaths } from './scripts/desktop-build-paths.mjs'
+import { desktopTargetBuildPaths, resolveDesktopBuildTarget } from './scripts/desktop-build-paths.mjs'
 
 /**
  * Create electron-builder configuration from one release environment.
@@ -24,10 +23,7 @@ export function createElectronBuilderConfig(
   hostPlatform = process.platform,
   hostArch = process.arch,
 ) {
-  const appId = resolveDesktopAppId(env)
   const targetPlatform = env.DSH_DESKTOP_TARGET_PLATFORM
-  const resolvedPlatform = targetPlatform ?? hostPlatform
-  const resolvedArch = env.DSH_DESKTOP_TARGET_ARCH ?? hostArch
   const packagesMacOS = targetPlatform === 'darwin' || (targetPlatform === undefined && hostPlatform === 'darwin')
   const packagesWindows = targetPlatform === 'win32'
   const macOSSigning = packagesMacOS ? resolveMacOSSigningEnvironment(env) : undefined
@@ -43,12 +39,12 @@ export function createElectronBuilderConfig(
   if (windowsSigner !== undefined) {
     installWindowsNsisBootstrapSigner({ sign: windowsSigner })
   }
-  const update = resolveDesktopAutoUpdateConfig(env, resolvedPlatform, resolvedArch)
-  const buildPaths = desktopTargetBuildPaths(update.target)
+  const buildPaths = desktopTargetBuildPaths(resolveDesktopBuildTarget(env, hostPlatform, hostArch))
   return {
-    appId,
-    productName: 'DeepSeek Harness',
-    artifactName: 'deepseek-harness-${version}-${os}-${arch}.${ext}',
+    appId: CUSTOM_HARNESS_PRODUCT.windowsAppId,
+    productName: CUSTOM_HARNESS_PRODUCT.displayName,
+    executableName: CUSTOM_HARNESS_PRODUCT.executableName,
+    artifactName: `${CUSTOM_HARNESS_PRODUCT.installerName}-\${version}-\${os}-\${arch}.\${ext}`,
     directories: { output: buildPaths.artifacts },
     asar: true,
     files: [
@@ -87,6 +83,8 @@ export function createElectronBuilderConfig(
     },
     win: {
       forceCodeSigning: true,
+      icon: 'assets/custom-harness.ico',
+      executableName: CUSTOM_HARNESS_PRODUCT.executableName,
       signtoolOptions: {
         sign: windowsSigner,
         signingHashAlgorithms: ['sha256'],
@@ -95,6 +93,7 @@ export function createElectronBuilderConfig(
     },
     linux: {
       category: 'Development',
+      icon: 'assets/custom-harness.png',
       target: ['AppImage'],
     },
     nsis: {
@@ -102,7 +101,6 @@ export function createElectronBuilderConfig(
       allowToChangeInstallationDirectory: true,
       differentialPackage: true,
     },
-    publish: [{ provider: 'generic', url: update.publicUrl }],
   }
 }
 

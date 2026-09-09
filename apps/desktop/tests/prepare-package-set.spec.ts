@@ -30,6 +30,10 @@ describe('desktop package-set selection', () => {
       ['@deepseek-ai/dsh-desktop-host', packed('@deepseek-ai/dsh-desktop-host', {
         dependencies: { '@deepseek-ai/dsh': '^1.0.0' },
       })],
+      ['@deepseek-ai/dsh-custom-harness', packed('@deepseek-ai/dsh-custom-harness', {
+        dependencies: { '@deepseek-ai/dsh-client-ui-workspace-brief': '^1.0.0' },
+      })],
+      ['@deepseek-ai/dsh-client-ui-workspace-brief', packed('@deepseek-ai/dsh-client-ui-workspace-brief')],
       ['@deepseek-ai/dsh-base', packed('@deepseek-ai/dsh-base', {
         peerDependencies: { '@deepseek-ai/cordis': '^1.0.0' },
       })],
@@ -41,6 +45,8 @@ describe('desktop package-set selection', () => {
       '@deepseek-ai/cordis',
       '@deepseek-ai/dsh',
       '@deepseek-ai/dsh-base',
+      '@deepseek-ai/dsh-client-ui-workspace-brief',
+      '@deepseek-ai/dsh-custom-harness',
       '@deepseek-ai/dsh-desktop-host',
       '@deepseek-ai/platform-package',
     ])
@@ -54,10 +60,12 @@ describe('desktop package-set selection', () => {
       ['@deepseek-ai/dsh-desktop-host', packed('@deepseek-ai/dsh-desktop-host', {
         dependencies: { '@deepseek-ai/dsh': '^1.0.0' },
       })],
+      ['@deepseek-ai/dsh-custom-harness', packed('@deepseek-ai/dsh-custom-harness')],
     ])
     expect(() => selectDesktopPackageClosure(available)).toThrow(/unpacked internal package/u)
     expect(() => selectDesktopPackageClosure(new Map([
       ['@deepseek-ai/dsh', packed('@deepseek-ai/dsh')],
+      ['@deepseek-ai/dsh-custom-harness', packed('@deepseek-ai/dsh-custom-harness')],
     ]))).toThrow(/omit @deepseek-ai\/dsh-desktop-host/u)
   })
 

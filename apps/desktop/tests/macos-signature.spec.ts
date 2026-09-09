@@ -36,7 +36,7 @@ describe('desktop macOS release signature', () => {
     vi.unstubAllEnvs()
   })
 
-  it('loads release identifiers from the environment and requires code signing', async () => {
+  it('uses the fixed Custom Harness identity and requires code signing', async () => {
     const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
     const config = createElectronBuilderConfig(RELEASE_ENVIRONMENT, 'darwin', 'arm64')
     expect(portablePath(config.directories.output)).toContain('/.desktop-build/targets/mac-arm64/artifacts')
@@ -46,7 +46,10 @@ describe('desktop macOS release signature', () => {
     expect(portablePath(config.extraResources[0]?.from ?? '')).toContain('/.desktop-build/targets/mac-arm64/runtime')
     expect(portablePath(config.extraResources[1]?.from ?? '')).toContain('/.desktop-build/targets/mac-arm64/seed')
     expect(config).toMatchObject({
-      appId: RELEASE_ENVIRONMENT.DSH_DESKTOP_APP_ID,
+      appId: 'com.amabdmo.customharness',
+      productName: 'Custom Harness',
+      executableName: 'CustomHarness',
+      artifactName: 'CustomHarness-Setup-${version}-${os}-${arch}.${ext}',
       mac: {
         identity: RELEASE_ENVIRONMENT.DSH_DESKTOP_MACOS_SIGNING_IDENTITY,
         forceCodeSigning: true,
@@ -56,11 +59,12 @@ describe('desktop macOS release signature', () => {
         sign: true,
         writeUpdateInfo: false,
       },
-      publish: [{
-        provider: 'generic',
-        url: 'https://desktop-updates.example.com/_/harness/desktop/stable/mac-arm64/',
-      }],
+      win: {
+        icon: 'assets/custom-harness.ico',
+        executableName: 'CustomHarness',
+      },
     })
+    expect(config).not.toHaveProperty('publish')
     expect(typeof config.artifactBuildCompleted).toBe('function')
   })
 
