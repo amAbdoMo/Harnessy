@@ -17,11 +17,41 @@ vi.mock('node:child_process', () => ({ execFile: execFileMock }))
 
 import { release as osRelease } from 'node:os'
 import { describe, expect, it, vi } from 'vitest'
-import { canOpenNativePath, openNativePath, openNativeTextFile, type PathOpenerRunner } from '../src/index.ts'
+import {
+  canOpenNativePath, openNativePath, openNativeTextFile, openNativeUrl, type PathOpenerRunner,
+} from '../src/index.ts'
 
 const signal = () => new AbortController().signal
 
 describe('native path opener', () => {
+  it.each([
+    ['win32', 'rundll32.exe', ['url.dll,FileProtocolHandler', 'https://auth.example/login']],
+    ['darwin', 'open', ['https://auth.example/login']],
+    ['linux', 'xdg-open', ['https://auth.example/login']],
+  ] as const)('opens a URL with the %s default browser', async (platform, command, args) => {
+    const run = vi.fn<PathOpenerRunner>(async () => ({ stdout: '', stderr: '' }))
+    const requestSignal = signal()
+    await openNativeUrl('https://auth.example/login', requestSignal, { platform, run })
+    expect(run).toHaveBeenCalledWith(command, args, requestSignal)
+  })
+
+  it('rejects a URL opener on an unsupported platform', async () => {
+    await expect(openNativeUrl('https://auth.example/login', signal(), {
+      platform: 'freebsd' as NodeJS.Platform,
+    })).rejects.toThrow('unsupported on freebsd')
+  })
+
+  it('uses the current platform when a URL opener has no platform override', async () => {
+    const run = vi.fn<PathOpenerRunner>(async () => ({ stdout: '', stderr: '' }))
+    await openNativeUrl('https://auth.example/login', signal(), { run })
+    const expected = process.platform === 'win32'
+      ? 'rundll32.exe'
+      : process.platform === 'linux'
+        ? 'xdg-open'
+        : 'open'
+    expect(run.mock.calls[0]?.[0]).toBe(expected)
+  })
+
   it('opens with macOS open(1)', async () => {
     const run = vi.fn<PathOpenerRunner>(async () => ({ stdout: '', stderr: '' }))
     await openNativePath('/Users/test/file.txt', signal(), { platform: 'darwin', run })

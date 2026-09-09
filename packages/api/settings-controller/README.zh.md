@@ -1,5 +1,5 @@
 ---
-description: "settings 与凭据配置界面的 Host Remote owner，涵盖脱敏读取、写入、凭据引用与原生文档打开。"
+description: "settings、凭据与 Custom Harness OpenAI 账户认证的 Host Remote owner。"
 kind: "package-reference"
 ---
 # Settings Controller
@@ -8,7 +8,7 @@ kind: "package-reference"
 
 ## 概述
 
-`@deepseek-ai/dsh-api-settings-controller` 为浏览器配置界面提供生成的 `ctx.remote.settings` 与 `ctx.remote.credentials` namespace。它返回脱敏的 settings 与凭据元数据，支持 settings 与凭据写入而不返回密钥值，并在 Host 桌面打开由 provider 持有的 settings 或 Agent preset 位置。provider 缺失时，namespace 仍会注册，并返回可操作的配置错误。
+`@deepseek-ai/dsh-api-settings-controller` 为浏览器配置界面提供生成的 `ctx.remote.settings`、`ctx.remote.credentials` 与 `ctx.remote.openAIAccount` namespace。它返回脱敏的 settings 与凭据元数据，支持写入而不返回密钥值，在 Host 桌面打开由 provider 持有的 settings 或 Agent preset 位置，并把 Custom Harness 的 OpenAI 浏览器登录操作连接到中立 authorization service。provider 缺失时，各 namespace 仍会注册，并返回可操作的配置错误。
 
 ## 目录
 
@@ -30,6 +30,8 @@ kind: "package-reference"
 `settings.describe()` 返回部署信息，以及在 `redactSecrets: true` 下读取的所有 namespace。`settings.update`、`settings.replace` 与 `settings.mutate` 暴露 settings service 的三种写入操作，并返回该 namespace 的新脱敏视图；过期写入使用 `settings-conflict`，其他 provider 拒绝使用 `settings-rejected`。
 
 `settings.openSettingsDocument()` 准备 provider 持有的文档，并用原生文本编辑器意图将其打开。`settings.canOpenAgentPresetDirectory()` 在 preset 页面显示时报告原生打开能力。`settings.openAgentPresetDirectory(id)` 只解析用户创作的 preset，并在原生打开不可用时返回目录路径；两个打开方法都不接受浏览器提供的文件系统目标。
+
+`openAIAccount.describe()` 返回可用、已配置、进行中与可写标志，不包含任何 token 字段。`openAIAccount.signIn()` 选择已安装的 `llm-pi-ai/openai-codex` OAuth flow，只接受 HTTPS 授权目标，在 Host 桌面的默认浏览器中打开它，并等待 provider 的本地回调。成功后，授权 flow 自己写入 grant，并把 `llm-pi-ai.providers.openai-codex` 加入 settings。`openAIAccount.signOut()` 删除该 grant 并移除依赖它的 route。浏览器打开失败使用 `openai-account/browser-failed`；组合缺失或 URL 不安全使用 `openai-account/unavailable`。
 
 -----
 
@@ -58,6 +60,7 @@ kind: "package-reference"
 <a id="known-limitations-and-deferred-work"></a>
 
 - 批量上限固定为 64 个引用，不是可按部署配置的字段。
+- OpenAI 账户界面有意只支持桌面浏览器登录；底层 authorization seam 仍支持 headless device-code 与 manual-code 展示，但这里不暴露。
 
 <a id="dev-note"></a>
 ### 开发备注
@@ -69,4 +72,4 @@ kind: "package-reference"
 
 </details>
 
-**运行时不变式：** 不发布伴生入口。settings 与 credential seam 负责存储和更新事件，本包只把它们的方法投影到 wire。
+**运行时不变式：** 任何 secret 或 OAuth grant 都不会跨越响应。authorization flow 仍是唯一 grant writer；本包只把状态与操作投影到 wire，并且只启用或移除对应的 provider route。

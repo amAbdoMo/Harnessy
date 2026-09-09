@@ -1,5 +1,5 @@
 ---
-description: "Custom Harness browser identity, theme tokens, and About row for users and maintainers of the independent product profile."
+description: "Custom Harness browser identity, theme tokens, About row, and OpenAI account controls."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package fills the generic sidebar and conversation-hero brand slots, adds a short localized orientation beneath the new-session headline, applies a reversible light/dark color and typography layer, and adds a localized About row to General settings. It activates only when the browser bundle was built with the `custom-harness` client profile, so the shared Web composition can retain its stock identity in other builds.
+This package fills the generic sidebar and conversation-hero brand slots, adds a short localized orientation beneath the new-session headline, applies a reversible light/dark color and typography layer, adds a localized About row to General settings, and contributes the OpenAI account card to the Models footer. It activates only when the browser bundle was built with the `custom-harness` client profile, so the shared Web composition can retain its stock identity in other builds.
 
 ## Table of Contents
 
@@ -25,14 +25,16 @@ Compose this package through [`dsh-custom-harness`](../../bundle/custom-harness/
 
 The mark is a vector threaded aperture that scales to host-owned icon sizes and follows light or dark product tokens. The cool-violet palette flows through existing semantic tokens, while the shared blue send action and success, warning, and error meanings remain intact. The About row exposes the build version and project destinations without retaining runtime state.
 
+The Models footer card reads only the redacted `openAIAccount.describe()` state. **Sign in with OpenAI** starts a cancellable Host request and shows a waiting dialog while the default browser completes OAuth. On success it refreshes to Connected; **Sign out** removes the local grant and its Codex provider route. Remote refusal messages are displayed without inspecting credential contents.
+
 <a id="model-experience"></a>
 ## Model Experience
 
-None, as this browser presentation package registers nothing model-facing.
+None, as this package never constructs prompts or model requests; successful account sign-in only asks the Host to enable the installed OpenAI Codex provider route so its supported models enter the ordinary selector.
 
 #### KV Cache effect
 
-None; the package neither assembles nor sends provider input.
+None directly; the selected provider and model own request construction.
 
 ## Known Limitations and Deferred Work
 

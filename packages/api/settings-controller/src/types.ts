@@ -25,7 +25,24 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
      * reference, never the value.
      */
     'credential/rejected': { readonly ref: string }
+    /** The OpenAI account flow or one of its required Host services is unavailable. */
+    'openai-account/unavailable': Record<string, never>
+    /** The operating system refused to open the secure OpenAI sign-in page. */
+    'openai-account/browser-failed': Record<string, never>
   }
+}
+
+/** Browser-safe OpenAI account status. OAuth material is intentionally absent. */
+export interface OpenAIAccountState {
+  readonly available: boolean
+  readonly configured: boolean
+  readonly inFlight: boolean
+  readonly writable: boolean
+}
+
+/** Terminal result of a cancellable OpenAI account attempt. */
+export interface OpenAIAccountSignInResult {
+  readonly status: 'authorized' | 'cancelled'
 }
 
 /** Confirmation that the settings document was handed to the native editor. */

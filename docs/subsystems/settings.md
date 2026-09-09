@@ -173,6 +173,33 @@ type SettingsUpdateSource = 'update' | 'provider'
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxopenaiaccountcontroller--openaiaccountcontroller"></a>
+
+### `ctx.openAIAccountController` — `OpenAIAccountController`
+
+Expose the one-click ChatGPT OAuth path used by Custom Harness. The neutral authorization service still owns the provider conversation and token write; this controller supplies the Windows-desktop interaction: browser login and a cancellable wait for the local OAuth callback.
+
+```ts cordis-catalog
+/**
+ * Return account availability and local sign-in state without exposing a token.
+ * @returns Redacted availability, configuration, progress, and writability state.
+ */
+@Remote async describe(): Promise<OpenAIAccountState>
+
+/**
+ * Start ChatGPT browser OAuth, wait for its local callback, then activate the
+ * OpenAI Codex provider route so its models appear immediately.
+ * @param signal - Remote request lifetime; aborting it cancels the login attempt.
+ * @returns Whether the provider completed or cancelled authorization.
+ */
+@Remote async signIn(signal: AbortSignal): Promise<OpenAIAccountSignInResult>
+
+/** Remove the local OAuth grant and the model route that depends on it. */
+@Remote async signOut(): Promise<void>
+```
+
+Source: [`packages/api/settings-controller/src/openai-account.ts`](../../packages/api/settings-controller/src/openai-account.ts)
+
 <a id="ctxsettings--settingsprovider-abstract-seam"></a>
 
 ### `ctx.settings` — `SettingsProvider` (abstract seam)

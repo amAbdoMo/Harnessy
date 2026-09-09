@@ -201,3 +201,33 @@ export function openNativeTextFile(
 ): Promise<void> {
   return openNativePathWithIntent(path, signal, 'text-editor', internals)
 }
+
+/**
+ * Open one HTTP(S) destination in the operating system's default browser.
+ * The caller owns URL validation; this function passes the complete URL as
+ * one process argument and never invokes a command shell.
+ * @param url - validated HTTP(S) URL.
+ * @param signal - caller lifetime; abort terminates the native launcher.
+ * @param internals - platform and runner hooks for deterministic tests.
+ */
+export async function openNativeUrl(
+  url: string,
+  signal: AbortSignal,
+  internals: PathOpenerInternals = {},
+): Promise<void> {
+  const platform = internals.platform ?? process.platform
+  const run = internals.run ?? runNativeCommand
+  if (platform === 'win32') {
+    await run('rundll32.exe', ['url.dll,FileProtocolHandler', url], signal)
+    return
+  }
+  if (platform === 'darwin') {
+    await run('open', [url], signal)
+    return
+  }
+  if (platform === 'linux') {
+    await run('xdg-open', [url], signal)
+    return
+  }
+  throw new Error(`native URL opener is unsupported on ${platform}`)
+}

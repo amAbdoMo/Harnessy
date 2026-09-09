@@ -186,6 +186,13 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Projects the credential-reference seam onto the generated Remote namespace: batch fan-out, view projection, and refusal mapping live here, not on the seam Definition.',
   },
   {
+    key: 'openAIAccountController',
+    pkg: 'api-settings-controller',
+    title: 'Custom Harness OpenAI account Remote controller',
+    mode: 'core',
+    note: 'Projects the installed OpenAI OAuth flow onto a token-redacted desktop action: secure browser launch, cancellable callback wait, credential deletion, and provider-route activation live here.',
+  },
+  {
     key: 'settingsController',
     pkg: 'api-settings-controller',
     title: 'Host settings-surface Remote controller',

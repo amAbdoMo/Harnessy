@@ -34,6 +34,7 @@
     }
   },
   "dependencies": {
+    "@deepseek-ai/dsh-authorization": "workspace:^",
     "@deepseek-ai/dsh-client-ui-brand-custom-harness": "workspace:^",
     "@deepseek-ai/dsh-client-ui-workspace-brief": "workspace:^",
     "@deepseek-ai/dsh-workspace-brief": "workspace:^"

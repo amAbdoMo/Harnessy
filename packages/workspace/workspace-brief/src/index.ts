@@ -98,11 +98,11 @@ function withAbort<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
     const aborted = (): void => reject(abortReason(signal))
     signal.addEventListener('abort', aborted, { once: true })
     void work.then(
-      value => {
+      (value) => {
         signal.removeEventListener('abort', aborted)
         resolve(value)
       },
-      error => {
+      (error) => {
         signal.removeEventListener('abort', aborted)
         reject(error)
       },
@@ -244,6 +244,11 @@ function renderBrief(view: BriefView): string {
 export class WorkspaceBriefRunner {
   constructor(private readonly ctx: Context) {}
 
+  /**
+   * Validate and execute one Workspace Brief command invocation.
+   * @param invocation - Command input, caller lifetime, and session context.
+   * @returns The rendered brief or a user-visible command error.
+   */
   async run(invocation: CommandInvocation): Promise<CommandResult> {
     const parsed = parseInput(invocation.rawInput)
     if (parsed === undefined) return { kind: 'error', text: USAGE }

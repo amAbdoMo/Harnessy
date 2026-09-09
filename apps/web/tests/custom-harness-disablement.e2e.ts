@@ -7,6 +7,9 @@ import type { Browser, Page } from 'playwright'
 import { chromium } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { SessionId } from '@deepseek-ai/dsh-session'
+import type {} from '@deepseek-ai/dsh-authorization'
+import { credentialKey } from '@deepseek-ai/dsh-credentials'
+import type {} from '@deepseek-ai/dsh-api-settings-controller'
 import type {} from '@deepseek-ai/dsh-agent-presets'
 import type {} from '@deepseek-ai/dsh-commands'
 import type {} from '@deepseek-ai/dsh-tools'
@@ -22,7 +25,7 @@ const CUSTOM_BUNDLE_MANIFEST = fileURLToPath(new URL(
   '../../../packages/bundle/custom-harness/package.json', import.meta.url,
 ))
 const OLD_SESSION = fileURLToPath(new URL(
-  '../../../snapshots/web/seeded-history/session.jsonl', import.meta.url,
+  '../../../snapshots/web/seeded-history/session.v3.jsonl', import.meta.url,
 ))
 const OLD_SESSION_ID = 'custom-harness-disabled-feedback'
 
@@ -70,6 +73,20 @@ async function expectFeedbackDisabled(scaffold: WebScaffold): Promise<void> {
   }
 }
 
+/** Assert the product's OpenAI browser-login flow is live end to end. */
+async function expectOpenAIAccountLogin(scaffold: WebScaffold): Promise<void> {
+  const key = credentialKey('llm-pi-ai', 'openai-codex')
+  expect(scaffold.ctx.get('authorization')?.describe(key)).toMatchObject({
+    key,
+    inFlight: false,
+    methods: [{ id: 'oauth' }],
+  })
+  await expect(scaffold.ctx.openAIAccountController.describe()).resolves.toMatchObject({
+    available: true,
+    inFlight: false,
+  })
+}
+
 /** Open the only cold-seeded session in the expanded workspace group. */
 async function openOldSession(page: Page): Promise<void> {
   const groupRow = page.locator('[role="treeitem"]').first()
@@ -90,6 +107,7 @@ describe('Custom Harness disables per-message feedback', () => {
   beforeAll(async () => {
     first = await launchWebScaffold(customOptions)
     await expectFeedbackDisabled(first)
+    await expectOpenAIAccountLogin(first)
     await first.close()
 
     restarted = await launchWebScaffold(customOptions)
@@ -107,11 +125,20 @@ describe('Custom Harness disables per-message feedback', () => {
 
   it('keeps the Host and alternate invocation paths disabled after restart', async () => {
     await expectFeedbackDisabled(restarted)
+    await expectOpenAIAccountLogin(restarted)
     const bootIds = await page.evaluate(() => {
       const boot = Reflect.get(window, '__DSH_BOOT__') as { entries?: Array<{ id?: string }> } | undefined
       return boot?.entries?.map(entry => entry.id) ?? []
     })
     expect(bootIds).not.toContain('@deepseek-ai/dsh-client-ui-message-feedback')
+  })
+
+  it('renders the OpenAI account sign-in action from the assembled product profile', async () => {
+    await page.getByRole('button', { name: 'Settings' }).click()
+    await page.getByText('Models', { exact: true }).click()
+    await page.getByRole('region', { name: 'OpenAI account connection' }).waitFor()
+    await page.getByRole('button', { name: 'Sign in with OpenAI' }).waitFor()
+    await page.getByRole('button', { name: 'Close' }).click()
   })
 
   it('opens old sessions without feedback controls while retaining message actions', async () => {

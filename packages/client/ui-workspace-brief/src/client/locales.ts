@@ -1,3 +1,4 @@
+/** Locale namespace owned by the Workspace Brief client package. */
 export const NS = 'workspaceBrief'
 
 /** Simplified Chinese dictionary (the key-set source of truth). */
@@ -15,6 +16,7 @@ export const zh = {
   'markdown.footnotes': '脚注',
 } satisfies Record<string, string>
 
+/** Copy keys shared by both Workspace Brief dictionaries. */
 export type WorkspaceBriefKey = keyof typeof zh
 
 /** English dictionary, checked complete against the zh key set. */

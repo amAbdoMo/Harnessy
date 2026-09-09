@@ -18,6 +18,13 @@
   disabled: true
 
 - insert:
+    # Interactive account authorization is product-visible only in Custom
+    # Harness. llm-pi-ai discovers its OpenAI ChatGPT OAuth flow through this
+    # neutral service and stores the resulting grant in the local credential
+    # provider already mounted by the base profile.
+    - id: authorization
+      name: '@deepseek-ai/dsh-authorization'
+
     - id: workspace-brief
       name: '@deepseek-ai/dsh-workspace-brief'
 

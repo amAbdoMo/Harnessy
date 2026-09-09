@@ -1342,6 +1342,30 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'openAIAccountController',
+    summary: 'Expose the one-click ChatGPT OAuth path used by Custom Harness.',
+    description: 'Expose the one-click ChatGPT OAuth path used by Custom Harness. The neutral authorization service still owns the provider conversation and token write; this controller supplies the Windows-desktop interaction: browser login and a cancellable wait for the local OAuth callback.',
+    methods: [
+      {
+        signature: '@Remote async describe(): Promise<OpenAIAccountState>',
+        description: 'Return account availability and local sign-in state without exposing a token.',
+        parameters: [],
+        returns: 'Redacted availability, configuration, progress, and writability state.',
+      },
+      {
+        signature: '@Remote async signIn(signal: AbortSignal): Promise<OpenAIAccountSignInResult>',
+        description: 'Start ChatGPT browser OAuth, wait for its local callback, then activate the OpenAI Codex provider route so its models appear immediately.',
+        parameters: [{ name: 'signal', description: 'Remote request lifetime; aborting it cancels the login attempt.' }],
+        returns: 'Whether the provider completed or cancelled authorization.',
+      },
+      {
+        signature: '@Remote async signOut(): Promise<void>',
+        description: 'Remove the local OAuth grant and the model route that depends on it.',
+        parameters: [],
+      },
+    ],
+  },
+  {
     key: 'permissionPresets',
     summary: 'Owns the deployment\'s permission presets and their write path.',
     description: 'Owns the deployment\'s permission presets and their write path. Requires a confining `ctx.shell` executor and `ctx.approval`; unmatched knob values are reported as CUSTOM_PRESET, not an error.',
@@ -4706,6 +4730,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'OneShotSubagentDescriptorData',
     declaration: 'export interface OneShotSubagentDescriptorData extends SubagentDescriptorBase {\n    readonly mode: \'one-shot\';\n    readonly label?: string;\n}',
+  },
+  {
+    name: 'OpenAIAccountSignInResult',
+    declaration: 'export interface OpenAIAccountSignInResult {\n    readonly status: \'authorized\' | \'cancelled\';\n}',
+  },
+  {
+    name: 'OpenAIAccountState',
+    declaration: 'export interface OpenAIAccountState {\n    readonly available: boolean;\n    readonly configured: boolean;\n    readonly inFlight: boolean;\n    readonly writable: boolean;\n}',
   },
   {
     name: 'OptionalSessionSeq',

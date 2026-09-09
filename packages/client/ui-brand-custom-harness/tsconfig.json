@@ -9,12 +9,15 @@
   ],
   "references": [
     { "path": "../../../vendor/cordis" },
+    { "path": "../../api/remotes/tsconfig.client.json" },
     { "path": "../locale" },
     { "path": "../ui-conversation" },
     { "path": "../ui-renderer" },
     { "path": "../ui-settings" },
+    { "path": "../ui-settings-models" },
     { "path": "../ui-sidebar" },
     { "path": "../ui-slots" },
+    { "path": "../ui-primitives" },
     { "path": "../ui-theme" }
   ]
 }

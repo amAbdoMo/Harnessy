@@ -1,5 +1,5 @@
 ---
-description: "Host Remote owner for settings and credential configuration surfaces, including redacted reads, writes, credential references, and native document opening."
+description: "Host Remote owner for settings, credentials, and Custom Harness OpenAI account authentication."
 kind: "package-reference"
 ---
 # Settings Controller
@@ -8,7 +8,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@deepseek-ai/dsh-api-settings-controller` exposes generated `ctx.remote.settings` and `ctx.remote.credentials` namespaces for browser configuration surfaces. It returns redacted settings and credential metadata, supports settings and credential writes without returning secret values, and opens provider-owned settings or Agent preset locations on the Host desktop. When a provider is absent, the namespace remains registered and returns an actionable configuration error.
+`@deepseek-ai/dsh-api-settings-controller` exposes generated `ctx.remote.settings`, `ctx.remote.credentials`, and `ctx.remote.openAIAccount` namespaces for browser configuration surfaces. It returns redacted settings and credential metadata, supports writes without returning secret values, opens provider-owned settings or Agent preset locations on the Host desktop, and bridges the Custom Harness OpenAI browser-login action to the neutral authorization service. When a provider is absent, each namespace remains registered and returns an actionable configuration error.
 
 ## Table of Contents
 
@@ -30,6 +30,8 @@ Mount this package as a Loader entry in a profile that serves browser configurat
 `settings.describe()` returns deployment facts and every namespace under `redactSecrets: true`. `settings.update`, `settings.replace`, and `settings.mutate` expose the settings service's three write operations and return the namespace's new redacted view; stale writes use `settings-conflict` and other provider refusals use `settings-rejected`.
 
 `settings.openSettingsDocument()` prepares the provider-owned document and opens it with the native text-editor intent. `settings.canOpenAgentPresetDirectory()` reports native-opening availability when the preset page becomes visible. `settings.openAgentPresetDirectory(id)` resolves only a user-authored preset and either opens its directory or returns the path when native opening is unavailable; neither open method accepts a browser-supplied filesystem target.
+
+`openAIAccount.describe()` returns availability, configured, in-flight, and writable flags without a token-shaped field. `openAIAccount.signIn()` selects the installed `llm-pi-ai/openai-codex` OAuth flow, accepts only an HTTPS authorization destination, opens it in the Host desktop's default browser, and waits for the provider's local callback. A successful attempt writes the grant inside the authorization flow and adds `llm-pi-ai.providers.openai-codex` to settings. `openAIAccount.signOut()` deletes that grant and removes the dependent route. Browser-open failures use `openai-account/browser-failed`; missing composition or an unsafe URL uses `openai-account/unavailable`.
 
 -----
 
@@ -58,6 +60,7 @@ No direct effect; reading or writing these configuration values does not alter m
 <a id="known-limitations-and-deferred-work"></a>
 
 - The batch bound is fixed at 64 references and is not a deployment-configurable field.
+- The OpenAI account surface intentionally supports the desktop browser-login method; headless device-code and manual-code presentation remain available through the underlying authorization seam but are not exposed here.
 
 <a id="dev-note"></a>
 ### Dev Note
@@ -69,4 +72,4 @@ None.
 
 </details>
 
-**Runtime invariant:** No companion is published. The settings and credential seams own storage and update events, while this package only projects their methods onto the wire.
+**Runtime invariant:** No secret or OAuth grant crosses a response. The authorization flow remains the only grant writer; this package projects status and actions onto the wire and activates or removes only the matching provider route.

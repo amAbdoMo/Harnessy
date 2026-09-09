@@ -20,6 +20,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   }
 }
 
+/** Host command operation supplied to the Workspace Brief header action. */
 export interface WorkspaceBriefActionInjected {
   /** Execute the host command once; transport and command failures reject. */
   createBrief: () => Promise<void>

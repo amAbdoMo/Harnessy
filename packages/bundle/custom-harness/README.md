@@ -9,13 +9,14 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package is the narrow product layer applied after `dsh-base` and `dsh-web-app` by the shipped `custom-harness` profile. It replaces the stock brand, disables per-message ratings and notes, and adds the bounded read-only Workspace Brief action without renaming shared framework packages, provider names, protocols, or compatibility surfaces.
+This package is the narrow product layer applied after `dsh-base` and `dsh-web-app` by the shipped `custom-harness` profile. It replaces the stock brand, disables per-message ratings and notes, enables the neutral authorization service for OpenAI account login, and adds the bounded read-only Workspace Brief action without renaming shared framework packages, provider names, protocols, or compatibility surfaces.
 
 ## Table of Contents
 
 - [Use this package](#use-this-package)
 - [Disabled per-message feedback](#disabled-per-message-feedback)
 - [Workspace Brief](#workspace-brief)
+- [OpenAI account login](#openai-account-login)
 - [Model Experience](#model-experience)
 - [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
 - [Dev Note](#dev-note)
@@ -43,10 +44,17 @@ The profile inserts the `workspace-brief` Host row and `ui-workspace-brief` clie
 
 Disabling either row removes that half of the experience without changing stored sessions. A recorded brief remains readable through the generic command renderer when the specialized client row is absent; reconnect and restart never rerun repository inspection automatically.
 
+<a id="openai-account-login"></a>
+## OpenAI account login
+
+The profile mounts `@deepseek-ai/dsh-authorization`. The inherited dormant `llm-pi-ai` adapter consequently registers its `openai-codex` OAuth flow even before a provider route exists, while the Custom Harness brand client places **Sign in with OpenAI** in Settings > Models. The Host opens the HTTPS authorization page in the default browser; the provider flow writes the resulting grant directly to the local credential store, and the controller activates the matching provider route only after the authorization service confirms that write.
+
+Sign-out deletes the local grant and removes the matching route. Tokens never cross the Remote response and never enter settings or session logs. See the [official Codex authentication documentation](https://learn.chatgpt.com/docs/auth) for the upstream account-sign-in behavior.
+
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through the inherited base and Web composition; this patch layer registers no prompt or tool schema of its own, and Workspace Brief remains a human-only log event.
+Indirectly, through the inherited base and Web composition. OpenAI sign-in can activate the installed Codex model catalog; this patch layer registers no prompt or tool schema of its own, and Workspace Brief remains a human-only log event.
 
 #### KV Cache effect
 

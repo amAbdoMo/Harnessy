@@ -9,6 +9,7 @@ This repository is the source-code backup and version history for the customized
 - Preserve the desktop harness features and UI used by the personal build.
 - Install and launch like a normal Windows application without a terminal window.
 - Keep Custom Harness data separate from other Harness installations.
+- Support browser-based OpenAI account sign-in for Codex models without requiring an API key.
 - Record each source adjustment in Git and provide restorable installers for stable versions.
 - Keep upstream DeepSeek Harness available as a source of compatible fixes and improvements.
 
@@ -27,7 +28,9 @@ The personal installer is not code-signed, so Windows SmartScreen may display a 
 
 ## Use the application
 
-Open **Settings** to configure the model providers and credentials you intend to use. Select a workspace, create a session, choose its model and permission mode, and enter a task in the composer.
+Open **Settings > Models** to configure a provider. For Codex models, use **Sign in with OpenAI** and complete authentication in your default browser; Custom Harness activates the OpenAI Codex model route after the callback succeeds. API-key providers remain available separately.
+
+OpenAI account sign-in uses the existing Codex OAuth flow described in the [official authentication documentation](https://learn.chatgpt.com/docs/auth). The resulting grant stays in the local Custom Harness credential store and is not committed to this repository.
 
 Application state is stored under `%LOCALAPPDATA%\CustomHarness`. Installing a newer Custom Harness version uses the same product data directory; source code and installers do not contain your local sessions or credentials.
 

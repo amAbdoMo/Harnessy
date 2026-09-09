@@ -4,9 +4,13 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
+import type {} from '@deepseek-ai/dsh-client-ui-settings-models/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 import { AboutRow, type AboutRowInjected } from './AboutRow.tsx'
+import {
+  OpenAIAccountCard, type OpenAIAccountInjected, type OpenAIAccountOperations,
+} from './OpenAIAccountCard.tsx'
 import {
   CustomHarnessMark, CustomHarnessName, CustomHarnessTagline, requiredBuildValue,
 } from './Brand.tsx'
@@ -24,7 +28,7 @@ const BUILD_PROFILE = 'custom-harness'
 const LOCALE_NS = 'customHarnessBrand'
 
 /** Required services: slots, locale, and theme token composition. */
-export const inject = ['slots', 'locale', 'theme']
+export const inject = ['slots', 'locale', 'theme', 'remote', 'remote.openAIAccount']
 
 /**
  * Install the Custom Harness identity only in its named browser build.
@@ -64,4 +68,29 @@ export function apply(ctx: ClientContext): void {
     locale: LOCALE_NS,
     inject: about,
   }, AboutRow))
+
+  const accountOperations: OpenAIAccountOperations = {
+    describe: async () => {
+      const response = await ctx.remote.openAIAccount.describe()
+      return response.ok ? { state: response.value } : { error: response.error.message }
+    },
+    signIn: async (signal) => {
+      const response = await ctx.remote.openAIAccount.signIn(signal)
+      return response.ok
+        ? { authorized: response.value.status === 'authorized' }
+        : { authorized: false, error: response.error.message }
+    },
+    signOut: async () => {
+      const response = await ctx.remote.openAIAccount.signOut()
+      return response.ok ? undefined : response.error.message
+    },
+  }
+  const account = (): OpenAIAccountInjected => ({ operations: accountOperations })
+  ctx.slots.inject('settings.models.footer', () => ctx.slots.register({
+    name: 'settings.models.footer',
+    id: 'custom-harness-openai-account',
+    order: -100,
+    locale: LOCALE_NS,
+    inject: account,
+  }, OpenAIAccountCard))
 }

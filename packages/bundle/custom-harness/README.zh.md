@@ -9,13 +9,14 @@ kind: "package-bundle"
 
 ## 概述
 
-本包是随附 `custom-harness` profile 在 `dsh-base` 和 `dsh-web-app` 之后应用的窄产品层。它替换原有品牌、禁用逐消息评分与备注，并添加有界只读 Workspace Brief 操作，不会重命名共享框架包、模型提供方名称、协议或兼容性表层。
+本包是随附 `custom-harness` profile 在 `dsh-base` 和 `dsh-web-app` 之后应用的窄产品层。它替换原有品牌、禁用逐消息评分与备注、为 OpenAI 账户登录启用中立 authorization service，并添加有界只读 Workspace Brief 操作，不会重命名共享框架包、模型提供方名称、协议或兼容性表层。
 
 ## 目录
 
 - [使用本包](#use-this-package)
 - [已禁用的逐消息反馈](#disabled-per-message-feedback)
 - [Workspace Brief](#workspace-brief)
+- [OpenAI 账户登录](#openai-account-login)
 - [模型体验](#model-experience)
 - [已知限制与延期工作](#known-limitations-and-deferred-work)
 - [开发备注](#dev-note)
@@ -43,10 +44,17 @@ Windows 默认位置为 `%LOCALAPPDATA%\CustomHarness\Harness`、`%LOCALAPPDATA%
 
 禁用任一行会移除体验的对应一半，而不改变已存储会话。缺少专用客户端行时，已记录简报仍可通过通用命令 renderer 阅读；重连和重新启动绝不会自动重新运行仓库检查。
 
+<a id="openai-account-login"></a>
+## OpenAI 账户登录
+
+该 profile 挂载 `@deepseek-ai/dsh-authorization`。因此继承的 dormant `llm-pi-ai` adapter 会在 provider route 尚不存在时注册其 `openai-codex` OAuth flow，而 Custom Harness brand client 会在 Settings > Models 放置 **Sign in with OpenAI**。Host 在默认浏览器中打开 HTTPS 授权页面；provider flow 直接把产生的 grant 写入本地 credential store，controller 只在 authorization service 确认该写入后启用对应 provider route。
+
+退出登录会删除本地 grant 并移除对应 route。token 不会跨越 Remote 响应，也不会进入 settings 或 session log。上游账户登录行为请参阅[官方 Codex authentication 文档](https://learn.chatgpt.com/docs/auth)。
+
 <a id="model-experience"></a>
 ## 模型体验
 
-间接影响来自继承的 base 与 Web 组合；此 patch 层自身不注册 prompt 或工具 schema，Workspace Brief 也保持为仅人类可用的日志事件。
+间接影响来自继承的 base 与 Web 组合。OpenAI 登录可以启用已安装的 Codex model catalog；此 patch 层自身不注册 prompt 或工具 schema，Workspace Brief 也保持为仅人类可用的日志事件。
 
 #### KV Cache 影响
 

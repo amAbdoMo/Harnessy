@@ -1,5 +1,5 @@
 ---
-description: "面向独立产品 profile 用户与维护者的 Custom Harness 浏览器身份、主题 token 和 About 行。"
+description: "Custom Harness 浏览器身份、主题 token、About 行与 OpenAI 账户控件。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-本包填充通用侧栏与会话首屏品牌 slot，在新会话标题下方添加简短的本地化说明，应用可逆的明暗配色与字体层，并在通用设置中添加本地化 About 行。它只在浏览器以 `custom-harness` 客户端 profile 构建时激活，因此共享 Web 组合在其他构建中仍可保留原有身份。
+本包填充通用侧栏与会话首屏品牌 slot，在新会话标题下方添加简短的本地化说明，应用可逆的明暗配色与字体层，在通用设置中添加本地化 About 行，并向 Models footer 贡献 OpenAI 账户卡片。它只在浏览器以 `custom-harness` 客户端 profile 构建时激活，因此共享 Web 组合在其他构建中仍可保留原有身份。
 
 ## 目录
 
@@ -25,14 +25,16 @@ kind: "package-reference"
 
 标志采用可缩放的矢量“穿线光圈”造型，可适配宿主决定的图标尺寸，并跟随明暗产品 token。冷紫色调通过现有语义 token 传递，同时保留共享的蓝色发送操作以及成功、警告和错误语义。About 行显示构建版本和项目入口，不保留运行时状态。
 
+Models footer 卡片只读取脱敏的 `openAIAccount.describe()` 状态。**Sign in with OpenAI** 启动可取消的 Host 请求，并在默认浏览器完成 OAuth 期间显示等待对话框。成功后状态刷新为 Connected；**Sign out** 删除本地 grant 及其 Codex provider route。界面直接显示 Remote 拒绝消息，不会检查凭据内容。
+
 <a id="model-experience"></a>
 ## 模型体验
 
-无，因为此浏览器呈现包不注册任何面向模型的内容。
+无，因为本包从不构造提示词或模型请求；账户登录成功只会要求 Host 启用已安装的 OpenAI Codex provider route，让其支持的模型进入普通选择器。
 
 #### KV Cache 影响
 
-无；本包既不组装也不发送提供方输入。
+无直接影响；所选 provider 与 model 负责组装请求。
 
 ## 已知限制与延期工作
 
