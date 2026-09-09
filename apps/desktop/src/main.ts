@@ -427,10 +427,11 @@ async function main(): Promise<void> {
 
 const desktopProductState = customHarnessDesktopState()
 configureCustomHarnessProductIdentity(desktopProductState)
+// Electron stores its instance lock under userData, so the directory must exist before the claim.
+prepareCustomHarnessProductState(desktopProductState)
 const ownsDesktopInstance = claimDesktopSingleInstance(app, () => { focusPrimaryWindow() })
 
 if (ownsDesktopInstance) {
-  prepareCustomHarnessProductState(desktopProductState)
   void app.whenReady().then(main).catch(async (error: unknown) => {
     const message = error instanceof Error ? error.message : String(error)
     console.error(error)
