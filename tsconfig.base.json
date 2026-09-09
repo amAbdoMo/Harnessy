@@ -169,6 +169,8 @@
       "@deepseek-ai/dsh-client-ui-layout": ["./packages/client/ui-layout/src"],
       "@deepseek-ai/dsh-client-ui-sidebar": ["./packages/client/ui-sidebar/src"],
       "@deepseek-ai/dsh-client-ui-brand-official": ["./packages/client/ui-brand-official/src"],
+      "@deepseek-ai/dsh-client-ui-brand-custom-harness": ["./packages/client/ui-brand-custom-harness/src"],
+      "@deepseek-ai/dsh-client-ui-workspace-brief": ["./packages/client/ui-workspace-brief/src"],
       "@deepseek-ai/dsh-client-ui-approval": ["./packages/client/ui-approval/src"],
       "@deepseek-ai/dsh-client-ui-approval/client": ["./packages/client/ui-approval/src/client/index.ts"],
       "@deepseek-ai/dsh-client-ui-chat": ["./packages/client/ui-chat/src"],
@@ -410,6 +412,7 @@
       "@deepseek-ai/dsh-user-questions": ["./packages/interaction/user-questions/src"],
       "@deepseek-ai/dsh-web": ["./packages/web/web/src"],
       "@deepseek-ai/dsh-web-app": ["./packages/bundle/web-app/src"],
+      "@deepseek-ai/dsh-custom-harness": ["./packages/bundle/custom-harness/src"],
       "@deepseek-ai/dsh-web-fetch-http": ["./packages/web/web-fetch-http/src"],
       "@deepseek-ai/dsh-web-search-deepseek": ["./packages/web/web-search-deepseek/src"],
       "@deepseek-ai/dsh-web-search-exa": ["./packages/web/web-search-exa/src"],
@@ -422,7 +425,8 @@
       "@deepseek-ai/dsh-workflow/invariant": ["./packages/workflow/workflow/src/invariant.ts"],
       "@deepseek-ai/dsh-workflow-worker-thread": ["./packages/workflow/workflow-worker-thread/src"],
       "@deepseek-ai/dsh-workspace": ["./packages/workspace/workspace/src"],
-      "@deepseek-ai/dsh-workspace/invariant": ["./packages/workspace/workspace/src/invariant.ts"]
+      "@deepseek-ai/dsh-workspace/invariant": ["./packages/workspace/workspace/src/invariant.ts"],
+      "@deepseek-ai/dsh-workspace-brief": ["./packages/workspace/workspace-brief/src"]
       // END generated package aliases
     }
   }

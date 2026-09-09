@@ -19,6 +19,11 @@
   "scripts": {
     "build": "tsx scripts/build.ts",
     "build:official": "tsx scripts/build.ts --profile official",
+    "build:custom-harness": "tsx scripts/build.ts --profile custom-harness",
+    "custom-harness": "tsx scripts/run-custom-harness.ts",
+    "custom-harness:desktop": "node scripts/run-custom-harness-desktop.ts",
+    "test:desktop": "node --test --test-isolation=none apps/desktop/tests/*.test.js scripts/run-custom-harness-desktop.test.js",
+    "package:custom-harness:win": "pnpm --filter @deepseek-ai/dsh-custom-harness-desktop run package:win",
     "build:lib": "npm run build:lib:host && npm run build:lib:client",
     "build:lib:host": "node --max-old-space-size=4096 ./node_modules/typescript/bin/tsc -b tsconfig.host.json && tsdown --env.DSH_BUILD_FACE host",
     "build:lib:client": "tsc -b tsconfig.client.json && tsdown --env.DSH_BUILD_FACE client",

@@ -51,6 +51,10 @@ interface BootComposition {
 }
 
 const REPO_ROOT = process.cwd()
+const clientBuildRecord = JSON.parse(readFileSync(
+  join(REPO_ROOT, '.dsh-build/client-build-environment.json'),
+  'utf8',
+)) as { environment?: { DSH_CLIENT_BUILD_PROFILE?: string } }
 const BUNDLE_LAYERS = [
   {
     manifest: join(REPO_ROOT, 'packages/bundle/base/package.json'),
@@ -60,7 +64,11 @@ const BUNDLE_LAYERS = [
     manifest: join(REPO_ROOT, 'packages/bundle/web-app/package.json'),
     patch: join(REPO_ROOT, 'packages/bundle/web-app/cordis.patch.yml'),
   },
-] as const
+  ...(clientBuildRecord.environment?.DSH_CLIENT_BUILD_PROFILE === 'custom-harness' ? [{
+    manifest: join(REPO_ROOT, 'packages/bundle/custom-harness/package.json'),
+    patch: join(REPO_ROOT, 'packages/bundle/custom-harness/cordis.patch.yml'),
+  }] : []),
+]
 const bundleResolvers = BUNDLE_LAYERS.map(layer => createRequire(layer.manifest))
 const webBundleResolver = bundleResolvers[1]
 if (webBundleResolver === undefined) throw new Error('assembled boot: web bundle resolver missing')
@@ -88,7 +96,7 @@ function resolveClientExport(packagePath: string, pkg: ClientPackageManifest): s
 const comboUrl = (ids: readonly string[], rev: string): string =>
   `/plugins/??${ids.map(id => `${id}/client.js`).join(',')}&rev=${rev}`
 
-/** Derive the assembled browser graph from the same bundle patches and package declarations as `dsh web`. */
+/** Derive the assembled browser graph from the bundle profile recorded for the built client. */
 function loadAssembledPlugins(): readonly AssembledPlugin[] {
   const entries = appBoot.composeEntries(BUNDLE_LAYERS.map(layer =>
     appBoot.loadOverlayPatches('assembled boot', layer.patch)))

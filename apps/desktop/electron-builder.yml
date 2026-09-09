@@ -1,0 +1,45 @@
+appId: com.amabdmo.customharness
+productName: Custom Harness
+copyright: Copyright © 2026 ${env.CUSTOM_HARNESS_PUBLISHER_NAME}
+asar: true
+electronVersion: 44.2.0
+electronDist: ${env.CUSTOM_HARNESS_ELECTRON_DIST}
+publish: null
+directories:
+  output: dist
+  buildResources: assets
+files:
+  - src/**/*
+  - package.json
+extraResources:
+  - from: .package-stage/dsh
+    to: dsh
+  - from: .package-stage/runtime
+    to: runtime
+  - from: assets/windows-job-launcher.exe
+    to: windows-job-launcher.exe
+  - from: assets/custom-harness.png
+    to: custom-harness.png
+  - from: ../../LICENSE
+    to: LICENSE.txt
+  - from: ../../THIRD_PARTY_NOTICES.md
+    to: THIRD_PARTY_NOTICES.md
+  - from: third-party-licenses
+    to: third-party-licenses
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: assets/custom-harness.ico
+  executableName: CustomHarness
+  artifactName: CustomHarness-Setup-${version}-windows-${arch}.${ext}
+  publisherName: ${env.CUSTOM_HARNESS_PUBLISHER_NAME}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  deleteAppDataOnUninstall: false
+  runAfterFinish: false

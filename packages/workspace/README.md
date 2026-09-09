@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The workspace group provides the durable project list behind a host UI: one product package, `workspace`, that names user directories as projects, keeps them in a stable order, and groups each project's sessions under it. With it, a UI can show a sidebar of projects with their sessions, hide a session from the grouping without deleting it, and remove a project — removal never deletes the folder or the session histories, which become ungrouped. The group is host-side only: no tools, prompts, or session events, so the model and the agent loop never see it. Use it when the product shows a persistent workspace or project surface; it needs a session store and a persistence backend alongside it.
+The workspace group provides the durable project list behind a host UI and the optional read-only Workspace Brief command. `workspace` names user directories as projects, keeps them in a stable order, and groups each project's sessions; `workspace-brief` turns the selected registered Git workspace into a bounded Markdown summary. Removing a project never deletes its folder or session histories. Neither package adds model-visible tools or prompt content.
 
 ## Table of Contents
 
@@ -25,6 +25,7 @@ The workspace group provides the durable project list behind a host UI: one prod
 | Package | Role | ctx key |
 |---|---|---|
 | [`workspace`](workspace/README.md) | Provides named, ordered projects with the sessions that ran in each directory | `ctx.workspaceRegistry` |
+| [`workspace-brief`](workspace-brief/README.md) | Creates a bounded read-only Markdown brief for the current registered Git workspace | `ctx.commands` entry |
 
 -----
 

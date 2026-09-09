@@ -42,6 +42,8 @@ kind: "package-group"
 | [`ui-layout/`](ui-layout/README.zh.md) | 排列应用的主要区域 | — |
 | [`ui-sidebar/`](ui-sidebar/README.zh.md) | 展示工作区与会话导航 | — |
 | [`ui-brand-official/`](ui-brand-official/README.zh.md) | 用官方名称与标记填充通用浏览器品牌 slot | — |
+| [`ui-brand-custom-harness/`](ui-brand-custom-harness/README.zh.md) | 为 Custom Harness 构建填充浏览器身份、About 与产品主题 slot | — |
+| [`ui-workspace-brief/`](ui-workspace-brief/README.zh.md) | 添加 Custom Harness Workspace Brief 操作与持久 Markdown 命令卡片 | — |
 | [`ui-workspace/`](ui-workspace/README.zh.md) | 提供工作区选择与创建界面 | — |
 | [`ui-conversation/`](ui-conversation/README.zh.md) | 展示当前对话及其输入界面 | — |
 | [`ui-chat/`](ui-chat/README.zh.md) | 投影并渲染 Chat 对话 target | — |

@@ -1,0 +1,41 @@
+{
+  "name": "@deepseek-ai/dsh-custom-harness",
+  "description": "The product patch layer for the independent Custom Harness browser profile",
+  "version": "0.1.2-rc.1",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/amAbdoMo/Harnessy.git",
+    "directory": "packages/bundle/custom-harness"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "cordis.patch.yml",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh-client-ui-brand-custom-harness": "workspace:^",
+    "@deepseek-ai/dsh-client-ui-workspace-brief": "workspace:^",
+    "@deepseek-ai/dsh-workspace-brief": "workspace:^"
+  }
+}

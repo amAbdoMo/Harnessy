@@ -217,6 +217,19 @@
   color: var(--dsw-alias-label-tertiary);
 }
 
+.search:has(.searchInput:focus-visible),
+.renameInput:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+
+.iconButton:focus-visible,
+.searchButton:focus-visible,
+.clearButton:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+
 .clearButton {
   flex: none;
   display: inline-flex;

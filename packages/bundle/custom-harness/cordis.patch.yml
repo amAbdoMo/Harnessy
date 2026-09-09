@@ -1,0 +1,28 @@
+# Custom Harness is a narrow product layer over the shipped Web application.
+# It replaces the product-owned brand and disables the per-message feedback
+# Host and client rows. Shared runtime, provider, framework, and safety rows
+# remain intact.
+
+- id: web-startup
+  config:
+    profile: custom-harness
+    productName: !!js process.env.CUSTOM_HARNESS_PRODUCT_NAME ?? 'Custom Harness'
+
+- id: message-feedback
+  disabled: true
+
+- id: ui-brand-official
+  disabled: true
+
+- id: ui-message-feedback
+  disabled: true
+
+- insert:
+    - id: workspace-brief
+      name: '@deepseek-ai/dsh-workspace-brief'
+
+    - id: ui-brand-custom-harness
+      name: '@deepseek-ai/dsh-client-ui-brand-custom-harness'
+
+    - id: ui-workspace-brief
+      name: '@deepseek-ai/dsh-client-ui-workspace-brief'

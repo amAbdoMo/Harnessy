@@ -234,3 +234,45 @@
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+/* Preserve a useful content column on phone-sized and narrow desktop windows.
+   Labels remain in the accessibility tree while the visual navigation becomes
+   an icon rail. */
+@media (max-width: 640px) {
+  .panel {
+    width: calc(100vw - 24px);
+    height: calc(100vh - 24px);
+    max-width: none;
+    border-radius: 20px;
+  }
+
+  .nav {
+    width: 56px;
+    gap: 12px;
+    padding: 18px 6px 0;
+  }
+
+  .navTitle,
+  .navLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .navCell {
+    justify-content: center;
+    width: 44px;
+    padding: 9px;
+  }
+
+  .header {
+    padding-right: 10px;
+  }
+
+  .options {
+    padding: 0 16px 16px;
+  }
+}

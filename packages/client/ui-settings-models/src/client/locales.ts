@@ -1,5 +1,8 @@
 /** Copy dictionaries for the Models settings section. */
 
+const productName = process.env.DSH_CLIENT_PRODUCT_NAME ?? 'DeepSeek Harness'
+const isCustomHarness = process.env.DSH_CLIENT_BUILD_PROFILE === 'custom-harness'
+
 /** English strings (the key-set source of truth for this pair). */
 export const en = {
   nav: 'Models',
@@ -91,8 +94,10 @@ export const en = {
   settingsPathUnresolvable: 'unresolvable settings path',
   create: 'Create provider',
   creating: 'Creating\u2026',
-  welcomeTitle: 'Internal Testing Notice',
-  welcomeBody: "DeepSeek Harness 0.1 remains in testing for Harness developers. Many areas need further improvement, and we welcome feedback from the developer community. DeepSeek Harness's core plugins and foundational APIs will continue to evolve rapidly over the coming months.\n\nWe look forward to exploring the limits of intelligence with developers around the world, building on open-source, open, reusable, and composable infrastructure. We welcome Harness developers everywhere to join the DSH plugin ecosystem.",
+  welcomeTitle: isCustomHarness ? `${productName} Preview` : 'Internal Testing Notice',
+  welcomeBody: isCustomHarness
+    ? `${productName} is an independent local development build based on the open-source DeepSeek Harness project. This preview keeps its own application data and may change as the product evolves.\n\nReview the project and support links in Settings > General before relying on it for important work.`
+    : "DeepSeek Harness 0.1 remains in testing for Harness developers. Many areas need further improvement, and we welcome feedback from the developer community. DeepSeek Harness's core plugins and foundational APIs will continue to evolve rapidly over the coming months.\n\nWe look forward to exploring the limits of intelligence with developers around the world, building on open-source, open, reusable, and composable infrastructure. We welcome Harness developers everywhere to join the DSH plugin ecosystem.",
   welcomeContinue: 'Continue',
   welcomeError: 'The acknowledgement could not be saved. Please try again.',
   onboardingTitle: 'Add an API key to get started',
@@ -197,8 +202,10 @@ export const zh: { [Key in keyof typeof en]: string } = {
   settingsPathUnresolvable: '无法解析设置路径',
   create: '创建提供方',
   creating: '创建中\u2026',
-  welcomeTitle: '内测声明',
-  welcomeBody: 'DeepSeek Harness 目前的 0.1 版本仍处在面向 Harness 开发者进行测试的阶段，还有许多地方需要持续改进和打磨，希望听取广大开发者的反馈建议。预计 DeepSeek Harness 的核心插件以及基础 API 都会在接下来的一段时间内快速迭代、持续演化。\n\n我们期待与全球开发者一起，在开源、开放、可复用、可组合的基础设施之上，共同探索智能上限。欢迎全球 Harness 开发者加入 DSH 插件生态。',
+  welcomeTitle: isCustomHarness ? `${productName} 预览版` : '内测声明',
+  welcomeBody: isCustomHarness
+    ? `${productName} 是基于开源 DeepSeek Harness 项目的独立本地开发版本。此预览版使用独立的应用数据，并可能随着产品演进而发生变化。\n\n在将其用于重要工作之前，请先查看“设置 > 通用”中的项目和支持链接。`
+    : 'DeepSeek Harness 目前的 0.1 版本仍处在面向 Harness 开发者进行测试的阶段，还有许多地方需要持续改进和打磨，希望听取广大开发者的反馈建议。预计 DeepSeek Harness 的核心插件以及基础 API 都会在接下来的一段时间内快速迭代、持续演化。\n\n我们期待与全球开发者一起，在开源、开放、可复用、可组合的基础设施之上，共同探索智能上限。欢迎全球 Harness 开发者加入 DSH 插件生态。',
   welcomeContinue: '继续',
   welcomeError: '暂时无法保存确认状态，请重试。',
   onboardingTitle: '添加一个 API Key 开始使用',

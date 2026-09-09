@@ -16,7 +16,8 @@
 }
 
 .sessionRow.selected {
-  background: var(--dsw-alias-interactive-bg-hover);
+  background: var(--dsw-specific-sidebar-nav-item-active-accent);
+  box-shadow: inset 2px 0 var(--dsw-alias-state-business-primary);
 }
 
 .searchResultRow {
@@ -40,7 +41,8 @@
 }
 
 .searchResultRow.selected {
-  background: var(--dsw-alias-interactive-bg-hover);
+  background: var(--dsw-specific-sidebar-nav-item-active-accent);
+  box-shadow: inset 2px 0 var(--dsw-alias-state-business-primary);
 }
 
 .searchResultHeading {
@@ -351,6 +353,15 @@
 
 .iconButton:hover {
   color: var(--dsw-alias-label-primary);
+}
+
+.projectRow:focus-visible,
+.sessionRow:focus-visible,
+.searchResultRow:focus-visible,
+.renameInput:focus-visible,
+.iconButton:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
 }
 
 /* Chevrons ride the caption grey (#ADB2B8); the folder glyph stays one step

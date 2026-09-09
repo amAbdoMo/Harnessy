@@ -9,7 +9,7 @@ kind: "package-group"
 
 ## 概述
 
-workspace 组提供宿主 UI 背后的持久项目列表：一个产品包 `workspace`，把用户目录命名为项目、保持稳定顺序，并把每个项目的会话归入其下。借助它，UI 可以显示带会话的项目侧边栏、把会话从分组中隐藏而不删除它，以及移除项目——移除绝不会删除文件夹或会话历史，它们只会变成 Ungrouped。本组只面向宿主侧：没有工具、提示词或会话事件，因此模型与 agent loop 永远不会看到它。当产品展示持久 workspace 或项目界面时使用它；它需要会话存储与持久化后端一并挂载。
+workspace 组提供宿主 UI 背后的持久项目列表，以及可选的只读 Workspace Brief 命令。`workspace` 把用户目录命名为项目、保持稳定顺序，并归组每个项目的会话；`workspace-brief` 把所选已注册 Git 工作区转换为有界 Markdown 摘要。移除项目绝不会删除其文件夹或会话历史。两个包都不添加模型可见工具或 prompt 内容。
 
 ## 目录
 
@@ -25,6 +25,7 @@ workspace 组提供宿主 UI 背后的持久项目列表：一个产品包 `work
 | 包 | 职责 | ctx 键 |
 |---|---|---|
 | [`workspace`](workspace/README.zh.md) | 提供命名且有序的项目，并在每个目录下聚合其会话 | `ctx.workspaceRegistry` |
+| [`workspace-brief`](workspace-brief/README.zh.md) | 为当前已注册 Git 工作区创建有界只读 Markdown 简报 | `ctx.commands` 条目 |
 
 -----
 

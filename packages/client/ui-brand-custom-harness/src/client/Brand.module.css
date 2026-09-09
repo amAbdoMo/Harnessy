@@ -1,0 +1,29 @@
+.markFrame {
+  fill: var(--dsw-alias-brand-primary);
+}
+
+.markThread {
+  stroke: var(--dsw-alias-label-primary-foreground);
+}
+
+.wordmark {
+  display: inline-block;
+  color: var(--dsw-alias-brand-text);
+  font-family: 'Segoe UI Variable Display', 'Aptos Display', var(--dsw-font-family);
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 24px;
+  letter-spacing: -0.025em;
+  white-space: nowrap;
+}
+
+.tagline {
+  max-width: 46ch;
+  margin: -4px auto 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  font-weight: 450;
+  line-height: 20px;
+  letter-spacing: 0.005em;
+  text-align: center;
+}

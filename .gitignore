@@ -41,3 +41,6 @@ apps/web/dist/
 worktrees/
 .agents/worktrees/
 .typert-*/
+apps/desktop/assets/windows-job-launcher.exe
+apps/desktop/.package-stage/
+apps/desktop/dist/

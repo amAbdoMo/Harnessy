@@ -61,7 +61,14 @@ it('boots the built plugin graph and renders a fixture session end to end', asyn
 
   // The sidebar renders from the boot graph: every inject layer activated.
   const tree = await screen.findByRole('tree', { name: 'Sessions' }, { timeout: 10_000 })
-  if (clientBuildValue('DSH_CLIENT_BUILD_PROFILE') === 'official') {
+  if (clientBuildValue('DSH_CLIENT_BUILD_PROFILE') === 'custom-harness') {
+    const boot = Reflect.get(window, '__DSH_BOOT__') as { entries: Array<{ id: string }> } | undefined
+    expect(boot?.entries.some(entry => entry.id === '@deepseek-ai/dsh-client-ui-message-feedback')).toBe(false)
+    expect(document.querySelector('svg[viewBox="0 0 64 64"]')).not.toBeNull()
+    screen.getByText('Custom Harness')
+    expect(document.querySelector('svg[viewBox="26 0 156 24"]')).toBeNull()
+    expect(screen.queryByText('DSH Local Build')).toBeNull()
+  } else if (clientBuildValue('DSH_CLIENT_BUILD_PROFILE') === 'official') {
     expect(document.querySelector('svg[viewBox="26 0 156 24"]')).not.toBeNull()
     expect(screen.queryByText('DSH Local Build')).toBeNull()
   } else {
@@ -97,6 +104,12 @@ it('boots the built plugin graph and renders a fixture session end to end', asyn
   await waitFor(() => {
     expect(document.querySelector('[data-sample="bash"]')).not.toBeNull()
   }, { timeout: 10_000 })
+  if (clientBuildValue('DSH_CLIENT_BUILD_PROFILE') === 'custom-harness') {
+    expect(screen.queryByRole('button', { name: 'Good response' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Bad response' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Add a note' })).toBeNull()
+    expect(screen.getAllByRole('button', { name: 'Copy' }).length).toBeGreaterThan(0)
+  }
   // The generated bundle roster mounts the question UI before the approval UI.
   // Skip the resident fixture's three questions, then resolve its approval so
   // the ordinary composer bar (which owns ContextMeter) resumes.
