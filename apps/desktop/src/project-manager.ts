@@ -42,6 +42,7 @@ const DESKTOP_PROJECT_FILES = [
   'pnpm-lock.yaml',
   'pnpm-workspace.yaml',
   'desktop-release.json',
+  'integrity.json',
   DESKTOP_PACKAGE_SET_FILE,
 ] as const
 
@@ -136,6 +137,14 @@ function workspaceFile(overrides: Readonly<Record<string, string>> = {}): string
 
 function releaseFile(projectDir: string): DesktopRelease {
   return parseDesktopRelease(readJson(join(projectDir, 'desktop-release.json')))
+}
+
+/** Whether an installed profile came from the exact packaged seed contents. */
+function hasMatchingSeedIntegrity(profileDir: string, seedDir: string): boolean {
+  const profileIntegrity = join(profileDir, 'integrity.json')
+  const seedIntegrity = join(seedDir, 'integrity.json')
+  return existsSync(profileIntegrity)
+    && readFileSync(profileIntegrity, 'utf8') === readFileSync(seedIntegrity, 'utf8')
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -251,7 +260,7 @@ export function verifySeedIntegrity(seedDir: string): void {
   }
 }
 
-function projectManifest(projectDir: string): DesktopProjectManifest {
+function readProjectManifest(projectDir: string): DesktopProjectManifest {
   const path = join(projectDir, 'package.json')
   const value = readJson(path)
   const dsh = isRecord(value) && isRecord(value.dsh) ? value.dsh : undefined
@@ -261,7 +270,11 @@ function projectManifest(projectDir: string): DesktopProjectManifest {
     || !Array.isArray(profile?.bundles) || !profile.bundles.every(bundle => typeof bundle === 'string')) {
     throw new Error(`desktop project: invalid desktop profile manifest ${path}`)
   }
-  const manifest = value as unknown as DesktopProjectManifest
+  return value as unknown as DesktopProjectManifest
+}
+
+function projectManifest(projectDir: string): DesktopProjectManifest {
+  const manifest = readProjectManifest(projectDir)
   const packageSet = readDesktopCorePackageSet(projectDir, releaseFile(projectDir).version)
   const expectedOverrides = desktopCorePackageOverrides(packageSet)
   if (manifest.dependencies[DSH_PACKAGE] !== desktopDshPackageSpec(packageSet)
@@ -272,8 +285,8 @@ function projectManifest(projectDir: string): DesktopProjectManifest {
   return manifest
 }
 
-function profilePluginNames(projectDir: string): readonly string[] {
-  const bundles = projectManifest(projectDir).dsh.profile.bundles
+function pluginNamesFromManifest(manifest: DesktopProjectManifest): readonly string[] {
+  const bundles = manifest.dsh.profile.bundles
   if (!DESKTOP_PROFILE_BUNDLES.every((bundle, index) => bundles[index] === bundle)) {
     throw new Error('desktop project: profile must begin with the built-in desktop bundle list')
   }
@@ -285,8 +298,16 @@ function profilePluginNames(projectDir: string): readonly string[] {
   return plugins
 }
 
+function profilePluginNames(projectDir: string): readonly string[] {
+  return pluginNamesFromManifest(projectManifest(projectDir))
+}
+
 function pluginRecords(projectDir: string): readonly DesktopPluginRecord[] {
   return profilePluginNames(projectDir).map(name => inspectPlugin(projectDir, name))
+}
+
+function legacyPluginRecords(projectDir: string): readonly DesktopPluginRecord[] {
+  return pluginNamesFromManifest(readProjectManifest(projectDir)).map(name => inspectPlugin(projectDir, name))
 }
 
 function writeProfilePlugins(projectDir: string, plugins: readonly DesktopPluginRecord[]): void {
@@ -403,7 +424,8 @@ export class DesktopProjectManager {
       }
       if (existsSync(this.paths.profile) && this.releaseVersion() === target.version
         && this.dshVersion() === target.version
-        && this.installedPackageVersion(DESKTOP_HOST_PACKAGE) === target.version) {
+        && this.installedPackageVersion(DESKTOP_HOST_PACKAGE) === target.version
+        && hasMatchingSeedIntegrity(this.paths.profile, seedDir)) {
         verifyDesktopCorePackageSet(this.paths.profile, target.version)
         return false
       }
@@ -411,7 +433,10 @@ export class DesktopProjectManager {
       const stagingProfile = this.newStagingProfile()
       try {
         if (existsSync(this.paths.profile)) {
-          const plugins = pluginRecords(this.paths.profile)
+          // Older packaged profiles may use an earlier core mapping format.
+          // Preserve only their separately validated optional plugins; the
+          // verified seed replaces every core package mapping before install.
+          const plugins = legacyPluginRecords(this.paths.profile)
           copyMetadata(seedDir, stagingProfile)
           await this.runPnpm(stagingProfile, ['install', '--offline', '--frozen-lockfile', '--trust-lockfile'])
           if (plugins.length > 0) {
