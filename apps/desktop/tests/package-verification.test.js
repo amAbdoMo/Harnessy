@@ -8,7 +8,7 @@ import { scanDistributable, sha256File } from '../src/package-verification.js'
 test('rejects secret material and developer paths in distributable files', async t => {
   const root = await mkdtemp(join(tmpdir(), 'custom-harness-artifact-'))
   t.after(() => rm(root, { recursive: true, force: true }))
-  await writeFile(join(root, 'safe.txt'), 'Custom Harness')
+  await writeFile(join(root, 'safe.txt'), 'Harnessy')
   const developerPath = 'C:\\Users\\Developer\\repo'
   const prefix = `source ${developerPath} `
   const boundaryPadding = `${'x'.repeat(65_529 - Buffer.byteLength(prefix))} `

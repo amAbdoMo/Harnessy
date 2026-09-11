@@ -12,7 +12,7 @@ function contrast(foreground: string, background: string): number {
   return (light! + 0.05) / (dark! + 0.05)
 }
 
-describe('Custom Harness theme tokens', () => {
+describe('Harnessy theme tokens', () => {
   it('defines complete reversible light and dark values', () => {
     expect(Object.keys(CUSTOM_HARNESS_THEME_TOKENS).length).toBeGreaterThanOrEqual(45)
     for (const modes of Object.values(CUSTOM_HARNESS_THEME_TOKENS)) {

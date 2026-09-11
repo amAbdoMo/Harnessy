@@ -1,4 +1,4 @@
-# Agent Note: Custom Harness identity as a product profile layer
+# Agent Note: Harnessy identity as a product profile layer
 
 Status: implemented
 
@@ -10,13 +10,13 @@ The fork needed an independent visible identity and writable state while retaini
 
 ## Decision
 
-Custom Harness is a named build and runtime profile, implemented as a narrow layer over the existing Web application.
+Harnessy is a named build and runtime profile, implemented as a narrow layer over the existing Web application. The internal `custom-harness` profile, application ID, protocol, and `%LOCALAPPDATA%\CustomHarness` state root remain stable compatibility identifiers.
 
 - `scripts/custom-harness-product.ts` is the authoritative identity record for display name, slug, Windows identifiers, protocol, filesystem directory names, product links, manifest short name, and icon path. The `custom-harness` client build profile projects its public subset into browser artifacts.
 - `dsh --profile custom-harness` composes `dsh-base`, `dsh-web-app`, then `dsh-custom-harness`. The final patch disables only the stock brand and feedback rows, inserts `dsh-client-ui-brand-custom-harness`, and supplies product-facing Web command help.
-- The client package occupies the sidebar mark and name, conversation hero mark and orientation, General settings About row, and theme-token seams. Its reversible light/dark palette changes shared surfaces through semantic tokens, preserves blue for the send action and standard status colors, and adds visible keyboard focus plus a violet selected-session rail. The threaded-aperture mark is SVG at every size, and localized first-run copy identifies the independent preview without changing provider-facing DeepSeek names.
+- The client package occupies the sidebar mark and name, conversation hero mark and orientation, General settings About row, and theme-token seams. Its reversible light/dark palette uses the supplied logo's deep navy, ocean teal, and cyan colors through semantic tokens. The supplied transparent mark is presented on a compact gradient frame in the interface, while the supplied filled artwork is the favicon, executable, installer, and shortcut source.
 - `scripts/run-custom-harness.ts` ignores ambient `DSH_HOME` and selects `%LOCALAPPDATA%\CustomHarness\Harness` by default, with sibling Logs and Cache directories. Product-specific overrides exist for tests and managed deployments; automatic stock-state import does not.
-- The static source manifest and stock brand package remain intact. Build-time transformation produces Custom Harness title, favicon, and PWA metadata only for the named product build.
+- The static source manifest and stock brand package remain intact. Build-time transformation produces the Harnessy title, favicon, and PWA metadata only for the named product build.
 
 ## Alternatives considered
 
@@ -27,4 +27,4 @@ Custom Harness is a named build and runtime profile, implemented as a narrow lay
 
 ## Consequences
 
-The two profiles can initialize and restart under separate roots, while product branding remains a removable final bundle layer. Shared interaction, streaming, session, approval, attachment, reconnect, and error paths keep their existing owners; the custom layer changes presentation and slot content only. The fork keeps upstream package and legal identities, and all visible product values in the custom browser build trace to the centralized build record. Desktop executable, installer, taskbar, and protocol registration values are recorded but remain deferred until a desktop packaging surface exists.
+The two profiles can initialize and restart under separate roots, while product branding remains a removable final bundle layer. Shared interaction, streaming, session, approval, attachment, reconnect, and error paths keep their existing owners; the custom layer changes presentation and slot content only. The fork keeps upstream package and legal identities, and all visible product values in the custom browser build trace to the centralized build record. Windows packages now use `Harnessy.exe` and `Harnessy-Setup-*` while retaining the existing application ID and state root so installed upgrades preserve local sessions and credentials.

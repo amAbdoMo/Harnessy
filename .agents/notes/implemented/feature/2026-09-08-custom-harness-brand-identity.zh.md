@@ -1,4 +1,4 @@
-# Agent Note: 作为产品 profile 层的 Custom Harness 身份
+# Agent Note: 作为产品 profile 层的 Harnessy 身份
 
 Status: implemented
 
@@ -10,13 +10,13 @@ Status: implemented
 
 ## 决策
 
-Custom Harness 是一个命名构建与运行时 profile，以现有 Web 应用之上的窄层实现。
+Harnessy 是一个命名构建与运行时 profile，以现有 Web 应用之上的窄层实现。内部的 `custom-harness` profile、应用 ID、协议以及 `%LOCALAPPDATA%\CustomHarness` 状态根目录继续作为稳定的兼容标识。
 
 - `scripts/custom-harness-product.ts` 是显示名称、slug、Windows 标识、协议、文件系统目录名、产品链接、manifest 短名称和图标路径的权威身份记录。`custom-harness` 客户端构建 profile 会把其中公开的子集投射到浏览器产物。
 - `dsh --profile custom-harness` 依次组合 `dsh-base`、`dsh-web-app` 和 `dsh-custom-harness`。最后的 patch 只禁用原有品牌和反馈行，插入 `dsh-client-ui-brand-custom-harness`，并提供面向产品的 Web 命令帮助。
-- 客户端包占据侧栏标志与名称、会话首屏标志与说明、通用设置 About 行和主题 token seam。其可逆的明暗配色通过语义 token 改变共享表层，保留蓝色发送操作和标准状态色，并为键盘焦点添加清晰轮廓、为选中会话添加紫色导轨。“穿线光圈”标志在所有尺寸下均为 SVG，本地化首次运行文案会标识独立预览版，但不改变面向模型提供方的 DeepSeek 名称。
+- 客户端包占据侧栏标志与名称、会话首屏标志与说明、通用设置 About 行和主题 token seam。其可逆的明暗配色通过语义 token 使用所提供标志中的深海军蓝、海洋青与亮青色。界面中使用带紧凑渐变底框的透明标志，而 favicon、可执行文件、安装器与快捷方式则使用所提供的完整背景图稿。
 - `scripts/run-custom-harness.ts` 会忽略环境中的 `DSH_HOME`，默认选择 `%LOCALAPPDATA%\CustomHarness\Harness`，并使用同级 Logs 与 Cache 目录。产品专属覆盖可用于测试和托管部署；不会自动导入原版状态。
-- 静态源 manifest 与原有品牌包保持不变。只有命名产品构建会通过构建时转换生成 Custom Harness 标题、favicon 与 PWA 元数据。
+- 静态源 manifest 与原有品牌包保持不变。只有命名产品构建会通过构建时转换生成 Harnessy 标题、favicon 与 PWA 元数据。
 
 ## 考虑过的替代方案
 
@@ -27,4 +27,4 @@ Custom Harness 是一个命名构建与运行时 profile，以现有 Web 应用�
 
 ## 后果
 
-两个 profile 可以在独立根目录中初始化并重启，而产品品牌仍是可移除的最终 bundle 层。共享的交互、流式输出、会话、审批、附件、重连和错误路径继续由原有 owner 管理；定制层只改变展示与 slot 内容。此 fork 保留上游包身份与法律身份，定制浏览器构建中的所有可见产品值都可追溯到集中管理的构建记录。桌面可执行文件、安装器、任务栏和协议注册值已经记录，但在桌面打包表层出现之前仍属延期项。
+两个 profile 可以在独立根目录中初始化并重启，而产品品牌仍是可移除的最终 bundle 层。共享的交互、流式输出、会话、审批、附件、重连和错误路径继续由原有 owner 管理；定制层只改变展示与 slot 内容。此 fork 保留上游包身份与法律身份，定制浏览器构建中的所有可见产品值都可追溯到集中管理的构建记录。Windows 安装包现在使用 `Harnessy.exe` 与 `Harnessy-Setup-*`，同时保留现有应用 ID 和状态根目录，因此已安装升级仍会保留本地会话与凭据。

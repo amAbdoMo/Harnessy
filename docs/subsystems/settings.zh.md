@@ -177,7 +177,7 @@ Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnp
 
 ### `ctx.openAIAccountController` — `OpenAIAccountController`
 
-Expose the one-click ChatGPT OAuth path used by Custom Harness. The neutral authorization service still owns the provider conversation and token write; this controller supplies the Windows-desktop interaction: browser login and a cancellable wait for the local OAuth callback.
+Expose the one-click ChatGPT OAuth path used by Harnessy. The neutral authorization service still owns the provider conversation and token write; this controller supplies the Windows-desktop interaction: browser login and a cancellable wait for the local OAuth callback.
 
 ```ts cordis-catalog
 /**

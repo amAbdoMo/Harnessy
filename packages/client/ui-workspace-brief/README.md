@@ -1,5 +1,5 @@
 ---
-description: "Custom Harness browser action and durable Markdown card for creating, retrying, and reviewing the selected workspace's bounded Workspace Brief."
+description: "Harnessy browser action and durable Markdown card for creating, retrying, and reviewing the selected workspace's bounded Workspace Brief."
 kind: "package-reference"
 ---
 
@@ -25,13 +25,13 @@ This package adds a “Create workspace brief” action to the open session head
 <a id="use-this-package"></a>
 ## Use this package
 
-The Custom Harness bundle mounts this browser plugin with the host Workspace Brief command. Open a session attached to a workspace, then select “Create workspace brief” in the session header; the button is disabled until the session is open.
+The Harnessy bundle mounts this browser plugin with the host Workspace Brief command. Open a session attached to a workspace, then select “Create workspace brief” in the session header; the button is disabled until the session is open.
 
 The action sends the exact argument-free `/workspace-brief` command. To include Git status, type `/workspace-brief --git` through the ordinary command input. Transport and command failures appear beside the action and remain retryable; the durable command card independently displays the recorded running, success, or failure state.
 
 ### Minimal composition
 
-Mount this row in the client composition after the locale, Remote, chat, conversation, renderer, and session UI packages. The Custom Harness bundle supplies that graph.
+Mount this row in the client composition after the locale, Remote, chat, conversation, renderer, and session UI packages. The Harnessy bundle supplies that graph.
 
 ```yaml
 - id: ui-workspace-brief

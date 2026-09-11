@@ -1,10 +1,10 @@
-# Custom Harness Desktop
+# Harnessy Desktop
 
 English | [中文](README.zh.md)
 
-The desktop application is the independently branded Custom Harness product built on the upstream dsh Electron shell. It opens no listening port: a bundled upstream Node.js child boots the installed dsh project, versioned framed byte pipes carry Fetch requests and streaming responses without an outer Base64 envelope, Node IPC carries lifecycle control, and the internal `dsh-app://` protocol serves matching client assets.
+The desktop application is the independently branded Harnessy product built on the upstream dsh Electron shell. It opens no listening port: a bundled upstream Node.js child boots the installed dsh project, versioned framed byte pipes carry Fetch requests and streaming responses without an outer Base64 envelope, Node IPC carries lifecycle control, and the internal `dsh-app://` protocol serves matching client assets.
 
-The product configuration fixes the app identity to `com.amabdmo.customharness`, loads base, Web, and Custom Harness bundles in that order, stores packaged state under `%LOCALAPPDATA%\CustomHarness`, and disables automatic update checks, UI, metadata, uploads, and publication until a separately approved signed-update design passes qualification.
+The product configuration fixes the app identity to `com.amabdmo.customharness`, loads base, Web, and Harnessy bundles in that order, stores packaged state under `%LOCALAPPDATA%\CustomHarness`, and disables automatic update checks, UI, metadata, uploads, and publication until a separately approved signed-update design passes qualification.
 
 ## Key technical decisions
 
@@ -17,7 +17,7 @@ The product configuration fixes the app identity to `com.amabdmo.customharness`,
 | State ownership | Sharing executable dependency graphs would let CLI and Desktop change each other's dsh, Cordis, plugin, or native-module versions, while two desktop processes could race on the same profile. | Electron acquires its process-lifetime single-instance lock before any profile access and exclusively owns `$DSH_HOME/profiles/desktop` plus its package-manager state. CLI and Desktop share supported product data under `$DSH_HOME`, but never executable packages, plugin activation, lockfiles, or `node_modules`. |
 | Transport | A listening Web service adds port ownership, authentication, CORS, and exposure concerns; Electron and upstream Node.js also need an explicit cross-process protocol. | The application opens no Web port. `dsh-app://` carries Web assets and Fetch traffic; framed byte pipes carry bounded request and response chunks with backpressure, while Node IPC carries only child lifecycle control. |
 | Activation | Dependency resolution, lifecycle scripts, native modules, and plugin startup can fail, and a process can stop during directory replacement. | Release and plugin changes install in staging, boot a complete backend health check, and replace the active profile only after success; a journal and one rollback profile cover interrupted replacement. |
-| Updates | Independent shell and dsh updates would recreate version splits, while this fork has not qualified a signed update channel. | The Electron shell, matching dsh seed, Node.js, and pnpm form one signed unit, but Custom Harness automatic updates and uploads are disabled. |
+| Updates | Independent shell and dsh updates would recreate version splits, while this fork has not qualified a signed update channel. | The Electron shell, matching dsh seed, Node.js, and pnpm form one signed unit, but Harnessy automatic updates and uploads are disabled. |
 
 The [Electron packaging and update Agent Note](../../.agents/notes/implemented/architecture/2026-08-25-electron-desktop-packaging-and-updates.md) owns the rationale, alternatives, security constraints, and release qualification requirements behind these decisions.
 
@@ -103,7 +103,7 @@ Each target owns its packed package inputs, prepared runtime, package set, seed,
 
 ### Upload updates
 
-Custom Harness update upload is intentionally unavailable. The upload commands fail before reading credentials or contacting a remote service, electron-builder has no publish provider, and product-specific release packs carry `publish-disabled.txt`; the publisher rejects that marker before registry access. Re-enabling updates requires a separate signed-channel decision and a completed installed upgrade/rollback matrix.
+Harnessy update upload is intentionally unavailable. The upload commands fail before reading credentials or contacting a remote service, electron-builder has no publish provider, and product-specific release packs carry `publish-disabled.txt`; the publisher rejects that marker before registry access. Re-enabling updates requires a separate signed-channel decision and a completed installed upgrade/rollback matrix.
 
 The macOS configuration uses the required release environment instead of accepting whichever certificate appears first in a keychain. It rejects empty values, a malformed Team ID, a signing identity that includes electron-builder's unsupported `Developer ID Application:` prefix, and incomplete notarization credentials. macOS packaging requires the configured identity and its private key. Seed preparation applies that identity, a secure timestamp, and hardened runtime to every embedded Mach-O file; after signing the application, a deep strict check rejects any other leaf authority or Team ID before artifact creation. Electron-builder notarizes and staples the application before packaging and signs the DMG. The DMG artifact-completion hook then notarizes and staples it before requiring its exact identity, ticket, and Gatekeeper acceptance; only after the hook succeeds can electron-builder publish the file. The private key can come from the login keychain or electron-builder's standard `CSC_LINK` input; ambient `CSC_NAME` and certificate discovery order do not select the release owner. Notary credentials may instead use electron-builder's complete Apple ID or keychain-profile strategy. The two macOS identity variables are also required when repeating the application check manually with `pnpm --dir apps/desktop run verify:mac-signature -- <path-to-app>`.
 

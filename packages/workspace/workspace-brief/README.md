@@ -25,7 +25,7 @@ This package lets a user create a compact Markdown brief of the workspace attach
 <a id="use-this-package"></a>
 ## Use this package
 
-The Custom Harness profile mounts this command with its browser action. Type the command directly when you want explicit control over Git-status inclusion.
+The Harnessy profile mounts this command with its browser action. Type the command directly when you want explicit control over Git-status inclusion.
 
 | Input | Result |
 |---|---|
@@ -37,7 +37,7 @@ The command rejects sessions without a selected registered workspace and workspa
 
 ### Minimal composition
 
-Mount the command after its injected command, filesystem, sandbox-policy, shell, and workspace-registry services. The Custom Harness bundle supplies this ordering.
+Mount the command after its injected command, filesystem, sandbox-policy, shell, and workspace-registry services. The Harnessy bundle supplies this ordering.
 
 ```yaml
 - id: workspace-brief

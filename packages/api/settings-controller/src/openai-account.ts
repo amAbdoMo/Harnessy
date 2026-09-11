@@ -32,7 +32,7 @@ declare module '@deepseek-ai/cordis' {
 }
 
 /**
- * Expose the one-click ChatGPT OAuth path used by Custom Harness. The neutral
+ * Expose the one-click ChatGPT OAuth path used by Harnessy. The neutral
  * authorization service still owns the provider conversation and token write;
  * this controller supplies the Windows-desktop interaction: browser login and
  * a cancellable wait for the local OAuth callback.

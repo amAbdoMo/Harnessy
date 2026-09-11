@@ -188,7 +188,7 @@ const SERVICE_ROLES: ServiceRole[] = [
   {
     key: 'openAIAccountController',
     pkg: 'api-settings-controller',
-    title: 'Custom Harness OpenAI account Remote controller',
+    title: 'Harnessy OpenAI account Remote controller',
     mode: 'core',
     note: 'Projects the installed OpenAI OAuth flow onto a token-redacted desktop action: secure browser launch, cancellable callback wait, credential deletion, and provider-route activation live here.',
   },

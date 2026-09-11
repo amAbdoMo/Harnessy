@@ -45,8 +45,8 @@ The kernel packages boot and serve the page; the UI feature packages present it.
 | [`resources/`](resources/README.md) | Unified resource model: protocol providers behind the `useResource` session standard hook | `ctx.resources` |
 | [`ui-sidebar-files/`](ui-sidebar-files/README.md) | Right-Sidebar workspace file tree tab type | — |
 | [`ui-brand-official/`](ui-brand-official/README.md) | Fills the generic browser-brand slots with the official name and marks | — |
-| [`ui-brand-custom-harness/`](ui-brand-custom-harness/README.md) | Fills browser identity, About, and product-theme slots for Custom Harness builds | — |
-| [`ui-workspace-brief/`](ui-workspace-brief/README.md) | Adds the Custom Harness Workspace Brief action and durable Markdown command card | — |
+| [`ui-brand-custom-harness/`](ui-brand-custom-harness/README.md) | Fills browser identity, About, and product-theme slots for Harnessy builds | — |
+| [`ui-workspace-brief/`](ui-workspace-brief/README.md) | Adds the Harnessy Workspace Brief action and durable Markdown command card | — |
 | [`ui-workspace/`](ui-workspace/README.md) | Provides workspace selection and creation surfaces | — |
 | [`ui-conversation/`](ui-conversation/README.md) | Presents the active conversation and its input surface | — |
 | [`ui-chat/`](ui-chat/README.md) | Projects and renders the Chat conversation target | — |

@@ -1,4 +1,4 @@
-/** Launch the Custom Harness Windows desktop host from verified customized artifacts. */
+/** Launch the Harnessy Windows desktop host from verified customized artifacts. */
 
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, statSync } from 'node:fs'
@@ -34,7 +34,7 @@ export function desktopEnvironment(
     CUSTOM_HARNESS_DESKTOP_WORKING_DIRECTORY: root,
     CUSTOM_HARNESS_DESKTOP_USER_DATA: resolve(paths.cache, 'DesktopUserData'),
     CUSTOM_HARNESS_DESKTOP_LOG_DIR: paths.logs,
-    CUSTOM_HARNESS_DESKTOP_ICON: resolve(desktopRoot, 'assets/custom-harness.png'),
+    CUSTOM_HARNESS_DESKTOP_ICON: resolve(desktopRoot, 'assets/harnessy.png'),
     CUSTOM_HARNESS_ELECTRON_EXECUTABLE: electronExecutable,
   }
 }
@@ -75,7 +75,7 @@ function prepareProductDirectories(paths: CustomHarnessPaths): void {
 export function assertCustomHarnessBuildRecord(buildRecord: ClientBuildRecord): void {
   for (const [name, requiredValue] of Object.entries(CUSTOM_HARNESS_CLIENT_BUILD_ENVIRONMENT)) {
     if (buildRecord.environment[name] !== requiredValue) {
-      throw new Error(`The client build record does not describe Custom Harness (${name}).`)
+      throw new Error(`The client build record does not describe Harnessy (${name}).`)
     }
   }
 }
@@ -88,7 +88,7 @@ function verifyDesktopArtifacts(): void {
 }
 
 export function runCustomHarnessDesktop(environment: NodeJS.ProcessEnv = process.env): number {
-  if (process.platform !== 'win32') throw new Error('The Phase 8 Custom Harness desktop host supports Windows only.')
+  if (process.platform !== 'win32') throw new Error('The Harnessy desktop host supports Windows only.')
   verifyDesktopArtifacts()
   const paths = resolveCustomHarnessPaths(environment)
   prepareProductDirectories(paths)

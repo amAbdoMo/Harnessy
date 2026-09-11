@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-Custom Harness profile 会把此命令与浏览器操作一并挂载。需要明确控制是否包含 Git 状态时，可以直接键入命令。
+Harnessy profile 会把此命令与浏览器操作一并挂载。需要明确控制是否包含 Git 状态时，可以直接键入命令。
 
 | 输入 | 结果 |
 |---|---|
@@ -37,7 +37,7 @@ Custom Harness profile 会把此命令与浏览器操作一并挂载。需要明
 
 ### 最小组合
 
-在命令、文件系统、沙箱策略、shell 和工作区注册表服务注入后挂载此命令。Custom Harness bundle 会提供该顺序。
+在命令、文件系统、沙箱策略、shell 和工作区注册表服务注入后挂载此命令。Harnessy bundle 会提供该顺序。
 
 ```yaml
 - id: workspace-brief

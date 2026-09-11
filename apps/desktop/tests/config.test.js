@@ -4,7 +4,7 @@ import { resolveDesktopConfig } from '../src/config.js'
 
 const required = {
   CUSTOM_HARNESS_DESKTOP_APP_ID: 'com.example.harness',
-  CUSTOM_HARNESS_PRODUCT_NAME: 'Custom Harness',
+  CUSTOM_HARNESS_PRODUCT_NAME: 'Harnessy',
   CUSTOM_HARNESS_DESKTOP_PROFILE: 'custom-harness',
   CUSTOM_HARNESS_DESKTOP_NODE_EXECUTABLE: 'C:\\runtime\\node.exe',
   CUSTOM_HARNESS_DESKTOP_DSH_ENTRY: 'C:\\app\\bin.js',
@@ -17,7 +17,7 @@ const required = {
 
 test('resolves an explicit Windows desktop boundary and bounded defaults', () => {
   const config = resolveDesktopConfig(required)
-  assert.equal(config.productName, 'Custom Harness')
+  assert.equal(config.productName, 'Harnessy')
   assert.equal(config.profile, 'custom-harness')
   assert.equal(config.port, 48_765)
   assert.equal(config.healthFailureLimit, 3)

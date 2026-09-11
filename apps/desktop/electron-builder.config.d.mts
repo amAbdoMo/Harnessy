@@ -10,6 +10,7 @@ export interface DesktopElectronBuilderConfig {
   readonly extraResources: readonly [
     { readonly from: string, readonly to: 'runtime' },
     { readonly from: string, readonly to: 'seed' },
+    { readonly from: 'assets/harnessy.png', readonly to: 'harnessy.png' },
   ]
   readonly mac: {
     readonly identity: string | undefined

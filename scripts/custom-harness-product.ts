@@ -1,4 +1,4 @@
-/** Typed entry point for the runtime-loadable Custom Harness product contract. */
+/** Typed entry point for the runtime-loadable Harnessy product contract. */
 export {
   CUSTOM_HARNESS_CLIENT_BUILD_ENVIRONMENT,
   CUSTOM_HARNESS_PRODUCT,

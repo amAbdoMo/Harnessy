@@ -4,7 +4,7 @@ import { Button, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { OpenAIAccountState } from '@deepseek-ai/dsh-api-remotes/client'
 import css from './OpenAIAccountCard.module.css'
 
-/** Host operations injected by the Custom Harness browser plugin. */
+/** Host operations injected by the Harnessy browser plugin. */
 export interface OpenAIAccountOperations {
   describe(): Promise<{ readonly state?: OpenAIAccountState; readonly error?: string }>
   signIn(signal: AbortSignal): Promise<{ readonly authorized: boolean; readonly error?: string }>

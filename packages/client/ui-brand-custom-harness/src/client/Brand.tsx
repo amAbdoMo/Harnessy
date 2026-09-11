@@ -6,30 +6,24 @@ import css from './Brand.module.css'
 type BrandMarkProps = SidebarBrandMarkOwnerProps | HeroBrandMarkOwnerProps
 
 /**
- * Render the Custom Harness threaded-aperture mark at host-owned geometry.
+ * Render the Harnessy mark at host-owned geometry.
  * @param props - Host-supplied mark presentation.
  * @returns the product mark at the requested size.
  */
 export function CustomHarnessMark({ size, ...props }: BrandMarkProps) {
   const className = 'className' in props ? props.className : undefined
   return (
-    <svg
+    <span
       aria-hidden="true"
-      className={className}
-      width={size}
-      height={size}
-      viewBox="0 0 64 64"
-      fill="none"
+      className={[css.mark, className].filter(Boolean).join(' ')}
+      style={{ width: size, height: size }}
     >
-      <rect className={css.markFrame} x="4" y="4" width="56" height="56" rx="18" />
-      <path
-        className={css.markThread}
-        d="M19 18v28m26-28v28M19 25c8 0 8 14 16 14s8-14 10-14"
-        strokeWidth="6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+      <img
+        className={css.markImage}
+        src={requiredBuildValue('DSH_CLIENT_MARK_PATH', process.env.DSH_CLIENT_MARK_PATH)}
+        alt=""
       />
-    </svg>
+    </span>
   )
 }
 
@@ -50,7 +44,7 @@ export type CustomHarnessTaglineProps =
 
 /**
  * Render the product-specific orientation beneath the shared new-session title.
- * @param props - Root slot values and localized Custom Harness copy.
+ * @param props - Root slot values and localized Harnessy copy.
  * @returns a concise description of the workspace's purpose.
  */
 export function CustomHarnessTagline({ t }: CustomHarnessTaglineProps) {

@@ -43,7 +43,7 @@ flowchart LR
   svc_sessionSkillCatalog["ctx.sessionSkillCatalog<br/>Session-addressed skill Remote adapter"]
   pkg_api_settings_controller["api-settings-controller"]
   svc_credentialsController["ctx.credentialsController<br/>Host credential-surface Remote controller"]
-  svc_openAIAccountController["ctx.openAIAccountController<br/>Custom Harness OpenAI account Remote controller"]
+  svc_openAIAccountController["ctx.openAIAccountController<br/>Harnessy OpenAI account Remote controller"]
   svc_settingsController["ctx.settingsController<br/>Host settings-surface Remote controller"]
   pkg_api_workspace_files["api-workspace-files"]
   svc_workspaceFiles["ctx.workspaceFiles<br/>Host workspace file Remote service"]

@@ -13,7 +13,7 @@ afterEach(() => {
 })
 
 describe('release publication boundary', () => {
-  it('classifies every release set containing the Custom Harness bundle as non-publishable', () => {
+  it('classifies every release set containing the Harnessy bundle as non-publishable', () => {
     expect(releasePublicationDisabled([{
       directory: 'packages/bundle/custom-harness',
       name: '@deepseek-ai/dsh-custom-harness',
@@ -22,7 +22,7 @@ describe('release publication boundary', () => {
     }])).toBe(true)
   })
 
-  it('rejects a Custom Harness package set before contacting the registry', () => {
+  it('rejects a Harnessy package set before contacting the registry', () => {
     const root = mkdtempSync(join(tmpdir(), 'custom-harness-publish-'))
     roots.push(root)
     writeFileSync(join(root, PUBLISH_DISABLED_FILE), 'publication disabled\n')

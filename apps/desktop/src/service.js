@@ -36,18 +36,18 @@ export function redactLaunchTokens(diagnosticText) {
 export function classifyServiceFailure(error, output, port) {
   const detail = redactLaunchTokens(`${error instanceof Error ? error.message : String(error)}\n${output}`)
   if (/EADDRINUSE|address already in use/iu.test(detail)) {
-    return `Custom Harness cannot start because local port ${String(port)} is already in use. Close the conflicting application, then retry.`
+    return `Harnessy cannot start because local port ${String(port)} is already in use. Close the conflicting application, then retry.`
   }
   if (/client build record|client artifacts|ENOENT|cannot find|not found|404/iu.test(detail)) {
-    return 'Custom Harness desktop assets are missing or do not match this build. Rebuild or reinstall the application, then retry.'
+    return 'Harnessy desktop assets are missing or do not match this build. Rebuild or reinstall the application, then retry.'
   }
   if (/timed out/iu.test(detail)) {
-    return 'The Custom Harness service did not become ready in time. Retry, or inspect the product logs if the problem continues.'
+    return 'The Harnessy service did not become ready in time. Retry, or inspect the product logs if the problem continues.'
   }
   const recentDetail = detail.trim().split(/\r?\n/u).slice(-8).join('\n')
   return recentDetail === ''
-    ? 'The Custom Harness service stopped unexpectedly.'
-    : `The Custom Harness service stopped unexpectedly.\n\n${recentDetail}`
+    ? 'The Harnessy service stopped unexpectedly.'
+    : `The Harnessy service stopped unexpectedly.\n\n${recentDetail}`
 }
 
 async function assertCustomAssets(origin, config, fetchImplementation) {
@@ -57,13 +57,13 @@ async function assertCustomAssets(origin, config, fetchImplementation) {
   const manifest = manifestResponse.ok ? await manifestResponse.json() : undefined
   const brandedManifest = manifest?.name === config.productName
     && Array.isArray(manifest.icons)
-    && manifest.icons.some(icon => icon?.src === '/custom-harness.svg')
+    && manifest.icons.some(icon => icon?.src === '/harnessy.png')
   if (!brandedManifest) throw new Error(`custom desktop asset check failed for manifest (${String(manifestResponse.status)})`)
 
-  const iconResponse = await fetchImplementation(new URL('/custom-harness.svg', origin), {
+  const iconResponse = await fetchImplementation(new URL('/harnessy.png', origin), {
     signal: AbortSignal.timeout(5_000),
   })
-  if (!iconResponse.ok || !(await iconResponse.text()).includes('<svg')) {
+  if (!iconResponse.ok || !iconResponse.headers.get('content-type')?.startsWith('image/png')) {
     throw new Error(`custom desktop asset check failed for icon (${String(iconResponse.status)})`)
   }
 }

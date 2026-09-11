@@ -1,4 +1,4 @@
-/** Custom Harness occupants for brand slots, product tokens, and the About row. */
+/** Harnessy occupants for brand slots, product tokens, and the About row. */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
@@ -19,7 +19,7 @@ import { CUSTOM_HARNESS_THEME_TOKENS } from './tokens.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
-    /** Custom Harness identity and About copy. */
+    /** Harnessy identity and About copy. */
     'customHarnessBrand': BrandKey
   }
 }
@@ -31,7 +31,7 @@ const LOCALE_NS = 'customHarnessBrand'
 export const inject = ['slots', 'locale', 'theme', 'remote', 'remote.openAIAccount']
 
 /**
- * Install the Custom Harness identity only in its named browser build.
+ * Install the Harnessy identity only in its named browser build.
  * @param ctx - Client root context carrying slots, locale, and theme services.
  */
 export function apply(ctx: ClientContext): void {

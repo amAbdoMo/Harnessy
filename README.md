@@ -1,6 +1,6 @@
-# Custom Harness
+# Harnessy
 
-Custom Harness is a personal Windows desktop AI harness maintained by [amAbdoMo](https://github.com/amAbdoMo). It is built from [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) and keeps the upstream plugin-based runtime while providing independent branding, isolated application data, and a compact Windows installer.
+Harnessy is a personal Windows desktop AI harness maintained by [amAbdoMo](https://github.com/amAbdoMo). It is built from [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) and keeps the upstream plugin-based runtime while providing independent branding, isolated application data, and a compact Windows installer.
 
 This repository is the source-code backup and version history for the customized application. Stable versions are published as installers under [GitHub Releases](https://github.com/amAbdoMo/Harnessy/releases).
 
@@ -8,7 +8,7 @@ This repository is the source-code backup and version history for the customized
 
 - Preserve the desktop harness features and UI used by the personal build.
 - Install and launch like a normal Windows application without a terminal window.
-- Keep Custom Harness data separate from other Harness installations.
+- Keep Harnessy data separate from other Harness installations.
 - Support browser-based OpenAI account sign-in for Codex models without requiring an API key.
 - Record each source adjustment in Git and provide restorable installers for stable versions.
 - Keep upstream DeepSeek Harness available as a source of compatible fixes and improvements.
@@ -17,24 +17,24 @@ This repository is the source-code backup and version history for the customized
 
 ## Install on Windows
 
-The personal Custom Harness release currently targets Windows x64.
+The personal Harnessy release currently targets Windows x64.
 
 1. Open the [latest release](https://github.com/amAbdoMo/Harnessy/releases/latest).
-2. Download the `CustomHarness-Setup-*-win-x64.exe` asset.
+2. Download the `Harnessy-Setup-*-win-x64.exe` asset.
 3. Run the installer and choose an installation directory when prompted.
-4. Launch **Custom Harness** after installation.
+4. Launch **Harnessy** after installation.
 
 The personal installer is not code-signed, so Windows SmartScreen may display a warning. Confirm that the installer came from this repository's Releases page before running it.
 
 ## Use the application
 
-Open **Settings > Models** to configure a provider. For Codex models, use **Sign in with OpenAI** and complete authentication in your default browser; Custom Harness activates the OpenAI Codex model route after the callback succeeds. API-key providers remain available separately.
+Open **Settings > Models** to configure a provider. For Codex models, use **Sign in with OpenAI** and complete authentication in your default browser; Harnessy activates the OpenAI Codex model route after the callback succeeds. API-key providers remain available separately.
 
-OpenAI account sign-in uses the existing Codex OAuth flow described in the [official authentication documentation](https://learn.chatgpt.com/docs/auth). The resulting grant stays in the local Custom Harness credential store and is not committed to this repository.
+OpenAI account sign-in uses the existing Codex OAuth flow described in the [official authentication documentation](https://learn.chatgpt.com/docs/auth). The resulting grant stays in the local Harnessy credential store and is not committed to this repository.
 
-Application state is stored under `%LOCALAPPDATA%\CustomHarness`. Installing a newer Custom Harness version uses the same product data directory; source code and installers do not contain your local sessions or credentials.
+Application state is stored under `%LOCALAPPDATA%\CustomHarness`. Installing a newer Harnessy version uses the same product data directory; source code and installers do not contain your local sessions or credentials.
 
-Custom Harness does not currently check for or install updates automatically. Install a newer version from GitHub Releases when one is published.
+Harnessy does not currently check for or install updates automatically. Install a newer version from GitHub Releases when one is published.
 
 ## Version and backup flow
 
@@ -72,7 +72,7 @@ GitHub runs the same focused desktop checks on Windows for pushes and pull reque
 
 ## Relationship to DeepSeek Harness
 
-Custom Harness is an independent personal derivative and is not an official DeepSeek product. The upstream project, its documentation, and its community are available from the [DeepSeek Harness repository](https://github.com/deepseek-ai/deepseek-harness).
+Harnessy is an independent personal derivative and is not an official DeepSeek product. The upstream project, its documentation, and its community are available from the [DeepSeek Harness repository](https://github.com/deepseek-ai/deepseek-harness).
 
 ## License
 

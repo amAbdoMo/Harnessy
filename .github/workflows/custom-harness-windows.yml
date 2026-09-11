@@ -1,4 +1,4 @@
-name: Custom Harness Windows
+name: Harnessy Windows
 
 on:
   push:

@@ -1,5 +1,5 @@
 ---
-description: "Custom Harness 浏览器身份、主题 token、About 行与 OpenAI 账户控件。"
+description: "Harnessy 浏览器身份、主题 token、About 行与 OpenAI 账户控件。"
 kind: "package-reference"
 ---
 
@@ -23,7 +23,7 @@ kind: "package-reference"
 
 通过 [`dsh-custom-harness`](../../bundle/custom-harness/README.zh.md) 组合本包，并运行 `pnpm run build:custom-harness` 构建仓库。产品名称、项目链接与支持链接来自集中管理的构建环境；缺少值时会明确失败，避免混合身份。
 
-标志采用可缩放的矢量“穿线光圈”造型，可适配宿主决定的图标尺寸，并跟随明暗产品 token。冷紫色调通过现有语义 token 传递，同时保留共享的蓝色发送操作以及成功、警告和错误语义。About 行显示构建版本和项目入口，不保留运行时状态。
+提供的透明 Harnessy 标志会在海洋渐变底框上适配宿主控制的图标尺寸。深海军蓝、青色与亮青色配色通过现有语义 token 同时作用于明暗模式，并保留标准的成功、警告与错误语义。About 行显示构建版本和项目入口，不保留运行时状态。
 
 Models footer 卡片只读取脱敏的 `openAIAccount.describe()` 状态。**Sign in with OpenAI** 启动可取消的 Host 请求，并在默认浏览器完成 OAuth 期间显示等待对话框。成功后状态刷新为 Connected；**Sign out** 删除本地 grant 及其 Codex provider route。界面直接显示 Remote 拒绝消息，不会检查凭据内容。
 

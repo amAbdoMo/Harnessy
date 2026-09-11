@@ -1,4 +1,4 @@
-// Custom Harness product-composition coverage for the per-message feedback
+// Harnessy product-composition coverage for the per-message feedback
 // disablement. It exercises the real Host, authenticated HTTP gateway, built
 // browser roster, and a cold-seeded session without mounting the omitted rows.
 import { readFile } from 'node:fs/promises'
@@ -98,7 +98,7 @@ async function openOldSession(page: Page): Promise<void> {
   await page.getByText('DONE', { exact: true }).waitFor({ timeout: 30_000 })
 }
 
-describe('Custom Harness disables per-message feedback', () => {
+describe('Harnessy disables per-message feedback', () => {
   let first: WebScaffold
   let restarted: WebScaffold
   let browser: Browser

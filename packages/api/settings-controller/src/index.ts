@@ -2,7 +2,7 @@
  * Host Remote owner for the configuration surfaces over the settings-domain
  * seams. Three namespaces: `settings`, the redacted reads and writes of
  * `ctx.settings`, owned by the class below; plus `credentials` and the narrow
- * Custom Harness `openAIAccount` surface, mounted here as sibling plugins.
+ * Harnessy `openAIAccount` surface, mounted here as sibling plugins.
  *
  * @module @deepseek-ai/dsh-api-settings-controller
  */

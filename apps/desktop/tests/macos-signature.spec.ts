@@ -36,20 +36,22 @@ describe('desktop macOS release signature', () => {
     vi.unstubAllEnvs()
   })
 
-  it('uses the fixed Custom Harness identity and requires code signing', async () => {
+  it('uses the fixed Harnessy identity and requires code signing', async () => {
     const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
     const config = createElectronBuilderConfig(RELEASE_ENVIRONMENT, 'darwin', 'arm64')
     expect(portablePath(config.directories.output)).toContain('/.desktop-build/targets/mac-arm64/artifacts')
-    expect(config.extraResources).toHaveLength(2)
+    expect(config.extraResources).toHaveLength(3)
     expect(config.extraResources[0]?.to).toBe('runtime')
     expect(config.extraResources[1]?.to).toBe('seed')
+    expect(config.extraResources[2]?.to).toBe('harnessy.png')
     expect(portablePath(config.extraResources[0]?.from ?? '')).toContain('/.desktop-build/targets/mac-arm64/runtime')
     expect(portablePath(config.extraResources[1]?.from ?? '')).toContain('/.desktop-build/targets/mac-arm64/seed')
+    expect(config.extraResources[2]?.from).toBe('assets/harnessy.png')
     expect(config).toMatchObject({
       appId: 'com.amabdmo.customharness',
-      productName: 'Custom Harness',
-      executableName: 'CustomHarness',
-      artifactName: 'CustomHarness-Setup-${version}-${os}-${arch}.${ext}',
+      productName: 'Harnessy',
+      executableName: 'Harnessy',
+      artifactName: 'Harnessy-Setup-${version}-${os}-${arch}.${ext}',
       mac: {
         identity: RELEASE_ENVIRONMENT.DSH_DESKTOP_MACOS_SIGNING_IDENTITY,
         forceCodeSigning: true,
@@ -60,8 +62,8 @@ describe('desktop macOS release signature', () => {
         writeUpdateInfo: false,
       },
       win: {
-        icon: 'assets/custom-harness.ico',
-        executableName: 'CustomHarness',
+        icon: 'assets/harnessy.png',
+        executableName: 'Harnessy',
       },
     })
     expect(config).not.toHaveProperty('publish')
@@ -84,7 +86,7 @@ describe('desktop macOS release signature', () => {
     }, 'win32', 'x64', 'local-unsigned')
     expect(config.win).toMatchObject({
       forceCodeSigning: false,
-      executableName: 'CustomHarness',
+      executableName: 'Harnessy',
       target: ['nsis'],
     })
     expect(config.win).not.toHaveProperty('signtoolOptions')

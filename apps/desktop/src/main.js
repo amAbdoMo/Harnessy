@@ -23,7 +23,7 @@ try {
   app.setAppUserModelId(config.appId)
   desktopLog = createDesktopLog(config.logDirectory)
 } catch (error) {
-  dialog.showErrorBox('Custom Harness could not start', error instanceof Error ? error.message : String(error))
+  dialog.showErrorBox('Harnessy could not start', error instanceof Error ? error.message : String(error))
   app.exit(1)
 }
 
@@ -43,7 +43,7 @@ async function openServiceInBrowser() {
     await dialog.showMessageBox(mainWindow, {
       type: 'error',
       title: 'Could not open the browser',
-      message: 'Custom Harness is still running. You can retry from the File menu.',
+      message: 'Harnessy is still running. You can retry from the File menu.',
       detail: error instanceof Error ? error.message : String(error),
     })
   }
@@ -56,7 +56,7 @@ function installApplicationMenu() {
       submenu: [
         { label: 'Open in Browser', accelerator: 'CommandOrControl+Shift+B', click: openServiceInBrowser },
         { type: 'separator' },
-        { role: 'quit', label: 'Exit Custom Harness' },
+        { role: 'quit', label: 'Exit Harnessy' },
       ],
     },
     { role: 'editMenu' },
@@ -84,7 +84,7 @@ async function recoverFromFailure(message) {
   await mainWindow.loadFile(`${sourceDirectory}/startup.html`)
   const { response } = await dialog.showMessageBox(mainWindow, {
     type: 'error',
-    title: 'Custom Harness needs attention',
+    title: 'Harnessy needs attention',
     message,
     buttons: ['Retry', 'Quit'],
     defaultId: 0,
@@ -139,7 +139,7 @@ if (primaryInstance) app.whenReady().then(async () => {
   installApplicationMenu()
   await startService()
 }).catch(error => {
-  dialog.showErrorBox('Custom Harness could not start', error instanceof Error ? error.message : String(error))
+  dialog.showErrorBox('Harnessy could not start', error instanceof Error ? error.message : String(error))
   app.exit(1)
 })
 

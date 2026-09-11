@@ -57,11 +57,13 @@ export function createElectronBuilderConfig(
       'lib/*.js',
       'lib/*.cjs',
       'renderer/**/*',
+      'assets/harnessy.png',
       'package.json',
     ],
     extraResources: [
       { from: buildPaths.runtime, to: 'runtime' },
       { from: buildPaths.seed, to: 'seed' },
+      { from: 'assets/harnessy.png', to: 'harnessy.png' },
     ],
     mac: {
       category: 'public.app-category.developer-tools',
@@ -89,7 +91,7 @@ export function createElectronBuilderConfig(
     },
     win: {
       forceCodeSigning: !packagesLocalUnsignedWindows,
-      icon: 'assets/custom-harness.ico',
+      icon: 'assets/harnessy.png',
       executableName: CUSTOM_HARNESS_PRODUCT.executableName,
       ...(packagesLocalUnsignedWindows ? {} : {
         signtoolOptions: {
@@ -101,7 +103,7 @@ export function createElectronBuilderConfig(
     },
     linux: {
       category: 'Development',
-      icon: 'assets/custom-harness.png',
+      icon: 'assets/harnessy.png',
       target: ['AppImage'],
     },
     nsis: {

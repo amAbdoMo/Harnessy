@@ -1,5 +1,5 @@
 appId: com.amabdmo.customharness
-productName: Custom Harness
+productName: Harnessy
 copyright: Copyright © 2026 ${env.CUSTOM_HARNESS_PUBLISHER_NAME}
 asar: true
 electronVersion: 44.2.0
@@ -10,6 +10,7 @@ directories:
   buildResources: assets
 files:
   - src/**/*
+  - assets/harnessy.png
   - package.json
 extraResources:
   - from: .package-stage/dsh
@@ -18,8 +19,8 @@ extraResources:
     to: runtime
   - from: assets/windows-job-launcher.exe
     to: windows-job-launcher.exe
-  - from: assets/custom-harness.png
-    to: custom-harness.png
+  - from: assets/harnessy.png
+    to: harnessy.png
   - from: ../../LICENSE
     to: LICENSE.txt
   - from: ../../THIRD_PARTY_NOTICES.md
@@ -31,9 +32,9 @@ win:
     - target: nsis
       arch:
         - x64
-  icon: assets/custom-harness.ico
-  executableName: CustomHarness
-  artifactName: CustomHarness-Setup-${version}-windows-${arch}.${ext}
+  icon: assets/harnessy.png
+  executableName: Harnessy
+  artifactName: Harnessy-Setup-${version}-windows-${arch}.${ext}
   publisherName: ${env.CUSTOM_HARNESS_PUBLISHER_NAME}
 nsis:
   oneClick: false

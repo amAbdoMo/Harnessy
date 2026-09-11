@@ -1,6 +1,6 @@
 import { isAbsolute, resolve } from 'node:path'
 
-const PRODUCT_NAME = 'Custom Harness'
+const PRODUCT_NAME = 'Harnessy'
 const PRODUCT_DIRECTORY = 'CustomHarness'
 const PROFILE = 'custom-harness'
 const APP_ID = 'com.amabdmo.customharness'
@@ -17,7 +17,7 @@ export function packagedDesktopEnvironment(resourcesPath, environment = process.
   if (!isAbsolute(resourcesPath)) throw new Error('Electron resourcesPath must be absolute')
   const localAppData = environment.LOCALAPPDATA
   if (localAppData === undefined || localAppData.trim() === '' || !isAbsolute(localAppData)) {
-    throw new Error('Custom Harness requires an absolute LOCALAPPDATA path')
+    throw new Error('Harnessy requires an absolute LOCALAPPDATA path')
   }
 
   const productData = absoluteOverride(
@@ -49,6 +49,6 @@ export function packagedDesktopEnvironment(resourcesPath, environment = process.
     CUSTOM_HARNESS_DESKTOP_WORKING_DIRECTORY: dshRoot,
     CUSTOM_HARNESS_DESKTOP_USER_DATA: resolve(cache, 'DesktopUserData'),
     CUSTOM_HARNESS_DESKTOP_LOG_DIR: logs,
-    CUSTOM_HARNESS_DESKTOP_ICON: resolve(resourcesPath, 'custom-harness.png'),
+    CUSTOM_HARNESS_DESKTOP_ICON: resolve(resourcesPath, 'harnessy.png'),
   }
 }

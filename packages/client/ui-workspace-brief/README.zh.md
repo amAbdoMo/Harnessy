@@ -1,5 +1,5 @@
 ---
-description: "Custom Harness 浏览器操作与持久 Markdown 卡片，用于创建、重试和查看所选工作区的有界 Workspace Brief。"
+description: "Harnessy 浏览器操作与持久 Markdown 卡片，用于创建、重试和查看所选工作区的有界 Workspace Brief。"
 kind: "package-reference"
 ---
 
@@ -25,13 +25,13 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-Custom Harness bundle 将此浏览器插件与宿主 Workspace Brief 命令一并挂载。打开一个关联到工作区的会话，然后在会话标题栏选择“Create workspace brief”；会话打开前该按钮保持禁用。
+Harnessy bundle 将此浏览器插件与宿主 Workspace Brief 命令一并挂载。打开一个关联到工作区的会话，然后在会话标题栏选择“Create workspace brief”；会话打开前该按钮保持禁用。
 
 该操作发送准确的无参数 `/workspace-brief` 命令。如需包含 Git 状态，请通过普通命令输入键入 `/workspace-brief --git`。传输与命令失败显示在操作旁边并保持可重试；持久命令卡片会独立显示已记录的运行中、成功或失败状态。
 
 ### 最小组合
 
-在 locale、Remote、chat、conversation、renderer 和 session UI 包之后，把此行挂载到客户端组合。Custom Harness bundle 会提供该依赖图。
+在 locale、Remote、chat、conversation、renderer 和 session UI 包之后，把此行挂载到客户端组合。Harnessy bundle 会提供该依赖图。
 
 ```yaml
 - id: ui-workspace-brief

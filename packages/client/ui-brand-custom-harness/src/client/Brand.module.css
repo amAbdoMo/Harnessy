@@ -1,9 +1,20 @@
-.markFrame {
-  fill: var(--dsw-alias-brand-primary);
+.mark {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 31.25%;
+  background: linear-gradient(145deg, #20a0a0 0%, #087f91 42%, #004060 100%);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 16%),
+    0 1px 4px rgb(0 43 60 / 24%);
 }
 
-.markThread {
-  stroke: var(--dsw-alias-label-primary-foreground);
+.markImage {
+  display: block;
+  width: 135%;
+  height: 135%;
+  object-fit: contain;
 }
 
 .wordmark {
@@ -11,7 +22,7 @@
   color: var(--dsw-alias-brand-text);
   font-family: 'Segoe UI Variable Display', 'Aptos Display', var(--dsw-font-family);
   font-size: 15px;
-  font-weight: 650;
+  font-weight: 680;
   line-height: 24px;
   letter-spacing: -0.025em;
   white-space: nowrap;

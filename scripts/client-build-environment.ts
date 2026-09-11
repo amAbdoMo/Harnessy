@@ -148,7 +148,7 @@ export function officialClientBuildEnvironment(
   }
 }
 
-/** Resolve the exact public environment required by an independently branded Custom Harness build. */
+/** Resolve the exact public environment required by an independently branded Harnessy build. */
 export function customHarnessClientBuildEnvironment(
   root: string,
   environment: NodeJS.ProcessEnv = process.env,

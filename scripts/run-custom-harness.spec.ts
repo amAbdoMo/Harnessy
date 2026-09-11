@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { CUSTOM_HARNESS_PRODUCT } from './custom-harness-product.ts'
 import { resolveCustomHarnessPaths } from './run-custom-harness.ts'
 
-describe('Custom Harness storage isolation', () => {
+describe('Harnessy storage isolation', () => {
   it('uses product-owned directories and ignores ambient DSH_HOME', () => {
     const local = resolve('C:/phase-three-local-app-data')
     const paths = resolveCustomHarnessPaths({

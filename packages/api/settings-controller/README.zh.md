@@ -1,5 +1,5 @@
 ---
-description: "settings、凭据与 Custom Harness OpenAI 账户认证的 Host Remote owner。"
+description: "settings、凭据与 Harnessy OpenAI 账户认证的 Host Remote owner。"
 kind: "package-reference"
 ---
 # Settings Controller
@@ -8,7 +8,7 @@ kind: "package-reference"
 
 ## 概述
 
-`@deepseek-ai/dsh-api-settings-controller` 为浏览器配置界面提供生成的 `ctx.remote.settings`、`ctx.remote.credentials` 与 `ctx.remote.openAIAccount` namespace。它返回脱敏的 settings 与凭据元数据，支持写入而不返回密钥值，在 Host 桌面打开由 provider 持有的 settings 或 Agent preset 位置，并把 Custom Harness 的 OpenAI 浏览器登录操作连接到中立 authorization service。provider 缺失时，各 namespace 仍会注册，并返回可操作的配置错误。
+`@deepseek-ai/dsh-api-settings-controller` 为浏览器配置界面提供生成的 `ctx.remote.settings`、`ctx.remote.credentials` 与 `ctx.remote.openAIAccount` namespace。它返回脱敏的 settings 与凭据元数据，支持写入而不返回密钥值，在 Host 桌面打开由 provider 持有的 settings 或 Agent preset 位置，并把 Harnessy 的 OpenAI 浏览器登录操作连接到中立 authorization service。provider 缺失时，各 namespace 仍会注册，并返回可操作的配置错误。
 
 ## 目录
 

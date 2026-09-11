@@ -12,22 +12,25 @@ afterEach(() => {
   vi.unstubAllEnvs()
 })
 
-describe('Custom Harness identity components', () => {
-  it('renders one vector mark at every host-owned size', () => {
+describe('Harnessy identity components', () => {
+  it('renders the supplied mark at every host-owned size', () => {
+    vi.stubEnv('DSH_CLIENT_MARK_PATH', '/harnessy-mark.png')
     const subject = render(<CustomHarnessMark size={16} />)
-    const mark = subject.container.querySelector('svg')
-    expect(mark?.getAttribute('viewBox')).toBe('0 0 64 64')
+    const mark = subject.container.querySelector('span')
+    const image = subject.container.querySelector('img')
+    expect(image?.getAttribute('src')).toBe('/harnessy-mark.png')
+    expect(mark?.getAttribute('style')).toContain('width: 16px')
     for (const size of [24, 34, 64]) {
       subject.rerender(<CustomHarnessMark size={size} />)
-      expect(mark?.getAttribute('width')).toBe(String(size))
-      expect(mark?.getAttribute('height')).toBe(String(size))
+      expect(mark?.getAttribute('style')).toContain(`width: ${String(size)}px`)
+      expect(mark?.getAttribute('style')).toContain(`height: ${String(size)}px`)
     }
   })
 
   it('takes the visible name from the named product build', () => {
-    vi.stubEnv('DSH_CLIENT_PRODUCT_NAME', 'Custom Harness')
+    vi.stubEnv('DSH_CLIENT_PRODUCT_NAME', 'Harnessy')
     render(<CustomHarnessName />)
-    screen.getByText('Custom Harness')
+    screen.getByText('Harnessy')
   })
 
   it('fails rather than rendering a mixed identity when a product value is missing', () => {
@@ -36,8 +39,8 @@ describe('Custom Harness identity components', () => {
 
   it('renders localized About facts and safe external links', () => {
     const copy = {
-      aboutLabel: 'About Custom Harness',
-      aboutTitle: 'About Custom Harness',
+      aboutLabel: 'About Harnessy',
+      aboutTitle: 'About Harnessy',
       aboutSummary: 'Independent workspace.',
       heroTagline: 'Build deliberately.',
       product: 'Product',
@@ -46,7 +49,7 @@ describe('Custom Harness identity components', () => {
       supportLink: 'Support and issues',
     } as const
     const props = {
-      productName: 'Custom Harness',
+      productName: 'Harnessy',
       productUrl: 'https://github.com/amAbdoMo/Harnessy',
       supportUrl: 'https://github.com/amAbdoMo/Harnessy/issues',
       version: '0.1.2-rc.1',

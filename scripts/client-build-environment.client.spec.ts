@@ -140,7 +140,7 @@ describe('client build environment', () => {
     expect(repositoryCommitHash('/unused', { DSH_CLIENT_COMMIT_HASH: COMMIT_HASH })).toBe(COMMIT_HASH.slice(0, 7))
   })
 
-  it('isolates the Custom Harness product identity in its named build profile', () => {
+  it('isolates the Harnessy product identity in its named build profile', () => {
     const resolved = resolveClientBuildEnvironment({
       DSH_CLIENT_COMMIT_HASH: COMMIT_HASH.slice(0, 7),
       DSH_CLIENT_VERSION: '1.2.3',
@@ -151,13 +151,14 @@ describe('client build environment', () => {
     expect(resolved).toEqual({
       DSH_CLIENT_BUILD_PROFILE: 'custom-harness',
       DSH_CLIENT_COMMIT_HASH: COMMIT_HASH.slice(0, 7),
-      DSH_CLIENT_ICON_PATH: '/custom-harness.svg',
-      DSH_CLIENT_MANIFEST_SHORT_NAME: 'Harness',
-      DSH_CLIENT_PRODUCT_NAME: 'Custom Harness',
+      DSH_CLIENT_ICON_PATH: '/harnessy.png',
+      DSH_CLIENT_MANIFEST_SHORT_NAME: 'Harnessy',
+      DSH_CLIENT_MARK_PATH: '/harnessy-mark.png',
+      DSH_CLIENT_PRODUCT_NAME: 'Harnessy',
       DSH_CLIENT_PRODUCT_SLUG: 'custom-harness',
       DSH_CLIENT_PRODUCT_URL: 'https://github.com/amAbdoMo/Harnessy',
       DSH_CLIENT_SUPPORT_URL: 'https://github.com/amAbdoMo/Harnessy/issues',
-      DSH_CLIENT_TITLE: 'Custom Harness',
+      DSH_CLIENT_TITLE: 'Harnessy',
       DSH_CLIENT_VERSION: '1.2.3',
     })
     expect(() => { resolveClientBuildEnvironment({}, 'custom-harness') })

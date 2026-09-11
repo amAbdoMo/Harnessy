@@ -1,4 +1,4 @@
-/** Custom Harness browser UI for the `/workspace-brief` host command. */
+/** Harnessy browser UI for the `/workspace-brief` host command. */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { CommandResult } from '@deepseek-ai/dsh-commands'

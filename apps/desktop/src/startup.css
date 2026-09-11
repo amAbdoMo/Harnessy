@@ -1,10 +1,10 @@
-:root { color-scheme: light dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: #f8f7fc; color: #1d1930; }
+:root { color-scheme: light dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: #f4f9fa; color: #102f3a; }
 body { margin: 0; min-height: 100vh; display: grid; place-items: center; }
 main { width: min(24rem, calc(100vw - 3rem)); text-align: center; }
 h1 { margin: 1rem 0 .4rem; font-size: 1.75rem; letter-spacing: -.035em; }
-p { margin: 0; color: #6c6680; }
-.progress { height: 3px; margin-top: 1.5rem; overflow: hidden; border-radius: 2px; background: #ded9ed; }
-.progress span { display: block; width: 42%; height: 100%; background: #7c5cff; animation: travel 1.2s ease-in-out infinite alternate; }
+p { margin: 0; color: #4a636b; }
+.progress { height: 3px; margin-top: 1.5rem; overflow: hidden; border-radius: 2px; background: #cfe2e5; }
+.progress span { display: block; width: 42%; height: 100%; background: #108090; animation: travel 1.2s ease-in-out infinite alternate; }
 @keyframes travel { from { transform: translateX(-100%); } to { transform: translateX(238%); } }
-@media (prefers-color-scheme: dark) { :root { background: #111018; color: #f5f2ff; } p { color: #aaa3be; } .progress { background: #332e43; } }
+@media (prefers-color-scheme: dark) { :root { background: #06151d; color: #f1fbfc; } p { color: #b7ccd1; } .progress { background: #1b4653; } }
 @media (prefers-reduced-motion: reduce) { .progress span { animation: none; width: 100%; } }

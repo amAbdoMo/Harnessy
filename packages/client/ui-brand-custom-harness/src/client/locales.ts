@@ -1,7 +1,7 @@
-/** English Custom Harness identity copy. */
+/** English Harnessy identity copy. */
 export const en = {
-  aboutLabel: 'About Custom Harness',
-  aboutTitle: 'About Custom Harness',
+  aboutLabel: 'About Harnessy',
+  aboutTitle: 'About Harnessy',
   aboutSummary: 'An independent local workspace for agent-assisted software work.',
   heroTagline: 'A focused workspace for planning, building, and verifying software.',
   product: 'Product',
@@ -25,13 +25,13 @@ export const en = {
   cancel: 'Cancel',
 } as const
 
-/** Custom Harness identity dictionary key. */
+/** Harnessy identity dictionary key. */
 export type BrandKey = keyof typeof en
 
-/** Chinese Custom Harness identity copy. */
+/** Chinese Harnessy identity copy. */
 export const zh: { [Key in BrandKey]: string } = {
-  aboutLabel: '关于 Custom Harness',
-  aboutTitle: '关于 Custom Harness',
+  aboutLabel: '关于 Harnessy',
+  aboutTitle: '关于 Harnessy',
   aboutSummary: '用于智能体辅助软件工作的独立本地工作空间。',
   heroTagline: '用于规划、构建和验证软件的专注工作空间。',
   product: '产品',

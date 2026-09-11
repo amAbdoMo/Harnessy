@@ -1,5 +1,5 @@
 ---
-description: "面向启动独立品牌 Web profile 的用户与维护者，说明 Custom Harness 产品 patch 层。"
+description: "面向启动独立品牌 Web profile 的用户与维护者，说明 Harnessy 产品 patch 层。"
 kind: "package-bundle"
 ---
 
@@ -24,7 +24,7 @@ kind: "package-bundle"
 <a id="use-this-package"></a>
 ## 使用本包
 
-先运行一次 `pnpm run build:custom-harness`，再通过 `pnpm run custom-harness -- --no-open` 启动产品。启动器会选择 `dsh --profile custom-harness`，并用 Custom Harness 数据目录中的产品专属 home 替换环境里可能存在的原有 `DSH_HOME`。
+先运行一次 `pnpm run build:custom-harness`，再通过 `pnpm run custom-harness -- --no-open` 启动产品。启动器会选择 `dsh --profile custom-harness`，并用 Harnessy 数据目录中的产品专属 home 替换环境里可能存在的原有 `DSH_HOME`。
 
 Windows 默认位置为 `%LOCALAPPDATA%\CustomHarness\Harness`、`%LOCALAPPDATA%\CustomHarness\Logs` 和 `%LOCALAPPDATA%\CustomHarness\Cache`。测试或托管部署可以使用产品专属的 `CUSTOM_HARNESS_*` 变量重定向这些目录；启动器不会自动导入原有状态。
 
@@ -47,7 +47,7 @@ Windows 默认位置为 `%LOCALAPPDATA%\CustomHarness\Harness`、`%LOCALAPPDATA%
 <a id="openai-account-login"></a>
 ## OpenAI 账户登录
 
-该 profile 挂载 `@deepseek-ai/dsh-authorization`。因此继承的 dormant `llm-pi-ai` adapter 会在 provider route 尚不存在时注册其 `openai-codex` OAuth flow，而 Custom Harness brand client 会在 Settings > Models 放置 **Sign in with OpenAI**。Host 在默认浏览器中打开 HTTPS 授权页面；provider flow 直接把产生的 grant 写入本地 credential store，controller 只在 authorization service 确认该写入后启用对应 provider route。
+该 profile 挂载 `@deepseek-ai/dsh-authorization`。因此继承的 dormant `llm-pi-ai` adapter 会在 provider route 尚不存在时注册其 `openai-codex` OAuth flow，而 Harnessy brand client 会在 Settings > Models 放置 **Sign in with OpenAI**。Host 在默认浏览器中打开 HTTPS 授权页面；provider flow 直接把产生的 grant 写入本地 credential store，controller 只在 authorization service 确认该写入后启用对应 provider route。
 
 退出登录会删除本地 grant 并移除对应 route。token 不会跨越 Remote 响应，也不会进入 settings 或 session log。上游账户登录行为请参阅[官方 Codex authentication 文档](https://learn.chatgpt.com/docs/auth)。
 

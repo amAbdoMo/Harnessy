@@ -16,7 +16,7 @@ const config = {
   jobLauncher: 'C:\\app\\job.exe',
   workingDirectory: 'C:\\app',
   profile: 'custom-harness',
-  productName: 'Custom Harness',
+  productName: 'Harnessy',
   port: 48_765,
   startupTimeoutMs: 100,
   healthIntervalMs: 10_000,
@@ -51,11 +51,11 @@ function customAssetFetch(input) {
   const url = new URL(input)
   if (url.pathname === '/manifest.webmanifest') {
     return Promise.resolve(new Response(JSON.stringify({
-      name: 'Custom Harness',
-      icons: [{ src: '/custom-harness.svg' }],
+      name: 'Harnessy',
+      icons: [{ src: '/harnessy.png' }],
     }), { headers: { 'content-type': 'application/manifest+json' } }))
   }
-  return Promise.resolve(new Response('<svg></svg>', { headers: { 'content-type': 'image/svg+xml' } }))
+  return Promise.resolve(new Response('png', { headers: { 'content-type': 'image/png' } }))
 }
 
 test('recognizes only authenticated readiness on the expected loopback port', () => {

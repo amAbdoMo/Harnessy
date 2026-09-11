@@ -16,7 +16,7 @@ test('desktop source launcher passes the named profile and isolated paths', () =
   assert.equal(environment.DSH_HOME, 'C:\\Users\\Test\\AppData\\Local\\CustomHarness\\Harness')
   assert.equal(environment.DSH_AGENTS_HOME, 'C:\\Users\\Test\\AppData\\Local\\CustomHarness\\Agents')
   assert.equal(environment.CUSTOM_HARNESS_DESKTOP_PROFILE, 'custom-harness')
-  assert.equal(environment.CUSTOM_HARNESS_PRODUCT_NAME, 'Custom Harness')
+  assert.equal(environment.CUSTOM_HARNESS_PRODUCT_NAME, 'Harnessy')
   assert.equal(environment.CUSTOM_HARNESS_DESKTOP_APP_ID, 'com.amabdmo.customharness')
   assert.equal(environment.CUSTOM_HARNESS_DESKTOP_LOG_DIR, paths.logs)
   assert.equal(
@@ -32,13 +32,14 @@ test('build preflight accepts repository metadata but rejects another product pr
     environment: {
       DSH_CLIENT_BUILD_PROFILE: 'custom-harness',
       DSH_CLIENT_COMMIT_HASH: 'a66e470',
-      DSH_CLIENT_ICON_PATH: '/custom-harness.svg',
-      DSH_CLIENT_MANIFEST_SHORT_NAME: 'Harness',
-      DSH_CLIENT_PRODUCT_NAME: 'Custom Harness',
+      DSH_CLIENT_ICON_PATH: '/harnessy.png',
+      DSH_CLIENT_MANIFEST_SHORT_NAME: 'Harnessy',
+      DSH_CLIENT_MARK_PATH: '/harnessy-mark.png',
+      DSH_CLIENT_PRODUCT_NAME: 'Harnessy',
       DSH_CLIENT_PRODUCT_SLUG: 'custom-harness',
       DSH_CLIENT_PRODUCT_URL: 'https://github.com/amAbdoMo/Harnessy',
       DSH_CLIENT_SUPPORT_URL: 'https://github.com/amAbdoMo/Harnessy/issues',
-      DSH_CLIENT_TITLE: 'Custom Harness',
+      DSH_CLIENT_TITLE: 'Harnessy',
       DSH_CLIENT_VERSION: '0.1.2-rc.1',
     },
     artifacts: { fileCount: 1, sha256: '0'.repeat(64) },
@@ -49,6 +50,6 @@ test('build preflight accepts repository metadata but rejects another product pr
       ...buildRecord,
       environment: { ...buildRecord.environment, DSH_CLIENT_BUILD_PROFILE: 'official' },
     }),
-    /does not describe Custom Harness/u,
+    /does not describe Harnessy/u,
   )
 })

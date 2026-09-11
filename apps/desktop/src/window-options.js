@@ -8,7 +8,7 @@ export function createWindowOptions({ icon, productName, useDarkColors = false }
     show: false,
     title: productName,
     icon,
-    backgroundColor: useDarkColors ? '#111018' : '#f8f7fc',
+    backgroundColor: useDarkColors ? '#06151d' : '#f4f9fa',
     autoHideMenuBar: true,
     webPreferences: {
       contextIsolation: true,

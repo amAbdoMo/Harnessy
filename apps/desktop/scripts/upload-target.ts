@@ -54,7 +54,7 @@ async function putArtifact(
 
 async function main(): Promise<void> {
   if (!CUSTOM_HARNESS_PRODUCT.automaticUpdates) {
-    throw new Error('desktop upload: automatic updates are disabled for Custom Harness')
+    throw new Error('desktop upload: automatic updates are disabled for Harnessy')
   }
   const { positionals } = parseArgs({ args: process.argv.slice(2), allowPositionals: true })
   const target = positionals[0]

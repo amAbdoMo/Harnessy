@@ -1,12 +1,12 @@
 import { isAbsolute, resolve } from 'node:path'
 
-/** Product identity selected for the independently branded Custom Harness build. */
+/** Product identity selected for the independently branded Harnessy build. */
 export const CUSTOM_HARNESS_PRODUCT = Object.freeze({
-  displayName: 'Custom Harness',
+  displayName: 'Harnessy',
   slug: 'custom-harness',
   windowsAppId: 'com.amabdmo.customharness',
-  executableName: 'CustomHarness',
-  installerName: 'CustomHarness-Setup',
+  executableName: 'Harnessy',
+  installerName: 'Harnessy-Setup',
   protocol: 'custom-harness',
   dataDirectoryName: 'CustomHarness',
   harnessHomeDirectoryName: 'Harness',
@@ -22,11 +22,12 @@ export const CUSTOM_HARNESS_PRODUCT = Object.freeze({
   automaticUpdates: false,
   productUrl: 'https://github.com/amAbdoMo/Harnessy',
   supportUrl: 'https://github.com/amAbdoMo/Harnessy/issues',
-  manifestShortName: 'Harness',
-  iconPath: '/custom-harness.svg',
+  manifestShortName: 'Harnessy',
+  iconPath: '/harnessy.png',
+  markPath: '/harnessy-mark.png',
 })
 
-/** Public build values embedded into the Custom Harness browser artifacts. */
+/** Public build values embedded into the Harnessy browser artifacts. */
 export const CUSTOM_HARNESS_CLIENT_BUILD_ENVIRONMENT = Object.freeze({
   DSH_CLIENT_BUILD_PROFILE: CUSTOM_HARNESS_PRODUCT.slug,
   DSH_CLIENT_TITLE: CUSTOM_HARNESS_PRODUCT.displayName,
@@ -36,6 +37,7 @@ export const CUSTOM_HARNESS_CLIENT_BUILD_ENVIRONMENT = Object.freeze({
   DSH_CLIENT_SUPPORT_URL: CUSTOM_HARNESS_PRODUCT.supportUrl,
   DSH_CLIENT_MANIFEST_SHORT_NAME: CUSTOM_HARNESS_PRODUCT.manifestShortName,
   DSH_CLIENT_ICON_PATH: CUSTOM_HARNESS_PRODUCT.iconPath,
+  DSH_CLIENT_MARK_PATH: CUSTOM_HARNESS_PRODUCT.markPath,
 })
 
 function absolutePath(value, label) {

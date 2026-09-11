@@ -26,9 +26,11 @@ function clientDocumentIdentity(): Plugin {
     name: 'dsh-client-document-identity',
     transformIndexHtml(html) {
       const titled = html.replace('<title>DSH Local Build</title>', `<title>${title}</title>`)
-      return iconPath === undefined
-        ? titled
-        : titled.replace(/href=["']\.?\/favicon\.svg["']/, `href="${escapeHtmlText(iconPath)}"`)
+      if (iconPath === undefined) return titled
+      const branded = titled.replace(/href=["']\.?\/favicon\.svg["']/, `href="${escapeHtmlText(iconPath)}"`)
+      return iconPath.endsWith('.png')
+        ? branded.replace(/(<link\s+rel=["']icon["']\s+type=["'])image\/svg\+xml/u, '$1image/png')
+        : branded
     },
     async closeBundle() {
       if (productName === undefined && shortName === undefined && iconPath === undefined) return
@@ -37,7 +39,7 @@ function clientDocumentIdentity(): Plugin {
       if (productName !== undefined) manifest.name = productName
       if (shortName !== undefined) manifest.short_name = shortName
       if (iconPath !== undefined) {
-        manifest.icons = [{ src: iconPath, sizes: 'any', type: 'image/svg+xml', purpose: 'any' }]
+        manifest.icons = [{ src: iconPath, sizes: '1254x1254', type: 'image/png', purpose: 'any' }]
       }
       await writeFile(path, `${JSON.stringify(manifest, null, 2)}\n`)
     },

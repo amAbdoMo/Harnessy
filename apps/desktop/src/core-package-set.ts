@@ -13,7 +13,7 @@ export const DESKTOP_PACKAGES_DIR = 'desktop-packages'
 /** Private package installed beside dsh to boot the Desktop Host process. */
 export const DESKTOP_HOST_PACKAGE = '@deepseek-ai/dsh-desktop-host'
 
-/** Product bundle that must ship in every Custom Harness Desktop package set. */
+/** Product bundle that must ship in every Harnessy Desktop package set. */
 export const CUSTOM_HARNESS_BUNDLE_PACKAGE = '@deepseek-ai/dsh-custom-harness'
 
 /** Package-relative Desktop Host files required before a profile can boot. */

@@ -1,4 +1,4 @@
-/** Launch Custom Harness with product-owned storage and the named profile. */
+/** Launch Harnessy with product-owned storage and the named profile. */
 
 import { spawnSync } from 'node:child_process'
 import { mkdirSync } from 'node:fs'

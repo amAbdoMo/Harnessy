@@ -1,5 +1,5 @@
 ---
-description: "Custom Harness product patch layer for users and maintainers launching the independently branded Web profile."
+description: "Harnessy product patch layer for users and maintainers launching the independently branded Web profile."
 kind: "package-bundle"
 ---
 
@@ -24,7 +24,7 @@ This package is the narrow product layer applied after `dsh-base` and `dsh-web-a
 <a id="use-this-package"></a>
 ## Use this package
 
-Run `pnpm run build:custom-harness` once, then start the product with `pnpm run custom-harness -- --no-open`. The launcher selects `dsh --profile custom-harness` and replaces any ambient stock `DSH_HOME` with the product-owned home under the Custom Harness data directory.
+Run `pnpm run build:custom-harness` once, then start the product with `pnpm run custom-harness -- --no-open`. The launcher selects `dsh --profile custom-harness` and replaces any ambient stock `DSH_HOME` with the product-owned home under the Harnessy data directory.
 
 The default Windows locations are `%LOCALAPPDATA%\CustomHarness\Harness`, `%LOCALAPPDATA%\CustomHarness\Logs`, and `%LOCALAPPDATA%\CustomHarness\Cache`. Product-specific `CUSTOM_HARNESS_*` variables may redirect them for testing or managed deployments; no stock state is imported automatically.
 
@@ -47,7 +47,7 @@ Disabling either row removes that half of the experience without changing stored
 <a id="openai-account-login"></a>
 ## OpenAI account login
 
-The profile mounts `@deepseek-ai/dsh-authorization`. The inherited dormant `llm-pi-ai` adapter consequently registers its `openai-codex` OAuth flow even before a provider route exists, while the Custom Harness brand client places **Sign in with OpenAI** in Settings > Models. The Host opens the HTTPS authorization page in the default browser; the provider flow writes the resulting grant directly to the local credential store, and the controller activates the matching provider route only after the authorization service confirms that write.
+The profile mounts `@deepseek-ai/dsh-authorization`. The inherited dormant `llm-pi-ai` adapter consequently registers its `openai-codex` OAuth flow even before a provider route exists, while the Harnessy brand client places **Sign in with OpenAI** in Settings > Models. The Host opens the HTTPS authorization page in the default browser; the provider flow writes the resulting grant directly to the local credential store, and the controller activates the matching provider route only after the authorization service confirms that write.
 
 Sign-out deletes the local grant and removes the matching route. Tokens never cross the Remote response and never enter settings or session logs. See the [official Codex authentication documentation](https://learn.chatgpt.com/docs/auth) for the upstream account-sign-in behavior.
 

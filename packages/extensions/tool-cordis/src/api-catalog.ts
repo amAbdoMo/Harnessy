@@ -1343,8 +1343,8 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   },
   {
     key: 'openAIAccountController',
-    summary: 'Expose the one-click ChatGPT OAuth path used by Custom Harness.',
-    description: 'Expose the one-click ChatGPT OAuth path used by Custom Harness. The neutral authorization service still owns the provider conversation and token write; this controller supplies the Windows-desktop interaction: browser login and a cancellable wait for the local OAuth callback.',
+    summary: 'Expose the one-click ChatGPT OAuth path used by Harnessy.',
+    description: 'Expose the one-click ChatGPT OAuth path used by Harnessy. The neutral authorization service still owns the provider conversation and token write; this controller supplies the Windows-desktop interaction: browser login and a cancellable wait for the local OAuth callback.',
     methods: [
       {
         signature: '@Remote async describe(): Promise<OpenAIAccountState>',

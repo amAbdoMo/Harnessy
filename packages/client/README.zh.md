@@ -45,8 +45,8 @@ kind: "package-group"
 | [`resources/`](resources/README.zh.md) | 统一资源模型：`useResource` 会话标准 hook 背后的协议提供者 | `ctx.resources` |
 | [`ui-sidebar-files/`](ui-sidebar-files/README.zh.md) | 右侧 Sidebar 的工作区文件树 tab 类型 | — |
 | [`ui-brand-official/`](ui-brand-official/README.zh.md) | 用官方名称与标记填充通用浏览器品牌 slot | — |
-| [`ui-brand-custom-harness/`](ui-brand-custom-harness/README.zh.md) | 为 Custom Harness 构建填充浏览器身份、About 与产品主题 slot | — |
-| [`ui-workspace-brief/`](ui-workspace-brief/README.zh.md) | 添加 Custom Harness Workspace Brief 操作与持久 Markdown 命令卡片 | — |
+| [`ui-brand-custom-harness/`](ui-brand-custom-harness/README.zh.md) | 为 Harnessy 构建填充浏览器身份、About 与产品主题 slot | — |
+| [`ui-workspace-brief/`](ui-workspace-brief/README.zh.md) | 添加 Harnessy Workspace Brief 操作与持久 Markdown 命令卡片 | — |
 | [`ui-workspace/`](ui-workspace/README.zh.md) | 提供工作区选择与创建界面 | — |
 | [`ui-conversation/`](ui-conversation/README.zh.md) | 展示当前对话及其输入界面 | — |
 | [`ui-chat/`](ui-chat/README.zh.md) | 投影并渲染 Chat 对话 target | — |

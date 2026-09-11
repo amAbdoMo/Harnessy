@@ -99,7 +99,7 @@ function authenticode(artifactPath) {
 }
 
 function installerPath() {
-  const expected = `CustomHarness-Setup-${desktopPackage.version}-windows-x64.exe`
+  const expected = `Harnessy-Setup-${desktopPackage.version}-windows-x64.exe`
   const installer = resolve(distRoot, expected)
   if (!existsSync(installer)) throw new Error(`electron-builder did not produce ${expected}`)
   return installer
@@ -173,7 +173,7 @@ async function writeReleaseManifest(installer, publisherName) {
   if (violations.length > 0) throw new Error(`distributable scan failed:\n${violations.join('\n')}`)
   const manifest = {
     formatVersion: 2,
-    product: 'Custom Harness',
+    product: 'Harnessy',
     version: desktopPackage.version,
     appId: 'com.amabdmo.customharness',
     publisher: publisherName,

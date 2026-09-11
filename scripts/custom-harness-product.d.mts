@@ -1,9 +1,9 @@
 export interface CustomHarnessProduct {
-  readonly displayName: 'Custom Harness'
+  readonly displayName: 'Harnessy'
   readonly slug: 'custom-harness'
   readonly windowsAppId: 'com.amabdmo.customharness'
-  readonly executableName: 'CustomHarness'
-  readonly installerName: 'CustomHarness-Setup'
+  readonly executableName: 'Harnessy'
+  readonly installerName: 'Harnessy-Setup'
   readonly protocol: 'custom-harness'
   readonly dataDirectoryName: 'CustomHarness'
   readonly harnessHomeDirectoryName: 'Harness'
@@ -19,8 +19,9 @@ export interface CustomHarnessProduct {
   readonly automaticUpdates: false
   readonly productUrl: string
   readonly supportUrl: string
-  readonly manifestShortName: 'Harness'
-  readonly iconPath: '/custom-harness.svg'
+  readonly manifestShortName: 'Harnessy'
+  readonly iconPath: '/harnessy.png'
+  readonly markPath: '/harnessy-mark.png'
 }
 
 export interface CustomHarnessDesktopState {

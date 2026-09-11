@@ -1,10 +1,10 @@
-# Custom Harness 桌面端
+# Harnessy 桌面端
 
 [English](README.md) | 中文
 
-桌面应用是基于上游 dsh Electron 外壳构建的独立品牌 Custom Harness 产品。它不打开监听端口：内置的上游 Node.js 子进程启动已安装的 dsh 项目，带版本的分帧字节管道在没有外层 Base64 信封的情况下承载 Fetch 请求与流式响应，Node IPC 承载生命周期控制，内部 `dsh-app://` 协议则提供与后端版本匹配的客户端资源。
+桌面应用是基于上游 dsh Electron 外壳构建的独立品牌 Harnessy 产品。它不打开监听端口：内置的上游 Node.js 子进程启动已安装的 dsh 项目，带版本的分帧字节管道在没有外层 Base64 信封的情况下承载 Fetch 请求与流式响应，Node IPC 承载生命周期控制，内部 `dsh-app://` 协议则提供与后端版本匹配的客户端资源。
 
-产品配置把应用标识固定为 `com.amabdmo.customharness`，依次加载 base、Web 与 Custom Harness bundle，把打包应用状态存放在 `%LOCALAPPDATA%\CustomHarness` 下，并在单独批准的签名更新设计完成验证前禁用自动更新检查、界面、元数据、上传与发布。
+产品配置把应用标识固定为 `com.amabdmo.customharness`，依次加载 base、Web 与 Harnessy bundle，把打包应用状态存放在 `%LOCALAPPDATA%\CustomHarness` 下，并在单独批准的签名更新设计完成验证前禁用自动更新检查、界面、元数据、上传与发布。
 
 ## 关键技术决策
 
@@ -17,7 +17,7 @@
 | 状态归属 | 共享可执行依赖图会让 CLI 与 Desktop 相互改变 dsh、Cordis、插件或原生模块版本，而两个桌面进程还可能争用同一个 profile。 | Electron 在访问任何 profile 前获取进程生命周期单实例锁，并独占 `$DSH_HOME/profiles/desktop` 及其包管理器状态。CLI 与 Desktop 共享 `$DSH_HOME` 下受支持的产品数据，但绝不共享可执行包、插件激活、锁文件或 `node_modules`。 |
 | 通信 | 监听 Web 服务会引入端口归属、认证、CORS 与暴露风险；Electron 与上游 Node.js 之间也需要明确的跨进程协议。 | 应用不打开 Web 端口。`dsh-app://` 承载 Web 资源和 Fetch 流量；分帧字节管道以背压传输有界请求与响应分块，Node IPC 只承载子进程生命周期控制。 |
 | 激活 | 依赖解析、生命周期脚本、原生模块与插件启动都可能失败，目录替换期间进程也可能中断。 | 发布与插件变更先安装到 staging，并启动完整后端执行健康检查；只有成功后才替换活跃 profile，中断替换由事务日志和一个 rollback profile 恢复。 |
-| 更新 | 桌面壳与 dsh 独立更新会重新产生版本分裂，而本 fork 尚未验证签名更新通道。 | Electron 壳、匹配的 dsh seed、Node.js 与 pnpm 组成一个签名单元，但 Custom Harness 自动更新与上传均已禁用。 |
+| 更新 | 桌面壳与 dsh 独立更新会重新产生版本分裂，而本 fork 尚未验证签名更新通道。 | Electron 壳、匹配的 dsh seed、Node.js 与 pnpm 组成一个签名单元，但 Harnessy 自动更新与上传均已禁用。 |
 
 [Electron 打包与更新 Agent Note](../../.agents/notes/implemented/architecture/2026-08-25-electron-desktop-packaging-and-updates.zh.md)记录了这些决策背后的理由、替代方案、安全约束和发布验证要求。
 
@@ -103,7 +103,7 @@ macOS arm64 命令要求 Apple Silicon。macOS x64 命令可以在 Intel macOS �
 
 ### 上传更新
 
-Custom Harness 更新上传被有意禁用。上传命令会在读取凭据或访问远程服务前失败，electron-builder 不包含 publish provider，产品专用发布包会携带 `publish-disabled.txt`；发布器会在访问 registry 前拒绝该标记。重新启用更新必须经过独立的签名通道决策，并完成已安装升级/回滚矩阵。
+Harnessy 更新上传被有意禁用。上传命令会在读取凭据或访问远程服务前失败，electron-builder 不包含 publish provider，产品专用发布包会携带 `publish-disabled.txt`；发布器会在访问 registry 前拒绝该标记。重新启用更新必须经过独立的签名通道决策，并完成已安装升级/回滚矩阵。
 
 macOS 配置使用必填发布环境，不会接受钥匙串中最先发现的证书。空值、格式错误的 Team ID、包含 electron-builder 不支持的 `Developer ID Application:` 前缀的签名身份，以及不完整的公证凭据都会被拒绝。macOS 打包要求已配置的身份及其私钥可用。Seed 准备会把该身份、安全时间戳与 hardened runtime 应用到每个内嵌 Mach-O 文件；应用签名完成后，深度严格检查会拒绝其他叶证书 Authority 或 Team ID，验证通过才生成发布产物。Electron-builder 会在封装前公证应用并钉票，然后签署 DMG。DMG 的 artifact-completion hook 随后会公证它并钉票，再要求其身份、票据与 Gatekeeper 验证全部通过；只有 hook 成功，electron-builder 才能发布该文件。私钥可以来自登录钥匙串或 electron-builder 的标准 `CSC_LINK` 输入；环境中的 `CSC_NAME` 与证书发现顺序都不能选择发布所有者。公证凭据也可以使用 electron-builder 支持的完整 Apple ID 或钥匙串 profile 方式。手动执行 `pnpm --dir apps/desktop run verify:mac-signature -- <path-to-app>` 重复应用检查时，也必须提供两个 macOS 身份变量。
 

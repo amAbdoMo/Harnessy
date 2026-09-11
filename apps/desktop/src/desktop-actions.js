@@ -3,7 +3,7 @@ import { externalWebUrl } from './navigation.js'
 /** Open the authenticated local service in the system browser. */
 export async function openServiceInSystemBrowser(launchUrl, openExternal) {
   const url = externalWebUrl(launchUrl)
-  if (url === undefined) throw new Error('The local Custom Harness service is not ready.')
+  if (url === undefined) throw new Error('The local Harnessy service is not ready.')
   await openExternal(url.href)
   return url.href
 }

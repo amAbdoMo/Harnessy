@@ -25,7 +25,7 @@ This group maps the installable patch layers used by `dsh --profile`. Each packa
 | [`base`](base/README.md) | Shared core for base-backed profiles | — (patch only) |
 | [`acp-app`](acp-app/README.md) | Automation-only ACP stdio application over base | mounts the ACP bridge |
 | [`web-app`](web-app/README.md) | Browser application layer over base | mounts Web rows |
-| [`custom-harness`](custom-harness/README.md) | Independent Custom Harness product layer over Web | replaces product-owned brand rows |
+| [`custom-harness`](custom-harness/README.md) | Independent Harnessy product layer over Web | replaces product-owned brand rows |
 | [`headless`](headless/README.md) | One-shot command-line task application over base | `headless-runner` |
 | [`sdk-app`](sdk-app/README.md) | SDK JSON-RPC stdio application over base | mounts the SDK server |
 | [`sdk-minimal`](sdk-minimal/README.md) | Standalone minimal SDK application without base or Web | — (complete patch tree) |

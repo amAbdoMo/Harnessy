@@ -1,5 +1,5 @@
 ---
-description: "Host Remote owner for settings, credentials, and Custom Harness OpenAI account authentication."
+description: "Host Remote owner for settings, credentials, and Harnessy OpenAI account authentication."
 kind: "package-reference"
 ---
 # Settings Controller
@@ -8,7 +8,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@deepseek-ai/dsh-api-settings-controller` exposes generated `ctx.remote.settings`, `ctx.remote.credentials`, and `ctx.remote.openAIAccount` namespaces for browser configuration surfaces. It returns redacted settings and credential metadata, supports writes without returning secret values, opens provider-owned settings or Agent preset locations on the Host desktop, and bridges the Custom Harness OpenAI browser-login action to the neutral authorization service. When a provider is absent, each namespace remains registered and returns an actionable configuration error.
+`@deepseek-ai/dsh-api-settings-controller` exposes generated `ctx.remote.settings`, `ctx.remote.credentials`, and `ctx.remote.openAIAccount` namespaces for browser configuration surfaces. It returns redacted settings and credential metadata, supports writes without returning secret values, opens provider-owned settings or Agent preset locations on the Host desktop, and bridges the Harnessy OpenAI browser-login action to the neutral authorization service. When a provider is absent, each namespace remains registered and returns an actionable configuration error.
 
 ## Table of Contents
 

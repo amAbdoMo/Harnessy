@@ -170,7 +170,7 @@ describe('release families', () => {
     expect(() => { dsh.verifyBuildArtifacts(official) }).toThrow(/artifacts differ/)
   })
 
-  it('accepts Custom Harness artifacts only through the explicit product pack mode', () => {
+  it('accepts Harnessy artifacts only through the explicit product pack mode', () => {
     const dsh = releaseFamily('dsh')
     const environment = customHarnessClientBuildEnvironment(
       resolve(import.meta.dirname, '../..'),

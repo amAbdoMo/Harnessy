@@ -102,7 +102,7 @@ async function main(): Promise<void> {
   if (productSpecific) {
     writeFileSync(
       join(destination, PUBLISH_DISABLED_FILE),
-      'Custom Harness desktop package input; upstream npm publication is disabled.\n',
+      'Harnessy desktop package input; upstream npm publication is disabled.\n',
     )
   }
 

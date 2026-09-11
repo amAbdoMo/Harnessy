@@ -7,7 +7,7 @@ const DEFAULT_HEALTH_FAILURE_LIMIT = 3
 function required(environment, name) {
   const configuredValue = environment[name]
   if (configuredValue === undefined || configuredValue.trim() === '') {
-    throw new Error(`Custom Harness desktop requires ${name}`)
+    throw new Error(`Harnessy desktop requires ${name}`)
   }
   return configuredValue
 }

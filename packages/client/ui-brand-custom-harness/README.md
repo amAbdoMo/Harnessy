@@ -1,5 +1,5 @@
 ---
-description: "Custom Harness browser identity, theme tokens, About row, and OpenAI account controls."
+description: "Harnessy browser identity, theme tokens, About row, and OpenAI account controls."
 kind: "package-reference"
 ---
 
@@ -23,7 +23,7 @@ This package fills the generic sidebar and conversation-hero brand slots, adds a
 
 Compose this package through [`dsh-custom-harness`](../../bundle/custom-harness/README.md) and build the repository with `pnpm run build:custom-harness`. Product names, project links, and support links come from the centralized build environment; missing values fail loudly rather than mixing identities.
 
-The mark is a vector threaded aperture that scales to host-owned icon sizes and follows light or dark product tokens. The cool-violet palette flows through existing semantic tokens, while the shared blue send action and success, warning, and error meanings remain intact. The About row exposes the build version and project destinations without retaining runtime state.
+The supplied transparent Harnessy mark scales to host-owned icon sizes on an ocean-gradient frame. Its deep navy, teal, and cyan palette flows through existing semantic tokens in both light and dark modes, while standard success, warning, and error meanings remain intact. The About row exposes the build version and project destinations without retaining runtime state.
 
 The Models footer card reads only the redacted `openAIAccount.describe()` state. **Sign in with OpenAI** starts a cancellable Host request and shows a waiting dialog while the default browser completes OAuth. On success it refreshes to Connected; **Sign out** removes the local grant and its Codex provider route. Remote refusal messages are displayed without inspecting credential contents.
 

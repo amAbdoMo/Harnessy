@@ -3,18 +3,18 @@ import { test } from 'node:test'
 import { packagedDesktopEnvironment } from '../src/packaged-environment.js'
 
 test('resolves installed resources separately from product-owned writable state', () => {
-  const environment = packagedDesktopEnvironment('C:\\Program Files\\Custom Harness\\resources', {
+  const environment = packagedDesktopEnvironment('C:\\Program Files\\Harnessy\\resources', {
     LOCALAPPDATA: 'C:\\Users\\Test\\AppData\\Local',
     PATH: 'C:\\Windows\\System32',
   })
-  assert.equal(environment.CUSTOM_HARNESS_PRODUCT_NAME, 'Custom Harness')
+  assert.equal(environment.CUSTOM_HARNESS_PRODUCT_NAME, 'Harnessy')
   assert.equal(environment.CUSTOM_HARNESS_DESKTOP_APP_ID, 'com.amabdmo.customharness')
   assert.equal(environment.DSH_HOME, 'C:\\Users\\Test\\AppData\\Local\\CustomHarness\\Harness')
   assert.equal(environment.DSH_AGENTS_HOME, 'C:\\Users\\Test\\AppData\\Local\\CustomHarness\\Agents')
   assert.equal(environment.CUSTOM_HARNESS_DESKTOP_LOG_DIR, 'C:\\Users\\Test\\AppData\\Local\\CustomHarness\\Logs')
-  assert.equal(environment.CUSTOM_HARNESS_DESKTOP_NODE_EXECUTABLE, 'C:\\Program Files\\Custom Harness\\resources\\runtime\\node.exe')
-  assert.equal(environment.CUSTOM_HARNESS_DESKTOP_DSH_ENTRY, 'C:\\Program Files\\Custom Harness\\resources\\dsh\\lib\\bin.js')
-  assert.equal(environment.CUSTOM_HARNESS_DESKTOP_WORKING_DIRECTORY, 'C:\\Program Files\\Custom Harness\\resources\\dsh')
+  assert.equal(environment.CUSTOM_HARNESS_DESKTOP_NODE_EXECUTABLE, 'C:\\Program Files\\Harnessy\\resources\\runtime\\node.exe')
+  assert.equal(environment.CUSTOM_HARNESS_DESKTOP_DSH_ENTRY, 'C:\\Program Files\\Harnessy\\resources\\dsh\\lib\\bin.js')
+  assert.equal(environment.CUSTOM_HARNESS_DESKTOP_WORKING_DIRECTORY, 'C:\\Program Files\\Harnessy\\resources\\dsh')
   assert.equal(environment.PATH, 'C:\\Windows\\System32')
 })
 
