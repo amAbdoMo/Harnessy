@@ -12,15 +12,19 @@ type BrandMarkProps = SidebarBrandMarkOwnerProps | HeroBrandMarkOwnerProps
  */
 export function CustomHarnessMark({ size, ...props }: BrandMarkProps) {
   const className = 'className' in props ? props.className : undefined
+  const compact = size <= 24
+  const source = compact
+    ? requiredBuildValue('DSH_CLIENT_ICON_PATH', process.env.DSH_CLIENT_ICON_PATH)
+    : requiredBuildValue('DSH_CLIENT_MARK_PATH', process.env.DSH_CLIENT_MARK_PATH)
   return (
     <span
       aria-hidden="true"
-      className={[css.mark, className].filter(Boolean).join(' ')}
+      className={[css.mark, compact && css.compactIcon, className].filter(Boolean).join(' ')}
       style={{ width: size, height: size }}
     >
       <img
-        className={css.markImage}
-        src={requiredBuildValue('DSH_CLIENT_MARK_PATH', process.env.DSH_CLIENT_MARK_PATH)}
+        className={[css.markImage, compact && css.compactIconImage].filter(Boolean).join(' ')}
+        src={source}
         alt=""
       />
     </span>

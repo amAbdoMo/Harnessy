@@ -13,15 +13,17 @@ afterEach(() => {
 })
 
 describe('Harnessy identity components', () => {
-  it('renders the supplied mark at every host-owned size', () => {
+  it('uses the app icon for compact seats and the transparent mark for larger seats', () => {
+    vi.stubEnv('DSH_CLIENT_ICON_PATH', '/harnessy.png')
     vi.stubEnv('DSH_CLIENT_MARK_PATH', '/harnessy-mark.png')
-    const subject = render(<CustomHarnessMark size={16} />)
+    const subject = render(<CustomHarnessMark size={24} />)
     const mark = subject.container.querySelector('span')
     const image = subject.container.querySelector('img')
-    expect(image?.getAttribute('src')).toBe('/harnessy-mark.png')
-    expect(mark?.getAttribute('style')).toContain('width: 16px')
-    for (const size of [24, 34, 64]) {
+    expect(image?.getAttribute('src')).toBe('/harnessy.png')
+    expect(mark?.getAttribute('style')).toContain('width: 24px')
+    for (const size of [34, 64]) {
       subject.rerender(<CustomHarnessMark size={size} />)
+      expect(subject.container.querySelector('img')?.getAttribute('src')).toBe('/harnessy-mark.png')
       expect(mark?.getAttribute('style')).toContain(`width: ${String(size)}px`)
       expect(mark?.getAttribute('style')).toContain(`height: ${String(size)}px`)
     }

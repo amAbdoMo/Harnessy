@@ -17,7 +17,6 @@
 
 .sessionRow.selected {
   background: var(--dsw-specific-sidebar-nav-item-active-accent);
-  box-shadow: inset 2px 0 var(--dsw-alias-state-business-primary);
 }
 
 .searchResultRow {
@@ -42,7 +41,6 @@
 
 .searchResultRow.selected {
   background: var(--dsw-specific-sidebar-nav-item-active-accent);
-  box-shadow: inset 2px 0 var(--dsw-alias-state-business-primary);
 }
 
 .searchResultHeading {
