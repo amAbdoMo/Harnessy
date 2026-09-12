@@ -126,7 +126,7 @@ function createWindow(preload: string, chrome: 'integrated' | 'native'): Browser
       ? {
         autoHideMenuBar: true,
         titleBarStyle: 'hidden' as const,
-        titleBarOverlay: { color: '#171b1d', symbolColor: '#e8f3f5', height: 36 },
+        titleBarOverlay: { color: '#091c25', symbolColor: '#b7ccd1', height: 36 },
       }
       : {}),
     webPreferences: {
