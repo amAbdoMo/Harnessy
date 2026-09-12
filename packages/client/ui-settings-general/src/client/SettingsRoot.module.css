@@ -67,6 +67,13 @@
   justify-content: center;
 }
 
+/* A section-owned portal (for example Manage Accounts) keeps its settings
+   section mounted while it is open. Explicitly remove the settings layer from
+   layout so author-level `display: flex` cannot override the hidden state. */
+.overlay[hidden] {
+  display: none;
+}
+
 .mask {
   position: absolute;
   inset: 0;

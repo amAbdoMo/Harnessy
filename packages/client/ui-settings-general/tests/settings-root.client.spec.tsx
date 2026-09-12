@@ -221,6 +221,9 @@ describe('SettingsPanel close paths', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Present section modal' }))
 
     expect(screen.queryByRole('dialog')).toBeNull()
+    const settingsLayer = mounted.view.container.querySelector<HTMLElement>('[role="presentation"]')
+    expect(settingsLayer?.hidden).toBe(true)
+    expect(settingsLayer === null ? undefined : getComputedStyle(settingsLayer).display).toBe('none')
     expect(trigger.getAttribute('aria-expanded')).toBe('true')
 
     act(() => { mounted.finishSectionModal() })

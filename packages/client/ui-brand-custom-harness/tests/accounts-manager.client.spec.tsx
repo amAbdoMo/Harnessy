@@ -103,6 +103,29 @@ describe('Harnessy account manager', () => {
     await waitFor(() => { expect(activate).toHaveBeenCalledWith('openai-codex', 'codex-2') })
   })
 
+  it('formats usage reset times without seconds', async () => {
+    const resetAt = Date.UTC(2026, 8, 12, 20, 29, 47)
+    const resetWithoutSeconds = new Date(resetAt).toLocaleString(undefined, {
+      year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit',
+    })
+    const resetWithSeconds = new Date(resetAt).toLocaleString()
+    const state: AccountsState = {
+      ...baseState,
+      accounts: [{
+        ...baseState.accounts[0]!,
+        usage: { windows: [{ id: '5h', label: '5h', usedPercent: 40, resetsAtMs: resetAt }] },
+      }],
+    }
+    renderManager(operations({
+      describe: vi.fn(async () => ({ state })),
+      refreshUsage: vi.fn(async () => ({ state })),
+    }))
+
+    fireEvent.click(await screen.findByRole('button', { name: en.accountsManage }))
+    expect(await screen.findByText(`${en.accountsResetsPrefix} ${resetWithoutSeconds}`)).toBeTruthy()
+    expect(screen.queryByText(`${en.accountsResetsPrefix} ${resetWithSeconds}`)).toBeNull()
+  })
+
   it('collects API keys only in the key form and never renders the value afterward', async () => {
     const addApiKey = vi.fn(async () => ({ state: baseState }))
     const api = operations({ addApiKey })

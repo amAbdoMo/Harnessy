@@ -415,8 +415,15 @@ function UsageBar({ window, t }: {
 }) {
   const target = Math.round(window.usedPercent)
   const [width, setWidth] = useState(0)
-  const reset = useMemo(() => window.resetsAtMs === undefined ? undefined : new Date(window.resetsAtMs).toLocaleString(),
-    [window.resetsAtMs])
+  const reset = useMemo(() => window.resetsAtMs === undefined
+    ? undefined
+    : new Date(window.resetsAtMs).toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    }), [window.resetsAtMs])
   useEffect(() => {
     setWidth(0)
     const frame = requestAnimationFrame(() => { setWidth(target) })
