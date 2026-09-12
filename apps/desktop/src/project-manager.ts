@@ -43,6 +43,7 @@ const DESKTOP_PROJECT_FILES = [
   'pnpm-workspace.yaml',
   'desktop-release.json',
   'integrity.json',
+  'desktop-dependency-patches.json',
   DESKTOP_PACKAGE_SET_FILE,
 ] as const
 
@@ -110,6 +111,7 @@ const PACKAGE_NAME_PATTERN = /^(?:@[a-z0-9][a-z0-9._~-]*\/[a-z0-9][a-z0-9._~-]*|
 const VERSION_PATTERN = /^[0-9A-Za-z][0-9A-Za-z.+_-]*$/u
 const MAX_PNPM_DIAGNOSTIC_BYTES = 64 * 1024
 const DESKTOP_REGISTRY = 'https://registry.npmjs.org/'
+const DEPENDENCY_PATCHES_FILE = 'desktop-dependency-patches.json'
 
 function errorOf(reason: unknown, fallback: string): Error {
   return reason instanceof Error ? reason : new Error(fallback)
@@ -123,16 +125,23 @@ function readJson(path: string): unknown {
   return JSON.parse(readFileSync(path, 'utf8'))
 }
 
-function workspaceFile(overrides: Readonly<Record<string, string>> = {}): string {
+function workspaceFile(
+  overrides: Readonly<Record<string, string>> = {},
+  dependencyPatches: Readonly<Record<string, string>> = {},
+): string {
   const entries = Object.entries(overrides).sort(([left], [right]) => left.localeCompare(right))
   const overrideSection = entries.length === 0
     ? ''
     : `overrides:\n${entries.map(([name, spec]) => `  ${JSON.stringify(name)}: ${JSON.stringify(spec)}`).join('\n')}\n`
+  const patchEntries = Object.entries(dependencyPatches).sort(([left], [right]) => left.localeCompare(right))
+  const patchSection = patchEntries.length === 0
+    ? ''
+    : `patchedDependencies:\n${patchEntries.map(([selector, path]) => `  ${JSON.stringify(selector)}: ${JSON.stringify(path)}`).join('\n')}\n`
   const coreBuildSpec = overrides[CORE_BUILD_PACKAGE]
   const coreBuildKey = coreBuildSpec === undefined
     ? CORE_BUILD_PACKAGE
     : `${CORE_BUILD_PACKAGE}@${coreBuildSpec.replace('file:./', 'file:')}`
-  return `packages:\n  - .\n\n${overrideSection}${WORKSPACE_SETTINGS}allowBuilds:\n  node-pty: true\n  koffi: true\n  fs-ext: true\n  ${JSON.stringify(coreBuildKey)}: true\n  '@google/genai': false\n  protobufjs: false\n  node-addon-require-builtin: false\n`
+  return `packages:\n  - .\n\n${overrideSection}${patchSection}${WORKSPACE_SETTINGS}allowBuilds:\n  node-pty: true\n  koffi: true\n  fs-ext: true\n  ${JSON.stringify(coreBuildKey)}: true\n  '@google/genai': false\n  protobufjs: false\n  node-addon-require-builtin: false\n`
 }
 
 function releaseFile(projectDir: string): DesktopRelease {
@@ -201,6 +210,7 @@ function removeOwnedDirectory(path: string): void {
 }
 
 function copyMetadata(source: string, target: string): void {
+  const dependencyPatches = readDependencyPatches(source)
   mkdirSync(target, { recursive: true, mode: 0o700 })
   for (const filename of DESKTOP_PROJECT_FILES) {
     const from = join(source, filename)
@@ -211,6 +221,32 @@ function copyMetadata(source: string, target: string): void {
     force: false,
     errorOnExist: true,
   })
+  for (const patchPath of Object.values(dependencyPatches)) {
+    const destination = join(target, patchPath)
+    mkdirSync(dirname(destination), { recursive: true, mode: 0o700 })
+    copyFileSync(join(source, patchPath), destination, constants.COPYFILE_EXCL)
+  }
+}
+
+function readDependencyPatches(projectDir: string): Readonly<Record<string, string>> {
+  const descriptorPath = join(projectDir, DEPENDENCY_PATCHES_FILE)
+  if (!existsSync(descriptorPath)) return {}
+  const descriptor = readJson(descriptorPath)
+  if (!isRecord(descriptor) || descriptor.schemaVersion !== 1 || !isRecord(descriptor.patches)) {
+    throw new Error(`desktop project: invalid dependency patch descriptor ${descriptorPath}`)
+  }
+  const patches: Record<string, string> = {}
+  for (const [selector, patchPath] of Object.entries(descriptor.patches)) {
+    if (selector === '' || typeof patchPath !== 'string' || patchPath === '') {
+      throw new Error(`desktop project: invalid dependency patch entry in ${descriptorPath}`)
+    }
+    const absolutePatch = resolve(projectDir, patchPath)
+    if (!isDescendant(projectDir, absolutePatch) || !existsSync(absolutePatch) || !lstatSync(absolutePatch).isFile()) {
+      throw new Error(`desktop project: invalid dependency patch path ${JSON.stringify(patchPath)}`)
+    }
+    patches[selector] = patchPath
+  }
+  return patches
 }
 
 function seedFiles(root: string): readonly DesktopSeedIntegrityRecord[] {
@@ -277,9 +313,10 @@ function projectManifest(projectDir: string): DesktopProjectManifest {
   const manifest = readProjectManifest(projectDir)
   const packageSet = readDesktopCorePackageSet(projectDir, releaseFile(projectDir).version)
   const expectedOverrides = desktopCorePackageOverrides(packageSet)
+  const dependencyPatches = readDependencyPatches(projectDir)
   if (manifest.dependencies[DSH_PACKAGE] !== desktopDshPackageSpec(packageSet)
     || Object.entries(expectedOverrides).some(([name, spec]) => manifest.dependencies[name] !== spec)
-    || readFileSync(join(projectDir, 'pnpm-workspace.yaml'), 'utf8') !== workspaceFile(expectedOverrides)) {
+    || readFileSync(join(projectDir, 'pnpm-workspace.yaml'), 'utf8') !== workspaceFile(expectedOverrides, dependencyPatches)) {
     throw new Error(`desktop project: core package mapping does not match ${DESKTOP_PACKAGE_SET_FILE}`)
   }
   return manifest
@@ -709,7 +746,11 @@ export class DesktopProjectManager {
 }
 
 /** Create seed metadata for one exact Electron and dsh release. */
-export function createSeedMetadata(seedDir: string, release: DesktopRelease): void {
+export function createSeedMetadata(
+  seedDir: string,
+  release: DesktopRelease,
+  dependencyPatches: Readonly<Record<string, string>> = {},
+): void {
   mkdirSync(seedDir, { recursive: true, mode: 0o700 })
   const packageSet = verifyDesktopCorePackageSet(seedDir, release.version)
   const manifest: DesktopProjectManifest = {
@@ -720,9 +761,13 @@ export function createSeedMetadata(seedDir: string, release: DesktopRelease): vo
     dsh: { profile: { bundles: [...DESKTOP_PROFILE_BUNDLES] } },
   }
   writeJson(join(seedDir, 'package.json'), manifest)
+  if (Object.keys(dependencyPatches).length > 0) {
+    writeJson(join(seedDir, DEPENDENCY_PATCHES_FILE), { schemaVersion: 1, patches: dependencyPatches })
+    readDependencyPatches(seedDir)
+  }
   writeFileSync(
     join(seedDir, 'pnpm-workspace.yaml'),
-    workspaceFile(desktopCorePackageOverrides(packageSet)),
+    workspaceFile(desktopCorePackageOverrides(packageSet), dependencyPatches),
     { mode: 0o600 },
   )
   writeJson(join(seedDir, 'desktop-release.json'), release)

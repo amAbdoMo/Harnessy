@@ -200,6 +200,29 @@ describe('desktop package policy', () => {
 })
 
 describe('desktop project transactions', () => {
+  it('preserves dependency patches across installation and plugin mutation', async () => {
+    const root = temporaryRoot()
+    const seed = join(root, 'seed')
+    const patchPath = 'patches/provider.patch'
+    writeCorePackageSet(seed, release().version)
+    mkdirSync(join(seed, 'patches'), { recursive: true })
+    writeFileSync(join(seed, patchPath), 'patched provider\n')
+    createSeedMetadata(seed, release(), { '@scope/provider@1.0.0': patchPath })
+    writeFileSync(join(seed, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
+    archiveStore(seed)
+    writeIntegrity(seed)
+    const paths = resolveDesktopPaths(join(root, '.dsh'))
+    const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: writeFakePnpm(root) })
+
+    await manager.applyRelease(seed, '1.0.0', hooks())
+    await manager.mutate({ type: 'plugin-add', spec: '@scope/plugin@2.0.0' }, hooks())
+
+    expect(readFileSync(join(paths.profile, patchPath), 'utf8')).toBe('patched provider\n')
+    expect(readFileSync(join(paths.profile, 'pnpm-workspace.yaml'), 'utf8')).toContain(
+      `${JSON.stringify('@scope/provider@1.0.0')}: ${JSON.stringify(patchPath)}`,
+    )
+  })
+
   it('installs the offline seed and reconciles a mismatched private Host', async () => {
     const root = temporaryRoot()
     const seed = join(root, 'seed')

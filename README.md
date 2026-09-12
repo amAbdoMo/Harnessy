@@ -28,7 +28,7 @@ The personal installer is not code-signed, so Windows SmartScreen may display a 
 
 ## Use the application
 
-Open **Settings > Models** to configure a provider. For Codex models, use **Sign in with OpenAI** and complete authentication in your default browser; Harnessy activates the OpenAI Codex model route after the callback succeeds. API-key providers remain available separately.
+Open **Settings > Models** to configure a provider. For Codex models, use **Sign in with OpenAI** and complete authentication in your default browser; Harnessy activates the OpenAI Codex model route after the callback succeeds. The local browser result page uses Harnessy's identity while the provider authorization and token exchange remain unchanged. API-key providers remain available separately.
 
 OpenAI account sign-in uses the existing Codex OAuth flow described in the [official authentication documentation](https://learn.chatgpt.com/docs/auth). The resulting grant stays in the local Harnessy credential store and is not committed to this repository.
 

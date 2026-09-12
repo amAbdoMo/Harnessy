@@ -32,6 +32,7 @@ import {
 import { resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
+const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
 const BUILD_PATHS = resolveDesktopTargetBuildPaths()
 const SEED_OUTPUT_ROOT = BUILD_PATHS.seed
 const SEED_ROOT = mkdtempSync(join(tmpdir(), 'dsh-desktop-seed-'))
@@ -41,6 +42,8 @@ const PNPM_BUILD_STATE = BUILD_PATHS.seedPnpm
 const PACKAGE_SET_ROOT = BUILD_PATHS.packageSet
 const NODE = join(RUNTIME_ROOT, 'node', process.platform === 'win32' ? 'node.exe' : 'node')
 const PNPM = join(RUNTIME_ROOT, 'pnpm', 'bin', 'pnpm.mjs')
+const PI_AI_PATCH_PATH = 'patches/@earendil-works__pi-ai@0.85.1.patch'
+const DEPENDENCY_PATCHES = { '@earendil-works/pi-ai@0.85.1': PI_AI_PATCH_PATH } as const
 
 function manifestVersion(path: string, subject: string): string {
   const manifest = JSON.parse(readFileSync(path, 'utf8')) as { version?: unknown }
@@ -148,7 +151,10 @@ async function main(): Promise<void> {
     const release = desktopRelease()
     copyFileSync(join(PACKAGE_SET_ROOT, DESKTOP_PACKAGE_SET_FILE), join(SEED_ROOT, DESKTOP_PACKAGE_SET_FILE))
     cpSync(join(PACKAGE_SET_ROOT, DESKTOP_PACKAGES_DIR), join(SEED_ROOT, DESKTOP_PACKAGES_DIR), { recursive: true })
-    createSeedMetadata(SEED_ROOT, release)
+    const seedPatchPath = join(SEED_ROOT, PI_AI_PATCH_PATH)
+    mkdirSync(dirname(seedPatchPath), { recursive: true })
+    copyFileSync(join(REPOSITORY_ROOT, PI_AI_PATCH_PATH), seedPatchPath)
+    createSeedMetadata(SEED_ROOT, release, DEPENDENCY_PATCHES)
     await runPnpm(['install', '--lockfile-only'])
     verifyDesktopCoreLockfile(
       readFileSync(join(SEED_ROOT, 'pnpm-lock.yaml'), 'utf8'),

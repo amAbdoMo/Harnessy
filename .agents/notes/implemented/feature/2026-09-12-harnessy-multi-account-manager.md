@@ -16,6 +16,8 @@ This decision partially supersedes the single-account presentation in [Custom Ha
 
 The first managed set contains Codex (`openai-codex`), GLM (`zai`), Kimi (`kimi-coding`), OpenCode (`opencode`), and Claude Code (`anthropic`). Codex, Kimi, and Claude Code reuse installed OAuth flows and HTTPS native-browser opening. GLM and OpenCode accept API keys directly into the credential provider. Existing canonical credentials are imported on first description, so the feature does not require signing in again.
 
+The repository patches pi-ai's loopback OAuth result page so supported browser callbacks show Harnessy's mark, teal palette, and product copy. Provider authorization, callback validation, and token exchange behavior remain owned by the installed provider flow and are not changed by this presentation layer.
+
 Only Codex currently advertises usage availability. Opening the manager always invokes `refreshUsage`; the Host refreshes an expiring Codex OAuth credential under the provider implementation and requests authenticated quota windows. Other providers remain fully addable and switchable but return no invented usage values. The client animates each returned percentage from zero to its target and disables the transition for reduced-motion users.
 
 Remote responses contain account labels, provider ids, active state, initials, timestamps, and usage percentages only. API keys, access tokens, refresh tokens, and complete credential records never cross the Host boundary.

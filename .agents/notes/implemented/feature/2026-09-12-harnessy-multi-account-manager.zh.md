@@ -16,6 +16,8 @@ Harnessy 可以授权一个 OpenAI 账户，但切换身份需要退出登录并
 
 第一组受管理 provider 包含 Codex (`openai-codex`)、GLM (`zai`)、Kimi (`kimi-coding`)、OpenCode (`opencode`) 和 Claude Code (`anthropic`)。Codex、Kimi 与 Claude Code 复用已安装 OAuth flow 和 HTTPS native-browser opening。GLM 与 OpenCode 直接把 API key 写入 credential provider。首次 describe 时会导入已有 canonical credential，因此不要求重新登录。
 
+仓库对 pi-ai 的 loopback OAuth 结果页面应用 patch，使受支持的浏览器回调显示 Harnessy 标记、青绿色配色与产品文案。provider 授权、回调验证和 token exchange 行为仍由已安装的 provider flow 负责，此展示层不会更改这些行为。
+
 当前只有 Codex 声明用量可用。每次打开 manager 都会调用 `refreshUsage`；Host 在 provider implementation 下刷新即将过期的 Codex OAuth credential，并请求经过认证的 quota window。其他 provider 仍可完整添加和切换，但不会返回虚构用量。client 将每个返回百分比从零动画填充到目标值，并为 reduced-motion 用户禁用 transition。
 
 Remote response 只包含账户标签、provider id、active 状态、initial、时间戳与用量百分比。API key、access token、refresh token 与完整 credential record 永远不会跨越 Host 边界。

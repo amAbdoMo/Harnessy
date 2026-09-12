@@ -1,0 +1,172 @@
+diff --git a/dist/auth/oauth/oauth-page.js b/dist/auth/oauth/oauth-page.js
+index 101153587266e9ef2e7864f8aab9b5fd485a6aa1..cb968c91df3a05058a272873f1853f71125b11e7 100644
+--- a/dist/auth/oauth/oauth-page.js
++++ b/dist/auth/oauth/oauth-page.js
+@@ -1,4 +1,19 @@
+-const LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" aria-hidden="true"><path fill="#fff" fill-rule="evenodd" d="M165.29 165.29 H517.36 V400 H400 V517.36 H282.65 V634.72 H165.29 Z M282.65 282.65 V400 H400 V282.65 Z"/><path fill="#fff" d="M517.36 400 H634.72 V634.72 H517.36 Z"/></svg>`;
++const HARNESSY_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Harnessy">
++  <defs>
++    <linearGradient id="harnessy-logo-bg" x1="12" y1="10" x2="84" y2="88" gradientUnits="userSpaceOnUse">
++      <stop stop-color="#20C6CC"/>
++      <stop offset="0.48" stop-color="#087D91"/>
++      <stop offset="1" stop-color="#03465E"/>
++    </linearGradient>
++  </defs>
++  <rect x="2" y="2" width="92" height="92" rx="23" fill="url(#harnessy-logo-bg)"/>
++  <path d="M29 69V28a9 9 0 0 1 18 0v20h2V28a9 9 0 0 1 18 0v41" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
++  <path d="M34 48h28" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round"/>
++  <circle cx="29" cy="28" r="3.4" fill="#087D91"/>
++  <circle cx="67" cy="28" r="3.4" fill="#066C82"/>
++  <circle cx="29" cy="69" r="3.4" fill="#066C82"/>
++  <circle cx="67" cy="69" r="3.4" fill="#034F68"/>
++</svg>`;
+ function escapeHtml(value) {
+     return value
+         .replaceAll("&", "&amp;")
+@@ -12,6 +27,7 @@ function renderPage(options) {
+     const heading = escapeHtml(options.heading);
+     const message = escapeHtml(options.message);
+     const details = options.details ? escapeHtml(options.details) : undefined;
++    const status = options.status === "error" ? "error" : "success";
+     return `<!doctype html>
+ <html lang="en">
+ <head>
+@@ -20,9 +36,13 @@ function renderPage(options) {
+   <title>${title}</title>
+   <style>
+     :root {
+-      --text: #fafafa;
+-      --text-dim: #a1a1aa;
+-      --page-bg: #09090b;
++      --text: #f4fbfc;
++      --text-dim: #9bb9c1;
++      --page-bg: #041117;
++      --panel-bg: rgba(8, 32, 41, 0.92);
++      --panel-border: rgba(54, 199, 205, 0.24);
++      --accent: #2bd1d5;
++      --error: #ff8b8b;
+       --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+       --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+     }
+@@ -35,30 +55,55 @@ function renderPage(options) {
+       align-items: center;
+       justify-content: center;
+       padding: 24px;
+-      background: var(--page-bg);
++      background:
++        radial-gradient(circle at 50% 0%, rgba(25, 154, 170, 0.16), transparent 42%),
++        var(--page-bg);
+       color: var(--text);
+       font-family: var(--font-sans);
+       text-align: center;
+     }
+     main {
+       width: 100%;
+-      max-width: 560px;
++      max-width: 520px;
+       display: flex;
+       flex-direction: column;
+       align-items: center;
+       justify-content: center;
++      padding: 46px 42px 42px;
++      overflow: hidden;
++      position: relative;
++      background: var(--panel-bg);
++      border: 1px solid var(--panel-border);
++      border-radius: 24px;
++      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.38);
++    }
++    main::before {
++      content: "";
++      position: absolute;
++      inset: 0 18% auto;
++      height: 1px;
++      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+     }
+     .logo {
+-      width: 72px;
+-      height: 72px;
++      width: 76px;
++      height: 76px;
+       display: block;
+-      margin-bottom: 24px;
++      margin-bottom: 20px;
++      filter: drop-shadow(0 14px 30px rgba(18, 172, 187, 0.2));
++    }
++    .brand {
++      margin-bottom: 20px;
++      color: var(--accent);
++      font-size: 12px;
++      font-weight: 700;
++      letter-spacing: 0.16em;
++      text-transform: uppercase;
+     }
+     h1 {
+       margin: 0 0 10px;
+       font-size: 28px;
+       line-height: 1.15;
+-      font-weight: 650;
++      font-weight: 700;
+       color: var(--text);
+     }
+     p {
+@@ -69,17 +114,32 @@ function renderPage(options) {
+     }
+     .details {
+       margin-top: 16px;
++      width: 100%;
++      padding: 12px 14px;
++      border: 1px solid rgba(255, 139, 139, 0.22);
++      border-radius: 10px;
++      background: rgba(68, 18, 26, 0.24);
+       font-family: var(--font-mono);
+       font-size: 13px;
+-      color: var(--text-dim);
++      color: var(--error);
+       white-space: pre-wrap;
+       word-break: break-word;
+     }
++    main[data-status="error"] .brand { color: var(--error); }
++    main[data-status="error"]::before {
++      background: linear-gradient(90deg, transparent, var(--error), transparent);
++    }
++    @media (max-width: 520px) {
++      body { padding: 16px; }
++      main { padding: 38px 24px 34px; border-radius: 20px; }
++      h1 { font-size: 25px; }
++    }
+   </style>
+ </head>
+ <body>
+-  <main>
+-    <div class="logo">${LOGO_SVG}</div>
++  <main data-status="${status}">
++    <div class="logo">${HARNESSY_LOGO_SVG}</div>
++    <div class="brand">Harnessy · Secure sign-in</div>
+     <h1>${heading}</h1>
+     <p>${message}</p>
+     ${details ? `<div class="details">${details}</div>` : ""}
+@@ -89,17 +149,19 @@ function renderPage(options) {
+ }
+ export function oauthSuccessHtml(message) {
+     return renderPage({
+-        title: "Authentication successful",
+-        heading: "Authentication successful",
++        title: "Account connected · Harnessy",
++        heading: "Account connected",
+         message,
++        status: "success",
+     });
+ }
+ export function oauthErrorHtml(message, details) {
+     return renderPage({
+-        title: "Authentication failed",
+-        heading: "Authentication failed",
++        title: "Connection failed · Harnessy",
++        heading: "Connection failed",
+         message,
+         details,
++        status: "error",
+     });
+ }
+ //# sourceMappingURL=oauth-page.js.map

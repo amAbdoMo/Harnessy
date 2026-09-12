@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-12-harnessy-multi-account-manager.md
-2026-09-12-harnessy-multi-account-manager.md: a7a961e0ce7f66ab3177c4c38e3aee47dfd47023
-2026-09-12-harnessy-multi-account-manager.zh.md: a523eee04e44ec56bb0314d5091e8ac729036591
+2026-09-12-harnessy-multi-account-manager.md: 40fd9ee8500055bf094c859274febf7ad1518e70
+2026-09-12-harnessy-multi-account-manager.zh.md: f25691848f27715ad8d7a271fad2654827cd200a
