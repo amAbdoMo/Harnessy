@@ -107,6 +107,8 @@ export type {
 // Credential state vocabulary for the credentials namespace (values never ride it).
 export type { CredentialInfo } from '@deepseek-ai/dsh-credentials/types'
 export type {
+  AccountAuthMode, AccountProviderId, AccountProviderView, AccountSignInResult,
+  AccountsState, AccountUsageView, AccountUsageWindow, ManagedAccountView,
   OpenAIAccountSignInResult, OpenAIAccountState,
 } from '@deepseek-ai/dsh-api-settings-controller/types'
 // Redacted namespace vocabulary for the settings namespace (secrets never ride

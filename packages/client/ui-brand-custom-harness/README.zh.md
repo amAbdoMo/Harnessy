@@ -1,5 +1,5 @@
 ---
-description: "Harnessy 浏览器身份、主题 token、About 行与 OpenAI 账户控件。"
+description: "Harnessy 浏览器身份、主题 token、About 行与 provider 账户管理器。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-本包填充通用侧栏与会话首屏品牌 slot，在新会话标题下方添加简短的本地化说明，应用可逆的明暗配色与字体层，在通用设置中添加本地化 About 行，并向 Models footer 贡献 OpenAI 账户卡片。它只在浏览器以 `custom-harness` 客户端 profile 构建时激活，因此共享 Web 组合在其他构建中仍可保留原有身份。
+本包填充通用侧栏与会话首屏品牌 slot，在新会话标题下方添加简短的本地化说明，应用可逆的明暗配色与字体层，在通用设置中添加本地化 About 行，并向 Models footer 贡献 Harnessy 账户管理器。它只在浏览器以 `custom-harness` 客户端 profile 构建时激活，因此共享 Web 组合在其他构建中仍可保留原有身份。
 
 ## 目录
 
@@ -25,12 +25,12 @@ kind: "package-reference"
 
 提供的透明 Harnessy 标志会在海洋渐变底框上适配宿主控制的图标尺寸。深海军蓝、青色与亮青色配色通过现有语义 token 同时作用于明暗模式，并保留标准的成功、警告与错误语义。About 行显示构建版本和项目入口，不保留运行时状态。
 
-Models footer 卡片只读取脱敏的 `openAIAccount.describe()` 状态。**Sign in with OpenAI** 启动可取消的 Host 请求，并在默认浏览器完成 OAuth 期间显示等待对话框。成功后状态刷新为 Connected；**Sign out** 删除本地 grant 及其 Codex provider route。界面直接显示 Remote 拒绝消息，不会检查凭据内容。
+Models footer 卡片只读取脱敏的 `accounts.describe()` 状态。**Manage accounts** 打开 Codex、GLM、Kimi、OpenCode 与 Claude Code 的 provider 对话框。它导入 Harnessy 中已激活的账户，支持额外 browser 或 API-key 账户，并通过注入的 Host callback 切换 canonical provider 身份。每次打开对话框都会请求最新 Codex 用量快照；quota bar 从零动画填充到返回百分比，并尊重 reduced-motion 偏好。没有受支持用量数据的 provider 会显示明确 unavailable 状态。界面直接显示 Remote 拒绝消息，不会检查凭据内容。
 
 <a id="model-experience"></a>
 ## 模型体验
 
-无，因为本包从不构造提示词或模型请求；账户登录成功只会要求 Host 启用已安装的 OpenAI Codex provider route，让其支持的模型进入普通选择器。
+无，因为本包从不构造提示词或模型请求；账户激活只会要求 Host 启用所选已安装 provider route，让其支持的模型进入普通选择器。
 
 #### KV Cache 影响
 

@@ -28,4 +28,6 @@ Custom Harness brand client 使用 `settings.models.footer` 放置本地化账�
 
 用户可以在 Settings > Models 使用 OpenAI 账户登录，并在浏览器 callback 完成后看到支持的 Codex 模型。OAuth material 保留在 Custom Harness credential store 中，不跨越 Remote response、settings document 或 session log。退出登录会同时移除 grant 及其依赖的 provider route。界面目前自动选择 desktop browser method；headless device-code 与 manual-code presentation 不属于此产品界面。
 
+后续的 [Harnessy multi-account manager](2026-09-12-harnessy-multi-account-manager.zh.md) 部分取代了该卡片的展示，同时保留窄 Remote namespace 作为 compatibility surface。
+
 聚焦的 Host、client、native-command 与 assembled-profile 测试覆盖脱敏状态、安全 URL 处理、provider 启用、取消、退出、操作系统浏览器分派与真实产品 slot/composition。

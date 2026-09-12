@@ -1,5 +1,5 @@
 ---
-description: "Harnessy browser identity, theme tokens, About row, and OpenAI account controls."
+description: "Harnessy browser identity, theme tokens, About row, and provider account manager."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package fills the generic sidebar and conversation-hero brand slots, adds a short localized orientation beneath the new-session headline, applies a reversible light/dark color and typography layer, adds a localized About row to General settings, and contributes the OpenAI account card to the Models footer. It activates only when the browser bundle was built with the `custom-harness` client profile, so the shared Web composition can retain its stock identity in other builds.
+This package fills the generic sidebar and conversation-hero brand slots, adds a short localized orientation beneath the new-session headline, applies a reversible light/dark color and typography layer, adds a localized About row to General settings, and contributes Harnessy's account manager to the Models footer. It activates only when the browser bundle was built with the `custom-harness` client profile, so the shared Web composition can retain its stock identity in other builds.
 
 ## Table of Contents
 
@@ -25,12 +25,12 @@ Compose this package through [`dsh-custom-harness`](../../bundle/custom-harness/
 
 The supplied transparent Harnessy mark scales to host-owned icon sizes on an ocean-gradient frame. Its deep navy, teal, and cyan palette flows through existing semantic tokens in both light and dark modes, while standard success, warning, and error meanings remain intact. The About row exposes the build version and project destinations without retaining runtime state.
 
-The Models footer card reads only the redacted `openAIAccount.describe()` state. **Sign in with OpenAI** starts a cancellable Host request and shows a waiting dialog while the default browser completes OAuth. On success it refreshes to Connected; **Sign out** removes the local grant and its Codex provider route. Remote refusal messages are displayed without inspecting credential contents.
+The Models footer card reads only redacted `accounts.describe()` state. **Manage accounts** opens a provider-focused dialog for Codex, GLM, Kimi, OpenCode, and Claude Code. It imports the account already active in Harnessy, supports additional browser or API-key accounts, and switches the canonical provider identity through injected Host callbacks. Opening the dialog always requests a fresh Codex usage snapshot; quota bars animate from zero to the returned percentage and honor reduced-motion preferences. Providers without supported usage data show a clear unavailable state. Remote refusal messages are displayed without inspecting credential contents.
 
 <a id="model-experience"></a>
 ## Model Experience
 
-None, as this package never constructs prompts or model requests; successful account sign-in only asks the Host to enable the installed OpenAI Codex provider route so its supported models enter the ordinary selector.
+None, as this package never constructs prompts or model requests; account activation only asks the Host to enable the selected installed provider route so its supported models enter the ordinary selector.
 
 #### KV Cache effect
 

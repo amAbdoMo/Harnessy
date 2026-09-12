@@ -1,5 +1,5 @@
 ---
-description: "Host Remote owner for settings, credentials, and Harnessy OpenAI account authentication."
+description: "Host Remote owner for settings, credentials, and Harnessy provider account management."
 kind: "package-reference"
 ---
 # Settings Controller
@@ -8,7 +8,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@deepseek-ai/dsh-api-settings-controller` exposes generated `ctx.remote.settings`, `ctx.remote.credentials`, and `ctx.remote.openAIAccount` namespaces for browser configuration surfaces. It returns redacted settings and credential metadata, supports writes without returning secret values, opens provider-owned settings or Agent preset locations on the Host desktop, and bridges the Harnessy OpenAI browser-login action to the neutral authorization service. When a provider is absent, each namespace remains registered and returns an actionable configuration error.
+`@deepseek-ai/dsh-api-settings-controller` exposes generated `ctx.remote.settings`, `ctx.remote.credentials`, `ctx.remote.accounts`, and compatibility `ctx.remote.openAIAccount` namespaces for browser configuration surfaces. It returns redacted settings and credential metadata, supports writes without returning secret values, opens provider-owned settings or Agent preset locations on the Host desktop, and bridges Harnessy's provider-account actions to the neutral authorization service. When a provider is absent, each namespace remains registered and returns an actionable configuration error.
 
 ## Table of Contents
 
@@ -32,6 +32,8 @@ Mount this package as a Loader entry in a profile that serves browser configurat
 `settings.openSettingsDocument()` prepares the provider-owned document and opens it with the native text-editor intent. `settings.canOpenAgentPresetDirectory()` reports native-opening availability when the preset page becomes visible. `settings.openAgentPresetDirectory(id)` resolves only a user-authored preset and either opens its directory or returns the path when native opening is unavailable; neither open method accepts a browser-supplied filesystem target.
 
 `openAIAccount.describe()` returns availability, configured, in-flight, and writable flags without a token-shaped field. `openAIAccount.signIn()` selects the installed `llm-pi-ai/openai-codex` OAuth flow, accepts only an HTTPS authorization destination, opens it in the Host desktop's default browser, and waits for the provider's local callback. A successful attempt writes the grant inside the authorization flow and adds `llm-pi-ai.providers.openai-codex` to settings. `openAIAccount.signOut()` deletes that grant and removes the dependent route. Browser-open failures use `openai-account/browser-failed`; missing composition or an unsafe URL uses `openai-account/unavailable`.
+
+`accounts.describe()` imports an existing canonical provider credential into a protected, Host-only multi-account vault and returns only provider labels, account identity labels, activation state, and usage snapshots. Codex, Kimi, and Claude Code use their installed OAuth flows; GLM and OpenCode accept locally stored API keys. Add, activate, rename, and remove operations keep the provider's canonical `llm-pi-ai/<provider>` credential synchronized with the selected vault entry, so model requests switch immediately. `accounts.refreshUsage()` refreshes Codex OAuth when required and reads its supported quota windows; providers without a supported usage service report that limitation instead of guessing values.
 
 -----
 
@@ -61,6 +63,7 @@ No direct effect; reading or writing these configuration values does not alter m
 
 - The batch bound is fixed at 64 references and is not a deployment-configurable field.
 - The OpenAI account surface intentionally supports the desktop browser-login method; headless device-code and manual-code presentation remain available through the underlying authorization seam but are not exposed here.
+- Provider usage is exposed only where a stable, authenticated service is available. The current manager reports Codex windows; GLM, Kimi, OpenCode, and Claude Code accounts remain switchable without fabricated quota data.
 
 <a id="dev-note"></a>
 ### Dev Note
@@ -72,4 +75,4 @@ None.
 
 </details>
 
-**Runtime invariant:** No secret or OAuth grant crosses a response. The authorization flow remains the only grant writer; this package projects status and actions onto the wire and activates or removes only the matching provider route.
+**Runtime invariant:** No secret, API key, or OAuth grant crosses a response. Provider authorization flows remain the OAuth grant writers; the account manager stores copies only inside the credential provider and projects redacted state onto the wire.

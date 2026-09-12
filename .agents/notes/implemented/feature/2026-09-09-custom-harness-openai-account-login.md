@@ -28,4 +28,6 @@ The Custom Harness brand client occupies `settings.models.footer` with a localiz
 
 Users can sign in with an OpenAI account from Settings > Models and see supported Codex models after the browser callback completes. OAuth material remains in the Custom Harness credential store and does not cross Remote responses, settings documents, or session logs. Signing out removes both the grant and its dependent provider route. The UI currently chooses the desktop browser method automatically; headless device-code and manual-code presentation remain outside this product surface.
 
+The later [Harnessy multi-account manager](2026-09-12-harnessy-multi-account-manager.md) partially supersedes this card's presentation while retaining the narrow Remote namespace as a compatibility surface.
+
 Focused Host, client, native-command, and assembled-profile tests cover redacted status, secure URL handling, provider activation, cancellation, sign-out, OS browser dispatch, and the real product slot/composition.

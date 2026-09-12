@@ -9,8 +9,8 @@ import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 import { AboutRow, type AboutRowInjected } from './AboutRow.tsx'
 import {
-  OpenAIAccountCard, type OpenAIAccountInjected, type OpenAIAccountOperations,
-} from './OpenAIAccountCard.tsx'
+  AccountsManagerCard, type AccountsManagerInjected, type AccountsManagerOperations,
+} from './AccountsManagerCard.tsx'
 import {
   CustomHarnessMark, CustomHarnessName, CustomHarnessTagline, requiredBuildValue,
 } from './Brand.tsx'
@@ -28,7 +28,7 @@ const BUILD_PROFILE = 'custom-harness'
 const LOCALE_NS = 'customHarnessBrand'
 
 /** Required services: slots, locale, and theme token composition. */
-export const inject = ['slots', 'locale', 'theme', 'remote', 'remote.openAIAccount']
+export const inject = ['slots', 'locale', 'theme', 'remote', 'remote.accounts']
 
 /**
  * Install the Harnessy identity only in its named browser build.
@@ -69,28 +69,44 @@ export function apply(ctx: ClientContext): void {
     inject: about,
   }, AboutRow))
 
-  const accountOperations: OpenAIAccountOperations = {
+  const accountOperations: AccountsManagerOperations = {
     describe: async () => {
-      const response = await ctx.remote.openAIAccount.describe()
+      const response = await ctx.remote.accounts.describe()
       return response.ok ? { state: response.value } : { error: response.error.message }
     },
-    signIn: async (signal) => {
-      const response = await ctx.remote.openAIAccount.signIn(signal)
+    addOAuth: async (provider, signal) => {
+      const response = await ctx.remote.accounts.addOAuth(provider, signal)
       return response.ok
         ? { authorized: response.value.status === 'authorized' }
         : { authorized: false, error: response.error.message }
     },
-    signOut: async () => {
-      const response = await ctx.remote.openAIAccount.signOut()
-      return response.ok ? undefined : response.error.message
+    addApiKey: async (provider, name, key) => {
+      const response = await ctx.remote.accounts.addApiKey(provider, name, key)
+      return response.ok ? { state: response.value } : { error: response.error.message }
+    },
+    activate: async (provider, accountId) => {
+      const response = await ctx.remote.accounts.activate(provider, accountId)
+      return response.ok ? { state: response.value } : { error: response.error.message }
+    },
+    rename: async (provider, accountId, name) => {
+      const response = await ctx.remote.accounts.rename(provider, accountId, name)
+      return response.ok ? { state: response.value } : { error: response.error.message }
+    },
+    remove: async (provider, accountId) => {
+      const response = await ctx.remote.accounts.deleteAccount(provider, accountId)
+      return response.ok ? { state: response.value } : { error: response.error.message }
+    },
+    refreshUsage: async (signal) => {
+      const response = await ctx.remote.accounts.refreshUsage(signal)
+      return response.ok ? { state: response.value } : { error: response.error.message }
     },
   }
-  const account = (): OpenAIAccountInjected => ({ operations: accountOperations })
+  const account = (): AccountsManagerInjected => ({ operations: accountOperations })
   ctx.slots.inject('settings.models.footer', () => ctx.slots.register({
     name: 'settings.models.footer',
-    id: 'custom-harness-openai-account',
+    id: 'custom-harness-accounts',
     order: -100,
     locale: LOCALE_NS,
     inject: account,
-  }, OpenAIAccountCard))
+  }, AccountsManagerCard))
 }

@@ -14,6 +14,12 @@ function renderCard(operations: OpenAIAccountOperations) {
   return render(<OpenAIAccountCard {...({ operations, t } as unknown as OpenAIAccountCardProps)} />)
 }
 
+async function enabledButton(name: string): Promise<HTMLElement> {
+  const button = await screen.findByRole('button', { name })
+  await waitFor(() => { expect(button.hasAttribute('disabled')).toBe(false) })
+  return button
+}
+
 describe('OpenAI account Models card', () => {
   it('signs in through the browser flow and refreshes the visible status', async () => {
     let configured = false
@@ -29,7 +35,7 @@ describe('OpenAI account Models card', () => {
       signOut: vi.fn(async () => undefined),
     }
     renderCard(operations)
-    const button = await screen.findByRole('button', { name: en.openAISignIn })
+    const button = await enabledButton(en.openAISignIn)
     fireEvent.click(button)
     screen.getByRole('dialog', { name: en.openAISignInTitle })
     await waitFor(() => { expect(screen.getByText(en.openAIConnected)).not.toBeNull() })
@@ -53,7 +59,7 @@ describe('OpenAI account Models card', () => {
       signOut: vi.fn(async () => undefined),
     }
     renderCard(operations)
-    fireEvent.click(await screen.findByRole('button', { name: en.openAISignIn }))
+    fireEvent.click(await enabledButton(en.openAISignIn))
     fireEvent.click(screen.getByRole('button', { name: en.cancel }))
     expect(observed?.aborted).toBe(true)
     expect(screen.queryByRole('dialog')).toBeNull()
@@ -68,7 +74,7 @@ describe('OpenAI account Models card', () => {
       signOut: vi.fn(async () => 'credential store is read-only'),
     }
     renderCard(operations)
-    fireEvent.click(await screen.findByRole('button', { name: en.openAISignOut }))
+    fireEvent.click(await enabledButton(en.openAISignOut))
     expect(await screen.findByText('credential store is read-only')).not.toBeNull()
   })
 
@@ -81,7 +87,7 @@ describe('OpenAI account Models card', () => {
       signOut: vi.fn(async () => undefined),
     }
     renderCard(operations)
-    fireEvent.click(await screen.findByRole('button', { name: en.openAISignIn }))
+    fireEvent.click(await enabledButton(en.openAISignIn))
     expect(await screen.findByText('browser launch failed')).not.toBeNull()
     expect(screen.getByText(en.openAINotConnected)).not.toBeNull()
   })
@@ -101,7 +107,7 @@ describe('OpenAI account Models card', () => {
       }),
     }
     renderCard(operations)
-    fireEvent.click(await screen.findByRole('button', { name: en.openAISignOut }))
+    fireEvent.click(await enabledButton(en.openAISignOut))
     expect(screen.getByRole('button', { name: en.openAISigningOut }).hasAttribute('disabled')).toBe(true)
     release.resolve(undefined)
     await waitFor(() => { expect(screen.getByText(en.openAINotConnected)).not.toBeNull() })
@@ -147,7 +153,7 @@ describe('OpenAI account Models card', () => {
     described.resolve({ state: {
       available: true, configured: false, inFlight: false, writable: true,
     } })
-    fireEvent.click(await screen.findByRole('button', { name: en.openAISignIn }))
+    fireEvent.click(await enabledButton(en.openAISignIn))
     view.unmount()
     expect(signal?.aborted).toBe(true)
 

@@ -25,10 +25,12 @@ import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typer
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import { z } from 'zod'
 import { CredentialsController } from './credentials.ts'
+import { AccountsController } from './accounts.ts'
 import { OpenAIAccountController } from './openai-account.ts'
 import type { AgentPresetDirectoryOpenValue, SettingsDocumentOpenValue } from './types.ts'
 
 export { CredentialsController } from './credentials.ts'
+export { AccountsController } from './accounts.ts'
 export { OpenAIAccountController } from './openai-account.ts'
 export type * from './types.ts'
 
@@ -107,6 +109,7 @@ export class SettingsController extends TypertRemoteService {
     this.canOpenPath = internals.canOpenPath
       ?? (() => config.nativeOpen ?? (internals.openPath !== undefined || canOpenNativePath()))
     ctx.plugin(CredentialsController)
+    ctx.plugin(AccountsController)
     ctx.plugin(OpenAIAccountController)
   }
 

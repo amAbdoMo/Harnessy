@@ -29,7 +29,69 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     'openai-account/unavailable': Record<string, never>
     /** The operating system refused to open the secure OpenAI sign-in page. */
     'openai-account/browser-failed': Record<string, never>
+    /** The Harnessy account manager or one of its Host dependencies is unavailable. */
+    'accounts/unavailable': Record<string, never>
+    /** The requested managed account does not exist. */
+    'accounts/not-found': { readonly provider: AccountProviderId; readonly accountId: string }
+    /** The requested account operation is not valid for this provider or account. */
+    'accounts/rejected': { readonly provider: AccountProviderId }
   }
+}
+
+/** Providers currently presented by Harnessy's local account manager. */
+export type AccountProviderId = 'openai-codex' | 'zai' | 'kimi-coding' | 'opencode' | 'anthropic'
+
+/** Authentication experience offered for a managed provider. */
+export type AccountAuthMode = 'oauth' | 'api-key'
+
+/** Browser-safe provider metadata for the account-manager selector. */
+export interface AccountProviderView {
+  readonly id: AccountProviderId
+  readonly label: string
+  readonly authMode: AccountAuthMode
+  readonly available: boolean
+  readonly accountCount: number
+  readonly activeAccountId?: string
+  readonly usageAvailable: boolean
+}
+
+/** One quota interval returned by a provider-supported usage service. */
+export interface AccountUsageWindow {
+  readonly id: string
+  readonly label: string
+  readonly usedPercent: number
+  readonly resetsAtMs?: number
+}
+
+/** Usage snapshot attached to a managed account. */
+export interface AccountUsageView {
+  readonly windows: readonly AccountUsageWindow[]
+}
+
+/** Secret-free account row returned to the Harnessy client. */
+export interface ManagedAccountView {
+  readonly id: string
+  readonly provider: AccountProviderId
+  readonly name: string
+  readonly detail?: string
+  readonly initials: string
+  readonly active: boolean
+  readonly authMode: AccountAuthMode
+  readonly usage?: AccountUsageView
+  readonly usageUpdatedAt?: number
+  readonly usageError?: string
+}
+
+/** Complete browser-safe snapshot of Harnessy's managed provider accounts. */
+export interface AccountsState {
+  readonly writable: boolean
+  readonly providers: readonly AccountProviderView[]
+  readonly accounts: readonly ManagedAccountView[]
+}
+
+/** Terminal result of a cancellable provider account sign-in. */
+export interface AccountSignInResult {
+  readonly status: 'authorized' | 'cancelled'
 }
 
 /** Browser-safe OpenAI account status. OAuth material is intentionally absent. */
