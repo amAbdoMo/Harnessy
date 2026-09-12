@@ -748,6 +748,9 @@ describe('web e2e: shipped right Sidebar', () => {
         // collapsed surface must not inherit the settled Session's tabs.
         await fx.getByRole('button', { name: 'New session', exact: true }).last().click()
         await expect.poll(async () => await settled.getAttribute('aria-selected')).toBe('false')
+        await fx.getByText('No project', { exact: true }).waitFor({ timeout: 10_000 })
+        expect(await fx.getByRole('dialog', { name: 'Select Workspace Directory' }).count()).toBe(0)
+        expect(await fx.locator('[data-composer-input]').getAttribute('contenteditable')).toBe('true')
         await expect.poll(async () => await frame.getAttribute('data-rightbar-collapsed')).toBe('true')
         expect(await column.locator('[data-sidebar-right-open]').count()).toBe(0)
         expect(await column.locator('[data-textpreview-state="text"]').count()).toBe(0)

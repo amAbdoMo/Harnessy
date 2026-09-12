@@ -98,9 +98,8 @@ export type WorkspaceBrowserInjected = {
     hostInfo: HostObservable<RemoteHostFacts>
   }
   /**
-   * Start a New Session in a Workspace: reuse-or-create its blank session and
-   * open it; without an explicit workspace, inherit the current Session
-   * Workspace, then the recent Workspace, or clear into the New Session view.
+   * Start a New Session: an explicit Workspace reuses or creates its blank
+   * Session; an omitted Workspace creates or reuses an ungrouped Session.
    */
   startSession: (workspaceId?: WorkspaceId) => void
   /** Open a real Session. */

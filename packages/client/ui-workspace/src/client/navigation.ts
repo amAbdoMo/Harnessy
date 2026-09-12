@@ -21,7 +21,7 @@ export interface UiWorkspace {
   connectWorkspace(workspaceId: WorkspaceId): Promise<SessionId>
   /**
    * Start a New Session flow and navigate to its Session.
-   * @param workspaceId - explicit target; absent inherits the current or most recent Workspace.
+   * @param workspaceId - explicit Workspace target; absent creates or reuses an ungrouped Session.
    */
   startSession(workspaceId?: WorkspaceId): void
   /**
@@ -70,6 +70,7 @@ export class DirectoryBrowseError extends Error {
 /** Implements Workspace archive and directory UI operations. */
 class UiWorkspaceService extends Service implements UiWorkspace {
   private readonly connecting = new Map<WorkspaceId, Promise<SessionId>>()
+  private connectingUngrouped: Promise<SessionId> | undefined
 
   /**
    * @param ctx - Client root Context.
@@ -111,22 +112,32 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     return attempt
   }
 
-  startSession(workspaceId?: WorkspaceId): void {
-    const workspace = this.workspaces.list.getSnapshot()
+  /** Resolve the existing provisional ungrouped Session or create one at the Host default directory. */
+  private connectUngrouped(): Promise<SessionId> {
+    const workspaces = this.workspaces.list.getSnapshot()
     const sessions = this.sessions.list.getSnapshot()
-    const current = sessions.current
-    const currentWorkspaceId = current === undefined
-      ? undefined
-      : workspace.items.find(item => item.sessionIds.includes(current))?.workspaceId
-    const recent = workspace.phase === 'ready' && sessions.phase === 'ready'
-      ? recentWorkspace(workspace.items, sessions.byId)
-      : undefined
-    const target = workspaceId ?? currentWorkspaceId ?? recent
-    if (target === undefined) {
-      this.sessions.clear()
-      return
+    if (workspaces.phase === 'ready' && sessions.phase === 'ready') {
+      const owned = new Set(workspaces.items.flatMap(workspace => workspace.sessionIds))
+      const archived = new Set(workspaces.archivedSessionIds)
+      for (const id of sessions.ids) {
+        const summary = sessions.byId[id]
+        if (summary !== undefined && summary.blank && !owned.has(id) && !archived.has(id)) {
+          return Promise.resolve(id)
+        }
+      }
     }
-    void this.connectWorkspace(target).then(
+    if (this.connectingUngrouped !== undefined) return this.connectingUngrouped
+    const attempt = this.sessions.create()
+      .finally(() => { this.connectingUngrouped = undefined })
+    this.connectingUngrouped = attempt
+    return attempt
+  }
+
+  startSession(workspaceId?: WorkspaceId): void {
+    const target = workspaceId === undefined
+      ? this.connectUngrouped()
+      : this.connectWorkspace(workspaceId)
+    void target.then(
       (sessionId) => { this.sessions.open(sessionId) },
       (reason: unknown) => { console.warn('new session failed:', reason) },
     )

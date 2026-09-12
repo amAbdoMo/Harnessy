@@ -248,7 +248,7 @@ describe('UiWorkspaceService', () => {
       .rejects.toThrow('uiWorkspace.connectWorkspace: unknown workspace ghost')
   })
 
-  it('targets an explicit, current-session, then recent Workspace and reports failed starts', async () => {
+  it('targets an explicit Workspace, starts ungrouped by default, and reports failed starts', async () => {
     const current = summary('current', { cwd: '/w/current-home', updatedAt: 1 })
     const recent = summary('recent', { cwd: '/w/recent-home', updatedAt: 2 })
     const b = bench({
@@ -265,27 +265,50 @@ describe('UiWorkspaceService', () => {
       expect(b.sessions.open).toHaveBeenLastCalledWith(sid('opened-recent-home'))
     })
 
-    b.sessions.open(current.id)
     b.uiWorkspace.startSession()
     await vi.waitFor(() => {
-      expect(b.sessions.open).toHaveBeenLastCalledWith(sid('opened-current-home'))
+      expect(b.sessions.open).toHaveBeenLastCalledWith(sid('opened-undefined'))
     })
-
-    b.sessions.clear()
-    b.uiWorkspace.startSession()
-    await vi.waitFor(() => {
-      expect(b.sessions.open).toHaveBeenLastCalledWith(sid('opened-recent-home'))
-    })
+    expect(b.sessions.create).toHaveBeenLastCalledWith()
 
     const empty = bench()
     empty.uiWorkspace.startSession()
-    expect(empty.sessions.clear).toHaveBeenCalledOnce()
+    await vi.waitFor(() => {
+      expect(empty.sessions.open).toHaveBeenCalledWith(sid('created-none'))
+    })
+    expect(empty.sessions.clear).not.toHaveBeenCalled()
 
     const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     b.sessions.create.mockRejectedValueOnce(new Error('create failed'))
     b.uiWorkspace.startSession(wid('recent-home'))
     await vi.waitFor(() => {
       expect(warning).toHaveBeenCalledWith('new session failed:', expect.any(Error))
+    })
+  })
+
+  it('reuses an ungrouped blank and coalesces concurrent ungrouped creation', async () => {
+    const free = summary('free', { blank: true, cwd: '/default' })
+    const owned = summary('owned', { blank: true, cwd: '/w/owned' })
+    const archived = summary('archived', { blank: true, cwd: '/default' })
+    const reusable = bench({
+      sessions: sessionState([owned, archived, free]),
+      workspaces: workspaceState([workspace('owned', [owned.id])], [archived.id]),
+    })
+
+    reusable.uiWorkspace.startSession()
+    await vi.waitFor(() => { expect(reusable.sessions.open).toHaveBeenCalledWith(free.id) })
+    expect(reusable.sessions.create).not.toHaveBeenCalled()
+
+    const creating = bench({ sessions: sessionState(), workspaces: workspaceState() })
+    const pending = Promise.withResolvers<SessionId>()
+    creating.sessions.create.mockImplementation(() => pending.promise)
+    creating.uiWorkspace.startSession()
+    creating.uiWorkspace.startSession()
+    expect(creating.sessions.create).toHaveBeenCalledOnce()
+    pending.resolve(sid('fresh-ungrouped'))
+    await vi.waitFor(() => {
+      expect(creating.sessions.open).toHaveBeenCalledTimes(2)
+      expect(creating.sessions.open).toHaveBeenLastCalledWith(sid('fresh-ungrouped'))
     })
   })
 
