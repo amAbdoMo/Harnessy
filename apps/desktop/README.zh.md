@@ -25,7 +25,11 @@
 
 Electron 拥有保留 profile `$DSH_HOME/profiles/desktop`。其 manifest 通过 `dsh.profile.bundles` 列出内置与已安装插件 bundle，`node_modules` 则同时包含精确版本的 `@deepseek-ai/dsh`、与之匹配的私有 `@deepseek-ai/dsh-desktop-host` 和所有桌面插件。把 Electron 专用进程入口与 overlay 放入私有应用包，可以避免 Desktop 实现成为公共 CLI 包的一部分。CLI 不能启动或修改该 profile。Electron 始终调用自身内置的 Node.js 与 pnpm，并把 store 固定在 `$DSH_HOME/desktop/pnpm/store`；它绝不使用系统 pnpm 或调用方的 npm/pnpm 配置。
 
-dsh 主渲染进程只获得桌面协议标记。独立插件窗口获得结构化的列出、安装、移除、更新和更新检查操作；两个渲染进程都拿不到文件系统、原始 Electron IPC、shell 或任意 pnpm 参数。
+在 Windows 上，Harnessy 默认为 Host 进程启用 Node.js 系统证书颁发机构，使 HTTPS 提供商可以信任安装在 Windows 证书存储中的证书。显式配置的 `NODE_USE_SYSTEM_CA` 值仍具有优先权。
+
+在 Windows 上，Harnessy 主窗口启动时最大化，并使用一个 36px 高的集成标题栏。标题栏保留原生最小化、最大化和关闭控件；应用自有区域提供侧栏开关以及原生文件、编辑、视图和帮助菜单。主窗口仍可调整大小，插件管理则继续在带标准原生窗口外观的独立任务尺寸窗口中打开。
+
+dsh 主渲染进程获得桌面协议标记，以及一个仅用于打开固定原生菜单组且经过校验的操作。独立插件窗口获得结构化的列出、安装、移除、更新和更新检查操作；两个渲染进程都拿不到文件系统、原始 Electron IPC、shell 或任意 pnpm 参数。
 
 Electron 根据应用 locale 选择类型化的中英文字典，并以英文作为 fallback。菜单、原生对话框与插件管理渲染进程使用同一 locale 数据；仓库的 Client UI i18n gate 会检查这些桌面源文件。
 

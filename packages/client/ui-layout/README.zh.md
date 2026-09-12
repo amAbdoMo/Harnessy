@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-本插件在 root slot 组合侧栏、会话与右栏。左栏为264～420px，默认280px，收起后保留56px；窗口低于1024px时自动收起，打开右栏也会收起手动展开的左栏。右栏首次打开使用窗口宽度的45%，之后保留用户像素偏好，上限为70%；中栏不足400px时先把右栏压到300px，仍不足则通知占用方收起，最后才继续压缩中栏。拖拽跟手且无过渡延迟，关闭或全屏时不显示右栏拖拽区。
+本插件在 root slot 组合侧栏、会话与右栏。在 Electron 应用中，它还会添加 36px 高的集成标题栏；其中的侧栏控件会修改同一份布局状态，文件、编辑、视图和帮助控件则委托给受限的 Desktop bridge。浏览器构建不会渲染此标题栏。左栏为264～420px，默认280px，收起后保留56px；窗口低于1024px时自动收起，打开右栏也会收起手动展开的左栏。右栏首次打开使用窗口宽度的45%，之后保留用户像素偏好，上限为70%；中栏不足400px时先把右栏压到300px，仍不足则通知占用方收起，最后才继续压缩中栏。拖拽跟手且无过渡延迟，关闭或全屏时不显示右栏拖拽区。
 
 ### 主题呈现
 
@@ -39,7 +39,7 @@ kind: "package-reference"
 <details>
 <summary>实现细节——点击展开</summary>
 
-一次注册声明四个子slot并绑定 `ctx.layout` 的 `toggleSidebar`、`openRightbar(track, fullscreen)` 与 `closeRightbar`。store持有唯一的frame宽度测量、左右栏偏好及占用方报告的呈现状态。`rightbar` 的owner参数为实际 `width`、`viewportWidth` 与普通呈现的 `canShow`；占用方在空间不足时执行确定性的收起，变宽不自行重新展开。全屏隐藏宽度手柄，但不自行释放占用方要求保留的轨道。AppFrame 始终挂载会话与右栏；已连接 Session 经 `SessionProvider` 渲染，没有 Session 时右栏是一条空的零宽轨道。它把所选 Session 标题投影到构建配置的产品标题或本地化 `common.brand.localBuild` 回退值之上，因此 locale revision 会随根 entry 一起更新文档元数据。主题呈现器是第二个 effect：从解析后的快照做纯 DOM 写入——初始状态经 getter 读取一次，此后仅事件驱动，不经过 React。它先应用调色板、字号与 token 变量，再把渲染出的背景测量为唯一的颜色依据。 全屏呈现禁用网格和手柄过渡；占用方完全覆盖框架后才报告新的列宽。 退出全屏时，框架先保持无过渡并安装目标布局：关闭移除右轨道，恢复保留右轨道。后续普通几何操作恢复正常过渡。
+一次注册声明四个子slot并绑定 `ctx.layout` 的 `toggleSidebar`、`openRightbar(track, fullscreen)` 与 `closeRightbar`。store持有唯一的frame宽度测量、左右栏偏好及占用方报告的呈现状态。`rightbar` 的owner参数为实际 `width`、`viewportWidth` 与普通呈现的 `canShow`；占用方在空间不足时执行确定性的收起，变宽不自行重新展开。全屏隐藏宽度手柄，但不自行释放占用方要求保留的轨道。AppFrame 始终挂载会话与右栏；已连接 Session 经 `SessionProvider` 渲染，没有 Session 时右栏是一条空的零宽轨道。当上下文隔离的 `dshDesktop.titlebar` bridge 存在时，AppFrame 会在这些栏外包裹集成标题栏；否则返回普通 Web frame。它把所选 Session 标题投影到构建配置的产品标题或本地化 `common.brand.localBuild` 回退值之上，因此 locale revision 会随根 entry 一起更新文档元数据。主题呈现器是第二个 effect：从解析后的快照做纯 DOM 写入——初始状态经 getter 读取一次，此后仅事件驱动，不经过 React。它先应用调色板、字号与 token 变量，再把渲染出的背景测量为唯一的颜色依据。 全屏呈现禁用网格和手柄过渡；占用方完全覆盖框架后才报告新的列宽。 退出全屏时，框架先保持无过渡并安装目标布局：关闭移除右轨道，恢复保留右轨道。后续普通几何操作恢复正常过渡。
 
 </details>
 

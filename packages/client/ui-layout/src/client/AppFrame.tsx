@@ -20,10 +20,67 @@ import type { ReactNode } from 'react'
 import type {
   PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore,
 } from '@deepseek-ai/dsh-client-ui-slots'
+import { IconPanelLeftOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { computeColumns, RIGHTBAR_DEFAULT_RATIO, SIDEBAR_AUTO_COLLAPSE, SIDEBAR_DEFAULT } from './columns.ts'
 import { DocumentTitle } from './DocumentTitle.tsx'
 import type { createLayoutStore } from './stores.ts'
 import css from './AppFrame.module.css'
+
+type DesktopMenuSection = 'file' | 'edit' | 'view' | 'help'
+
+interface DesktopTitlebarBridge {
+  readonly openMenu: (section: DesktopMenuSection) => Promise<void>
+}
+
+const DESKTOP_MENUS = [
+  { id: 'file', label: 'appMenu.file' },
+  { id: 'edit', label: 'appMenu.edit' },
+  { id: 'view', label: 'appMenu.view' },
+  { id: 'help', label: 'appMenu.help' },
+] as const
+
+function desktopTitlebarBridge(): DesktopTitlebarBridge | undefined {
+  if (typeof window === 'undefined') return undefined
+  return (window as Window & {
+    dshDesktop?: { readonly titlebar?: DesktopTitlebarBridge }
+  }).dshDesktop?.titlebar
+}
+
+function ArrowIcon({ direction }: { direction: 'back' | 'forward' }) {
+  return (
+    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path d={direction === 'back' ? 'M9.75 3.5 5.25 8l4.5 4.5' : 'm6.25 3.5 4.5 4.5-4.5 4.5'}
+        stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function DesktopTitlebar({ bridge, t, toggleSidebar }: {
+  readonly bridge: DesktopTitlebarBridge
+  readonly toggleSidebar: () => void
+  readonly t: PropsLocale<'common'>['t']
+}) {
+  return (
+    <header className={css.desktopTitlebar} data-desktop-titlebar>
+      <button type="button" className={css.titlebarIconButton} onClick={toggleSidebar} aria-label={t('appMenu.toggleSidebar')}>
+        <IconPanelLeftOutline16 size={15} />
+      </button>
+      <div className={css.historyControls} aria-label={t('appMenu.navigationHistory')}>
+        <button type="button" className={css.titlebarIconButton} disabled aria-label={t('appMenu.goBack')}><ArrowIcon direction="back" /></button>
+        <button type="button" className={css.titlebarIconButton} disabled aria-label={t('appMenu.goForward')}><ArrowIcon direction="forward" /></button>
+      </div>
+      <nav className={css.desktopMenus} aria-label={t('appMenu.label')}>
+        {DESKTOP_MENUS.map(menu => (
+          <button key={menu.id} type="button" className={css.desktopMenuButton}
+            aria-haspopup="menu"
+            onClick={() => { void bridge.openMenu(menu.id) }}>
+            {t(menu.label)}
+          </button>
+        ))}
+      </nav>
+    </header>
+  )
+}
 
 /** Full composed props: runtime share + child-slot render share + store share. */
 export type AppFrameProps =
@@ -190,7 +247,7 @@ export function AppFrame({
   }, [actions])
   const productTitle = process.env.DSH_CLIENT_TITLE ?? t('brand.localBuild')
 
-  return (
+  const appFrame = (
     <div
       ref={frameRef}
       className={css.frame}
@@ -243,6 +300,14 @@ export function AppFrame({
       {panels.rightbarShown && !panels.rightbarFullscreen && normal.rightbar > 0 && (
         <DragHandle side="rightbar" left={viewport - normal.rightbar} onStart={onRightbarStart} onDrag={onRightbarDrag} onEnd={onDragEnd} />
       )}
+    </div>
+  )
+  const titlebar = desktopTitlebarBridge()
+  if (titlebar === undefined) return appFrame
+  return (
+    <div className={css.desktopShell}>
+      <DesktopTitlebar bridge={titlebar} toggleSidebar={actions.toggleSidebar} t={t} />
+      {appFrame}
     </div>
   )
 }

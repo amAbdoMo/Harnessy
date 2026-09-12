@@ -5,6 +5,7 @@ import type { DesktopLocale } from './locale.ts'
 
 /** IPC channel names kept private to the desktop application bundle. */
 export const DESKTOP_IPC = {
+  menuOpen: 'dsh-desktop:menu-open',
   localeGet: 'dsh-desktop:locale-get',
   pluginsList: 'dsh-desktop:plugins-list',
   pluginsAdd: 'dsh-desktop:plugins-add',
@@ -14,6 +15,17 @@ export const DESKTOP_IPC = {
   updatesInstall: 'dsh-desktop:updates-install',
   updatesState: 'dsh-desktop:updates-state',
 } as const
+
+/** Native menu groups opened from the integrated Windows title bar. */
+export type DesktopMenuSection = 'file' | 'edit' | 'view' | 'help'
+
+/** Narrow bridge exposed to the main application renderer. */
+export interface DshDesktopAppApi {
+  readonly protocolVersion: 1
+  readonly titlebar: {
+    openMenu(section: DesktopMenuSection): Promise<void>
+  }
+}
 
 /** Desktop release update state rendered by desktop-owned UI. */
 export interface DesktopUpdateState {

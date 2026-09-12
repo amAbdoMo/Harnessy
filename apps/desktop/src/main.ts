@@ -23,7 +23,7 @@ import {
 import { resolveDesktopPaths } from './paths.ts'
 import { DesktopProjectManager, type DesktopProjectHooks } from './project-manager.ts'
 import { DesktopHostProcess } from './host-process.ts'
-import { DESKTOP_IPC, type DesktopUpdateState } from './ipc.ts'
+import { DESKTOP_IPC, type DesktopMenuSection, type DesktopUpdateState } from './ipc.ts'
 import { formatDesktopMessage, resolveDesktopLocale } from './locale.ts'
 import { claimDesktopSingleInstance } from './single-instance.ts'
 import { DesktopUpdateCoordinator } from './update-coordinator.ts'
@@ -114,13 +114,21 @@ function developmentHostInspectPort(enabled: boolean): number | undefined {
   return port
 }
 
-function createWindow(preload: string): BrowserWindow {
+function createWindow(preload: string, chrome: 'integrated' | 'native'): BrowserWindow {
+  const integrated = chrome === 'integrated' && process.platform === 'win32'
   const window = new BrowserWindow({
     width: 1280,
     height: 840,
     minWidth: 880,
     minHeight: 600,
     show: false,
+    ...(integrated
+      ? {
+        autoHideMenuBar: true,
+        titleBarStyle: 'hidden' as const,
+        titleBarOverlay: { color: '#171b1d', symbolColor: '#e8f3f5', height: 36 },
+      }
+      : {}),
     webPreferences: {
       preload,
       nodeIntegration: false,
@@ -129,6 +137,7 @@ function createWindow(preload: string): BrowserWindow {
       webSecurity: true,
     },
   })
+  if (integrated) window.setMenuBarVisibility(false)
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
   window.webContents.on('will-navigate', (event, url) => {
     if (new URL(url).protocol !== `${SCHEME}:`) event.preventDefault()
@@ -307,54 +316,12 @@ async function main(): Promise<void> {
     await updates.install()
   })
 
-  const checkAndPrompt = async (manual: boolean): Promise<void> => {
-    const state = await updates.check()
-    if (state.phase === 'error') {
-      if (manual) {
-        await dialog.showMessageBox({
-          type: 'error',
-          title: messages.updateCheckFailedTitle,
-          message: state.message ?? messages.unknownError,
-        })
-      }
-      return
-    }
-    if (state.phase !== 'available') {
-      if (manual) {
-        await dialog.showMessageBox({
-          type: 'info',
-          title: messages.updateCheckTitle,
-          message: state.message ?? messages.updateCurrent,
-        })
-      }
-      return
-    }
-    const result = await dialog.showMessageBox({
-      type: 'info',
-      title: messages.updateTitle,
-      message: messages.updateAvailable,
-      detail: formatDesktopMessage(messages.updateDetail, { version: state.version ?? '' }),
-      buttons: [messages.installAndRestart, messages.later],
-      defaultId: 0,
-      cancelId: 1,
-    })
-    if (result.response !== 0) return
-    const installed = await updates.install()
-    if (installed.phase === 'error') {
-      await dialog.showMessageBox({
-        type: 'error',
-        title: messages.updateFailedTitle,
-        message: installed.message ?? messages.unknownError,
-      })
-    }
-  }
-
   const openPluginWindow = (): void => {
     if (pluginWindow !== undefined && !pluginWindow.isDestroyed()) {
       pluginWindow.focus()
       return
     }
-    pluginWindow = createWindow(managementPreload)
+    pluginWindow = createWindow(managementPreload, 'native')
     pluginWindow.setSize(900, 620)
     pluginWindow.setTitle(messages.pluginWindowTitle)
     pluginWindow.once('ready-to-show', () => { pluginWindow?.show() })
@@ -362,26 +329,72 @@ async function main(): Promise<void> {
     void pluginWindow.loadURL(`${SCHEME}://shell/plugin-manager.html`)
   }
 
-  const applicationMenu: MenuItemConstructorOptions[] = [
+  const fileMenu: MenuItemConstructorOptions[] = [
     {
       label: development === undefined ? messages.pluginsMenu : messages.pluginsMenuPackagedOnly,
       accelerator: 'CmdOrCtrl+,',
       enabled: development === undefined,
       click: openPluginWindow,
     },
-    ...(CUSTOM_HARNESS_PRODUCT.automaticUpdates
-      ? [{ label: messages.checkUpdatesMenu, click: (): void => { void checkAndPrompt(true) } }]
-      : []),
+    { type: 'separator' },
+    { role: 'close' },
     { type: 'separator' },
     { role: 'quit' },
   ]
-  Menu.setApplicationMenu(Menu.buildFromTemplate([{
-    label: process.platform === 'darwin' ? app.name : messages.application,
-    submenu: applicationMenu,
-  }]))
+  const editMenu: MenuItemConstructorOptions[] = [
+    { role: 'undo' },
+    { role: 'redo' },
+    { type: 'separator' },
+    { role: 'cut' },
+    { role: 'copy' },
+    { role: 'paste' },
+    { role: 'selectAll' },
+  ]
+  const viewMenu: MenuItemConstructorOptions[] = [
+    { role: 'resetZoom' },
+    { role: 'zoomIn' },
+    { role: 'zoomOut' },
+    { type: 'separator' },
+    { role: 'togglefullscreen' },
+  ]
+  const helpMenu: MenuItemConstructorOptions[] = [
+    {
+      label: messages.aboutMenu,
+      click: (): void => {
+        void dialog.showMessageBox({
+          type: 'info',
+          title: messages.aboutMenu,
+          message: formatDesktopMessage(messages.aboutDetail, { version: app.getVersion() }),
+        })
+      },
+    },
+  ]
+  const menuTemplates: Record<DesktopMenuSection, readonly MenuItemConstructorOptions[]> = {
+    file: fileMenu,
+    edit: editMenu,
+    view: viewMenu,
+    help: helpMenu,
+  }
+  const nativeMenus = Object.fromEntries(Object.entries(menuTemplates)
+    .map(([id, template]) => [id, Menu.buildFromTemplate([...template])])) as Record<DesktopMenuSection, Menu>
+  Menu.setApplicationMenu(Menu.buildFromTemplate([
+    { label: messages.fileMenu, submenu: fileMenu },
+    { label: messages.editMenu, submenu: editMenu },
+    { label: messages.viewMenu, submenu: viewMenu },
+    { label: messages.helpMenu, submenu: helpMenu },
+  ]))
+  ipcMain.handle(DESKTOP_IPC.menuOpen, (event, section: unknown) => {
+    assertDesktopSender(event, ['app'])
+    if (section !== 'file' && section !== 'edit' && section !== 'view' && section !== 'help') {
+      throw new Error('dsh desktop: invalid native menu section')
+    }
+    const owner = BrowserWindow.fromWebContents(event.sender)
+    if (owner === null || owner.isDestroyed()) return
+    nativeMenus[section].popup({ window: owner })
+  })
 
   const createMainWindow = (): BrowserWindow => {
-    const window = createWindow(appPreload)
+    const window = createWindow(appPreload, 'integrated')
     mainWindow = window
     window.once('ready-to-show', () => {
       if (window.isDestroyed()) return
@@ -409,9 +422,6 @@ async function main(): Promise<void> {
     mainWindow.webContents.openDevTools({ mode: 'detach' })
   }
   publishUpdate(updateState)
-  if (CUSTOM_HARNESS_PRODUCT.automaticUpdates) {
-    setTimeout(() => { void checkAndPrompt(false) }, 10_000)
-  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) focusPrimaryWindow()
