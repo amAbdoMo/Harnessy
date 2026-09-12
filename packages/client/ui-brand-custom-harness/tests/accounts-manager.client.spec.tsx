@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { useSyncExternalStore } from 'react'
 import type { AccountsState } from '@deepseek-ai/dsh-api-remotes/client'
 import {
   AccountsManagerCard, type AccountsManagerCardProps, type AccountsManagerOperations,
 } from '../src/client/AccountsManagerCard.tsx'
 import { en } from '../src/client/locales.ts'
+import { createAccountsMenuStore } from '../src/client/accounts-menu-store.ts'
 
 afterEach(() => {
   cleanup()
@@ -43,10 +45,19 @@ function operations(overrides: Partial<AccountsManagerOperations> = {}): Account
 }
 
 function renderManager(value: AccountsManagerOperations, presentModal = vi.fn(() => vi.fn())) {
+  const store = createAccountsMenuStore().create()
+  const useStore = <Selected,>(selector: (state: ReturnType<typeof store.getSnapshot>) => Selected): Selected =>
+    selector(useSyncExternalStore(
+      listener => store.subscribe(listener),
+      () => store.getSnapshot(),
+    ))
   return {
     ...render(<AccountsManagerCard
-      {...({ operations: value, t, presentModal } as unknown as AccountsManagerCardProps)} />),
+      {...({
+        operations: value, t, presentModal, useStore, actions: store.actions,
+      } as unknown as AccountsManagerCardProps)} />),
     presentModal,
+    store,
   }
 }
 
@@ -73,6 +84,18 @@ describe('Harnessy account manager', () => {
     fireEvent.click(screen.getByRole('button', { name: en.close }))
     fireEvent.click(screen.getByRole('button', { name: en.accountsManage }))
     await waitFor(() => { expect(api.refreshUsage).toHaveBeenCalledTimes(2) })
+  })
+
+  it('opens from a sidebar account-menu request without leaving Settings visible', async () => {
+    const finish = vi.fn()
+    const presentModal = vi.fn(() => finish)
+    const rendered = renderManager(operations(), presentModal)
+
+    rendered.store.actions.requestManager()
+
+    expect(await screen.findByRole('dialog')).toBeTruthy()
+    expect(presentModal).toHaveBeenCalledOnce()
+    expect(rendered.store.getSnapshot().managerRequested).toBe(false)
   })
 
   it('renders animated Codex usage and activates another saved account', async () => {

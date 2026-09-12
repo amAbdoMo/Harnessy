@@ -1,0 +1,122 @@
+import { useEffect, useRef, useState } from 'react'
+import type { AccountsState, ManagedAccountView } from '@deepseek-ai/dsh-api-remotes/client'
+import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import {
+  IconChevronDownOutline14, IconChevronRightOutline14, IconChevronUpOutline14,
+  IconSettingsOutline16,
+} from '@deepseek-ai/dsh-client-ui-primitives'
+import type { AccountsManagerOperations } from './AccountsManagerCard.tsx'
+import type { createAccountsMenuStore } from './accounts-menu-store.ts'
+import css from './AccountLauncher.module.css'
+
+/** Private account query supplied by the Harnessy browser plugin. */
+export interface AccountLauncherInjected {
+  operations: Pick<AccountsManagerOperations, 'describe'>
+}
+
+/** Complete props for the Harnessy sidebar account launcher. */
+export type AccountLauncherProps = PropsRuntime<'settings.launcher'>
+  & PropsStore<ReturnType<typeof createAccountsMenuStore>>
+  & PropsLocale<'customHarnessBrand'>
+  & AccountLauncherInjected
+
+function activeCodexAccount(state: AccountsState | undefined): ManagedAccountView | undefined {
+  return state?.accounts.find(account => account.provider === 'openai-codex' && account.active)
+}
+
+function accountSubtitle(account: ManagedAccountView | undefined, fallback: string, template: string): string {
+  const plan = account?.detail?.split('·').at(-1)?.trim()
+  return template.replace('{plan}', plan === undefined || plan === '' ? fallback : plan)
+}
+
+/** Render the active account footer and its compact account/settings menu. */
+export function AccountLauncher({
+  wide, openSettings, openSection, operations, actions, t,
+}: AccountLauncherProps) {
+  const [accountState, setAccountState] = useState<AccountsState | undefined>()
+  const [open, setOpen] = useState(false)
+  const root = useRef<HTMLDivElement | null>(null)
+  const account = activeCodexAccount(accountState)
+  const name = account?.name ?? t('accountsNone')
+  const initials = account?.initials ?? 'H'
+  const subtitle = accountSubtitle(account, t('accountsOAuthAccount'), t('accountsCodexSummary'))
+
+  const loadAccount = (): void => {
+    void operations.describe().then((response) => { setAccountState(response.state) })
+  }
+
+  useEffect(loadAccount, [operations])
+  useEffect(() => {
+    if (!open) return
+    const dismiss = (event: MouseEvent) => {
+      if (!root.current?.contains(event.target as Node)) setOpen(false)
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', dismiss)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('mousedown', dismiss)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [open])
+
+  const toggleMenu = (): void => {
+    if (!open) loadAccount()
+    setOpen(current => !current)
+  }
+  const openAccounts = (): void => {
+    actions.requestManager()
+    openSection('models')
+    setOpen(false)
+  }
+  const openSettingsPanel = (): void => {
+    openSettings()
+    setOpen(false)
+  }
+
+  return (
+    <div ref={root} className={wide ? css.root : css.railRoot}>
+      {open && (
+        <div className={css.menu} role="menu" aria-label={t('accountsMenuLabel')}>
+          <button type="button" className={css.accountMenuItem} role="menuitem" onClick={openAccounts}>
+            <span className={css.avatar}>{initials}</span>
+            <span className={css.identity}>
+              <strong>{name}</strong>
+              <span>{subtitle}</span>
+            </span>
+            <IconChevronRightOutline14 className={css.chevron} />
+          </button>
+          <div className={css.separator} />
+          <button type="button" className={css.settingsMenuItem} role="menuitem" onClick={openSettingsPanel}>
+            <IconSettingsOutline16 size={16} />
+            <span>{t('accountsSettings')}</span>
+          </button>
+        </div>
+      )}
+      <button
+        type="button"
+        className={wide ? css.trigger : css.railTrigger}
+        aria-label={wide ? undefined : t('accountsOpenMenu')}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title={wide ? undefined : name}
+        onClick={toggleMenu}
+      >
+        <span className={css.avatar}>{initials}</span>
+        {wide && (
+          <>
+            <span className={css.identity}>
+              <strong>{name}</strong>
+              <span>{subtitle}</span>
+            </span>
+            {open
+              ? <IconChevronUpOutline14 className={css.chevron} />
+              : <IconChevronDownOutline14 className={css.chevron} />}
+          </>
+        )}
+      </button>
+    </div>
+  )
+}

@@ -330,6 +330,7 @@ describe('translation scope discovery', () => {
     'other/tutorial.md',
     'website/reference.md',
     'packages/example/README.txt',
+    'CustomHarness/resources/runtime/pnpm/README.md',
     'vendor/example/README.md',
     'packages/example/node_modules/dependency/README.md',
     'packages/example/lib/README.md',

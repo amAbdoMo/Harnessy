@@ -1508,7 +1508,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'settings.action\', () => ctx.slots.register(\n      { name: \'settings.action\', id: \'my-entry\', order: 100, label: \'My entry\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-settings/src/client/contract/slots.ts:36',
+    source: 'packages/client/ui-settings/src/client/contract/slots.ts:42',
   },
   {
     key: 'settings.close',
@@ -1537,7 +1537,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'settings.close\', () => ctx.slots.register(\n      { name: \'settings.close\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-settings/src/client/contract/slots.ts:42',
+    source: 'packages/client/ui-settings/src/client/contract/slots.ts:48',
   },
   {
     key: 'settings.general.item',
@@ -1591,7 +1591,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'settings.general.item\', () => ctx.slots.register(\n      { name: \'settings.general.item\', id: \'my-entry\', order: 100, label: \'My entry\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-settings/src/client/contract/slots.ts:89',
+    source: 'packages/client/ui-settings/src/client/contract/slots.ts:95',
   },
   {
     key: 'settings.header',
@@ -1620,7 +1620,36 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'settings.header\', () => ctx.slots.register(\n      { name: \'settings.header\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-settings/src/client/contract/slots.ts:30',
+    source: 'packages/client/ui-settings/src/client/contract/slots.ts:36',
+  },
+  {
+    key: 'settings.launcher',
+    kind: 'single',
+    scope: 'root',
+    summary: 'Optional replacement for the complete sidebar settings launcher.',
+    doc: 'Optional replacement for the complete sidebar settings launcher. The\nshell keeps settings visibility and section navigation while a product\noccupant may add an account menu or other entry experience.',
+    registerOptions: [],
+    ownerProps: [
+      '/** Owner share of an optional product-specific settings launcher. */\nexport interface SettingsLauncherOwnerProps {\n  /** Whether the sidebar renders wide content (false = 56px rail). */\n  wide: boolean\n  /** Open Settings on its default section. */\n  openSettings: () => void\n  /** Open Settings directly on one registered section. */\n  openSection: (id: string) => void\n}',
+    ],
+    ownerPropsReferences: [],
+    standardProps: [
+      'useResource: UseResource',
+      'useWorkspaces: SnapshotSelectorHook<WorkspaceSnapshot>',
+      'useSessions: UseSessions',
+      'useSessionPendingInteraction: UseSessionPendingInteraction',
+      'useWorkspaces: SnapshotSelectorHook<WorkspaceSnapshot>',
+    ],
+    keyDomain: '',
+    hookContext: '',
+    slotInject: '',
+    declaredBy: 'an entry in \'sidebar.settings\' (client-ui-settings-general), so it exists while that entry is mounted',
+    occupants: [
+      'client-ui-brand-custom-harness AccountLauncher',
+    ],
+    replaceRisk: 'shadows-shipped-ui',
+    example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'settings.launcher\', () => ctx.slots.register(\n      { name: \'settings.launcher\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
+    source: 'packages/client/ui-settings/src/client/contract/slots.ts:21',
   },
   {
     key: 'settings.models.footer',
@@ -1649,9 +1678,11 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       },
     ],
     ownerProps: [
-      '/** Owner share of the footer area (the section supplies nothing). */\nexport interface ModelsFooterOwnerProps {\n  /** Marker field: footer owner props are intentionally empty. */\n  children?: never\n}',
+      '/** Owner share of the footer area. */\nexport interface ModelsFooterOwnerProps {\n  /** Present an exclusive footer-owned modal outside the settings chrome. */\n  presentModal: SettingsSectionOwnerProps[\'presentModal\']\n}',
     ],
-    ownerPropsReferences: [],
+    ownerPropsReferences: [
+      'SettingsSectionOwnerProps',
+    ],
     standardProps: [
       'useResource: UseResource',
       'useWorkspaces: SnapshotSelectorHook<WorkspaceSnapshot>',
@@ -1664,11 +1695,11 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     slotInject: '',
     declaredBy: 'an entry in \'settings.section\' (client-ui-settings-models), so it exists while that entry is mounted',
     occupants: [
-      'client-ui-brand-custom-harness OpenAIAccountCard id \'custom-harness-openai-account\'',
+      'client-ui-brand-custom-harness AccountsManagerCard id \'custom-harness-accounts\'',
     ],
     replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'settings.models.footer\', () => ctx.slots.register(\n      { name: \'settings.models.footer\', id: \'my-entry\', order: 100, label: \'My entry\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-settings-models/src/client/slot-contract.ts:38',
+    source: 'packages/client/ui-settings-models/src/client/slot-contract.ts:39',
   },
   {
     key: 'settings.models.provider-card',
@@ -1704,7 +1735,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     occupants: [],
     replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'settings.models.provider-card\', () => ctx.slots.register(\n      { name: \'settings.models.provider-card\', key: \'<one key the owner dispatches>\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-settings-models/src/client/slot-contract.ts:33',
+    source: 'packages/client/ui-settings-models/src/client/slot-contract.ts:34',
   },
   {
     key: 'settings.onboarding',
@@ -1753,7 +1784,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'settings.onboarding\', () => ctx.slots.register(\n      { name: \'settings.onboarding\', id: \'my-entry\', order: 100, label: \'My entry\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-settings/src/client/contract/slots.ts:74',
+    source: 'packages/client/ui-settings/src/client/contract/slots.ts:80',
   },
   {
     key: 'settings.plugin.item',
@@ -1841,7 +1872,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'settings.plugins.tab\', () => ctx.slots.register(\n      { name: \'settings.plugins.tab\', id: \'my-entry\', order: 100, label: \'My entry\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-settings/src/client/contract/slots.ts:63',
+    source: 'packages/client/ui-settings/src/client/contract/slots.ts:69',
   },
   {
     key: 'settings.section',
@@ -1870,7 +1901,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       },
     ],
     ownerProps: [
-      '/**\n * Owner share of a settings section entry. The shell owns modal visibility\n * and navigation; a section\'s data arrives through its own inject faces and\n * stores. `close` is the one shell affordance a section receives, for flows\n * that leave settings altogether (starting a session from a section) — the\n * onboarding coordinator\'s `openSection`/`complete` precedent, inverted.\n */\nexport interface SettingsSectionOwnerProps {\n  /** Close the settings panel (the shell owns the open state). */\n  close: () => void\n}',
+      '/**\n * Owner share of a settings section entry. The shell owns modal visibility\n * and navigation; a section\'s data arrives through its own inject faces and\n * stores. `close` leaves settings altogether. `presentModal` temporarily\n * hides the settings chrome while a section-owned body portal is visible and\n * returns the completion callback that closes the underlying panel.\n */\nexport interface SettingsSectionOwnerProps {\n  /** Close the settings panel (the shell owns the open state). */\n  close: () => void\n  /** Hide settings for an exclusive section-owned modal and return its completion callback. */\n  presentModal: () => () => void\n}',
     ],
     ownerPropsReferences: [],
     standardProps: [
@@ -1892,7 +1923,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'settings.section\', () => ctx.slots.register(\n      { name: \'settings.section\', id: \'my-entry\', order: 100, label: \'My entry\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-settings/src/client/contract/slots.ts:54',
+    source: 'packages/client/ui-settings/src/client/contract/slots.ts:60',
   },
   {
     key: 'settings.trigger',
@@ -1921,7 +1952,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'settings.trigger\', () => ctx.slots.register(\n      { name: \'settings.trigger\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-settings/src/client/contract/slots.ts:24',
+    source: 'packages/client/ui-settings/src/client/contract/slots.ts:30',
   },
   {
     key: 'shell.overlay',

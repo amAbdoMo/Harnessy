@@ -8,9 +8,11 @@ import type {} from '@deepseek-ai/dsh-client-ui-settings-models/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 import { AboutRow, type AboutRowInjected } from './AboutRow.tsx'
+import { AccountLauncher, type AccountLauncherInjected } from './AccountLauncher.tsx'
 import {
   AccountsManagerCard, type AccountsManagerInjected, type AccountsManagerOperations,
 } from './AccountsManagerCard.tsx'
+import { createAccountsMenuStore } from './accounts-menu-store.ts'
 import {
   CustomHarnessMark, CustomHarnessName, CustomHarnessTagline, requiredBuildValue,
 } from './Brand.tsx'
@@ -101,12 +103,21 @@ export function apply(ctx: ClientContext): void {
       return response.ok ? { state: response.value } : { error: response.error.message }
     },
   }
+  const accountsMenuStore = createAccountsMenuStore()
   const account = (): AccountsManagerInjected => ({ operations: accountOperations })
+  const launcher = (): AccountLauncherInjected => ({ operations: accountOperations })
+  ctx.slots.inject('settings.launcher', () => ctx.slots.register({
+    name: 'settings.launcher',
+    locale: LOCALE_NS,
+    store: accountsMenuStore,
+    inject: launcher,
+  }, AccountLauncher))
   ctx.slots.inject('settings.models.footer', () => ctx.slots.register({
     name: 'settings.models.footer',
     id: 'custom-harness-accounts',
     order: -100,
     locale: LOCALE_NS,
+    store: accountsMenuStore,
     inject: account,
   }, AccountsManagerCard))
 }

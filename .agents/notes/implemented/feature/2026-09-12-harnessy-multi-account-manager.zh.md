@@ -20,6 +20,8 @@ Harnessy 可以授权一个 OpenAI 账户，但切换身份需要退出登录并
 
 Models footer 通过 settings section 的独占模态框 presenter 打开 manager。manager 的 body portal 可见期间，settings 外壳保持分区挂载但隐藏其界面框架；manager 完成时会关闭底层 Settings 面板。OAuth 等待界面使用同一套可见模态框所有权，因此 manager 与等待界面不会叠加。
 
+Harnessy 通过可选的 `settings.launcher` slot 替换外壳默认的侧边栏 Settings 启动控件。替换项显示当前 Codex 身份，并打开包含账户与 Settings 操作的紧凑菜单。账户操作请求既有 Models-footer manager，因此 refresh、切换与独占模态框行为仍由同一个账户实现持有。settings 外壳继续持有面板可见性与直接分区导航。
+
 当前只有 Codex 声明用量可用。每次打开 manager 都会调用 `refreshUsage`；Host 在 provider implementation 下刷新即将过期的 Codex OAuth credential，并请求经过认证的 quota window。其他 provider 仍可完整添加和切换，但不会返回虚构用量。client 将每个返回百分比从零动画填充到目标值，并为 reduced-motion 用户禁用 transition。
 
 Remote response 只包含账户标签、provider id、active 状态、initial、时间戳与用量百分比。API key、access token、refresh token 与完整 credential record 永远不会跨越 Host 边界。
@@ -31,9 +33,10 @@ Remote response 只包含账户标签、provider id、active 状态、initial、
 - **在首版 manager 暴露完整 authorization prompt protocol** — 延期，因为所选 OAuth provider 通过 native browser callback 或 provider device page 完成，而 API-key provider 有专用 secret input。
 - **为每个 quota 抓取 provider dashboard** — 拒绝，因为这些页面不稳定，而且多个 provider 没有为第三方 client 发布受支持的 authenticated usage service。
 - **在用户按 Refresh 前显示旧用量** — 拒绝，因为 manager 需要支持即时账户切换决策，所以每次打开都会自动 refresh。
+- **保留 Settings 作为侧边栏底部唯一操作** — 拒绝，因为当前身份与一键切换是高频账户任务，而 Settings 仍作为弹出菜单中的第二项操作提供。
 
 ## Consequences
 
-用户可以为每个受支持 provider 保留多个账户，并通过一个动作切换新模型请求所用 credential。移除 active account 时，如果存在另一个已保存身份则会提升它，否则会禁用该 provider route。Codex quota window 会在打开时 refresh，也可以手动 refresh。provider-specific usage gap 会明确显示，而不是静默显示零。Accounts 操作会替换 Settings，而不是在其上叠加第二个可见对话框。
+用户可以从侧边栏查看当前 Codex 身份，通过一个紧凑弹出菜单进入账户管理器，并从同一位置继续打开 Settings。用户可以为每个受支持 provider 保留多个账户，并通过一个动作切换新模型请求所用 credential。移除 active account 时，如果存在另一个已保存身份则会提升它，否则会禁用该 provider route。Codex quota window 会在打开时 refresh，也可以手动 refresh。provider-specific usage gap 会明确显示，而不是静默显示零。Accounts 操作会替换 Settings，而不是在其上叠加第二个可见对话框。
 
 vault 有意复制 provider credential record，因此未来每次 provider-format migration 都必须保留 canonical record 与 managed copy。聚焦 Host 与 client 测试覆盖 canonical import、secret redaction、API-key account lifecycle、添加 OAuth 且不替换 active account、Codex quota parsing、打开时自动 refresh、切换与 animated bar。

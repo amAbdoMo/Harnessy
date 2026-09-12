@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import { Button, Input, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {
   AccountProviderId, AccountProviderView, AccountsState, AccountUsageWindow, ManagedAccountView,
 } from '@deepseek-ai/dsh-api-remotes/client'
+import type { createAccountsMenuStore } from './accounts-menu-store.ts'
 import css from './AccountsManagerCard.module.css'
 
 /** Host operations injected by the Harnessy browser plugin. */
@@ -39,11 +40,14 @@ export interface AccountsManagerInjected {
 
 /** Models-footer props composed by the slot renderer. */
 export type AccountsManagerCardProps = PropsRuntime<'settings.models.footer'>
+  & PropsStore<ReturnType<typeof createAccountsMenuStore>>
   & PropsLocale<'customHarnessBrand'>
   & AccountsManagerInjected
 
 /** Render the entry card and full multi-provider account manager. */
-export function AccountsManagerCard({ operations, t, presentModal }: AccountsManagerCardProps) {
+export function AccountsManagerCard({
+  operations, t, presentModal, useStore, actions,
+}: AccountsManagerCardProps) {
   const [state, setState] = useState<AccountsState | undefined>()
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState<AccountProviderId>('openai-codex')
@@ -59,13 +63,14 @@ export function AccountsManagerCard({ operations, t, presentModal }: AccountsMan
   const attempt = useRef<AbortController | undefined>()
   const managerOpen = useRef(false)
   const finishSettingsModal = useRef<(() => void) | undefined>()
+  const managerRequested = useStore(snapshot => snapshot.managerRequested)
 
-  const load = async (): Promise<AccountsState | undefined> => {
+  const load = useCallback(async (): Promise<AccountsState | undefined> => {
     const result = await operations.describe()
     if (result.state !== undefined) setState(result.state)
     setFailure(result.error)
     return result.state
-  }
+  }, [operations])
 
   useEffect(() => {
     let alive = true
@@ -81,7 +86,7 @@ export function AccountsManagerCard({ operations, t, presentModal }: AccountsMan
     }
   }, [operations])
 
-  const openManager = async (): Promise<void> => {
+  const openManager = useCallback(async (): Promise<void> => {
     managerOpen.current = true
     finishSettingsModal.current ??= presentModal()
     setOpen(true)
@@ -97,7 +102,13 @@ export function AccountsManagerCard({ operations, t, presentModal }: AccountsMan
     setRefreshing(false)
     if (result.state !== undefined) setState(result.state)
     if (result.error !== undefined) setFailure(result.error)
-  }
+  }, [load, operations, presentModal])
+
+  useEffect(() => {
+    if (!managerRequested) return
+    actions.consumeManagerRequest()
+    void openManager()
+  }, [actions, managerRequested, openManager])
 
   const closeManager = (): void => {
     managerOpen.current = false

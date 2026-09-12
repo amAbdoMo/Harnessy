@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import type { SettingsRootComponentProps } from '../src/client/shell-contract.ts'
@@ -61,7 +61,7 @@ function mount({
   const reconnect = vi.fn()
   let finishSectionModal: (() => void) | undefined
   const renderSlot = vi.fn(
-    ((key: string, owner: unknown, opts?: { only?: string }) => {
+    ((key: string, owner: unknown, opts?: { only?: string; fallback?: ReactNode }) => {
       if (key === 'settings.section') {
         const sectionOwner = owner as { presentModal: () => () => void }
         return (
@@ -72,7 +72,7 @@ function mount({
           </div>
         )
       }
-      return SEAT_CONTENT[key]
+      return SEAT_CONTENT[key] ?? opts?.fallback
     }) as SettingsRootComponentProps['renderSlot'],
   )
   const useSessions = ((select: (state: unknown) => unknown) => select(onboardingActive

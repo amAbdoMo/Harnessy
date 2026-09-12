@@ -14,6 +14,12 @@ import type {} from '@deepseek-ai/dsh-client-ui-slots'
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotMap {
     /**
+     * Optional replacement for the complete sidebar settings launcher. The
+     * shell keeps settings visibility and section navigation while a product
+     * occupant may add an account menu or other entry experience.
+     */
+    'settings.launcher': { kind: 'single'; scope: 'root'; owner: SettingsLauncherOwnerProps }
+    /**
      * The sidebar-foot trigger row content: icon + label, supplied as slot
      * content (the accessible name comes from the content — rail state
      * renders the label visually hidden). The shell renders the button
@@ -105,6 +111,16 @@ export interface SettingsPluginsTabOwnerProps {
 export interface SettingsTriggerOwnerProps {
   /** Whether the sidebar renders wide content (false = 56px rail, icon only). */
   wide: boolean
+}
+
+/** Owner share of an optional product-specific settings launcher. */
+export interface SettingsLauncherOwnerProps {
+  /** Whether the sidebar renders wide content (false = 56px rail). */
+  wide: boolean
+  /** Open Settings on its default section. */
+  openSettings: () => void
+  /** Open Settings directly on one registered section. */
+  openSection: (id: string) => void
 }
 
 /** Owner share of the header title seat (the shell supplies nothing). */
