@@ -21,10 +21,25 @@ const accountState: AccountsState = {
   }],
 }
 
+const refreshedAccountState: AccountsState = {
+  ...accountState,
+  accounts: [{
+    ...accountState.accounts[0]!,
+    usage: { windows: [
+      { id: 'codex-primary', label: '5h', usedPercent: 52 },
+      { id: 'codex-secondary', label: '7d', usedPercent: 24 },
+    ] },
+  }],
+}
+
 function mountLauncher() {
   const store = createAccountsMenuStore().create()
   const openSettings = vi.fn()
   const openSection = vi.fn()
+  const operations = {
+    describe: vi.fn(async () => ({ state: accountState })),
+    refreshUsage: vi.fn(async () => ({ state: refreshedAccountState })),
+  }
   const useStore = <Selected,>(selector: (state: ReturnType<typeof store.getSnapshot>) => Selected): Selected =>
     selector(useSyncExternalStore(
       listener => store.subscribe(listener),
@@ -34,16 +49,28 @@ function mountLauncher() {
     wide: true,
     openSettings,
     openSection,
-    operations: { describe: vi.fn(async () => ({ state: accountState })) },
+    operations,
     useStore,
     actions: store.actions,
     t: (key: keyof typeof en) => en[key],
   } as unknown as AccountLauncherProps
   render(<AccountLauncher {...props} />)
-  return { openSection, openSettings, store }
+  return { openSection, openSettings, operations, store }
 }
 
 describe('Harnessy account launcher', () => {
+  it('refreshes and displays the current account quota with an uppercase plan', async () => {
+    const launcher = mountLauncher()
+    const trigger = await screen.findByRole('button', {
+      name: /Abdo Mohamed, PLUS · Codex, 5h 52% used, 7d 24% used/,
+    })
+
+    expect(launcher.operations.refreshUsage).toHaveBeenCalledOnce()
+    expect(within(trigger).getByText('PLUS · Codex')).toBeTruthy()
+    expect(within(trigger).getByText('52%')).toBeTruthy()
+    expect(within(trigger).getByText('24%')).toBeTruthy()
+  })
+
   it('opens the saved-account menu and routes its account row to Accounts', async () => {
     const launcher = mountLauncher()
     const trigger = await screen.findByRole('button', { name: /Abdo Mohamed/ })

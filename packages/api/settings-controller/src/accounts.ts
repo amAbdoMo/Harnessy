@@ -551,7 +551,7 @@ function codexIdentity(record: CredentialRecord): {
     ?? boundedText(payload.sub, 256)
     ?? oauth.refresh
   const name = boundedText(profile.name, 160) ?? email?.split('@', 1)[0] ?? 'OpenAI account'
-  const plan = boundedText(auth.chatgpt_plan_type, 80)
+  const plan = boundedText(auth.chatgpt_plan_type, 80)?.toLocaleUpperCase()
   const detail = [email, plan].filter(Boolean).join(' · ') || undefined
   return {
     id: `acc_${createHash('sha256').update(stable).digest('hex').slice(0, 24)}`,

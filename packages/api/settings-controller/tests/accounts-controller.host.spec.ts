@@ -57,7 +57,7 @@ describe('the Harnessy accounts Remote namespace', () => {
       Promise.resolve(codexGrant('abdo@example.com', 'account-a')))
     const state = await controller.describe()
     expect(state.accounts).toEqual([expect.objectContaining({
-      provider: 'openai-codex', name: 'Abdo Mohamed', detail: 'abdo@example.com · plus', active: true,
+      provider: 'openai-codex', name: 'Abdo Mohamed', detail: 'abdo@example.com · PLUS', active: true,
     })])
     expect(JSON.stringify(state)).not.toContain('refresh-account-a')
     expect(JSON.stringify(state)).not.toContain('signature')

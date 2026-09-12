@@ -25,7 +25,7 @@ kind: "package-reference"
 
 提供的透明 Harnessy 标志会在海洋渐变底框上适配宿主控制的图标尺寸。深海军蓝、青色与亮青色配色通过现有语义 token 同时作用于明暗模式，并保留标准的成功、警告与错误语义。About 行显示构建版本和项目入口，不保留运行时状态。
 
-侧边栏底部显示当前 Codex 身份，而不是直接打开 Settings。选择该身份会打开一个紧凑菜单，其中包含当前账户与 Settings 操作。账户操作会在 Settings 面板保持隐藏时打开 Codex、GLM、Kimi、OpenCode 与 Claude Code 的独占 provider 管理器；关闭对话框会同时关闭两个视图。provider rail 会以紧凑 badge 显示每个非零的已保存账户总数。manager 会导入 Harnessy 中已激活的账户，支持额外 browser 或 API-key 账户，并通过注入的 Host callback 切换 canonical provider 身份。每次打开对话框都会请求最新 Codex 用量快照；quota bar 从零动画填充到返回百分比，并尊重 reduced-motion 偏好。没有受支持用量数据的 provider 会显示明确 unavailable 状态。界面直接显示 Remote 拒绝消息，不会检查凭据内容。
+侧边栏底部显示当前 Codex 身份、大写方案名称以及紧凑的 `5h` 与 `7d` 用量条，而不是直接打开 Settings。Harnessy 会在启动时刷新这些用量条；填充从零开始动画，在接近耗尽时使用警示颜色，并尊重 reduced-motion 偏好。选择底部区域会打开一个紧凑菜单，其中包含相同的账户摘要与 Settings 操作。账户操作会在 Settings 面板保持隐藏时打开 Codex、GLM、Kimi、OpenCode 与 Claude Code 的独占 provider 管理器；关闭对话框会同时关闭两个视图。provider rail 会以紧凑 badge 显示每个非零的已保存账户总数。manager 会导入 Harnessy 中已激活的账户，支持额外 browser 或 API-key 账户，并通过注入的 Host callback 切换 canonical provider 身份。每次打开对话框都会请求最新 Codex 用量快照。没有受支持用量数据的 provider 会显示明确 unavailable 状态。界面直接显示 Remote 拒绝消息，不会检查凭据内容。
 
 <a id="model-experience"></a>
 ## 模型体验
