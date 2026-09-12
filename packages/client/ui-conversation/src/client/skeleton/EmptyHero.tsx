@@ -149,11 +149,7 @@ export function HeroShell({ t, renderSlot, children }: HeroShellProps) {
               fallback: <HeroFish hovering={hovering} />,
             })}
           </span>
-          <span className={css.titleGroup}>
-            {/* Own element: keeps the headline text addressable apart from the badge. */}
-            <span>{t('hero.headline')}</span>
-            <span className={css.previewBadge}>{t('hero.preview')}</span>
-          </span>
+          <span>{t('hero.headline')}</span>
         </div>
         {renderSlot('conversation.hero.brand.tagline', {})}
         <div className={css.body}>

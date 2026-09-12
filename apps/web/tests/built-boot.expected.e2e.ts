@@ -64,7 +64,7 @@ it('boots the built plugin graph and renders a fixture session end to end', asyn
   if (clientBuildValue('DSH_CLIENT_BUILD_PROFILE') === 'custom-harness') {
     const boot = Reflect.get(window, '__DSH_BOOT__') as { entries: Array<{ id: string }> } | undefined
     expect(boot?.entries.some(entry => entry.id === '@deepseek-ai/dsh-client-ui-message-feedback')).toBe(false)
-    expect(document.querySelector('img[src="/harnessy-mark.png"]')).not.toBeNull()
+    expect(document.querySelector('img[src="/harnessy.png"]')).not.toBeNull()
     screen.getByText('Harnessy')
     expect(document.querySelector('svg[viewBox="26 0 156 24"]')).toBeNull()
     expect(screen.queryByText('DSH Local Build')).toBeNull()

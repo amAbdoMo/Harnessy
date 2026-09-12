@@ -12,18 +12,20 @@ type BrandMarkProps = SidebarBrandMarkOwnerProps | HeroBrandMarkOwnerProps
  */
 export function CustomHarnessMark({ size, ...props }: BrandMarkProps) {
   const className = 'className' in props ? props.className : undefined
-  const compact = size <= 24
-  const source = compact
+  // The sidebar and 34px empty-chat seat need the complete app icon. The
+  // transparent mark remains available for genuinely large brand surfaces.
+  const usesAppIcon = size <= 40
+  const source = usesAppIcon
     ? requiredBuildValue('DSH_CLIENT_ICON_PATH', process.env.DSH_CLIENT_ICON_PATH)
     : requiredBuildValue('DSH_CLIENT_MARK_PATH', process.env.DSH_CLIENT_MARK_PATH)
   return (
     <span
       aria-hidden="true"
-      className={[css.mark, compact && css.compactIcon, className].filter(Boolean).join(' ')}
+      className={[css.mark, usesAppIcon && css.compactIcon, className].filter(Boolean).join(' ')}
       style={{ width: size, height: size }}
     >
       <img
-        className={[css.markImage, compact && css.compactIconImage].filter(Boolean).join(' ')}
+        className={[css.markImage, usesAppIcon && css.compactIconImage].filter(Boolean).join(' ')}
         src={source}
         alt=""
       />

@@ -13,7 +13,7 @@ afterEach(() => {
 })
 
 describe('Harnessy identity components', () => {
-  it('uses the app icon for compact seats and the transparent mark for larger seats', () => {
+  it('uses the app icon for compact and hero seats and the transparent mark for larger seats', () => {
     vi.stubEnv('DSH_CLIENT_ICON_PATH', '/harnessy.png')
     vi.stubEnv('DSH_CLIENT_MARK_PATH', '/harnessy-mark.png')
     const subject = render(<CustomHarnessMark size={24} />)
@@ -21,12 +21,15 @@ describe('Harnessy identity components', () => {
     const image = subject.container.querySelector('img')
     expect(image?.getAttribute('src')).toBe('/harnessy.png')
     expect(mark?.getAttribute('style')).toContain('width: 24px')
-    for (const size of [34, 64]) {
-      subject.rerender(<CustomHarnessMark size={size} />)
-      expect(subject.container.querySelector('img')?.getAttribute('src')).toBe('/harnessy-mark.png')
-      expect(mark?.getAttribute('style')).toContain(`width: ${String(size)}px`)
-      expect(mark?.getAttribute('style')).toContain(`height: ${String(size)}px`)
-    }
+    subject.rerender(<CustomHarnessMark size={34} />)
+    expect(subject.container.querySelector('img')?.getAttribute('src')).toBe('/harnessy.png')
+    expect(mark?.getAttribute('style')).toContain('width: 34px')
+    expect(mark?.getAttribute('style')).toContain('height: 34px')
+
+    subject.rerender(<CustomHarnessMark size={64} />)
+    expect(subject.container.querySelector('img')?.getAttribute('src')).toBe('/harnessy-mark.png')
+    expect(mark?.getAttribute('style')).toContain('width: 64px')
+    expect(mark?.getAttribute('style')).toContain('height: 64px')
   })
 
   it('takes the visible name from the named product build', () => {
