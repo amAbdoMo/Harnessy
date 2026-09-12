@@ -370,7 +370,7 @@ async function main(): Promise<void> {
       click: openPluginWindow,
     },
     ...(CUSTOM_HARNESS_PRODUCT.automaticUpdates
-      ? [{ label: messages.checkUpdatesMenu, click: (): void => { void checkAndPrompt(true) }}]
+      ? [{ label: messages.checkUpdatesMenu, click: (): void => { void checkAndPrompt(true) } }]
       : []),
     { type: 'separator' },
     { role: 'quit' },
@@ -383,7 +383,11 @@ async function main(): Promise<void> {
   const createMainWindow = (): BrowserWindow => {
     const window = createWindow(appPreload)
     mainWindow = window
-    window.once('ready-to-show', () => { if (!window.isDestroyed()) window.show() })
+    window.once('ready-to-show', () => {
+      if (window.isDestroyed()) return
+      window.maximize()
+      window.show()
+    })
     window.on('closed', () => { if (mainWindow === window) mainWindow = undefined })
     return window
   }

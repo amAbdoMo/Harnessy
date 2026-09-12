@@ -27,6 +27,8 @@ Electron owns the reserved profile at `$DSH_HOME/profiles/desktop`. Its manifest
 
 On Windows, Harnessy enables Node.js system certificate authorities for the Host process by default so HTTPS providers can trust certificates installed in the Windows certificate store. An explicitly configured `NODE_USE_SYSTEM_CA` value remains authoritative.
 
+The primary Harnessy window opens maximized and remains resizable. Plugin management continues to open in a separate task-sized window.
+
 The main dsh renderer receives only the desktop protocol marker. The separate plugin window receives structured list, install, remove, update, and update-check operations; neither renderer receives filesystem access, raw Electron IPC, a shell, or arbitrary pnpm arguments.
 
 Electron chooses typed English or Chinese shell copy from its application locale and falls back to English. Menus, native dialogs, and the plugin-management renderer use the same locale payload; the repository Client UI i18n gate checks these desktop sources.
