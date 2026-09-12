@@ -18,6 +18,8 @@ The first managed set contains Codex (`openai-codex`), GLM (`zai`), Kimi (`kimi-
 
 The repository patches pi-ai's loopback OAuth result page so supported browser callbacks show Harnessy's mark, teal palette, and product copy. Provider authorization, callback validation, and token exchange behavior remain owned by the installed provider flow and are not changed by this presentation layer.
 
+The Models footer opens the manager through the settings section's exclusive-modal presenter. The settings shell keeps the section mounted but hides its chrome while the manager's body portal is visible; completing the manager closes the underlying Settings panel. OAuth waiting uses the same visible-modal ownership, so the manager and waiting surface never stack.
+
 Only Codex currently advertises usage availability. Opening the manager always invokes `refreshUsage`; the Host refreshes an expiring Codex OAuth credential under the provider implementation and requests authenticated quota windows. Other providers remain fully addable and switchable but return no invented usage values. The client animates each returned percentage from zero to its target and disables the transition for reduced-motion users.
 
 Remote responses contain account labels, provider ids, active state, initials, timestamps, and usage percentages only. API keys, access tokens, refresh tokens, and complete credential records never cross the Host boundary.
@@ -32,6 +34,6 @@ Remote responses contain account labels, provider ids, active state, initials, t
 
 ## Consequences
 
-Users can preserve several accounts per supported provider and switch the credential used by new model requests with one action. Removing an active account promotes another saved identity when available or disables that provider route when none remains. Codex quota windows are refreshed on open and can also be refreshed manually. Provider-specific usage gaps are visible instead of silently showing zero.
+Users can preserve several accounts per supported provider and switch the credential used by new model requests with one action. Removing an active account promotes another saved identity when available or disables that provider route when none remains. Codex quota windows are refreshed on open and can also be refreshed manually. Provider-specific usage gaps are visible instead of silently showing zero. The Accounts action replaces Settings instead of layering a second visible dialog over it.
 
 The vault intentionally copies provider credential records, so every future provider-format migration must preserve both the canonical record and managed copies. Focused Host and client tests cover canonical import, secret redaction, API-key account lifecycle, OAuth addition without replacing the active account, Codex quota parsing, automatic refresh on open, switching, and animated bars.

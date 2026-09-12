@@ -18,6 +18,7 @@
  */
 
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
+import type { SettingsSectionOwnerProps } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { ProviderDirectoryEntry } from './store.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -49,8 +50,8 @@ export interface ProviderCardExtrasOwnerProps {
   keyConfigured: boolean
 }
 
-/** Owner share of the footer area (the section supplies nothing). */
+/** Owner share of the footer area. */
 export interface ModelsFooterOwnerProps {
-  /** Marker field: footer owner props are intentionally empty. */
-  children?: never
+  /** Present an exclusive footer-owned modal outside the settings chrome. */
+  presentModal: SettingsSectionOwnerProps['presentModal']
 }

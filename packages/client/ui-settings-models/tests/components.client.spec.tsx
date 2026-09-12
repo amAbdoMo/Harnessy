@@ -245,6 +245,11 @@ function stubRenderSlot() {
   return vi.fn((..._call: RenderSlotCall) => null)
 }
 
+/** Settings-shell operations supplied to direct section renders. */
+function settingsOwner(): Pick<ModelsSectionProps, 'close' | 'presentModal'> {
+  return { close: vi.fn(), presentModal: vi.fn(() => vi.fn()) }
+}
+
 /** The provider-card seat dispatches a stub recorded, as (route id, configured, keyConfigured, entryKey). */
 function cardSeatCalls(
   renderSlot: ReturnType<typeof stubRenderSlot>,
@@ -272,6 +277,7 @@ async function mountFace(scripted: ReturnType<typeof scriptedFace>) {
     operations: operationsWith(face),
     schema: settingsSchema,
     t,
+    ...settingsOwner(),
     renderSlot: renderSlot as unknown as ModelsSectionProps['renderSlot'],
   }
   const view = render(<ModelsSection {...injected} />)
@@ -319,9 +325,9 @@ describe('ModelsSection', () => {
     expect(cards).toContainEqual(['openai', true, true, 'llm-pi-ai'])
     expect(cards).toContainEqual(['deepseek-official', true, false, 'llm-deepseek'])
     // The footer seat renders once below the rows and the add controls.
-    expect(renderSlot.mock.calls.filter(call => call[0] === 'settings.models.footer')).toEqual([
-      ['settings.models.footer', {}],
-    ])
+    const footerCalls = renderSlot.mock.calls.filter(call => call[0] === 'settings.models.footer')
+    expect(footerCalls).toHaveLength(1)
+    expect(footerCalls[0]?.[1]).toMatchObject({ presentModal: expect.any(Function) })
   })
 
   it('dispatches the provider-card seat inside the first-run setup card', async () => {
@@ -407,6 +413,7 @@ describe('ModelsSection', () => {
       operations={operationsWith(face)}
       schema={settingsSchema}
       t={t}
+      {...settingsOwner()}
       renderSlot={() => null}
     />)
 
@@ -432,6 +439,7 @@ describe('ModelsSection', () => {
       operations={operationsWith(face)}
       schema={settingsSchema}
       t={t}
+      {...settingsOwner()}
       renderSlot={() => null}
     />)
     // Now a row with an Edit button, not an open card.
@@ -1158,6 +1166,7 @@ describe('ModelsSection', () => {
       operations={operationsWith(face)}
       schema={settingsSchema}
       t={t}
+      {...settingsOwner()}
       renderSlot={() => null}
     />)
     const key = await screen.findByLabelText<HTMLInputElement>(en.keyInput)
@@ -1292,6 +1301,7 @@ describe('ModelsSection', () => {
       operations={operationsWith(face.face)}
       schema={settingsSchema}
       t={t}
+      {...settingsOwner()}
       renderSlot={() => null}
     />)
     expect(screen.getByText(/directory down/)).toBeTruthy()
@@ -1315,6 +1325,7 @@ describe('ModelsSection', () => {
       operations={operationsWith(face)}
       schema={settingsSchema}
       t={t}
+      {...settingsOwner()}
       renderSlot={() => null}
     />)
     expect(screen.getByText(en.readOnly)).toBeTruthy()
@@ -1377,6 +1388,7 @@ describe('ModelsSection', () => {
       operations={operationsWith(face)}
       schema={settingsSchema}
       t={t}
+      {...settingsOwner()}
       renderSlot={() => null}
     />)
     await screen.findByText('DeepSeek')

@@ -43,7 +43,7 @@ export type AccountsManagerCardProps = PropsRuntime<'settings.models.footer'>
   & AccountsManagerInjected
 
 /** Render the entry card and full multi-provider account manager. */
-export function AccountsManagerCard({ operations, t }: AccountsManagerCardProps) {
+export function AccountsManagerCard({ operations, t, presentModal }: AccountsManagerCardProps) {
   const [state, setState] = useState<AccountsState | undefined>()
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState<AccountProviderId>('openai-codex')
@@ -58,6 +58,7 @@ export function AccountsManagerCard({ operations, t }: AccountsManagerCardProps)
   const [busyAccount, setBusyAccount] = useState<string | undefined>()
   const attempt = useRef<AbortController | undefined>()
   const managerOpen = useRef(false)
+  const finishSettingsModal = useRef<(() => void) | undefined>()
 
   const load = async (): Promise<AccountsState | undefined> => {
     const result = await operations.describe()
@@ -82,6 +83,7 @@ export function AccountsManagerCard({ operations, t }: AccountsManagerCardProps)
 
   const openManager = async (): Promise<void> => {
     managerOpen.current = true
+    finishSettingsModal.current ??= presentModal()
     setOpen(true)
     setFailure(undefined)
     const snapshot = await load()
@@ -105,6 +107,9 @@ export function AccountsManagerCard({ operations, t }: AccountsManagerCardProps)
     setSigningIn(false)
     setAddingKey(false)
     setOpen(false)
+    const finish = finishSettingsModal.current
+    finishSettingsModal.current = undefined
+    finish?.()
   }
 
   const provider = state?.providers.find(candidate => candidate.id === selected)
@@ -205,7 +210,8 @@ export function AccountsManagerCard({ operations, t }: AccountsManagerCardProps)
         : total === 0 ? t('accountsNone') : `${String(total)} ${total === 1 ? t('accountSaved') : t('accountsSaved')}`}</p>
       {failure === undefined || open ? null : <p className={css.error}>{failure}</p>}
 
-      <Modal open={open} onClose={closeManager} title={t('accountsTitle')} closeLabel={t('close')}
+      <Modal open={open && !(signingIn && provider?.authMode === 'oauth')} onClose={closeManager}
+        title={t('accountsTitle')} closeLabel={t('close')}
         className={css.managerDialog ?? ''} contentClassName={css.managerContent ?? ''}>
         <div className={css.managerLayout}>
           <ProviderRail providers={state?.providers ?? []} selected={selected} t={t} onSelect={(id) => {

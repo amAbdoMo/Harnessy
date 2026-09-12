@@ -35,8 +35,10 @@ type PanelProps = {
   rows: readonly SettingsSectionRow[]
   renderSlot: SettingsRootComponentProps['renderSlot']
   activeId: string | undefined
+  suspended: boolean
   onSelect: (id: string) => void
   onClose: () => void
+  onPresentModal: () => () => void
 }
 
 /**
@@ -44,26 +46,27 @@ type PanelProps = {
  * header button, a mask click, and document-level Escape (mounted only while
  * open, so the listener lifetime is the panel's).
  */
-function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelProps) {
+function SettingsPanel({ rows, renderSlot, activeId, suspended, onSelect, onClose, onPresentModal }: PanelProps) {
   // Entries can unmount underneath the requested id, so the render-time
   // projection falls back to the first row when the id is gone.
   const active = rows.find(r => r.id === activeId)?.id ?? rows[0]?.id
   const titleId = useId()
 
   useEffect(() => {
+    if (suspended) return
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
     }
     document.addEventListener('keydown', onKeyDown)
     return () => { document.removeEventListener('keydown', onKeyDown) }
-  }, [onClose])
+  }, [onClose, suspended])
 
   // Entering the dialog focuses the close button; the root restores its trigger on close.
   const closeButton = useRef<HTMLButtonElement | null>(null)
   useEffect(() => { closeButton.current?.focus() }, [])
 
   return (
-    <div className={css.overlay} role="presentation">
+    <div className={css.overlay} role="presentation" hidden={suspended}>
       <div className={css.mask} aria-hidden="true" onClick={onClose} />
       <div className={css.panel} role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <nav className={css.nav}>
@@ -92,7 +95,10 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelP
             </button>
           </div>
           <div className={css.options}>
-            {active !== undefined && renderSlot('settings.section', { close: onClose }, { only: active })}
+            {active !== undefined && renderSlot('settings.section', {
+              close: onClose,
+              presentModal: onPresentModal,
+            }, { only: active })}
           </div>
         </div>
       </div>
@@ -110,15 +116,21 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
     wide, reconnect, useConnectionState, useSections, useOnboardingSteps, useSessions, renderSlot, t,
   } = props
   const [open, setOpen] = useState(false)
+  const [sectionModalOpen, setSectionModalOpen] = useState(false)
   const [activeId, setActiveId] = useState<string | undefined>(undefined)
   const [completedOnboarding, setCompletedOnboarding] = useState<ReadonlySet<string>>(() => new Set())
   const [showRecovery, setShowRecovery] = useState(false)
   const triggerButton = useRef<HTMLButtonElement | null>(null)
   const wasOpen = useRef(open)
   const close = useCallback(() => {
+    setSectionModalOpen(false)
     setOpen(false)
     setActiveId(undefined)
   }, [])
+  const presentModal = useCallback(() => {
+    setSectionModalOpen(true)
+    return close
+  }, [close])
   // Restore after the close commit, when the dialog can no longer own focus.
   useEffect(() => {
     if (wasOpen.current && !open) triggerButton.current?.focus()
@@ -206,8 +218,10 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
           rows={rows}
           renderSlot={renderSlot}
           activeId={activeId}
+          suspended={sectionModalOpen}
           onSelect={setActiveId}
           onClose={close}
+          onPresentModal={presentModal}
         />
       )}
       {/* Dialog chrome and `#root` inert ownership live inside each step's

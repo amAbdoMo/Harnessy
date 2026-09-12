@@ -715,7 +715,6 @@ function FlatList({
               onReveal={node.id === revealSessionId
                 ? () => { onSessionRevealed(node.id) }
                 : undefined}
-              flat
               drag={{
                 start: () => {
                   dropCommitted.current = false

@@ -42,11 +42,29 @@ function operations(overrides: Partial<AccountsManagerOperations> = {}): Account
   }
 }
 
-function renderManager(value: AccountsManagerOperations) {
-  return render(<AccountsManagerCard {...({ operations: value, t } as unknown as AccountsManagerCardProps)} />)
+function renderManager(value: AccountsManagerOperations, presentModal = vi.fn(() => vi.fn())) {
+  return {
+    ...render(<AccountsManagerCard
+      {...({ operations: value, t, presentModal } as unknown as AccountsManagerCardProps)} />),
+    presentModal,
+  }
 }
 
 describe('Harnessy account manager', () => {
+  it('takes exclusive modal ownership and closes the underlying settings panel when finished', async () => {
+    const finish = vi.fn()
+    const presentModal = vi.fn(() => finish)
+    renderManager(operations(), presentModal)
+
+    fireEvent.click(await screen.findByRole('button', { name: en.accountsManage }))
+    expect(presentModal).toHaveBeenCalledOnce()
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+
+    fireEvent.click(screen.getByRole('button', { name: en.close }))
+    expect(finish).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
   it('refreshes usage automatically whenever the manager opens', async () => {
     const api = operations()
     renderManager(api)

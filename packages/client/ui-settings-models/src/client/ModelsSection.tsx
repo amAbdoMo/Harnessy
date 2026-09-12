@@ -15,6 +15,7 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { Button, IconPlusOutline16, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { SettingsSectionOwnerProps } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { InjectFace, PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 // Type-only: pulls this package's SlotMap merge (the two Models child slots).
 import type {} from './slot-contract.ts'
@@ -56,7 +57,9 @@ type ModelsRenderSlot = PropsRenderSlots<ModelsChildSlots>['renderSlot']
  * call itself — unlike the inject face it is never absent at runtime — and a
  * direct render that forgets it fails to compile instead of mounting nothing.
  */
-export type ModelsSectionProps = Partial<InjectFace<ModelsSectionInjected>> & PropsRenderSlots<ModelsChildSlots>
+export type ModelsSectionProps = Partial<InjectFace<ModelsSectionInjected>>
+  & PropsRenderSlots<ModelsChildSlots>
+  & SettingsSectionOwnerProps
 
 type ModelsSectionFace = InjectFace<ModelsSectionInjected>
 
@@ -193,15 +196,20 @@ export function providerCopy(template: string, target: ProviderIdentity): string
  * @returns the section, or null while the shell has not injected yet.
  */
 export function ModelsSection(props: ModelsSectionProps): ReactNode {
-  const { controller, useSnapshot, operations, schema, t, renderSlot } = props
+  const { controller, useSnapshot, operations, schema, t, renderSlot, presentModal } = props
   if (
     controller === undefined || useSnapshot === undefined || operations === undefined
-    || schema === undefined || t === undefined
+    || schema === undefined || t === undefined || presentModal === undefined
   ) return null
-  return <Loaded injected={{ controller, useSnapshot, operations, schema, t }} renderSlot={renderSlot} />
+  return <Loaded injected={{ controller, useSnapshot, operations, schema, t }}
+    renderSlot={renderSlot} presentModal={presentModal} />
 }
 
-function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderSlot: ModelsRenderSlot }): ReactNode {
+function Loaded({ injected, renderSlot, presentModal }: {
+  injected: ModelsSectionFace
+  renderSlot: ModelsRenderSlot
+  presentModal: ModelsSectionProps['presentModal']
+}): ReactNode {
   const { controller, operations, schema, t } = injected
   const state = injected.useSnapshot(snapshot => snapshot)
   const [editing, setEditing] = useState<EditorTarget | undefined>(undefined)
@@ -538,7 +546,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
               </div>
             )}
       </div>
-      {renderSlot('settings.models.footer', {})}
+      {renderSlot('settings.models.footer', { presentModal })}
       <Modal
         open={deleteTarget !== undefined}
         onClose={closeDelete}

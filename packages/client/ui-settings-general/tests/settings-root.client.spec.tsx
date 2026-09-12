@@ -59,9 +59,19 @@ function mount({
   const listeners = new Set<() => void>()
   const connectionListeners = new Set<() => void>()
   const reconnect = vi.fn()
+  let finishSectionModal: (() => void) | undefined
   const renderSlot = vi.fn(
-    ((key: string, _owner: unknown, opts?: { only?: string }) => {
-      if (key === 'settings.section') return <div data-testid={`section-${opts?.only ?? 'all'}`} />
+    ((key: string, owner: unknown, opts?: { only?: string }) => {
+      if (key === 'settings.section') {
+        const sectionOwner = owner as { presentModal: () => () => void }
+        return (
+          <div data-testid={`section-${opts?.only ?? 'all'}`}>
+            <button type="button" onClick={() => { finishSectionModal = sectionOwner.presentModal() }}>
+              Present section modal
+            </button>
+          </div>
+        )
+      }
       return SEAT_CONTENT[key]
     }) as SettingsRootComponentProps['renderSlot'],
   )
@@ -115,7 +125,10 @@ function mount({
       for (const fn of [...connectionListeners]) fn()
     })
   }
-  return { view, renderSlot, bump, listeners, reconnect, setConnectionState }
+  return {
+    view, renderSlot, bump, listeners, reconnect, setConnectionState,
+    finishSectionModal: () => { finishSectionModal?.() },
+  }
 }
 
 function openPanel() {
@@ -202,6 +215,18 @@ describe('SettingsPanel chrome seats', () => {
 })
 
 describe('SettingsPanel close paths', () => {
+  it('hides its chrome while a section-owned modal is presented and closes after it finishes', () => {
+    const mounted = mount()
+    const trigger = openPanel()
+    fireEvent.click(screen.getByRole('button', { name: 'Present section modal' }))
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+
+    act(() => { mounted.finishSectionModal() })
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+  })
+
   it('closes via the header button and restores trigger focus', async () => {
     mount()
     const trigger = openPanel()

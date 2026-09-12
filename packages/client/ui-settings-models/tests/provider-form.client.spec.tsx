@@ -209,6 +209,8 @@ async function mountSection(options: Parameters<typeof scriptedFace>[0] = {}) {
     operations: operationsWith(scripted.face),
     schema: settingsSchema,
     t,
+    close: vi.fn(),
+    presentModal: vi.fn(() => vi.fn()),
     renderSlot: () => null,
   }
   render(<ModelsSection {...injected} />)
@@ -750,6 +752,8 @@ describe('provider rows', () => {
       operations={operationsWith(scripted.face)}
       schema={settingsSchema}
       t={t}
+      close={vi.fn()}
+      presentModal={vi.fn(() => vi.fn())}
       renderSlot={() => null}
     />)
 

@@ -18,6 +18,8 @@ Harnessy 可以授权一个 OpenAI 账户，但切换身份需要退出登录并
 
 仓库对 pi-ai 的 loopback OAuth 结果页面应用 patch，使受支持的浏览器回调显示 Harnessy 标记、青绿色配色与产品文案。provider 授权、回调验证和 token exchange 行为仍由已安装的 provider flow 负责，此展示层不会更改这些行为。
 
+Models footer 通过 settings section 的独占模态框 presenter 打开 manager。manager 的 body portal 可见期间，settings 外壳保持分区挂载但隐藏其界面框架；manager 完成时会关闭底层 Settings 面板。OAuth 等待界面使用同一套可见模态框所有权，因此 manager 与等待界面不会叠加。
+
 当前只有 Codex 声明用量可用。每次打开 manager 都会调用 `refreshUsage`；Host 在 provider implementation 下刷新即将过期的 Codex OAuth credential，并请求经过认证的 quota window。其他 provider 仍可完整添加和切换，但不会返回虚构用量。client 将每个返回百分比从零动画填充到目标值，并为 reduced-motion 用户禁用 transition。
 
 Remote response 只包含账户标签、provider id、active 状态、initial、时间戳与用量百分比。API key、access token、refresh token 与完整 credential record 永远不会跨越 Host 边界。
@@ -32,6 +34,6 @@ Remote response 只包含账户标签、provider id、active 状态、initial、
 
 ## Consequences
 
-用户可以为每个受支持 provider 保留多个账户，并通过一个动作切换新模型请求所用 credential。移除 active account 时，如果存在另一个已保存身份则会提升它，否则会禁用该 provider route。Codex quota window 会在打开时 refresh，也可以手动 refresh。provider-specific usage gap 会明确显示，而不是静默显示零。
+用户可以为每个受支持 provider 保留多个账户，并通过一个动作切换新模型请求所用 credential。移除 active account 时，如果存在另一个已保存身份则会提升它，否则会禁用该 provider route。Codex quota window 会在打开时 refresh，也可以手动 refresh。provider-specific usage gap 会明确显示，而不是静默显示零。Accounts 操作会替换 Settings，而不是在其上叠加第二个可见对话框。
 
 vault 有意复制 provider credential record，因此未来每次 provider-format migration 都必须保留 canonical record 与 managed copy。聚焦 Host 与 client 测试覆盖 canonical import、secret redaction、API-key account lifecycle、添加 OAuth 且不替换 active account、Codex quota parsing、打开时自动 refresh、切换与 animated bar。
