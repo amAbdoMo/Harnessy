@@ -46,6 +46,16 @@ function errorOf(reason: unknown, fallback: string): Error {
   return reason instanceof Error ? reason : new Error(fallback)
 }
 
+function childEnvironment(): NodeJS.ProcessEnv {
+  const environment = Object.fromEntries(Object.entries(process.env).filter(([name]) => (
+    name !== 'NODE_OPTIONS' && !/^DSH_DESKTOP_/u.test(name) && !/^(?:npm|pnpm|corepack)_/iu.test(name)
+  )))
+  if (process.platform === 'win32' && environment.NODE_USE_SYSTEM_CA === undefined) {
+    environment.NODE_USE_SYSTEM_CA = '1'
+  }
+  return environment
+}
+
 async function exitsWithin(exit: Promise<void>, milliseconds: number): Promise<boolean> {
   let timer: ReturnType<typeof setTimeout> | undefined
   const timeout = new Promise<false>((resolve) => {
@@ -106,9 +116,7 @@ export class DesktopHostProcess {
       ...(this.inspectPort === undefined ? [] : ['--allow-linked-profile']),
     ], {
       cwd: this.projectDir,
-      env: Object.fromEntries(Object.entries(process.env).filter(([name]) => (
-        name !== 'NODE_OPTIONS' && !/^DSH_DESKTOP_/u.test(name) && !/^(?:npm|pnpm|corepack)_/iu.test(name)
-      ))),
+      env: childEnvironment(),
       stdio: ['ignore', 'pipe', 'pipe', 'pipe', 'pipe', 'ipc'],
     })
     const requestPipe = child.stdio[DESKTOP_REQUEST_PIPE_FD]

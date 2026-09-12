@@ -112,6 +112,41 @@ function answer(streamId) {
     }
   })
 
+  it('uses Windows system certificate authorities by default', async () => {
+    const project = projectWithHost(`
+process.send({ type: 'ready', protocolVersion: 3, dshVersion: process.env.NODE_USE_SYSTEM_CA ?? 'absent' })
+function onRequestFrame() {}
+`)
+    const previous = process.env.NODE_USE_SYSTEM_CA
+    delete process.env.NODE_USE_SYSTEM_CA
+    const host = new DesktopHostProcess(process.execPath, project)
+    try {
+      const expected = process.platform === 'win32' ? '1' : 'absent'
+      await expect(host.start()).resolves.toMatchObject({ dshVersion: expected })
+    } finally {
+      if (previous === undefined) delete process.env.NODE_USE_SYSTEM_CA
+      else process.env.NODE_USE_SYSTEM_CA = previous
+      await host.stop().catch(() => undefined)
+    }
+  })
+
+  it('preserves an explicit Node system CA preference', async () => {
+    const project = projectWithHost(`
+process.send({ type: 'ready', protocolVersion: 3, dshVersion: process.env.NODE_USE_SYSTEM_CA ?? 'absent' })
+function onRequestFrame() {}
+`)
+    const previous = process.env.NODE_USE_SYSTEM_CA
+    process.env.NODE_USE_SYSTEM_CA = '0'
+    const host = new DesktopHostProcess(process.execPath, project)
+    try {
+      await expect(host.start()).resolves.toMatchObject({ dshVersion: '0' })
+    } finally {
+      if (previous === undefined) delete process.env.NODE_USE_SYSTEM_CA
+      else process.env.NODE_USE_SYSTEM_CA = previous
+      await host.stop().catch(() => undefined)
+    }
+  })
+
   it('streams a large binary response in bounded raw frames', async () => {
     const size = 2 * 1024 * 1024
     const project = projectWithHost(`
