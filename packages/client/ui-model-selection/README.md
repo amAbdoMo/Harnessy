@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The Web GUI lets users switch the model and reasoning effort for an existing session through either the `/model` popup or the composer's model control. Both surfaces present the same provider-grouped choices, and the selected model determines the available effort names and default. A complete selection applies to the next request; a running step keeps the model and effort it started with. If no adapter can serve the session's route, the composer remains disabled until routing becomes available.
+The Web GUI lets users switch the model and reasoning effort for an existing session through either the `/model` popup or the composer's model control. The composer opens one searchable, two-column dialog: click a model and then an effort to apply both, or double-click either item to change only that value. Both surfaces present the same provider-grouped choices, and the selected model determines the available effort names and default. A complete selection applies to the next request; a running step keeps the model and effort it started with. If no adapter can serve the session's route, the composer remains disabled until routing becomes available.
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@ Mount this plugin alongside `ui-conversation` and the commands package; the comp
 
 ### Model and effort
 
-Models stay grouped by provider. The menu shows model and effort names only; catalog descriptions remain available to other consumers. The `/model` popup applies the selected model's default effort; the composer can then choose any advertised effort. An adapter without reasoning metadata leaves the Effort row absent; there is no arbitrary effort input.
+Models stay grouped by provider. The composer dialog shows display names plus durable model ids, filters locally as the user types, and updates its thinking-level column when a model is staged. A normal model click followed by a normal level click applies the pair and closes the dialog. A model double-click preserves the current effort when the new model supports it, otherwise it uses the new model's default; an effort double-click keeps the current model. The `/model` popup still applies the selected model's default effort. An adapter without reasoning metadata completes model selection immediately; there is no arbitrary effort input.
 
 ### Unroutable sessions
 

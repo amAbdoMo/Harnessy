@@ -1,24 +1,15 @@
-.root {
-  position: relative;
-  min-width: 0;
-}
+.root { position: relative; min-width: 0; }
 
-/* Figma 313:14108 ToggleButton: 13/20 medium secondary label, 4px gap,
-   12px caption chevron; 28px chip height matches the sibling Plan /
-   Read-only selects in the same tool row. */
 .trigger {
   display: flex;
   align-items: center;
   gap: 4px;
   min-width: 0;
-  /* Legacy fallback, then a row-relative cap that grants long names more
-     room without letting this trailing control consume the composer. */
   max-width: 220px;
   max-width: min(360px, 45cqw);
   height: 28px;
   padding: 0 4px 0 8px;
   border: none;
-  /* Rounded chip chrome, matching the sibling permission trigger. */
   border-radius: 24px;
   outline: none;
   background: transparent;
@@ -29,60 +20,24 @@
   cursor: pointer;
 }
 
-.trigger:hover:not(:disabled) {
-  background: var(--dsw-alias-interactive-bg-hover);
-}
+.trigger:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover); }
+.trigger:focus-visible { box-shadow: 0 0 0 2px var(--dsw-alias-border-l3); }
+.trigger:disabled { color: var(--dsw-alias-label-dimmed); cursor: default; }
 
-.trigger:focus-visible {
-  box-shadow: 0 0 0 2px var(--dsw-alias-border-l3);
-}
-
-.trigger:disabled {
-  color: var(--dsw-alias-label-dimmed);
-  cursor: default;
-}
-
-.triggerLabel {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Effort value beside the model name (mock's 'High': same 13/20/500, caption
-   tone). Adaptive priority: the huge shrink factor makes the effort absorb
-   all deficit first — it ellipsizes away to nothing before the model name
-   loses a single pixel, and the chevron stays snug throughout. */
+.triggerLabel,
 .triggerEffort {
-  flex-shrink: 1000;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--dsw-alias-label-caption);
 }
 
-/* Stand-in for the whole text below the icon-only cut: the settings page's
-   Models glyph (IconDataOutline16), hidden while any text fits. */
-.triggerIcon {
-  display: none;
-  flex: 0 0 auto;
-}
+.triggerEffort { flex-shrink: 1000; color: var(--dsw-alias-label-caption); }
+.triggerIcon { display: none; flex: 0 0 auto; }
 
-/* Icon-only floor: past continuous shrink (effort ellipsizes away first, then
-   the name), a 360px composer row leaves the 45cqw cap too little for a
-   legible name, so the text yields to the Models glyph. Same anonymous
-   container as PermissionSelect's 460px cut (InputBar .row); the full name
-   stays reachable through the trigger's title and aria-label. */
 @container (max-width: 360px) {
-  .triggerIcon {
-    display: block;
-  }
-
-  .triggerLabel,
-  .triggerEffort {
-    display: none;
-  }
+  .triggerIcon { display: block; }
+  .triggerLabel, .triggerEffort { display: none; }
 }
 
 .chevron {
@@ -90,59 +45,173 @@
   color: var(--dsw-alias-label-caption);
   transition: transform 120ms ease;
 }
+.chevronOpen { transform: rotate(180deg); }
 
-.chevronOpen {
-  transform: rotate(180deg);
-}
-
-/* Portaled to body and placed from the trigger rect by the component (the
-   Menu primitive's portal rules), so the sidebar and the columns' overflow
-   clips cannot crop it; z matches the primitive's .portal layer. */
-.menu {
-  position: fixed;
-  z-index: 1100;
-  display: flex;
-  flex-direction: column;
-  /* Let the visible pane's rows set the card width, but keep pathological ids
-     and narrow screens inside a bounded card where ellipsis remains. */
-  width: max-content;
-  min-width: min(240px, calc(100vw - 32px));
-  max-width: min(420px, calc(100vw - 32px));
-  max-height: min(360px, calc(100vh - 96px));
-  overflow: hidden;
-  padding: 4px;
-  /* Surface tokens match the Menu primitive card (ui-primitives
-   * Menu.module.css) so every dropdown reads as the same material. */
-  border: 0;
-  border-radius: 20px;
-  background: var(--dsw-specific-menu);
-  --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
-  box-shadow: var(--dsw-elevation-prominent);
-  color: var(--dsw-alias-label-primary);
-  /* Elevated surface: the scrollbar thumb takes the l2 elevation tokens.
-     Declared here rather than on the scrolling `.groups` child so the
-     elevation choice sits with the surface; the custom properties inherit
-     down to whichever descendant actually scrolls (see ui-theme
-     styles/scrollbar.css for the rebinding contract). */
+.dialog {
+  width: min(780px, calc(100vw - 48px));
+  max-height: min(680px, calc(100vh - 48px));
+  gap: 0;
+  padding: 0;
+  border: 1px solid var(--dsw-alias-border-l1);
+  background: var(--dsw-alias-bg-layer-2);
+  animation: dialog-in 120ms ease-out;
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
 }
 
-.status,
-.empty {
-  padding: 10px;
+.dialogHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 22px 18px 24px;
+  border-bottom: 1px solid var(--dsw-alias-border-l1);
+}
+.dialogHeading { min-width: 0; }
+.dialogTitle {
+  margin: 0;
+  color: var(--dsw-alias-label-primary);
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 650;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.dialogSubtitle {
+  margin: 3px 0 0;
+  overflow: hidden;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 13px;
-  line-height: 20px;
+  font-size: 12px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+.close {
+  display: grid;
+  place-items: center;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+.close:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.close:focus-visible { outline: 2px solid var(--dsw-alias-border-l3); }
+
+.dialogBody {
+  display: grid;
+  grid-template-columns: minmax(0, 2.35fr) minmax(200px, 1fr);
+  min-height: 0;
+  flex: 1;
+}
+.modelsPanel,
+.effortPanel {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  padding: 20px 22px;
+}
+.modelsPanel { border-right: 1px solid var(--dsw-alias-border-l1); }
+.panelTitle {
+  margin: 0 0 10px;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 650;
+}
+.panelHelp {
+  margin: -5px 0 12px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+.search { width: 100%; margin-bottom: 12px; }
+.modelList { min-height: 120px; max-height: 390px; overflow-y: auto; }
+.group + .group { margin-top: 10px; }
+.groupTitle {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 5px 9px;
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  line-height: 17px;
+  font-weight: 650;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.modelOption,
+.effortOption {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  outline: none;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  text-align: left;
+  cursor: pointer;
+}
+.modelOption:hover:not(:disabled),
+.effortOption:hover:not(:disabled),
+.modelOption:focus-visible,
+.effortOption:focus-visible { background: var(--dsw-alias-interactive-bg-hover); }
+.modelOption.selected,
+.effortOption.selected {
+  border-color: var(--dsw-alias-border-l3);
+  background: var(--dsw-alias-interactive-bg-active);
+}
+.modelOption:disabled,
+.effortOption:disabled { color: var(--dsw-alias-label-dimmed); cursor: default; }
+.optionCopy { display: flex; min-width: 0; flex-direction: column; }
+.modelName {
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 19px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.modelId {
+  overflow: hidden;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.check { flex: 0 0 auto; color: var(--dsw-alias-label-primary); }
+.effortList { display: flex; flex-direction: column; gap: 3px; }
+.effortOption { min-height: 38px; padding: 6px 9px; font-size: 13px; line-height: 20px; }
+
+.status,
+.empty {
+  padding: 12px 9px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
 .error,
 .warning {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
   padding: 7px 8px;
   border-radius: 8px;
   background: var(--dsw-alias-interactive-bg-hover-danger);
@@ -150,12 +219,7 @@
   font-size: 12px;
   line-height: 18px;
 }
-
-.warning {
-  background: var(--dsw-alias-bg-module-platform);
-  color: var(--dsw-alias-state-warn-label);
-}
-
+.warning { background: var(--dsw-alias-bg-module-platform); color: var(--dsw-alias-state-warn-label); }
 .retry {
   flex: 0 0 auto;
   padding: 0;
@@ -163,131 +227,32 @@
   background: transparent;
   color: inherit;
   font: inherit;
-  font-weight: 600;
+  font-weight: 650;
   cursor: pointer;
 }
-
-.groups {
-  min-height: 0;
-  overflow-y: auto;
+.interactionHint {
+  margin: 0;
+  padding: 11px 24px 13px;
+  border-top: 1px solid var(--dsw-alias-border-l1);
+  color: var(--dsw-alias-label-caption);
+  font-size: 11px;
+  line-height: 17px;
+  text-align: center;
 }
 
-.group + .group {
-  margin-top: 4px;
+@media (max-width: 680px) {
+  .dialog { width: min(520px, calc(100vw - 24px)); max-height: calc(100vh - 24px); }
+  .dialogBody { grid-template-columns: 1fr; overflow-y: auto; }
+  .modelsPanel { border-right: none; border-bottom: 1px solid var(--dsw-alias-border-l1); }
+  .modelList { max-height: 260px; }
 }
 
-.groupTitle {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  padding: 5px 8px 3px;
-  background: var(--dsw-specific-menu);
-  color: var(--dsw-alias-label-tertiary);
-  font-size: 12px;
-  line-height: 18px;
-  font-weight: 500;
+@keyframes dialog-in {
+  from { opacity: 0; transform: translateY(4px) scale(.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-.option {
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: auto;
-  min-width: 100%;
-  min-height: 38px;
-  padding: 6px 8px;
-  border: none;
-  border-radius: 10px;
-  outline: none;
-  background: transparent;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.option:hover:not(:disabled),
-.option:focus-visible {
-  background: var(--dsw-alias-interactive-bg-hover);
-}
-
-/* Selection marker is the trailing check, not a fill — matches the Menu
- * primitive's selected treatment. */
-.selected {
-  background: transparent;
-}
-
-.option:disabled {
-  color: var(--dsw-alias-label-dimmed);
-  cursor: default;
-}
-
-.optionCopy {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.modelName {
-  overflow: hidden;
-  color: inherit;
-  font-size: 14px;
-  line-height: 20px;
-  font-weight: 500;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.check {
-  display: grid;
-  place-items: center;
-  flex: 0 0 18px;
-  color: var(--dsw-alias-label-primary);
-}
-
-/* Two-level root cells (figma 496:26454 .Menu_cell): 40px row, 10px side
-   padding, 8px gap, 10px radius; 14/22 label in primary, value in the
-   #81858C tertiary tone, right chevron drilling into the sub-list. */
-.cell {
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: auto;
-  min-width: 100%;
-  height: 40px;
-  padding: 0 10px;
-  border: none;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--dsw-alias-label-primary);
-  font-size: 14px;
-  line-height: 22px;
-  cursor: pointer;
-  text-align: left;
-}
-
-.cell:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-}
-
-.cellLabel {
-  flex: 0 0 auto;
-  white-space: nowrap;
-}
-
-.cellValue {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-align: right;
-  color: var(--dsw-alias-label-tertiary);
-}
-
-.cellChevron {
-  flex: 0 0 auto;
-  color: var(--dsw-alias-label-tertiary);
+@media (prefers-reduced-motion: reduce) {
+  .dialog { animation: none; }
+  .chevron { transition: none; }
 }

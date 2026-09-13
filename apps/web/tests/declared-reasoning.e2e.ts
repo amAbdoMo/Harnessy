@@ -65,20 +65,20 @@ describe.skipIf(MODE === 'record')('web e2e: declared reasoning efforts reach th
     const trigger = page.getByRole('button', { name: /^选择模型/ })
     await trigger.waitFor({ timeout: 15_000 })
     await trigger.click()
-    await page.getByRole('menuitem', { name: /推理等级/ }).click()
 
     // Declared levels, nothing else: the provider-default entry (the route
     // configures no `reasoning`), then Off/High/Max — minimal, low, medium,
     // and xhigh were not declared and must not be offered.
-    const levels = page.getByRole('menuitemradio')
+    const levels = page.getByRole('listbox', { name: '推理等级' }).getByRole('option')
     await expect.poll(async () => levels.allTextContents(), { timeout: 10_000 })
       .toEqual(['Default', 'Off', 'High', 'Max'])
-    const snapshot = await captureStableAria(page, '[role="menu"]', scaffold.workspaceCwd)
+    const snapshot = await captureStableAria(page, '[role="dialog"]', scaffold.workspaceCwd)
     await compareOrRefreshGolden(UI_EXPECTED, snapshot, MODE)
 
     // Picking a level is the same gesture that saves the default selection, so
     // the effort lands in the Agent default Settings section beside provider/model.
-    await page.getByRole('menuitemradio', { name: 'High' }).click()
+    await page.getByRole('option', { name: /Acme Think/ }).click()
+    await page.getByRole('listbox', { name: '推理等级' }).getByRole('option', { name: 'High' }).click()
     await expect.poll(
       async () => readFile(join(scaffold.harnessHome, 'settings.yaml'), 'utf8'),
       { timeout: 10_000 },

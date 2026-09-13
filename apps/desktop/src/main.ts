@@ -186,11 +186,61 @@ async function main(): Promise<void> {
   let mainWindow: BrowserWindow | undefined
   let pluginWindow: BrowserWindow | undefined
   let shellInstallerOwnsQuit = false
+  let applicationReady = false
   let updateState: DesktopUpdateState = { phase: 'idle' }
   const locale = resolveDesktopLocale(app.getLocale())
   const messages = locale.messages
   const appPreload = fileURLToPath(new URL('./preload-app.cjs', import.meta.url))
   const managementPreload = fileURLToPath(new URL('./preload.cjs', import.meta.url))
+  const startupPage = join(app.getAppPath(), 'src', 'startup.html')
+
+  const revealWindow = (window: BrowserWindow): void => {
+    if (window.isDestroyed() || window.isVisible()) return
+    window.maximize()
+    window.show()
+  }
+
+  const createMainWindow = (): BrowserWindow => {
+    const window = createWindow(appPreload, 'integrated')
+    mainWindow = window
+    window.once('ready-to-show', () => { revealWindow(window) })
+    window.on('closed', () => { if (mainWindow === window) mainWindow = undefined })
+    return window
+  }
+  focusPrimaryWindow = () => {
+    const window = mainWindow
+    if (window === undefined || window.isDestroyed()) {
+      const replacement = createMainWindow()
+      if (applicationReady) void replacement.loadURL(`${SCHEME}://app/index.html`)
+      else void replacement.loadFile(startupPage)
+      return
+    }
+    if (window.isMinimized()) window.restore()
+    window.show()
+    window.focus()
+  }
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) focusPrimaryWindow()
+  })
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') app.quit()
+  })
+  app.on('before-quit', (event) => {
+    if (shellInstallerOwnsQuit) return
+    if (host === undefined) return
+    event.preventDefault()
+    const active = host
+    host = undefined
+    void active.stop().finally(() => { app.quit() })
+  })
+
+  mainWindow = createMainWindow()
+  await mainWindow.loadFile(startupPage)
+  // Chromium may omit ready-to-show for a hidden local page on some Windows
+  // GPU configurations. Loading has completed, so reveal it directly as the
+  // deterministic fallback instead of leaving startup invisible.
+  revealWindow(mainWindow)
 
   const publishUpdate = (state: DesktopUpdateState): DesktopUpdateState => {
     updateState = state
@@ -393,50 +443,14 @@ async function main(): Promise<void> {
     nativeMenus[section].popup({ window: owner })
   })
 
-  const createMainWindow = (): BrowserWindow => {
-    const window = createWindow(appPreload, 'integrated')
-    mainWindow = window
-    window.once('ready-to-show', () => {
-      if (window.isDestroyed()) return
-      window.maximize()
-      window.show()
-    })
-    window.on('closed', () => { if (mainWindow === window) mainWindow = undefined })
-    return window
-  }
-  focusPrimaryWindow = () => {
-    const window = mainWindow
-    if (window === undefined || window.isDestroyed()) {
-      const replacement = createMainWindow()
-      void replacement.loadURL(`${SCHEME}://app/index.html`)
-      return
-    }
-    if (window.isMinimized()) window.restore()
-    window.show()
-    window.focus()
-  }
-
-  mainWindow = createMainWindow()
-  await mainWindow.loadURL(`${SCHEME}://app/index.html`)
+  applicationReady = true
+  const readyWindow = mainWindow.isDestroyed() ? createMainWindow() : mainWindow
+  await readyWindow.loadURL(`${SCHEME}://app/index.html`)
   if (development !== undefined && process.env.DSH_DESKTOP_OPEN_DEVTOOLS !== '0') {
-    mainWindow.webContents.openDevTools({ mode: 'detach' })
+    readyWindow.webContents.openDevTools({ mode: 'detach' })
   }
   publishUpdate(updateState)
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) focusPrimaryWindow()
-  })
-  app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') app.quit()
-  })
-  app.on('before-quit', (event) => {
-    if (shellInstallerOwnsQuit) return
-    if (host === undefined) return
-    event.preventDefault()
-    const active = host
-    host = undefined
-    void active.stop().finally(() => { app.quit() })
-  })
 }
 
 const desktopProductState = customHarnessDesktopState()

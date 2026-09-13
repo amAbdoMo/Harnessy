@@ -1,7 +1,8 @@
 /** Signed local npm package set that supplies the Desktop-owned dsh runtime and private Host. */
 
 import { createHash } from 'node:crypto'
-import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
+import { createReadStream, existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
+import { lstat, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 
 /** Descriptor copied beside every Desktop profile's local core tarballs. */
@@ -155,6 +156,50 @@ export function verifyDesktopCorePackageSet(
     const body = readFileSync(path)
     const integrity = `sha512-${createHash('sha512').update(body).digest('base64')}`
     if (body.byteLength !== record.bytes || integrity !== record.integrity) {
+      throw new Error(`desktop package set: integrity check failed for ${record.file}`)
+    }
+  }
+  return packageSet
+}
+
+/**
+ * Verify the Desktop package set without monopolizing Electron's main thread.
+ * This is used while an installed app displays its upgrade progress surface.
+ */
+export async function verifyDesktopCorePackageSetAsync(
+  projectDir: string,
+  expectedReleaseVersion: string,
+): Promise<DesktopCorePackageSet> {
+  const packageSet = readDesktopCorePackageSet(projectDir, expectedReleaseVersion)
+  const packageDir = join(projectDir, DESKTOP_PACKAGES_DIR)
+  let actualFiles: string[]
+  try {
+    actualFiles = (await readdir(packageDir)).sort()
+  } catch (error) {
+    throw new Error(`desktop package set: failed to read ${packageDir}: ${String(error)}`)
+  }
+  const expectedFiles = packageSet.packages.map(entry => entry.file).sort()
+  if (JSON.stringify(actualFiles) !== JSON.stringify(expectedFiles)) {
+    throw new Error('desktop package set: package directory does not match its descriptor')
+  }
+  for (const record of packageSet.packages) {
+    const path = join(packageDir, record.file)
+    let stat
+    try {
+      stat = await lstat(path)
+    } catch {
+      throw new Error(`desktop package set: ${record.file} is not a regular file`)
+    }
+    if (!stat.isFile()) throw new Error(`desktop package set: ${record.file} is not a regular file`)
+    const hash = createHash('sha512')
+    let bytes = 0
+    for await (const value of createReadStream(path)) {
+      const chunk = value as Buffer
+      hash.update(chunk)
+      bytes += chunk.byteLength
+    }
+    const integrity = `sha512-${hash.digest('base64')}`
+    if (bytes !== record.bytes || integrity !== record.integrity) {
       throw new Error(`desktop package set: integrity check failed for ${record.file}`)
     }
   }

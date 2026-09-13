@@ -1,7 +1,32 @@
-- menu "模型与推理等级":
-  - menuitemradio "Default" [checked]:
-    - text: Default
+- dialog "模型与推理等级":
+  - banner:
+    - heading "模型与推理等级" [level=2]
+    - paragraph: 当前选择：Acme Think · Default
+    - button "关闭模型选择器":
+      - img
+  - region "可用模型":
+    - heading "可用模型" [level=3]
     - img
-  - menuitemradio "Off"
-  - menuitemradio "High"
-  - menuitemradio "Max"
+    - textbox "搜索可用模型":
+      - /placeholder: 搜索模型…
+    - listbox "可用模型":
+      - group "DeepSeek":
+        - text: DeepSeek
+        - option "DeepSeek-V4-Flash deepseek-v4-flash"
+        - option "DeepSeek-V4-Flash-Vision-Exp deepseek-v4-flash-vision-exp"
+      - group "Acme Gateway":
+        - text: Acme Gateway
+        - option "Acme Think acme-think" [selected]:
+          - text: Acme Think acme-think
+          - img
+  - region "推理等级":
+    - heading "推理等级" [level=3]
+    - paragraph: 选择此模型使用的思考深度。
+    - listbox "推理等级":
+      - option "Default" [selected]:
+        - text: Default
+        - img
+      - option "Off"
+      - option "High"
+      - option "Max"
+  - paragraph: 单击模型后再单击推理等级以同时应用。双击任意一项仅更改该项。

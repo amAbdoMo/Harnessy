@@ -11,6 +11,7 @@ import {
   parseDesktopCorePackageSet,
   verifyDesktopCoreLockfile,
   verifyDesktopCorePackageSet,
+  verifyDesktopCorePackageSetAsync,
   type DesktopCorePackageRecord,
 } from '../src/core-package-set.ts'
 
@@ -71,6 +72,15 @@ describe('desktop core package set', () => {
       '@deepseek-ai/dsh-custom-harness': 'file:./desktop-packages/dsh-custom-harness.tgz',
       '@deepseek-ai/dsh-desktop-host': 'file:./desktop-packages/dsh-desktop-host.tgz',
     })
+  })
+
+  it('streams the same package integrity checks for responsive desktop upgrades', async () => {
+    const { root, dsh } = packageSetProject()
+    await expect(verifyDesktopCorePackageSetAsync(root, '1.2.3')).resolves.toEqual(
+      verifyDesktopCorePackageSet(root, '1.2.3'),
+    )
+    writeFileSync(join(root, DESKTOP_PACKAGES_DIR, dsh.file), 'changed')
+    await expect(verifyDesktopCorePackageSetAsync(root, '1.2.3')).rejects.toThrow(/integrity check failed/u)
   })
 
   it('rejects version drift, descriptor disorder, corruption, and extra files', () => {

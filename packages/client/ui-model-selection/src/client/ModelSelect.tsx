@@ -1,50 +1,43 @@
 /**
- * ModelSelect: the composer's named model seat (`conversation.input.model`).
- * Two-level selection per figma 496:26454's MenuDropdown: the root menu is
- * the Model / Effort row pair (label + current value + a right chevron),
- * each drilling into its own list — the provider-grouped model list over
- * the shared directory, and the effort levels. The trigger (313:14108's
- * ToggleButton) shows both: model name + effort in the caption tone.
- * Data and submission ride the SAME per-session ModelDirectory as the
- * /model popup; exact-model reasoning metadata and the selected effort come
- * from the Host rather than a client-owned vocabulary. A rejected selection
- * announces through the shared transient Toast anchored to the composer
- * card; the in-menu strip with Retry remains the catalog-load surface.
+ * Composer model selector.
+ *
+ * A normal model click stages it; a normal effort click submits the pair.
+ * Double-clicking either column changes only that value, so a single effort
+ * click is briefly deferred until the double-click gesture has resolved.
  */
 import {
-  useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore,
-  type CSSProperties, type KeyboardEvent, type FocusEvent,
+  useEffect, useId, useMemo, useRef, useState, useSyncExternalStore,
+  type MouseEvent as ReactMouseEvent,
 } from 'react'
-import { createPortal } from 'react-dom'
 import clsx from 'clsx'
-import type { ModelReasoningEffort, ModelSelection } from '@deepseek-ai/dsh-api-remotes/client'
+import type {
+  ModelCatalogModel, ModelProviderGroup, ModelReasoningEffort, ModelSelection,
+} from '@deepseek-ai/dsh-api-session-controller/types'
 import {
-  IconCheckOutline16, IconChevronDownOutline14, IconChevronRightOutline14,
-  IconDataOutline16, IconWarningOutline16, Toast,
+  IconCheckOutline16, IconChevronDownOutline14, IconCloseOutline16,
+  IconDataOutline16, IconSearchOutline16, IconWarningOutline16,
+  Input, Modal, Toast,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ModelSelectInjected } from './slots.ts'
 import css from './ModelSelect.module.css'
 
-/** Which pane the dropdown shows: the two-row root or one drilled-in list. */
-type Pane = 'root' | 'model' | 'effort'
+interface ModelChoice {
+  key: string
+  group: ModelProviderGroup
+  model: ModelCatalogModel
+}
 
-/** One dynamic effort row; undefined means preserve the provider default. */
 interface EffortChoice {
   key: string
   effort: string | undefined
   label: string
 }
 
-/** Unplaced portal card: hidden but laid out at a fixed origin so offsetWidth/offsetHeight are real (Menu primitive's measure pass). */
-const MEASURE_STYLE: CSSProperties = { visibility: 'hidden', left: 0, top: 0 }
+const SINGLE_CLICK_DELAY_MS = 230
+const choiceKey = (provider: string, model: string): string => `${provider}\u0000${model}`
 
-/**
- * Render the composer model seat.
- * @param props - owner share (locked) + injected face (shared directory
- * store/verbs) + the standard locale seat.
- * @returns the trigger and, while open, the two-level menu.
- */
+/** Render the composer's model-and-effort control. */
 export function ModelSelect(
   { locked, available, directory, load, select, t }:
   ModelSelectInjected & { locked: boolean } & PropsLocale<'model'>,
@@ -54,47 +47,37 @@ export function ModelSelect(
     () => directory.getSnapshot(),
   )
   const [open, setOpen] = useState(false)
-  const [pane, setPane] = useState<Pane>('root')
-  // The in-menu error strip serves catalog loads (its Retry re-runs the
-  // load); a rejected SELECTION announces through the transient toast
-  // instead, so the strip renders only while the latest failure-capable
-  // action was a load.
+  const [query, setQuery] = useState('')
+  const [draftKey, setDraftKey] = useState<string | null>(null)
+  const [draftEffort, setDraftEffort] = useState<string | undefined>()
+  const [modelArmed, setModelArmed] = useState(false)
   const lastActionRef = useRef<'load' | 'select'>('load')
+  const pendingEffortRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const triggerRef = useRef<HTMLButtonElement | null>(null)
+  const rootRef = useRef<HTMLDivElement | null>(null)
   const [toast, setToast] = useState<{ seq: number; text: string } | null>(null)
   const toastSeq = useRef(0)
-  const rootRef = useRef<HTMLDivElement | null>(null)
-  const triggerRef = useRef<HTMLButtonElement | null>(null)
-  const menuRef = useRef<HTMLDivElement | null>(null)
-  const [menuPos, setMenuPos] = useState<CSSProperties | null>(null)
-  const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
   const id = useId()
 
-  const choices = useMemo(() => state.groups.flatMap(group =>
-    group.models.map(model => ({
-      group,
-      model,
-      selection: {
-        provider: group.id,
-        model: model.id,
-        ...model.reasoning?.defaultEffort === undefined
-          ? {}
-          : { reasoningEffort: model.reasoning.defaultEffort },
-      } satisfies ModelSelection,
-    }))), [state.groups])
-  const selectedIndex = state.current === null
-    ? -1
-    : choices.findIndex(c => c.selection.provider === state.current?.provider && c.selection.model === state.current.model)
-  const currentChoice = choices[selectedIndex]
-  const reasoning = currentChoice?.model.reasoning
-  const effectiveEffort = state.current?.reasoningEffort ?? reasoning?.defaultEffort
-  const effortLabel = reasoning === undefined
+  const choices = useMemo<readonly ModelChoice[]>(() => state.groups.flatMap(group =>
+    group.models.map(model => ({ key: choiceKey(group.id, model.id), group, model }))), [state.groups])
+  const current = state.current
+  const currentChoice = current === null
+    ? undefined
+    : choices.find(choice => choice.key === choiceKey(current.provider, current.model))
+  const currentReasoning = currentChoice?.model.reasoning
+  const effectiveEffort = state.current?.reasoningEffort ?? currentReasoning?.defaultEffort
+  const currentEffortLabel = currentReasoning === undefined
     ? undefined
     : effectiveEffort === undefined
       ? t('effort.providerDefault')
-      : reasoning.efforts.find(level => level.id === effectiveEffort)?.name ?? effectiveEffort
-  const effortChoices = useMemo<readonly EffortChoice[]>(() => reasoning === undefined
-    ? []
-    : [
+      : currentReasoning.efforts.find(level => level.id === effectiveEffort)?.name ?? effectiveEffort
+  const draftChoice = choices.find(choice => choice.key === draftKey)
+
+  const effortChoices = useMemo<readonly EffortChoice[]>(() => {
+    const reasoning = draftChoice?.model.reasoning
+    if (reasoning === undefined) return []
+    return [
       ...reasoning.defaultEffort === undefined
         ? [{ key: 'provider-default', effort: undefined, label: t('effort.providerDefault') }]
         : [],
@@ -103,108 +86,69 @@ export function ModelSelect(
         effort: effort.id,
         label: effort.name,
       })),
-    ], [reasoning, t])
+    ]
+  }, [draftChoice, t])
+
+  const normalizedQuery = query.trim().toLocaleLowerCase()
+  const filteredGroups = useMemo(() => state.groups.map(group => ({
+    group,
+    models: group.models.filter(model => normalizedQuery === '' ||
+      `${group.name} ${group.id} ${model.name} ${model.id}`.toLocaleLowerCase().includes(normalizedQuery)),
+  })).filter(entry => entry.models.length > 0), [normalizedQuery, state.groups])
+
   const busy = state.status === 'selecting'
+  const waiting = state.current === null && state.status === 'loading'
+  const modelLabel = waiting
+    ? t('trigger.loading')
+    : currentChoice?.model.name
+      ?? (state.current === null ? t('trigger.fallback') : `${state.current.provider}/${state.current.model}`)
+  const triggerLabel = currentEffortLabel === undefined ? modelLabel : `${modelLabel} · ${currentEffortLabel}`
+  const triggerAria = waiting
+    ? t('trigger.loading')
+    : state.current === null
+      ? t('trigger.selectAria')
+      : currentEffortLabel === undefined
+        ? t('trigger.aria', { model: modelLabel })
+        : t('trigger.ariaEffort', { model: modelLabel, effort: currentEffortLabel })
+
+  const clearPendingEffort = (): void => {
+    if (pendingEffortRef.current === null) return
+    clearTimeout(pendingEffortRef.current)
+    pendingEffortRef.current = null
+  }
+
+  useEffect(() => () => { clearPendingEffort() }, [])
+
+  if (!available) return null
 
   const reload = (): void => {
     lastActionRef.current = 'load'
     load()
   }
 
-  useEffect(() => {
-    if (!open) return
-    const closeOutside = (event: MouseEvent): void => {
-      // The portaled card is outside the trigger subtree; check both.
-      if (rootRef.current?.contains(event.target as Node) === true) return
-      if (menuRef.current?.contains(event.target as Node) === true) return
-      setOpen(false)
-    }
-    document.addEventListener('mousedown', closeOutside)
-    return () => { document.removeEventListener('mousedown', closeOutside) }
-  }, [open])
-
-  // Portaled placement (the Menu primitive's portal rules: fixed from the
-  // anchor rect, measured before paint, clamped inside the viewport): above
-  // the trigger, right edges aligned. Depends on pane and directory state
-  // because pane switches and async catalog loads resize the card.
-  /* jscpd:ignore-start -- deliberate mirror of ui-primitives useAnchoredPosition:
-     that hook only places from the anchor's LEFT edge, while this card aligns
-     right edges (x = rect.right - width), so the measure-and-clamp plumbing repeats. */
-  useLayoutEffect(() => {
-    if (!open) { setMenuPos(null); return }
-    const place = (): void => {
-      /* v8 ignore next 2 -- the trigger ref is attached whenever the menu is open. */
-      const rect = triggerRef.current?.getBoundingClientRect()
-      if (rect === undefined) return
-      const MARGIN = 12
-      const lw = menuRef.current?.offsetWidth ?? 0
-      const lh = menuRef.current?.offsetHeight ?? 0
-      let x = rect.right - lw
-      let y = rect.top - 8 - lh
-      if (lw > 0) x = Math.min(Math.max(x, MARGIN), window.innerWidth - lw - MARGIN)
-      if (lh > 0) y = Math.min(Math.max(y, MARGIN), window.innerHeight - lh - MARGIN)
-      setMenuPos({ left: x, top: y })
-    }
-    // First run measures the hidden pre-render (same commit as `open`), so
-    // the card lands placed before anything paints.
-    place()
-    window.addEventListener('scroll', place, true)
-    window.addEventListener('resize', place)
-    return () => {
-      window.removeEventListener('scroll', place, true)
-      window.removeEventListener('resize', place)
-    }
-  }, [open, pane, state])
-  /* jscpd:ignore-end */
-
-  if (!available) return null
-
-  const show = (): void => {
-    setPane('root')
-    setOpen(true)
-    reload()
-  }
-
   const close = (restoreFocus = false): void => {
+    clearPendingEffort()
     setOpen(false)
-    setPane('root')
+    setQuery('')
+    setModelArmed(false)
     if (restoreFocus) queueMicrotask(() => { triggerRef.current?.focus() })
   }
 
-  const moveFocus = (offset: number): void => {
-    const items = itemRefs.current.filter(item => item !== null)
-    if (items.length === 0) return
-    const active = items.findIndex(item => item === document.activeElement)
-    const next = (Math.max(active, 0) + offset + items.length) % items.length
-    items[next]?.focus()
-  }
-
-  const onRootKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
-    if (event.key === 'Escape' && open) {
-      event.preventDefault()
-      // Escape backs out of a drilled pane first, then closes.
-      if (pane !== 'root') setPane('root')
-      else close(true)
-      return
-    }
-    if (!open) return
-    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      event.preventDefault()
-      moveFocus(event.key === 'ArrowDown' ? 1 : -1)
-    }
-  }
-
-  const onBlur = (event: FocusEvent<HTMLDivElement>): void => {
-    if (event.relatedTarget instanceof Node && (
-      rootRef.current?.contains(event.relatedTarget) === true
-      || menuRef.current?.contains(event.relatedTarget) === true
-    )) return
-    close()
+  const show = (): void => {
+    clearPendingEffort()
+    setQuery('')
+    setDraftKey(currentChoice?.key ?? choices[0]?.key ?? null)
+    setDraftEffort(effectiveEffort)
+    setModelArmed(false)
+    setOpen(true)
+    // The shared service preloads this catalog. Avoid another request when a
+    // resident result exists so the dialog opens immediately.
+    if (state.status === 'idle' || state.status === 'error') reload()
   }
 
   const settleSelection = (accepted: boolean): void => {
     if (accepted) {
-      if (rootRef.current !== null) close(true)
+      close(true)
       return
     }
     const message = directory.getSnapshot().error
@@ -214,196 +158,190 @@ export function ModelSelect(
     }
   }
 
-  const choose = (selection: ModelSelection): void => {
-    if (state.current?.provider === selection.provider && state.current.model === selection.model) {
-      close(true)
-      return
-    }
+  const submit = (selection: ModelSelection): void => {
+    clearPendingEffort()
     lastActionRef.current = 'select'
     void select(selection).then(settleSelection)
   }
 
-  const chooseEffort = (effort: string | undefined): void => {
-    if (state.current === null) return
-    if (effectiveEffort === effort) {
-      close(true)
+  const selectionFor = (choice: ModelChoice, effort: string | undefined): ModelSelection => ({
+    provider: choice.group.id,
+    model: choice.model.id,
+    ...effort === undefined ? {} : { reasoningEffort: effort },
+  })
+
+  const chooseModelOnly = (choice: ModelChoice): void => {
+    const reasoning = choice.model.reasoning
+    const preserved = state.current?.reasoningEffort
+    const effort = preserved !== undefined && reasoning?.efforts.some(level => level.id === preserved) === true
+      ? preserved
+      : reasoning?.defaultEffort
+    submit(selectionFor(choice, effort))
+  }
+
+  const stageModel = (choice: ModelChoice): void => {
+    clearPendingEffort()
+    setDraftKey(choice.key)
+    setDraftEffort(choice.model.reasoning?.defaultEffort)
+    setModelArmed(true)
+    if (choice.model.reasoning === undefined) submit(selectionFor(choice, undefined))
+  }
+
+  const choosePairAfterClick = (effort: string | undefined): void => {
+    clearPendingEffort()
+    setDraftEffort(effort)
+    if (!modelArmed || draftChoice === undefined) return
+    pendingEffortRef.current = setTimeout(() => {
+      pendingEffortRef.current = null
+      submit(selectionFor(draftChoice, effort))
+    }, SINGLE_CLICK_DELAY_MS)
+  }
+
+  const chooseEffortOnly = (effort: string | undefined): void => {
+    clearPendingEffort()
+    if (state.current === null || currentChoice === undefined) return
+    const supported = effort === undefined || currentChoice.model.reasoning?.efforts.some(level => level.id === effort) === true
+    if (!supported) {
+      toastSeq.current += 1
+      setToast({ seq: toastSeq.current, text: t('error.effortUnavailable') })
       return
     }
-    const selection: ModelSelection = {
+    submit({
       provider: state.current.provider,
       model: state.current.model,
       ...effort === undefined ? {} : { reasoningEffort: effort },
-    }
-    lastActionRef.current = 'select'
-    void select(selection).then(settleSelection)
+    })
   }
 
-  const waiting = state.current === null && state.status === 'loading'
-  const modelLabel = waiting
-    ? t('trigger.loading')
-    : currentChoice?.model.name
-      ?? (state.current === null ? t('trigger.fallback') : `${state.current.provider}/${state.current.model}`)
-  const triggerLabel = effortLabel === undefined ? modelLabel : `${modelLabel} · ${effortLabel}`
-  const triggerAria = waiting
-    ? t('trigger.loading')
-    : state.current === null
-      ? t('trigger.selectAria')
-      : effortLabel === undefined
-        ? t('trigger.aria', { model: modelLabel })
-        : t('trigger.ariaEffort', { model: modelLabel, effort: effortLabel })
-  itemRefs.current = []
-  let itemIndex = 0
-  const itemRef = () => {
-    const at = itemIndex++
-    return (node: HTMLButtonElement | null) => { itemRefs.current[at] = node }
-  }
+  const draftEffortLabel = effortChoices.find(level => level.effort === draftEffort)?.label
+  const draftLabel = draftChoice === undefined
+    ? triggerLabel
+    : `${draftChoice.model.name}${draftEffortLabel === undefined ? '' : ` · ${draftEffortLabel}`}`
 
   return (
-    <div ref={rootRef} className={css.root} onKeyDown={onRootKeyDown} onBlur={onBlur}>
+    <div ref={rootRef} className={css.root}>
       <button
         ref={triggerRef}
         type="button"
         className={css.trigger}
         aria-label={triggerAria}
-        aria-haspopup="menu"
+        aria-haspopup="dialog"
         aria-expanded={open}
-        aria-controls={open ? `${id}-menu` : undefined}
         title={triggerLabel}
         disabled={locked}
-        onClick={() => {
-          if (open) {
-            close()
-          } else {
-            show()
-          }
-        }}
+        onClick={() => { if (open) close(); else show() }}
       >
         <IconDataOutline16 className={css.triggerIcon} size={16} />
         <span className={css.triggerLabel}>{modelLabel}</span>
-        {effortLabel !== undefined && <span className={css.triggerEffort}>{effortLabel}</span>}
+        {currentEffortLabel !== undefined && <span className={css.triggerEffort}>{currentEffortLabel}</span>}
         <IconChevronDownOutline14 className={clsx(css.chevron, open && css.chevronOpen)} />
       </button>
 
-      {/* Portaled to body (Menu primitive's portal mode) so the sidebar and
-          column overflow clips cannot crop the card; synthetic events still
-          bubble through this React subtree, keeping onKeyDown/onBlur live. */}
-      {open && createPortal(
-        <div
-          ref={menuRef}
-          id={`${id}-menu`}
-          className={css.menu}
-          style={menuPos ?? MEASURE_STYLE}
-          role="menu"
-          aria-label={t('menu.aria')}
-          aria-busy={state.status === 'loading' || busy}
-        >
-          {pane === 'root' && (
-            <>
-              <button ref={itemRef()} type="button" role="menuitem" className={css.cell} onClick={() => { setPane('model') }}>
-                <span className={css.cellLabel}>{t('menu.model')}</span>
-                <span className={css.cellValue}>{modelLabel}</span>
-                <IconChevronRightOutline14 className={css.cellChevron} />
-              </button>
-              {reasoning !== undefined && (
-                <button ref={itemRef()} type="button" role="menuitem" className={css.cell} onClick={() => { setPane('effort') }}>
-                  <span className={css.cellLabel}>{t('menu.effort')}</span>
-                  <span className={css.cellValue}>{effortLabel}</span>
-                  <IconChevronRightOutline14 className={css.cellChevron} />
-                </button>
-              )}
-            </>
-          )}
+      <Modal open={open} onClose={() => { close(true) }} title={t('dialog.title')} className={css.dialog ?? ''} headless>
+        <header className={css.dialogHeader}>
+          <div className={css.dialogHeading}>
+            <h2 className={css.dialogTitle}>{t('dialog.title')}</h2>
+            <p className={css.dialogSubtitle}>{t('dialog.current', { selection: draftLabel })}</p>
+          </div>
+          <button type="button" className={css.close} aria-label={t('dialog.close')} onClick={() => { close(true) }}>
+            <IconCloseOutline16 />
+          </button>
+        </header>
 
-          {pane === 'model' && (
-            <>
-              {state.status === 'loading' && (
-                <div className={css.status}>{t('status.loading')}</div>
-              )}
-              {state.error !== null && lastActionRef.current === 'load' && (
-                <div className={css.error}>
-                  <span>{t('error.action', { message: state.error })}</span>
-                  <button type="button" className={css.retry} onClick={reload}>{t('retry')}</button>
-                </div>
-              )}
-              {state.failures.map(failure => (
-                <div className={css.warning} key={failure.id}>
-                  <span>{t('warning.groupLoad', { name: failure.name, message: failure.message })}</span>
-                  <button type="button" className={css.retry} onClick={reload}>{t('retry')}</button>
-                </div>
-              ))}
-              <div className={clsx(css.groups, 'scrollable')}>
-                {state.groups.map((group) => {
-                  const headingId = `${id}-${group.id}`
-                  return (
-                    <section role="group" aria-labelledby={headingId} className={css.group} key={group.id}>
-                      <div className={css.groupTitle} id={headingId}>{group.name}</div>
-                      {group.models.map((model) => {
-                        const selected = state.current?.provider === group.id && state.current.model === model.id
-                        return (
-                          <button
-                            ref={itemRef()}
-                            type="button"
-                            role="menuitemradio"
-                            aria-checked={selected}
-                            className={clsx(css.option, selected && css.selected)}
-                            key={model.id}
-                            title={model.name}
-                            disabled={busy}
-                            onClick={() => { choose({ provider: group.id, model: model.id }) }}
-                          >
-                            <span className={css.optionCopy}>
-                              <span className={css.modelName}>{model.name}</span>
-                            </span>
-                            <span className={css.check}>
-                              {selected ? <IconCheckOutline16 /> : null}
-                            </span>
-                          </button>
-                        )
-                      })}
-                    </section>
-                  )
-                })}
+        <div className={css.dialogBody}>
+          <section className={css.modelsPanel} aria-labelledby={`${id}-models-title`}>
+            <h3 className={css.panelTitle} id={`${id}-models-title`}>{t('dialog.models')}</h3>
+            <Input
+              className={css.search ?? ''}
+              icon={<IconSearchOutline16 />}
+              value={query}
+              aria-label={t('dialog.searchAria')}
+              placeholder={t('dialog.search')}
+              onChange={(event) => { setQuery(event.target.value) }}
+            />
+            {state.status === 'loading' && choices.length === 0 && <div className={css.status}>{t('status.loading')}</div>}
+            {state.error !== null && lastActionRef.current === 'load' && (
+              <div className={css.error}>
+                <span>{t('error.action', { message: state.error })}</span>
+                <button type="button" className={css.retry} onClick={reload}>{t('action.reload')}</button>
               </div>
-              {state.status === 'ready' && choices.length === 0 && (
-                <div className={css.empty}>{t('empty.models')}</div>
-              )}
-            </>
-          )}
+            )}
+            {state.failures.map(failure => (
+              <div className={css.warning} key={failure.id}>
+                <span>{t('warning.groupLoad', { name: failure.name, message: failure.message })}</span>
+                <button type="button" className={css.retry} onClick={reload}>{t('action.reload')}</button>
+              </div>
+            ))}
+            <div className={clsx(css.modelList, 'scrollable')} role="listbox" aria-label={t('dialog.models')}>
+              {filteredGroups.map(({ group, models }) => {
+                const headingId = `${id}-${group.id}`
+                return (
+                  <section role="group" aria-labelledby={headingId} className={css.group} key={group.id}>
+                    <div className={css.groupTitle} id={headingId}>{group.name}</div>
+                    {models.map((model) => {
+                      const key = choiceKey(group.id, model.id)
+                      const choice: ModelChoice = { key, group, model }
+                      const selected = draftKey === key
+                      return (
+                        <button
+                          type="button"
+                          role="option"
+                          aria-selected={selected}
+                          className={clsx(css.modelOption, selected && css.selected)}
+                          key={model.id}
+                          disabled={busy}
+                          onClick={() => { stageModel(choice) }}
+                          onDoubleClick={(event: ReactMouseEvent) => {
+                            event.preventDefault()
+                            chooseModelOnly(choice)
+                          }}
+                        >
+                          <span className={css.optionCopy}>
+                            <span className={css.modelName}>{model.name}</span>
+                            <span className={css.modelId}>{model.id}</span>
+                          </span>
+                          {selected && <IconCheckOutline16 className={css.check} />}
+                        </button>
+                      )
+                    })}
+                  </section>
+                )
+              })}
+              {state.status === 'ready' && choices.length === 0 && <div className={css.empty}>{t('empty.models')}</div>}
+              {choices.length > 0 && filteredGroups.length === 0 && <div className={css.empty}>{t('empty.search')}</div>}
+            </div>
+          </section>
 
-          {pane === 'effort' && (
-            <>
-              {state.error !== null && lastActionRef.current === 'load' && (
-                <div className={css.error}>
-                  <span>{t('error.action', { message: state.error })}</span>
-                  <button type="button" className={css.retry} onClick={reload}>{t('action.reload')}</button>
-                </div>
-              )}
+          <section className={css.effortPanel} aria-labelledby={`${id}-effort-title`}>
+            <h3 className={css.panelTitle} id={`${id}-effort-title`}>{t('dialog.effort')}</h3>
+            <p className={css.panelHelp}>{t('dialog.effortHelp')}</p>
+            <div className={css.effortList} role="listbox" aria-label={t('dialog.effort')}>
               {effortChoices.length === 0
                 ? <div className={css.empty}>{t('empty.efforts')}</div>
                 : effortChoices.map(level => (
                   <button
-                    ref={itemRef()}
                     type="button"
-                    role="menuitemradio"
-                    aria-checked={effectiveEffort === level.effort}
-                    className={clsx(css.option, effectiveEffort === level.effort && css.selected)}
+                    role="option"
+                    aria-selected={draftEffort === level.effort}
+                    className={clsx(css.effortOption, draftEffort === level.effort && css.selected)}
                     key={level.key}
                     disabled={busy}
-                    onClick={() => { chooseEffort(level.effort) }}
+                    onClick={() => { choosePairAfterClick(level.effort) }}
+                    onDoubleClick={(event: ReactMouseEvent) => {
+                      event.preventDefault()
+                      chooseEffortOnly(level.effort)
+                    }}
                   >
-                    <span className={css.optionCopy}>
-                      <span className={css.modelName}>{level.label}</span>
-                    </span>
-                    <span className={css.check}>
-                      {effectiveEffort === level.effort ? <IconCheckOutline16 /> : null}
-                    </span>
+                    <span>{level.label}</span>
+                    {draftEffort === level.effort && <IconCheckOutline16 className={css.check} />}
                   </button>
                 ))}
-            </>
-          )}
-        </div>,
-        document.body,
-      )}
+            </div>
+          </section>
+        </div>
+        <p className={css.interactionHint}>{t('dialog.hint')}</p>
+      </Modal>
+
       {toast !== null && (
         <Toast
           key={toast.seq}

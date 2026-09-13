@@ -4,6 +4,7 @@ import { spawn } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
 import {
   constants,
+  createReadStream,
   copyFileSync,
   cpSync,
   existsSync,
@@ -30,6 +31,7 @@ import {
   desktopDshPackageSpec,
   readDesktopCorePackageSet,
   verifyDesktopCorePackageSet,
+  verifyDesktopCorePackageSetAsync,
 } from './core-package-set.ts'
 import type { DesktopPaths } from './paths.ts'
 import { parseDesktopRelease, type DesktopRelease } from './release.ts'
@@ -274,14 +276,40 @@ function seedFiles(root: string): readonly DesktopSeedIntegrityRecord[] {
   return files.sort((left, right) => left.path.localeCompare(right.path))
 }
 
-/** Verify the packaged offline seed before any content enters writable desktop state. */
-export function verifySeedIntegrity(seedDir: string): void {
+async function seedFilesAsync(root: string): Promise<readonly DesktopSeedIntegrityRecord[]> {
+  const files: DesktopSeedIntegrityRecord[] = []
+  const visit = async (directory: string): Promise<void> => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name)
+      const relativePath = path.slice(root.length + 1).split(sep).join('/')
+      if (relativePath === 'integrity.json') continue
+      if (entry.isSymbolicLink()) throw new Error(`desktop seed: symbolic link is not allowed: ${relativePath}`)
+      if (entry.isDirectory()) {
+        await visit(path)
+        continue
+      }
+      if (!entry.isFile()) throw new Error(`desktop seed: unsupported file type: ${relativePath}`)
+      const hash = createHash('sha256')
+      let bytes = 0
+      for await (const value of createReadStream(path)) {
+        const chunk = value as Buffer
+        hash.update(chunk)
+        bytes += chunk.byteLength
+      }
+      files.push({ path: relativePath, bytes, sha256: hash.digest('hex') })
+    }
+  }
+  await visit(root)
+  return files.sort((left, right) => left.path.localeCompare(right.path))
+}
+
+function expectedSeedFiles(seedDir: string): readonly DesktopSeedIntegrityRecord[] {
   const integrityPath = join(seedDir, 'integrity.json')
   const integrity = readJson(integrityPath)
   if (!isRecord(integrity) || integrity.schemaVersion !== 2 || !Array.isArray(integrity.files)) {
     throw new Error(`desktop seed: invalid integrity inventory ${integrityPath}`)
   }
-  const expected: DesktopSeedIntegrityRecord[] = integrity.files.map((record) => {
+  return integrity.files.map((record) => {
     if (!isRecord(record) || typeof record.path !== 'string' || record.path === '' || record.path.startsWith('/')
       || record.path.split('/').includes('..') || typeof record.bytes !== 'number'
       || !Number.isSafeInteger(record.bytes) || record.bytes < 0
@@ -290,7 +318,20 @@ export function verifySeedIntegrity(seedDir: string): void {
     }
     return { path: record.path, bytes: record.bytes, sha256: record.sha256 }
   }).sort((left, right) => left.path.localeCompare(right.path))
+}
+
+/** Verify the packaged offline seed before any content enters writable desktop state. */
+export function verifySeedIntegrity(seedDir: string): void {
+  const expected = expectedSeedFiles(seedDir)
   const actual = seedFiles(seedDir)
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error('desktop seed: integrity verification failed')
+  }
+}
+
+async function verifySeedIntegrityAsync(seedDir: string): Promise<void> {
+  const expected = expectedSeedFiles(seedDir)
+  const actual = await seedFilesAsync(seedDir)
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     throw new Error('desktop seed: integrity verification failed')
   }
@@ -453,9 +494,7 @@ export class DesktopProjectManager {
   async applyRelease(seedDir: string, electronVersion: string, hooks: DesktopProjectHooks): Promise<boolean> {
     return this.withLock(async () => {
       this.recover()
-      verifySeedIntegrity(seedDir)
       const target = releaseFile(seedDir)
-      verifyDesktopCorePackageSet(seedDir, target.version)
       if (target.version !== electronVersion) {
         throw new Error(`desktop project: seed ${target.version} does not match Electron ${electronVersion}`)
       }
@@ -463,9 +502,14 @@ export class DesktopProjectManager {
         && this.dshVersion() === target.version
         && this.installedPackageVersion(DESKTOP_HOST_PACKAGE) === target.version
         && hasMatchingSeedIntegrity(this.paths.profile, seedDir)) {
-        verifyDesktopCorePackageSet(this.paths.profile, target.version)
         return false
       }
+      // A matching active profile never consumes the packaged seed, so the
+      // manifest comparison above is sufficient for the warm-start path.
+      // Perform the expensive file-by-file verification only before the seed
+      // can enter writable state during an install or upgrade.
+      await verifySeedIntegrityAsync(seedDir)
+      await verifyDesktopCorePackageSetAsync(seedDir, target.version)
       this.mergeSeedPnpmState(seedDir)
       const stagingProfile = this.newStagingProfile()
       try {

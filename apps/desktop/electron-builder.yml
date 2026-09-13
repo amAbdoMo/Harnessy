@@ -39,8 +39,11 @@ win:
 nsis:
   oneClick: false
   perMachine: false
-  allowToChangeInstallationDirectory: true
+  # Preserve the registered executable/shortcut path across upgrades so a
+  # Windows taskbar pin continues to target the same application identity.
+  allowToChangeInstallationDirectory: false
   createDesktopShortcut: always
   createStartMenuShortcut: true
+  shortcutName: Harnessy
   deleteAppDataOnUninstall: false
   runAfterFinish: false

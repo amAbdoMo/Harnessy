@@ -57,6 +57,8 @@ export function createElectronBuilderConfig(
       'lib/*.js',
       'lib/*.cjs',
       'renderer/**/*',
+      'src/startup.html',
+      'src/startup.css',
       'assets/harnessy.png',
       'package.json',
     ],
@@ -108,7 +110,17 @@ export function createElectronBuilderConfig(
     },
     nsis: {
       oneClick: false,
-      allowToChangeInstallationDirectory: true,
+      perMachine: false,
+      // A selectable directory makes electron-builder treat every manually
+      // launched installer as a potentially relocated install. It then
+      // removes and recreates shortcuts, which breaks Windows taskbar pins.
+      // Keep the registered location and shortcut identity stable instead.
+      allowToChangeInstallationDirectory: false,
+      createDesktopShortcut: 'always',
+      createStartMenuShortcut: true,
+      shortcutName: CUSTOM_HARNESS_PRODUCT.displayName,
+      deleteAppDataOnUninstall: false,
+      runAfterFinish: false,
       differentialPackage: true,
     },
   }

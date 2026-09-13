@@ -7,6 +7,7 @@ export interface DesktopElectronBuilderConfig {
   readonly directories: {
     readonly output: string
   }
+  readonly files: readonly string[]
   readonly extraResources: readonly [
     { readonly from: string, readonly to: 'runtime' },
     { readonly from: string, readonly to: 'seed' },
@@ -29,6 +30,17 @@ export interface DesktopElectronBuilderConfig {
       readonly signingHashAlgorithms: readonly ['sha256']
     }
     readonly target: readonly ['nsis']
+  }
+  readonly nsis: {
+    readonly oneClick: false
+    readonly perMachine: false
+    readonly allowToChangeInstallationDirectory: false
+    readonly createDesktopShortcut: 'always'
+    readonly createStartMenuShortcut: true
+    readonly shortcutName: string
+    readonly deleteAppDataOnUninstall: false
+    readonly runAfterFinish: false
+    readonly differentialPackage: true
   }
   readonly artifactBuildCompleted: (artifact: { readonly file: string }) => Promise<void> | undefined
   readonly publish?: never

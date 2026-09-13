@@ -79,8 +79,7 @@ describe.each(MODE === 'record' ? ['deepseek-official'] : ['deepseek-official', 
   async function selectModel(name: string): Promise<void> {
     const trigger = page.getByRole('button', { name: /^Select model, current/ })
     await trigger.click()
-    await page.getByRole('menuitem', { name: /^Model\b/ }).click()
-    await page.getByRole('menuitemradio', { name, exact: true }).click()
+    await page.getByRole('option').filter({ hasText: name }).dblclick()
     await expect.poll(() => trigger.getAttribute('aria-label')).toContain(name)
   }
 
