@@ -306,7 +306,7 @@ export class AccountsController extends TypertRemoteService {
   }
 
   /**
-   * Refresh every supported usage snapshot, intended to run whenever the manager opens.
+   * Refresh every supported usage snapshot for account-management and status surfaces.
    * @param signal - cancellation checked between accounts and forwarded to usage requests.
    * @returns the updated public account state with refreshed usage when available.
    */

@@ -1,6 +1,7 @@
 /** Harnessy occupants for brand slots, product tokens, and the About row. */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { BoundActions } from '@deepseek-ai/dsh-client-store'
+import type { AccountsState } from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
@@ -14,6 +15,7 @@ import {
   AccountsManagerCard, type AccountsManagerInjected, type AccountsManagerOperations,
 } from './AccountsManagerCard.tsx'
 import { createAccountsMenuStore } from './accounts-menu-store.ts'
+import { AccountsUsageController } from './accounts-usage.ts'
 import { SharedSkillsRow, type SharedSkillsRowInjected } from './SharedSkillsRow.tsx'
 import {
   McpServersSection, type McpManagerOperations, type McpServersInjected,
@@ -147,7 +149,7 @@ export function apply(ctx: ClientContext): void {
     inject: mcp,
   }, McpServersSection))
 
-  const accountOperations: AccountsManagerOperations = {
+  const accountRemoteOperations: AccountsManagerOperations = {
     describe: async () => {
       const response = await ctx.remote.accounts.describe()
       return response.ok ? { state: response.value } : { error: response.error.message }
@@ -179,9 +181,30 @@ export function apply(ctx: ClientContext): void {
       return response.ok ? { state: response.value } : { error: response.error.message }
     },
   }
+  const accountsUsage = new AccountsUsageController(accountRemoteOperations)
+  const publishAccountState = async (
+    request: Promise<{ readonly state?: AccountsState; readonly error?: string }>,
+  ): Promise<{ readonly state?: AccountsState; readonly error?: string }> => {
+    const response = await request
+    accountsUsage.publish(response.state)
+    return response
+  }
+  const accountOperations: AccountsManagerOperations = {
+    describe: () => publishAccountState(accountRemoteOperations.describe()),
+    addOAuth: (provider, signal) => accountRemoteOperations.addOAuth(provider, signal),
+    addApiKey: (provider, name, key) => publishAccountState(accountRemoteOperations.addApiKey(provider, name, key)),
+    activate: (provider, accountId) => publishAccountState(accountRemoteOperations.activate(provider, accountId)),
+    rename: (provider, accountId, name) => publishAccountState(accountRemoteOperations.rename(provider, accountId, name)),
+    remove: (provider, accountId) => publishAccountState(accountRemoteOperations.remove(provider, accountId)),
+    refreshUsage: signal => publishAccountState(accountRemoteOperations.refreshUsage(signal)),
+  }
   const accountsMenuStore = createAccountsMenuStore()
+  ctx.effect(() => accountsUsage.start(), 'custom-harness: automatic account usage refresh')
   const account = (): AccountsManagerInjected => ({ operations: accountOperations })
-  const launcher = (): AccountLauncherInjected => ({ operations: accountOperations })
+  const launcher = (): AccountLauncherInjected => ({
+    hooks: { accountUsage: accountsUsage.state },
+    refreshAccounts: () => { void accountsUsage.refresh() },
+  })
   ctx.slots.inject('settings.launcher', () => ctx.slots.register({
     name: 'settings.launcher',
     locale: LOCALE_NS,

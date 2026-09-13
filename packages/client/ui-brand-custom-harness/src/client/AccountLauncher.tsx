@@ -2,25 +2,28 @@ import { useEffect, useRef, useState } from 'react'
 import type {
   AccountsState, AccountUsageWindow, ManagedAccountView,
 } from '@deepseek-ai/dsh-api-remotes/client'
-import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
+import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import {
   IconChevronDownOutline14, IconChevronRightOutline14, IconChevronUpOutline14,
   IconSettingsOutline16,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { AccountsManagerOperations } from './AccountsManagerCard.tsx'
 import type { createAccountsMenuStore } from './accounts-menu-store.ts'
 import css from './AccountLauncher.module.css'
 
 /** Private account query supplied by the Harnessy browser plugin. */
 export interface AccountLauncherInjected {
-  operations: Pick<AccountsManagerOperations, 'describe' | 'refreshUsage'>
+  hooks: {
+    accountUsage: ObservableSnapshot<AccountsState | undefined>
+  }
+  refreshAccounts: () => void
 }
 
 /** Complete props for the Harnessy sidebar account launcher. */
 export type AccountLauncherProps = PropsRuntime<'settings.launcher'>
   & PropsStore<ReturnType<typeof createAccountsMenuStore>>
   & PropsLocale<'customHarnessBrand'>
-  & AccountLauncherInjected
+  & InjectFace<AccountLauncherInjected>
 
 function activeCodexAccount(state: AccountsState | undefined): ManagedAccountView | undefined {
   return state?.accounts.find(account => account.provider === 'openai-codex' && account.active)
@@ -38,10 +41,6 @@ function compactUsageWindows(account: ManagedAccountView | undefined): readonly 
 function usageLevel(usedPercent: number): 'normal' | 'warning' | 'danger' {
   if (usedPercent >= 95) return 'danger'
   return usedPercent >= 80 ? 'warning' : 'normal'
-}
-
-function requestIsActive(controller: AbortController): boolean {
-  return !controller.signal.aborted
 }
 
 function CompactUsageMeter({ window }: { readonly window: AccountUsageWindow }) {
@@ -81,9 +80,9 @@ function AccountSummary({ name, subtitle, windows }: {
 
 /** Render the active account footer and its compact account/settings menu. */
 export function AccountLauncher({
-  wide, openSettings, openSection, operations, actions, t,
+  wide, openSettings, openSection, useAccountUsage, refreshAccounts, actions, t,
 }: AccountLauncherProps) {
-  const [accountState, setAccountState] = useState<AccountsState | undefined>()
+  const accountState = useAccountUsage(state => state)
   const [open, setOpen] = useState(false)
   const root = useRef<HTMLDivElement | null>(null)
   const account = activeCodexAccount(accountState)
@@ -94,22 +93,6 @@ export function AccountLauncher({
   const accessibleName = [name, subtitle, ...usageWindows.map(window =>
     `${window.label} ${String(Math.round(window.usedPercent))}% ${t('accountsUsedSuffix')}`)].join(', ')
 
-  const loadAccount = (): void => {
-    void operations.describe().then((response) => { setAccountState(response.state) })
-  }
-
-  useEffect(() => {
-    const controller = new AbortController()
-    const loadCurrentUsage = async (): Promise<void> => {
-      const described = await operations.describe()
-      if (!requestIsActive(controller)) return
-      setAccountState(described.state)
-      const refreshed = await operations.refreshUsage(controller.signal)
-      if (requestIsActive(controller) && refreshed.state !== undefined) setAccountState(refreshed.state)
-    }
-    void loadCurrentUsage()
-    return () => { controller.abort() }
-  }, [operations])
   useEffect(() => {
     if (!open) return
     const dismiss = (event: MouseEvent) => {
@@ -127,7 +110,7 @@ export function AccountLauncher({
   }, [open])
 
   const toggleMenu = (): void => {
-    if (!open) loadAccount()
+    if (!open) refreshAccounts()
     setOpen(current => !current)
   }
   const openAccounts = (): void => {
