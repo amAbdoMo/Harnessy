@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package fills the generic sidebar and conversation-hero brand slots, adds a short localized orientation beneath the new-session headline, applies a reversible light/dark color and typography layer, adds a localized About row to General settings, and contributes Harnessy's account manager to the Models footer. It activates only when the browser bundle was built with the `custom-harness` client profile, so the shared Web composition can retain its stock identity in other builds.
+This package fills the generic sidebar and conversation-hero brand slots, adds a short localized orientation beneath the new-session headline, applies a reversible light/dark color and typography layer, adds the shared-skills control and localized About row to General settings, and contributes Harnessy's account manager to the Models footer. It activates only when the browser bundle was built with the `custom-harness` client profile, so the shared Web composition can retain its stock identity in other builds.
 
 ## Table of Contents
 
@@ -24,6 +24,8 @@ This package fills the generic sidebar and conversation-hero brand slots, adds a
 Compose this package through [`dsh-custom-harness`](../../bundle/custom-harness/README.md) and build the repository with `pnpm run build:custom-harness`. Product names, project links, and support links come from the centralized build environment; missing values fail loudly rather than mixing identities.
 
 The supplied transparent Harnessy mark scales to host-owned icon sizes on an ocean-gradient frame. Its deep navy, teal, and cyan palette flows through existing semantic tokens in both light and dark modes, while standard success, warning, and error meanings remain intact. The About row exposes the build version and project destinations without retaining runtime state.
+
+The Shared skills folder row binds the `harnessy-shared-skills` settings namespace, displays its resolved absolute directory, and routes enable, folder-pick, and reset actions through the standard settings and native directory-picker services. It owns presentation only; the filesystem-skill provider owns discovery, watching, precedence, and provider replacement.
 
 The sidebar footer shows the active Codex identity, its uppercase plan, and compact `5h` and `7d` usage meters instead of opening Settings directly. Harnessy refreshes these meters at startup; their fills animate from zero, use warning colors near exhaustion, and honor reduced-motion preferences. Selecting the footer opens one compact menu containing the same account summary and a Settings action. The account action opens the exclusive provider-focused manager for Codex, GLM, Kimi, OpenCode, and Claude Code while the Settings panel stays hidden; closing the dialog closes both views. The provider rail shows each nonzero saved-account total in a compact badge. The manager imports the account already active in Harnessy, supports additional browser or API-key accounts, and switches the canonical provider identity through injected Host callbacks. Opening the dialog always requests a fresh Codex usage snapshot. Providers without supported usage data show a clear unavailable state. Remote refusal messages are displayed without inspecting credential contents.
 
@@ -41,7 +43,7 @@ None directly; the selected provider and model own request construction.
 <a id="known-limitations-and-deferred-work"></a>
 
 - **Build-profile gated** — changing the identity requires a new browser build rather than a runtime setting.
-- **Browser presentation only** — the [desktop application](../../../apps/desktop/README.md) owns executable and installer assets; this package owns the renderer identity they display.
+- **Product-browser scope** — the [desktop application](../../../apps/desktop/README.md) owns executable and installer assets; this package owns the renderer identity and product settings controls they display.
 
 <a id="dev-note"></a>
 ### Dev Note

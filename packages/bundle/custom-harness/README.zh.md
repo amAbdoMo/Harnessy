@@ -17,6 +17,7 @@ kind: "package-bundle"
 - [已禁用的逐消息反馈](#disabled-per-message-feedback)
 - [Workspace Brief](#workspace-brief)
 - [OpenAI 账户登录](#openai-account-login)
+- [共享技能文件夹](#shared-skills-folder)
 - [模型体验](#model-experience)
 - [已知限制与延期工作](#known-limitations-and-deferred-work)
 - [开发备注](#dev-note)
@@ -51,6 +52,13 @@ Windows 默认位置为 `%LOCALAPPDATA%\CustomHarness\Harness`、`%LOCALAPPDATA%
 
 退出登录会删除本地 grant 并移除对应 route。token 不会跨越 Remote 响应，也不会进入 settings 或 session log。上游账户登录行为请参阅[官方 Codex authentication 文档](https://learn.chatgpt.com/docs/auth)。
 
+<a id="shared-skills-folder"></a>
+## 共享技能文件夹
+
+此 profile 挂载一个全局文件系统 skill provider，默认根目录为 `%USERPROFILE%\.agents\skills`。Harnessy 的私有运行时与凭据 home 仍位于 `%LOCALAPPDATA%\CustomHarness`；只有明确选择的 skill 目录会被共享。Settings > General 提供实时启用开关和原生文件夹选择器，重置该字段会恢复常规 `.agents\skills` 位置。provider 会监视所选目录，因此目录新增、重命名及 frontmatter 更改无需重启应用。
+
+全局共享根目录会与各 preset 的作用域文件系统 provider 组合。项目 `.dsh\skills` 与 `.agents\skills` 条目保留更高优先级，因此项目可以有意覆盖同名个人 skill。
+
 <a id="model-experience"></a>
 ## 模型体验
 
@@ -65,7 +73,7 @@ Windows 默认位置为 `%LOCALAPPDATA%\CustomHarness\Harness`、`%LOCALAPPDATA%
 <a id="known-limitations-and-deferred-work"></a>
 
 - **Bundle 范围**——本包提供产品 profile 和仓库启动器；可执行文件与安装程序由[桌面应用](../../../apps/desktop/README.zh.md)负责。
-- **默认状态独立**——需要原有状态时，用户必须明确迁移所选内容；启动器从不自动复制。
+- **默认状态独立**——Session、设置和凭据保持隔离；只有用户选定的 skill 文件夹会共享，启动器不会复制其他原有状态。
 
 <a id="dev-note"></a>
 ### 开发备注

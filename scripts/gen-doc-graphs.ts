@@ -193,6 +193,13 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Projects the installed OpenAI OAuth flow onto a token-redacted desktop action: secure browser launch, cancellable callback wait, credential deletion, and provider-route activation live here.',
   },
   {
+    key: 'accountsController',
+    pkg: 'api-settings-controller',
+    title: 'Harnessy provider account Remote controller',
+    mode: 'core',
+    note: 'Projects the protected multi-account store onto token-redacted desktop actions for sign-in, switching, naming, removal, and usage refresh.',
+  },
+  {
     key: 'settingsController',
     pkg: 'api-settings-controller',
     title: 'Host settings-surface Remote controller',

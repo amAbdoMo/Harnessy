@@ -1,0 +1,93 @@
+.root {
+  display: grid;
+  gap: 12px;
+  padding: 16px 0;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.heading,
+.directoryRow,
+.actions,
+.path {
+  display: flex;
+  align-items: center;
+}
+
+.heading {
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.title,
+.summary,
+.status,
+.error {
+  margin: 0;
+}
+
+.title {
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 22px;
+}
+
+.summary,
+.status,
+.error {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.directoryRow {
+  gap: 10px;
+}
+
+.path {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 36px;
+  flex: 1 1 auto;
+  gap: 8px;
+  padding: 7px 12px;
+  overflow: hidden;
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: 10px;
+  color: var(--dsw-alias-label-secondary);
+  background: var(--dsw-alias-bg-layer-1);
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.path span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folderIcon {
+  flex: 0 0 auto;
+  color: var(--dsw-alias-state-business-primary);
+}
+
+.actions {
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.error {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+@media (max-width: 640px) {
+  .directoryRow {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .actions {
+    justify-content: flex-end;
+  }
+}

@@ -10,6 +10,7 @@ This repository is the source-code backup and version history for the customized
 - Install and launch like a normal Windows application without a terminal window.
 - Keep Harnessy data separate from other Harness installations.
 - Support browser-based OpenAI account sign-in for Codex models without requiring an API key.
+- Share personal skills with other compatible agents through a user-selectable folder.
 - Record each source adjustment in Git and provide restorable installers for stable versions.
 - Keep upstream DeepSeek Harness available as a source of compatible fixes and improvements.
 
@@ -33,6 +34,8 @@ Open **Settings > Models** to configure a provider. For Codex models, use **Sign
 OpenAI account sign-in uses the existing Codex OAuth flow described in the [official authentication documentation](https://learn.chatgpt.com/docs/auth). The resulting grant stays in the local Harnessy credential store and is not committed to this repository.
 
 Application state is stored under `%LOCALAPPDATA%\CustomHarness`. Installing a newer Harnessy version uses the same product data directory; source code and installers do not contain your local sessions or credentials.
+
+Harnessy scans `%USERPROFILE%\.agents\skills` by default so the same personal skills can be used by Harnessy, Codex, Pi, and other compatible agents. Open **Settings > General > Shared skills folder** to turn this source on or off, choose another folder, or restore the default. Folder and skill-file changes are detected without restarting the application; project-specific `.agents\skills` and `.dsh\skills` folders still take priority when a skill name overlaps.
 
 Harnessy does not currently check for or install updates automatically. Install a newer version from GitHub Releases when one is published.
 

@@ -102,7 +102,10 @@ export class AccountsController extends TypertRemoteService {
     this.now = internals.now ?? Date.now
   }
 
-  /** Return every managed account without returning its stored credential. */
+  /**
+   * Return every managed account without returning its stored credential.
+   * @returns the public provider/account state, including whether the vault accepts writes.
+   */
   @Remote
   async describe(): Promise<AccountsState> {
     const credentials = this.ctx.get('credentials')
@@ -115,6 +118,9 @@ export class AccountsController extends TypertRemoteService {
   /**
    * Add an OAuth-backed identity through the provider's installed browser flow.
    * A later account is saved without replacing the currently active identity.
+   * @param provider - installed OAuth-capable provider to authorize.
+   * @param signal - cancellation for browser opening, prompts, and provider authorization.
+   * @returns whether authorization completed or the user cancelled it.
    */
   @Remote
   async addOAuth(provider: AccountProviderId, signal: AbortSignal): Promise<AccountSignInResult> {
@@ -191,7 +197,13 @@ export class AccountsController extends TypertRemoteService {
     return { status: 'authorized' }
   }
 
-  /** Add a named API-key identity; only the first account becomes active automatically. */
+  /**
+   * Add a named API-key identity; only the first account becomes active automatically.
+   * @param provider - installed API-key provider that will own the identity.
+   * @param name - user-visible local label, bounded before storage.
+   * @param key - secret API key written to the protected credential vault.
+   * @returns the updated public account state with credentials omitted.
+   */
   @Remote
   async addApiKey(provider: AccountProviderId, name: string, key: string): Promise<AccountsState> {
     const definition = providerDefinition(provider)
@@ -218,7 +230,12 @@ export class AccountsController extends TypertRemoteService {
     return this.publicState(next, true)
   }
 
-  /** Make one saved identity the canonical credential used by model requests. */
+  /**
+   * Make one saved identity the canonical credential used by model requests.
+   * @param provider - provider whose active identity changes.
+   * @param accountId - saved identity to promote.
+   * @returns the updated public account state with credentials omitted.
+   */
   @Remote
   async activate(provider: AccountProviderId, accountId: string): Promise<AccountsState> {
     providerDefinition(provider)
@@ -233,7 +250,13 @@ export class AccountsController extends TypertRemoteService {
     return this.publicState(next, true)
   }
 
-  /** Rename one local account without changing its credential or active state. */
+  /**
+   * Rename one local account without changing its credential or active state.
+   * @param provider - provider containing the saved identity.
+   * @param accountId - saved identity to rename.
+   * @param name - new user-visible label, bounded before storage.
+   * @returns the updated public account state with credentials omitted.
+   */
   @Remote
   async rename(provider: AccountProviderId, accountId: string, name: string): Promise<AccountsState> {
     const cleanName = boundedText(name, 80)
@@ -251,7 +274,12 @@ export class AccountsController extends TypertRemoteService {
     return this.publicState(next, true)
   }
 
-  /** Remove one saved identity and promote the next identity when it was active. */
+  /**
+   * Remove one saved identity and promote the next identity when it was active.
+   * @param provider - provider containing the saved identity.
+   * @param accountId - saved identity to remove.
+   * @returns the updated public account state with credentials omitted.
+   */
   @Remote
   async deleteAccount(provider: AccountProviderId, accountId: string): Promise<AccountsState> {
     const credentials = this.credentials()
@@ -277,7 +305,11 @@ export class AccountsController extends TypertRemoteService {
     return this.publicState(next, true)
   }
 
-  /** Refresh every supported usage snapshot, intended to run whenever the manager opens. */
+  /**
+   * Refresh every supported usage snapshot, intended to run whenever the manager opens.
+   * @param signal - cancellation checked between accounts and forwarded to usage requests.
+   * @returns the updated public account state with refreshed usage when available.
+   */
   @Remote
   async refreshUsage(signal: AbortSignal): Promise<AccountsState> {
     const credentials = this.credentials()

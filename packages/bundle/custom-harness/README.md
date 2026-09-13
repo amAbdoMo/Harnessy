@@ -17,6 +17,7 @@ This package is the narrow product layer applied after `dsh-base` and `dsh-web-a
 - [Disabled per-message feedback](#disabled-per-message-feedback)
 - [Workspace Brief](#workspace-brief)
 - [OpenAI account login](#openai-account-login)
+- [Shared skills folder](#shared-skills-folder)
 - [Model Experience](#model-experience)
 - [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
 - [Dev Note](#dev-note)
@@ -51,6 +52,13 @@ The profile mounts `@deepseek-ai/dsh-authorization`. The inherited dormant `llm-
 
 Sign-out deletes the local grant and removes the matching route. Tokens never cross the Remote response and never enter settings or session logs. See the [official Codex authentication documentation](https://learn.chatgpt.com/docs/auth) for the upstream account-sign-in behavior.
 
+<a id="shared-skills-folder"></a>
+## Shared skills folder
+
+The profile mounts a global filesystem-skill provider whose default root is `%USERPROFILE%\.agents\skills`. Harnessy's private runtime and credential homes remain under `%LOCALAPPDATA%\CustomHarness`; only the explicitly selected skill directory is shared. Settings > General exposes a live enable switch and native folder picker, and resetting the field restores the normal `.agents\skills` location. The provider watches the selected directory, so catalog additions, renames, and frontmatter changes do not require an application restart.
+
+The global shared root composes with each preset's scoped filesystem provider. Project `.dsh\skills` and `.agents\skills` entries retain their higher priority, so a project can deliberately override a personal skill with the same name.
+
 <a id="model-experience"></a>
 ## Model Experience
 
@@ -65,7 +73,7 @@ None beyond the selected base and Web composition; the patch changes browser-onl
 <a id="known-limitations-and-deferred-work"></a>
 
 - **Bundle scope** — this package supplies the product profile and repository launcher; the [desktop application](../../../apps/desktop/README.md) owns the executable and installer.
-- **Independent state by default** — users must migrate selected stock state explicitly if they want it; the launcher never copies it.
+- **Independent state by default** — sessions, settings, and credentials remain isolated; only the user-selected skills folder is shared, and the launcher never copies other stock state.
 
 <a id="dev-note"></a>
 ### Dev Note

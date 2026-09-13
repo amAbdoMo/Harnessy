@@ -1,5 +1,6 @@
 /** Harnessy occupants for brand slots, product tokens, and the About row. */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import type { BoundActions } from '@deepseek-ai/dsh-client-store'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
@@ -13,11 +14,16 @@ import {
   AccountsManagerCard, type AccountsManagerInjected, type AccountsManagerOperations,
 } from './AccountsManagerCard.tsx'
 import { createAccountsMenuStore } from './accounts-menu-store.ts'
+import { SharedSkillsRow, type SharedSkillsRowInjected } from './SharedSkillsRow.tsx'
+import { createSharedSkillsRowStore } from './shared-skills-store.ts'
 import {
   CustomHarnessMark, CustomHarnessName, CustomHarnessTagline, requiredBuildValue,
 } from './Brand.tsx'
 import { en, zh, type BrandKey } from './locales.ts'
 import { CUSTOM_HARNESS_THEME_TOKENS } from './tokens.ts'
+import {
+  decodeSharedSkillsSettings, SHARED_SKILLS_SETTINGS_NAMESPACE, type SharedSkillsSettings,
+} from '../shared-skills.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -30,7 +36,9 @@ const BUILD_PROFILE = 'custom-harness'
 const LOCALE_NS = 'customHarnessBrand'
 
 /** Required services: slots, locale, and theme token composition. */
-export const inject = ['slots', 'locale', 'theme', 'remote', 'remote.accounts']
+export const inject = [
+  'slots', 'locale', 'theme', 'remote', 'remote.accounts', 'remote.directoryPicker', 'settingsScope',
+]
 
 /**
  * Install the Harnessy identity only in its named browser build.
@@ -70,6 +78,37 @@ export function apply(ctx: ClientContext): void {
     locale: LOCALE_NS,
     inject: about,
   }, AboutRow))
+
+  const sharedSkills = ctx.settingsScope.bind<SharedSkillsSettings>({
+    namespace: SHARED_SKILLS_SETTINGS_NAMESPACE,
+    decode: decodeSharedSkillsSettings,
+  })
+  const sharedSkillsStore = createSharedSkillsRowStore()
+  let sharedSkillsActions: BoundActions<typeof sharedSkillsStore> | undefined
+  const syncSharedSkills = (): void => { sharedSkillsActions?.sync(sharedSkills.getSnapshot()) }
+  ctx.effect(() => sharedSkills.subscribe(syncSharedSkills), 'custom-harness: shared skills settings row')
+  const sharedSkillsInjected = (actions: BoundActions<typeof sharedSkillsStore>): SharedSkillsRowInjected => {
+    sharedSkillsActions = actions
+    syncSharedSkills()
+    return {
+      chooseDirectory: async () => {
+        const response = await ctx.remote.directoryPicker.pick()
+        if (!response.ok) return { error: response.error.message }
+        return response.value === null ? {} : { path: response.value }
+      },
+      setDirectory: directory => sharedSkills.set('directory', directory),
+      resetDirectory: () => sharedSkills.unset('directory'),
+      setEnabled: enabled => sharedSkills.set('enabled', enabled),
+    }
+  }
+  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+    name: 'settings.general.item',
+    id: 'custom-harness-shared-skills',
+    order: 30,
+    locale: LOCALE_NS,
+    store: sharedSkillsStore,
+    inject: sharedSkillsInjected,
+  }, SharedSkillsRow))
 
   const accountOperations: AccountsManagerOperations = {
     describe: async () => {

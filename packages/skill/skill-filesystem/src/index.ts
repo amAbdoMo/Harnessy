@@ -17,6 +17,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import chokidar from 'chokidar'
 import z from '@deepseek-ai/schemastery'
 import type Schema from '@deepseek-ai/schemastery'
+import type {} from '@deepseek-ai/dsh-settings'
 import { parse as parseYaml } from 'yaml'
 import type { FileSystem, FsDirEntry, FsTarget } from '@deepseek-ai/dsh-fs'
 import { canonicalizeWatchPath, resolveDshHome } from '@deepseek-ai/dsh-home-paths'
@@ -57,6 +58,12 @@ export interface Config {
   agentsHome?: string
   /** Additional skill roots scanned after project roots and before user roots. */
   customSkillDirs?: string[]
+  /** Optional settings namespace owning one live, user-selectable custom skill root. */
+  managedRootSettingsNamespace?: string
+  /** Composition default for the live managed root. Required with `managedRootSettingsNamespace`. */
+  managedRootDirectory?: string
+  /** Whether the live managed root is enabled by default. */
+  managedRootEnabled?: boolean
   /** Whether host-local skill roots are watched for catalog changes. */
   watch?: boolean
   /** Whether Chokidar uses polling instead of native filesystem events. */
@@ -79,6 +86,9 @@ export const Config: Schema<Config> = z.object({
   dshHome: z.string(),
   agentsHome: z.string(),
   customSkillDirs: z.array(z.string()).default([]),
+  managedRootSettingsNamespace: z.string().min(1),
+  managedRootDirectory: z.string().min(1),
+  managedRootEnabled: z.boolean().default(true),
   watch: z.boolean().default(true),
   watchUsePolling: z.boolean().default(false),
   watchStabilityThresholdMs: z.number().default(DEFAULT_WATCH_STABILITY_THRESHOLD_MS),
@@ -126,19 +136,110 @@ interface ResolvedWatchConfig {
   followSymlinks: boolean
 }
 
+/** Durable settings section for one user-selectable custom skill root. */
+export interface ManagedSkillRootSettings {
+  /** Whether this root participates in discovery. */
+  enabled: boolean
+  /** Absolute host directory containing flat skills or skill bundles. */
+  directory: string
+}
+
+/** Schema shared by the managed-root Host registration and settings transport. */
+export const ManagedSkillRootSettingsSchema: Schema<ManagedSkillRootSettings> = z.object({
+  enabled: z.boolean().default(true),
+  directory: z.string().min(1).required(),
+})
+
+interface ActiveProvider {
+  provider: FileSystemSkillProvider
+  unregister: () => void
+  customSkillDirs: readonly string[]
+}
+
+function samePaths(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((path, index) => path === right[index])
+}
+
+function managedRootEntry(config: Config): ManagedSkillRootSettings | undefined {
+  if (config.managedRootSettingsNamespace === undefined) return undefined
+  const directory = config.managedRootDirectory
+  if (directory === undefined || !isAbsolute(directory)) {
+    throw new TypeError('skill-filesystem managedRootDirectory must be absolute when managedRootSettingsNamespace is set')
+  }
+  return { enabled: config.managedRootEnabled ?? true, directory: resolve(directory) }
+}
+
+function effectiveCustomSkillDirs(
+  configured: readonly string[], managed: ManagedSkillRootSettings | undefined,
+): string[] {
+  const paths = [...configured, ...(managed?.enabled === true ? [managed.directory] : [])]
+  return [...new Set(paths.map(path => resolve(path)))]
+}
+
 /** Register the local filesystem skill provider on `ctx.skills`. */
 export function apply(ctx: Context, config: Config = {}): void {
-  let provider!: FileSystemSkillProvider
-  ctx.skills.registerProvider((control) => {
-    provider = new FileSystemSkillProvider(ctx, control, config)
-    return provider
-  })
+  const configuredRoots = config.customSkillDirs ?? []
+  const entry = managedRootEntry(config)
+  let source: () => ManagedSkillRootSettings | undefined = () => entry
+  let active: ActiveProvider | undefined
+  let transition = Promise.resolve()
+  let disposed = false
+  const canInstall = (): boolean => !disposed
+
+  const install = (customSkillDirs: readonly string[]): ActiveProvider => {
+    let provider!: FileSystemSkillProvider
+    const unregister = ctx.skills.registerProvider((control) => {
+      provider = new FileSystemSkillProvider(ctx, control, config, customSkillDirs)
+      return provider
+    })
+    return { provider, unregister, customSkillDirs }
+  }
+  active = install(effectiveCustomSkillDirs(configuredRoots, entry))
+
+  const reconcile = (): void => {
+    const nextRoots = effectiveCustomSkillDirs(configuredRoots, source())
+    if (active !== undefined && samePaths(active.customSkillDirs, nextRoots)) return
+    transition = transition.then(async () => {
+      if (disposed) return
+      const previous = active
+      active = undefined
+      previous?.unregister()
+      if (previous !== undefined) await previous.provider.dispose()
+      if (canInstall()) active = install(nextRoots)
+    }).catch((error: unknown) => {
+      ctx.logger.warn('skill-filesystem: failed to apply managed skill root')
+      ctx.logger.warn(error)
+    })
+  }
+
+  if (entry !== undefined) {
+    const namespace = config.managedRootSettingsNamespace
+    /* v8 ignore next -- managedRootEntry proves the namespace exists with the entry. */
+    if (namespace === undefined) throw new Error('managed skill root namespace disappeared')
+    ctx.inject(['settings'], (settingsCtx) => {
+      settingsCtx.settings.installSection(ctx, namespace, ManagedSkillRootSettingsSchema, entry, {
+        validate: (value) => {
+          if (!isAbsolute(value.directory)) throw new TypeError('managed skill root directory must be absolute')
+        },
+        setSource: (current) => { source = current },
+        onChange: reconcile,
+      })
+    })
+  }
+
   ctx.effect(function* () {
-    yield async () => { await provider.dispose() }
+    yield async () => {
+      disposed = true
+      await transition
+      const previous = active
+      active = undefined
+      previous?.unregister()
+      if (previous !== undefined) await previous.provider.dispose()
+    }
   }, 'skill-filesystem watcher')
   ctx.on('fs/observed', (target, _observation, actor) => {
     if (mutationToolName(actor) === undefined) return
-    provider.observeHostMutation(target.displayPath)
+    active?.provider.observeHostMutation(target.displayPath)
   })
 }
 
@@ -157,12 +258,13 @@ export class FileSystemSkillProvider implements SkillProvider {
     private readonly ctx: Context,
     control: SkillProviderControl,
     config: Config = {},
+    customSkillDirs: readonly string[] = config.customSkillDirs ?? [],
   ) {
     this.name = config.providerName ?? 'filesystem'
     this.includeDefaultRoots = config.includeDefaultRoots ?? true
     this.dshHome = resolveDshHome(config.dshHome)
     this.agentsHome = resolve(config.agentsHome ?? process.env.DSH_AGENTS_HOME ?? join(homedir(), '.agents'))
-    this.customSkillDirs = (config.customSkillDirs ?? []).map(root => resolve(root))
+    this.customSkillDirs = customSkillDirs.map(root => resolve(root))
     this.watchManager = new SkillWatchManager(ctx, control.invalidate, resolveWatchConfig(config))
     control.signal.addEventListener('abort', () => { void this.dispose() }, { once: true })
     // The environment bundled root is a default root: an isolated provider

@@ -229,7 +229,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/api/settings-controller/src/index.ts:38`](../packages/api/settings-controller/src/index.ts)
+来源：[`packages/api/settings-controller/src/index.ts:40`](../packages/api/settings-controller/src/index.ts)
 
 <a id="deepseek-aidsh-api-workspace-files"></a>
 
@@ -2200,6 +2200,12 @@ export interface Config {
   agentsHome?: string
   /** Additional skill roots scanned after project roots and before user roots. */
   customSkillDirs?: string[]
+  /** Optional settings namespace owning one live, user-selectable custom skill root. */
+  managedRootSettingsNamespace?: string
+  /** Composition default for the live managed root. Required with `managedRootSettingsNamespace`. */
+  managedRootDirectory?: string
+  /** Whether the live managed root is enabled by default. */
+  managedRootEnabled?: boolean
   /** Whether host-local skill roots are watched for catalog changes. */
   watch?: boolean
   /** Whether Chokidar uses polling instead of native filesystem events. */
@@ -2217,7 +2223,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/skill/skill-filesystem/src/index.ts:49`](../packages/skill/skill-filesystem/src/index.ts)
+来源：[`packages/skill/skill-filesystem/src/index.ts:50`](../packages/skill/skill-filesystem/src/index.ts)
 
 <a id="deepseek-aidsh-spill-local"></a>
 

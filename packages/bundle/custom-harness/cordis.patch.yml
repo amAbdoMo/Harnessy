@@ -28,6 +28,17 @@
     - id: workspace-brief
       name: '@deepseek-ai/dsh-workspace-brief'
 
+    # A global provider keeps Harnessy's private runtime state isolated while
+    # sharing the user's normal agent skills with every preset and workspace.
+    - id: harnessy-shared-skills
+      name: '@deepseek-ai/dsh-skill-filesystem'
+      config:
+        providerName: harnessy-shared-skills
+        includeDefaultRoots: false
+        managedRootSettingsNamespace: harnessy-shared-skills
+        managedRootDirectory: !!js "(process.env.USERPROFILE ?? process.env.HOME ?? process.cwd()) + '/.agents/skills'"
+        managedRootEnabled: true
+
     - id: ui-brand-custom-harness
       name: '@deepseek-ai/dsh-client-ui-brand-custom-harness'
 

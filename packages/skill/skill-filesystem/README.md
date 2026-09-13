@@ -69,10 +69,15 @@ Load the plugin alongside the skill registry; it requires `ctx.skills`.
 | `dshHome` | `$DSH_HOME` or `~/.dsh` | Harness config root; its `skills` subdirectory is scanned |
 | `agentsHome` | `$DSH_AGENTS_HOME` or `~/.agents` | Shared agent config root scanned for compatible skills |
 | `customSkillDirs` | `[]` | Additional local skill roots, after project roots and before user roots |
+| `managedRootSettingsNamespace` | — | Opt into one settings-backed custom root under this namespace |
+| `managedRootDirectory` | — | Absolute composition default for the settings-backed root |
+| `managedRootEnabled` | `true` | Whether the settings-backed root is included by default |
 | `watch` | `true` | Watch local roots and invalidate the provider when the catalog may have changed |
 | `bundledSkillDir` | — | Bundled skill root scanned at rank 600 when configured |
 
 The remaining `watch*` fields tune Chokidar behavior — polling, stability window, interval, project cap, and symlink following. The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-skill-filesystem) is the exhaustive source for every field.
+
+When `managedRootSettingsNamespace` and an absolute `managedRootDirectory` are supplied, the plugin registers a live settings section containing `enabled` and `directory`. Accepted changes replace only this provider instance, close its old watchers, and invalidate the skill catalog; other providers and their project-root priorities are unaffected.
 
 ### Change detection
 

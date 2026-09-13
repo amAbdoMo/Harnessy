@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-12-harnessy-shared-skills-folder.md
+2026-09-12-harnessy-shared-skills-folder.md: 15b90910d7813c7a21a35300adf218de1cce4185
+2026-09-12-harnessy-shared-skills-folder.zh.md: 55a8e349eb9471cb6598bc34abeac803ebab38bf

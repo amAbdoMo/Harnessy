@@ -82,6 +82,55 @@ export interface TypeApiEntry {
 /** Every harness `ctx.<key>` service, sorted by key. */
 export const SERVICE_API: readonly ServiceApiEntry[] = [
   {
+    key: 'accountsController',
+    summary: 'Manage several local identities per provider while keeping one canonical active credential at the existing `llm-pi-ai/<provider>` address.',
+    description: 'Manage several local identities per provider while keeping one canonical active credential at the existing `llm-pi-ai/<provider>` address.',
+    methods: [
+      {
+        signature: '@Remote async describe(): Promise<AccountsState>',
+        description: 'Return every managed account without returning its stored credential.',
+        parameters: [],
+        returns: 'the public provider/account state, including whether the vault accepts writes.',
+      },
+      {
+        signature: '@Remote async addOAuth(provider: AccountProviderId, signal: AbortSignal): Promise<AccountSignInResult>',
+        description: 'Add an OAuth-backed identity through the provider\'s installed browser flow. A later account is saved without replacing the currently active identity.',
+        parameters: [{ name: 'provider', description: 'installed OAuth-capable provider to authorize.' }, { name: 'signal', description: 'cancellation for browser opening, prompts, and provider authorization.' }],
+        returns: 'whether authorization completed or the user cancelled it.',
+      },
+      {
+        signature: '@Remote async addApiKey(provider: AccountProviderId, name: string, key: string): Promise<AccountsState>',
+        description: 'Add a named API-key identity; only the first account becomes active automatically.',
+        parameters: [{ name: 'provider', description: 'installed API-key provider that will own the identity.' }, { name: 'name', description: 'user-visible local label, bounded before storage.' }, { name: 'key', description: 'secret API key written to the protected credential vault.' }],
+        returns: 'the updated public account state with credentials omitted.',
+      },
+      {
+        signature: '@Remote async activate(provider: AccountProviderId, accountId: string): Promise<AccountsState>',
+        description: 'Make one saved identity the canonical credential used by model requests.',
+        parameters: [{ name: 'provider', description: 'provider whose active identity changes.' }, { name: 'accountId', description: 'saved identity to promote.' }],
+        returns: 'the updated public account state with credentials omitted.',
+      },
+      {
+        signature: '@Remote async rename(provider: AccountProviderId, accountId: string, name: string): Promise<AccountsState>',
+        description: 'Rename one local account without changing its credential or active state.',
+        parameters: [{ name: 'provider', description: 'provider containing the saved identity.' }, { name: 'accountId', description: 'saved identity to rename.' }, { name: 'name', description: 'new user-visible label, bounded before storage.' }],
+        returns: 'the updated public account state with credentials omitted.',
+      },
+      {
+        signature: '@Remote async deleteAccount(provider: AccountProviderId, accountId: string): Promise<AccountsState>',
+        description: 'Remove one saved identity and promote the next identity when it was active.',
+        parameters: [{ name: 'provider', description: 'provider containing the saved identity.' }, { name: 'accountId', description: 'saved identity to remove.' }],
+        returns: 'the updated public account state with credentials omitted.',
+      },
+      {
+        signature: '@Remote async refreshUsage(signal: AbortSignal): Promise<AccountsState>',
+        description: 'Refresh every supported usage snapshot, intended to run whenever the manager opens.',
+        parameters: [{ name: 'signal', description: 'cancellation checked between accounts and forwarded to usage requests.' }],
+        returns: 'the updated public account state with refreshed usage when available.',
+      },
+    ],
+  },
+  {
     key: 'agentDefaultModel',
     summary: 'Owns the default model selection independently of any Host or transport.',
     description: 'Owns the default model selection independently of any Host or transport. The composition entry remains usable without a settings provider; when one is mounted, its user layer is read live.',
@@ -3560,6 +3609,34 @@ export const EVENT_API: readonly EventApiEntry[] = [
 /** Shapes of every exported type the Service and Event signatures reference (transitively), sorted by name. */
 export const TYPE_API: readonly TypeApiEntry[] = [
   {
+    name: 'AccountAuthMode',
+    declaration: 'export type AccountAuthMode = \'oauth\' | \'api-key\';',
+  },
+  {
+    name: 'AccountProviderId',
+    declaration: 'export type AccountProviderId = \'openai-codex\' | \'zai\' | \'kimi-coding\' | \'opencode\' | \'anthropic\';',
+  },
+  {
+    name: 'AccountProviderView',
+    declaration: 'export interface AccountProviderView {\n    readonly id: AccountProviderId;\n    readonly label: string;\n    readonly authMode: AccountAuthMode;\n    readonly available: boolean;\n    readonly accountCount: number;\n    readonly activeAccountId?: string;\n    readonly usageAvailable: boolean;\n}',
+  },
+  {
+    name: 'AccountSignInResult',
+    declaration: 'export interface AccountSignInResult {\n    readonly status: \'authorized\' | \'cancelled\';\n}',
+  },
+  {
+    name: 'AccountsState',
+    declaration: 'export interface AccountsState {\n    readonly writable: boolean;\n    readonly providers: readonly AccountProviderView[];\n    readonly accounts: readonly ManagedAccountView[];\n}',
+  },
+  {
+    name: 'AccountUsageView',
+    declaration: 'export interface AccountUsageView {\n    readonly windows: readonly AccountUsageWindow[];\n}',
+  },
+  {
+    name: 'AccountUsageWindow',
+    declaration: 'export interface AccountUsageWindow {\n    readonly id: string;\n    readonly label: string;\n    readonly usedPercent: number;\n    readonly resetsAtMs?: number;\n}',
+  },
+  {
     name: 'AdapterRegistrationHandle',
     declaration: 'export interface AdapterRegistrationHandle {\n    (): void;\n    replace(providers: string[]): void;\n}',
   },
@@ -4590,6 +4667,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'LspRange',
     declaration: 'export interface LspRange {\n    readonly start: LspPosition;\n    readonly end: LspPosition;\n}',
+  },
+  {
+    name: 'ManagedAccountView',
+    declaration: 'export interface ManagedAccountView {\n    readonly id: string;\n    readonly provider: AccountProviderId;\n    readonly name: string;\n    readonly detail?: string;\n    readonly initials: string;\n    readonly active: boolean;\n    readonly authMode: AccountAuthMode;\n    readonly usage?: AccountUsageView;\n    readonly usageUpdatedAt?: number;\n    readonly usageError?: string;\n}',
   },
   {
     name: 'ManualCompactAgentContext',

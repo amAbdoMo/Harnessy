@@ -71,6 +71,7 @@ export const SERVICE_PAGE: Record<string, string> = {
   credentials: 'credentials.md',
   credentialsController: 'credentials.md',
   openAIAccountController: 'settings.md',
+  accountsController: 'settings.md',
   settingsController: 'settings.md',
   directoryPicker: 'workspace.md',
   deepseekLlmApiExtensions: 'llm-streaming.md',
@@ -687,6 +688,9 @@ export const FOUNDATION_TYPE_NAMES: ReadonlySet<string> = new Set([
 /** Project types deliberately documented outside the subsystems catalog. */
 export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   z: 'schemastery schema constructor is owned by vendor/schemastery (vendored upstream)',
+  AccountProviderId: 'account-provider identity is owned by packages/api/settings-controller/src/types.ts',
+  AccountsState: 'account-manager response state is owned by packages/api/settings-controller/src/types.ts',
+  AccountSignInResult: 'account authorization result is owned by packages/api/settings-controller/src/types.ts',
   BeginCommandRequest: 'event-local request contract is owned by packages/client/ui-input-trigger/src/types.ts',
   InsertReferenceRequest: 'event-local request contract is owned by packages/client/ui-input-trigger/src/types.ts',
   ConsumeTokenRequest: 'event-local request contract is owned by packages/client/ui-input-trigger/src/types.ts',

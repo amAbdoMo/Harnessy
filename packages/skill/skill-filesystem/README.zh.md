@@ -69,10 +69,15 @@ skill 可以是被扫描根目录顶层的目录 bundle `<name>/SKILL.md`，也�
 | `dshHome` | `$DSH_HOME` 或 `~/.dsh` | Harness 配置根目录；扫描其 `skills` 子目录 |
 | `agentsHome` | `$DSH_AGENTS_HOME` 或 `~/.agents` | 为兼容 skill 扫描的共享 agent 配置根目录 |
 | `customSkillDirs` | `[]` | 其他本地 skill 根目录，位于项目根之后、用户根之前 |
+| `managedRootSettingsNamespace` | — | 使用该命名空间启用一个由设置管理的自定义根目录 |
+| `managedRootDirectory` | — | 由设置管理的根目录所使用的绝对组合默认值 |
+| `managedRootEnabled` | `true` | 默认是否包含由设置管理的根目录 |
 | `watch` | `true` | 监视本地根，并在目录可能变化时使提供方失效 |
 | `bundledSkillDir` | — | 配置后按 rank 600 扫描的内置 skill 根目录 |
 
 其余 `watch*` 字段用于调节 Chokidar 行为——轮询、稳定窗口、间隔、项目上限与符号链接跟随。生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-skill-filesystem)是每个字段的穷尽式真源。
+
+当同时提供 `managedRootSettingsNamespace` 和绝对的 `managedRootDirectory` 时，插件会注册包含 `enabled` 与 `directory` 的实时设置 section。已接受的更改只会替换当前 provider 实例、关闭其旧 watcher 并使 skill 目录失效；其他 provider 及其项目根目录优先级不受影响。
 
 ### 变更检测
 

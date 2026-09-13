@@ -46,6 +46,7 @@ flowchart LR
   pkg_api_settings_controller["api-settings-controller"]
   svc_credentialsController["ctx.credentialsController<br/>Host credential-surface Remote controller"]
   svc_openAIAccountController["ctx.openAIAccountController<br/>Harnessy OpenAI account Remote controller"]
+  svc_accountsController["ctx.accountsController<br/>Harnessy provider account Remote controller"]
   svc_settingsController["ctx.settingsController<br/>Host settings-surface Remote controller"]
   pkg_api_workspace_files["api-workspace-files"]
   svc_workspaceFiles["ctx.workspaceFiles<br/>Host workspace file Remote service"]
@@ -233,6 +234,7 @@ flowchart LR
   pkg_api_session_controller --> svc_sessionController
   pkg_api_session_controller --> svc_sessionFileReferences
   pkg_api_session_controller --> svc_sessionSkillCatalog
+  pkg_api_settings_controller --> svc_accountsController
   pkg_api_settings_controller --> svc_credentialsController
   pkg_api_settings_controller --> svc_openAIAccountController
   pkg_api_settings_controller --> svc_settingsController
@@ -487,6 +489,7 @@ flowchart LR
 | `ctx.sessionSkillCatalog` | `core` | [`api-session-controller`](../packages/api/session-controller) | - | - | - | 在不激活冷 Agent 的前提下列出 Session 组合中允许用户调用的 skill。 |
 | `ctx.credentialsController` | `core` | [`api-settings-controller`](../packages/api/settings-controller) | - | - | - | 把凭据引用 seam 投影到生成的 Remote namespace：批量扇出、视图投影与拒绝映射都在这里，而不在 seam Definition 上。 |
 | `ctx.openAIAccountController` | `core` | [`api-settings-controller`](../packages/api/settings-controller) | - | - | - | 把已安装的 OpenAI OAuth 流程投影为不暴露令牌的桌面操作：负责安全浏览器启动、可取消的回调等待、凭据删除和 provider route 激活。 |
+| `ctx.accountsController` | `core` | [`api-settings-controller`](../packages/api/settings-controller) | - | - | - | 将受保护的多账户存储投影为不暴露令牌的桌面操作，用于登录、切换、命名、移除和刷新用量。 |
 | `ctx.settingsController` | `core` | [`api-settings-controller`](../packages/api/settings-controller) | - | - | - | 把用户设置 seam 投影到生成的 Remote namespace：读取一律脱敏，所有拒绝在这里分类，而不在 seam Definition 上。 |
 | `ctx.workspaceFiles` | `core` | [`api-workspace-files`](../packages/api/workspace-files) | - | - | - | 为会话工作区根内的文件提供 stat、分页文本、字节窗口、目录列举与变更流，经 lstat、包含关系与 stat 重检限定。 |
 | `ctx.workspaceController` | `core` | [`api-workspace-controller`](../packages/api/workspace-controller) | - | - | - | 通过生成的 Remote namespace 负责 Workspace 命令和可在重连后收敛的 Workspace 状态投递。 |

@@ -173,6 +173,72 @@ type SettingsUpdateSource = 'update' | 'provider'
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxaccountscontroller--accountscontroller"></a>
+
+### `ctx.accountsController` — `AccountsController`
+
+Manage several local identities per provider while keeping one canonical active credential at the existing `llm-pi-ai/<provider>` address.
+
+```ts cordis-catalog
+/**
+ * Return every managed account without returning its stored credential.
+ * @returns the public provider/account state, including whether the vault accepts writes.
+ */
+@Remote async describe(): Promise<AccountsState>
+
+/**
+ * Add an OAuth-backed identity through the provider's installed browser flow.
+ * A later account is saved without replacing the currently active identity.
+ * @param provider - installed OAuth-capable provider to authorize.
+ * @param signal - cancellation for browser opening, prompts, and provider authorization.
+ * @returns whether authorization completed or the user cancelled it.
+ */
+@Remote async addOAuth(provider: AccountProviderId, signal: AbortSignal): Promise<AccountSignInResult>
+
+/**
+ * Add a named API-key identity; only the first account becomes active automatically.
+ * @param provider - installed API-key provider that will own the identity.
+ * @param name - user-visible local label, bounded before storage.
+ * @param key - secret API key written to the protected credential vault.
+ * @returns the updated public account state with credentials omitted.
+ */
+@Remote async addApiKey(provider: AccountProviderId, name: string, key: string): Promise<AccountsState>
+
+/**
+ * Make one saved identity the canonical credential used by model requests.
+ * @param provider - provider whose active identity changes.
+ * @param accountId - saved identity to promote.
+ * @returns the updated public account state with credentials omitted.
+ */
+@Remote async activate(provider: AccountProviderId, accountId: string): Promise<AccountsState>
+
+/**
+ * Rename one local account without changing its credential or active state.
+ * @param provider - provider containing the saved identity.
+ * @param accountId - saved identity to rename.
+ * @param name - new user-visible label, bounded before storage.
+ * @returns the updated public account state with credentials omitted.
+ */
+@Remote async rename(provider: AccountProviderId, accountId: string, name: string): Promise<AccountsState>
+
+/**
+ * Remove one saved identity and promote the next identity when it was active.
+ * @param provider - provider containing the saved identity.
+ * @param accountId - saved identity to remove.
+ * @returns the updated public account state with credentials omitted.
+ */
+@Remote async deleteAccount(provider: AccountProviderId, accountId: string): Promise<AccountsState>
+
+/**
+ * Refresh every supported usage snapshot, intended to run whenever the manager opens.
+ * @param signal - cancellation checked between accounts and forwarded to usage requests.
+ * @returns the updated public account state with refreshed usage when available.
+ */
+@Remote async refreshUsage(signal: AbortSignal): Promise<AccountsState>
+```
+
+Source: [`packages/api/settings-controller/src/accounts.ts`](../../packages/api/settings-controller/src/accounts.ts)
+
 <a id="ctxopenaiaccountcontroller--openaiaccountcontroller"></a>
 
 ### `ctx.openAIAccountController` — `OpenAIAccountController`
