@@ -8,7 +8,7 @@ kind: "package-reference"
 
 ## 概述
 
-`@deepseek-ai/dsh-api-settings-controller` 为浏览器配置界面提供生成的 `ctx.remote.settings`、`ctx.remote.credentials`、`ctx.remote.accounts` 与兼容的 `ctx.remote.openAIAccount` namespace。它返回脱敏的 settings 与凭据元数据，支持写入而不返回密钥值，在 Host 桌面打开由 provider 持有的 settings 或 Agent preset 位置，并把 Harnessy 的 provider 账户操作连接到中立 authorization service。provider 缺失时，各 namespace 仍会注册，并返回可操作的配置错误。
+`@deepseek-ai/dsh-api-settings-controller` 为浏览器配置界面提供生成的 `ctx.remote.settings`、`ctx.remote.credentials`、`ctx.remote.accounts`、`ctx.remote.mcpManager` 与兼容的 `ctx.remote.openAIAccount` namespace。它返回脱敏的 settings 与凭据元数据，支持写入而不返回密钥值，在 Host 桌面打开由 provider 持有的 settings 或 Agent preset 位置，并把 Harnessy 的 provider 账户与 MCP 操作连接到 Host 服务。provider 缺失时，各 namespace 仍会注册，并返回可操作的配置错误。
 
 ## 目录
 
@@ -34,6 +34,8 @@ kind: "package-reference"
 `openAIAccount.describe()` 返回可用、已配置、进行中与可写标志，不包含任何 token 字段。`openAIAccount.signIn()` 选择已安装的 `llm-pi-ai/openai-codex` OAuth flow，只接受 HTTPS 授权目标，在 Host 桌面的默认浏览器中打开它，并等待 provider 的本地回调。成功后，授权 flow 自己写入 grant，并把 `llm-pi-ai.providers.openai-codex` 加入 settings。`openAIAccount.signOut()` 删除该 grant 并移除依赖它的 route。浏览器打开失败使用 `openai-account/browser-failed`；组合缺失或 URL 不安全使用 `openai-account/unavailable`。
 
 `accounts.describe()` 把已有 canonical provider credential 导入受保护、仅 Host 可见的多账户 vault，并且只返回 provider 标签、账户身份标签、激活状态与用量快照。Codex、Kimi 与 Claude Code 使用已安装的 OAuth flow；GLM 与 OpenCode 接受本地保存的 API key。添加、激活、重命名与移除操作会让 provider 的 canonical `llm-pi-ai/<provider>` credential 与所选 vault entry 保持同步，因此模型请求会立即切换。`accounts.refreshUsage()` 在需要时刷新 Codex OAuth 并读取支持的 quota window；没有受支持用量服务的 provider 会报告限制，而不会猜测数值。
+
+`mcpManager.describe()` 返回 Harnessy 全局保存的 MCP profile、实时连接状态与已发现工具名称，但不返回认证值。`save`、`setEnabled`、`reconnect` 与 `deleteServer` 通过 credential provider 串行保存变更，并立即协调受监督的连接。远程服务必须使用 HTTPS，本机 loopback HTTP 除外；本地 stdio 条目直接启动可执行文件，不经过 shell 插值。启用的服务器与声明式 MCP client 条目共享公共 namespace 预留，因此重复 namespace 会安全失败，不影响先前连接。
 
 -----
 
@@ -64,6 +66,7 @@ kind: "package-reference"
 - 批量上限固定为 64 个引用，不是可按部署配置的字段。
 - OpenAI 账户界面有意只支持桌面浏览器登录；底层 authorization seam 仍支持 headless device-code 与 manual-code 展示，但这里不暴露。
 - 只有存在稳定、认证用量服务时才暴露 provider 用量。当前 manager 报告 Codex window；GLM、Kimi、OpenCode 与 Claude Code 账户仍可切换，但不会生成虚构 quota 数据。
+- MCP 状态目前通过短间隔浏览器轮询更新，而不是推送 Remote event。重连期间可能仍显示最后已知工具列表，但服务器恢复前调用会失败。
 
 <a id="dev-note"></a>
 ### 开发备注
@@ -75,4 +78,4 @@ kind: "package-reference"
 
 </details>
 
-**运行时不变式：** 任何 secret、API key 或 OAuth grant 都不会跨越响应。provider authorization flow 仍是 OAuth grant writer；account manager 只在 credential provider 内保存副本，并向 wire 投影脱敏状态。
+**运行时不变式：** 任何 secret、API key、OAuth grant、MCP 认证值或 stdio 环境值都不会跨越响应。provider authorization flow 仍是 OAuth grant writer；受保护的 manager 只在 credential provider 内保留凭据，并向 wire 投影脱敏状态。

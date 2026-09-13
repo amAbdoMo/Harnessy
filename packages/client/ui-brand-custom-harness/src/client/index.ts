@@ -15,6 +15,9 @@ import {
 } from './AccountsManagerCard.tsx'
 import { createAccountsMenuStore } from './accounts-menu-store.ts'
 import { SharedSkillsRow, type SharedSkillsRowInjected } from './SharedSkillsRow.tsx'
+import {
+  McpServersSection, type McpManagerOperations, type McpServersInjected,
+} from './McpServersSection.tsx'
 import { createSharedSkillsRowStore } from './shared-skills-store.ts'
 import {
   CustomHarnessMark, CustomHarnessName, CustomHarnessTagline, requiredBuildValue,
@@ -37,7 +40,8 @@ const LOCALE_NS = 'customHarnessBrand'
 
 /** Required services: slots, locale, and theme token composition. */
 export const inject = [
-  'slots', 'locale', 'theme', 'remote', 'remote.accounts', 'remote.directoryPicker', 'settingsScope',
+  'slots', 'locale', 'theme', 'remote', 'remote.accounts', 'remote.directoryPicker',
+  'remote.mcpManager', 'settingsScope',
 ]
 
 /**
@@ -109,6 +113,39 @@ export function apply(ctx: ClientContext): void {
     store: sharedSkillsStore,
     inject: sharedSkillsInjected,
   }, SharedSkillsRow))
+
+  const mcpOperations: McpManagerOperations = {
+    describe: async () => {
+      const response = await ctx.remote.mcpManager.describe()
+      return response.ok ? { state: response.value } : { error: response.error.message }
+    },
+    save: async (input) => {
+      const response = await ctx.remote.mcpManager.save(input)
+      return response.ok ? { state: response.value } : { error: response.error.message }
+    },
+    setEnabled: async (serverId, enabled) => {
+      const response = await ctx.remote.mcpManager.setEnabled(serverId, enabled)
+      return response.ok ? { state: response.value } : { error: response.error.message }
+    },
+    reconnect: async (serverId) => {
+      const response = await ctx.remote.mcpManager.reconnect(serverId)
+      return response.ok ? { state: response.value } : { error: response.error.message }
+    },
+    remove: async (serverId) => {
+      const response = await ctx.remote.mcpManager.deleteServer(serverId)
+      return response.ok ? { state: response.value } : { error: response.error.message }
+    },
+  }
+  const mcp = (): McpServersInjected => ({ operations: mcpOperations })
+  const mcpNav = ctx.locale.bind(LOCALE_NS)
+  ctx.slots.inject('settings.section', () => ctx.slots.register({
+    name: 'settings.section',
+    id: 'custom-harness-mcp',
+    order: 30,
+    label: () => mcpNav('mcpNav'),
+    locale: LOCALE_NS,
+    inject: mcp,
+  }, McpServersSection))
 
   const accountOperations: AccountsManagerOperations = {
     describe: async () => {

@@ -24,6 +24,9 @@
       "path": "../../credentials/credentials"
     },
     {
+      "path": "../../mcp/mcp-client"
+    },
+    {
       "path": "../../core/session"
     },
     {

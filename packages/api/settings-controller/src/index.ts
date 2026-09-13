@@ -27,11 +27,13 @@ import { z } from 'zod'
 import { CredentialsController } from './credentials.ts'
 import { AccountsController } from './accounts.ts'
 import { OpenAIAccountController } from './openai-account.ts'
+import { McpManagerController } from './mcp-manager.ts'
 import type { AgentPresetDirectoryOpenValue, SettingsDocumentOpenValue } from './types.ts'
 
 export { CredentialsController } from './credentials.ts'
 export { AccountsController } from './accounts.ts'
 export { OpenAIAccountController } from './openai-account.ts'
+export { McpManagerController } from './mcp-manager.ts'
 export type * from './types.ts'
 
 const settingsNamespaceRequestSchema = z.object({ ns: z.string().min(1) })
@@ -111,6 +113,7 @@ export class SettingsController extends TypertRemoteService {
     ctx.plugin(CredentialsController)
     ctx.plugin(AccountsController)
     ctx.plugin(OpenAIAccountController)
+    ctx.plugin(McpManagerController)
   }
 
   /**

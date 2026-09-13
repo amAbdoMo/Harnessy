@@ -18,12 +18,17 @@ import z from '@deepseek-ai/schemastery'
 import { scopeOf } from '@deepseek-ai/dsh-scope'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import { RECONNECT_DEFAULTS, resolveReconnectPolicy, startConnection } from './connection.ts'
-import type { ReconnectConfig } from './connection.ts'
+import type {
+  ConnectionHandle, ConnectionObserver, ReconnectConfig, ResolvedReconnectPolicy,
+} from './connection.ts'
 // Side-effect type import: declaration-merges `ctx.tools` onto Context.
 import type {} from '@deepseek-ai/dsh-tools'
 
 export type { McpResult } from './tools.ts'
-export type { ReconnectConfig, ResolvedReconnectPolicy } from './connection.ts'
+export type {
+  ConnectionHandle, ConnectionObserver, ConnectionSnapshot, ReconnectConfig, ResolvedReconnectPolicy,
+} from './connection.ts'
+export { resolveReconnectPolicy, startConnection } from './connection.ts'
 
 /** Cordis plugin name used by loader diagnostics. */
 export const name = 'mcp-client'
@@ -43,6 +48,52 @@ const SERVER_NAME_PATTERN = /^[A-Za-z0-9_-]{1,32}$/
  * duplicates inside one Agent remain mutually exclusive.
  */
 const activeServerNames = new WeakMap<object, Set<string>>()
+
+/**
+ * Start one supervised MCP connection while reserving its public tool namespace.
+ * The returned handle releases that reservation after disposal, allowing Host
+ * features outside the declarative plugin loader to share the same lifecycle
+ * and duplicate-name protection as {@link apply}.
+ */
+export function startManagedConnection(
+  ctx: Context,
+  config: Config,
+  policy: ResolvedReconnectPolicy,
+  observe?: ConnectionObserver,
+): ConnectionHandle {
+  const owner = scopeOf(ctx) ?? ctx.root
+  let names = activeServerNames.get(owner)
+  if (!names) {
+    names = new Set()
+    activeServerNames.set(owner, names)
+  }
+  if (names.has(config.serverName)) {
+    throw new Error(
+      `mcp-client: serverName "${config.serverName}" is already in use by another live MCP server — pick a unique serverName`,
+    )
+  }
+  names.add(config.serverName)
+  let connection: ConnectionHandle
+  try {
+    connection = startConnection(ctx, config, policy, observe)
+  } catch (error) {
+    names.delete(config.serverName)
+    throw error
+  }
+  let disposed = false
+  return {
+    ready: connection.ready,
+    async dispose(): Promise<void> {
+      if (disposed) return
+      disposed = true
+      try {
+        await connection.dispose()
+      } finally {
+        names.delete(config.serverName)
+      }
+    },
+  }
+}
 
 // ---- Config ----
 
@@ -149,28 +200,10 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   // effect registers.
   const reconnect = resolveReconnectPolicy(config.reconnect, `mcp-client(${config.serverName}): reconnect`)
 
-  // Reserve the namespace next: a duplicate `serverName` fails THIS instance
-  // at load with an actionable error and leaves the earlier instance intact.
-  ctx.effect(() => {
-    const owner = scopeOf(ctx) ?? ctx.root
-    let names = activeServerNames.get(owner)
-    if (!names) {
-      names = new Set()
-      activeServerNames.set(owner, names)
-    }
-    if (names.has(config.serverName)) {
-      throw new Error(
-        `mcp-client: serverName "${config.serverName}" is already in use by another mcp-client instance — pick a unique serverName in cordis.yml`,
-      )
-    }
-    names.add(config.serverName)
-    return () => void names.delete(config.serverName)
-  }, 'mcp-client.serverName')
-
   // The supervisor owns the client/transport generations, the reconnect
   // loop, and the live tool registrations; disposal stops reconnection,
   // quiesces in-flight work, and unregisters the current generation.
-  const connection = startConnection(ctx, config, reconnect)
+  const connection = startManagedConnection(ctx, config, reconnect)
 
   ctx.effect(() => {
     return () => connection.dispose()

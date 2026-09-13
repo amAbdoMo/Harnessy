@@ -200,6 +200,13 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Projects the protected multi-account store onto token-redacted desktop actions for sign-in, switching, naming, removal, and usage refresh.',
   },
   {
+    key: 'mcpManagerController',
+    pkg: 'api-settings-controller',
+    title: 'Harnessy MCP server Remote controller',
+    mode: 'core',
+    note: 'Projects the protected global MCP registry onto redacted desktop actions and reconciles enabled profiles with supervised tool connections.',
+  },
+  {
     key: 'settingsController',
     pkg: 'api-settings-controller',
     title: 'Host settings-surface Remote controller',

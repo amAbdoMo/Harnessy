@@ -239,6 +239,51 @@ Manage several local identities per provider while keeping one canonical active 
 
 Source: [`packages/api/settings-controller/src/accounts.ts`](../../packages/api/settings-controller/src/accounts.ts)
 
+<a id="ctxmcpmanagercontroller--mcpmanagercontroller"></a>
+
+### `ctx.mcpManagerController` — `McpManagerController`
+
+Host controller for Harnessy's protected, live MCP server registry.
+
+```ts cordis-catalog
+/**
+ * Return every saved server without authentication values.
+ * @returns redacted registry state and live connection snapshots.
+ */
+@Remote describe(): Promise<McpManagerState>
+
+/**
+ * Add or replace one protected server profile and reconcile its connection.
+ * @param input - complete staged profile; omitted secret fields retain saved values on edit.
+ * @returns redacted registry state after reconciliation.
+ */
+@Remote save(input: McpServerInput): Promise<McpManagerState>
+
+/**
+ * Enable or disable one saved server. Disabled servers publish no tools.
+ * @param serverId - stable identifier returned by {@link describe}.
+ * @param enabled - whether Harnessy should supervise the connection.
+ * @returns redacted registry state after reconciliation.
+ */
+@Remote setEnabled(serverId: string, enabled: boolean): Promise<McpManagerState>
+
+/**
+ * Restart an enabled server immediately and wait for its first connection attempt.
+ * @param serverId - stable identifier returned by {@link describe}.
+ * @returns redacted registry state after the attempt settles.
+ */
+@Remote reconnect(serverId: string): Promise<McpManagerState>
+
+/**
+ * Remove one saved server and unregister all tools it owns.
+ * @param serverId - stable identifier returned by {@link describe}.
+ * @returns redacted registry state after removal.
+ */
+@Remote deleteServer(serverId: string): Promise<McpManagerState>
+```
+
+Source: [`packages/api/settings-controller/src/mcp-manager.ts`](../../packages/api/settings-controller/src/mcp-manager.ts)
+
 <a id="ctxopenaiaccountcontroller--openaiaccountcontroller"></a>
 
 ### `ctx.openAIAccountController` — `OpenAIAccountController`

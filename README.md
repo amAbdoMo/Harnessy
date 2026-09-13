@@ -11,6 +11,7 @@ This repository is the source-code backup and version history for the customized
 - Keep Harnessy data separate from other Harness installations.
 - Support browser-based OpenAI account sign-in for Codex models without requiring an API key.
 - Share personal skills with other compatible agents through a user-selectable folder.
+- Connect reusable local or remote MCP tool servers from a visual manager.
 - Record each source adjustment in Git and provide restorable installers for stable versions.
 - Keep upstream DeepSeek Harness available as a source of compatible fixes and improvements.
 
@@ -36,6 +37,8 @@ OpenAI account sign-in uses the existing Codex OAuth flow described in the [offi
 Application state is stored under `%LOCALAPPDATA%\CustomHarness`. Installing a newer Harnessy version uses the same product data directory; source code and installers do not contain your local sessions or credentials.
 
 Harnessy scans `%USERPROFILE%\.agents\skills` by default so the same personal skills can be used by Harnessy, Codex, Pi, and other compatible agents. Open **Settings > General > Shared skills folder** to turn this source on or off, choose another folder, or restore the default. Folder and skill-file changes are detected without restarting the application; project-specific `.agents\skills` and `.dsh\skills` folders still take priority when a skill name overlaps.
+
+Open **Settings > MCP Servers** to add a remote HTTPS MCP service or a local stdio command. Harnessy saves authentication in its protected local credential store, shows live connection state and discovered tool names, and makes enabled servers available to every session automatically. Use **Test connection** after editing a server; disable or remove it to unregister its tools.
 
 Harnessy does not currently check for or install updates automatically. Install a newer version from GitHub Releases when one is published.
 

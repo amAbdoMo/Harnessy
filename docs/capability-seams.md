@@ -45,6 +45,7 @@ flowchart LR
   svc_credentialsController["ctx.credentialsController<br/>Host credential-surface Remote controller"]
   svc_openAIAccountController["ctx.openAIAccountController<br/>Harnessy OpenAI account Remote controller"]
   svc_accountsController["ctx.accountsController<br/>Harnessy provider account Remote controller"]
+  svc_mcpManagerController["ctx.mcpManagerController<br/>Harnessy MCP server Remote controller"]
   svc_settingsController["ctx.settingsController<br/>Host settings-surface Remote controller"]
   pkg_api_workspace_files["api-workspace-files"]
   svc_workspaceFiles["ctx.workspaceFiles<br/>Host workspace file Remote service"]
@@ -234,6 +235,7 @@ flowchart LR
   pkg_api_session_controller --> svc_sessionSkillCatalog
   pkg_api_settings_controller --> svc_accountsController
   pkg_api_settings_controller --> svc_credentialsController
+  pkg_api_settings_controller --> svc_mcpManagerController
   pkg_api_settings_controller --> svc_openAIAccountController
   pkg_api_settings_controller --> svc_settingsController
   pkg_api_workspace_controller --> svc_directoryPickerController
@@ -488,6 +490,7 @@ flowchart LR
 | `ctx.credentialsController` | `core` | [`api-settings-controller`](../packages/api/settings-controller) | - | - | - | Projects the credential-reference seam onto the generated Remote namespace: batch fan-out, view projection, and refusal mapping live here, not on the seam Definition. |
 | `ctx.openAIAccountController` | `core` | [`api-settings-controller`](../packages/api/settings-controller) | - | - | - | Projects the installed OpenAI OAuth flow onto a token-redacted desktop action: secure browser launch, cancellable callback wait, credential deletion, and provider-route activation live here. |
 | `ctx.accountsController` | `core` | [`api-settings-controller`](../packages/api/settings-controller) | - | - | - | Projects the protected multi-account store onto token-redacted desktop actions for sign-in, switching, naming, removal, and usage refresh. |
+| `ctx.mcpManagerController` | `core` | [`api-settings-controller`](../packages/api/settings-controller) | - | - | - | Projects the protected global MCP registry onto redacted desktop actions and reconciles enabled profiles with supervised tool connections. |
 | `ctx.settingsController` | `core` | [`api-settings-controller`](../packages/api/settings-controller) | - | - | - | Projects the user-settings seam onto the generated Remote namespace: the read is always redacted and every refusal is classified here, not on the seam Definition. |
 | `ctx.workspaceFiles` | `core` | [`api-workspace-files`](../packages/api/workspace-files) | - | - | - | Serves stat, paged text, byte windows, directory listings, and the change feed for files inside a Session's workspace root, confined by lstat, containment, and a stat re-check. |
 | `ctx.workspaceController` | `core` | [`api-workspace-controller`](../packages/api/workspace-controller) | - | - | - | Owns Workspace commands and reconnect-safe Workspace state delivery through the generated Remote namespace. |

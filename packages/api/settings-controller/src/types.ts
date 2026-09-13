@@ -35,7 +35,62 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     'accounts/not-found': { readonly provider: AccountProviderId; readonly accountId: string }
     /** The requested account operation is not valid for this provider or account. */
     'accounts/rejected': { readonly provider: AccountProviderId }
+    /** The Harnessy MCP manager or one of its required Host services is unavailable. */
+    'mcp-manager/unavailable': Record<string, never>
+    /** The requested MCP server does not exist. */
+    'mcp-manager/not-found': { readonly serverId: string }
+    /** The requested MCP server profile is invalid or cannot be stored. */
+    'mcp-manager/rejected': { readonly serverId?: string }
   }
+}
+
+/** Transport supported by Harnessy's MCP manager. */
+export type McpServerTransport = 'streamable-http' | 'stdio'
+
+/** Live state of one saved MCP server. */
+export type McpServerStatus = 'disabled' | 'connecting' | 'connected' | 'reconnecting' | 'error'
+
+/** Secret-free saved server profile returned to the Harnessy client. */
+export interface McpServerView {
+  readonly id: string
+  readonly name: string
+  readonly serverName: string
+  readonly transport: McpServerTransport
+  readonly enabled: boolean
+  readonly endpoint: string
+  readonly headerName?: string
+  readonly args: readonly string[]
+  readonly cwd?: string
+  readonly status: McpServerStatus
+  readonly tools: readonly string[]
+  readonly error?: string
+  readonly authenticationConfigured: boolean
+  readonly environmentKeys: readonly string[]
+  readonly updatedAt: number
+}
+
+/** Complete redacted snapshot of Harnessy's global MCP server registry. */
+export interface McpManagerState {
+  readonly available: boolean
+  readonly writable: boolean
+  readonly servers: readonly McpServerView[]
+}
+
+/** Add or edit input. Authentication values are accepted but never returned. */
+export interface McpServerInput {
+  readonly id?: string
+  readonly name: string
+  readonly serverName: string
+  readonly transport: McpServerTransport
+  readonly enabled: boolean
+  readonly url?: string
+  readonly headerName?: string
+  readonly authorization?: string
+  readonly command?: string
+  readonly args?: readonly string[]
+  readonly cwd?: string
+  readonly environment?: Readonly<Record<string, string>>
+  readonly clearAuthentication?: boolean
 }
 
 /** Providers currently presented by Harnessy's local account manager. */

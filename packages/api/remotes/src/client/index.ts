@@ -109,6 +109,7 @@ export type { CredentialInfo } from '@deepseek-ai/dsh-credentials/types'
 export type {
   AccountAuthMode, AccountProviderId, AccountProviderView, AccountSignInResult,
   AccountsState, AccountUsageView, AccountUsageWindow, ManagedAccountView,
+  McpManagerState, McpServerInput, McpServerStatus, McpServerTransport, McpServerView,
   OpenAIAccountSignInResult, OpenAIAccountState,
 } from '@deepseek-ai/dsh-api-settings-controller/types'
 // Redacted namespace vocabulary for the settings namespace (secrets never ride

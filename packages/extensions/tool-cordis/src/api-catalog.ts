@@ -1366,6 +1366,43 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'mcpManagerController',
+    summary: 'Host controller for Harnessy\'s protected, live MCP server registry.',
+    description: 'Host controller for Harnessy\'s protected, live MCP server registry.',
+    methods: [
+      {
+        signature: '@Remote describe(): Promise<McpManagerState>',
+        description: 'Return every saved server without authentication values.',
+        parameters: [],
+        returns: 'redacted registry state and live connection snapshots.',
+      },
+      {
+        signature: '@Remote save(input: McpServerInput): Promise<McpManagerState>',
+        description: 'Add or replace one protected server profile and reconcile its connection.',
+        parameters: [{ name: 'input', description: 'complete staged profile; omitted secret fields retain saved values on edit.' }],
+        returns: 'redacted registry state after reconciliation.',
+      },
+      {
+        signature: '@Remote setEnabled(serverId: string, enabled: boolean): Promise<McpManagerState>',
+        description: 'Enable or disable one saved server. Disabled servers publish no tools.',
+        parameters: [{ name: 'serverId', description: 'stable identifier returned by {@link describe}.' }, { name: 'enabled', description: 'whether Harnessy should supervise the connection.' }],
+        returns: 'redacted registry state after reconciliation.',
+      },
+      {
+        signature: '@Remote reconnect(serverId: string): Promise<McpManagerState>',
+        description: 'Restart an enabled server immediately and wait for its first connection attempt.',
+        parameters: [{ name: 'serverId', description: 'stable identifier returned by {@link describe}.' }],
+        returns: 'redacted registry state after the attempt settles.',
+      },
+      {
+        signature: '@Remote deleteServer(serverId: string): Promise<McpManagerState>',
+        description: 'Remove one saved server and unregister all tools it owns.',
+        parameters: [{ name: 'serverId', description: 'stable identifier returned by {@link describe}.' }],
+        returns: 'redacted registry state after removal.',
+      },
+    ],
+  },
+  {
     key: 'messageFeedback',
     summary: 'Session-log service; cold operations never construct a Session or Agent.',
     description: 'Session-log service; cold operations never construct a Session or Agent.',
@@ -4675,6 +4712,26 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ManualCompactAgentContext',
     declaration: 'export interface ManualCompactAgentContext extends CompactionAgentContext {\n    runMaintenance<T>(task: (signal: AbortSignal) => Promise<T>): Promise<T>;\n}',
+  },
+  {
+    name: 'McpManagerState',
+    declaration: 'export interface McpManagerState {\n    readonly available: boolean;\n    readonly writable: boolean;\n    readonly servers: readonly McpServerView[];\n}',
+  },
+  {
+    name: 'McpServerInput',
+    declaration: 'export interface McpServerInput {\n    readonly id?: string;\n    readonly name: string;\n    readonly serverName: string;\n    readonly transport: McpServerTransport;\n    readonly enabled: boolean;\n    readonly url?: string;\n    readonly headerName?: string;\n    readonly authorization?: string;\n    readonly command?: string;\n    readonly args?: readonly string[];\n    readonly cwd?: string;\n    readonly environment?: Readonly<Record<string, string>>;\n    readonly clearAuthentication?: boolean;\n}',
+  },
+  {
+    name: 'McpServerStatus',
+    declaration: 'export type McpServerStatus = \'disabled\' | \'connecting\' | \'connected\' | \'reconnecting\' | \'error\';',
+  },
+  {
+    name: 'McpServerTransport',
+    declaration: 'export type McpServerTransport = \'streamable-http\' | \'stdio\';',
+  },
+  {
+    name: 'McpServerView',
+    declaration: 'export interface McpServerView {\n    readonly id: string;\n    readonly name: string;\n    readonly serverName: string;\n    readonly transport: McpServerTransport;\n    readonly enabled: boolean;\n    readonly endpoint: string;\n    readonly headerName?: string;\n    readonly args: readonly string[];\n    readonly cwd?: string;\n    readonly status: McpServerStatus;\n    readonly tools: readonly string[];\n    readonly error?: string;\n    readonly authenticationConfigured: boolean;\n    readonly environmentKeys: readonly string[];\n    readonly updatedAt: number;\n}',
   },
   {
     name: 'Message',
