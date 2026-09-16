@@ -106,7 +106,12 @@ function resolveConfiguredFile(field: string, value: string): string {
   throw new TypeError(`subagent-dsh-sdk ${field} must name an existing file: ${path}`)
 }
 
-/** DSH SDK can apply Agent route options while the other start features remain child-owned. */
+/**
+ * DSH SDK can apply Agent route options while the other start features remain
+ * child-owned. The route names a model of the CHILD runtime's own composition,
+ * which this process cannot resolve, so `runtimeRoute` stays false with the
+ * rest of {@link NO_START_CAPABILITIES}.
+ */
 const SDK_START_CAPABILITIES: SubagentCapabilities = Object.freeze({
   ...NO_START_CAPABILITIES,
   agentOptions: true,

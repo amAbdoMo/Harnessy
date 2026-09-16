@@ -9,13 +9,15 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package is the narrow product layer applied after `dsh-base` and `dsh-web-app` by the shipped `custom-harness` profile. It replaces the stock brand, disables per-message ratings and notes, enables the neutral authorization service for OpenAI account login, and adds the bounded read-only Workspace Brief action without renaming shared framework packages, provider names, protocols, or compatibility surfaces.
+This package is the narrow product layer applied after `dsh-base` and `dsh-web-app` by the shipped `custom-harness` profile. It replaces the stock brand, disables per-message ratings and notes, enables the neutral authorization service for OpenAI account login, adds the bounded read-only Workspace Brief action, and adds Command Code delegation and the Subagents roster, each with its own Settings page, without renaming shared framework packages, provider names, protocols, or compatibility surfaces.
 
 ## Table of Contents
 
 - [Use this package](#use-this-package)
 - [Disabled per-message feedback](#disabled-per-message-feedback)
 - [Workspace Brief](#workspace-brief)
+- [Command Code delegation](#command-code-delegation)
+- [Subagents](#subagents)
 - [OpenAI account login](#openai-account-login)
 - [Shared skills folder](#shared-skills-folder)
 - [Model Experience](#model-experience)
@@ -45,6 +47,26 @@ The profile inserts the `workspace-brief` Host row and `ui-workspace-brief` clie
 
 Disabling either row removes that half of the experience without changing stored sessions. A recorded brief remains readable through the generic command renderer when the specialized client row is absent; reconnect and restart never rerun repository inspection automatically.
 
+<a id="command-code-delegation"></a>
+## Command Code delegation
+
+The profile mounts the `commandcode-delegation` Host row and the `ui-settings-commandcode` client row. Together they add one token-stable `commandcode_delegate` tool and one `list_commandcode_lanes` discovery tool to every agent in this profile, a live `commandcode-delegation` settings section holding named lanes and the run bounds, and a top-level **Delegation** page in Settings.
+
+Each lane fixes an exact Command Code model, a reasoning effort, and an access level, so a delegated task can never choose or widen any of them. The user's own installed and authenticated CLI is the only backend: this profile vendors no Command Code package, stores no Command Code credential, and falls back to no other product, model, or executable. Loading the rows starts no Command Code process. Disabling either row removes that half of the experience and leaves every other product profile untouched.
+
+The lane section stays mounted beside the unified roster, so `commandcode_delegate` and `list_commandcode_lanes` keep working through it while a user moves to the roster.
+
+<a id="subagents"></a>
+## Subagents
+
+The profile mounts the `subagent-roster` Host row and the `ui-settings-subagents` client row. Together they add the top-level **Subagents** page in Settings and the role directory behind it: the `subagent-roster` settings section with one card per stored role — its model and reasoning effort, its sandbox access, its invocation policy, its tool scoping, and its standing instructions — plus the per-workspace overrides and the automatic-routing authorization an agent's model choice resolves against.
+
+The Host row adds one token-stable `delegate` tool and one `list_subagents` discovery tool to every agent in this profile, so the two delegation tool sets run side by side. It registers its tools while loading and starts no child.
+
+On the first load that finds a stored lane configuration, the Host row also carries that configuration into the `subagent-roster` document, once. The `commandcode-delegation` section, its per-workspace `projects` overrides, and the `subagent-model-selection` section stay exactly where they were stored, so a user can inspect or revert; a roster the user already edited is never replaced.
+
+The client row is presentation only: it reads the Host roster plugin's `subagentRoster` Remote namespace and writes the `subagent-roster` settings section, so it enforces no policy of its own and starts no process.
+
 <a id="openai-account-login"></a>
 ## OpenAI account login
 
@@ -62,11 +84,11 @@ The global shared root composes with each preset's scoped filesystem provider. P
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through the inherited base and Web composition. OpenAI sign-in can activate the installed Codex model catalog; this patch layer registers no prompt or tool schema of its own, and Workspace Brief remains a human-only log event.
+Indirectly, through the inherited base and Web composition. OpenAI sign-in can activate the installed Codex model catalog; the mounted delegation rows own the tools this profile adds, this patch layer registers no prompt or tool schema of its own, and Workspace Brief remains a human-only log event.
 
 #### KV Cache effect
 
-None beyond the selected base and Web composition; the patch changes browser-only rows.
+None beyond the selected base and Web composition, apart from the stable `delegate` and `list_subagents` schemas the mounted roster row contributes.
 
 ## Known Limitations and Deferred Work
 

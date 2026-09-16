@@ -71,7 +71,15 @@ async function setup(script: Script, options: SetupOptions = {}) {
   await ctx.plugin(SubagentRuntime)
   const disposeProvider = ctx.subagents.registerProvider({
     name: 'spawn',
-    capabilities: { agentOptions: true, outputSchema: true, depthLimit: true, toolFilter: false, persona: false },
+    capabilities: {
+      agentOptions: true,
+      outputSchema: true,
+      depthLimit: true,
+      toolFilter: false,
+      persona: false,
+      accessPolicy: false,
+      runtimeRoute: false,
+    },
     inheritsParentContext: false,
     start: (request: ResolvedSubagentStartRequest) => startInProcessRun(request, {}),
   })

@@ -9,13 +9,15 @@ kind: "package-bundle"
 
 ## 概述
 
-本包是随附 `custom-harness` profile 在 `dsh-base` 和 `dsh-web-app` 之后应用的窄产品层。它替换原有品牌、禁用逐消息评分与备注、为 OpenAI 账户登录启用中立 authorization service，并添加有界只读 Workspace Brief 操作，不会重命名共享框架包、模型提供方名称、协议或兼容性表层。
+本包是随附 `custom-harness` profile 在 `dsh-base` 和 `dsh-web-app` 之后应用的窄产品层。它替换原有品牌、禁用逐消息评分与备注、为 OpenAI 账户登录启用中立 authorization service、添加有界只读 Workspace Brief 操作，并添加各自带专属设置页面的 Command Code 委派与子代理角色目录，不会重命名共享框架包、模型提供方名称、协议或兼容性表层。
 
 ## 目录
 
 - [使用本包](#use-this-package)
 - [已禁用的逐消息反馈](#disabled-per-message-feedback)
 - [Workspace Brief](#workspace-brief)
+- [Command Code 委派](#command-code-delegation)
+- [子代理](#subagents)
 - [OpenAI 账户登录](#openai-account-login)
 - [共享技能文件夹](#shared-skills-folder)
 - [模型体验](#model-experience)
@@ -45,6 +47,26 @@ Windows 默认位置为 `%LOCALAPPDATA%\CustomHarness\Harness`、`%LOCALAPPDATA%
 
 禁用任一行会移除体验的对应一半，而不改变已存储会话。缺少专用客户端行时，已记录简报仍可通过通用命令 renderer 阅读；重连和重新启动绝不会自动重新运行仓库检查。
 
+<a id="command-code-delegation"></a>
+## Command Code 委派
+
+此 profile 挂载 `commandcode-delegation` 宿主行与 `ui-settings-commandcode` 客户端行。两者共同为本 profile 中的每个 agent 添加一个 token 稳定的 `commandcode_delegate` 工具与一个 `list_commandcode_lanes` 发现工具、一个保存具名通道与运行上限的实时 `commandcode-delegation` 设置分区，以及设置中的顶层 **委派** 页面。
+
+每个通道固定了精确的 Command Code 模型、推理强度与访问级别，因此被委派的任务无法选择或扩大其中任何一项。用户自己安装并登录的 CLI 是唯一的后端：此 profile 不内置任何 Command Code 包、不保存任何 Command Code 凭据，也不回退到任何其他产品、模型或可执行文件。加载这些行不会启动任何 Command Code 进程。禁用任一行会移除体验的对应一半，且不影响其他任何产品配置档。
+
+通道设置分区与统一角色目录并存挂载，因此在用户转向角色目录期间，`commandcode_delegate` 与 `list_commandcode_lanes` 仍可继续通过它工作。
+
+<a id="subagents"></a>
+## 子代理
+
+此 profile 挂载 `subagent-roster` 宿主行与 `ui-settings-subagents` 客户端行。两者共同添加设置中的顶层 **子代理** 页面及其背后的角色目录：`subagent-roster` 设置分区，每个已存角色一张卡片——涵盖其模型与推理强度、沙箱访问级别、调用方式、工具范围与固定指令——以及按工作区的覆盖层与 Agent 选择模型时所要解析的自动路由授权。
+
+宿主行会为本 profile 中的每个 agent 添加一个 token 稳定的 `delegate` 工具与一个 `list_subagents` 发现工具，因此两套委派工具并存。它在加载时注册这些工具，且不启动任何子进程。
+
+在首次发现已存通道配置的加载中，宿主行还会把该配置一次性写入 `subagent-roster` 文档。`commandcode-delegation` 分区、其按工作区的 `projects` 覆盖层，以及 `subagent-model-selection` 分区都原样保留，用户可查看或回退；用户已自行编辑过的角色目录绝不会被替换。
+
+客户端行仅负责呈现：它读取 Host 角色目录插件的 `subagentRoster` Remote 命名空间，并写入 `subagent-roster` 设置分区，因此它自身不强制执行任何策略，也不启动任何进程。
+
 <a id="openai-account-login"></a>
 ## OpenAI 账户登录
 
@@ -62,11 +84,11 @@ Windows 默认位置为 `%LOCALAPPDATA%\CustomHarness\Harness`、`%LOCALAPPDATA%
 <a id="model-experience"></a>
 ## 模型体验
 
-间接影响来自继承的 base 与 Web 组合。OpenAI 登录可以启用已安装的 Codex model catalog；此 patch 层自身不注册 prompt 或工具 schema，Workspace Brief 也保持为仅人类可用的日志事件。
+间接影响来自继承的 base 与 Web 组合。OpenAI 登录可以启用已安装的 Codex model catalog；本 profile 添加的工具由所挂载的委派行拥有，此 patch 层自身不注册 prompt 或工具 schema，Workspace Brief 也保持为仅人类可用的日志事件。
 
 #### KV Cache 影响
 
-除所选 base 与 Web 组合外没有影响；本 patch 仅更改浏览器行。
+除所选 base 与 Web 组合外没有影响，唯一的例外是所挂载角色目录行贡献的稳定 `delegate` 与 `list_subagents` schema。
 
 ## 已知限制与延期工作
 

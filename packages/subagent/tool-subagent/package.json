@@ -18,6 +18,10 @@
       "types": "./lib/types/index.d.ts",
       "default": "./lib/index.js"
     },
+    "./model-selection": {
+      "types": "./lib/types/model-selection.d.ts",
+      "default": "./lib/model-selection.js"
+    },
     "./model-selection-settings": {
       "types": "./lib/types/model-selection-settings.d.ts",
       "default": "./lib/model-selection-settings.js"
@@ -32,6 +36,7 @@
   "files": [
     "lib/index.js",
     "lib/invariant.js",
+    "lib/model-selection.js",
     "lib/model-selection-settings.js",
     "lib/types/**/*.d.ts"
   ],

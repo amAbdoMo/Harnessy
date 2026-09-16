@@ -313,6 +313,8 @@
     { "path": "./packages/subagent/subagent-acp" },
     { "path": "./packages/subagent/subagent-claude-code" },
     { "path": "./packages/subagent/subagent-codex" },
+    { "path": "./packages/subagent/subagent-commandcode" },
+    { "path": "./packages/subagent/subagent-roster" },
     { "path": "./packages/subagent/subagent-dsh-sdk" },
     { "path": "./packages/jobs/jobs" },
     { "path": "./packages/jobs/jobs-local" },

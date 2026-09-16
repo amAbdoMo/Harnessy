@@ -42,5 +42,30 @@
     - id: ui-brand-custom-harness
       name: '@deepseek-ai/dsh-client-ui-brand-custom-harness'
 
+    # Command Code delegation. The host row owns the lane settings, the two
+    # model-facing tools, and the `commandcode` Remote namespace; it starts no
+    # Command Code process while loading. Official profiles never mount this
+    # row, so no other product gains a Command Code route.
+    - id: commandcode-delegation
+      name: '@deepseek-ai/dsh-subagent-commandcode'
+
+    # The unified role directory. Its Host row owns the `subagent-roster`
+    # settings section, the `delegate` and `list_subagents` tools, the one-shot
+    # migration of a stored lane configuration, and the `subagentRoster` Remote
+    # namespace the Subagents page reads; it starts no child while loading. The
+    # `commandcode-delegation` row above stays mounted, so both delegation tool
+    # sets coexist until the lane system is retired.
+    - id: subagent-roster
+      name: '@deepseek-ai/dsh-subagent-roster'
+
+    - id: ui-settings-commandcode
+      name: '@deepseek-ai/dsh-client-ui-settings-commandcode'
+
+    # The Subagents page reads the `subagent-roster` settings section and the
+    # `subagentRoster` Remote namespace. It is registered here alone, so no
+    # other product gains the page.
+    - id: ui-settings-subagents
+      name: '@deepseek-ai/dsh-client-ui-settings-subagents'
+
     - id: ui-workspace-brief
       name: '@deepseek-ai/dsh-client-ui-workspace-brief'

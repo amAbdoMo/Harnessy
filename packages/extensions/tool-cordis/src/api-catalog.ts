@@ -124,7 +124,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: '@Remote async refreshUsage(signal: AbortSignal): Promise<AccountsState>',
-        description: 'Refresh every supported usage snapshot, intended to run whenever the manager opens.',
+        description: 'Refresh every supported usage snapshot for account-management and status surfaces.',
         parameters: [{ name: 'signal', description: 'cancellation checked between accounts and forwarded to usage requests.' }],
         returns: 'the updated public account state with refreshed usage when available.',
       },
@@ -711,6 +711,32 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Execute one program against the request\'s bindings and capture what it emitted. See the class doc for the resolution contract (error is a result field; rejection means Service Definition contract misuse only).',
         parameters: [{ name: 'request', description: 'the program, its bindings, and the abort signal; the request carries everything the runtime acts on, with no hidden defaults.' }],
         returns: 'the run\'s outcome: completion value (when transferable), the ordered log capture, and the failure (if any).',
+      },
+    ],
+  },
+  {
+    key: 'commandCodeController',
+    summary: 'Host service backing the generated `ctx.remote.commandcode` namespace.',
+    description: 'Host service backing the generated `ctx.remote.commandcode` namespace.\n\nIt owns the settings registration, the model-facing tools, the shipped concurrency gate, and the resolved CLI invocation. The tools resolve the current workspace\'s lanes on every call, so a saved Settings change applies to the next delegation from an existing Session.',
+    methods: [
+      {
+        signature: '@Remote async health(signal: AbortSignal): Promise<CommandCodeHealth>',
+        description: 'Report the installed CLI\'s presence, version, and authentication state.',
+        parameters: [{ name: 'signal', description: 'caller lifetime.' }],
+        returns: 'the bounded health facts the Delegation page shows.',
+      },
+      {
+        signature: '@Remote async catalog(signal: AbortSignal): Promise<CommandCodeCatalog>',
+        description: 'Read the local CLI\'s advisory model catalog.',
+        parameters: [{ name: 'signal', description: 'caller lifetime.' }],
+        returns: 'catalog rows, empty with a bounded explanation when unreadable.',
+      },
+      {
+        signature: '@Remote delegation(workspace: string | null, signal: AbortSignal): CommandCodeDelegationView',
+        description: 'Resolve one workspace\'s lanes and bounds, with per-field override provenance.\n\nThe read itself is synchronous — it resolves the live settings section — so it carries the caller\'s signal only to refuse a read that was already cancelled rather than to await anything.',
+        parameters: [{ name: 'workspace', description: 'the Session\'s workspace path, or null without one.' }, { name: 'signal', description: 'caller lifetime; a superseded or unmounted reader cancels its own read.' }],
+        returns: 'the resolved delegation view.',
+        throws: ['when the caller\'s read was already cancelled.'],
       },
     ],
   },
@@ -2368,6 +2394,34 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'subagentRosterController',
+    summary: 'Host service backing the generated `ctx.remote.subagentRoster` namespace.',
+    description: 'Host service backing the generated `ctx.remote.subagentRoster` namespace.\n\nIt reads the same live settings section the two model-facing tools read, so the page and the next delegation cannot disagree about a saved edit. Every method returns role policy and run bounds only: no credential, provider token, host path, or process output crosses it.',
+    methods: [
+      {
+        signature: '@Remote resolvedRoster(workspace: string | null, signal: AbortSignal): SubagentWorkspaceRoster',
+        description: 'Resolve one workspace\'s enabled roles, with per-field override provenance.\n\nThe read itself is synchronous — it resolves the live settings section — so it carries the caller\'s signal only to refuse a read that was already cancelled rather than to await anything.',
+        parameters: [{ name: 'workspace', description: 'the Session\'s workspace path, or null without one.' }, { name: 'signal', description: 'caller lifetime; a superseded or unmounted reader cancels its own read.' }],
+        returns: 'the enabled roles and the canonical workspace key they resolved for.',
+        throws: ['when the caller\'s read was already cancelled.'],
+      },
+      {
+        signature: '@Remote automaticRouting(signal: AbortSignal): SubagentAutomaticRouting',
+        description: 'Read the automatic-routing authority a page renders its authorization control from.\n\nThe read is synchronous for the same reason as resolvedRoster.',
+        parameters: [{ name: 'signal', description: 'caller lifetime; a superseded or unmounted reader cancels its own read.' }],
+        returns: 'whether explicit route selection is accepted, and which exact routes it must resolve to.',
+        throws: ['when the caller\'s read was already cancelled.'],
+      },
+      {
+        signature: '@Remote storedRoster(signal: AbortSignal): SubagentStoredRoster',
+        description: 'Read the stored document a page edits: every definition, enabled or not, plus the run bounds.\n\nThe read is synchronous for the same reason as resolvedRoster.',
+        parameters: [{ name: 'signal', description: 'caller lifetime; a superseded or unmounted reader cancels its own read.' }],
+        returns: 'the stored definitions and run bounds.',
+        throws: ['when the caller\'s read was already cancelled.'],
+      },
+    ],
+  },
+  {
     key: 'subagents',
     summary: 'Named provider registry with one-shot runs, durable discovery, and continuable-child operations.',
     description: 'Named provider registry with one-shot runs, durable discovery, and continuable-child operations.',
@@ -3746,6 +3800,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type AgentStatus = \'idle\' | \'running\';',
   },
   {
+    name: 'AllowedModelRoute',
+    declaration: 'export interface AllowedModelRoute {\n    readonly provider: string;\n    readonly model: string;\n}',
+  },
+  {
     name: 'ApiKeyRecord',
     declaration: 'export interface ApiKeyRecord {\n    readonly kind: \'api-key\';\n    readonly key?: string;\n    readonly env?: Readonly<Record<string, string>>;\n}',
   },
@@ -3952,6 +4010,26 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'CollectedOutput',
     declaration: 'export interface CollectedOutput {\n    text: string;\n    truncated: boolean;\n    spillPath?: string;\n}',
+  },
+  {
+    name: 'CommandCodeCatalog',
+    declaration: 'export interface CommandCodeCatalog {\n    readonly models: CommandCodeModelSummary[];\n    readonly detail?: string;\n}',
+  },
+  {
+    name: 'CommandCodeDelegationView',
+    declaration: 'export interface CommandCodeDelegationView {\n    workspaceKey: string | null;\n    maxConcurrentRuns: number;\n    timeoutMs: number;\n    maxTurns: number;\n    lanes: ResolvedCommandCodeLane[];\n}',
+  },
+  {
+    name: 'CommandCodeHealth',
+    declaration: 'export interface CommandCodeHealth {\n    readonly command: string;\n    readonly installed: boolean;\n    readonly version?: string;\n    readonly authenticated: boolean;\n    readonly detail?: string;\n}',
+  },
+  {
+    name: 'CommandCodeLaneOverrides',
+    declaration: 'export interface CommandCodeLaneOverrides {\n    name: boolean;\n    purpose: boolean;\n    instructions: boolean;\n    model: boolean;\n    effort: boolean;\n    access: boolean;\n    enabled: boolean;\n}',
+  },
+  {
+    name: 'CommandCodeModelSummary',
+    declaration: 'export interface CommandCodeModelSummary {\n    readonly id: string;\n    readonly description: string;\n}',
   },
   {
     name: 'CommandDefinition',
@@ -4619,7 +4697,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LlmDiscoveredModel',
-    declaration: 'export interface LlmDiscoveredModel {\n    id: string;\n    name?: string;\n    contextWindow?: number;\n    maxTokens?: number;\n}',
+    declaration: 'export interface LlmDiscoveredModel {\n    id: string;\n    name?: string;\n    contextWindow?: number;\n    maxTokens?: number;\n    reasoningEfforts?: readonly string[];\n    defaultReasoningEffort?: string;\n}',
   },
   {
     name: 'LlmFailure',
@@ -5056,6 +5134,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ResolvedAlwaysRetryPolicy',
     declaration: 'export interface ResolvedAlwaysRetryPolicy extends ResolvedRetryBackoff {\n    readonly mode: \'always\';\n}',
+  },
+  {
+    name: 'ResolvedCommandCodeLane',
+    declaration: 'export interface ResolvedCommandCodeLane extends CommandCodeLaneSetting {\n    overrides: CommandCodeLaneOverrides;\n}',
   },
   {
     name: 'ResolvedCredential',
@@ -5826,12 +5908,28 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type StreamChunk = {\n    type: \'block-start\';\n    index: number;\n    blockType: ContentBlockType;\n} | {\n    type: \'text-delta\';\n    index: number;\n    text: string;\n} | {\n    type: \'reasoning-delta\';\n    index: number;\n    text: string;\n} | {\n    type: \'tool-call-delta\';\n    index: number;\n    id: ToolCallId;\n    name?: string;\n    argumentsDelta: string;\n} | {\n    type: \'block-end\';\n    index: number;\n    block: ContentBlock;\n} | {\n    type: \'usage\';\n    usage: TokenUsage;\n} | {\n    type: \'finish\';\n    reason: FinishReason;\n    replayState?: ReplayEnvelope;\n};',
   },
   {
+    name: 'SubagentAccess',
+    declaration: 'export type SubagentAccess = \'inherit\' | SandboxMode;',
+  },
+  {
+    name: 'SubagentAutomaticRouting',
+    declaration: 'export interface SubagentAutomaticRouting {\n    readonly enabled: boolean;\n    readonly allowedModels: AllowedModelRoute[];\n}',
+  },
+  {
     name: 'SubagentCapabilities',
-    declaration: 'export interface SubagentCapabilities {\n    readonly agentOptions: boolean;\n    readonly outputSchema: boolean;\n    readonly depthLimit: boolean;\n    readonly toolFilter: boolean;\n    readonly persona: boolean;\n}',
+    declaration: 'export interface SubagentCapabilities {\n    readonly agentOptions: boolean;\n    readonly outputSchema: boolean;\n    readonly depthLimit: boolean;\n    readonly toolFilter: boolean;\n    readonly persona: boolean;\n    readonly accessPolicy: boolean;\n}',
   },
   {
     name: 'SubagentCatalog',
     declaration: 'export interface SubagentCatalog {\n    readonly entries: readonly SubagentListEntry[];\n    readonly parentAvailable: boolean;\n}',
+  },
+  {
+    name: 'SubagentDefinition',
+    declaration: 'export interface SubagentDefinition {\n    readonly id: string;\n    readonly name: string;\n    readonly enabled: boolean;\n    readonly purpose: string;\n    readonly whenToUse: string;\n    readonly invocation: SubagentInvocationPolicy;\n    readonly model: SubagentModelPolicy;\n    readonly access: SubagentAccess;\n    readonly tools?: ToolRestriction;\n    readonly instructions: string;\n    readonly maxDepth?: number;\n    readonly execution: SubagentExecution;\n}',
+  },
+  {
+    name: 'SubagentDefinitionOverrides',
+    declaration: 'export interface SubagentDefinitionOverrides {\n    name: boolean;\n    purpose: boolean;\n    whenToUse: boolean;\n    invocation: boolean;\n    model: boolean;\n    access: boolean;\n    tools: boolean;\n    instructions: boolean;\n    maxDepth: boolean;\n    execution: boolean;\n    enabled: boolean;\n}',
   },
   {
     name: 'SubagentDescendantListEntry',
@@ -5840,6 +5938,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SubagentDescriptorData',
     declaration: 'export type SubagentDescriptorData = OneShotSubagentDescriptorData | ContinuableSubagentDescriptorData;',
+  },
+  {
+    name: 'SubagentExecution',
+    declaration: 'export interface SubagentExecution {\n    readonly backend: string;\n    readonly background: SubagentBackgroundPolicy;\n    readonly timeoutMs?: number;\n}',
   },
   {
     name: 'SubagentInterruptAuthority',
@@ -5852,6 +5954,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SubagentListEntry',
     declaration: 'export type SubagentListEntry = {\n    readonly kind: \'child\';\n    readonly id: SessionId;\n    readonly activity: \'running\' | \'inactive\';\n    readonly hasChildren: boolean;\n} & ({\n    readonly mode: \'one-shot\';\n    readonly label?: string;\n} | {\n    readonly mode: \'continuable\';\n    readonly label: string;\n}) | {\n    readonly kind: \'diagnostic\';\n    readonly id: SessionId;\n    readonly reason: \'corrupt\' | \'unsupported\' | \'unavailable\';\n};',
+  },
+  {
+    name: 'SubagentModelMode',
+    declaration: 'export type SubagentModelMode = \'fixed\' | \'automatic\';',
+  },
+  {
+    name: 'SubagentModelPolicy',
+    declaration: 'export interface SubagentModelPolicy {\n    readonly mode: SubagentModelMode;\n    readonly route?: SubagentModelRoute;\n}',
+  },
+  {
+    name: 'SubagentModelRoute',
+    declaration: 'export interface SubagentModelRoute extends AllowedModelRoute {\n    readonly reasoningEffort?: string;\n}',
   },
   {
     name: 'SubagentPromptReceipt',
@@ -5874,6 +5988,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SubagentResult {\n    readonly output: ContentBlock[];\n    readonly structured?: unknown;\n    readonly diagnostic?: string;\n    readonly stopReason: SubagentStopReason;\n}',
   },
   {
+    name: 'SubagentRoleView',
+    declaration: 'export interface SubagentRoleView {\n    id: string;\n    name: string;\n    purpose: string;\n    whenToUse: string;\n    invocation: SubagentInvocationPolicy;\n    model: SubagentModelPolicy;\n    access: SubagentAccess;\n    execution: SubagentExecution;\n    overrides: SubagentDefinitionOverrides;\n}',
+  },
+  {
     name: 'SubagentRun',
     declaration: 'export interface SubagentRun {\n    readonly id: SessionId;\n    readonly localAgent: Agent | undefined;\n    readonly result: Promise<SubagentResult>;\n    dispose(): Promise<void>;\n}',
   },
@@ -5890,6 +6008,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SubagentRunInfo {\n    readonly runId: SubagentRunId;\n    readonly provider: string;\n    readonly id: SessionId;\n    readonly local: boolean;\n}',
   },
   {
+    name: 'SubagentRunLimits',
+    declaration: 'export interface SubagentRunLimits {\n    readonly maxConcurrentRuns: number;\n    readonly defaultTimeoutMs: number;\n}',
+  },
+  {
     name: 'SubagentRuntime',
     declaration: 'export class SubagentRuntime extends TypertRemoteService {\n    constructor(ctx: Context);\n    async startContinuable(spec: ContinuableStartSpec): Promise<ContinuableStart>;\n    async sendMessage(sender: Agent, targetId: SessionId, content: ContentBlock[], options: SubagentSendMessageOptions): Promise<MessageId>;\n    interrupt(targetSessionId: SessionId, authority: SubagentInterruptAuthority): void;\n    async drainContinuableDescendants(parents: readonly Agent[]): Promise<void>;\n    async drainContinuableChildren(parent: Agent, childIds: readonly SessionId[]): Promise<void>;\n    listChildren(parentSessionId: SessionId, signal?: AbortSignal): Promise<SubagentListEntry[]>;\n    listDescendants(rootSessionId: SessionId, signal?: AbortSignal): Promise<SubagentDescendantListEntry[]>;\n    @Remote(\'list\')\n    async remoteExportList(parentSessionId: SessionId, signal: AbortSignal): Promise<SubagentCatalog>;\n    @Remote(\'prompt\')\n    async prompt(request: SubagentPromptRequest, signal: AbortSignal): Promise<SubagentPromptReceipt>;\n    @Remote(\'interruptByParent\')\n    interruptByParent(childSessionId: SessionId, parentSessionId: SessionId, mode: \'continuable\'): SubagentInterruptReceipt;\n    registerProvider(provider: SubagentProvider): () => void;\n    getProvider(name: string): SubagentProvider | undefined;\n    list(): string[];\n    async start(name: string, request: SubagentStartRequest): Promise<SubagentRun>;\n}',
   },
@@ -5899,7 +6021,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubagentStartRequest',
-    declaration: 'export interface SubagentStartRequest {\n    readonly label?: string;\n    readonly prompt: ContentBlock[];\n    readonly parent: Agent;\n    readonly signal: AbortSignal;\n    readonly agentOptions?: AgentOptions;\n    readonly outputSchema?: ObjectJsonSchema;\n    readonly maxDepth?: number;\n    readonly toolFilter?: ToolRestriction;\n    readonly persona?: string;\n}',
+    declaration: 'export interface SubagentStartRequest {\n    readonly label?: string;\n    readonly prompt: ContentBlock[];\n    readonly parent: Agent;\n    readonly signal: AbortSignal;\n    readonly agentOptions?: AgentOptions;\n    readonly outputSchema?: ObjectJsonSchema;\n    readonly maxDepth?: number;\n    readonly toolFilter?: ToolRestriction;\n    readonly persona?: string;\n    readonly sandboxMode?: SubagentAccess;\n}',
   },
   {
     name: 'SubagentStopReason',
@@ -5908,6 +6030,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SubagentStopReasonMap',
     declaration: 'export interface SubagentStopReasonMap {\n    completed: \'completed\';\n    aborted: \'aborted\';\n    error: \'error\';\n    \'max-tokens\': \'max-tokens\';\n    refusal: \'refusal\';\n}',
+  },
+  {
+    name: 'SubagentStoredRoster',
+    declaration: 'export interface SubagentStoredRoster {\n    subagents: SubagentDefinition[];\n    limits: SubagentRunLimits;\n}',
+  },
+  {
+    name: 'SubagentWorkspaceRoster',
+    declaration: 'export interface SubagentWorkspaceRoster {\n    workspaceKey: string | null;\n    subagents: SubagentRoleView[];\n}',
   },
   {
     name: 'SubprocessCollect',

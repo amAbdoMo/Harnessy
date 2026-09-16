@@ -64,6 +64,8 @@ class StubProvider implements SubagentProvider {
     depthLimit: true,
     toolFilter: true,
     persona: false,
+    accessPolicy: false,
+    runtimeRoute: false,
   }
   readonly inheritsParentContext = false
   readonly runs: ControlledRun[] = []
@@ -472,7 +474,15 @@ describe('dsh-workflow-worker-thread', { timeout: 120_000 }, () => {
       await ctx.plugin(SubagentRuntime)
       const provider: SubagentProvider = {
         name: 'rejecting',
-        capabilities: { agentOptions: true, outputSchema: true, depthLimit: true, toolFilter: true, persona: false },
+        capabilities: {
+          agentOptions: true,
+          outputSchema: true,
+          depthLimit: true,
+          toolFilter: true,
+          persona: false,
+          accessPolicy: false,
+          runtimeRoute: false,
+        },
         inheritsParentContext: false,
         start: async () => ({
           id: SessionId('reject-child'),
@@ -532,7 +542,15 @@ describe('dsh-workflow-worker-thread', { timeout: 120_000 }, () => {
       await ctx.plugin(SubagentRuntime)
       const provider: SubagentProvider = {
         name: 'bad-dispose',
-        capabilities: { agentOptions: true, outputSchema: true, depthLimit: true, toolFilter: true, persona: false },
+        capabilities: {
+          agentOptions: true,
+          outputSchema: true,
+          depthLimit: true,
+          toolFilter: true,
+          persona: false,
+          accessPolicy: false,
+          runtimeRoute: false,
+        },
         inheritsParentContext: false,
         start: async () => ({
           id: SessionId('bad-dispose-child'),
@@ -555,7 +573,15 @@ describe('dsh-workflow-worker-thread', { timeout: 120_000 }, () => {
       await ctx.plugin(SubagentRuntime)
       const provider: SubagentProvider = {
         name: 'coercion-trap-dispose',
-        capabilities: { agentOptions: true, outputSchema: true, depthLimit: true, toolFilter: true, persona: false },
+        capabilities: {
+          agentOptions: true,
+          outputSchema: true,
+          depthLimit: true,
+          toolFilter: true,
+          persona: false,
+          accessPolicy: false,
+          runtimeRoute: false,
+        },
         inheritsParentContext: false,
         start: async () => ({
           id: SessionId('trap-child'),
@@ -907,7 +933,15 @@ describe('dsh-workflow-worker-thread', { timeout: 120_000 }, () => {
       const aborted: string[] = []
       const provider: SubagentProvider = {
         name: 'signal-only',
-        capabilities: { agentOptions: true, outputSchema: true, depthLimit: true, toolFilter: true, persona: false },
+        capabilities: {
+          agentOptions: true,
+          outputSchema: true,
+          depthLimit: true,
+          toolFilter: true,
+          persona: false,
+          accessPolicy: false,
+          runtimeRoute: false,
+        },
         inheritsParentContext: false,
         start: async (request) => {
           let settle!: (result: SubagentResult) => void
@@ -1206,7 +1240,15 @@ describe('dsh-workflow-worker-thread', { timeout: 120_000 }, () => {
       const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => ctx.logger)
       const provider: SubagentProvider = {
         name: 'late-ready',
-        capabilities: { agentOptions: true, outputSchema: true, depthLimit: true, toolFilter: true, persona: false },
+        capabilities: {
+          agentOptions: true,
+          outputSchema: true,
+          depthLimit: true,
+          toolFilter: true,
+          persona: false,
+          accessPolicy: false,
+          runtimeRoute: false,
+        },
         inheritsParentContext: false,
         start: (request) => {
           requested.resolve(request)
@@ -1268,7 +1310,15 @@ describe('dsh-workflow-worker-thread', { timeout: 120_000 }, () => {
       const signalAborts: unknown[] = []
       const provider: SubagentProvider = {
         name: 'doomed',
-        capabilities: { agentOptions: true, outputSchema: true, depthLimit: true, toolFilter: true, persona: false },
+        capabilities: {
+          agentOptions: true,
+          outputSchema: true,
+          depthLimit: true,
+          toolFilter: true,
+          persona: false,
+          accessPolicy: false,
+          runtimeRoute: false,
+        },
         inheritsParentContext: false,
         start: async (request) => {
           request.signal.addEventListener('abort', () => {

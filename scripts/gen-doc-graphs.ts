@@ -284,6 +284,22 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Owns the default-off settings namespace that Agent-scoped delegation tools sample when composing a new top-level Session.',
   },
   {
+    key: 'commandCodeController',
+    pkg: 'subagent-commandcode',
+    title: 'Command Code delegation Remote controller',
+    mode: 'core',
+    consumers: ['api-remotes'],
+    note: 'Owns the lane settings section, the two model-facing delegation tools, the shipped concurrency gate, and the resolved CLI invocation. It projects installation, catalog, and resolved-lane facts onto the generated Remote namespace, and loading it starts no Command Code process.',
+  },
+  {
+    key: 'subagentRosterController',
+    pkg: 'subagent-roster',
+    title: 'Subagent roster Remote controller',
+    mode: 'core',
+    consumers: ['api-remotes'],
+    note: 'Owns the role settings section, the two model-facing router tools, and the shared run gate, and projects the resolved roster for one workspace onto the generated Remote namespace: enabled roles with per-field override provenance, the automatic-routing authority, and the stored document a page edits.',
+  },
+  {
     key: 'credentials',
     pkg: 'credentials',
     title: 'Credential seam',

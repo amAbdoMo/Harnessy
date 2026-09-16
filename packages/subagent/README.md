@@ -34,6 +34,7 @@ The subagent package family lets an agent delegate a task to a child, continue t
 | [`subagent-dsh-sdk/`](subagent-dsh-sdk/README.md) | Runs an out-of-process Harness child through the TypeScript SDK | registers on `ctx.subagents` |
 | [`tool-subagent/`](tool-subagent/README.md) | Exposes delegation to the model | registers on `ctx.tools` |
 | [`tool-subagent-control/`](tool-subagent-control/README.md) | Exposes adjacent-Agent messaging, interrupt, and listing to the model | registers on `ctx.tools` |
+| [`subagent-roster/`](subagent-roster/README.md) | Owns the named subagent role directory and exposes `list_subagents` and `delegate` | registers on `ctx.tools` |
 
 -----
 

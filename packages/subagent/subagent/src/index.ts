@@ -85,6 +85,7 @@ export type {
   ContinuableStart,
   ContinuableStartSpec,
   ResolvedSubagentStartRequest,
+  SubagentAccess,
   SubagentCapabilities,
   SubagentInterruptAuthority,
   SubagentProvider,
@@ -116,6 +117,7 @@ export {
   applyChildComposition,
   captureDelegatedPolicyOverrides,
   childSessionMeta,
+  narrowSandboxMode,
   parentAgentOptionsForDelegation,
   resolveChildAgentOptions,
   resolveChildDepth,
@@ -622,6 +624,9 @@ export class SubagentRuntime extends TypertRemoteService {
       { when: request.maxDepth !== undefined, cap: 'depthLimit' },
       { when: request.toolFilter !== undefined, cap: 'toolFilter' },
       { when: request.persona !== undefined, cap: 'persona' },
+      // An 'inherit' access is every provider's current behavior, so only a
+      // request that names a concrete mode needs the narrowing capability.
+      { when: request.sandboxMode !== undefined && request.sandboxMode !== 'inherit', cap: 'accessPolicy' },
     ]
     for (const { when, cap } of needs) {
       if (when && !provider.capabilities[cap]) {

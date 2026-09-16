@@ -124,8 +124,9 @@ export class SubagentContinuationManager {
       ...request.toolFilter !== undefined ? { toolFilter: request.toolFilter } : {},
     })
     // Capture before the first await: a later parent switch belongs to the
-    // parent's future, not to this child.
-    const delegatedPolicies = captureDelegatedPolicyOverrides(parent)
+    // parent's future, not to this child. The continuation manager composes the
+    // child itself, so it honors a requested access on every provider.
+    const delegatedPolicies = captureDelegatedPolicyOverrides(parent, request.sandboxMode)
 
     // An idle continuation-managed parent must not settle while a caller is
     // still creating its child. A turn-scoped delegation does not need this,

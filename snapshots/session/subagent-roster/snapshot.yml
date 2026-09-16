@@ -1,0 +1,12 @@
+version: 1
+scenario: subagent-roster
+profile: headless
+composition: subagent-roster
+recording: authored
+header:
+  class: subagent-roster
+  pin: true
+  childSystemPrompts: [1]
+  childToolSchemas: [1]
+replay:
+  override: true

@@ -1,0 +1,42 @@
+[
+  {
+    "kind": "chunks",
+    "chunks": [
+      { "type": "block-start", "index": 0, "blockType": "tool-call" },
+      { "type": "tool-call-delta", "index": 0, "id": "call_roster_directory", "name": "list_subagents", "argumentsDelta": "{}" },
+      { "type": "block-end", "index": 0, "block": { "type": "tool-call", "id": "call_roster_directory", "name": "list_subagents", "arguments": "{}" } },
+      { "type": "usage", "usage": { "inputTokens": 10, "outputTokens": 5 } },
+      { "type": "finish", "reason": { "kind": "tool-calls" } }
+    ]
+  },
+  {
+    "kind": "chunks",
+    "chunks": [
+      { "type": "block-start", "index": 0, "blockType": "tool-call" },
+      { "type": "tool-call-delta", "index": 0, "id": "call_roster_delegate", "name": "delegate", "argumentsDelta": "{\"subagent\":\"audit\",\"task\":\"List the top-level entries of the workspace and report them, then stop.\"}" },
+      { "type": "block-end", "index": 0, "block": { "type": "tool-call", "id": "call_roster_delegate", "name": "delegate", "arguments": "{\"subagent\":\"audit\",\"task\":\"List the top-level entries of the workspace and report them, then stop.\"}" } },
+      { "type": "usage", "usage": { "inputTokens": 10, "outputTokens": 5 } },
+      { "type": "finish", "reason": { "kind": "tool-calls" } }
+    ]
+  },
+  {
+    "kind": "chunks",
+    "chunks": [
+      { "type": "block-start", "index": 0, "blockType": "tool-call" },
+      { "type": "tool-call-delta", "index": 0, "id": "call_roster_unknown", "name": "delegate", "argumentsDelta": "{\"subagent\":\"ghost\",\"task\":\"Delegate to a subagent that does not exist.\"}" },
+      { "type": "block-end", "index": 0, "block": { "type": "tool-call", "id": "call_roster_unknown", "name": "delegate", "arguments": "{\"subagent\":\"ghost\",\"task\":\"Delegate to a subagent that does not exist.\"}" } },
+      { "type": "usage", "usage": { "inputTokens": 10, "outputTokens": 5 } },
+      { "type": "finish", "reason": { "kind": "tool-calls" } }
+    ]
+  },
+  {
+    "kind": "chunks",
+    "chunks": [
+      { "type": "block-start", "index": 0, "blockType": "text" },
+      { "type": "text-delta", "index": 0, "text": "PARENT_OBSERVED_SUBAGENT_ROSTER" },
+      { "type": "block-end", "index": 0, "block": { "type": "text", "text": "PARENT_OBSERVED_SUBAGENT_ROSTER" } },
+      { "type": "usage", "usage": { "inputTokens": 10, "outputTokens": 2 } },
+      { "type": "finish", "reason": { "kind": "stop" } }
+    ]
+  }
+]

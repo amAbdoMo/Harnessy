@@ -12,6 +12,7 @@
 import type { Agent, AgentOptions } from '@deepseek-ai/dsh-agent'
 import type { Branded } from '@deepseek-ai/dsh-brand'
 import type { ContentBlock, MessageId } from '@deepseek-ai/dsh-llm'
+import type { SandboxMode } from '@deepseek-ai/dsh-sandbox'
 import type { SessionEvent, SessionId } from '@deepseek-ai/dsh-session'
 import type { ObjectJsonSchema, ToolRestriction } from '@deepseek-ai/dsh-tools'
 import type { SubagentDescriptorData } from './descriptor.ts'
@@ -123,9 +124,10 @@ export interface SubagentRunEndInfo {
  * degradation" rule). These flags describe the ONE-SHOT
  * {@link SubagentProvider.start} path, where the provider composes the child;
  * continuable children are composed by the continuation manager itself and are
- * gated by {@link SubagentProvider.prepareContinuable} instead. Each flag
- * corresponds one-to-one to a {@link SubagentStartRequest} option: `depthLimit`
- * to `maxDepth`; the other names match.
+ * gated by {@link SubagentProvider.prepareContinuable} instead. Every flag but
+ * {@link SubagentCapabilities.runtimeRoute} corresponds one-to-one to a
+ * {@link SubagentStartRequest} option: `depthLimit` to `maxDepth`,
+ * `accessPolicy` to `sandboxMode`; the other names match.
  */
 export interface SubagentCapabilities {
   readonly agentOptions: boolean
@@ -133,7 +135,36 @@ export interface SubagentCapabilities {
   readonly depthLimit: boolean
   readonly toolFilter: boolean
   readonly persona: boolean
+  /**
+   * Whether the provider confines the child to a requested
+   * {@link SubagentStartRequest.sandboxMode}. Only a provider that composes the
+   * child inside this process can narrow a creation window; an out-of-process
+   * provider cannot, so it advertises `false` and a request carrying a concrete
+   * access is rejected at start rather than accepted as an unenforced scope.
+   */
+  readonly accessPolicy: boolean
+  /**
+   * Whether an `agentOptions` route this provider receives names a model the
+   * composed LLM runtime resolves, so a caller must preflight that route
+   * through `ctx.llm` before starting. A provider that owns its model space —
+   * a command-line tool with its own catalog — advertises `false`: the route
+   * reaches the provider untouched and the provider validates it, because the
+   * composed runtime has no adapter for a model it is not the one to run. This
+   * describes the provider itself rather than a
+   * {@link SubagentStartRequest} option, so no request field asks for it and
+   * no request that omits `agentOptions` consults it.
+   */
+  readonly runtimeRoute: boolean
 }
+
+/**
+ * How one delegation scopes the child's sandbox mode. `'inherit'` records
+ * exactly what the deployment records without an access request — the parent
+ * session's explicit override, or no delegated mode at all — while a concrete
+ * {@link SandboxMode} narrows the child to no wider than its parent's
+ * effective mode. Omission means `'inherit'`.
+ */
+export type SubagentAccess = 'inherit' | SandboxMode
 
 /**
  * What a caller asks for when starting a ONE-SHOT subagent. The tool layer
@@ -198,6 +229,15 @@ export interface SubagentStartRequest {
    * persona (strict `{{…}}` interpolation against the registered variables).
    */
   readonly persona?: string
+  /**
+   * Optional child sandbox-mode scope. Requires
+   * {@link SubagentCapabilities.accessPolicy}; a concrete mode is rejected at
+   * start on a provider without it. The child's delegated mode is the NARROWER
+   * of its parent's effective mode and this value, so a request can only
+   * tighten access — never widen it — and `'inherit'` (or omission) preserves
+   * the behavior of a request that names no access at all.
+   */
+  readonly sandboxMode?: SubagentAccess
 }
 
 /**

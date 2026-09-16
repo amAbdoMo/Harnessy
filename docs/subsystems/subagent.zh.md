@@ -4,7 +4,7 @@
 
 subagent seam 让一个 agent（智能体）将工作委派给子 agent。与 [bash](shell.zh.md) 一样，它是**一项可选能力**，不属于 agent loop（智能体循环），因此其类型定义在此而非 [core.md](core.zh.md) 中。它不同于其他能力 seam，因为**同一上下文中可共存多个提供方实现**，并按名称注册（`ctx.subagents`），而 bash 只允许一个执行器。该注册表遵循 [LLM（大语言模型）适配器注册表](llm-streaming.zh.md)，而非单服务的 bash 执行器。
 
-Service Definition：[dsh-subagent](../../packages/subagent/subagent)（`ctx.subagents` + 下文词汇）。Service Provider 是六个兄弟包：`dsh-subagent-spawn-in-process`、`dsh-subagent-fork-in-process`、`dsh-subagent-acp`、`dsh-subagent-codex`、`dsh-subagent-claude-code`、`dsh-subagent-dsh-sdk`；面向模型的 Consumer 包括 [dsh-tool-subagent](../../packages/subagent/tool-subagent)（按提供方委派）和 [dsh-tool-subagent-control](../../packages/subagent/tool-subagent-control)（可选的全局 `send_message`、`interrupt_agent` 与 `list_agents` 控制工具）。同一个 `ctx.subagents` 服务通过内部激活管理器负责可继续子 agent 编排，并直接基于会话存储和可选的会话持久化提供只读的 child 与后代发现。产品提供方设计理由见 [Codex 与 Claude Code Agent Note](../../.agents/notes/implemented/feature/2026-08-04-claude-code-and-codex-subagent-backends.zh.md)；通用 seam 的设计理由见 [subagent Agent Note](../../.agents/notes/implemented/feature/2026-06-21-subagent-capability-seam.zh.md)、[可继续 subagent Agent Note](../../.agents/notes/implemented/feature/2026-07-28-continuable-subagent-conversations.zh.md)和[相邻 Agent 消息 Agent Note](../../.agents/notes/implemented/architecture/2026-08-27-adjacent-agent-steer-messaging.zh.md)；[已归档的列表身份投影记录](../../.agents/notes/archived/architecture/2026-08-06-subagent-list-identity-projection.md)记录了最初的列表身份决策。
+Service Definition：[dsh-subagent](../../packages/subagent/subagent)（`ctx.subagents` + 下文词汇）。Service Provider 是七个兄弟包：`dsh-subagent-spawn-in-process`、`dsh-subagent-fork-in-process`、`dsh-subagent-acp`、`dsh-subagent-codex`、`dsh-subagent-claude-code`、`dsh-subagent-dsh-sdk`、`dsh-subagent-commandcode`；面向模型的 Consumer 包括 [dsh-tool-subagent](../../packages/subagent/tool-subagent)（按提供方委派）和 [dsh-tool-subagent-control](../../packages/subagent/tool-subagent-control)（可选的全局 `send_message`、`interrupt_agent` 与 `list_agents` 控制工具）。同一个 `ctx.subagents` 服务通过内部激活管理器负责可继续子 agent 编排，并直接基于会话存储和可选的会话持久化提供只读的 child 与后代发现。产品提供方设计理由见 [Codex 与 Claude Code Agent Note](../../.agents/notes/implemented/feature/2026-08-04-claude-code-and-codex-subagent-backends.zh.md)；通用 seam 的设计理由见 [subagent Agent Note](../../.agents/notes/implemented/feature/2026-06-21-subagent-capability-seam.zh.md)、[可继续 subagent Agent Note](../../.agents/notes/implemented/feature/2026-07-28-continuable-subagent-conversations.zh.md)和[相邻 Agent 消息 Agent Note](../../.agents/notes/implemented/architecture/2026-08-27-adjacent-agent-steer-messaging.zh.md)；[已归档的列表身份投影记录](../../.agents/notes/archived/architecture/2026-08-06-subagent-list-identity-projection.md)记录了最初的列表身份决策。
 
 源码：[`packages/subagent/subagent/src/types.ts`](../../packages/subagent/subagent/src/types.ts)、[`packages/subagent/subagent/src/index.ts`](../../packages/subagent/subagent/src/index.ts)和 [`packages/subagent/subagent/src/continuation.ts`](../../packages/subagent/subagent/src/continuation.ts)
 
@@ -20,9 +20,10 @@ Service Definition：[dsh-subagent](../../packages/subagent/subagent)（`ctx.sub
  * degradation" rule). These flags describe the ONE-SHOT
  * {@link SubagentProvider.start} path, where the provider composes the child;
  * continuable children are composed by the continuation manager itself and are
- * gated by {@link SubagentProvider.prepareContinuable} instead. Each flag
- * corresponds one-to-one to a {@link SubagentStartRequest} option: `depthLimit`
- * to `maxDepth`; the other names match.
+ * gated by {@link SubagentProvider.prepareContinuable} instead. Every flag but
+ * {@link SubagentCapabilities.runtimeRoute} corresponds one-to-one to a
+ * {@link SubagentStartRequest} option: `depthLimit` to `maxDepth`,
+ * `accessPolicy` to `sandboxMode`; the other names match.
  */
 interface SubagentCapabilities {
   readonly agentOptions: boolean
@@ -30,6 +31,26 @@ interface SubagentCapabilities {
   readonly depthLimit: boolean
   readonly toolFilter: boolean
   readonly persona: boolean
+  /**
+   * Whether the provider confines the child to a requested
+   * {@link SubagentStartRequest.sandboxMode}. Only a provider that composes the
+   * child inside this process can narrow a creation window; an out-of-process
+   * provider cannot, so it advertises `false` and a request carrying a concrete
+   * access is rejected at start rather than accepted as an unenforced scope.
+   */
+  readonly accessPolicy: boolean
+  /**
+   * Whether an `agentOptions` route this provider receives names a model the
+   * composed LLM runtime resolves, so a caller must preflight that route
+   * through `ctx.llm` before starting. A provider that owns its model space —
+   * a command-line tool with its own catalog — advertises `false`: the route
+   * reaches the provider untouched and the provider validates it, because the
+   * composed runtime has no adapter for a model it is not the one to run. This
+   * describes the provider itself rather than a
+   * {@link SubagentStartRequest} option, so no request field asks for it and
+   * no request that omits `agentOptions` consults it.
+   */
+  readonly runtimeRoute: boolean
 }
 ```
 
@@ -101,6 +122,15 @@ interface SubagentStartRequest {
    * persona (strict `{{…}}` interpolation against the registered variables).
    */
   readonly persona?: string
+  /**
+   * Optional child sandbox-mode scope. Requires
+   * {@link SubagentCapabilities.accessPolicy}; a concrete mode is rejected at
+   * start on a provider without it. The child's delegated mode is the NARROWER
+   * of its parent's effective mode and this value, so a request can only
+   * tighten access — never widen it — and `'inherit'` (or omission) preserves
+   * the behavior of a request that names no access at all.
+   */
+  readonly sandboxMode?: SubagentAccess
 }
 ```
 
@@ -471,6 +501,45 @@ spawn 和 fork 后端通过 `parent.ctx` 创建一个普通的单次 agent，将
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.zh.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxcommandcodecontroller--commandcodecontroller"></a>
+
+### `ctx.commandCodeController` — `CommandCodeController`
+
+Host service backing the generated `ctx.remote.commandcode` namespace.
+
+It owns the settings registration, the model-facing tools, the shipped concurrency gate, and the resolved CLI invocation. The tools resolve the current workspace's lanes on every call, so a saved Settings change applies to the next delegation from an existing Session.
+
+```ts cordis-catalog
+/**
+ * Report the installed CLI's presence, version, and authentication state.
+ * @param signal - caller lifetime.
+ * @returns the bounded health facts the Delegation page shows.
+ */
+@Remote async health(signal: AbortSignal): Promise<CommandCodeHealth>
+
+/**
+ * Read the local CLI's advisory model catalog.
+ * @param signal - caller lifetime.
+ * @returns catalog rows, empty with a bounded explanation when unreadable.
+ */
+@Remote async catalog(signal: AbortSignal): Promise<CommandCodeCatalog>
+
+/**
+ * Resolve one workspace's lanes and bounds, with per-field override provenance.
+ *
+ * The read itself is synchronous — it resolves the live settings section —
+ * so it carries the caller's signal only to refuse a read that was already
+ * cancelled rather than to await anything.
+ * @param workspace - the Session's workspace path, or null without one.
+ * @param signal - caller lifetime; a superseded or unmounted reader cancels its own read.
+ * @returns the resolved delegation view.
+ * @throws when the caller's read was already cancelled.
+ */
+@Remote delegation(workspace: string | null, signal: AbortSignal): CommandCodeDelegationView
+```
+
+Source: [`packages/subagent/subagent-commandcode/src/index.ts`](../../packages/subagent/subagent-commandcode/src/index.ts)
+
 <a id="ctxsubagentmodelselection--subagentmodelselectionconfig"></a>
 
 ### `ctx.subagentModelSelection` — `SubagentModelSelectionConfig`
@@ -486,6 +555,53 @@ current(): SubagentModelSelectionSettings
 ```
 
 Source: [`packages/subagent/tool-subagent/src/model-selection-settings.ts`](../../packages/subagent/tool-subagent/src/model-selection-settings.ts)
+
+<a id="ctxsubagentrostercontroller--subagentrostercontroller"></a>
+
+### `ctx.subagentRosterController` — `SubagentRosterController`
+
+Host service backing the generated `ctx.remote.subagentRoster` namespace.
+
+It reads the same live settings section the two model-facing tools read, so the page and the next delegation cannot disagree about a saved edit. Every method returns role policy and run bounds only: no credential, provider token, host path, or process output crosses it.
+
+```ts cordis-catalog
+/**
+ * Resolve one workspace's enabled roles, with per-field override provenance.
+ *
+ * The read itself is synchronous — it resolves the live settings section —
+ * so it carries the caller's signal only to refuse a read that was already
+ * cancelled rather than to await anything.
+ * @param workspace - the Session's workspace path, or null without one.
+ * @param signal - caller lifetime; a superseded or unmounted reader cancels its own read.
+ * @returns the enabled roles and the canonical workspace key they resolved for.
+ * @throws when the caller's read was already cancelled.
+ */
+@Remote resolvedRoster(workspace: string | null, signal: AbortSignal): SubagentWorkspaceRoster
+
+/**
+ * Read the automatic-routing authority a page renders its authorization
+ * control from.
+ *
+ * The read is synchronous for the same reason as {@link resolvedRoster}.
+ * @param signal - caller lifetime; a superseded or unmounted reader cancels its own read.
+ * @returns whether explicit route selection is accepted, and which exact routes it must resolve to.
+ * @throws when the caller's read was already cancelled.
+ */
+@Remote automaticRouting(signal: AbortSignal): SubagentAutomaticRouting
+
+/**
+ * Read the stored document a page edits: every definition, enabled or not,
+ * plus the run bounds.
+ *
+ * The read is synchronous for the same reason as {@link resolvedRoster}.
+ * @param signal - caller lifetime; a superseded or unmounted reader cancels its own read.
+ * @returns the stored definitions and run bounds.
+ * @throws when the caller's read was already cancelled.
+ */
+@Remote storedRoster(signal: AbortSignal): SubagentStoredRoster
+```
+
+Source: [`packages/subagent/subagent-roster/src/index.ts`](../../packages/subagent/subagent-roster/src/index.ts)
 
 <a id="ctxsubagents--subagentruntime"></a>
 
