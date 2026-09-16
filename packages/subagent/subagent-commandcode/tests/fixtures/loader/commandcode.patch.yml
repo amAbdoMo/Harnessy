@@ -1,0 +1,16 @@
+# Insert Harnessy's Command Code delegation plugin over the shipped headless
+# profile. Loading this composition must start no Command Code process.
+- id: headless-startup
+  disabled: true
+
+- id: headless-runner
+  disabled: true
+
+- insert:
+    # Mounted before the subject so its counter observes every spawn the
+    # subject's load, probe, and run paths could make.
+    - id: commandcode-spawn-counter
+      name: './spawn-counter.ts'
+
+    - id: commandcode-delegation
+      name: '@deepseek-ai/dsh-subagent-commandcode'

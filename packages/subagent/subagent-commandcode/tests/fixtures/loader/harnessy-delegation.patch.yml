@@ -1,0 +1,21 @@
+# Insert Harnessy's two delegation rows over the shipped headless profile: the
+# Command Code lane plugin and the unified subagent roster. Loading this
+# composition must start no Command Code process, and the roster must carry the
+# lane configuration stored in `.dsh/settings.yaml` into its own section.
+- id: headless-startup
+  disabled: true
+
+- id: headless-runner
+  disabled: true
+
+- insert:
+    # Mounted before the subjects so its counter observes every spawn they
+    # could make while loading or through the roster's migration.
+    - id: commandcode-spawn-counter
+      name: './spawn-counter.ts'
+
+    - id: commandcode-delegation
+      name: '@deepseek-ai/dsh-subagent-commandcode'
+
+    - id: subagent-roster
+      name: '@deepseek-ai/dsh-subagent-roster'

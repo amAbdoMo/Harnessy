@@ -1,0 +1,270 @@
+/* Harnessy Delegation section. Uses the application's `--dsw-alias-*` design
+   tokens, like the neighbouring settings surfaces. */
+
+.section {
+  display: grid;
+  gap: 20px;
+  padding: 4px 0 24px;
+}
+
+.header {
+  display: grid;
+  gap: 6px;
+}
+
+.title {
+  margin: 0;
+  color: var(--dsw-alias-label-primary);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.blockTitle {
+  margin: 0;
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 21px;
+}
+
+.description,
+.hint,
+.status {
+  margin: 0;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.status {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.block {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: 13px;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.grow {
+  display: grid;
+  gap: 12px;
+}
+
+.field,
+.subField {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.label,
+.subLabel {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+.editedBadge {
+  margin-left: 4px;
+  color: var(--dsw-alias-state-business-primary);
+}
+
+.input,
+.select,
+.textarea {
+  box-sizing: border-box;
+  width: 100%;
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: 9px;
+  outline: none;
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-layer-2);
+  font: inherit;
+}
+
+.input,
+.select {
+  height: 34px;
+  padding: 0 10px;
+}
+
+.textarea {
+  min-height: 66px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.input:focus-visible,
+.select:focus-visible,
+.textarea:focus-visible,
+.cliRow button:focus-visible,
+.laneHeader button:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+
+.input:disabled,
+.select:disabled,
+.textarea:disabled {
+  opacity: 0.5;
+}
+
+.notice,
+.error,
+.danger {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 9px;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.notice {
+  color: var(--dsw-alias-label-secondary);
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.error,
+.danger {
+  color: var(--dsw-alias-state-error-primary);
+  background: var(--dsw-alias-state-error-secondary);
+}
+
+.cliRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.lane,
+.projectLane {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: 11px;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.laneHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.laneToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+
+.laneId {
+  margin-left: auto;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+}
+
+.addRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.projectLegend {
+  padding: 0 4px;
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.projectHeader {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.overrideList {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.overrideRow {
+  display: grid;
+  grid-template-columns: minmax(96px, 0.7fr) max-content minmax(0, 2fr) max-content;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.overrideLabel {
+  color: var(--dsw-alias-label-secondary);
+  font-weight: 600;
+}
+
+.overrideStateOn,
+.overrideStateOff {
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  line-height: 14px;
+  white-space: nowrap;
+}
+
+.overrideStateOn {
+  color: var(--dsw-alias-label-primary-foreground);
+  background: var(--dsw-alias-state-business-primary);
+}
+
+.overrideStateOff {
+  color: var(--dsw-alias-label-tertiary);
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.overrideControl {
+  min-width: 0;
+}
+
+.overrideControl:focus-within {
+  border-radius: 9px;
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .overrideRow {
+    grid-template-columns: 1fr;
+  }
+
+  .laneHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .laneId {
+    margin-left: 0;
+  }
+}
