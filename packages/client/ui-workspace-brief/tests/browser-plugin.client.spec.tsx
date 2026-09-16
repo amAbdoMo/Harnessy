@@ -71,17 +71,17 @@ describe('WorkspaceBriefAction', () => {
 
   it('deduplicates an in-flight click and reports success', async () => {
     let settle: (() => void) | undefined
-    const createBrief = vi.fn(() => new Promise<void>(resolve => { settle = resolve }))
+    const createBrief = vi.fn(() => new Promise<void>((resolve) => { settle = resolve }))
     render(<WorkspaceBriefAction {...actionProps(createBrief)} />)
 
     const button = screen.getByRole('button', { name: 'Create workspace brief' })
     fireEvent.click(button)
     fireEvent.click(button)
     expect(createBrief).toHaveBeenCalledTimes(1)
-    expect((screen.getByRole('button', { name: 'Creating brief…' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByRole('button', { name: 'Creating brief…' }).disabled).toBe(true)
 
     await act(async () => { settle?.(); await Promise.resolve() })
-    expect((screen.getByRole('button', { name: 'Brief created' }) as HTMLButtonElement).disabled).toBe(false)
+    expect(screen.getByRole('button', { name: 'Brief created' }).disabled).toBe(false)
   })
 
   it('keeps an actionable error visible and allows an explicit retry', async () => {

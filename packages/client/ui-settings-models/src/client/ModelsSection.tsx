@@ -199,7 +199,12 @@ export function ModelsSection(props: ModelsSectionProps): ReactNode {
   const { controller, useSnapshot, operations, schema, t, renderSlot, presentModal } = props
   if (
     controller === undefined || useSnapshot === undefined || operations === undefined
-    || schema === undefined || t === undefined || presentModal === undefined
+    || schema === undefined || t === undefined
+    // The injections above are `Partial`, so their checks are live; this one is
+    // defensive against a shell that delivers no owner props at all, which the
+    // owner contract rules out but a mis-composed seat would still reach.
+    // oxlint-disable-next-line typescript/no-unnecessary-condition -- defensive against a seat that injects nothing.
+    || presentModal === undefined
   ) return null
   return <Loaded injected={{ controller, useSnapshot, operations, schema, t }}
     renderSlot={renderSlot} presentModal={presentModal} />

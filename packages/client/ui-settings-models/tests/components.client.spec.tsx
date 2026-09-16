@@ -327,6 +327,7 @@ describe('ModelsSection', () => {
     // The footer seat renders once below the rows and the add controls.
     const footerCalls = renderSlot.mock.calls.filter(call => call[0] === 'settings.models.footer')
     expect(footerCalls).toHaveLength(1)
+    // oxlint-disable-next-line typescript/no-unsafe-assignment -- Vitest asymmetric matchers are typed as any.
     expect(footerCalls[0]?.[1]).toMatchObject({ presentModal: expect.any(Function) })
   })
 

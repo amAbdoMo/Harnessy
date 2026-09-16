@@ -95,15 +95,19 @@ function abortReason(signal: AbortSignal): Error {
 function withAbort<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
   if (signal.aborted) return Promise.reject(abortReason(signal))
   return new Promise<T>((resolve, reject) => {
-    const aborted = (): void => reject(abortReason(signal))
+    const aborted = (): void => { reject(abortReason(signal)) }
     signal.addEventListener('abort', aborted, { once: true })
     void work.then(
       (value) => {
         signal.removeEventListener('abort', aborted)
         resolve(value)
       },
-      (error) => {
+      (error: unknown) => {
         signal.removeEventListener('abort', aborted)
+        // The run's own catch reads the original rejection: an FsError is
+        // recognised by identity of its class, so wrapping the reason here
+        // would turn every filesystem failure into an unhandled throw.
+        // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- exact rejection reason is the contract.
         reject(error)
       },
     )
@@ -254,8 +258,11 @@ export class WorkspaceBriefRunner {
     if (parsed === undefined) return { kind: 'error', text: USAGE }
     if (invocation.signal.aborted) throw abortReason(invocation.signal)
 
-    let timeoutReached = false
     const timeout = new AbortController()
+    // The timer callback sets this while the run itself is awaited, which the
+    // checker does not model; the flag is the only record that the deadline,
+    // rather than an abort or a filesystem failure, ended the run.
+    let timeoutReached = false
     const timer = setTimeout(() => {
       timeoutReached = true
       timeout.abort(new Error('workspace brief timed out'))
@@ -264,7 +271,11 @@ export class WorkspaceBriefRunner {
     try {
       return await withAbort(this.build(invocation, parsed, signal), signal)
     } catch (error: unknown) {
+      // The signal can abort while the build is awaited, so the checker's
+      // narrowing of `aborted` after the entry check does not describe runtime.
+      // oxlint-disable-next-line typescript/no-unnecessary-condition -- the signal can abort while the operation is awaited.
       if (invocation.signal.aborted) throw abortReason(invocation.signal)
+      // oxlint-disable-next-line typescript/no-unnecessary-condition -- the timer callback sets this while the run is awaited.
       if (timeoutReached) return { kind: 'error', text: `Workspace brief timed out after ${TIMEOUT_MS} ms.` }
       if (error instanceof FsError) {
         if (error.code === 'FS_PERMISSION_DENIED' || error.code === 'FS_SANDBOX_DENIED') {
@@ -302,6 +313,7 @@ export class WorkspaceBriefRunner {
       return { kind: 'error', text: 'Workspace brief is unavailable: this session is not attached to a registered workspace.' }
     }
     const workspaceStatus = await workspace.status()
+    // oxlint-disable-next-line typescript/no-unnecessary-condition -- the signal can abort while the status is awaited.
     if (signal.aborted) throw abortReason(signal)
     if (workspaceStatus !== 'ok') {
       return { kind: 'error', text: 'Workspace brief is unavailable: the selected workspace directory is missing.' }

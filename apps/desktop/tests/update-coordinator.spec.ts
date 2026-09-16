@@ -43,19 +43,22 @@ describe('desktop release metadata', () => {
 
 describe('desktop update coordinator', () => {
   it('does not contact the updater when the product disables updates', async () => {
+    const checkForUpdates = vi.fn()
+    const downloadUpdate = vi.fn()
+    const quitAndInstall = vi.fn()
     const updater = {
       autoDownload: true,
       autoInstallOnAppQuit: true,
-      checkForUpdates: vi.fn(),
-      downloadUpdate: vi.fn(),
-      quitAndInstall: vi.fn(),
+      checkForUpdates,
+      downloadUpdate,
+      quitAndInstall,
     } as unknown as AppUpdater
     const coordinator = new DesktopUpdateCoordinator(state => state, async () => {}, updater, () => false)
 
     await expect(coordinator.check()).resolves.toEqual({ phase: 'idle' })
-    expect(updater.checkForUpdates).not.toHaveBeenCalled()
-    expect(updater.downloadUpdate).not.toHaveBeenCalled()
-    expect(updater.quitAndInstall).not.toHaveBeenCalled()
+    expect(checkForUpdates).not.toHaveBeenCalled()
+    expect(downloadUpdate).not.toHaveBeenCalled()
+    expect(quitAndInstall).not.toHaveBeenCalled()
   })
 
   it('installs one Electron release and restarts after download', async () => {

@@ -2,7 +2,7 @@ import { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import CommandRuntime, { CommandId, type CommandInvocation } from '@deepseek-ai/dsh-commands'
 import { FsError } from '@deepseek-ai/dsh-fs'
-import { Session, SessionId, SESSION_FORMAT_VERSION, type SessionHeader } from '@deepseek-ai/dsh-session'
+import { Session, SessionId, SESSION_FORMAT_VERSION, type SessionEvent, type SessionHeader } from '@deepseek-ai/dsh-session'
 import type { ShellRunResult } from '@deepseek-ai/dsh-shell'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as workspaceBrief from '../src/index.ts'
@@ -158,23 +158,24 @@ describe('WorkspaceBriefRunner', () => {
     const noCwd = bench()
     const noCwdInvocation = invocation()
     Object.defineProperty(noCwdInvocation.agent.session.header, 'cwd', { value: undefined })
-    await expect(noCwd.runner.run(noCwdInvocation)).resolves.toMatchObject({
-      kind: 'error', text: expect.stringContaining('no selected workspace'),
-    })
+    const noCwdResult = await noCwd.runner.run(noCwdInvocation)
+    expect(noCwdResult).toMatchObject({ kind: 'error' })
+    expect(noCwdResult.text).toContain('no selected workspace')
 
-    await expect(bench({ resolveWorkspace: 'absent' }).runner.run(invocation())).resolves.toMatchObject({
-      kind: 'error', text: expect.stringContaining('not attached to a registered workspace'),
-    })
-    await expect(bench({ workspaceStatus: 'missing-dir' }).runner.run(invocation())).resolves.toMatchObject({
-      kind: 'error', text: expect.stringContaining('workspace directory is missing'),
-    })
+    const absentResult = await bench({ resolveWorkspace: 'absent' }).runner.run(invocation())
+    expect(absentResult).toMatchObject({ kind: 'error' })
+    expect(absentResult.text).toContain('not attached to a registered workspace')
+
+    const missingResult = await bench({ workspaceStatus: 'missing-dir' }).runner.run(invocation())
+    expect(missingResult).toMatchObject({ kind: 'error' })
+    expect(missingResult.text).toContain('workspace directory is missing')
   })
 
   it('distinguishes a non-Git workspace without starting a process', async () => {
     const test = bench({ entries: [{ name: 'src', type: 'directory' }] })
-    await expect(test.runner.run(invocation())).resolves.toMatchObject({
-      kind: 'error', text: expect.stringContaining('not a Git repository'),
-    })
+    const result = await test.runner.run(invocation())
+    expect(result).toMatchObject({ kind: 'error' })
+    expect(result.text).toContain('not a Git repository')
     expect(test.shell.run).not.toHaveBeenCalled()
   })
 
@@ -206,14 +207,14 @@ describe('WorkspaceBriefRunner', () => {
   })
 
   it('surfaces backend resolution failure and command timeout without partial success', async () => {
-    await expect(bench({ resolveWorkspace: 'throw' }).runner.run(invocation())).resolves.toMatchObject({
-      kind: 'error', text: expect.stringContaining('cannot be resolved (registry unavailable)'),
-    })
+    const thrown = await bench({ resolveWorkspace: 'throw' }).runner.run(invocation())
+    expect(thrown).toMatchObject({ kind: 'error' })
+    expect(thrown.text).toContain('cannot be resolved (registry unavailable)')
 
     vi.useFakeTimers()
     const timed = bench({
-      shell: signal => new Promise(resolve => {
-        signal.addEventListener('abort', () => resolve(shellResult({ aborted: true, exitCode: null })), { once: true })
+      shell: signal => new Promise((resolve) => {
+        signal.addEventListener('abort', () => { resolve(shellResult({ aborted: true, exitCode: null })) }, { once: true })
       }),
     })
     const pending = timed.runner.run(invocation())
@@ -227,8 +228,8 @@ describe('WorkspaceBriefRunner', () => {
     vi.useFakeTimers()
     let finishLookup: (() => void) | undefined
     const test = bench({
-      resolveWorkspaceWith: () => new Promise(resolve => {
-        finishLookup = () => resolve({ title: 'late workspace', status: async () => 'ok' })
+      resolveWorkspaceWith: () => new Promise((resolve) => {
+        finishLookup = () => { resolve({ title: 'late workspace', status: async () => 'ok' }) }
       }),
     })
 
@@ -292,14 +293,17 @@ describe('workspace-brief command lifecycle', () => {
 
     expect(ctx.commands.find(agent, 'workspace-brief')).toBeDefined()
     const execution = await ctx.commands.execute(agent, '/workspace-brief', [], new AbortController().signal)
-    expect(execution?.result).toMatchObject({ kind: 'success', text: expect.stringContaining('# Workspace Brief') })
+    expect(execution?.result).toMatchObject({ kind: 'success' })
+    expect(execution?.result.text).toContain('# Workspace Brief')
     const lifecycle = session.snapshotEvents().filter(event => event.type.startsWith('command/'))
     expect(lifecycle.map(event => event.type)).toEqual(['command/run', 'command/done'])
 
     const replay = Session.create(id, session.snapshotEvents(), header)
-    expect(replay.snapshotEvents().find(event => event.type === 'command/done')).toMatchObject({
-      data: { kind: 'success', text: expect.stringContaining('# Workspace Brief') },
-    })
+    const done = replay.snapshotEvents().find(
+      (event): event is SessionEvent<'command/done'> => event.type === 'command/done',
+    )
+    expect(done?.data).toMatchObject({ kind: 'success' })
+    expect(done?.data.text).toContain('# Workspace Brief')
 
     await fiber.dispose()
     expect(ctx.commands.find(agent, 'workspace-brief')).toBeUndefined()
