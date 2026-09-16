@@ -9,6 +9,7 @@ import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { setSandboxMode } from '@deepseek-ai/dsh-sandbox-policy'
+import { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import type { SandboxMode } from '@deepseek-ai/dsh-sandbox'
 import { DELEGATE_TOOL } from '../src/tools.ts'
 import {
@@ -177,6 +178,61 @@ describe('access narrowing on a real child', () => {
     const result = await delegate(booted, { subagent: 'review', task: 'Review it.' }, booted.parent)
     expect(result.isError).toBe(false)
     expect(booted.modeOf(booted.children[0]!)).toBe('danger-full-access')
+  })
+
+  it('keeps a read-only review role read-only under a broader parent, on its own model and effort', async () => {
+    // The whole advertised configuration of a review role in one delegation: an
+    // automatic, read-only role pinned to one exact model and effort, started
+    // from a parent whose own access is the widest there is. The child's own log
+    // is the evidence for all four facts, so nothing is asserted about a request
+    // object on the router's side of the boundary.
+    const booted = await bootRealChild({
+      workspace: workspace(),
+      deploymentMode: 'danger-full-access',
+      adapterProvider: 'deepseek-official',
+      // The role pins `high`, so the route has to advertise it: an effort the
+      // model does not offer is refused at preflight, which is the rule this
+      // suite's routing neighbours cover from the other side.
+      adapterReasoning: {
+        efforts: [{ id: ReasoningEffortId('low'), name: 'Low' }, { id: ReasoningEffortId('high'), name: 'High' }],
+      },
+      settings: documentOf([definition({
+        id: 'review',
+        name: 'Review',
+        invocation: 'automatic',
+        access: 'read-only',
+        instructions: 'Review critically. Do not modify files.',
+        model: {
+          mode: 'fixed',
+          route: {
+            provider: 'deepseek-official',
+            model: 'deepseek/deepseek-v4.1-flash',
+            reasoningEffort: 'high',
+          },
+        },
+        execution: { backend: 'spawn', background: 'auto' },
+      })]),
+    })
+    BOOTED.push(booted)
+
+    const result = await delegate(booted, { subagent: 'review', task: 'Review the change.' }, booted.parent)
+    expect(result.isError).toBe(false)
+    const child = booted.children[0]
+    if (child === undefined) throw new Error('the delegation published no child')
+
+    // The parent's own access is the wider one, and it is not what the child got.
+    expect(booted.ctx.sandboxPolicy.resolve({ session: booted.parent.session }).mode).toBe('danger-full-access')
+    expect(booted.modeOf(child)).toBe('read-only')
+    expect(booted.modeEvents(child)).toMatchObject([
+      { data: { mode: 'read-only', source: 'delegation' } },
+    ])
+    expect(booted.ctx.approval.overrideOf(child)).toBe('never')
+
+    // The role's own route reaches the child whole: a model id containing a
+    // separator is one opaque id, and the effort travels with it.
+    const config = child.requestHeader()?.config
+    expect(config?.model).toBe('deepseek/deepseek-v4.1-flash')
+    expect(String(config?.reasoningEffort)).toBe('high')
   })
 
   it('pins the child approval policy so its own escalation asks fail closed', async () => {

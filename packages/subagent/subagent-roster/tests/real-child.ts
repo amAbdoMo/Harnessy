@@ -10,7 +10,7 @@ import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import { turnBoundaryProjectionDefinition } from '@deepseek-ai/dsh-agent-loop'
 import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
 import SandboxedFileSystem from '@deepseek-ai/dsh-fs-sandbox'
-import type { StreamChunk } from '@deepseek-ai/dsh-llm'
+import type { LlmModelReasoningInfo, StreamChunk } from '@deepseek-ai/dsh-llm'
 import SandboxPolicyService from '@deepseek-ai/dsh-sandbox-policy'
 import type { SandboxMode } from '@deepseek-ai/dsh-sandbox'
 import { SessionId } from '@deepseek-ai/dsh-session'
@@ -48,6 +48,18 @@ export interface RealChildOptions {
   readonly settings: SubagentSettings
   /** Model script the child consumes; one text response by default. */
   readonly script?: StreamChunk[][]
+  /**
+   * Provider id the mock adapter answers for; `mock` by default. A test that
+   * pins a definition to a real provider/model pair registers the adapter under
+   * that provider, because the adapter answers for whatever route it is given.
+   */
+  readonly adapterProvider?: string
+  /**
+   * Reasoning capability the adapter advertises for the routes it serves.
+   * Omitted means it advertises none, so a definition that names an effort is
+   * correctly refused; a test that pins an effort supplies the levels here.
+   */
+  readonly adapterReasoning?: LlmModelReasoningInfo
 }
 
 /** Mount the shipped spawn provider over the real agent loop and sandbox policy. */
@@ -62,7 +74,10 @@ export async function bootRealChild(options: RealChildOptions): Promise<RealChil
   await ctx.plugin(AgentLoop, { agents: [] })
   await ctx.plugin(SubagentRuntime)
   await ctx.plugin(Spawn, { providerName: 'spawn' })
-  ctx.llm.registerAdapter(['mock'], new MockAdapter(options.script ?? [textResponse('child done')]))
+  ctx.llm.registerAdapter(
+    [options.adapterProvider ?? 'mock'],
+    new MockAdapter(options.script ?? [textResponse('child done')], options.adapterReasoning),
+  )
   const limiter = new SubagentRunLimiter(() => options.settings.limits.maxConcurrentRuns)
   installRosterTools(ctx, {
     viewFor: () => subagentRosterView(options.settings, null),
