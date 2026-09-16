@@ -53,3 +53,13 @@ e2e 断言应重新运行命令或从外部重新读取文件；对 agent 自身
 ## 何时需要快照测试
 
 每项非平凡的模型可见、协议可见或人类可见变更，都在同一 PR 中添加或更新无密钥录制会话场景；包级、e2e、仅 mock 和 PR 理由证据不能取代组装后的 transcript。Headless、SDK、ACP 和 Web 录制分别位于 `snapshots/session/`、`snapshots/sdk/`、`snapshots/acp/` 和 `snapshots/web/`；Web 渲染可以显式借用另一个场景的规范会话。不由录制会话驱动的预期输出保留在所属应用、包或脚本的 `tests/expected/` 下，并且不使用 `*.snapshot.ts` 后缀。[`dsh-session-snapshot`](../packages/test-support/session-snapshot/README.zh.md) 拥有共享存储规则和 profile 适配器。Agent loop、会话生命周期和 `SessionEventMap` 变更应更新两个 SDK 投影：`snapshots/sdk/` 拥有 TypeScript，[Python 运行时 CI](../.agents/notes/implemented/process/2026-09-06-master-only-platform-ci.zh.md) 拥有 `scripts/snapshots/python-sdk-single-exe/`。新增 capability seam、生命周期或 transcript 变体应在计划阶段列出每个必需层级。
+
+## 本地平台前提与 Windows 基线
+
+本地运行可能会如实报告 CI 不会出现的失败。在将其视为回归之前，先判断它属于哪一类；单独运行该文件是区分二者的判据。
+
+- **符号链接权限。** 创建真实符号链接的测试需要 Windows 主机启用开发者模式或使用提升权限的 shell；否则 `symlink()` 会以 `EPERM` 失败。它们集中在文件系统、文件系统沙箱、工作区、技能、spill、LSP、设置与会话持久化套件，工作区文件 API，agent 指令发现测试，以及 `scripts/` 下的解析器与监听测试。若某个目录链接的测试并不断言符号链接特有的语义，则改用无需权限的 `junction` 类型。这是能力差异，而非平台差异：具备该权限的 Windows 主机可以运行全部这些测试。
+- **超时预算。** 驱动真实子进程或加密、压缩工作的测试在空闲主机上耗时数秒，在饱和的整套运行中会逼近五秒默认上限——已观察到接近上限的是 `scripts/` 下的 CLI 约定测试，以及凭据与会话持久化的发布测试。它们在单独运行时通过，且远在预算之内。此时的超时是资源争用，不是竞态。
+- **包管理器解析。** 仓库工具通过 `npm_execpath` 与 `process.execPath` 解析包管理器，绝不依赖调用方的 `PATH`，因此 shell 未暴露 `pnpm` 不影响测试。启动 `pnpm run …` 脚本本身仍需要包管理器可执行文件。
+- **平台专属套件。** 约定属于其他平台行为的测试通过 `describe.skipIf` 或 `it.skipIf` 配合能力探测来门控，而不是简单的平台判断，从而让赋予其意义的条件正是跳过它的条件。
+- **仅整套运行出现的失败。** 只在整套运行中失败、单独运行通过，且信息指明五秒超时或资源饱和的测试，属于本地基线限制；单独运行即可复现的，则在被证明相反之前视为候选回归。
