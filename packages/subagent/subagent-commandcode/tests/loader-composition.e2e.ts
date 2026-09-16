@@ -170,7 +170,7 @@ describe('Command Code delegation public Loader composition', () => {
           invocation: 'automatic',
           model: {
             mode: 'fixed',
-            route: { provider: 'deepseek', model: 'deepseek-v4.1-flash', reasoningEffort: 'high' },
+            route: { provider: 'commandcode', model: 'deepseek/deepseek-v4.1-flash', reasoningEffort: 'high' },
           },
           access: 'danger-full-access',
           instructions: '',
@@ -183,7 +183,7 @@ describe('Command Code delegation public Loader composition', () => {
           purpose: 'Review a change.',
           whenToUse: defaultWhenToUse('review'),
           invocation: 'automatic',
-          model: { mode: 'fixed', route: { provider: 'deepseek', model: 'deepseek-v4.1-flash' } },
+          model: { mode: 'fixed', route: { provider: 'commandcode', model: 'deepseek/deepseek-v4.1-flash' } },
           access: 'read-only',
           instructions: '',
           execution: { backend: 'commandcode', background: 'auto' },
