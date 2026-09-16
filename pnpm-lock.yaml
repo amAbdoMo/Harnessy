@@ -1634,6 +1634,10 @@ importers:
       '@deepseek-ai/dsh-workspace-brief':
         specifier: workspace:^
         version: link:../../workspace/workspace-brief
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
 
   packages/bundle/headless:
     dependencies:

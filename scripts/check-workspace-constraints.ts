@@ -163,8 +163,10 @@ const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
   // The shipped preset compositions travel inside the roster package.
   '@deepseek-ai/dsh-agent-presets': ['presets'],
   // The Web Host mounts the default-off settings owner independently of each
-  // Agent-scoped delegation-tool instance.
-  '@deepseek-ai/dsh-tool-subagent': ['lib/model-selection-settings.js'],
+  // Agent-scoped delegation-tool instance, and the delegation router reads the
+  // model-selection channel as its own bundle through ./model-selection rather
+  // than through the emitted tree, so both ship beside the lib.
+  '@deepseek-ai/dsh-tool-subagent': ['lib/model-selection.js', 'lib/model-selection-settings.js'],
   // The JSONL backend resolves its private verification Worker relative to
   // import.meta.url; it is shipped without a public package subpath.
   '@deepseek-ai/dsh-session-persistence-jsonl': ['lib/worker.cjs'],
