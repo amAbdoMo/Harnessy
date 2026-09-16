@@ -10,6 +10,7 @@ import { Context } from '@deepseek-ai/cordis'
 import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
 import { deadline } from '@deepseek-ai/dsh-timeout'
 import { canonicalizeWorkspace, readHostSource } from '@deepseek-ai/dsh-lsp-stdio'
+import { symlinksUsable } from '@deepseek-ai/dsh-platform-probe'
 
 const execFileAsync = promisify(execFile)
 
@@ -49,7 +50,8 @@ describe('canonicalizeWorkspace', () => {
 
   it('resolves a symlinked workspace to its target so aliases share identity', async () => {
     const link = join(root, 'ws-link')
-    await symlink(ws, link)
+    // The alias only has to be a directory alias here, so a Windows junction keeps it privilege-free.
+    await symlink(ws, link, process.platform === 'win32' ? 'junction' : 'dir')
     expect((await canonicalizeWorkspace(fs, link)).canonicalPath).toBe(ws)
   })
 
@@ -99,7 +101,8 @@ describe('readHostSource', () => {
     expect(source.fileUrl).toBe(pathToFileURL(abs).href)
   })
 
-  it('accepts a source reached through a symlink that stays inside the workspace', async () => {
+  // A real symbolic link needs Developer Mode or SeCreateSymbolicLinkPrivilege on Windows.
+  it.skipIf(!symlinksUsable())('accepts a source reached through a symlink that stays inside the workspace', async () => {
     await mkdir(join(ws, 'real'))
     await writeFile(join(ws, 'real', 'c.ts'), 'c')
     await symlink(join(ws, 'real'), join(ws, 'linked'))
@@ -107,7 +110,8 @@ describe('readHostSource', () => {
     expect(source.fileUrl).toBe(pathToFileURL(join(ws, 'real', 'c.ts')).href)
   })
 
-  it('rejects a source whose canonical path escapes the workspace via symlink', async () => {
+  // A real symbolic link needs Developer Mode or SeCreateSymbolicLinkPrivilege on Windows.
+  it.skipIf(!symlinksUsable())('rejects a source whose canonical path escapes the workspace via symlink', async () => {
     const outside = join(root, 'outside.ts')
     await writeFile(outside, 'secret')
     await symlink(outside, join(ws, 'escape.ts'))

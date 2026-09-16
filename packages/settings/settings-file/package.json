@@ -42,6 +42,7 @@
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/dsh-atomic-write": "workspace:^",
     "@deepseek-ai/dsh-home-paths": "workspace:^",
+    "@deepseek-ai/dsh-platform-probe": "workspace:^",
     "@deepseek-ai/dsh-settings": "workspace:^"
   }
 }

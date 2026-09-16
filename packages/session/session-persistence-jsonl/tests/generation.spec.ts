@@ -30,6 +30,7 @@ import { createJsonlGenerationTestRuntime } from '../src/testing/generation.ts'
 import { compressZstdFrame, decompressZstdFrame, scanZstdFrames } from '../src/zstd.ts'
 import type { JsonlCompression } from '../src/format.ts'
 import { sessionFormatCatalog } from '@deepseek-ai/dsh-session-format-catalog'
+import { symlinksUsable } from '@deepseek-ai/dsh-platform-probe'
 import type {
   SessionFormatArtifact,
   SessionFormatEvent,
@@ -1218,7 +1219,8 @@ describe('JSONL immutable generation publication', () => {
     expect(await readFile(expected, 'utf8')).toBe(line(header(3)) + line(event0))
   })
 
-  it.each(['different', 'malformed', 'symlink', 'directory'] as const)(
+  // A real symbolic link needs Developer Mode or SeCreateSymbolicLinkPrivilege on Windows.
+  it.skipIf(!symlinksUsable()).each(['different', 'malformed', 'symlink', 'directory'] as const)(
     'fails loud without altering a colliding %s target',
     async (kind) => {
       const root = await tempRoot()

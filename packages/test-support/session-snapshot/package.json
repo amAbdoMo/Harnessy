@@ -52,6 +52,7 @@
     "@deepseek-ai/dsh-subagent": "workspace:^",
     "@deepseek-ai/dsh-tools": "workspace:^",
     "@deepseek-ai/dsh-user-questions": "workspace:^",
+    "@deepseek-ai/dsh-platform-probe": "workspace:^",
     "@types/js-yaml": "^4.0.9",
     "@deepseek-ai/dsh-http-proxy": "workspace:^"
   }

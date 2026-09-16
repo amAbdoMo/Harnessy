@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mkdir, symlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { symlinksUsable } from '@deepseek-ai/dsh-platform-probe'
 import { agent, failureOf, openWorkspace, signal, type Harness } from './harness.ts'
 
 let harness: Harness
@@ -49,7 +50,8 @@ describe('workspaceFiles.list — the happy path', () => {
     expect(listing.entries.map(entry => entry.name)).toEqual(['a.ts'])
   })
 
-  it('reports a symlink child as what it points to, and a dangling one as other', async () => {
+  // A real symbolic link needs Developer Mode or SeCreateSymbolicLinkPrivilege on Windows.
+  it.skipIf(!symlinksUsable())('reports a symlink child as what it points to, and a dangling one as other', async () => {
     await writeFile(join(workspace, 'real.txt'), 'x', 'utf8')
     await mkdir(join(workspace, 'dir'))
     await symlink(join(workspace, 'real.txt'), join(workspace, 'to-file'))
@@ -93,7 +95,8 @@ describe('workspaceFiles.list — gates', () => {
     expect(failure.code).toBe('workspace-file/outside-workspace')
   })
 
-  it('rejects a symlinked directory before following it, wherever it points', async () => {
+  // A real symbolic link needs Developer Mode or SeCreateSymbolicLinkPrivilege on Windows.
+  it.skipIf(!symlinksUsable())('rejects a symlinked directory before following it, wherever it points', async () => {
     await symlink(outside, join(workspace, 'escape'))
     const failure = await failureOf(endpoint().list(agent, 'escape', signal()))
     expect(failure.code).toBe('workspace-file/not-directory')

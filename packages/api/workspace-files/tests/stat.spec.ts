@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mkdir, symlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { FsVersion } from '@deepseek-ai/dsh-fs'
+import { symlinksUsable } from '@deepseek-ai/dsh-platform-probe'
 import { agent, failureOf, openWorkspace, signal, type Harness } from './harness.ts'
 
 let harness: Harness
@@ -61,7 +62,8 @@ describe('workspaceFiles.stat', () => {
     expect(result).toEqual({ absolutePath: result.absolutePath, version: 'v-sizeless' })
   })
 
-  it('applies the read gates: symlink, directory, outside, missing, empty', async () => {
+  // A real symbolic link needs Developer Mode or SeCreateSymbolicLinkPrivilege on Windows.
+  it.skipIf(!symlinksUsable())('applies the read gates: symlink, directory, outside, missing, empty', async () => {
     await writeFile(join(harness.outside, 'secret.txt'), 'no', 'utf8')
     await symlink(join(harness.outside, 'secret.txt'), join(harness.workspace, 'link.txt'))
     await mkdir(join(harness.workspace, 'src'))

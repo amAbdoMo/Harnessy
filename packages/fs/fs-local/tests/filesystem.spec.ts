@@ -14,6 +14,7 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { Context } from '@deepseek-ai/cordis'
 import { LocalFileSystem } from '@deepseek-ai/dsh-fs-local'
+import { symlinksUsable } from '@deepseek-ai/dsh-platform-probe'
 import { FsVersion } from '@deepseek-ai/dsh-fs'
 import type { FsTarget } from '@deepseek-ai/dsh-fs'
 
@@ -167,7 +168,8 @@ describe('stat', () => {
 })
 
 describe('lstat', () => {
-  it('reports path metadata without following the final symlink component', async () => {
+  // A real symbolic link needs Developer Mode or SeCreateSymbolicLinkPrivilege on Windows.
+  it.skipIf(!symlinksUsable())('reports path metadata without following the final symlink component', async () => {
     await writeFile(join(dir, 'real.txt'), 'hello')
     await symlink(join(dir, 'real.txt'), join(dir, 'link.txt'))
 
@@ -348,7 +350,8 @@ describe('readByteRange', () => {
 })
 
 describe('listDir', () => {
-  it('lists files and directories in stable name order with resolved child targets', async () => {
+  // A real symbolic link needs Developer Mode or SeCreateSymbolicLinkPrivilege on Windows.
+  it.skipIf(!symlinksUsable())('lists files and directories in stable name order with resolved child targets', async () => {
     await mkdir(join(dir, 'skills', 'dir-skill'), { recursive: true })
     await writeFile(join(dir, 'skills', 'zeta.md'), 'zeta')
     await writeFile(join(dir, 'skills', 'alpha.md'), 'alpha')
@@ -442,7 +445,8 @@ describe('writeText', () => {
     expect((await stat(path)).isDirectory()).toBe(true)
   })
 
-  it('createIfAbsent rejects and preserves a dangling symbolic link', async () => {
+  // A real symbolic link needs Developer Mode or SeCreateSymbolicLinkPrivilege on Windows.
+  it.skipIf(!symlinksUsable())('createIfAbsent rejects and preserves a dangling symbolic link', async () => {
     const path = join(dir, 'dangling')
     await symlink(join(dir, 'missing-target'), path)
     const target = await fs.resolve('dangling')
@@ -790,7 +794,8 @@ describe('editText', () => {
   })
 })
 
-describe('symlink targetKey identity', () => {
+// A real symbolic link needs Developer Mode or SeCreateSymbolicLinkPrivilege on Windows.
+describe.skipIf(!symlinksUsable())('symlink targetKey identity', () => {
   it('two paths to the same file via a symlink share one version and write the real target', async () => {
     await writeFile(join(dir, 'real.txt'), 'hello')
     await symlink(join(dir, 'real.txt'), join(dir, 'link.txt'))

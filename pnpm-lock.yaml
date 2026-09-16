@@ -1054,6 +1054,9 @@ importers:
       '@deepseek-ai/dsh-permission-presets':
         specifier: workspace:^
         version: link:../../interaction/permission-presets
+      '@deepseek-ai/dsh-platform-probe':
+        specifier: workspace:^
+        version: link:../../test-support/platform-probe
       '@deepseek-ai/dsh-scope':
         specifier: workspace:^
         version: link:../../core/scope
@@ -1228,6 +1231,9 @@ importers:
       '@deepseek-ai/dsh-fs':
         specifier: workspace:^
         version: link:../../fs/fs
+      '@deepseek-ai/dsh-platform-probe':
+        specifier: workspace:^
+        version: link:../../test-support/platform-probe
       '@deepseek-ai/dsh-sandbox-policy':
         specifier: workspace:^
         version: link:../../sandbox/sandbox-policy
@@ -4914,6 +4920,9 @@ importers:
       '@deepseek-ai/dsh-llm-deepseek':
         specifier: workspace:^
         version: link:../../llm/llm-deepseek
+      '@deepseek-ai/dsh-platform-probe':
+        specifier: workspace:^
+        version: link:../../test-support/platform-probe
       '@deepseek-ai/dsh-session':
         specifier: workspace:^
         version: link:../../core/session
@@ -6140,6 +6149,9 @@ importers:
       '@deepseek-ai/dsh-llm':
         specifier: workspace:^
         version: link:../../llm/llm
+      '@deepseek-ai/dsh-platform-probe':
+        specifier: workspace:^
+        version: link:../../test-support/platform-probe
 
   packages/fs/fs-observation-policy:
     devDependencies:
@@ -6164,6 +6176,9 @@ importers:
       '@deepseek-ai/dsh-fs-local':
         specifier: workspace:^
         version: link:../fs-local
+      '@deepseek-ai/dsh-platform-probe':
+        specifier: workspace:^
+        version: link:../../test-support/platform-probe
       '@deepseek-ai/dsh-sandbox':
         specifier: workspace:^
         version: link:../../sandbox/sandbox
@@ -7382,6 +7397,9 @@ importers:
       '@deepseek-ai/dsh-lsp':
         specifier: workspace:^
         version: link:../lsp
+      '@deepseek-ai/dsh-platform-probe':
+        specifier: workspace:^
+        version: link:../../test-support/platform-probe
       '@deepseek-ai/dsh-subprocess':
         specifier: workspace:^
         version: link:../../subprocess/subprocess
@@ -7575,6 +7593,9 @@ importers:
       '@deepseek-ai/dsh-llm':
         specifier: workspace:^
         version: link:../../llm/llm
+      '@deepseek-ai/dsh-platform-probe':
+        specifier: workspace:^
+        version: link:../../test-support/platform-probe
       '@deepseek-ai/dsh-scope':
         specifier: workspace:^
         version: link:../../core/scope
@@ -8264,6 +8285,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-platform-probe':
+        specifier: workspace:^
+        version: link:../../test-support/platform-probe
       '@deepseek-ai/dsh-session':
         specifier: workspace:^
         version: link:../../core/session
@@ -8629,6 +8653,9 @@ importers:
       '@deepseek-ai/dsh-home-paths':
         specifier: workspace:^
         version: link:../../util/home-paths
+      '@deepseek-ai/dsh-platform-probe':
+        specifier: workspace:^
+        version: link:../../test-support/platform-probe
       '@deepseek-ai/dsh-settings':
         specifier: workspace:^
         version: link:../settings
@@ -8697,6 +8724,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-platform-probe':
+        specifier: workspace:^
+        version: link:../../test-support/platform-probe
       '@deepseek-ai/dsh-settings':
         specifier: workspace:^
         version: link:../../settings/settings
@@ -9073,6 +9103,9 @@ importers:
       '@deepseek-ai/dsh-home-paths':
         specifier: workspace:^
         version: link:../../util/home-paths
+      '@deepseek-ai/dsh-platform-probe':
+        specifier: workspace:^
+        version: link:../../test-support/platform-probe
       '@deepseek-ai/dsh-settings':
         specifier: workspace:^
         version: link:../../settings/settings
@@ -9150,6 +9183,9 @@ importers:
       '@deepseek-ai/dsh-llm':
         specifier: workspace:^
         version: link:../../llm/llm
+      '@deepseek-ai/dsh-platform-probe':
+        specifier: workspace:^
+        version: link:../../test-support/platform-probe
       '@deepseek-ai/dsh-session':
         specifier: workspace:^
         version: link:../../core/session
@@ -10046,6 +10082,9 @@ importers:
       '@deepseek-ai/dsh-loader-smoke':
         specifier: workspace:^
         version: link:../../test-support/loader-smoke
+      '@deepseek-ai/dsh-platform-probe':
+        specifier: workspace:^
+        version: link:../../test-support/platform-probe
       '@deepseek-ai/dsh-subprocess':
         specifier: workspace:^
         version: link:../subprocess
@@ -10344,6 +10383,12 @@ importers:
         specifier: workspace:^
         version: link:../../core/session
 
+  packages/test-support/platform-probe:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
   packages/test-support/session-snapshot:
     dependencies:
       '@agentclientprotocol/sdk':
@@ -10386,6 +10431,9 @@ importers:
       '@deepseek-ai/dsh-llm':
         specifier: workspace:^
         version: link:../../llm/llm
+      '@deepseek-ai/dsh-platform-probe':
+        specifier: workspace:^
+        version: link:../platform-probe
       '@deepseek-ai/dsh-sandbox':
         specifier: workspace:^
         version: link:../../sandbox/sandbox
@@ -10522,6 +10570,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-platform-probe':
+        specifier: workspace:^
+        version: link:../../test-support/platform-probe
 
   packages/util/brand:
     devDependencies:

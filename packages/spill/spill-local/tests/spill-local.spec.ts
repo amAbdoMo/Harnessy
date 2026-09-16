@@ -18,6 +18,7 @@ import { basename, dirname, isAbsolute, join, normalize } from 'node:path'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import type { SaveTextSpill } from '@deepseek-ai/dsh-spill'
+import { symlinksUsable } from '@deepseek-ai/dsh-platform-probe'
 import LocalSpillStore, {
   DEFAULT_ROOT_PREFIX,
   discoverDefaultRoots,
@@ -295,7 +296,8 @@ describe('startup cleanup sweep', () => {
     expect(existsSync(kept)).toBe(true)
   })
 
-  it('skips a symlink INSIDE a session dir and non-session siblings', async () => {
+  // A real symbolic link needs Developer Mode or SeCreateSymbolicLinkPrivilege on Windows.
+  it.skipIf(!symlinksUsable())('skips a symlink INSIDE a session dir and non-session siblings', async () => {
     const dir = sessionDir(root, 'sess-1')
     mkdirSync(dir, { recursive: true })
     // A symlink pointing at an old target must NOT be followed or deleted.
@@ -312,7 +314,8 @@ describe('startup cleanup sweep', () => {
     expect(existsSync(unrelatedOld)).toBe(true)
   })
 
-  it('does NOT follow a symlinked session directory (no deletion in the target)', async () => {
+  // A real symbolic link needs Developer Mode or SeCreateSymbolicLinkPrivilege on Windows.
+  it.skipIf(!symlinksUsable())('does NOT follow a symlinked session directory (no deletion in the target)', async () => {
     // A `session-<12hex>`-NAMED symlink pointing at a directory of old files must
     // never be descended: lstat on the entry sees a link, so the target's files
     // are left intact and the link itself is not removed.
@@ -546,7 +549,8 @@ describe('startup cleanup sweep', () => {
 })
 
 describe('discoverDefaultRoots', () => {
-  it('returns only real dsh-spill-* directories, excluding symlinks and non-matches', async () => {
+  // A real symbolic link needs Developer Mode or SeCreateSymbolicLinkPrivilege on Windows.
+  it.skipIf(!symlinksUsable())('returns only real dsh-spill-* directories, excluding symlinks and non-matches', async () => {
     const base = mkdtempSync(join(tmpdir(), 'dsh-disc-'))
     try {
       // A real backend-shaped root (dsh-spill-<6>) via mkdtemp — the only match.

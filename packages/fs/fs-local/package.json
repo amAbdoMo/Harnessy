@@ -37,6 +37,7 @@
   "devDependencies": {
     "@deepseek-ai/dsh-fs": "workspace:^",
     "@deepseek-ai/dsh-llm": "workspace:^",
+    "@deepseek-ai/dsh-platform-probe": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   }
 }

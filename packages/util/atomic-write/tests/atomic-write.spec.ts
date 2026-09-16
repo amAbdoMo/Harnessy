@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { withFileLock, writeFileAtomic } from '../src/index.ts'
+import { symlinksUsable } from '@deepseek-ai/dsh-platform-probe'
 
 const state = vi.hoisted(() => ({
   failLockCreateWithEPERM: false,
@@ -88,7 +89,8 @@ describe('writeFileAtomic', () => {
     if (process.platform !== 'win32') expect((await stat(target)).mode & 0o777).toBe(0o600)
   })
 
-  it('replaces a symlinked target itself without writing through to the referent', async () => {
+  // A real symbolic link needs Developer Mode or SeCreateSymbolicLinkPrivilege on Windows.
+  it.skipIf(!symlinksUsable())('replaces a symlinked target itself without writing through to the referent', async () => {
     const dir = await scratch()
     const victim = join(dir, 'victim')
     await writeFile(victim, 'victim-content')

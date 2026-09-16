@@ -1,6 +1,6 @@
 {
-  "name": "@deepseek-ai/dsh-skill-filesystem",
-  "description": "Local filesystem skill provider for the DeepSeek Harness",
+  "name": "@deepseek-ai/dsh-platform-probe",
+  "description": "Host capability probe for tests: whether this machine can create a real symbolic link",
   "version": "0.1.5-alpha.1",
   "publishConfig": {
     "access": "public"
@@ -8,7 +8,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
-    "directory": "packages/skill/skill-filesystem"
+    "directory": "packages/test-support/platform-probe"
   },
   "type": "module",
   "main": "lib/index.js",
@@ -27,22 +27,9 @@
   ],
   "license": "MIT",
   "peerDependencies": {
-    "@deepseek-ai/dsh-fs": "workspace:^",
-    "@deepseek-ai/dsh-home-paths": "workspace:^",
-    "@deepseek-ai/dsh-skill": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
-  "dependencies": {
-    "chokidar": "^5.0.0",
-    "@deepseek-ai/schemastery": "workspace:^",
-    "yaml": "^2.4.2"
-  },
   "devDependencies": {
-    "@deepseek-ai/dsh-fs": "workspace:^",
-    "@deepseek-ai/dsh-home-paths": "workspace:^",
-    "@deepseek-ai/dsh-platform-probe": "workspace:^",
-    "@deepseek-ai/dsh-settings": "workspace:^",
-    "@deepseek-ai/dsh-skill": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   }
 }

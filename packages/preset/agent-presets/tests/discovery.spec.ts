@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { COMPOSITION_FILE, discoverPresets, scanRoot } from '@deepseek-ai/dsh-agent-presets'
+import { symlinksUsable } from '@deepseek-ai/dsh-platform-probe'
 
 const fsHarness = vi.hoisted(() => ({
   nextReadError: undefined as NodeJS.ErrnoException | undefined,
@@ -338,7 +339,8 @@ describe('rows naming a plugin that cannot be resolved', () => {
     expect(preset?.broken).toBeUndefined()
   })
 
-  it('reports a package whose install link dangles', async () => {
+  // A real symbolic link needs Developer Mode or SeCreateSymbolicLinkPrivilege on Windows.
+  it.skipIf(!symlinksUsable())('reports a package whose install link dangles', async () => {
     // What a stale profile install leaves behind: the name is still in
     // `node_modules`, pointing at a checkout that is gone.
     const home = await mkdtemp(join(tmpdir(), 'dsh-presets-dangling-'))

@@ -30,6 +30,7 @@ The test-support group gives repository tests deterministic, keyless ways to exe
 | [`loader-smoke`](loader-smoke/README.md) | Boots Loader-composed applications and drives fixture turns for smoke tests |
 | [`llm-mock-server`](llm-mock-server/README.md) | Provides a scriptable OpenAI-compatible fault server for recovery tests |
 | [`llm-replay`](llm-replay/README.md) | Replays recorded model streams for keyless tests and demos |
+| [`platform-probe`](platform-probe/README.md) | Reports whether the host can create a real symbolic link, so a symlink-dependent test runs wherever the privilege exists |
 
 -----
 

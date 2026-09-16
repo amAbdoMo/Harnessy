@@ -7,6 +7,7 @@ import {
   captureWorkspaceSnapshot,
   EMPTY_WORKSPACE_MARKER,
 } from '../src/workspace.ts'
+import { symlinksUsable } from '@deepseek-ai/dsh-platform-probe'
 
 describe('workspace snapshots', () => {
   const roots: string[] = []
@@ -21,7 +22,8 @@ describe('workspace snapshots', () => {
     await Promise.all(roots.splice(0).map(path => rm(path, { recursive: true, force: true })))
   })
 
-  it('captures readable text, binary bytes, links, and empty directories in path order', async () => {
+  // A real symbolic link needs Developer Mode or SeCreateSymbolicLinkPrivilege on Windows.
+  it.skipIf(!symlinksUsable())('captures readable text, binary bytes, links, and empty directories in path order', async () => {
     const directory = await root()
     await writeFile(join(directory, 'a.txt'), 'hello\n')
     await writeFile(join(directory, 'b.bin'), Buffer.from([0xff, 0x01]))

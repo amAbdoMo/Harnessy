@@ -5,6 +5,7 @@ import { chmod, lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, stat, syml
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
+import { symlinksUsable } from '@deepseek-ai/dsh-platform-probe'
 import { FileSettingsProvider, resolveSpec } from '../src/index.ts'
 
 interface ThemeConfig {
@@ -196,7 +197,8 @@ describe('persist', () => {
     expect(beta.get().fontSize).toBe(20)
   })
 
-  it('never follows a planted symlink at a temp path and never leaves the document a symlink', async () => {
+  // A real symbolic link needs Developer Mode or SeCreateSymbolicLinkPrivilege on Windows.
+  it.skipIf(!symlinksUsable())('never follows a planted symlink at a temp path and never leaves the document a symlink', async () => {
     const dir = await tempDir()
     const path = join(dir, 'settings.yaml')
     const victim = join(dir, 'victim.txt')

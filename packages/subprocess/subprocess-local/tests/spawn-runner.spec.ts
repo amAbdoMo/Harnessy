@@ -15,6 +15,7 @@ import { tmpdir } from 'node:os'
 import { join, posix, resolve } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Win32Error } from '@deepseek-ai/dsh-win32-process'
+import { symlinksUsable } from '@deepseek-ai/dsh-platform-probe'
 import type {
   CurrentTokenProcessBindings,
   NativePtr,
@@ -213,7 +214,8 @@ describe('closed runner protocol', () => {
     ]) expect(() => parseWindowsRunnerResult(invalid)).toThrow()
   })
 
-  it('contains cleanup failures and removes a substituted symlink only', () => {
+  // A real symbolic link needs Developer Mode or SeCreateSymbolicLinkPrivilege on Windows.
+  it.skipIf(!symlinksUsable())('contains cleanup failures and removes a substituted symlink only', () => {
     const files = track(createLinuxLaunchFiles({ cwd: '/ok', env: {} }))
     cleanupLinuxLaunchFiles(files)
     cleanupLinuxLaunchFiles(files)
@@ -373,7 +375,8 @@ describe('runner launch inputs', () => {
     expect(minimal).not.toHaveProperty('path')
   })
 
-  it('resolves Windows executables with target-cwd and PATH search semantics', () => {
+  // A real symbolic link needs Developer Mode or SeCreateSymbolicLinkPrivilege on Windows.
+  it.skipIf(!symlinksUsable())('resolves Windows executables with target-cwd and PATH search semantics', () => {
     const probed: string[] = []
     const exists = (candidate: string): boolean => {
       probed.push(candidate)

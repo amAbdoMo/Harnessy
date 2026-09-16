@@ -30,6 +30,7 @@ test-support 组为仓库测试提供确定性、无密钥地运行真实产品�
 | [`loader-smoke`](loader-smoke/README.zh.md) | 启动由 Loader 组合的应用并驱动 fixture 轮次以执行冒烟测试 |
 | [`llm-mock-server`](llm-mock-server/README.zh.md) | 为恢复测试提供可编脚本的 OpenAI 兼容故障服务器 |
 | [`llm-replay`](llm-replay/README.zh.md) | 为无密钥测试与演示回放已记录的模型流 |
+| [`platform-probe`](platform-probe/README.zh.md) | 报告主机能否创建真实符号链接，使依赖符号链接的测试在有该权限的主机上照常运行 |
 
 -----
 
