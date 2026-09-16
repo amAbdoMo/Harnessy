@@ -207,8 +207,8 @@ describe.skipIf(MODE === 'record')('web e2e: first-run DeepSeek credential setup
     const customModelId = settings.getByLabel('模型 ID 3')
     await customModelId.fill('private-preview')
     await settings.getByLabel('显示名称 3').fill('Private Preview')
-    // Capacities live behind the row's own disclosure, as in the pi-ai form.
-    await settings.getByRole('button', { name: '容量 3' }).click()
+    // The row's own disclosure carries its capacities, as in the pi-ai form.
+    await settings.getByRole('button', { name: '能力 3' }).click()
     await settings.getByLabel('上下文窗口 3').fill('131072')
     await settings.getByLabel('最大输出 token 数 3').fill('64K')
 

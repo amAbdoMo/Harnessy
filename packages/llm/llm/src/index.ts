@@ -15,6 +15,8 @@ import type {
   LlmDiscoveredModel,
   LlmFailure,
   LlmImageRequestPricing,
+  LlmModelCapability,
+  LlmModelCapabilityLookup,
   LlmModelContext,
   LlmModelDiscoveryRequest,
   LlmModelInfo,
@@ -337,6 +339,8 @@ export class LlmRuntime extends TypertRemoteService {
     string,
     (request: LlmModelDiscoveryRequest, signal?: AbortSignal) => Promise<readonly LlmDiscoveredModel[]>
   >()
+  /** Installed integrations answering per-model capabilities, by registration name. */
+  private capabilities = new Map<string, LlmModelCapabilityLookup>()
 
   constructor(ctx: Context) {
     super(ctx, 'llm')
@@ -575,6 +579,47 @@ export class LlmRuntime extends TypertRemoteService {
   }
 
   /**
+   * Offer one installed integration's authoritative per-model capability
+   * answers to discovery. A source is consulted only for a model the
+   * interrogated adapter stated nothing about, so a provider's own listing
+   * always wins; the first source that describes the id answers it. Disposed
+   * with the fiber.
+   * @param name - non-empty integration name, for diagnostics and conflicts.
+   * @param lookup - answers by exact model id, or `undefined` when it does not describe it.
+   * @returns the disposer that withdraws the offer.
+   */
+  registerModelCapabilitySource(name: string, lookup: LlmModelCapabilityLookup): () => void {
+    const dispose = this.ctx.effect(function* (this: LlmRuntime) {
+      if (name.length === 0) {
+        throw new LlmError('a model capability source needs a non-empty name', 'INVALID_DISCOVERY')
+      }
+      if (this.capabilities.has(name)) {
+        throw new LlmError(`model capability source "${name}" is already registered`, 'DUPLICATE_DISCOVERY')
+      }
+      this.capabilities.set(name, lookup)
+      yield () => {
+        this.capabilities.delete(name)
+      }
+    }.bind(this), 'llm.registerModelCapabilitySource()')
+    return () => void dispose()
+  }
+
+  /**
+   * Ask every registered source about one model id, in registration order.
+   * The answer is the source's own claim, so the caller still normalizes it.
+   */
+  private capabilitySourceAnswer(
+    modelId: string,
+    request: LlmModelDiscoveryRequest,
+  ): LlmModelCapability | undefined {
+    for (const lookup of this.capabilities.values()) {
+      const answer = lookup(modelId, request)
+      if (answer !== undefined) return answer
+    }
+    return undefined
+  }
+
+  /**
    * Interrogate one provider endpoint for the models it advertises. The
    * request describes a draft, not a stored route, so nothing here reads or
    * writes settings or credentials — the caller owns both, and the reply is
@@ -606,11 +651,21 @@ export class LlmRuntime extends TypertRemoteService {
     for (const model of discovered) {
       if (typeof model.id !== 'string' || model.id.length === 0 || seen.has(model.id)) continue
       seen.add(model.id)
+      // The adapter's own statement wins; an installed integration answers only
+      // for a model that adapter left undescribed. Either way the claim passes
+      // through one normalization below, so a source cannot smuggle in a level
+      // set the seam would have refused from an adapter.
+      const stated = model.reasoningEfforts === undefined
+        ? this.capabilitySourceAnswer(model.id, request)
+        : { reasoningEfforts: model.reasoningEfforts, ...model.defaultReasoningEffort === undefined
+          ? {}
+          : { defaultReasoningEffort: model.defaultReasoningEffort } }
       models.push({
         id: model.id,
         ...model.name === undefined ? {} : { name: model.name },
         ...model.contextWindow === undefined ? {} : { contextWindow: model.contextWindow },
         ...model.maxTokens === undefined ? {} : { maxTokens: model.maxTokens },
+        ...normalizeDiscoveredReasoning(stated),
       })
     }
     return models
@@ -1117,6 +1172,39 @@ export class LlmRuntime extends TypertRemoteService {
       options,
       () => this.adapterStream(options, prepared),
     )
+  }
+}
+
+/**
+ * Normalize one stated reasoning capability into the wire fields discovery
+ * publishes, or into nothing at all.
+ *
+ * This is the single owner of the level rules, so an adapter's own statement
+ * and a registered integration's answer cannot disagree about what counts as
+ * a usable set. Usable members survive beside unusable ones; a set offering
+ * only `off` is not a capability, because not thinking is the parameter's
+ * absence rather than something a selector can offer; and a default that does
+ * not name one of the stated levels names nothing dispatch could send.
+ * @param stated - the capability a source claimed, when it claimed one.
+ * @returns the fields to spread into a discovered model, possibly none.
+ */
+function normalizeDiscoveredReasoning(
+  stated: LlmModelCapability | undefined,
+): Pick<LlmDiscoveredModel, 'reasoningEfforts' | 'defaultReasoningEffort'> | Record<string, never> {
+  const efforts: string[] = []
+  // Array-ness is re-checked here rather than trusted: this runs over adapter
+  // and integration output alike, and a string is iterable — reading one as a
+  // level list would turn `"high"` into `["h", "i", "g"]`.
+  const statedEfforts = Array.isArray(stated?.reasoningEfforts) ? stated.reasoningEfforts : []
+  for (const effort of statedEfforts) {
+    if (typeof effort !== 'string' || effort.length === 0) continue
+    if (!efforts.includes(effort)) efforts.push(effort)
+  }
+  if (!efforts.some(level => level !== 'off')) return {}
+  const declared = stated?.defaultReasoningEffort
+  return {
+    reasoningEfforts: efforts,
+    ...declared === undefined || !efforts.includes(declared) ? {} : { defaultReasoningEffort: declared },
   }
 }
 

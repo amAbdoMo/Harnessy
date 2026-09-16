@@ -98,7 +98,7 @@ profile 的 `models` 列表会替换而非扩展路由的已安装目录；每�
 
 ### 带推理与协议兼容运行
 
-`reasoningEfforts` 声明模型可选择的 thinking 等级：每个键都是选择器提供的等级，其值是该等级过线的拼写，因此 `max: ultra` 可以为拥有自有词汇的网关重命名等级。省略该字段时保留已安装目录条目的能力；`false` 声明非推理模型。对于 pi-ai 无法识别的端点，`compat` 开关重塑请求——哪个角色携带系统提示词、哪个字段限制输出、thinking 等级如何传递——可逐路由、逐模型配置。条目与已安装目录都没有尺寸的模型，会采用路由的 `defaultContextWindow` 与 `defaultMaxTokens` 回退值。
+`reasoningEfforts` 声明模型可选择的 thinking 等级：每个键都是选择器提供的等级，其值是该等级过线的拼写，因此 `max: ultra` 可以为拥有自有词汇的网关重命名等级。省略该字段时保留已安装目录条目的能力；`false` 声明非推理模型。`defaultReasoningEffort` 指定该模型的请求在未指明等级时派发的等级，选择器会把它显示为默认值；它必须是该条目自身 `reasoningEfforts` 的键之一，因此模型并未提供的等级会在写入处即被拒绝，而不会被存成看似生效的值。路由级的 `reasoning` 仍是所有未声明自身默认值的模型的回退，这也让路由级偏好能与逐模型偏好并存。对于 pi-ai 无法识别的端点，`compat` 开关重塑请求——哪个角色携带系统提示词、哪个字段限制输出、thinking 等级如何传递——可逐路由、逐模型配置。条目与已安装目录都没有尺寸的模型，会采用路由的 `defaultContextWindow` 与 `defaultMaxTokens` 回退值。
 
 对于自托管 Chat Completions 端点，`thinkingTokenBudgetField` 选择推理预算参数，`vllmPriority` 在服务端启用优先级调度时设置整数调度优先级。模板参数接受 `$var: thinking.budget`。`openai-responses` 网关可设置 `supportsMaxOutputTokens: false` 来省略 `max_output_tokens`；Azure 与 Codex 传输会忽略这个共享兼容字段。这些控制均需显式启用；目录拥有的 Anthropic effort 和回退能力不是可配置开关。
 
@@ -108,7 +108,7 @@ profile 通过可选 settings seam 每次操作重新读取：base 与用户的 
 
 ### 从端点发现模型
 
-插件会回答"该提供方可以提供哪些模型？"，供配置界面正在编辑或起草的路由使用。已安装目录提供的路由直接由目录回答，不发网络请求；只有目录未描述的路由才会经网络询问。`openai-completions` 与 `openai-responses` 使用带 bearer 鉴权的 `GET {baseURL}/models`，`anthropic-messages` 则以 `x-api-key` 和 `anthropic-version` 使用原生 `GET /v1/models?limit=1000` 语义；其列表 URL 接受带或不带末尾 `/v1` 的 API 根地址，因为网关文档两种写法都会发布，且只有该列表 URL 会归一化这一段，模型请求收到的仍是配置原样的 `baseURL`。已配置且具名的路由会在 Host 内部提供已存凭据与 profile `headers`，因此通过 `settings.yaml` 或 Cordis 配置设置的部署标头可以到达模型发现请求，但不会成为发现请求或 Models 页面的字段；表单中新键入的密钥仍优先于已存凭据。解析器接受标准 `data` 数组或富信息 `models` 对象，并归一化每个候选的 id、显示名、上下文窗口与最大输出 token 数；Anthropic 的 `max_input_tokens` 与 `max_tokens` 会进入相同容量字段，即使对象条目点名了另一个规范 id，对象键仍是请求 id，原始类型的对象属性会被忽略，缺失的显示名则回退到该请求 id。回答是界面可以提供给用户采纳的候选元数据——不存储任何内容，`settings.yaml` 仍然是决定路由服务内容的唯一事实。
+插件会回答"该提供方可以提供哪些模型？"，供配置界面正在编辑或起草的路由使用。已安装目录提供的路由直接由目录回答，不发网络请求；只有目录未描述的路由才会经网络询问。`openai-completions` 与 `openai-responses` 使用带 bearer 鉴权的 `GET {baseURL}/models`，`anthropic-messages` 则以 `x-api-key` 和 `anthropic-version` 使用原生 `GET /v1/models?limit=1000` 语义；其列表 URL 接受带或不带末尾 `/v1` 的 API 根地址，因为网关文档两种写法都会发布，且只有该列表 URL 会归一化这一段，模型请求收到的仍是配置原样的 `baseURL`。已配置且具名的路由会在 Host 内部提供已存凭据与 profile `headers`，因此通过 `settings.yaml` 或 Cordis 配置设置的部署标头可以到达模型发现请求，但不会成为发现请求或 Models 页面的字段；表单中新键入的密钥仍优先于已存凭据。解析器接受标准 `data` 数组或富信息 `models` 对象，并归一化每个候选的 id、显示名、上下文窗口与最大输出 token 数；Anthropic 的 `max_input_tokens` 与 `max_tokens` 会进入相同容量字段，即使对象条目点名了另一个规范 id，对象键仍是请求 id，原始类型的对象属性会被忽略，缺失的显示名则回退到该请求 id。条目若声明了该模型的推理等级——`reasoningEfforts` 或 `reasoning_efforts`，以及必须命名其中之一的可选 `defaultReasoningEffort`——则恰好报告这些等级，使采纳该模型的界面以提供方自身的答案起步，而无需用户重述；未声明等级的条目则不报告任何等级，且绝不从模型名或同门模型补全。已安装目录提供​​的路由会报告 pi-ai 为其中每个模型记录的等级集合，也就是解析本就会继承的同一份元数据。回答是界面可以提供给用户采纳的候选元数据——不存储任何内容，`settings.yaml` 仍然是决定路由服务内容的唯一事实。
 
 ### 失败与恢复
 

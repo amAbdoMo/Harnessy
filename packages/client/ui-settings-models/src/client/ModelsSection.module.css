@@ -508,6 +508,60 @@
   gap: 4px;
 }
 
+/* A capability's whole field set spans the grid: the level checks sit under
+   the declaration they belong to instead of sharing a column with a capacity. */
+.modelCapability {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  grid-column: 1 / -1;
+}
+
+/* The level checks read as one set of labels, wrapping rather than scrolling
+   when the vocabulary is wide. */
+.effortGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+
+.effortOption {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+/* The undeclared-capability note: guidance under the control it explains, not
+   a fault, so it takes the tertiary tone the page's hints already use. */
+.modelCapabilityHint {
+  margin: 0;
+  grid-column: 1 / -1;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* The origin of the metadata the candidate list shows, above the candidates. */
+.candidateSource {
+  margin: 0 0 6px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* One candidate's stated capability, under the id it belongs to. */
+.candidateCapability {
+  display: block;
+  padding: 0 8px 6px 34px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
 .modelFieldLabel {
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;

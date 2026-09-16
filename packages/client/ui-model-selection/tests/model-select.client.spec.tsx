@@ -142,6 +142,66 @@ describe('ModelSelect dialog', () => {
       .toEqual(['Default', 'Standard'])
   })
 
+  it('lists only the levels the staged model supports', () => {
+    const { trigger } = renderPicker(state({
+      groups: [{
+        id: 'deepseek-official',
+        name: 'DeepSeek',
+        models: [
+          { id: 'deepseek-v4-flash', name: 'DeepSeek-V4-Flash', reasoning },
+          {
+            id: 'narrow',
+            name: 'Narrow',
+            reasoning: { efforts: [{ id: 'low', name: 'Low' }, { id: 'medium', name: 'Medium' }] },
+          },
+        ],
+      }],
+    }))
+    const levels = () => within(screen.getByRole('listbox', { name: '推理等级' }))
+      .getAllByRole('option').map(item => item.textContent)
+
+    expect(levels()).toEqual(['Off', 'High', 'Max'])
+    // Staging another model replaces the pane: the offer is that model's own
+    // declared levels, plus the provider-default entry while it declares no
+    // default of its own.
+    fireEvent.click(screen.getByRole('option', { name: /Narrow/ }))
+    expect(levels()).toEqual(['Default', 'Low', 'Medium'])
+    fireEvent.click(screen.getByRole('option', { name: /DeepSeek-V4-Flash/ }))
+    expect(levels()).toEqual(['Off', 'High', 'Max'])
+    expect(trigger).toBeTruthy()
+  })
+
+  it('resets an effort the newly chosen model does not support to its own default', async () => {
+    const { select } = renderPicker(state({
+      // The session is running the widest effort this route offers.
+      current: { provider: 'deepseek-official', model: 'deepseek-v4-flash', reasoningEffort: 'max' },
+      groups: [{
+        id: 'deepseek-official',
+        name: 'DeepSeek',
+        models: [
+          { id: 'deepseek-v4-flash', name: 'DeepSeek-V4-Flash', reasoning },
+          {
+            id: 'narrow',
+            name: 'Narrow',
+            reasoning: {
+              efforts: [{ id: 'low', name: 'Low' }, { id: 'high', name: 'High' }],
+              defaultEffort: 'low',
+            },
+          },
+        ],
+      }],
+    }))
+
+    fireEvent.doubleClick(screen.getByRole('option', { name: /Narrow/ }))
+    await waitFor(() => {
+      // `max` is not one of the new model's levels, so carrying it over would
+      // be a selection the adapter refuses; its own default answers instead.
+      expect(select).toHaveBeenCalledWith({
+        provider: 'deepseek-official', model: 'narrow', reasoningEffort: 'low',
+      })
+    })
+  })
+
   it('discards staged values on close and restores focus to the trigger', async () => {
     const { select, trigger } = renderPicker()
     fireEvent.click(screen.getByRole('option', { name: /DeepSeek-V4-Pro/ }))

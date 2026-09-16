@@ -250,6 +250,29 @@ describe('model discovery registry', () => {
     ])
   })
 
+  it('carries a stated level set exactly, and drops what is not one', async () => {    const ctx = await setup()
+    ctx.llm.registerModelDiscovery('llm-example', () => Promise.resolve([
+      { id: 'stated', reasoningEfforts: ['low', 'high'], defaultReasoningEffort: 'high' },
+      // A default outside the stated set names no level dispatch could send.
+      { id: 'bad-default', reasoningEfforts: ['low'], defaultReasoningEffort: 'max' },
+      // An empty or unusable list is no statement, and a bare string is not a
+      // list at all: each is dropped rather than repaired into a claim.
+      { id: 'empty', reasoningEfforts: [] },
+      { id: 'unusable', reasoningEfforts: [42, null, ''] },
+      { id: 'not-a-list', reasoningEfforts: 'high' },
+      { id: 'default-only', defaultReasoningEffort: 'high' },
+    ] as never))
+
+    expect(await ctx.llm.discoverModels('llm-example', { baseURL: 'https://gateway.example/v1' })).toEqual([
+      { id: 'stated', reasoningEfforts: ['low', 'high'], defaultReasoningEffort: 'high' },
+      { id: 'bad-default', reasoningEfforts: ['low'] },
+      { id: 'empty' },
+      { id: 'unusable' },
+      { id: 'not-a-list' },
+      { id: 'default-only' },
+    ])
+  })
+
   it('carries cancellation into Remote discovery and maps provider failures', async () => {
     const ctx = await setup()
     const discover = vi.fn()
@@ -336,5 +359,80 @@ describe('imageRequestPricing resolution', () => {
     expect(ctx.llm.imageRequestPricing('missing', 'vision')).toBeUndefined()
     dispose()
     expect(ctx.llm.imageRequestPricing('a', 'vision')).toBeUndefined()
+  })
+})
+
+describe('model capability sources', () => {
+  /** Register one discovery answer plus the source under test. */
+  async function harness(discovered: readonly Record<string, unknown>[]): Promise<Context> {
+    const ctx = await setup()
+    ctx.llm.registerModelDiscovery('llm-example', () => Promise.resolve(discovered as never))
+    return ctx
+  }
+
+  it('fills a model its adapter left undescribed, and never overrides the adapter', async () => {
+    const ctx = await harness([{ id: 'known' }, { id: 'stated', reasoningEfforts: ['low'] }, { id: 'unknown' }])
+    const dispose = ctx.llm.registerModelCapabilitySource('example', modelId => modelId === 'unknown'
+      ? undefined
+      : { reasoningEfforts: ['low', 'high'], defaultReasoningEffort: 'high' })
+
+    expect(await ctx.llm.discoverModels('llm-example', { baseURL: 'https://gateway.example/v1' })).toEqual([
+      { id: 'known', reasoningEfforts: ['low', 'high'], defaultReasoningEffort: 'high' },
+      // The adapter's own statement wins; a source answers only for a model the
+      // adapter said nothing about.
+      { id: 'stated', reasoningEfforts: ['low'] },
+      { id: 'unknown' },
+    ])
+
+    dispose()
+    expect(await ctx.llm.discoverModels('llm-example', { baseURL: 'https://gateway.example/v1' })).toEqual([
+      { id: 'known' },
+      { id: 'stated', reasoningEfforts: ['low'] },
+      { id: 'unknown' },
+    ])
+  })
+
+  it('normalizes a source answer exactly as an adapter statement', async () => {
+    const ctx = await harness([{ id: 'off-only' }, { id: 'bad-default' }, { id: 'fine' }])
+    ctx.llm.registerModelCapabilitySource('example', (modelId) => {
+      if (modelId === 'off-only') return { reasoningEfforts: ['off'] }
+      if (modelId === 'bad-default') return { reasoningEfforts: ['low'], defaultReasoningEffort: 'max' }
+      return { reasoningEfforts: ['low', 'low', '', 'high'] }
+    })
+
+    expect(await ctx.llm.discoverModels('llm-example', { baseURL: 'https://gateway.example/v1' })).toEqual([
+      // A set offering only `off` is not a capability.
+      { id: 'off-only' },
+      // A default naming no stated level names nothing dispatch could send.
+      { id: 'bad-default', reasoningEfforts: ['low'] },
+      // Usable members survive, duplicates and blanks do not.
+      { id: 'fine', reasoningEfforts: ['low', 'high'] },
+    ])
+  })
+
+  it('tells each source which route it is answering for', async () => {
+    const ctx = await harness([{ id: 'model' }])
+    const seen: unknown[] = []
+    ctx.llm.registerModelCapabilitySource('example', (modelId, request) => {
+      seen.push([modelId, request])
+      return undefined
+    })
+
+    await ctx.llm.discoverModels('llm-example', { provider: 'route', baseURL: 'https://gateway.example/v1' })
+    // A source keyed by model id alone cannot know whether it owns the route,
+    // so the request travels with the question.
+    expect(seen).toEqual([['model', { provider: 'route', baseURL: 'https://gateway.example/v1' }]])
+  })
+
+  it('refuses an unnamed or duplicate source, and withdraws one with its fiber', async () => {
+    const ctx = await setup()
+    expect(() => ctx.llm.registerModelCapabilitySource('', () => undefined))
+      .toThrow(/non-empty name/)
+    const dispose = ctx.llm.registerModelCapabilitySource('example', () => undefined)
+    expect(() => ctx.llm.registerModelCapabilitySource('example', () => undefined))
+      .toThrow(/already registered/)
+    expect(() => { dispose() }).not.toThrow()
+    // The withdrawn name is free again.
+    expect(() => ctx.llm.registerModelCapabilitySource('example', () => undefined)).not.toThrow()
   })
 })

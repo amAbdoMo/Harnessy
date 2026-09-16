@@ -50,6 +50,10 @@
  *               off:
  *               high: high
  *               max: ultra
+ *             # Optional: the level a request naming none dispatches, one of
+ *             # the keys above. Neither a wire spelling nor the route's
+ *             # `reasoning` can answer this per model.
+ *             defaultReasoningEffort: high
  * ```
  *
  * @module @deepseek-ai/dsh-llm-pi-ai

@@ -682,6 +682,68 @@ describe('per-model reasoning efforts', () => {
     expect(declare({ high: null })).toThrow(/only "off" may leave it empty/)
     expect(declare({ high: '' })).toThrow(/must not be an empty string/)
   })
+
+  it('claims nothing for a model that declares no reasoning metadata', () => {
+    const profile = resolveProfiles(declared([{ id: 'm' }])).get('acme-gateway')
+    // pi-ai reports only the single level `off` for such a model, which the
+    // adapter omits from selector metadata rather than offering a control that
+    // cannot change the request.
+    expect(getSupportedThinkingLevels(profile?.piProvider.getModels()[0] as Model<Api>)).toEqual(['off'])
+    expect(profile?.configuredReasoningDefaults.size).toBe(0)
+  })
+
+  it('keeps each model’s own effort set and default on one route', () => {
+    const profile = resolveProfiles(declared([
+      { id: 'a', reasoningEfforts: { low: 'low', high: 'high' }, defaultReasoningEffort: 'high' },
+      { id: 'b', reasoningEfforts: { low: 'low', medium: 'medium', high: 'high', xhigh: 'xhigh' } },
+    ])).get('acme-gateway')
+    const [first, second] = profile?.piProvider.getModels() ?? []
+
+    expect(getSupportedThinkingLevels(first as Model<Api>)).toEqual(['low', 'high'])
+    expect(getSupportedThinkingLevels(second as Model<Api>)).toEqual(['low', 'medium', 'high', 'xhigh'])
+    // Only the model that declared a default carries one; the other keeps
+    // whatever the route or the catalog says instead of inheriting its
+    // sibling's.
+    expect(profile?.configuredReasoningDefaults.get('a')).toBe('high')
+    expect(profile?.configuredReasoningDefaults.has('b')).toBe(false)
+  })
+
+  it('holds a declared default apart from the materialized model', () => {
+    const profile = resolveProfiles(declared([
+      { id: 'm', reasoningEfforts: { off: null, high: 'high' }, defaultReasoningEffort: 'off' },
+    ])).get('acme-gateway')
+
+    // `off` is a legal default: it names the level that dispatches without the
+    // reasoning parameter.
+    expect(profile?.configuredReasoningDefaults.get('m')).toBe('off')
+    // The default is a request fact, not a capability pi-ai reads, so it stays
+    // out of the model descriptor and out of the wire map.
+    expect(profile?.piProvider.getModels()[0]).not.toHaveProperty('defaultEffort')
+    expect(profile?.piProvider.getModels()[0]?.thinkingLevelMap).toEqual({
+      minimal: null,
+      low: null,
+      medium: null,
+      xhigh: null,
+      max: null,
+      high: 'high',
+    })
+  })
+
+  it('refuses a default effort that names no level its model declares', () => {
+    const withModel = (model: LlmPiAi.PiAiModelProfile): (() => unknown) =>
+      () => resolveProfiles(declared([model]))
+
+    // A level the entry does not offer could only be a typo: no wire spelling
+    // exists for it, and dispatch would have to invent one.
+    expect(withModel({ id: 'm', reasoningEfforts: { low: 'low', high: 'high' }, defaultReasoningEffort: 'max' }))
+      .toThrow(/defaultReasoningEffort "max" is not one of its reasoningEfforts \(low, high\)/)
+    // Beside `false`, and beside an omitted declaration, there is no level set
+    // at all to name: carrying the field forward would leave it looking applied.
+    expect(withModel({ id: 'm', reasoningEfforts: false, defaultReasoningEffort: 'high' }))
+      .toThrow(/beside reasoningEfforts: false/)
+    expect(withModel({ id: 'm', defaultReasoningEffort: 'high' }))
+      .toThrow(/without declaring reasoningEfforts/)
+  })
 })
 
 describe('modelOverrides', () => {

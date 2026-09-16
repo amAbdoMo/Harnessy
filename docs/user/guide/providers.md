@@ -43,7 +43,7 @@ If a saved default names a provider that was deleted, the composer displays **Se
 The generated [plugin configuration catalog](../../config-catalog.md) lists every supported field and default for every plugin; [`dsh-llm-pi-ai`](../../config-catalog.md#deepseek-aidsh-llm-pi-ai) is the provider section this page configures. The [`dsh-llm-pi-ai`](../../../packages/llm/llm-pi-ai/README.md) and [`dsh-llm-deepseek`](../../../packages/llm/llm-deepseek/README.md) references own direct `settings.yaml` configuration, catalog resolution, reasoning controls, credentials, and adapter errors.
 
 ::: tip The form is deliberately small
-The Models page exposes only what a route needs to exist: the API key, display name, base URL, API protocol, and for each model its id, display name, context window, and max output tokens. Every other field — reasoning effort levels, image input, request-compatibility switches, headers, timeouts, retry policy — is set in `$DSH_HOME/settings.yaml`, the same document the page writes. Edit it directly, or, when the browser runs on the same machine as the server, open it with **Open configuration file** in the Settings header; the adapters re-read it on the next request, so nothing needs a restart. The subsections below cover the fields most gateways need.
+The Models page exposes only what a route needs to exist: the API key, display name, base URL, API protocol, and for each model its id, display name, context window, max output tokens, and whether it reasons — with the effort levels it offers and the one its requests default to when it does. Every other field — image input, request-compatibility switches, headers, timeouts, retry policy — is set in `$DSH_HOME/settings.yaml`, the same document the page writes. Edit it directly, or, when the browser runs on the same machine as the server, open it with **Open configuration file** in the Settings header; the adapters re-read it on the next request, so nothing needs a restart. The subsections below cover the fields most gateways need.
 :::
 
 ### Image input
@@ -99,7 +99,7 @@ Both fields state a claim about your endpoint rather than checking it. A model t
 
 ### Reasoning effort
 
-The model picker offers an **Effort** menu for a model that declares reasoning levels. A built-in provider's models inherit their levels from the installed catalog. A model you enter by hand declares none, so the Effort entry does not appear in the menu and the endpoint's own default decides whether the model thinks. Declare the levels with `reasoningEfforts` in `$DSH_HOME/settings.yaml`:
+The model picker offers an **Effort** menu for a model that declares reasoning levels. A built-in provider's models inherit their levels from the installed catalog. A model you enter by hand declares none, so the Effort entry does not appear in the menu and the endpoint's own default decides whether the model thinks. **Fetch available models** imports the levels a gateway states for a model in its listing, and for a route pi-ai ships it reports the levels the installed catalog records; only what the source actually states is adopted. Open the model's row on the Models page and set **Reasoning** to **Supported** to choose or correct the levels by hand, or write the same fields into `$DSH_HOME/settings.yaml`:
 
 ```yaml
 llm-pi-ai:
@@ -115,9 +115,10 @@ llm-pi-ai:
             off:
             high: high
             max: max
+          defaultReasoningEffort: high
 ```
 
-Each key is a level the menu offers, and its value is the spelling sent on the wire as `reasoning_effort`, so `max: xhigh` renames a level for a gateway with its own vocabulary. Only `off` may stay empty, because for most endpoints not thinking is the parameter's absence. The route's `reasoning` is the level used while a session has picked none; choosing an effort in the picker saves it, with the model, as the default for new sessions.
+Each key is a level the menu offers, and its value is the spelling sent on the wire as `reasoning_effort`, so `max: xhigh` renames a level for a gateway with its own vocabulary. Only `off` may stay empty, because for most endpoints not thinking is the parameter's absence. `defaultReasoningEffort` names the level that model uses while a session has picked none, and must be one of its own keys. The route's `reasoning` is the fallback for the models that declare no default of their own; choosing an effort in the picker saves it, with the model, as the default for new sessions.
 
 An `off` left empty sends nothing, which only stops a model that thinks on request; an `off` given a value sends that value as `reasoning_effort` instead. A model that thinks unless told not to — DeepSeek V4 behind an OpenAI-compatible gateway, for example — needs `compat.thinkingFormat: deepseek`, which makes `off` send `thinking: {type: disabled}` and every other level send `thinking: {type: enabled}` beside the effort:
 
@@ -183,7 +184,7 @@ Every switch, its accepted values, and the protocols that take it are listed und
 - **Fetching available models reports neither a `data` array nor a `models` object** — The endpoint's listing is in a format discovery does not read. Enter the models by hand.
 - **The gateway refuses every request although the key and URL are right** — Its request shape differs from OpenAI's. Start with `compat.supportsDeveloperRole: false` and `compat.maxTokensField: max_tokens` on the route.
 - **Only reasoning models fail** — pi-ai sends their system prompt as the `developer` role, which the gateway rejects. Set `compat.supportsDeveloperRole: false`.
-- **The Effort menu does not appear for a model you entered by hand** — It declares no levels. Add `reasoningEfforts` to the model in `settings.yaml`.
+- **The Effort menu does not appear for a model you entered by hand** — It declares no levels. Use **Fetch available models** to import the levels the provider states, set **Reasoning** to **Supported** on its Models-page row, or add `reasoningEfforts` to the model in `settings.yaml`.
 - **`off` does not stop a DeepSeek model from thinking** — An empty `off` sends no reasoning field at all, and an endpoint that thinks by default keeps thinking. Set `compat.thinkingFormat: deepseek` on the model or the route.
 - **A compat switch is refused as having no value** — A key written with nothing after the colon. Give it a value, or remove the key to keep the installed catalog's.
 - **An image is refused before sending** — The model declares no image modality. Give a custom provider's model `input: [text, image]`; on DeepSeek's own route, select `deepseek-v4-flash-vision-exp`, the model that declares images.

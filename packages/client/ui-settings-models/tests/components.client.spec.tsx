@@ -652,6 +652,24 @@ describe('ModelsSection', () => {
     expect(validateDeepSeekModels([{ id: 'model', maxTokens: 0 }]))
       .toEqual({ index: 0, key: 'modelMaxTokensInvalid' })
     expect(validateDeepSeekModels([{ id: 'model', maxTokens: 8192 }])).toBeUndefined()
+    // An explicit non-reasoning declaration and an omitted one are both complete
+    // statements; only a level map with nothing in it is half-made.
+    expect(validateDeepSeekModels([{ id: 'model', reasoningEfforts: false }])).toBeUndefined()
+    expect(validateDeepSeekModels([{ id: 'model' }])).toBeUndefined()
+    expect(validateDeepSeekModels([{ id: 'model', reasoningEfforts: {} }]))
+      .toEqual({ index: 0, key: 'modelReasoningEffortsEmpty' })
+    // A YAML `reasoningEfforts:` left valueless is the same half-made state.
+    expect(validateDeepSeekModels([{ id: 'model', reasoningEfforts: null }]))
+      .toEqual({ index: 0, key: 'modelReasoningEffortsEmpty' })
+    expect(validateDeepSeekModels([{ id: 'model', reasoningEfforts: { low: 'low' }, defaultReasoningEffort: 'low' }]))
+      .toBeUndefined()
+    expect(validateDeepSeekModels([{ id: 'model', reasoningEfforts: { low: 'low' }, defaultReasoningEffort: 'high' }]))
+      .toEqual({ index: 0, key: 'modelReasoningDefaultInvalid' })
+    // A default with no level set to name is refused in both shapes that lack one.
+    expect(validateDeepSeekModels([{ id: 'model', defaultReasoningEffort: 'high' }]))
+      .toEqual({ index: 0, key: 'modelReasoningDefaultInvalid' })
+    expect(validateDeepSeekModels([{ id: 'model', reasoningEfforts: false, defaultReasoningEffort: 'high' }]))
+      .toEqual({ index: 0, key: 'modelReasoningDefaultInvalid' })
   })
 
   it('reads context windows written as counts, thousands, or millions', () => {

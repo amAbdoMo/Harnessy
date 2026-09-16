@@ -295,7 +295,13 @@ export class PiAiAdapter extends LlmAdapter {
   private modelInfo(snapshot: PiAiSnapshot, provider: string, model: string): LlmResolvedModelInfo {
     const profile = this.profileOf(snapshot, provider)
     const resolvedModel = this.modelOf(snapshot, provider, model)
-    const defaultLevel = describableReasoningLevel(resolvedModel, profile.reasoning)
+    // The model's own declared default wins over the route's, which stays the
+    // fallback for every model that declares none: a route-level knob cannot
+    // express the per-model default a profile may name.
+    const defaultLevel = describableReasoningLevel(
+      resolvedModel,
+      profile.configuredReasoningDefaults.get(model) ?? profile.reasoning,
+    )
     // Only a cap the deployment configured is a request default; the
     // catalog's `maxTokens` sizes the model and stops there.
     const configuredMaxTokens = profile.configuredMaxTokens.get(model)

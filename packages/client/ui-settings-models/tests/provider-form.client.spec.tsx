@@ -9,9 +9,10 @@ import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import { ModelsSection, providerCopy } from '../src/client/ModelsSection.tsx'
 import type { ModelsSectionInjected, ModelsSectionProps } from '../src/client/ModelsSection.tsx'
 import { CustomProviderCard } from '../src/client/CustomProviderCard.tsx'
-import { formatCapacity, parseCapacity } from '../src/client/DeepSeekModelsEditor.tsx'
+import { effortLabel } from '../src/client/ModelListEditor.tsx'
+import { formatCapacity, parseCapacity, declaredCapability, reasoningEffortsMap } from '../src/client/DeepSeekModelsEditor.tsx'
 import { SettingsDescribeMirror } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-mirror.ts'
-import { ModelsSettingsStore, deriveKeyRef, protocolChoices } from '../src/client/store.ts'
+import { ModelsSettingsStore, deriveKeyRef, protocolChoices, reasoningEffortChoices } from '../src/client/store.ts'
 import { createModelsOperations } from '../src/client/operations.ts'
 import type { ModelsOperations } from '../src/client/operations.ts'
 import { en } from '../src/client/locales.ts'
@@ -22,6 +23,9 @@ afterEach(cleanup)
 const t: ModelsSectionInjected['t'] = key => en[key]
 
 const PROTOCOLS = ['openai-completions', 'openai-responses', 'anthropic-messages']
+
+/** The reasoning levels the profile's `reasoningEfforts` keys accept, in dispatch order. */
+const EFFORT_LEVELS = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
 
 /** The pi-ai profile shape as the host serializes it, including the layer-1 fields. */
 const PiAiConfig = Schema.object({
@@ -36,6 +40,17 @@ const PiAiConfig = Schema.object({
       name: Schema.string(),
       contextWindow: Schema.number(),
       maxTokens: Schema.number(),
+      // The declaration the capability controls write: `false` for a
+      // non-reasoning model, or a level map whose keys are the offered levels
+      // and whose values are their wire spellings.
+      reasoningEfforts: Schema.union([
+        Schema.const(false),
+        Schema.dict(
+          Schema.union([Schema.string(), Schema.const(null)]),
+          Schema.union(EFFORT_LEVELS),
+        ),
+      ]),
+      defaultReasoningEffort: Schema.union(EFFORT_LEVELS),
     })),
     reasoning: Schema.union(['off', 'high']),
   })),
@@ -257,6 +272,40 @@ describe('protocolChoices', () => {
   })
 })
 
+describe('reasoningEffortChoices', () => {
+  it('reads the levels off the model field in the namespace schema', () => {
+    const { namespace } = scriptedFace()
+    expect(reasoningEffortChoices(namespace, settingsSchema)).toEqual([...EFFORT_LEVELS])
+    expect(reasoningEffortChoices(undefined, settingsSchema)).toEqual([])
+
+    const plain = { ...namespace, schema: JSON.parse(JSON.stringify(Schema.object({}).toJSON())) as JsonValue }
+    expect(reasoningEffortChoices(plain, settingsSchema)).toEqual([])
+
+    // A field that is present but names no level map — an adapter family that
+    // models reasoning some other way — offers no vocabulary either, rather
+    // than one read out of whatever union happens to sit there.
+    const other = {
+      ...namespace,
+      schema: JSON.parse(JSON.stringify(Schema.object({
+        providers: Schema.dict(Schema.object({
+          models: Schema.array(Schema.object({ reasoningEfforts: Schema.union(['on', 'off']) })),
+        })),
+      }).toJSON())) as JsonValue,
+    }
+    expect(reasoningEffortChoices(other, settingsSchema)).toEqual([])
+  })
+})
+
+describe('effort labels', () => {
+  it('names a level this build knows, and falls back to the level id', () => {
+    expect(effortLabel('xhigh', t)).toBe(en.effortExtraHigh)
+    expect(effortLabel('off', t)).toBe(en.effortOff)
+    // A level the adapter added still renders: a row that declared it must not
+    // lose it merely because this build carries no copy for it.
+    expect(effortLabel('quantum', t)).toBe('Quantum')
+  })
+})
+
 describe('model list editing', () => {
   it('adds, edits, and removes rows without storing emptied optional fields', async () => {
     const { mutate } = await mountSection()
@@ -451,6 +500,325 @@ describe('model list editing', () => {
 
 })
 
+describe('capability conversion', () => {
+  it('writes each level as its own spelling, off as the absence, and never a partial claim', () => {
+    // `off` is the one level whose wire form is the parameter's absence.
+    expect(reasoningEffortsMap(['off', 'high'])).toEqual({ off: null, high: 'high' })
+    // A source that stated no usable level leaves the row undeclared.
+    expect(declaredCapability(undefined, 'high')).toEqual({})
+    expect(declaredCapability([], 'high')).toEqual({})
+    // A default outside the stated set names no level dispatch could send.
+    expect(declaredCapability(['low'], 'max')).toEqual({ reasoningEfforts: { low: 'low' } })
+    expect(declaredCapability(['low'], 'low'))
+      .toEqual({ reasoningEfforts: { low: 'low' }, defaultReasoningEffort: 'low' })
+  })
+})
+
+describe('model capabilities', () => {
+  /** One pi-ai route listing exactly the given rows. */
+  function routeWith(models: Record<string, JsonValue>[]): Parameters<typeof mountSection>[0] {
+    return { providers: { openai: { baseURL: 'https://proxy.example/v1', models } } }
+  }
+
+  it('declares the levels and the default one model offers', async () => {
+    const { mutate } = await mountSection(routeWith([{ id: 'acme-think' }]))
+    openEditor('openai')
+    expandModel(1)
+
+    // A model that declares nothing shows the adapter's own answer and no
+    // level checks: nothing has been claimed for it yet.
+    const mode = screen.getByLabelText<HTMLSelectElement>(`${en.modelReasoning} 1`)
+    expect(mode.value).toBe('inherit')
+    expect(screen.queryByRole('checkbox', { name: en.effortLow })).toBeNull()
+
+    fireEvent.change(mode, { target: { value: 'supported' } })
+    // A declaration with no level in it is one the adapter refuses, so the
+    // write is blocked rather than storing a half-made capability.
+    expect(screen.getByText(`${en.model} 1: ${en.modelReasoningEffortsEmpty}`)).toBeTruthy()
+    expect(buttonNamed(en.apply).disabled).toBe(true)
+
+    fireEvent.click(screen.getByRole('checkbox', { name: en.effortOff }))
+    fireEvent.click(screen.getByRole('checkbox', { name: en.effortHigh }))
+    // Only the levels this row declares are offered as its default.
+    const defaultSelect = screen.getByLabelText<HTMLSelectElement>(`${en.modelReasoningDefault} 1`)
+    expect([...defaultSelect.options].map(option => option.textContent))
+      .toEqual([en.modelReasoningDefaultNone, en.effortOff, en.effortHigh])
+    fireEvent.change(defaultSelect, { target: { value: 'high' } })
+    fireEvent.click(screen.getByText(en.apply))
+
+    await waitFor(() => { expect(mutate).toHaveBeenCalled() })
+    expect(firstMutate(mutate).ops[0]?.value).toEqual([{
+      id: 'acme-think',
+      // Key = selectable level, value = the wire spelling dispatch sends. `off`
+      // is the one level whose spelling is the parameter's absence, which a
+      // null value records.
+      reasoningEfforts: { off: null, high: 'high' },
+      defaultReasoningEffort: 'high',
+    }])
+  })
+
+  it('clears the default without dropping the levels it can choose from', async () => {
+    const { mutate } = await mountSection(routeWith([{
+      id: 'acme-think',
+      reasoningEfforts: { low: 'low', high: 'high' },
+      defaultReasoningEffort: 'high',
+    }]))
+    openEditor('openai')
+    expandModel(1)
+
+    fireEvent.change(screen.getByLabelText(`${en.modelReasoningDefault} 1`), { target: { value: '' } })
+    fireEvent.click(screen.getByText(en.apply))
+
+    await waitFor(() => { expect(mutate).toHaveBeenCalled() })
+    expect(firstMutate(mutate).ops[0]?.value)
+      .toEqual([{ id: 'acme-think', reasoningEfforts: { low: 'low', high: 'high' } }])
+  })
+
+  it('drops a default whose level stops being offered', async () => {
+    const { mutate } = await mountSection(routeWith([{
+      id: 'acme-think',
+      reasoningEfforts: { low: 'low', high: 'high' },
+      defaultReasoningEffort: 'high',
+    }]))
+    openEditor('openai')
+    expandModel(1)
+
+    // A default the row no longer offers is one the adapter refuses, so
+    // unchecking its level takes the default with it.
+    fireEvent.click(screen.getByRole('checkbox', { name: en.effortHigh }))
+    fireEvent.click(screen.getByText(en.apply))
+
+    await waitFor(() => { expect(mutate).toHaveBeenCalled() })
+    expect(firstMutate(mutate).ops[0]?.value)
+      .toEqual([{ id: 'acme-think', reasoningEfforts: { low: 'low' } }])
+  })
+
+  it('keeps a default whose level is still offered', async () => {
+    const { mutate } = await mountSection(routeWith([{
+      id: 'acme-think',
+      reasoningEfforts: { low: 'low', high: 'high' },
+      defaultReasoningEffort: 'high',
+    }]))
+    openEditor('openai')
+    expandModel(1)
+
+    fireEvent.click(screen.getByRole('checkbox', { name: en.effortLow }))
+    fireEvent.click(screen.getByText(en.apply))
+
+    await waitFor(() => { expect(mutate).toHaveBeenCalled() })
+    expect(firstMutate(mutate).ops[0]?.value)
+      .toEqual([{ id: 'acme-think', reasoningEfforts: { high: 'high' }, defaultReasoningEffort: 'high' }])
+  })
+
+  it('declares a non-reasoning model with false', async () => {
+    const { mutate } = await mountSection(routeWith([{
+      id: 'acme-plain',
+      reasoningEfforts: { off: null, high: 'high' },
+      defaultReasoningEffort: 'high',
+    }]))
+    openEditor('openai')
+    expandModel(1)
+
+    fireEvent.change(screen.getByLabelText(`${en.modelReasoning} 1`), { target: { value: 'disabled' } })
+    // The level checks leave with the declaration they describe.
+    expect(screen.queryByRole('checkbox', { name: en.effortHigh })).toBeNull()
+    fireEvent.click(screen.getByText(en.apply))
+
+    await waitFor(() => { expect(mutate).toHaveBeenCalled() })
+    // This is how a catalog model whose gateway cannot serve its declared
+    // levels is stripped; the default had no level set left to name.
+    expect(firstMutate(mutate).ops[0]?.value).toEqual([{ id: 'acme-plain', reasoningEfforts: false }])
+  })
+
+  it('takes a declaration back to the adapter default', async () => {
+    const { mutate } = await mountSection(routeWith([{
+      id: 'acme-plain',
+      reasoningEfforts: { off: null, high: 'high' },
+      defaultReasoningEffort: 'high',
+    }]))
+    openEditor('openai')
+    expandModel(1)
+
+    fireEvent.change(screen.getByLabelText(`${en.modelReasoning} 1`), { target: { value: 'inherit' } })
+    fireEvent.click(screen.getByText(en.apply))
+
+    await waitFor(() => { expect(mutate).toHaveBeenCalled() })
+    // Both fields leave the profile, so the model answers exactly as it did
+    // before anyone opened its row.
+    expect(firstMutate(mutate).ops[0]?.value).toEqual([{ id: 'acme-plain' }])
+  })
+
+  it('keeps each model’s own effort set under one route', async () => {
+    const { mutate } = await mountSection(routeWith([{ id: 'a' }, { id: 'b' }]))
+    openEditor('openai')
+
+    // One row is open at a time: the checks of two rows carry the same names.
+    expandModel(1)
+    fireEvent.change(screen.getByLabelText(`${en.modelReasoning} 1`), { target: { value: 'supported' } })
+    fireEvent.click(screen.getByRole('checkbox', { name: en.effortLow }))
+    fireEvent.click(screen.getByRole('checkbox', { name: en.effortHigh }))
+    expandModel(1)
+
+    expandModel(2)
+    fireEvent.change(screen.getByLabelText(`${en.modelReasoning} 2`), { target: { value: 'supported' } })
+    for (const level of [en.effortLow, en.effortMedium, en.effortHigh, en.effortExtraHigh]) {
+      fireEvent.click(screen.getByRole('checkbox', { name: level }))
+    }
+    fireEvent.click(screen.getByText(en.apply))
+
+    await waitFor(() => { expect(mutate).toHaveBeenCalled() })
+    expect(firstMutate(mutate).ops[0]?.value).toEqual([
+      { id: 'a', reasoningEfforts: { low: 'low', high: 'high' } },
+      { id: 'b', reasoningEfforts: { low: 'low', medium: 'medium', high: 'high', xhigh: 'xhigh' } },
+    ])
+  })
+
+  it('leaves a model with no capability metadata exactly as it was', async () => {
+    const { mutate } = await mountSection(routeWith([{ id: 'legacy' }]))
+    openEditor('openai')
+    expandModel(1)
+
+    fireEvent.change(screen.getByLabelText(`${en.modelName} 1`), { target: { value: 'Legacy' } })
+    fireEvent.click(screen.getByText(en.apply))
+
+    await waitFor(() => { expect(mutate).toHaveBeenCalled() })
+    // Backward compatibility: an edit beside an undeclared capability must not
+    // materialize one, and must not store a claim nobody made.
+    expect(firstMutate(mutate).ops[0]?.value).toEqual([{ id: 'legacy', name: 'Legacy' }])
+  })
+
+  it('adopts the levels a source states, and leaves a silent model undeclared', async () => {
+    const discover = vi.fn(() => Promise.resolve(ok([
+      { id: 'states', reasoningEfforts: ['low', 'high'], defaultReasoningEffort: 'high' },
+      { id: 'silent' },
+    ])))
+    const { mutate } = await mountSection({
+      discover,
+      // The adapter ships no catalog for this route, so the fetch asks the
+      // endpoint and the metadata it returns is the provider's own.
+      declaredRoutes: ['openai'],
+      providers: { openai: { baseURL: 'https://proxy.example/v1' } },
+    })
+    openEditor('openai')
+
+    fireEvent.click(screen.getByText(en.fetchModels))
+    await screen.findByText(en.fetchTitle)
+    expect(screen.getByText(en.fetchSourceProvider)).toBeTruthy()
+    // The exact levels, named the way the composer will name them — and a
+    // candidate the source said nothing about says so rather than showing a set
+    // nobody stated.
+    expect(screen.getByText('Low · High')).toBeTruthy()
+    expect(screen.getByText(en.fetchEffortsNone)).toBeTruthy()
+
+    fireEvent.click(screen.getByText(en.fetchAdopt))
+    fireEvent.click(screen.getByText(en.apply))
+
+    await waitFor(() => { expect(mutate).toHaveBeenCalled() })
+    expect(firstMutate(mutate).ops[0]?.value).toEqual([
+      { id: 'states', reasoningEfforts: { low: 'low', high: 'high' }, defaultReasoningEffort: 'high' },
+      { id: 'silent' },
+    ])
+  })
+
+  it('names the built-in catalog as the source for a route the adapter ships', async () => {
+    const discover = vi.fn(() => Promise.resolve(ok([{ id: 'shipped', reasoningEfforts: ['off', 'high'] }])))
+    await mountSection({ discover, providers: { openai: { baseURL: 'https://proxy.example/v1' } } })
+    openEditor('openai')
+
+    fireEvent.click(screen.getByText(en.fetchModels))
+    await screen.findByText(en.fetchTitle)
+    // `openai` is in the installed catalog, so the fetch never reached the
+    // endpoint; attributing these levels to the provider would be a lie about
+    // where they came from.
+    expect(screen.getByText(en.fetchSourceBuiltIn)).toBeTruthy()
+    expect(screen.getByText('Off · High')).toBeTruthy()
+  })
+
+  it('imports a level set into a row that never declared one, and leaves a declared row alone', async () => {
+    const discover = vi.fn(() => Promise.resolve(ok([
+      { id: 'undeclared', reasoningEfforts: ['low', 'high', 'max'], contextWindow: 999 },
+      { id: 'declared', reasoningEfforts: ['low', 'medium', 'xhigh', 'max'] },
+      { id: 'refused', reasoningEfforts: ['low', 'high'] },
+    ])))
+    const { mutate } = await mountSection({
+      discover,
+      declaredRoutes: ['openai'],
+      providers: {
+        openai: {
+          baseURL: 'https://proxy.example/v1',
+          models: [
+            // Capacity already tuned: an import must not rewrite what the user set.
+            { id: 'undeclared', contextWindow: 111 },
+            { id: 'declared', reasoningEfforts: { off: null, high: 'high' }, defaultReasoningEffort: 'high' },
+            { id: 'refused', reasoningEfforts: false },
+          ],
+        },
+      },
+    })
+    openEditor('openai')
+
+    fireEvent.click(screen.getByText(en.fetchModels))
+    await screen.findByText(en.fetchTitle)
+    await waitFor(() => { expect(screen.getByText('Low · High · Max')).toBeTruthy() })
+    // An already-configured row starts unchecked, because adopting one must
+    // never silently rewrite a value the user set; this case is about the
+    // capability the row never set, so the rows are picked deliberately.
+    for (const id of ['undeclared', 'declared', 'refused']) {
+      fireEvent.click(screen.getByText(id))
+    }
+    fireEvent.click(screen.getByText(en.fetchAdopt))
+    fireEvent.click(screen.getByText(en.apply))
+
+    await waitFor(() => { expect(mutate).toHaveBeenCalled() })
+    expect(firstMutate(mutate).ops[0]?.value).toEqual([
+      // The absence is what the import fills; the tuned capacity stays.
+      { id: 'undeclared', contextWindow: 111, reasoningEfforts: { low: 'low', high: 'high', max: 'max' } },
+      { id: 'declared', reasoningEfforts: { off: null, high: 'high' }, defaultReasoningEffort: 'high' },
+      { id: 'refused', reasoningEfforts: false },
+    ])
+  })
+
+  it('says what an undeclared model can do about it, for each route kind', async () => {
+    await mountSection(routeWith([{ id: 'plain' }]))
+    openEditor('openai')
+    expandModel(1)
+    // A catalog route already inherits a level set; overriding it is opt-in.
+    expect(screen.getByText(en.modelReasoningCatalogHint)).toBeTruthy()
+    cleanup()
+
+    await mountSection({
+      ...routeWith([{ id: 'plain' }]),
+      declaredRoutes: ['openai'],
+    })
+    openEditor('openai')
+    expandModel(1)
+    // A route the adapter does not ship has nowhere to inherit from, so the
+    // note names the two ways to give it a set.
+    expect(screen.getByText(en.modelReasoningUndeclaredHint)).toBeTruthy()
+  })
+
+  it('offers no reasoning control an adapter declares no vocabulary for', async () => {
+    const scripted = scriptedFace()
+    render(
+      <CustomProviderCard
+        taken={[]} protocols={PROTOCOLS} revision={7} operations={operationsWith(scripted.face)}
+        efforts={[]}
+        t={t} readOnly={false} onClose={vi.fn()}
+      />,
+    )
+    fireEvent.change(screen.getByLabelText(en.customRoute), { target: { value: 'acme' } })
+    fireEvent.change(screen.getByLabelText(en.baseUrl), { target: { value: 'https://acme.test/v1' } })
+    fireEvent.click(screen.getByRole('button', { name: en.addModel }))
+    expandModel(1)
+
+    // The capacities still edit; the capability the adapter cannot name does
+    // not appear, rather than appearing with nothing to choose from.
+    expect(screen.getByLabelText(`${en.modelContextWindow} 1`)).toBeTruthy()
+    expect(screen.queryByLabelText(`${en.modelReasoning} 1`)).toBeNull()
+    expect(screen.queryByLabelText(`${en.modelReasoningDefault} 1`)).toBeNull()
+  })
+})
+
 describe('capacity spellings', () => {
   it.each([
     ['', undefined],
@@ -603,6 +971,7 @@ describe('endpoint interrogation', () => {
     render(
       <CustomProviderCard
         taken={[]} protocols={PROTOCOLS} revision={7} operations={operationsWith(scripted.face)}
+        efforts={EFFORT_LEVELS}
         t={t} readOnly={false} onClose={vi.fn()}
       />,
     )
@@ -774,6 +1143,7 @@ describe('hand-declared providers', () => {
       <CustomProviderCard
         taken={['openai']}
         protocols={PROTOCOLS}
+        efforts={EFFORT_LEVELS}
         revision={7}
         operations={operationsWith(scripted.face)}
         t={t}
@@ -820,11 +1190,12 @@ describe('hand-declared providers', () => {
   })
 
   it('scopes each card to fields a provider can actually own', async () => {
-    // Reasoning effort is a per-MODEL capability and the
-    // models under one provider disagree about it, so a provider-scoped
-    // control could only be set to a value some of them reject — which would
-    // take the whole provider out of the picker. The composer's model picker
-    // owns the choice, and a switch there records provider+model+effort together.
+    // Reasoning is a per-MODEL capability and the models under one provider
+    // disagree about it, so the provider card owns no control for it: a
+    // provider-scoped one could only be set to a value some of them reject,
+    // which would take the whole provider out of the picker. Each model row
+    // declares its own levels instead, and a session's picker then offers
+    // exactly those together with the provider and model.
     const fields = () => [...document.querySelectorAll('input,select')]
       .map(el => el.getAttribute('aria-label')).filter(Boolean)
 
@@ -849,6 +1220,22 @@ describe('hand-declared providers', () => {
     })
     openEditor('acme-gateway')
     expect(fields()).toEqual([en.keyInput, en.customDisplayName, en.baseUrl, en.customApi])
+    cleanup()
+
+    // The capability controls live on the model row rather than here, so a
+    // shipped route that lists a model reaches them through the row's own
+    // disclosure — each model declares the levels it accepts.
+    await mountSection({
+      providers: { openai: { baseURL: 'https://proxy.example/v1', models: [{ id: 'm' }] } },
+    })
+    openEditor('openai')
+    expect(fields()).toEqual([en.keyInput, en.baseUrl, `${en.modelId} 1`, `${en.modelName} 1`])
+    expandModel(1)
+    expect(fields()).toEqual([
+      en.keyInput, en.baseUrl,
+      `${en.modelId} 1`, `${en.modelName} 1`,
+      `${en.modelContextWindow} 1`, `${en.modelMaxTokens} 1`, `${en.modelReasoning} 1`,
+    ])
   })
 
   it('renames a declared route and falls back to its id when the name is cleared', async () => {

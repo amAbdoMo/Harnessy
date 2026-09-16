@@ -269,6 +269,35 @@ export interface LlmModelDiscoveryOperation extends LlmModelDiscoveryRequest {
   signal?: AbortSignal
 }
 
+/**
+ * One model's capability as an installed integration states it. A source
+ * answers only about models it actually describes, and states a level list
+ * rather than a boolean, because "reasons" without the offered levels cannot
+ * be offered as a choice.
+ */
+export interface LlmModelCapability {
+  /** Reasoning-effort ids this exact model accepts, in dispatch order. */
+  readonly reasoningEfforts: readonly string[]
+  /** Effort dispatch uses when a caller names none; must be one of {@link reasoningEfforts}. */
+  readonly defaultReasoningEffort?: string
+}
+
+/**
+ * One installed integration's authoritative per-model capability answers.
+ *
+ * A source exists because some providers publish their model capabilities
+ * through a channel other than the model-listing endpoint — an installed
+ * vendor package or a local registry — and a listing that states nothing must
+ * not have levels invented for it. A source answers by exact model id and
+ * returns `undefined` for every id it does not describe; the request travels
+ * with it so a source can confine itself to the routes it owns, because bare
+ * model ids are not unique across providers.
+ */
+export type LlmModelCapabilityLookup = (
+  modelId: string,
+  request: LlmModelDiscoveryRequest,
+) => LlmModelCapability | undefined
+
 declare module '@deepseek-ai/dsh-typert-protocol' {
   interface RemoteErrorDetailsMap {
     /** A draft provider interrogation refused or failed. */
@@ -283,6 +312,10 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
  * One model an endpoint reports about itself. Every field but the id is
  * optional because most provider listings disclose an id and nothing else;
  * a surface adopting one of these still owes the capacities its adapter needs.
+ *
+ * The two reasoning fields are claimed only from metadata that states them:
+ * a listing that reports no levels yields neither, and a consumer must never
+ * complete one from the other fields.
  */
 export interface LlmDiscoveredModel {
   /** Model id the endpoint accepts. */
@@ -293,6 +326,14 @@ export interface LlmDiscoveredModel {
   contextWindow?: number
   /** Maximum output tokens, when disclosed. */
   maxTokens?: number
+  /**
+   * Reasoning-effort ids this exact model accepts, in dispatch order, when the
+   * answering source states them. Absent means "not stated" — never "does not
+   * reason" and never a level set inferred from the model being a reasoner.
+   */
+  reasoningEfforts?: readonly string[]
+  /** Effort dispatch uses when a caller names none, when stated; one of {@link reasoningEfforts}. */
+  defaultReasoningEffort?: string
 }
 
 /** One adapter-discovered model; catalog membership is advisory, not request validation. */

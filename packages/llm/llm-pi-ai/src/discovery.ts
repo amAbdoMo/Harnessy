@@ -19,9 +19,17 @@
  * Every other protocol reports that it cannot be interrogated so the surface
  * falls back to hand-entry rather than guessing its response fields.
  *
+ * A listing entry that states the model's reasoning-effort levels has them
+ * read here, so a surface adopting that model starts from the provider's own
+ * answer instead of asking the user to restate it. Nothing is completed from
+ * anything else: an entry that states no levels yields none, which keeps the
+ * adopted profile exactly as truthful as the endpoint was.
+ *
  * @module dsh-llm-pi-ai/discovery
  */
 
+import { getSupportedThinkingLevels } from '@earendil-works/pi-ai'
+import type { Api, Model } from '@earendil-works/pi-ai'
 import { INVALID_CREDENTIAL_CODE, LlmError, normalizeApiKey } from '@deepseek-ai/dsh-llm'
 import type { LlmDiscoveredModel, LlmModelDiscoveryOperation } from '@deepseek-ai/dsh-llm'
 import { attributionHeaders } from '@deepseek-ai/dsh-llm'
@@ -85,6 +93,15 @@ interface ListingEntry {
   maxTokens?: unknown
   limit?: ListingLimit | null
   top_provider?: ListingTopProvider | null
+  /**
+   * Reasoning-effort levels this exact model accepts, when the gateway states
+   * them. Both spellings are read because every other disclosed field here is
+   * accepted in both; a listing that states none imports none.
+   */
+  reasoningEfforts?: unknown
+  reasoning_efforts?: unknown
+  defaultReasoningEffort?: unknown
+  default_reasoning_effort?: unknown
 }
 
 /** A positive integer field of a listing entry, or `undefined` when absent or unusable. */
@@ -101,6 +118,30 @@ function label(...candidates: readonly unknown[]): string | undefined {
     if (typeof candidate === 'string' && candidate.length > 0) return candidate
   }
   return undefined
+}
+
+/**
+ * The reasoning-effort levels one listing entry states, with its default when
+ * it names one. This extracts only what the entry claims; whether a claim is a
+ * usable level set — usable members beside unusable ones, a default inside the
+ * set, `off` alone being no offer — is decided once by the discovery seam's
+ * normalization, so this reader cannot disagree with any other source.
+ * @param entry - one listing entry.
+ * @returns the stated levels and default, each absent when the entry states none.
+ */
+function statedReasoning(entry: ListingEntry | null): Pick<
+  LlmDiscoveredModel,
+  'reasoningEfforts' | 'defaultReasoningEffort'
+> {
+  const raw = entry?.reasoningEfforts ?? entry?.reasoning_efforts
+  if (!Array.isArray(raw)) return {}
+  const efforts = raw.filter((candidate): candidate is string => typeof candidate === 'string')
+  if (efforts.length === 0) return {}
+  const declared = label(entry?.defaultReasoningEffort, entry?.default_reasoning_effort)
+  return {
+    reasoningEfforts: efforts,
+    ...declared === undefined ? {} : { defaultReasoningEffort: declared },
+  }
 }
 
 /**
@@ -224,9 +265,26 @@ function readListing(body: unknown): LlmDiscoveredModel[] {
       name,
       ...contextWindow === undefined ? {} : { contextWindow },
       ...maxTokens === undefined ? {} : { maxTokens },
+      ...statedReasoning(entry),
     })
   }
   return models
+}
+
+/**
+ * The reasoning levels the installed catalog records for one model, in the
+ * normalized ids the harness seam uses. A model pi-ai does not mark as
+ * reasoning states none: its single implicit `off` level is the absence of the
+ * parameter rather than an offer, which is the same distinction the adapter's
+ * own selector metadata makes. An empty list is left to the discovery seam,
+ * whose one normalization already reads it as no statement.
+ * @param model - one installed catalog model.
+ * @returns the stated levels, or nothing when the catalog marks no reasoning.
+ */
+function installedReasoning(
+  model: Model<Api>,
+): Pick<LlmDiscoveredModel, 'reasoningEfforts'> | Record<string, never> {
+  return model.reasoning ? { reasoningEfforts: [...getSupportedThinkingLevels(model)] } : {}
 }
 
 /**
@@ -271,7 +329,11 @@ export async function discoverModels(
   storedProfile?: () => StoredModelDiscoveryProfile | undefined,
 ): Promise<readonly LlmDiscoveredModel[]> {
   // A catalog route already has its answer, and a better one: the installed
-  // entries carry context windows and output caps no listing endpoint reports.
+  // entries carry context windows and output caps no listing endpoint reports,
+  // and the level set pi-ai records for each exact model. That set is reported
+  // as the model's own metadata — the same source resolution reads — so a
+  // surface adopting a catalog model sees what Harnessy already knows instead
+  // of being asked to restate it.
   if (request.provider !== undefined) {
     const installed = catalogModels(request.provider)
     if (installed.size > 0) {
@@ -280,6 +342,7 @@ export async function discoverModels(
         name: model.name,
         contextWindow: model.contextWindow,
         maxTokens: model.maxTokens,
+        ...installedReasoning(model),
       }))
     }
   }

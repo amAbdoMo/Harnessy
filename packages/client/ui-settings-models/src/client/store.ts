@@ -113,6 +113,20 @@ export function deriveKeyRef(provider: string): string {
 }
 
 /**
+ * The string members of one union schema node, or an empty list for any other
+ * node. Shared by the two vocabulary reads below so a namespace schema absent
+ * a field, or carrying something other than a union there, answers the same
+ * empty list.
+ * @param node - the resolved schema node, when the path resolved at all.
+ * @returns the union's string values, in declaration order.
+ */
+function unionStrings(node: unknown): string[] {
+  const list = (node as { type?: string; list?: readonly { value?: unknown }[] } | undefined)
+  if (list?.type !== 'union' || list.list === undefined) return []
+  return list.list.map(entry => entry.value).filter((value): value is string => typeof value === 'string')
+}
+
+/**
  * The wire protocols a hand-declared route may name, read out of the owning
  * namespace's own schema. This stays a schema read rather than a wire field so
  * the choices the page offers cannot drift from the ones the adapter accepts:
@@ -126,10 +140,40 @@ export function protocolChoices(
   schema: SettingsSchemaOperations,
 ): string[] {
   if (namespace === undefined) return []
-  const node = schema.nodeAtPath(schema.rehydrate(namespace.schema), ['providers', PROBE_ROUTE, 'api'])
-  const list = (node as { type?: string; list?: readonly { value?: unknown }[] } | undefined)
-  if (list?.type !== 'union' || list.list === undefined) return []
-  return list.list.map(entry => entry.value).filter((value): value is string => typeof value === 'string')
+  return unionStrings(schema.nodeAtPath(
+    schema.rehydrate(namespace.schema),
+    ['providers', PROBE_ROUTE, 'api'],
+  ))
+}
+
+/**
+ * The normalized reasoning-effort levels an adapter accepts for one model,
+ * read out of the owning namespace's own schema for the same reason
+ * {@link protocolChoices} reads protocols: the levels a settings surface
+ * offers are the ones the adapter will accept, so neither list can drift from
+ * the other. The vocabulary lives on the keys of a model entry's
+ * `reasoningEfforts` map — the levels an author may declare and the wire
+ * spellings they carry.
+ * @param namespace - the namespace view whose schema declares the profile shape.
+ * @param schema - settings schema operations.
+ * @returns the level identifiers in dispatch order, or an empty list when the
+ *   schema declares no such map.
+ */
+export function reasoningEffortChoices(
+  namespace: SettingsNamespaceView | undefined,
+  schema: SettingsSchemaOperations,
+): string[] {
+  if (namespace === undefined) return []
+  const node = schema.nodeAtPath(
+    schema.rehydrate(namespace.schema),
+    ['providers', PROBE_ROUTE, 'models', '0', 'reasoningEfforts'],
+  )
+  // The field is a union of `false` (the non-reasoning declaration) and the
+  // level map, so the vocabulary is the map member's own key schema.
+  const members = (node as { type?: string; list?: readonly unknown[] } | undefined)
+  if (members?.type !== 'union' || members.list === undefined) return []
+  const map = members.list.find(member => (member as { type?: string } | undefined)?.type === 'dict')
+  return unionStrings((map as { sKey?: unknown } | undefined)?.sKey)
 }
 
 /** The credential reference a resolved profile names (its `apiKeyEnv` field). */

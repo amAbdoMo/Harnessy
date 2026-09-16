@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assertServiceable, Config } from '../src/config.ts'
+import { assertServiceable, Config, resolveProfiles } from '../src/config.ts'
 
 /** Validate one hand-declared route, with the caller's fields layered onto it. */
 const routeWith = (profile: Record<string, unknown>): (() => unknown) =>
@@ -30,6 +30,26 @@ describe('reasoning schema boundary', () => {
     expect(withFalse.providers['acme-gateway']?.models?.[0]?.reasoningEfforts).toBe(false)
     const absent = configWith({})() as Materialized
     expect(absent.providers['acme-gateway']?.models?.[0]?.reasoningEfforts).toBeUndefined()
+  })
+
+  it('accepts a declared default effort only among the levels pi-ai knows', () => {
+    expect(configWith({ reasoningEfforts: { high: 'high' }, defaultReasoningEffort: 'high' })).not.toThrow()
+    expect(configWith({ defaultReasoningEffort: 'ultra' })).toThrow(/"off"/)
+  })
+
+  it('carries the per-model defaults into the resolved profile', () => {
+    const config = routeWith({
+      models: [
+        { id: 'a', reasoningEfforts: { off: null, high: 'high' }, defaultReasoningEffort: 'high' },
+        { id: 'b' },
+      ],
+    })() as Config
+    const resolved = resolveProfiles(config.providers).get('acme-gateway')
+
+    // Only the model that declared one appears: the map is the deployment's
+    // per-model declaration, not a projection of the route's default.
+    expect(resolved?.configuredReasoningDefaults.get('a')).toBe('high')
+    expect(resolved?.configuredReasoningDefaults.has('b')).toBe(false)
   })
 
   it('rejects a thinking format outside the offered set', () => {

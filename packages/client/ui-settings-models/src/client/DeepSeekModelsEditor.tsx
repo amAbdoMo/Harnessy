@@ -74,8 +74,16 @@ export interface DeepSeekModelsValidationFailure {
   index: number
   /** Message key owned by the Models settings section. */
   key: 'modelIdRequired' | 'modelIdDuplicate' | 'modelNameInvalid' | 'modelContextInvalid'
-  | 'modelMaxTokensInvalid'
+  | 'modelMaxTokensInvalid' | 'modelReasoningEffortsEmpty' | 'modelReasoningDefaultInvalid'
 }
+
+/**
+ * How one row declares reasoning support. The three states are the adapter's
+ * own: an omitted field asks the next layer (a hand-declared model has none
+ * and does not reason), `false` declares a non-reasoning model, and a level
+ * map declares the offered levels.
+ */
+export type ModelReasoningMode = 'inherit' | 'supported' | 'disabled'
 
 /** Convert a schema-validated catalog value into records without dropping hidden fields. */
 export function modelDrafts(value: unknown): DeepSeekModelDraft[] {
@@ -84,6 +92,87 @@ export function modelDrafts(value: unknown): DeepSeekModelDraft[] {
     typeof entry === 'object' && entry !== null && !Array.isArray(entry)
       ? entry as DeepSeekModelDraft
       : {})
+}
+
+/** One row's declared level map, or an empty record when it declares none. */
+function effortMapOf(model: DeepSeekModelDraft): Record<string, unknown> {
+  const value = model['reasoningEfforts']
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {}
+}
+
+/**
+ * Read one row's `reasoningEfforts` as its declaration state.
+ * @param model - one catalog row.
+ * @returns which of the three declarations the row carries.
+ */
+export function modelReasoningMode(model: DeepSeekModelDraft): ModelReasoningMode {
+  const value = model['reasoningEfforts']
+  if (value === undefined) return 'inherit'
+  if (value === false) return 'disabled'
+  return 'supported'
+}
+
+/**
+ * One row's declared levels, in the order `vocabulary` names them. The order
+ * is the adapter's rather than the stored object's, so a level map rebuilt
+ * from the same checks reads identically however the user clicked.
+ * @param model - one catalog row.
+ * @param vocabulary - levels the owning adapter accepts.
+ * @returns the declared levels the vocabulary covers.
+ */
+export function declaredReasoningEfforts(
+  model: DeepSeekModelDraft,
+  vocabulary: readonly string[],
+): string[] {
+  const declared = effortMapOf(model)
+  return vocabulary.filter(level => level in declared)
+}
+
+/**
+ * Build the profile's `reasoningEfforts` value from a set of normalized
+ * levels: each level is its own wire spelling, and `off` — the one level whose
+ * wire form is the parameter's absence — carries null. Levels are written in
+ * the order given, so a set declared here and the same set adopted from a
+ * provider produce the same stored object.
+ * @param levels - normalized level ids, in dispatch order.
+ * @returns the level map to store on the row.
+ */
+export function reasoningEffortsMap(levels: readonly string[]): Record<string, string | null> {
+  return Object.fromEntries(levels.map(level => [level, level === 'off' ? null : level]))
+}
+
+/**
+ * Convert reasoning-effort ids a source disclosed into the profile fields one
+ * row stores. The default is kept only when it names one of the levels, and an
+ * empty list yields nothing at all — a source that stated no level set must
+ * leave the row undeclared rather than store an empty claim.
+ * @param efforts - level ids the source stated, in dispatch order.
+ * @param defaultEffort - the default the same source stated, when it stated one.
+ * @returns the two profile fields to spread into a row, or nothing.
+ */
+export function declaredCapability(
+  efforts: readonly string[] | undefined,
+  defaultEffort: string | undefined,
+): Record<string, unknown> {
+  if (efforts === undefined || efforts.length === 0) return {}
+  return {
+    reasoningEfforts: reasoningEffortsMap(efforts),
+    ...defaultEffort === undefined || !efforts.includes(defaultEffort)
+      ? {}
+      : { defaultReasoningEffort: defaultEffort },
+  }
+}
+
+/**
+ * One row's declared default effort, read without trusting its type.
+ * @param model - one catalog row.
+ * @returns the declared level, or `undefined` when the row names none.
+ */
+export function declaredDefaultReasoningEffort(model: DeepSeekModelDraft): string | undefined {
+  const value = model['defaultReasoningEffort']
+  return typeof value === 'string' && value.length > 0 ? value : undefined
 }
 
 /**
@@ -117,6 +206,19 @@ export function validateDeepSeekModels(value: unknown): DeepSeekModelsValidation
     if (maxTokens !== undefined
       && (typeof maxTokens !== 'number' || !Number.isInteger(maxTokens) || maxTokens <= 0)) {
       return { index, key: 'modelMaxTokensInvalid' }
+    }
+    // A declared level set with no level is a half-made declaration the
+    // adapter refuses outright, and a default outside the declared set names
+    // a level dispatch could never send: both are caught here so the row is
+    // named rather than the settings write.
+    const mode = modelReasoningMode(model)
+    const declared = mode === 'supported' ? Object.keys(effortMapOf(model)) : []
+    if (mode === 'supported' && declared.length === 0) {
+      return { index, key: 'modelReasoningEffortsEmpty' }
+    }
+    const defaultEffort = declaredDefaultReasoningEffort(model)
+    if (defaultEffort !== undefined && !declared.includes(defaultEffort)) {
+      return { index, key: 'modelReasoningDefaultInvalid' }
     }
   }
   return undefined

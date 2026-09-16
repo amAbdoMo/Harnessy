@@ -40,7 +40,7 @@
           - textbox "显示名称 1":
             - /placeholder: 显示名称
             - text: DeepSeek-V4-Pro
-          - button "容量 1":
+          - button "能力 1":
             - img
           - button "删除模型 1":
             - img
@@ -50,7 +50,7 @@
           - textbox "显示名称 2":
             - /placeholder: 显示名称
             - text: DeepSeek-V4-Flash-Vision-Exp
-          - button "容量 2":
+          - button "能力 2":
             - img
           - button "删除模型 2":
             - img
@@ -60,7 +60,7 @@
           - textbox "显示名称 3":
             - /placeholder: 显示名称
             - text: Private Preview
-          - button "容量 3" [expanded]:
+          - button "能力 3" [expanded]:
             - img
           - button "删除模型 3":
             - img

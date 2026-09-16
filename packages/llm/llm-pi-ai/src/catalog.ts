@@ -605,6 +605,13 @@ export interface PiAiModelProfile {
    * declares the offered levels and their wire spellings.
    */
   reasoningEfforts?: false | PiAiReasoningEfforts
+  /**
+   * Level dispatch sends when a request names none, winning over the route's
+   * `reasoning`. One of this entry's own {@link reasoningEfforts} keys — a
+   * default needs a declared level to name, so it is refused beside omitted or
+   * `false` efforts rather than silently ignored.
+   */
+  defaultReasoningEffort?: ModelThinkingLevel
   /** pi-ai wire-compatibility switches for this model, winning over the route's per field; one its protocol does not declare is refused. */
   compat?: PiAiCompatProfile
 }
@@ -665,6 +672,13 @@ interface ModelReasoning {
   reasoning: boolean
   /** The map dispatch reads; absent only when the installed entry's (or none) applies. */
   thinkingLevelMap?: ThinkingLevelMap
+  /**
+   * The entry's declared default effort, already validated against its own
+   * offered levels. Held apart from the two fields above because it describes
+   * the deployment's request default rather than the model's capability: it
+   * never enters the materialized pi-ai model.
+   */
+  defaultEffort?: ModelThinkingLevel
 }
 
 /**
@@ -682,7 +696,8 @@ interface ModelReasoning {
  * @param provider - provider route key, for diagnostics.
  * @param entry - the configured model entry.
  * @param base - the installed catalog entry of the same id, when one exists.
- * @returns the reasoning fields the materialized model carries.
+ * @returns the reasoning fields the materialized model carries, plus the
+ *   entry's request default when it declared one.
  */
 function resolveModelReasoning(
   provider: string,
@@ -690,18 +705,31 @@ function resolveModelReasoning(
   base: Model<Api> | undefined,
 ): ModelReasoning {
   const efforts = entry.reasoningEfforts
+  const defaultEffort = entry.defaultReasoningEffort
   if (efforts === undefined) {
     // Reasoning rides the installed entry or is absent: a bare capability flag
     // would make pi-ai advertise effort levels with no `thinkingLevelMap` to
     // spell them, and no listing endpoint reports a model's reasoning
     // protocol. The entry's map (when any) arrives through the `...base`
     // spread in the model literal.
+    if (defaultEffort !== undefined) {
+      invalid(provider, `model "${entry.id}" sets defaultReasoningEffort "${defaultEffort}" without declaring`
+        + ' reasoningEfforts, so no level can supply the wire spelling; declare the offered levels, or remove'
+        + ' the default')
+    }
     return { reasoning: base?.reasoning ?? false }
   }
   // The installed entry's map may ride along through `...base`; pi-ai never
   // reads it on a non-reasoning model, so stripping it is not worth a field
   // enumeration here.
-  if (efforts === false) return { reasoning: false }
+  if (efforts === false) {
+    if (defaultEffort !== undefined) {
+      invalid(provider, `model "${entry.id}" sets defaultReasoningEffort "${defaultEffort}" beside`
+        + ' reasoningEfforts: false, which declares no effort at all; remove the default, or declare the levels'
+        + ' this model offers')
+    }
+    return { reasoning: false }
+  }
   // A YAML `reasoningEfforts:` left valueless arrives as null through the
   // schema union — outside the field's declared type, hence the widening —
   // while an explicit `{}` arrives as an empty dict. Both declare nothing,
@@ -728,6 +756,13 @@ function resolveModelReasoning(
     invalid(provider, `model "${entry.id}" reasoningEfforts offers no level beyond "off"; declare a thinking`
       + ' level, or set reasoningEfforts to false for a non-reasoning model')
   }
+  // Checked against the declared keys rather than the wire map below, which
+  // pins the undeclared levels to `null`: the question is what this profile
+  // offers, and a default outside that set could only be a typo.
+  if (defaultEffort !== undefined && !declared.some(([level]) => level === defaultEffort)) {
+    invalid(provider, `model "${entry.id}" defaultReasoningEffort "${defaultEffort}" is not one of its`
+      + ` reasoningEfforts (${declared.map(([level]) => level).join(', ')})`)
+  }
   const map: ThinkingLevelMap = {}
   for (const level of THINKING_LEVELS) {
     const wire = efforts[level]
@@ -737,7 +772,11 @@ function resolveModelReasoning(
       map[level] = wire
     }
   }
-  return { reasoning: true, thinkingLevelMap: map }
+  return {
+    reasoning: true,
+    thinkingLevelMap: map,
+    ...defaultEffort === undefined ? {} : { defaultEffort },
+  }
 }
 
 /** The compat block a materialized model carries, whichever protocol it speaks. */
@@ -809,6 +848,15 @@ export interface RouteCatalog {
    * picked, so only an explicit configuration lands here.
    */
   configuredMaxTokens: ReadonlyMap<string, number>
+  /**
+   * Reasoning efforts this profile explicitly configured as a model's request
+   * default, by model id. The same separation as {@link configuredMaxTokens}:
+   * pi-ai's `thinkingLevelMap` carries the *capability*, while the level a
+   * request naming none should dispatch is the deployment's choice. A level
+   * inherited from the installed catalog, or a route-level `reasoning`, is not
+   * a per-model declaration and never appears here.
+   */
+  configuredReasoningDefaults: ReadonlyMap<string, ModelThinkingLevel>
 }
 
 /**
@@ -870,6 +918,7 @@ export function resolveRouteModels(request: RouteCatalogRequest): RouteCatalog {
   }
   const seen = new Set<string>()
   const configuredMaxTokens = new Map<string, number>()
+  const configuredReasoningDefaults = new Map<string, ModelThinkingLevel>()
   const models = entries.map((entry) => {
     if (entry.id.length === 0) invalid(provider, 'has a model with an empty id')
     if (seen.has(entry.id)) invalid(provider, `lists model "${entry.id}" more than once`)
@@ -899,6 +948,11 @@ export function resolveRouteModels(request: RouteCatalogRequest): RouteCatalog {
     // Only a value the profile named is a deployment choice; the catalog's is
     // the model's capability and stays out of request defaults.
     if (entry.maxTokens !== undefined) configuredMaxTokens.set(entry.id, entry.maxTokens)
+    // The same split for reasoning: `defaultEffort` is held out of the
+    // materialized model so the capability map and the request default stay
+    // separately readable.
+    const { defaultEffort, ...reasoning } = resolveModelReasoning(provider, entry, base)
+    if (defaultEffort !== undefined) configuredReasoningDefaults.set(entry.id, defaultEffort)
     return {
       // The installed entry lays the floor, and the fields below override it.
       // Enumerating instead would silently drop every `Model` field this
@@ -915,7 +969,7 @@ export function resolveRouteModels(request: RouteCatalogRequest): RouteCatalog {
       cost: base?.cost ?? NO_COST,
       contextWindow,
       maxTokens,
-      ...resolveModelReasoning(provider, entry, base),
+      ...reasoning,
       ...resolveModelCompat(provider, entry, request.compat, base, api),
     }
   })
@@ -929,5 +983,5 @@ export function resolveRouteModels(request: RouteCatalogRequest): RouteCatalog {
     invalid(provider, `sets compat "${field}", but no model on the route speaks a protocol that takes it;`
       + ` it exists on ${takers.join(', ')}`)
   }
-  return { models, configuredMaxTokens }
+  return { models, configuredMaxTokens, configuredReasoningDefaults }
 }

@@ -6,6 +6,7 @@ import { Context } from '@deepseek-ai/cordis'
 import LlmRuntime, { userAgent } from '@deepseek-ai/dsh-llm'
 import * as LlmPiAi from '@deepseek-ai/dsh-llm-pi-ai'
 import { getBuiltinModels } from '@earendil-works/pi-ai/providers/all'
+import { getSupportedThinkingLevels } from '@earendil-works/pi-ai'
 import { discoverModels } from '../src/discovery.ts'
 
 const servers: Server[] = []
@@ -93,6 +94,26 @@ describe('catalog-route model discovery', () => {
     await expect(ctx.llm.discoverModels('llm-pi-ai', { provider: 'deepseek' })).resolves.not.toHaveLength(0)
   })
 
+  it('reports the level set the installed catalog records, and none for a model it ships without reasoning', async () => {
+    const ctx = await harness()
+    const [catalogModel] = getBuiltinModels('deepseek')
+    if (catalogModel === undefined) throw new Error('the installed catalog ships no deepseek model')
+
+    // Metadata Harnessy already maintains is reported as such, so a surface
+    // adopting a catalog model shows its real capability instead of asking the
+    // user to restate it.
+    const deepseek = await ctx.llm.discoverModels('llm-pi-ai', { provider: 'deepseek' })
+    expect(deepseek.find(model => model.id === catalogModel.id)?.reasoningEfforts)
+      .toEqual(getSupportedThinkingLevels(catalogModel))
+
+    // A model the same catalog ships without reasoning states nothing: its
+    // single implicit `off` level is the parameter's absence, not an offer, so
+    // reporting it would offer a control that cannot change the request.
+    const openai = await ctx.llm.discoverModels('llm-pi-ai', { provider: 'openai' })
+    expect(openai.find(model => model.id === 'gpt-4.1')?.reasoningEfforts).toBeUndefined()
+    expect((openai.find(model => model.id === 'gpt-5.6-sol')?.reasoningEfforts ?? []).length).toBeGreaterThan(0)
+  })
+
   it('says where a route the catalog does not describe must get its models', async () => {
     const ctx = await harness()
     await expect(ctx.llm.discoverModels('llm-pi-ai', { provider: 'acme-gateway' }))
@@ -133,6 +154,55 @@ describe('draft-provider model discovery', () => {
     expect(server.paths).toEqual(['/v1/models'])
     expect(server.headers[0]?.authorization).toBe('Bearer probe-key')
     expect(server.headers[0]?.['user-agent']).toBe(userAgent())
+  })
+
+  it('imports the level set a listing states for one exact model, and nothing more', async () => {
+    const server = await listingServer({
+      body: JSON.stringify({
+        data: [
+          {
+            id: 'states-camel',
+            reasoningEfforts: ['low', 'high', 'high', ''],
+            defaultReasoningEffort: 'high',
+          },
+          {
+            id: 'states-snake',
+            reasoning_efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
+            default_reasoning_effort: 'medium',
+          },
+          // A default outside the stated set is dropped rather than repaired.
+          { id: 'bad-default', reasoningEfforts: ['low'], defaultReasoningEffort: 'max' },
+          // No levels stated, or none usable: the row stays undeclared, which
+          // is what keeps an adopted model exactly as truthful as the listing.
+          { id: 'silent' },
+          { id: 'empty', reasoningEfforts: [] },
+          // Usable members survive beside unusable ones; a set offering only
+          // `off` is not a capability, and a non-array states nothing at all.
+          { id: 'mixed', reasoningEfforts: ['low', 42, null] },
+          { id: 'off-only', reasoningEfforts: ['off'] },
+          { id: 'not-an-array', reasoningEfforts: 'high' },
+        ],
+      }),
+    })
+    const ctx = await harness()
+
+    const models = await ctx.llm.discoverModels('llm-pi-ai', { baseURL: `${server.url}/v1`, apiKey: 'probe-key' })
+
+    expect(models).toEqual([
+      { id: 'states-camel', name: 'states-camel', reasoningEfforts: ['low', 'high'], defaultReasoningEffort: 'high' },
+      {
+        id: 'states-snake',
+        name: 'states-snake',
+        reasoningEfforts: ['low', 'medium', 'high', 'xhigh', 'max'],
+        defaultReasoningEffort: 'medium',
+      },
+      { id: 'bad-default', name: 'bad-default', reasoningEfforts: ['low'] },
+      { id: 'silent', name: 'silent' },
+      { id: 'empty', name: 'empty' },
+      { id: 'mixed', name: 'mixed', reasoningEfforts: ['low'] },
+      { id: 'off-only', name: 'off-only' },
+      { id: 'not-an-array', name: 'not-an-array' },
+    ])
   })
 
   it('reads an enriched models map using route ids and nested capacities', async () => {

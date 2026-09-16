@@ -594,6 +594,62 @@ describe('provider profile lifecycle', () => {
     })
   })
 
+  it('prefers a model’s own declared default over the route’s', async () => {
+    const ctx = new Context()
+    await ctx.plugin(LlmRuntime)
+    await ctx.plugin(LlmPiAi, {
+      providers: {
+        'acme-gateway': {
+          api: 'openai-completions',
+          baseURL: 'https://acme.test/v1',
+          // The route names the fallback for the models that declare none.
+          reasoning: 'high',
+          models: [
+            {
+              id: 'own',
+              reasoningEfforts: { off: null, low: 'low', high: 'high', max: 'max' },
+              defaultReasoningEffort: 'max',
+            },
+            { id: 'routed', reasoningEfforts: { off: null, low: 'low', high: 'high', max: 'max' } },
+          ],
+        },
+      },
+    })
+
+    await expect(ctx.llm.resolveModelInfo('acme-gateway', 'own'))
+      .resolves.toMatchObject({ reasoning: { defaultEffort: ReasoningEffortId('max') } })
+    await expect(ctx.llm.resolveModelInfo('acme-gateway', 'routed'))
+      .resolves.toMatchObject({ reasoning: { defaultEffort: ReasoningEffortId('high') } })
+  })
+
+  it('sends a model’s declared default through the adapter when the request names none', async () => {
+    vi.stubEnv('PI_TEST_KEY', 'test-key')
+    const server = await mockServer([{ events: textEvents }])
+    const ctx = new Context()
+    await ctx.plugin(LlmRuntime)
+    await ctx.plugin(LlmPiAi, {
+      providers: {
+        'acme-gateway': {
+          apiKeyEnv: 'PI_TEST_KEY',
+          api: 'openai-completions',
+          baseURL: `${server.url}/v1`,
+          models: [{
+            id: 'acme-think',
+            contextWindow: 65_536,
+            maxTokens: 4096,
+            reasoningEfforts: { off: null, high: 'ultra' },
+            defaultReasoningEffort: 'high',
+          }],
+        },
+      },
+    })
+
+    // The declared level, not its name, is what the provider receives: the
+    // normalized effort the harness resolves is translated a layer below.
+    await assemble(ctx, { provider: 'acme-gateway', model: 'acme-think', messages: [] })
+    expect(server.requests[0]).toMatchObject({ reasoning_effort: 'ultra' })
+  })
+
   it('sends the declared wire spelling and refuses undeclared levels before network I/O', async () => {
     vi.stubEnv('PI_TEST_KEY', 'test-key')
     const server = await mockServer([{ events: textEvents }])

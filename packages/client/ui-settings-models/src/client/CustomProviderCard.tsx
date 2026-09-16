@@ -14,11 +14,11 @@
  * and at least one model — are required here rather than at load, so the
  * failure names the field while the user is still looking at it.
  *
- * There is deliberately no reasoning-effort control, here or on the editor
- * card: effort is a per-MODEL capability, and the models under one provider
- * disagree about it, so a provider-scoped control can only be set to a value
- * some of them reject. The composer's model picker offers each model its own
- * levels instead.
+ * There is deliberately no provider-scoped reasoning control: effort is a
+ * per-MODEL capability, and the models under one provider disagree about it,
+ * so a provider-scoped control can only be set to a value some of them reject.
+ * Each model row below declares its own supported levels and default, and the
+ * composer's model picker offers each model exactly those.
  */
 
 import { useState } from 'react'
@@ -53,6 +53,8 @@ export interface CustomProviderCardProps {
   taken: readonly string[]
   /** Wire protocols the adapter can serve, in the order it reports them. */
   protocols: readonly string[]
+  /** Reasoning-effort levels the adapter accepts for a model, in dispatch order. */
+  efforts: readonly string[]
   /**
    * Revision of the `llm-pi-ai` user section this card opened at, sent with
    * the create so a route another tab declared meanwhile is a refusal rather
@@ -273,6 +275,9 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
         }}
         probeBlocked={keyFailure === 'keyBlank' ? 'keyBlankNew' : keyFailure}
         operations={operations}
+        efforts={props.efforts}
+        // Nothing is declared yet, so a fetch asks the endpoint itself.
+        catalogServed={false}
         t={t}
         disabled={profileDisabled}
       />
