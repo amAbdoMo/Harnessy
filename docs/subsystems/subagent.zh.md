@@ -513,7 +513,7 @@ It owns the settings registration, the model-facing tools, the shipped concurren
 /**
  * Report the installed CLI's presence, version, and authentication state.
  * @param signal - caller lifetime.
- * @returns the bounded health facts the Delegation page shows.
+ * @returns the bounded health facts the Subagents page shows.
  */
 @Remote async health(signal: AbortSignal): Promise<CommandCodeHealth>
 

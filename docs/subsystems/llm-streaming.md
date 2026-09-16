@@ -684,6 +684,10 @@ interface LlmModelDiscoveryRequest {
  * One model an endpoint reports about itself. Every field but the id is
  * optional because most provider listings disclose an id and nothing else;
  * a surface adopting one of these still owes the capacities its adapter needs.
+ *
+ * The two reasoning fields are claimed only from metadata that states them:
+ * a listing that reports no levels yields neither, and a consumer must never
+ * complete one from the other fields.
  */
 interface LlmDiscoveredModel {
   /** Model id the endpoint accepts. */
@@ -694,8 +698,55 @@ interface LlmDiscoveredModel {
   contextWindow?: number
   /** Maximum output tokens, when disclosed. */
   maxTokens?: number
+  /**
+   * Reasoning-effort ids this exact model accepts, in dispatch order, when the
+   * answering source states them. Absent means "not stated" — never "does not
+   * reason" and never a level set inferred from the model being a reasoner.
+   */
+  reasoningEfforts?: readonly string[]
+  /** Effort dispatch uses when a caller names none, when stated; one of {@link reasoningEfforts}. */
+  defaultReasoningEffort?: string
 }
 ```
+
+A listing is not the only thing that can answer for a model. An installed integration registers a per-model capability source with `ctx.llm.registerModelCapabilitySource`, and `discoverModels` consults sources only for an id the adapter itself stated nothing about: the adapter's own statement wins, and the first source that describes the id answers it. A capability is a level list rather than a boolean, because "reasons" without the offered levels cannot be offered as a choice:
+
+```ts type-equiv
+/**
+ * One model's capability as an installed integration states it. A source
+ * answers only about models it actually describes, and states a level list
+ * rather than a boolean, because "reasons" without the offered levels cannot
+ * be offered as a choice.
+ */
+interface LlmModelCapability {
+  /** Reasoning-effort ids this exact model accepts, in dispatch order. */
+  readonly reasoningEfforts: readonly string[]
+  /** Effort dispatch uses when a caller names none; must be one of {@link reasoningEfforts}. */
+  readonly defaultReasoningEffort?: string
+}
+```
+
+A source exists because some providers publish their model capabilities through a channel other than the model-listing endpoint — an installed vendor package or a local registry — and a listing that states nothing must not have levels invented for it:
+
+```ts type-equiv
+/**
+ * One installed integration's authoritative per-model capability answers.
+ *
+ * A source exists because some providers publish their model capabilities
+ * through a channel other than the model-listing endpoint — an installed
+ * vendor package or a local registry — and a listing that states nothing must
+ * not have levels invented for it. A source answers by exact model id and
+ * returns `undefined` for every id it does not describe; the request travels
+ * with it so a source can confine itself to the routes it owns, because bare
+ * model ids are not unique across providers.
+ */
+type LlmModelCapabilityLookup = (
+  modelId: string,
+  request: LlmModelDiscoveryRequest,
+) => LlmModelCapability | undefined
+```
+
+Neither field is ever inferred. An absent `reasoningEfforts` means the answering source stated nothing — never that the model does not reason and never a level set completed from the model being a reasoner — and a source that does not describe an id returns `undefined` rather than an empty answer. An adapter's statement and a source's answer pass through one normalization before a caller sees them, so a source cannot publish a set the seam would have refused from an adapter.
 
 ### The request envelope: `LlmCallConfig` and the logged header
 
@@ -929,6 +980,18 @@ registerConfigurableProviders(entries: readonly LlmConfigurableProvider[]): Dire
  * @returns the disposer that withdraws the offer.
  */
 registerModelDiscovery( settingsNs: string, discover: ( request: LlmModelDiscoveryRequest, signal?: AbortSignal, ) => Promise<readonly LlmDiscoveredModel[]>, ): () => void
+
+/**
+ * Offer one installed integration's authoritative per-model capability
+ * answers to discovery. A source is consulted only for a model the
+ * interrogated adapter stated nothing about, so a provider's own listing
+ * always wins; the first source that describes the id answers it. Disposed
+ * with the fiber.
+ * @param name - non-empty integration name, for diagnostics and conflicts.
+ * @param lookup - answers by exact model id, or `undefined` when it does not describe it.
+ * @returns the disposer that withdraws the offer.
+ */
+registerModelCapabilitySource(name: string, lookup: LlmModelCapabilityLookup): () => void
 
 /**
  * Interrogate one provider endpoint for the models it advertises. The

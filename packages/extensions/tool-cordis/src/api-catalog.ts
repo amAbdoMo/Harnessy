@@ -723,7 +723,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         signature: '@Remote async health(signal: AbortSignal): Promise<CommandCodeHealth>',
         description: 'Report the installed CLI\'s presence, version, and authentication state.',
         parameters: [{ name: 'signal', description: 'caller lifetime.' }],
-        returns: 'the bounded health facts the Delegation page shows.',
+        returns: 'the bounded health facts the Subagents page shows.',
       },
       {
         signature: '@Remote async catalog(signal: AbortSignal): Promise<CommandCodeCatalog>',
@@ -1307,6 +1307,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         signature: 'registerModelDiscovery( settingsNs: string, discover: ( request: LlmModelDiscoveryRequest, signal?: AbortSignal, ) => Promise<readonly LlmDiscoveredModel[]>, ): () => void',
         description: 'Offer to interrogate provider endpoints on behalf of the settings namespace this plugin owns. The namespace is the key because that is what a configuration surface already holds from the configurable-provider directory, and because a provider being *added* has no route to name yet. Disposed with the fiber.',
         parameters: [{ name: 'settingsNs', description: 'the namespace whose profiles this discovery serves.' }, { name: 'discover', description: 'interrogates one endpoint and must honor the supplied signal.' }],
+        returns: 'the disposer that withdraws the offer.',
+      },
+      {
+        signature: 'registerModelCapabilitySource(name: string, lookup: LlmModelCapabilityLookup): () => void',
+        description: 'Offer one installed integration\'s authoritative per-model capability answers to discovery. A source is consulted only for a model the interrogated adapter stated nothing about, so a provider\'s own listing always wins; the first source that describes the id answers it. Disposed with the fiber.',
+        parameters: [{ name: 'name', description: 'non-empty integration name, for diagnostics and conflicts.' }, { name: 'lookup', description: 'answers by exact model id, or `undefined` when it does not describe it.' }],
         returns: 'the disposer that withdraws the offer.',
       },
       {
@@ -4012,6 +4018,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface CollectedOutput {\n    text: string;\n    truncated: boolean;\n    spillPath?: string;\n}',
   },
   {
+    name: 'CommandCodeAccess',
+    declaration: 'export type CommandCodeAccess = typeof COMMAND_CODE_ACCESS_MODES[number];',
+  },
+  {
     name: 'CommandCodeCatalog',
     declaration: 'export interface CommandCodeCatalog {\n    readonly models: CommandCodeModelSummary[];\n    readonly detail?: string;\n}',
   },
@@ -4020,12 +4030,20 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface CommandCodeDelegationView {\n    workspaceKey: string | null;\n    maxConcurrentRuns: number;\n    timeoutMs: number;\n    maxTurns: number;\n    lanes: ResolvedCommandCodeLane[];\n}',
   },
   {
+    name: 'CommandCodeEffort',
+    declaration: 'export type CommandCodeEffort = typeof COMMAND_CODE_EFFORTS[number];',
+  },
+  {
     name: 'CommandCodeHealth',
     declaration: 'export interface CommandCodeHealth {\n    readonly command: string;\n    readonly installed: boolean;\n    readonly version?: string;\n    readonly authenticated: boolean;\n    readonly detail?: string;\n}',
   },
   {
     name: 'CommandCodeLaneOverrides',
     declaration: 'export interface CommandCodeLaneOverrides {\n    name: boolean;\n    purpose: boolean;\n    instructions: boolean;\n    model: boolean;\n    effort: boolean;\n    access: boolean;\n    enabled: boolean;\n}',
+  },
+  {
+    name: 'CommandCodeLaneSetting',
+    declaration: 'export interface CommandCodeLaneSetting {\n    id: string;\n    name: string;\n    purpose: string;\n    instructions: string;\n    model: string;\n    effort: CommandCodeEffort;\n    access: CommandCodeAccess;\n    enabled: boolean;\n}',
   },
   {
     name: 'CommandCodeModelSummary',
@@ -4712,6 +4730,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface LlmImageRequestPricing {\n    priceImages(images: readonly ImageAttachmentRef[]): readonly LlmImageRequestPrice[];\n}',
   },
   {
+    name: 'LlmModelCapability',
+    declaration: 'export interface LlmModelCapability {\n    readonly reasoningEfforts: readonly string[];\n    readonly defaultReasoningEffort?: string;\n}',
+  },
+  {
+    name: 'LlmModelCapabilityLookup',
+    declaration: 'export type LlmModelCapabilityLookup = (modelId: string, request: LlmModelDiscoveryRequest) => LlmModelCapability | undefined;',
+  },
+  {
     name: 'LlmModelContext',
     declaration: 'export interface LlmModelContext {\n    contextWindow: number;\n}',
   },
@@ -4741,7 +4767,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LlmRuntime',
-    declaration: 'export class LlmRuntime extends TypertRemoteService {\n    constructor(ctx: Context);\n    registerAdapter(providers: string[], adapter: LlmAdapter): AdapterRegistrationHandle;\n    @Remote\n    listProviders(): LlmProviderInfo[];\n    registerConfigurableProviders(entries: readonly LlmConfigurableProvider[]): DirectoryRegistrationHandle;\n    @Remote\n    listConfigurableProviders(): LlmConfigurableProvider[];\n    registerModelDiscovery(settingsNs: string, discover: (request: LlmModelDiscoveryRequest, signal?: AbortSignal) => Promise<readonly LlmDiscoveredModel[]>): () => void;\n    async discoverModels(settingsNs: string, request: LlmModelDiscoveryRequest, signal?: AbortSignal): Promise<LlmDiscoveredModel[]>;\n    @Remote(\'discoverModels\')\n    async remoteDiscoverModels(settingsNs: string, request: LlmModelDiscoveryRequest, signal: AbortSignal): Promise<LlmDiscoveredModel[]>;\n    providerRetryPolicy(provider: string): ResolvedRetryPolicy;\n    imageRequestPricing(provider: string, model: string): LlmImageRequestPricing | undefined;\n    fileRequestText(ref: FileAttachmentRef): string;\n    async listModels(provider: string): Promise<LlmModelInfo[]>;\n    async resolveModelInfo(provider: string, model: string, signal?: AbortSignal): Promise<LlmResolvedModelInfo>;\n    async resolveCallConfig(config: LlmCallConfig, signal?: AbortSignal): Promise<LlmCallConfig>;\n    async prepareCall(config: LlmCallConfig, signal?: AbortSignal): Promise<PreparedLlmCall>;\n    stream(options: GenerateOptions) /* …truncated — full shape in source */',
+    declaration: 'export class LlmRuntime extends TypertRemoteService {\n    constructor(ctx: Context);\n    registerAdapter(providers: string[], adapter: LlmAdapter): AdapterRegistrationHandle;\n    @Remote\n    listProviders(): LlmProviderInfo[];\n    registerConfigurableProviders(entries: readonly LlmConfigurableProvider[]): DirectoryRegistrationHandle;\n    @Remote\n    listConfigurableProviders(): LlmConfigurableProvider[];\n    registerModelDiscovery(settingsNs: string, discover: (request: LlmModelDiscoveryRequest, signal?: AbortSignal) => Promise<readonly LlmDiscoveredModel[]>): () => void;\n    registerModelCapabilitySource(name: string, lookup: LlmModelCapabilityLookup): () => void;\n    async discoverModels(settingsNs: string, request: LlmModelDiscoveryRequest, signal?: AbortSignal): Promise<LlmDiscoveredModel[]>;\n    @Remote(\'discoverModels\')\n    async remoteDiscoverModels(settingsNs: string, request: LlmModelDiscoveryRequest, signal: AbortSignal): Promise<LlmDiscoveredModel[]>;\n    providerRetryPolicy(provider: string): ResolvedRetryPolicy;\n    imageRequestPricing(provider: string, model: string): LlmImageRequestPricing | undefined;\n    fileRequestText(ref: FileAttachmentRef): string;\n    async listModels(provider: string): Promise<LlmModelInfo[]>;\n    async resolveModelInfo(provider: string, model: string, signal?: AbortSignal): Promise<LlmResolvedModelInfo>;\n    async resolveCallConfig(config: LlmCallConfig, signal?: AbortSignal): Promise<LlmCallConfig>;\n    async prepareCall(config: LlmCa /* …truncated — full shape in source */',
   },
   {
     name: 'LspHover',
@@ -5917,7 +5943,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubagentCapabilities',
-    declaration: 'export interface SubagentCapabilities {\n    readonly agentOptions: boolean;\n    readonly outputSchema: boolean;\n    readonly depthLimit: boolean;\n    readonly toolFilter: boolean;\n    readonly persona: boolean;\n    readonly accessPolicy: boolean;\n}',
+    declaration: 'export interface SubagentCapabilities {\n    readonly agentOptions: boolean;\n    readonly outputSchema: boolean;\n    readonly depthLimit: boolean;\n    readonly toolFilter: boolean;\n    readonly persona: boolean;\n    readonly accessPolicy: boolean;\n    readonly runtimeRoute: boolean;\n}',
   },
   {
     name: 'SubagentCatalog',
