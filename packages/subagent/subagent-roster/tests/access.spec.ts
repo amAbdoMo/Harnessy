@@ -5,11 +5,14 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { mkdtemp, realpath, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { setSandboxMode } from '@deepseek-ai/dsh-sandbox-policy'
 import { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
+import type { ContentBlock } from '@deepseek-ai/dsh-llm'
+import type { Session, SessionEvent } from '@deepseek-ai/dsh-session'
+import { textResponse, toolCallResponse } from '../../../core/agent-loop/tests/mock-adapter.ts'
 import type { SandboxMode } from '@deepseek-ai/dsh-sandbox'
 import { DELEGATE_TOOL } from '../src/tools.ts'
 import {
@@ -26,6 +29,20 @@ import type { RealChild } from './real-child.ts'
 
 const WORKSPACES: string[] = []
 const BOOTED: RealChild[] = []
+
+/** The marker both enforcing tool families teach, so a denial reads the same either way. */
+const READ_ONLY_DENIAL = '[sandbox: file access denied under read-only mode]'
+
+/** Every tool result's text on one child's own log. */
+function toolResultTexts(child: Session): string[] {
+  return child.snapshotEvents()
+    .filter((event): event is SessionEvent<'tool/result'> => event.type === 'tool/result')
+    .map(event => event.data.message.content
+      .flatMap(block => block.content)
+      .filter((block): block is Extract<ContentBlock, { type: 'text' }> => block.type === 'text')
+      .map(block => block.text)
+      .join(''))
+}
 
 beforeEach(async () => {
   WORKSPACES.push(await realpath(await mkdtemp(join(tmpdir(), 'dsh-roster-access-'))))
@@ -184,8 +201,11 @@ describe('access narrowing on a real child', () => {
     // The whole advertised configuration of a review role in one delegation: an
     // automatic, read-only role pinned to one exact model and effort, started
     // from a parent whose own access is the widest there is. The child's own log
-    // is the evidence for all four facts, so nothing is asserted about a request
-    // object on the router's side of the boundary.
+    // is the evidence for every fact, so nothing is asserted about a request
+    // object on the router's side of the boundary — and the child is scripted to
+    // attempt a real write, so "read-only" is proven by a denied file effect
+    // rather than by the mode it was started under.
+    const blocked = join(workspace(), 'review-must-not-write.txt')
     const booted = await bootRealChild({
       workspace: workspace(),
       deploymentMode: 'danger-full-access',
@@ -196,6 +216,10 @@ describe('access narrowing on a real child', () => {
       adapterReasoning: {
         efforts: [{ id: ReasoningEffortId('low'), name: 'Low' }, { id: ReasoningEffortId('high'), name: 'High' }],
       },
+      script: [
+        toolCallResponse('write', 'write', { file_path: blocked, content: 'escaped' }),
+        textResponse('Review complete.'),
+      ],
       settings: documentOf([definition({
         id: 'review',
         name: 'Review',
@@ -227,6 +251,11 @@ describe('access narrowing on a real child', () => {
       { data: { mode: 'read-only', source: 'delegation' } },
     ])
     expect(booted.ctx.approval.overrideOf(child)).toBe('never')
+
+    // The review role cannot modify the workspace: the write was refused by
+    // policy and left no file behind.
+    await expect(readFile(blocked, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+    expect(toolResultTexts(child).join('\n')).toContain(READ_ONLY_DENIAL)
 
     // The role's own route reaches the child whole: a model id containing a
     // separator is one opaque id, and the effort travels with it.
