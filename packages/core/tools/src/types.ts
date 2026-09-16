@@ -56,3 +56,16 @@ declare module '@deepseek-ai/dsh-session/types' {
     'tool/ptc-dispatch': PtcDispatchEventData
   }
 }
+
+// Kept in this lean module so a browser surface can name a scope filter without loading ./index.ts.
+
+/**
+ * Per-scope filter over global tools. Restrictions intersect and do not affect
+ * scoped registrations or the reserved PTC mode transport.
+ */
+export interface ToolRestriction {
+  /** Global tool names that stay visible; everything else is removed. */
+  readonly allow?: readonly string[]
+  /** Global tool names removed from visibility. */
+  readonly deny?: readonly string[]
+}

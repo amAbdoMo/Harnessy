@@ -81,7 +81,7 @@ describe('Command Code delegation public Loader composition', () => {
   }, PRODUCTION_PROFILE_TEST_TIMEOUT_MS)
 
   it('mounts both delegation rows and carries the stored lanes into the roster', async () => {
-    // The section a Harnessy user's Delegation page stored before the roster
+    // The section the retired Delegation page stored before the roster
     // existed, written under the namespace owner's own constant.
     const storedLanes = {
       maxConcurrentRuns: 3,

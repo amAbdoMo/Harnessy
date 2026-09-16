@@ -10,9 +10,9 @@
  * @module @deepseek-ai/dsh-subagent-roster/types
  */
 
-import type { SubagentAccess } from '@deepseek-ai/dsh-subagent'
-import type { AllowedModelRoute } from '@deepseek-ai/dsh-tool-subagent/model-selection'
-import type { ToolRestriction } from '@deepseek-ai/dsh-tools'
+import type { SubagentAccess } from '@deepseek-ai/dsh-subagent/client'
+import type { AllowedModelRoute } from '@deepseek-ai/dsh-tool-subagent/types'
+import type { ToolRestriction } from '@deepseek-ai/dsh-tools/types'
 
 /** How the parent agent may invoke one subagent. */
 export type SubagentInvocationPolicy = 'automatic' | 'ask-first' | 'manual'

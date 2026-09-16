@@ -12,10 +12,13 @@
 import type { Agent, AgentOptions } from '@deepseek-ai/dsh-agent'
 import type { Branded } from '@deepseek-ai/dsh-brand'
 import type { ContentBlock, MessageId } from '@deepseek-ai/dsh-llm'
-import type { SandboxMode } from '@deepseek-ai/dsh-sandbox'
 import type { SessionEvent, SessionId } from '@deepseek-ai/dsh-session'
 import type { ObjectJsonSchema, ToolRestriction } from '@deepseek-ai/dsh-tools'
+import type { SubagentAccess } from './control-types.ts'
 import type { SubagentDescriptorData } from './descriptor.ts'
+
+// Declared in the browser-safe `./control-types.ts`; still published here for host importers.
+export type { SubagentAccess } from './control-types.ts'
 
 /** Identifies one accepted subagent run across its lifecycle event pair. */
 export type SubagentRunId = Branded<'SubagentRunId'>
@@ -156,15 +159,6 @@ export interface SubagentCapabilities {
    */
   readonly runtimeRoute: boolean
 }
-
-/**
- * How one delegation scopes the child's sandbox mode. `'inherit'` records
- * exactly what the deployment records without an access request — the parent
- * session's explicit override, or no delegated mode at all — while a concrete
- * {@link SandboxMode} narrows the child to no wider than its parent's
- * effective mode. Omission means `'inherit'`.
- */
-export type SubagentAccess = 'inherit' | SandboxMode
 
 /**
  * What a caller asks for when starting a ONE-SHOT subagent. The tool layer

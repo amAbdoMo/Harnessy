@@ -8,6 +8,7 @@
 import { Context, Service } from '@deepseek-ai/cordis'
 import { HarnessError } from '@deepseek-ai/dsh-llm'
 import type { SessionId } from '@deepseek-ai/dsh-session'
+import type { ConfinedSandboxMode, SandboxMode } from './types.ts'
 
 export {
   ESCALATION_TARGETS,
@@ -19,17 +20,7 @@ export {
 } from './escalation.ts'
 export type { EscalationApproval, EscalationApprover, EscalationOutcome, EscalationRequest } from './escalation.ts'
 export { canonicalPath, writableRoots } from './roots.ts'
-
-/**
- * File-effect policy for confined processes. `read-only` permits only required
- * sinks such as `/dev/null`; `workspace-write` also permits the workspace and a
- * backend-defined temp area; `danger-full-access` bypasses confinement. Network
- * and process visibility are outside this vocabulary.
- */
-export type SandboxMode = 'read-only' | 'workspace-write' | 'danger-full-access'
-
-/** A confining (non-`danger-full-access`) mode — the modes a {@link SandboxPolicy} can carry. */
-export type ConfinedSandboxMode = Exclude<SandboxMode, 'danger-full-access'>
+export type { ConfinedSandboxMode, SandboxMode } from './types.ts'
 
 /**
  * The complete file-effect policy resolved for one capability call. The root

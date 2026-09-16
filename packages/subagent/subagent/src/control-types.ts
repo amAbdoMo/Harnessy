@@ -9,7 +9,17 @@
 import type { PromptContentPart } from '@deepseek-ai/dsh-attachment/types'
 import type { Branded } from '@deepseek-ai/dsh-brand'
 import type { MessageId } from '@deepseek-ai/dsh-llm/brand'
+import type { SandboxMode } from '@deepseek-ai/dsh-sandbox/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+
+/**
+ * How one delegation scopes the child's sandbox mode. `'inherit'` records
+ * exactly what the deployment records without an access request — the parent
+ * session's explicit override, or no delegated mode at all — while a concrete
+ * {@link SandboxMode} narrows the child to no wider than its parent's
+ * effective mode. Omission means `'inherit'`.
+ */
+export type SubagentAccess = 'inherit' | SandboxMode
 
 /**
  * Client-minted identity of one browser prompt, persisted on the exact accepted

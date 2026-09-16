@@ -18,6 +18,10 @@
       "types": "./lib/types/index.d.ts",
       "default": "./lib/index.js"
     },
+    "./types": {
+      "types": "./lib/types/types.d.ts",
+      "default": "./lib/types/types.js"
+    },
     "./model-selection": {
       "types": "./lib/types/model-selection.d.ts",
       "default": "./lib/model-selection.js"
@@ -38,6 +42,7 @@
     "lib/invariant.js",
     "lib/model-selection.js",
     "lib/model-selection-settings.js",
+    "lib/types/**/*.js",
     "lib/types/**/*.d.ts"
   ],
   "license": "MIT",

@@ -176,7 +176,7 @@ export class CommandCodeController extends TypertRemoteService {
     installCommandCodeTools(ctx, this.delegationApi())
     // Mounted through `inject` rather than this plugin's static list, so a
     // profile that composes the plugin without the subagent registry keeps the
-    // two tools and the Delegation page it already had.
+    // two tools it already had.
     ctx.inject(['subagents'], (registryCtx) => {
       registryCtx.effect(
         () => registerCommandCodeBackend(registryCtx, this.delegationApi()),
@@ -200,7 +200,7 @@ export class CommandCodeController extends TypertRemoteService {
   /**
    * Report the installed CLI's presence, version, and authentication state.
    * @param signal - caller lifetime.
-   * @returns the bounded health facts the Delegation page shows.
+   * @returns the bounded health facts the Subagents page shows.
    */
   @Remote
   async health(signal: AbortSignal): Promise<CommandCodeHealth> {
