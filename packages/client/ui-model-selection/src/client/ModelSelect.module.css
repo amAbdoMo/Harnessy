@@ -52,7 +52,7 @@
   max-height: min(680px, calc(100vh - 48px));
   gap: 0;
   padding: 0;
-  border: 1px solid var(--dsw-alias-border-l1);
+  border: 0.5px solid var(--dsw-alias-border-l1);
   background: var(--dsw-alias-bg-layer-2);
   animation: dialog-in 120ms ease-out;
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
@@ -65,7 +65,7 @@
   justify-content: space-between;
   gap: 16px;
   padding: 22px 22px 18px 24px;
-  border-bottom: 1px solid var(--dsw-alias-border-l1);
+  border-bottom: 0.5px solid var(--dsw-alias-border-l1);
 }
 .dialogHeading { min-width: 0; }
 .dialogTitle {
@@ -117,7 +117,7 @@
   flex-direction: column;
   padding: 20px 22px;
 }
-.modelsPanel { border-right: 1px solid var(--dsw-alias-border-l1); }
+.modelsPanel { border-right: 0.5px solid var(--dsw-alias-border-l1); }
 .panelTitle {
   margin: 0 0 10px;
   color: var(--dsw-alias-label-primary);
@@ -233,7 +233,7 @@
 .interactionHint {
   margin: 0;
   padding: 11px 24px 13px;
-  border-top: 1px solid var(--dsw-alias-border-l1);
+  border-top: 0.5px solid var(--dsw-alias-border-l1);
   color: var(--dsw-alias-label-caption);
   font-size: 11px;
   line-height: 17px;
@@ -243,7 +243,7 @@
 @media (max-width: 680px) {
   .dialog { width: min(520px, calc(100vw - 24px)); max-height: calc(100vh - 24px); }
   .dialogBody { grid-template-columns: 1fr; overflow-y: auto; }
-  .modelsPanel { border-right: none; border-bottom: 1px solid var(--dsw-alias-border-l1); }
+  .modelsPanel { border-right: none; border-bottom: 0.5px solid var(--dsw-alias-border-l1); }
   .modelList { max-height: 260px; }
 }
 

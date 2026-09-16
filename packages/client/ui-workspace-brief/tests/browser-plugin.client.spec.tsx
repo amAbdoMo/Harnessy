@@ -78,10 +78,10 @@ describe('WorkspaceBriefAction', () => {
     fireEvent.click(button)
     fireEvent.click(button)
     expect(createBrief).toHaveBeenCalledTimes(1)
-    expect(screen.getByRole('button', { name: 'Creating brief…' }).disabled).toBe(true)
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Creating brief…' }).disabled).toBe(true)
 
     await act(async () => { settle?.(); await Promise.resolve() })
-    expect(screen.getByRole('button', { name: 'Brief created' }).disabled).toBe(false)
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Brief created' }).disabled).toBe(false)
   })
 
   it('keeps an actionable error visible and allows an explicit retry', async () => {

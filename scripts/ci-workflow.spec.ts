@@ -4,6 +4,19 @@ import * as yaml from 'js-yaml'
 import { describe, expect, it } from 'vitest'
 
 const root = resolve(import.meta.dirname, '..')
+/**
+ * The condition every inherited master-push job carries in this fork.
+ *
+ * `.github/AGENTS.md` and
+ * `.agents/notes/implemented/process/2026-09-09-custom-harness-fork-ci.md` own
+ * that policy: the upstream jobs keep their definitions so an upstream merge
+ * can still be diagnosed, but they run automatically only when the repository
+ * variable opts in, because their API secrets, self-hosted runners, and
+ * multi-platform maintenance are not provisioned here. The gate is part of the
+ * condition, so a job that loses it would start running unprovisioned.
+ */
+const masterPush = "vars.CUSTOM_HARNESS_RUN_UPSTREAM_CI == 'true'"
+  + " && github.event_name == 'push' && github.ref == 'refs/heads/master'"
 const runnerPrivatePnpmDestination = /^\$\{\{ runner\.temp \}\}\/setup-pnpm-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}$/
 const nativeWindowsPnpmDestination = '${{ runner.temp }}/setup-pnpm-js-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}'
 
@@ -209,7 +222,7 @@ describe('CI workflow', () => {
     expect(windowsObservational['continue-on-error']).toBe(true)
 
     // serial-windows: master-only standby, self-hosted, non-blocking, lives in ci-master.
-    expect(serialWindows.if).toBe("github.event_name == 'push' && github.ref == 'refs/heads/master'")
+    expect(serialWindows.if).toBe(masterPush)
     expect(serialWindows['runs-on']).toEqual(['self-hosted', 'dsh-win-ci', 'windows'])
     expect(serialWindows.name).toBe('serial / windows (self-hosted standby)')
     // Its store must share the ReFS workspace volume for clone; the install
@@ -389,7 +402,7 @@ describe('CI workflow', () => {
       if (!isRecord(job)) throw new TypeError(`${name} must be defined`)
       expect(job.concurrency).toBeUndefined()
       // Both stay master-push-only; that is what makes the push carve-out safe.
-      expect(job.if).toBe("github.event_name == 'push' && github.ref == 'refs/heads/master'")
+      expect(job.if).toBe(masterPush)
     }
 
     // Pin the post-merge runtime, Wine, and standby inventory.

@@ -6,7 +6,19 @@ import { describe, expect, it } from 'vitest'
 import { gatesForMode } from '../run-gates.ts'
 
 const root = resolve(import.meta.dirname, '../..')
-const masterPush = "github.event_name == 'push' && github.ref == 'refs/heads/master'"
+/**
+ * The condition every inherited master-push job carries in this fork.
+ *
+ * `.github/AGENTS.md` and
+ * `.agents/notes/implemented/process/2026-09-09-custom-harness-fork-ci.md` own
+ * that policy: the upstream jobs keep their definitions so an upstream merge
+ * can still be diagnosed, but they run automatically only when the repository
+ * variable opts in, because their API secrets, self-hosted runners, and
+ * multi-platform maintenance are not provisioned here. The gate is part of the
+ * condition, so a job that loses it would start running unprovisioned.
+ */
+const masterPush = "vars.CUSTOM_HARNESS_RUN_UPSTREAM_CI == 'true'"
+  + " && github.event_name == 'push' && github.ref == 'refs/heads/master'"
 const runtimeBuilder = './.github/workflows/build-exe-for-python-sdk.yml'
 
 interface Job {

@@ -247,6 +247,10 @@
 .overrideStateOff {
   padding: 2px 7px;
   border-radius: 999px;
+  /* The universal superellipse reaches every element, so the pill states its
+     own arc back; without this the state badges round differently on engines
+     that support corner-shape, which no jsdom test renders. */
+  corner-shape: round;
   font-size: 10px;
   line-height: 14px;
   white-space: nowrap;
