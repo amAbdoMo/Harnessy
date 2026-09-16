@@ -136,6 +136,8 @@ keyless [CI 工作流](../.github/workflows/ci.yml) 将独立门禁分组到若�
 
 不带凭据的 dsh 依赖布局检查与 dsh/vendor 打包演练仅在 `DSH_CI_FAILOVER_LINUX=selfhosted`，且事件为受信任的 master 推送或同仓库、非 fork、非 Dependabot 拉取请求时使用现有 Linux 自托管池。其余情况（包括手动触发）均使用 `ubuntu-24.04`；手动发布仍使用托管运行器。持久化存储隔离与回退限制见[发布演练运行器决策](../.agents/notes/implemented/process/2026-09-06-release-rehearsal-selfhosted.zh.md)。
 
+每个 release member 都在 `package.json` 的 `repository` 中声明其源码归属。存在上游对应包的包指向已发布的上游仓库；源码仅存在于本 fork 的包则指向本 fork，因为指向上游会让使用者被引导到并不包含该包的仓库。[`check-workspace-constraints.ts`](../scripts/check-workspace-constraints.ts) 显式保存该分类清单，并要求包按其所属类别使用确切 URL：缺失、格式错误、无关或跨类别的 URL 都会失败，而不会作为例外放行。
+
 ### 日常命令
 
 根目录的[贡献者说明](../AGENTS.md#commands)概述常用命令，[`package.json`](../package.json) 与 [scripts/run-gates.ts](../scripts/run-gates.ts) 则负责当前脚本和门禁清单。请选择覆盖变更表面的最小检查集。文档变更使用 `pnpm run doc-sync`；包公开行为变更还需更新所属 README 或 JSDoc，而基于构建产物的检查需要先运行 `pnpm run build`。

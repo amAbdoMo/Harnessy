@@ -50,6 +50,30 @@ const repositoryUrl = 'git+https://github.com/deepseek-harness/deepseek-harness.
  * their trusted publishing against the repository that runs the workflow.
  */
 const publishedRepositoryUrl = 'git+https://github.com/deepseek-ai/deepseek-harness.git'
+/**
+ * Canonical home of the packages this fork owns outright. Their source exists
+ * only here — upstream has no such directory — so naming the published URL
+ * would point consumers at a repository that does not contain them.
+ */
+const forkRepositoryUrl = 'git+https://github.com/amAbdoMo/Harnessy.git'
+/**
+ * Directories whose packages are fork-local release members: each was
+ * introduced by a commit in this fork and has no upstream counterpart, which
+ * `git ls-tree` against the upstream remote confirms. Membership is listed
+ * explicitly so a new package is classified deliberately; the fork's own
+ * history is evidence for this set, never a runtime input to the check, and no
+ * name, scope, or authorship pattern stands in for it.
+ */
+const forkLocalPackageDirectories = new Set([
+  'packages/bundle/custom-harness',
+  'packages/client/ui-brand-custom-harness',
+  'packages/client/ui-settings-subagents',
+  'packages/client/ui-workspace-brief',
+  'packages/subagent/subagent-commandcode',
+  'packages/subagent/subagent-roster',
+  'packages/test-support/platform-probe',
+  'packages/workspace/workspace-brief',
+])
 /** Private packages that participate in workspace checks but not releases. */
 const experimentalPackageDirectory = /^packages\/experimental\/[^/]+$/
 /** npm namespace reserved for private experimental packages. */
@@ -348,10 +372,18 @@ export function checkWorkspaceManifest({ dir, manifest }: WorkspaceManifest): st
     if (manifest.publishConfig?.access !== 'public') {
       errors.push(`${label}: release member must set publishConfig.access to "public"`)
     }
+    // A fork-local release member names the fork, because that is where its
+    // source is; every other release member names the published source home.
+    // Each category requires its exact URL, so this stays a policy rather than
+    // an exemption: a missing, malformed, arbitrary, or cross-category URL all
+    // still fail, and a package that silently swapped categories is caught.
+    const expectedRepositoryUrl = forkLocalPackageDirectories.has(dir)
+      ? forkRepositoryUrl
+      : publishedRepositoryUrl
     if (manifest.repository?.type !== 'git'
-      || manifest.repository.url !== publishedRepositoryUrl
+      || manifest.repository.url !== expectedRepositoryUrl
       || manifest.repository.directory !== dir) {
-      errors.push(`${label}: release member repository must use ${publishedRepositoryUrl} with directory ${dir}`)
+      errors.push(`${label}: release member repository must use ${expectedRepositoryUrl} with directory ${dir}`)
     }
   } else if (!experimentalPackageDirectory.test(dir) && manifest.private !== true) {
     errors.push(`${label}: package.json must set "private": true`)

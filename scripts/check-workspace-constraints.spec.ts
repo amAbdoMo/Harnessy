@@ -5,6 +5,7 @@ import {
   checkDshFamilyVersion,
   checkExperimentalDependencyIsolation,
   checkExperimentalManifest,
+  checkWorkspaceManifest,
   expectedDshPackageFiles,
   type WorkspaceManifest,
 } from './check-workspace-constraints.ts'
@@ -118,6 +119,127 @@ describe('package payload constraints', () => {
       'lib/index.js',
       'cordis.patch.yml',
       'lib/types/**/*.d.ts',
+    ])
+  })
+})
+
+const UPSTREAM_REPOSITORY = 'git+https://github.com/deepseek-ai/deepseek-harness.git'
+const FORK_REPOSITORY = 'git+https://github.com/amAbdoMo/Harnessy.git'
+/** A directory with an upstream counterpart, so the published source home is required. */
+const UPSTREAM_MEMBER = 'packages/example/upstream-member'
+/** A directory the fork owns outright, drawn from the explicit fork-local policy set. */
+const FORK_MEMBER = 'packages/subagent/subagent-roster'
+
+/**
+ * A release member satisfying every constraint but the repository rule, so a
+ * test can vary that one field and read only its outcome.
+ * @param dir - workspace directory the manifest claims.
+ * @param repository - repository metadata, or undefined to omit it entirely.
+ * @returns the manifest under test.
+ */
+function releaseMember(
+  dir: string,
+  repository?: { readonly type: string; readonly url: string; readonly directory: string },
+): WorkspaceManifest {
+  return {
+    dir,
+    manifest: {
+      name: '@deepseek-ai/dsh-example',
+      version: '0.1.5-alpha.1',
+      publishConfig: { access: 'public' },
+      ...repository === undefined ? {} : { repository },
+      type: 'module',
+      main: 'lib/index.js',
+      types: 'lib/types/index.d.ts',
+      exports: { '.': { types: './lib/types/index.d.ts', default: './lib/index.js' } },
+      files: ['lib/index.js', 'lib/types/**/*.d.ts'],
+      peerDependencies: { '@deepseek-ai/cordis': 'workspace:^' },
+      devDependencies: { '@deepseek-ai/cordis': 'workspace:^' },
+    },
+  }
+}
+
+/**
+ * The repository-metadata outcome alone, with the checker's `<path>: ` prefix
+ * removed so the expectation states the policy rather than a path separator.
+ * @param errors - every error the checker reported for one manifest.
+ * @returns the policy messages that concern repository metadata.
+ */
+function repositoryErrors(errors: readonly string[]): readonly string[] {
+  return errors
+    .filter(error => error.includes('repository'))
+    .map(error => error.slice(error.indexOf(': ') + 2))
+}
+
+describe('release-member repository policy', () => {
+  it('accepts a manifest that satisfies every other constraint', () => {
+    expect(checkWorkspaceManifest(releaseMember(UPSTREAM_MEMBER, {
+      type: 'git',
+      url: UPSTREAM_REPOSITORY,
+      directory: UPSTREAM_MEMBER,
+    }))).toEqual([])
+  })
+
+  it('accepts an upstream member naming the published source home', () => {
+    expect(repositoryErrors(checkWorkspaceManifest(releaseMember(UPSTREAM_MEMBER, {
+      type: 'git',
+      url: UPSTREAM_REPOSITORY,
+      directory: UPSTREAM_MEMBER,
+    })))).toEqual([])
+  })
+
+  it('rejects an upstream member naming the fork', () => {
+    expect(repositoryErrors(checkWorkspaceManifest(releaseMember(UPSTREAM_MEMBER, {
+      type: 'git',
+      url: FORK_REPOSITORY,
+      directory: UPSTREAM_MEMBER,
+    })))).toEqual([
+      `@deepseek-ai/dsh-example: release member repository must use ${UPSTREAM_REPOSITORY} with directory ${UPSTREAM_MEMBER}`,
+    ])
+  })
+
+  it('accepts a fork-local member naming the fork', () => {
+    expect(repositoryErrors(checkWorkspaceManifest(releaseMember(FORK_MEMBER, {
+      type: 'git',
+      url: FORK_REPOSITORY,
+      directory: FORK_MEMBER,
+    })))).toEqual([])
+  })
+
+  it('rejects a fork-local member naming the published source home', () => {
+    expect(repositoryErrors(checkWorkspaceManifest(releaseMember(FORK_MEMBER, {
+      type: 'git',
+      url: UPSTREAM_REPOSITORY,
+      directory: FORK_MEMBER,
+    })))).toEqual([
+      `@deepseek-ai/dsh-example: release member repository must use ${FORK_REPOSITORY} with directory ${FORK_MEMBER}`,
+    ])
+  })
+
+  it('rejects a fork-local member naming an unrelated repository', () => {
+    expect(repositoryErrors(checkWorkspaceManifest(releaseMember(FORK_MEMBER, {
+      type: 'git',
+      url: 'git+https://github.com/elsewhere/other.git',
+      directory: FORK_MEMBER,
+    })))).toEqual([
+      `@deepseek-ai/dsh-example: release member repository must use ${FORK_REPOSITORY} with directory ${FORK_MEMBER}`,
+    ])
+  })
+
+  it('rejects a release member with no repository metadata, in either category', () => {
+    const expectedUpstream = `@deepseek-ai/dsh-example: release member repository must use ${UPSTREAM_REPOSITORY} with directory ${UPSTREAM_MEMBER}`
+    const expectedFork = `@deepseek-ai/dsh-example: release member repository must use ${FORK_REPOSITORY} with directory ${FORK_MEMBER}`
+    expect(repositoryErrors(checkWorkspaceManifest(releaseMember(UPSTREAM_MEMBER)))).toEqual([expectedUpstream])
+    expect(repositoryErrors(checkWorkspaceManifest(releaseMember(FORK_MEMBER)))).toEqual([expectedFork])
+  })
+
+  it('rejects a repository naming the wrong directory for its own category', () => {
+    expect(repositoryErrors(checkWorkspaceManifest(releaseMember(FORK_MEMBER, {
+      type: 'git',
+      url: FORK_REPOSITORY,
+      directory: 'packages/subagent/somewhere-else',
+    })))).toEqual([
+      `@deepseek-ai/dsh-example: release member repository must use ${FORK_REPOSITORY} with directory ${FORK_MEMBER}`,
     ])
   })
 })
