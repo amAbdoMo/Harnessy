@@ -30,7 +30,17 @@ const RUNTIME_CATALOG: ModelCatalog = {
   default: { provider: 'deepseek', model: 'deepseek-chat' },
   routableProviders: ['deepseek'],
   groups: [
-    { id: 'deepseek', name: 'DeepSeek', models: [{ id: 'deepseek-chat', name: 'DeepSeek Chat' }] },
+    {
+      id: 'deepseek',
+      name: 'DeepSeek',
+      models: [
+        {
+          id: 'deepseek-chat',
+          name: 'DeepSeek Chat',
+          reasoning: { efforts: [{ id: 'low', name: 'Low' }, { id: 'high', name: 'High' }] },
+        },
+      ],
+    },
   ],
   failures: [],
 }
@@ -42,6 +52,9 @@ const COMMAND_CODE_CATALOG: CommandCodeCatalog = {
   ],
 }
 const FLASH = { provider: 'deepseek', model: 'deepseek-v4.1-flash' }
+/** One route the backend-owned listing advertises, so its levels apply to it. */
+const LOCAL = { provider: BACKEND, model: 'local-model' }
+const CHAT = { provider: 'deepseek', model: 'deepseek-chat' }
 const GHOST = { provider: 'ghost', model: 'gone' }
 
 /** Translate one dictionary entry the way the locale service does, placeholders included. */
@@ -480,5 +493,87 @@ describe('Subagents picker catalog source', () => {
 
     expect(modelControl('Code').value).toBe('deepseek\u0000deepseek-v4.1-flash')
     expect(within(card('Code')).getByText(backendText('modelSourceFailed', BACKEND))).toBeTruthy()
+  })
+})
+
+describe('Subagents picker reasoning levels', () => {
+  /** The role card's reasoning-effort control. */
+  function effortControl(name: string): HTMLSelectElement {
+    return within(card(name)).getByLabelText(en.fieldEffort) as HTMLSelectElement
+  }
+
+  /** Mount one role on the Command Code backend, pinned to its advertised route. */
+  function mountBackendRole(route: { reasoningEffort?: string } = {}): ReturnType<typeof mount> {
+    const subject = mount({
+      value: settings({
+        subagents: [definition('code', {
+          execution: { backend: BACKEND, background: 'auto' },
+          model: { mode: 'fixed', route: { ...LOCAL, ...route } },
+        })],
+      }),
+    })
+    expand('Code')
+    return subject
+  }
+
+  it('offers a backend-owned role the levels that backend accepts', async () => {
+    mountBackendRole()
+
+    await waitFor(() => { expect(optionsOf(modelControl('Code'))).toContain('local-model') })
+    expect(optionsOf(effortControl('Code')))
+      .toEqual([en.effortDefault, en.effortLow, en.effortMedium, en.effortHigh])
+    expect(effortControl('Code').value).toBe('')
+  })
+
+  it('describes a backend-owned effort control with the backend\'s own rule', async () => {
+    mountBackendRole()
+
+    await waitFor(() => {
+      const describedBy = effortControl('Code').getAttribute('aria-describedby')
+      expect(describedBy).not.toBeNull()
+      expect(document.getElementById(describedBy!)?.textContent).toBe(en.fieldEffortBackendHint)
+    })
+  })
+
+  it('shows a stored level again after a reload, as one of the levels on offer', async () => {
+    mountBackendRole({ reasoningEffort: 'medium' })
+
+    await waitFor(() => { expect(effortControl('Code').value).toBe('medium') })
+    expect(optionsOf(effortControl('Code'))).toContain(en.effortMedium)
+    expect(within(card('Code')).getByText(/^Code · local-model · Medium/u)).toBeTruthy()
+  })
+
+  it('stores the level a backend-owned role is given', async () => {
+    const { write } = mountBackendRole({ reasoningEffort: 'high' })
+
+    await waitFor(() => { expect(effortControl('Code').value).toBe('high') })
+    fireEvent.change(effortControl('Code'), { target: { value: 'medium' } })
+    await waitFor(() => {
+      expect(written(write)[0]?.model).toEqual({ mode: 'fixed', route: { ...LOCAL, reasoningEffort: 'medium' } })
+    })
+  })
+
+  it('stores no effort when the model default is chosen', async () => {
+    const { write } = mountBackendRole({ reasoningEffort: 'high' })
+
+    await waitFor(() => { expect(effortControl('Code').value).toBe('high') })
+    fireEvent.change(effortControl('Code'), { target: { value: '' } })
+    await waitFor(() => {
+      expect(written(write)[0]?.model).toEqual({ mode: 'fixed', route: LOCAL })
+    })
+  })
+
+  it('still offers a global-catalog model only the levels it advertises', async () => {
+    mount({
+      value: settings({ subagents: [definition('code', { model: { mode: 'fixed', route: CHAT } })] }),
+    })
+    expand('Code')
+
+    await waitFor(() => { expect(optionsOf(modelControl('Code'))).toContain('DeepSeek Chat') })
+    // The runtime catalog advertises low and high for this model; the backend
+    // vocabulary neither adds to that list nor describes it.
+    expect(optionsOf(effortControl('Code'))).toEqual([en.effortDefault, en.effortLow, en.effortHigh])
+    const describedBy = effortControl('Code').getAttribute('aria-describedby')
+    expect(document.getElementById(describedBy!)?.textContent).toBe(en.fieldEffortHint)
   })
 })

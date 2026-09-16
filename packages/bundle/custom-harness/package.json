@@ -36,7 +36,6 @@
   "dependencies": {
     "@deepseek-ai/dsh-authorization": "workspace:^",
     "@deepseek-ai/dsh-client-ui-brand-custom-harness": "workspace:^",
-    "@deepseek-ai/dsh-client-ui-settings-commandcode": "workspace:^",
     "@deepseek-ai/dsh-client-ui-settings-subagents": "workspace:^",
     "@deepseek-ai/dsh-client-ui-workspace-brief": "workspace:^",
     "@deepseek-ai/dsh-skill-filesystem": "workspace:^",

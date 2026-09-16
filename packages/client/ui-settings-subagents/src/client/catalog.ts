@@ -9,10 +9,11 @@
  * backend's own listing, because the composed runtime has no adapter for a
  * model it is not the one to run.
  *
- * Three rules the picker cannot state for itself live here as pure functions:
+ * Four rules the picker cannot state for itself live here as pure functions:
  * which catalog a backend's routes belong to, how one backend's own listing
- * becomes the picker's rows, and that a route saved against a model the current
- * source does not advertise stays visible so the user can still remove it.
+ * becomes the picker's rows together with the reasoning levels that backend
+ * accepts, and that a route saved against a model the current source does not
+ * advertise stays visible so the user can still remove it.
  *
  * @module @deepseek-ai/dsh-client-ui-settings-subagents/catalog
  */
@@ -25,6 +26,7 @@ import type {
   SubagentModelPolicy,
   SubagentModelRoute,
 } from '@deepseek-ai/dsh-api-remotes/client'
+import { SUBAGENT_BACKEND_DEFAULT_EFFORT } from './backends.ts'
 import { COMMAND_CODE_BACKEND } from './contract.ts'
 
 /**
@@ -91,17 +93,29 @@ export function subagentCatalogOwner(backend: string): SubagentCatalogOwner {
  * that owns that model space is its provider — the same projection the roster's
  * migration of the pre-roster lanes applies, so a migrated role's stored route
  * reads back as this catalog's own entry rather than as an unavailable leftover.
+ *
+ * The listing states no reasoning levels, so every projected model carries the
+ * vocabulary instead: those levels belong to the backend, and one of them is
+ * what the picker offers for any route in this space.
  * @param catalog - the backend's catalog as the Host serves it.
  * @param backend - the backend name that owns this model space.
+ * @param vocabulary - the reasoning efforts that backend accepts, as the page
+ * spells their labels.
  * @returns one provider group for the backend, in listing order.
  */
 export function commandCodeModelGroups(
   catalog: CommandCodeCatalog,
   backend: string,
+  vocabulary: readonly ModelReasoningEffort[],
 ): ModelProviderGroup[] {
+  // The vocabulary's own default means "ask for no level", which the picker's
+  // model-default option already answers; a level listed here would instead be
+  // stored as the literal id the backend reserves for its absence.
+  const efforts = vocabulary.filter(effort => effort.id !== SUBAGENT_BACKEND_DEFAULT_EFFORT)
   const models: ModelCatalogModel[] = catalog.models.map(entry => ({
     id: entry.id,
     name: entry.id,
+    ...efforts.length === 0 ? {} : { reasoning: { efforts } },
   }))
   return models.length === 0 ? [] : [{ id: backend, name: backend, models }]
 }

@@ -190,7 +190,6 @@
       "@deepseek-ai/dsh-client-ui-sidebar": ["./packages/client/ui-sidebar/src"],
       "@deepseek-ai/dsh-client-ui-brand-official": ["./packages/client/ui-brand-official/src"],
       "@deepseek-ai/dsh-client-ui-brand-custom-harness": ["./packages/client/ui-brand-custom-harness/src"],
-      "@deepseek-ai/dsh-client-ui-settings-commandcode": ["./packages/client/ui-settings-commandcode/src"],
       "@deepseek-ai/dsh-client-ui-settings-subagents": ["./packages/client/ui-settings-subagents/src"],
       "@deepseek-ai/dsh-client-ui-workspace-brief": ["./packages/client/ui-workspace-brief/src"],
       "@deepseek-ai/dsh-client-ui-approval": ["./packages/client/ui-approval/src"],

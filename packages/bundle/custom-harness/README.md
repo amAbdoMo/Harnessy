@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package is the narrow product layer applied after `dsh-base` and `dsh-web-app` by the shipped `custom-harness` profile. It replaces the stock brand, disables per-message ratings and notes, enables the neutral authorization service for OpenAI account login, adds the bounded read-only Workspace Brief action, and adds Command Code delegation and the Subagents roster, each with its own Settings page, without renaming shared framework packages, provider names, protocols, or compatibility surfaces.
+This package is the narrow product layer applied after `dsh-base` and `dsh-web-app` by the shipped `custom-harness` profile. It replaces the stock brand, disables per-message ratings and notes, enables the neutral authorization service for OpenAI account login, adds the bounded read-only Workspace Brief action, and adds Command Code delegation and the Subagents roster, whose one Settings surface — the **Subagents** page — edits the roster and reports the Command Code backend beside it, without renaming shared framework packages, provider names, protocols, or compatibility surfaces.
 
 ## Table of Contents
 
@@ -50,9 +50,9 @@ Disabling either row removes that half of the experience without changing stored
 <a id="command-code-delegation"></a>
 ## Command Code delegation
 
-The profile mounts the `commandcode-delegation` Host row and the `ui-settings-commandcode` client row. Together they add one token-stable `commandcode_delegate` tool and one `list_commandcode_lanes` discovery tool to every agent in this profile, a live `commandcode-delegation` settings section holding named lanes and the run bounds, and a top-level **Delegation** page in Settings.
+The profile mounts the `commandcode-delegation` Host row. It adds one token-stable `commandcode_delegate` tool and one `list_commandcode_lanes` discovery tool to every agent in this profile, and a live `commandcode-delegation` settings section holding named lanes and the run bounds. The section has no Settings page of its own: the **Subagents** page reads this row's `commandcode` Remote namespace for the backend's installation state and for the model catalog its roles choose routes from.
 
-Each lane fixes an exact Command Code model, a reasoning effort, and an access level, so a delegated task can never choose or widen any of them. The user's own installed and authenticated CLI is the only backend: this profile vendors no Command Code package, stores no Command Code credential, and falls back to no other product, model, or executable. Loading the rows starts no Command Code process. Disabling either row removes that half of the experience and leaves every other product profile untouched.
+Each lane fixes an exact Command Code model, a reasoning effort, and an access level, so a delegated task can never choose or widen any of them. The user's own installed and authenticated CLI is the only backend: this profile vendors no Command Code package, stores no Command Code credential, and falls back to no other product, model, or executable. Loading the row starts no Command Code process. Disabling it removes the tools, the section, and the backend state the Subagents page would otherwise report, and leaves every other product profile untouched.
 
 The lane section stays mounted beside the unified roster, so `commandcode_delegate` and `list_commandcode_lanes` keep working through it while a user moves to the roster.
 
@@ -65,7 +65,7 @@ The Host row adds one token-stable `delegate` tool and one `list_subagents` disc
 
 On the first load that finds a stored lane configuration, the Host row also carries that configuration into the `subagent-roster` document, once. The `commandcode-delegation` section, its per-workspace `projects` overrides, and the `subagent-model-selection` section stay exactly where they were stored, so a user can inspect or revert; a roster the user already edited is never replaced.
 
-The client row is presentation only: it reads the Host roster plugin's `subagentRoster` Remote namespace and writes the `subagent-roster` settings section, so it enforces no policy of its own and starts no process.
+The client row is presentation only: it reads the Host roster plugin's `subagentRoster` Remote namespace, the Host's global model catalog, and — where the Command Code row is mounted — that row's `commandcode` namespace for a backend-owned role's routes, and it writes the `subagent-roster` settings section. It therefore enforces no policy of its own and starts no process.
 
 <a id="openai-account-login"></a>
 ## OpenAI account login

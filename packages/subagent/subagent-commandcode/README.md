@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Mount this plugin when Harnessy sessions should delegate self-contained tasks to the user's own installed Command Code CLI. It registers a live settings namespace owning the lane directory and three run bounds, two token-stable model-facing tools (`list_commandcode_lanes` and `commandcode_delegate`), and the `commandcode` Remote namespace the Delegation Settings page reads. Lanes are user data: each one fixes an exact model, a reasoning effort, and an access level, so a delegated task cannot choose or escalate them. It also registers a `commandcode` backend on `ctx.subagents` for roster roles, and starts no Command Code process while loading.
+Mount this plugin when Harnessy sessions should delegate self-contained tasks to the user's own installed Command Code CLI. It registers a live settings namespace owning the lane directory and three run bounds, two token-stable model-facing tools (`list_commandcode_lanes` and `commandcode_delegate`), and the `commandcode` Remote namespace the Subagents settings page reads. Lanes are user data: each one fixes an exact model, a reasoning effort, and an access level, so a delegated task cannot choose or escalate them. It also registers a `commandcode` backend on `ctx.subagents` for roster roles, and starts no Command Code process while loading.
 
 ## Table of Contents
 
@@ -87,7 +87,7 @@ Killing a job that is still probing or waiting for a slot settles it as killed, 
 
 ### Health and the model catalog
 
-Installation, version, and sign-in state are read when the Delegation page asks and again immediately before each delegated run; loading the plugin, and loading the tools, starts nothing. A concurrent probe is joined rather than repeated. The Delegation page also reads the CLI's advisory `--list-models` catalog into a searchable chooser and always accepts a manually typed exact model id, because catalog membership is advisory and native execution is authoritative.
+Installation, version, and sign-in state are read when the Subagents page asks and again immediately before each delegated run; loading the plugin, and loading the tools, starts nothing. A concurrent probe is joined rather than repeated. A lane always accepts a manually typed exact model id, and the Subagents page reads the CLI's advisory `--list-models` catalog to offer its routes, because catalog membership is advisory and native execution is authoritative.
 
 ### Per-model reasoning efforts
 
@@ -143,7 +143,7 @@ A call resolves the current workspace's lanes, requires an enabled lane id, and 
 - [Delegation subsystem](../../../docs/subsystems/subagent.md) — the shared delegation contracts this feature reuses.
 - [dsh-subagent](../subagent/README.md) — the seam whose out-of-process vocabulary this package composes with.
 - [Harnessy product patch layer](../../bundle/custom-harness/README.md) — the profile that mounts this plugin and its settings section.
-- [Delegation settings section](../../client/ui-settings-commandcode/README.md) — the browser half of the same feature.
+- [Subagents settings page](../../client/ui-settings-subagents/README.md) — the Settings surface where the roster this configuration migrates into is edited.
 - [Generated configuration catalog](../../../docs/config-catalog.md) — every accepted config field and its source declaration.
 
 -----

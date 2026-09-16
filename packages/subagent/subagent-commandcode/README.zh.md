@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-当 Harnessy 会话需要把自包含的任务委派给用户自己安装的 Command Code CLI 时，挂载此插件。它注册一个实时设置命名空间（拥有通道目录与三项运行上限）、两个 token 稳定的模型可见工具（`list_commandcode_lanes` 与 `commandcode_delegate`），以及委派设置页面读取的 `commandcode` Remote 命名空间。通道属于用户数据：每个通道固定了精确模型、推理强度与访问级别，因此被委派的任务无法选择或提升其中任何一项。插件还会为花名册角色在 `ctx.subagents` 上注册 `commandcode` 后端，并且加载时不会启动任何 Command Code 进程。
+当 Harnessy 会话需要把自包含的任务委派给用户自己安装的 Command Code CLI 时，挂载此插件。它注册一个实时设置命名空间（拥有通道目录与三项运行上限）、两个 token 稳定的模型可见工具（`list_commandcode_lanes` 与 `commandcode_delegate`），以及子代理设置页面读取的 `commandcode` Remote 命名空间。通道属于用户数据：每个通道固定了精确模型、推理强度与访问级别，因此被委派的任务无法选择或提升其中任何一项。插件还会为花名册角色在 `ctx.subagents` 上注册 `commandcode` 后端，并且加载时不会启动任何 Command Code 进程。
 
 ## 目录
 
@@ -87,7 +87,7 @@ CLI 由用户自行提供。本包不会内置、安装或再分发 Command Code
 
 ### 健康检查与模型目录
 
-安装状态、版本与登录状态会在委派设置页面请求时读取，并在每次委派运行前再次读取；加载插件与加载工具都不会启动任何进程。并发的探测会被合并而不是重复发起。委派设置页面还会把 CLI 的 `--list-models` 目录读取到可搜索的选择器中，并始终接受手动输入的精确模型 id，因为目录成员关系仅供参考，原生执行才是权威。
+安装状态、版本与登录状态会在子代理设置页面请求时读取，并在每次委派运行前再次读取；加载插件与加载工具都不会启动任何进程。并发的探测会被合并而不是重复发起。通道始终接受手动输入的精确模型 id，而子代理设置页面会读取 CLI 的 `--list-models` 目录以提供其路由，因为目录成员关系仅供参考，原生执行才是权威。
 
 ### 逐模型推理等级
 
@@ -143,7 +143,7 @@ Command Code 的 `--list-models` 列表只带 id 与描述，其 `--effort` 标�
 - [委派子系统](../../../docs/subsystems/subagent.zh.md) —— 本功能复用的共享委派契约。
 - [dsh-subagent](../subagent/README.zh.md) —— 本包组合使用的进程外接缝。
 - [Harnessy 产品补丁层](../../bundle/custom-harness/README.zh.md) —— 挂载本插件及其设置分区的配置档。
-- [委派设置分区](../../client/ui-settings-commandcode/README.zh.md) —— 同一功能的浏览器部分。
+- [子代理设置页面](../../client/ui-settings-subagents/README.zh.md) —— 编辑该配置所迁移到的角色目录的设置界面。
 - [生成的配置目录](../../../docs/config-catalog.zh.md) —— 每个可接受的配置字段及其源声明。
 
 -----

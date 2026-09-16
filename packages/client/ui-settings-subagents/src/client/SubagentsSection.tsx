@@ -10,6 +10,7 @@ import type {
   CommandCodeHealth,
   ModelCatalog,
   ModelProviderGroup,
+  ModelReasoningEffort,
   SubagentAutomaticRouting,
   SubagentDefinition,
   SubagentModelRoute,
@@ -20,7 +21,7 @@ import type {
 // Type-only: declares the root-scope standard props (`useSessions`) this
 // section reads, and the module-table row the built bundle resolves.
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
-import { subagentBackendRows } from './backends.ts'
+import { subagentBackendEfforts, subagentBackendRows } from './backends.ts'
 import {
   commandCodeModelGroups,
   subagentCatalogOwner,
@@ -370,11 +371,21 @@ export function SubagentsSection({ t, useStore, useSessions, operations }: Subag
     return { backend, owner, state: probe === undefined ? 'error' : probeState.catalog }
   }
 
+  /**
+   * The levels one backend's own model space accepts, as this page labels them.
+   *
+   * A backend-owned listing carries no reasoning metadata of its own, so the
+   * picker's levels for those routes come from the backend rather than from the
+   * catalog; a backend that resolves through Harnessy contributes nothing here.
+   */
+  const backendEfforts = (backend: string): readonly ModelReasoningEffort[] =>
+    subagentBackendEfforts(backend).map(effort => ({ id: effort.id, name: t(effort.label) }))
+
   /** The rows, the split, and the source one model picker renders from. */
   const pickerFor = (backend: string, route: SubagentModelRoute | undefined): SubagentPickerSource => {
     const groupsForBackend = subagentCatalogOwner(backend) === 'runtime'
       ? groups
-      : commandCodeModelGroups(probeState.models ?? { models: [] }, backend)
+      : commandCodeModelGroups(probeState.models ?? { models: [] }, backend, backendEfforts(backend))
     const choices = subagentModelChoices(groupsForBackend, [
       ...storedRoutes(backend),
       ...route === undefined ? [] : [route],

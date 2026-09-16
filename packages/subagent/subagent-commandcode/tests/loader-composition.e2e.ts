@@ -202,7 +202,6 @@ describe('Command Code delegation public Loader composition', () => {
   it('is mounted by the Harnessy product patch layer and by nothing else', () => {
     const patch = readFileSync(customHarnessPatch, 'utf8')
     expect(patch).toContain("name: '@deepseek-ai/dsh-subagent-commandcode'")
-    expect(patch).toContain("name: '@deepseek-ai/dsh-client-ui-settings-commandcode'")
     expect(patch).toContain("name: '@deepseek-ai/dsh-subagent-roster'")
     expect(patch).toContain("name: '@deepseek-ai/dsh-client-ui-settings-subagents'")
 

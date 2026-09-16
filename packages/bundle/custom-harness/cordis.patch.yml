@@ -58,9 +58,6 @@
     - id: subagent-roster
       name: '@deepseek-ai/dsh-subagent-roster'
 
-    - id: ui-settings-commandcode
-      name: '@deepseek-ai/dsh-client-ui-settings-commandcode'
-
     # The Subagents page reads the `subagent-roster` settings section and the
     # `subagentRoster` Remote namespace. It is registered here alone, so no
     # other product gains the page.

@@ -9,7 +9,7 @@ kind: "package-bundle"
 
 ## 概述
 
-本包是随附 `custom-harness` profile 在 `dsh-base` 和 `dsh-web-app` 之后应用的窄产品层。它替换原有品牌、禁用逐消息评分与备注、为 OpenAI 账户登录启用中立 authorization service、添加有界只读 Workspace Brief 操作，并添加各自带专属设置页面的 Command Code 委派与子代理角色目录，不会重命名共享框架包、模型提供方名称、协议或兼容性表层。
+本包是随附 `custom-harness` profile 在 `dsh-base` 和 `dsh-web-app` 之后应用的窄产品层。它替换原有品牌、禁用逐消息评分与备注、为 OpenAI 账户登录启用中立 authorization service、添加有界只读 Workspace Brief 操作，并添加 Command Code 委派与子代理角色目录；两者唯一的设置界面是 **子代理** 页面，它既编辑角色目录，也在其旁报告 Command Code 后端。此过程不会重命名共享框架包、模型提供方名称、协议或兼容性表层。
 
 ## 目录
 
@@ -50,9 +50,9 @@ Windows 默认位置为 `%LOCALAPPDATA%\CustomHarness\Harness`、`%LOCALAPPDATA%
 <a id="command-code-delegation"></a>
 ## Command Code 委派
 
-此 profile 挂载 `commandcode-delegation` 宿主行与 `ui-settings-commandcode` 客户端行。两者共同为本 profile 中的每个 agent 添加一个 token 稳定的 `commandcode_delegate` 工具与一个 `list_commandcode_lanes` 发现工具、一个保存具名通道与运行上限的实时 `commandcode-delegation` 设置分区，以及设置中的顶层 **委派** 页面。
+此 profile 挂载 `commandcode-delegation` 宿主行。它为本 profile 中的每个 agent 添加一个 token 稳定的 `commandcode_delegate` 工具与一个 `list_commandcode_lanes` 发现工具，以及一个保存具名通道与运行上限的实时 `commandcode-delegation` 设置分区。该分区没有自己的设置页面：**子代理** 页面会读取该行的 `commandcode` Remote 命名空间，以获取后端安装状态，以及其角色选择路由所用的模型目录。
 
-每个通道固定了精确的 Command Code 模型、推理强度与访问级别，因此被委派的任务无法选择或扩大其中任何一项。用户自己安装并登录的 CLI 是唯一的后端：此 profile 不内置任何 Command Code 包、不保存任何 Command Code 凭据，也不回退到任何其他产品、模型或可执行文件。加载这些行不会启动任何 Command Code 进程。禁用任一行会移除体验的对应一半，且不影响其他任何产品配置档。
+每个通道固定了精确的 Command Code 模型、推理强度与访问级别，因此被委派的任务无法选择或扩大其中任何一项。用户自己安装并登录的 CLI 是唯一的后端：此 profile 不内置任何 Command Code 包、不保存任何 Command Code 凭据，也不回退到任何其他产品、模型或可执行文件。加载该行不会启动任何 Command Code 进程。禁用它会移除这两个工具、该分区，以及子代理页面本会报告的后端状态，且不影响其他任何产品配置档。
 
 通道设置分区与统一角色目录并存挂载，因此在用户转向角色目录期间，`commandcode_delegate` 与 `list_commandcode_lanes` 仍可继续通过它工作。
 
@@ -65,7 +65,7 @@ Windows 默认位置为 `%LOCALAPPDATA%\CustomHarness\Harness`、`%LOCALAPPDATA%
 
 在首次发现已存通道配置的加载中，宿主行还会把该配置一次性写入 `subagent-roster` 文档。`commandcode-delegation` 分区、其按工作区的 `projects` 覆盖层，以及 `subagent-model-selection` 分区都原样保留，用户可查看或回退；用户已自行编辑过的角色目录绝不会被替换。
 
-客户端行仅负责呈现：它读取 Host 角色目录插件的 `subagentRoster` Remote 命名空间，并写入 `subagent-roster` 设置分区，因此它自身不强制执行任何策略，也不启动任何进程。
+客户端行仅负责呈现：它读取 Host 角色目录插件的 `subagentRoster` Remote 命名空间、Host 的全局模型目录，并在挂载了 Command Code 行时读取该行的 `commandcode` 命名空间以获取后端自有角色的路由，同时写入 `subagent-roster` 设置分区。因此它自身不强制执行任何策略，也不启动任何进程。
 
 <a id="openai-account-login"></a>
 ## OpenAI 账户登录

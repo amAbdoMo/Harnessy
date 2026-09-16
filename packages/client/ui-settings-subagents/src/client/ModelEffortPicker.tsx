@@ -77,6 +77,9 @@ export function ModelEffortPicker(props: ModelEffortPickerProps): ReactNode {
     : source.state === 'loading'
       ? t('modelSourceLoading', { backend: source.backend })
       : t('modelSourceBackend', { backend: source.backend })
+  // A backend-owned space states its levels once for all of its models, so the
+  // explanation of where those levels come from is the backend's, not a model's.
+  const effortHint = source.owner === 'backend' ? t('fieldEffortBackendHint') : props.effortHint
   return (
     <>
       <div className={css.field}>
@@ -142,7 +145,7 @@ export function ModelEffortPicker(props: ModelEffortPickerProps): ReactNode {
                 {efforts.map(effort => <option key={effort.id} value={effort.id}>{effort.name}</option>)}
                 {stored === undefined || advertised ? null : <option value={stored}>{stored}</option>}
               </select>
-              <p className={css.hint} id={hintIdOf(effortId)}>{props.effortHint}</p>
+              <p className={css.hint} id={hintIdOf(effortId)}>{effortHint}</p>
             </>
           )}
       </div>

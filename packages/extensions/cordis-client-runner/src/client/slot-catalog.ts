@@ -1919,7 +1919,6 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     occupants: [
       'client-ui-agent-preset AgentPresetSection id \'agent-presets\'',
       'client-ui-brand-custom-harness McpServersSection id \'custom-harness-mcp\'',
-      'client-ui-settings-commandcode DelegationSection id \'commandcode-delegation\'',
       'client-ui-settings-general GeneralSection id \'general\'',
       'client-ui-settings-models ModelsSection id \'models\'',
       'client-ui-settings-plugins PluginsSettingsSection id \'plugins\'',

@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import type { CommandCodeCatalog } from '@deepseek-ai/dsh-api-remotes/client'
-import { subagentBackendRows } from '../src/client/backends.ts'
+import {
+  SUBAGENT_BACKEND_DEFAULT_EFFORT,
+  subagentBackendEfforts,
+  subagentBackendRows,
+} from '../src/client/backends.ts'
 import {
   commandCodeModelGroups,
   subagentCatalogOwner,
+  subagentEffortName,
+  subagentEfforts,
   subagentModelChoices,
   subagentModelDirectory,
   subagentModelKey,
@@ -62,9 +68,17 @@ const CATALOG: CommandCodeCatalog = {
   ],
 }
 
+/** The `commandcode` vocabulary as the page labels it, default included. */
+const EFFORTS = [
+  { id: 'default', name: 'Model default' },
+  { id: 'low', name: 'Low' },
+  { id: 'medium', name: 'Medium' },
+  { id: 'high', name: 'High' },
+]
+
 describe('backend-owned catalog projection', () => {
   it('groups the whole listing under the backend that owns it, in listing order', () => {
-    const groups = commandCodeModelGroups(CATALOG, 'commandcode')
+    const groups = commandCodeModelGroups(CATALOG, 'commandcode', EFFORTS)
     expect(groups.map(group => group.id)).toEqual(['commandcode'])
     expect(groups[0]?.name).toBe('commandcode')
     expect(groups[0]?.models.map(model => model.id)).toEqual([
@@ -76,18 +90,20 @@ describe('backend-owned catalog projection', () => {
   })
 
   it('keeps a slash in an id part of the model, because the CLI takes the whole id', () => {
-    const groups = commandCodeModelGroups(CATALOG, 'commandcode')
+    const groups = commandCodeModelGroups(CATALOG, 'commandcode', EFFORTS)
     expect(groups.map(group => group.id)).not.toContain('deepseek')
     expect(groups[0]?.models[0]?.id).toBe('deepseek/deepseek-v4.1-flash')
   })
 
   it('shows the full listing id, so the offered row names what the CLI accepts', () => {
-    const groups = commandCodeModelGroups(CATALOG, 'commandcode')
+    const groups = commandCodeModelGroups(CATALOG, 'commandcode', EFFORTS)
     expect(groups[0]?.models[0]?.name).toBe('deepseek/deepseek-v4.1-flash')
   })
 
   it('projects an id exactly as the roster migration does, so one model is one route', () => {
-    const directory = subagentModelDirectory(subagentModelChoices(commandCodeModelGroups(CATALOG, 'commandcode'), []))
+    const directory = subagentModelDirectory(
+      subagentModelChoices(commandCodeModelGroups(CATALOG, 'commandcode', EFFORTS), []),
+    )
     // `migrate.ts` projects the lane's model id onto this exact route: the whole
     // CLI id is the model and the backend that owns that model space is the
     // provider. A projection that disagreed would read the same model back as
@@ -102,13 +118,47 @@ describe('backend-owned catalog projection', () => {
       { provider: 'commandcode', model: 'local-model' },
       { provider: 'commandcode', model: 'deepseek/deepseek-v4.1-flash' },
     ]) {
-      const directory = subagentModelDirectory(subagentModelChoices(commandCodeModelGroups(CATALOG, 'commandcode'), [stored]))
+      const directory = subagentModelDirectory(
+        subagentModelChoices(commandCodeModelGroups(CATALOG, 'commandcode', EFFORTS), [stored]),
+      )
       expect(directory.unavailable).toEqual([])
     }
   })
 
-  it('advertises no reasoning levels, because the listing states none', () => {
-    const choices = subagentModelChoices(commandCodeModelGroups(CATALOG, 'commandcode'), [])
+  it('advertises the backend\'s own levels, since the listing states none of its own', () => {
+    const choices = subagentModelChoices(commandCodeModelGroups(CATALOG, 'commandcode', EFFORTS), [])
+    expect(choices.every(choice => choice.efforts.map(effort => effort.id).join(',') === 'low,medium,high'))
+      .toBe(true)
+  })
+
+  it('offers a stored route its backend\'s levels again after a reload, and leaves the default out of them', () => {
+    const stored = { provider: 'commandcode', model: 'local-model', reasoningEffort: 'high' }
+    const choices = subagentModelChoices(commandCodeModelGroups(CATALOG, 'commandcode', EFFORTS), [stored])
+
+    expect(subagentEfforts(choices, { mode: 'fixed', route: stored }).map(effort => effort.name))
+      .toEqual(['Low', 'Medium', 'High'])
+    // `default` is the picker's model-default option, so it is never stored as
+    // a level of its own even though the vocabulary names it.
+    expect(subagentEfforts(choices, { mode: 'fixed', route: stored }).map(effort => effort.id))
+      .not.toContain('default')
+    expect(subagentEffortName(choices, stored)).toBe('High')
+  })
+
+  it('projects no levels when the backend states none for its own space', () => {
+    const choices = subagentModelChoices(commandCodeModelGroups(CATALOG, 'commandcode', []), [])
     expect(choices.every(choice => choice.efforts.length === 0)).toBe(true)
+  })
+})
+
+describe('backend effort vocabulary', () => {
+  it('offers Command Code the CLI\'s own levels, the no-flag default first', () => {
+    expect(subagentBackendEfforts('commandcode').map(effort => effort.id))
+      .toEqual(['default', 'low', 'medium', 'high'])
+    expect(SUBAGENT_BACKEND_DEFAULT_EFFORT).toBe('default')
+  })
+
+  it('states nothing for a backend whose routes resolve through the runtime catalog', () => {
+    expect(subagentBackendEfforts('spawn')).toEqual([])
+    expect(subagentBackendEfforts('fork')).toEqual([])
   })
 })
