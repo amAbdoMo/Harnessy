@@ -2581,8 +2581,21 @@ class FaceAnalyzer {
     const target = packageExportTargets(registration.manifest)
       .find(([subpath]) => subpath === module.subpath)?.[1]
     if (target === undefined) return undefined
-    const sourceFile = this.sourceFiles.get(realPath(sourcePathForExport(registration.root, target))) as ts.SourceFile
-    const moduleSymbol = this.checker.getSymbolAtLocation(sourceFile) as ts.Symbol
+    const sourceFile = this.sourceFiles.get(realPath(sourcePathForExport(registration.root, target)))
+    // The lookup can miss when a subpath's emitted target has no source in this
+    // program. That is a resolvable condition, not an absent symbol: report the
+    // subpath and its target instead of handing the checker an undefined one.
+    if (sourceFile === undefined) {
+      throw new TypertAnalysisError(
+        `typert(${face}): ${module.package} subpath ${module.subpath} resolves to ${target}, which this program does not include`,
+      )
+    }
+    const moduleSymbol = this.checker.getSymbolAtLocation(sourceFile)
+    if (moduleSymbol === undefined) {
+      throw new TypertAnalysisError(
+        `typert(${face}): ${module.package} subpath ${module.subpath} has no module symbol at ${target}`,
+      )
+    }
     const exported = this.checker.getExportsOfModule(moduleSymbol)
       .find(candidate => candidate.name === requestedName && this.resolveSymbol(candidate) === symbol)
     return exported?.name

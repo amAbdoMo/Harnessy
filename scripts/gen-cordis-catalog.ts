@@ -183,6 +183,8 @@ export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
   resources: 'client-side resource model (protocol providers, pins, live sources) — packages/client/resources/README.md owns the API',
   sidebarRight: 'client-side right-Sidebar navigation face — packages/client/ui-sidebar-right/README.md owns the API',
   sidebarRightTabs: 'client-side right-Sidebar tab-type registry — packages/client/ui-sidebar-right/README.md owns the API',
+  modelCapabilities: 'interface-typed (PublicCatalogStore | undefined) mounted for diagnostics commands, not a service the projection can render — packages/llm/model-capabilities/README.md owns the API',
+  modelCapabilitiesInspector: 'Host Remote service mounted by the model-capabilities plugin and reached through the modelCapabilities wire namespace rather than a rendered Cordis page — packages/llm/model-capabilities/README.md owns the API',
 }
 
 /**
