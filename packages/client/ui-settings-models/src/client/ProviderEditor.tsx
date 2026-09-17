@@ -24,13 +24,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type {
-  CredentialInfo, SettingsNamespaceView, SettingsPathOpView,
+  CredentialInfo, ModelCapabilityInspectionView, SettingsNamespaceView, SettingsPathOpView,
 } from '@deepseek-ai/dsh-api-remotes/client'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import {
   DeepSeekModelsEditor, modelDrafts, validateDeepSeekModels,
 } from './DeepSeekModelsEditor.tsx'
 import { apiKeyFailure } from './apiKey.ts'
+import { routeCapabilities } from './capability.ts'
 import { EditorFooter } from './EditorFooter.tsx'
 import { ModelListEditor } from './ModelListEditor.tsx'
 import { deriveKeyRef, protocolChoices, reasoningEffortChoices } from './store.ts'
@@ -38,6 +39,9 @@ import type { ModelsOperations } from './operations.ts'
 import type { SettingsSchemaOperations } from './schema-operations.ts'
 import type { en } from './locales.ts'
 import styles from './ModelsSection.module.css'
+
+/** Copy lookup this card renders with, including the params its rows need. */
+type Translate = (key: keyof typeof en, params?: Record<string, unknown>) => string
 
 /** Per-adapter-family curated field sets (unknown namespaces get the hint alone). */
 type EditorLayout = 'deepseek' | 'pi-ai' | 'unknown'
@@ -69,8 +73,13 @@ export interface ProviderEditorProps {
   settingsPath: readonly string[]
   /** The Host operations this card writes and interrogates through. */
   operations: ModelsOperations
+  /**
+   * What the Host resolves for every configured model, keyed by
+   * {@link capabilityKey}. Absent on a card that is adding a route.
+   */
+  capability?: ReadonlyMap<string, ModelCapabilityInspectionView>
   /** Section copy. */
-  t: (key: keyof typeof en) => string
+  t: Translate
   /** Disable writes (read-only settings provider). */
   readOnly: boolean
   /** Render only the credential field and actions, without provider settings. */
@@ -478,6 +487,7 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
                   // so the picker attributes what it shows to that catalog
                   // rather than to an endpoint that was never asked.
                   catalogServed={props.declared !== true}
+                  capability={routeCapabilities(props.capability, props.provider)}
                 />
               )}
           </div>

@@ -26,6 +26,9 @@ async function bench(isLoopback = true, settings?: object, services: object = {}
   locale.setLocale('zh')
   ctx.provide('locale', locale)
   const remote = new TestRemote(ctx, {
+    modelCapabilities: {
+      inspect: () => Promise.resolve({ ok: true, value: [] }),
+    },
     credentials: {
       describe: vi.fn(() => Promise.resolve({ ok: true, value: {} })),
       set: vi.fn(),
@@ -68,8 +71,8 @@ describe('ui-settings-models apply', () => {
 
   it('declares the services it uses', () => {
     expect(inject).toEqual([
-      'slots', 'locale', 'remote', 'remote.credentials', 'remote.llm', 'remote.settings',
-      'settingsScope', 'settingsSchema',
+      'slots', 'locale', 'remote', 'remote.credentials', 'remote.llm', 'remote.modelCapabilities',
+      'remote.settings', 'settingsScope', 'settingsSchema',
     ])
   })
 

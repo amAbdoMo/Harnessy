@@ -49,6 +49,23 @@
     - id: commandcode-delegation
       name: '@deepseek-ai/dsh-subagent-commandcode'
 
+    # Public model capability metadata. The row declares the local capability
+    # integration as an injected service, which is what orders the two: the
+    # Loader mounts sibling rows in parallel, so *file position does not decide
+    # activation order* — the LLM seam asks capability sources in registration
+    # order and the first answer wins, and only a service dependency makes
+    # Command Code's source register first.
+    - id: model-capabilities
+      name: '@deepseek-ai/dsh-model-capabilities/plugin'
+      inject: [commandCodeController]
+
+    # The `--models-sync` / `--models-explain` diagnostics surface. It reads the
+    # store the row above publishes, so it mounts after it and owns no policy of
+    # its own.
+    - id: model-capabilities-cli
+      name: '@deepseek-ai/dsh-model-capabilities/cli'
+      inject: [modelCapabilities]
+
     # The unified role directory. Its Host row owns the `subagent-roster`
     # settings section, the `delegate` and `list_subagents` tools, the one-shot
     # migration of a stored lane configuration, and the `subagentRoster` Remote
@@ -66,3 +83,14 @@
 
     - id: ui-workspace-brief
       name: '@deepseek-ai/dsh-client-ui-workspace-brief'
+
+# The public-metadata row is mounted behind a subpath entry, so its Cordis fiber
+# carries no resolvable package specifier and the Typert loader cannot discover
+# its `./typert` manifest from the entry name. Naming the package here is the
+# loader's documented path for a plugin nested behind another entry; without it
+# the Models page's `modelCapabilities/inspect` call would have no Host
+# descriptor to dispatch through.
+- id: typert-loader
+  config:
+    packages:
+      - '@deepseek-ai/dsh-model-capabilities'

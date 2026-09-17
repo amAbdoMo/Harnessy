@@ -23,7 +23,7 @@
 
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import type { LlmDiscoveredModel } from '@deepseek-ai/dsh-api-remotes/client'
+import type { LlmDiscoveredModel, ModelCapabilityInspectionView } from '@deepseek-ai/dsh-api-remotes/client'
 import { Button, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 import {
   declaredCapability, declaredDefaultReasoningEffort, declaredReasoningEfforts, formatCapacity,
@@ -31,9 +31,14 @@ import {
 } from './DeepSeekModelsEditor.tsx'
 import type { ModelReasoningMode } from './DeepSeekModelsEditor.tsx'
 import type { ModelsOperations } from './operations.ts'
+import { capabilityProvenance } from './capability.ts'
+import { CapabilityProvenance } from './CapabilityProvenance.tsx'
 import type { DeepSeekModelDraft } from './DeepSeekModelsEditor.tsx'
 import type { en } from './locales.ts'
 import styles from './ModelsSection.module.css'
+
+/** Copy lookup a row renders with, including the params its provenance needs. */
+type Translate = (key: keyof typeof en, params?: Record<string, unknown>) => string
 
 /**
  * One configured model row. Fields this card does not edit must survive an
@@ -133,8 +138,13 @@ export interface ModelListEditorProps {
    * attributing it to the endpoint.
    */
   catalogServed: boolean
+  /**
+   * What the Host resolves for this route's models, by model id. Absent on a
+   * card that is adding a route, which has no configured model to explain.
+   */
+  capability?: ReadonlyMap<string, ModelCapabilityInspectionView>
   /** Section copy. */
-  t: (key: keyof typeof en) => string
+  t: Translate
   /** Disable every control (read-only deployment or a pending write). */
   disabled: boolean
 }
@@ -230,7 +240,7 @@ interface CapabilityFieldsProps {
   /** Reasoning-effort levels the adapter accepts, in dispatch order. */
   efforts: readonly string[]
   /** Section copy. */
-  t: (key: keyof typeof en) => string
+  t: Translate
   /** Disable every control (read-only deployment or a pending write). */
   disabled: boolean
   /** Add or drop one offered level. */
@@ -294,7 +304,7 @@ function CapabilityFields({
  * @returns the model-list editor.
  */
 export function ModelListEditor(props: ModelListEditorProps): ReactNode {
-  const { models, onChange, probe, operations, efforts, t, disabled } = props
+  const { models, onChange, probe, operations, efforts, capability, t, disabled } = props
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<string | undefined>(undefined)
   const [candidates, setCandidates] = useState<readonly LlmDiscoveredModel[] | undefined>(undefined)
@@ -657,6 +667,15 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
                       {t(props.catalogServed ? 'modelReasoningCatalogHint' : 'modelReasoningUndeclaredHint')}
                     </p>
                   )}
+                <CapabilityProvenance
+                  state={capabilityProvenance(capability?.get(textOf(model, 'id')), {
+                    declaresNoReasoning: modelReasoningMode(model) === 'disabled',
+                    ...modelReasoningMode(model) === 'supported'
+                      ? { efforts: Object.keys(declaredReasoningEfforts(model, efforts)) }
+                      : {},
+                  })}
+                  t={t}
+                />
                 {efforts.length === 0 || modelReasoningMode(model) !== 'supported'
                   ? null
                   : (

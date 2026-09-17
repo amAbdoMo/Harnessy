@@ -9,11 +9,13 @@
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {
-  CredentialInfo, LlmConfigurableProvider, LlmProviderInfo, SettingsNamespaceView,
+  CredentialInfo, LlmConfigurableProvider, LlmProviderInfo,
+  ModelCapabilityInspectionView, SettingsNamespaceView,
 } from '@deepseek-ai/dsh-api-remotes/client'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { SettingsDescribeFace } from '@deepseek-ai/dsh-client-ui-settings/client'
+import { capabilityKey } from './capability.ts'
 import type { SettingsSchemaOperations } from './schema-operations.ts'
 
 /**
@@ -99,6 +101,12 @@ export interface ModelsSettingsState {
   rows: readonly ProviderRow[]
   /** Namespace views by ns, for the editor's schema/layers/secrets. */
   namespaces: ReadonlyMap<string, SettingsNamespaceView>
+  /**
+   * What reasoning capability the Host resolves for each configured model, by
+   * {@link capabilityKey}. Empty when the read was refused, which leaves every
+   * row rendering its own declaration alone.
+   */
+  capabilities: ReadonlyMap<string, ModelCapabilityInspectionView>
 }
 
 /**
@@ -194,6 +202,7 @@ export class ModelsSettingsStore {
   /** The snapshot the section renders from (uSES-safe store). */
   readonly store: SnapshotStore<ModelsSettingsState> = createSnapshotStore<ModelsSettingsState>({
     status: 'idle', error: null, credentialError: null, writable: false, rows: [], namespaces: new Map(),
+    capabilities: new Map(),
   })
 
   /** Latest load wins; an older response never overwrites a newer one. */
@@ -257,6 +266,15 @@ export class ModelsSettingsStore {
     const refs = [...new Set(rows.map(row => row.apiKeyEnv ?? deriveKeyRef(row.entry.provider)))]
     let credentials: Record<string, CredentialInfo> = {}
     let credentialError: string | null = null
+    // Capability provenance is read beside the credential enrichment and
+    // degrades the same way: a composition that mounts no public metadata has
+    // no claims to report, which is not a page failure.
+    const capability = await this.ctx.remote.modelCapabilities.inspect()
+    const capabilities = new Map<string, ModelCapabilityInspectionView>(
+      capability.ok
+        ? capability.value.map(entry => [capabilityKey(entry.route, entry.model), entry])
+        : [],
+    )
     if (refs.length > 0) {
       const response = await this.ctx.remote.credentials.describe(refs)
       // Credential state is an enrichment for the Models page: a failure
@@ -281,6 +299,7 @@ export class ModelsSettingsStore {
         }
       })
       s.namespaces = namespaces
+      s.capabilities = capabilities
     })
   }
 

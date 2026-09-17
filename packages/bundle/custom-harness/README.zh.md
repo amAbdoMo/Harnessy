@@ -9,13 +9,14 @@ kind: "package-bundle"
 
 ## 概述
 
-本包是随附 `custom-harness` profile 在 `dsh-base` 和 `dsh-web-app` 之后应用的窄产品层。它替换原有品牌、禁用逐消息评分与备注、为 OpenAI 账户登录启用中立 authorization service、添加有界只读 Workspace Brief 操作，并添加 Command Code 委派与子代理角色目录；两者唯一的设置界面是 **子代理** 页面，它既编辑角色目录，也在其旁报告 Command Code 后端。此过程不会重命名共享框架包、模型提供方名称、协议或兼容性表层。
+本包是随附 `custom-harness` profile 在 `dsh-base` 和 `dsh-web-app` 之后应用的窄产品层。它替换原有品牌、禁用逐消息评分与备注、为 OpenAI 账户登录启用中立 authorization service、添加有界只读 Workspace Brief 操作，挂载公开模型能力元数据及其 `--models-sync`／`--models-explain` 诊断，并添加 Command Code 委派与子代理角色目录；两者唯一的设置界面是 **子代理** 页面，它既编辑角色目录，也在其旁报告 Command Code 后端。此过程不会重命名共享框架包、模型提供方名称、协议或兼容性表层。
 
 ## 目录
 
 - [使用本包](#use-this-package)
 - [已禁用的逐消息反馈](#disabled-per-message-feedback)
 - [Workspace Brief](#workspace-brief)
+- [公开模型能力元数据](#public-model-capability-metadata)
 - [Command Code 委派](#command-code-delegation)
 - [子代理](#subagents)
 - [OpenAI 账户登录](#openai-account-login)
@@ -46,6 +47,15 @@ Windows 默认位置为 `%LOCALAPPDATA%\CustomHarness\Harness`、`%LOCALAPPDATA%
 此 profile 插入 `workspace-brief` 宿主行与 `ui-workspace-brief` 客户端行。已打开会话可以为其所选已注册 Git 工作区创建有界 Markdown 摘要；键入 `/workspace-brief --git` 会添加有界短状态行。该命令不接受任意路径、不写入文件、不执行网络或模型请求，并通过普通命令日志持久化其结果。
 
 禁用任一行会移除体验的对应一半，而不改变已存储会话。缺少专用客户端行时，已记录简报仍可通过通用命令 renderer 阅读；重连和重新启动绝不会自动重新运行仓库检查。
+
+<a id="public-model-capability-metadata"></a>
+## 公开模型能力元数据
+
+此 profile 挂载 `model-capabilities` Host 行及其伴随的 `model-capabilities-cli` 行。前者为每个公开数据库各保留一份目录——成功抓取的结果，否则是持久缓存，再否则是随包快照——并在 LLM 接缝上注册一个能力来源，因此任何适配器或本地集成都未描述的模型仍可提供其按提供方感知的推理强度等级。后者加入 `dsh --profile custom-harness --models-sync=check`、`--models-sync=write`、`--models-explain=<route>/<model>` 与 `--models-refresh`。
+
+能力行把 Command Code 控制器声明为注入的服务。Loader 会并行挂载同级行，因此它在补丁文件中的位置不决定顺序；正是该依赖让 Command Code 自己的能力来源先注册，从而让它的声明优先于任何公开主张。只有本 profile 挂载这些行，因此没有任何官方 profile 获得公开元数据。
+
+行为、配置（`model-capabilities.publicMetadata`）与同步安全规则记录在[包 README](../../llm/model-capabilities/README.zh.md) 中。禁用该行会撤回能力来源，且不触碰任何本地声明；此时 CLI 行会报告该层未挂载。
 
 <a id="command-code-delegation"></a>
 ## Command Code 委派
@@ -95,6 +105,7 @@ Windows 默认位置为 `%LOCALAPPDATA%\CustomHarness\Harness`、`%LOCALAPPDATA%
 <a id="known-limitations-and-deferred-work"></a>
 
 - **Bundle 范围**——本包提供产品 profile 和仓库启动器；可执行文件与安装程序由[桌面应用](../../../apps/desktop/README.zh.md)负责。
+- **公开元数据只在此处随包** —— 没有任何官方 profile 挂载 model-capabilities，因此想要按提供方感知的公开推理元数据的部署需自行挂载这些行。
 - **默认状态独立**——Session、设置和凭据保持隔离；只有用户选定的 skill 文件夹会共享，启动器不会复制其他原有状态。
 
 <a id="dev-note"></a>

@@ -38,6 +38,7 @@
     "@deepseek-ai/dsh-client-ui-brand-custom-harness": "workspace:^",
     "@deepseek-ai/dsh-client-ui-settings-subagents": "workspace:^",
     "@deepseek-ai/dsh-client-ui-workspace-brief": "workspace:^",
+    "@deepseek-ai/dsh-model-capabilities": "workspace:^",
     "@deepseek-ai/dsh-skill-filesystem": "workspace:^",
     "@deepseek-ai/dsh-subagent-commandcode": "workspace:^",
     "@deepseek-ai/dsh-subagent-roster": "workspace:^",

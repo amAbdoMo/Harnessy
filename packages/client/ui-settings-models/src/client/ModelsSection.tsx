@@ -84,7 +84,7 @@ interface EditorTarget extends ProviderIdentity {
 /** Values that vary around the shared provider-editor rendering. */
 interface ProviderEditorRenderProps extends Pick<
   ProviderEditorProps,
-  'namespace' | 'schema' | 'operations' | 't' | 'readOnly' | 'onClose'
+  'namespace' | 'schema' | 'operations' | 'capability' | 't' | 'readOnly' | 'onClose'
 > {
   target: EditorTarget
 }
@@ -348,6 +348,7 @@ function Loaded({ injected, renderSlot, presentModal }: {
                   namespace,
                   schema,
                   operations,
+                  capability: state.capabilities,
                   t,
                   readOnly: !state.writable,
                   onClose: (changed) => { closeSetup(changed, target) },
@@ -443,6 +444,7 @@ function Loaded({ injected, renderSlot, presentModal }: {
                   namespace,
                   schema,
                   operations,
+                  capability: state.capabilities,
                   t,
                   readOnly: !state.writable,
                   onClose: (changed) => { closeEditor(changed, target) },

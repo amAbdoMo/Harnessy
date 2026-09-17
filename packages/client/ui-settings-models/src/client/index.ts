@@ -62,8 +62,8 @@ export function refreshIfLoaded(controller: ModelsSettingsStore): void {
  * constrained; registration depends on each slot through `slots.inject()`.
  */
 export const inject = [
-  'slots', 'locale', 'remote', 'remote.credentials', 'remote.llm', 'remote.settings',
-  'settingsScope', 'settingsSchema',
+  'slots', 'locale', 'remote', 'remote.credentials', 'remote.llm', 'remote.modelCapabilities',
+  'remote.settings', 'settingsScope', 'settingsSchema',
 ]
 
 /**

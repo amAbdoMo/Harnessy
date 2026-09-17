@@ -545,6 +545,47 @@
   color: var(--dsw-alias-label-tertiary);
 }
 
+/* Where a row's effort levels came from. A description list because each line
+   pairs a term with its value, which is the pairing a screen reader needs. */
+.capabilitySource {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px 8px;
+  grid-column: 1 / -1;
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.capabilitySource dt {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.capabilitySource dd {
+  margin: 0;
+}
+
+/* A line whose value is a sentence, so it spans both columns. */
+.capabilityTerm {
+  grid-column: 1 / -1;
+}
+
+/* A public claim the row's own declaration outranks: reported, never applied,
+   and in the tertiary tone so it does not read as a warning. */
+.capabilityNotApplied {
+  grid-column: 1 / -1;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* The competing claims behind an ambiguous sentence, inside the row's details. */
+.capabilityClaims {
+  grid-column: 1 / -1;
+  margin: 2px 0 0;
+  padding-left: 16px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
 /* The origin of the metadata the candidate list shows, above the candidates. */
 .candidateSource {
   margin: 0 0 6px;

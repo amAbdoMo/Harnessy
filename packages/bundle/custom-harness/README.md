@@ -9,13 +9,14 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package is the narrow product layer applied after `dsh-base` and `dsh-web-app` by the shipped `custom-harness` profile. It replaces the stock brand, disables per-message ratings and notes, enables the neutral authorization service for OpenAI account login, adds the bounded read-only Workspace Brief action, and adds Command Code delegation and the Subagents roster, whose one Settings surface — the **Subagents** page — edits the roster and reports the Command Code backend beside it, without renaming shared framework packages, provider names, protocols, or compatibility surfaces.
+This package is the narrow product layer applied after `dsh-base` and `dsh-web-app` by the shipped `custom-harness` profile. It replaces the stock brand, disables per-message ratings and notes, enables the neutral authorization service for OpenAI account login, adds the bounded read-only Workspace Brief action, mounts public model capability metadata with its `--models-sync` / `--models-explain` diagnostics, and adds Command Code delegation and the Subagents roster, whose one Settings surface — the **Subagents** page — edits the roster and reports the Command Code backend beside it, without renaming shared framework packages, provider names, protocols, or compatibility surfaces.
 
 ## Table of Contents
 
 - [Use this package](#use-this-package)
 - [Disabled per-message feedback](#disabled-per-message-feedback)
 - [Workspace Brief](#workspace-brief)
+- [Public model capability metadata](#public-model-capability-metadata)
 - [Command Code delegation](#command-code-delegation)
 - [Subagents](#subagents)
 - [OpenAI account login](#openai-account-login)
@@ -46,6 +47,15 @@ The session-level `/feedback` command remains available. Telemetry feedback gati
 The profile inserts the `workspace-brief` Host row and `ui-workspace-brief` client row. An open session can create a bounded Markdown summary of its selected registered Git workspace; typing `/workspace-brief --git` adds bounded short-status rows. The command accepts no arbitrary path, writes no files, performs no network or model request, and persists its result through the ordinary command log.
 
 Disabling either row removes that half of the experience without changing stored sessions. A recorded brief remains readable through the generic command renderer when the specialized client row is absent; reconnect and restart never rerun repository inspection automatically.
+
+<a id="public-model-capability-metadata"></a>
+## Public model capability metadata
+
+The profile mounts the `model-capabilities` Host row and its `model-capabilities-cli` companion. The first keeps a catalog per public database — a successful fetch, else the durable cache, else the bundled snapshot — and registers one capability source on the LLM seam, so a model no adapter or local integration describes can still be offered its provider-aware reasoning-effort levels. The second adds `dsh --profile custom-harness --models-sync=check`, `--models-sync=write`, `--models-explain=<route>/<model>`, and `--models-refresh`.
+
+The capability row declares the Command Code controller as an injected service. The Loader mounts sibling rows in parallel, so its position in the patch file does not order it; that dependency is what makes Command Code's own capability source register first, which is what keeps its declarations ahead of any public claim. Only this profile mounts the rows, so no official profile gains public metadata.
+
+Behavior, configuration (`model-capabilities.publicMetadata`), and the sync safety rules are documented in the [package README](../../llm/model-capabilities/README.md). Disabling the row withdraws the capability source and leaves every local declaration untouched; the CLI row then reports that the layer is not mounted.
 
 <a id="command-code-delegation"></a>
 ## Command Code delegation
@@ -84,7 +94,7 @@ The global shared root composes with each preset's scoped filesystem provider. P
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through the inherited base and Web composition. OpenAI sign-in can activate the installed Codex model catalog; the mounted delegation rows own the tools this profile adds, this patch layer registers no prompt or tool schema of its own, and Workspace Brief remains a human-only log event.
+Indirectly, through the inherited base and Web composition. OpenAI sign-in can activate the installed Codex model catalog; the mounted public-metadata row contributes reasoning-effort levels for models no local source describes, the mounted delegation rows own the tools this profile adds, this patch layer registers no prompt or tool schema of its own, and Workspace Brief remains a human-only log event.
 
 #### KV Cache effect
 
@@ -96,6 +106,7 @@ None beyond the selected base and Web composition, apart from the stable `delega
 
 - **Bundle scope** — this package supplies the product profile and repository launcher; the [desktop application](../../../apps/desktop/README.md) owns the executable and installer.
 - **Independent state by default** — sessions, settings, and credentials remain isolated; only the user-selected skills folder is shared, and the launcher never copies other stock state.
+- **Public metadata ships here alone** — no official profile mounts `model-capabilities`, so a deployment that wants provider-aware public reasoning metadata mounts the rows itself.
 
 <a id="dev-note"></a>
 ### Dev Note

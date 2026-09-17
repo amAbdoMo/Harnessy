@@ -146,6 +146,9 @@ function scriptedFace(options: {
       describe: vi.fn(() => Promise.resolve(remoteOk({ writable: true, namespaces: [namespace] }))),
       mutate,
     },
+    modelCapabilities: {
+      inspect: () => Promise.resolve(remoteOk([])),
+    },
     credentials: {
       describe: vi.fn((refs: string[]) => Promise.resolve(remoteOk(
         Object.fromEntries(refs.map(ref => [ref, { configured: false, writable: true }])),
@@ -718,6 +721,28 @@ describe('model capabilities', () => {
       { id: 'states', reasoningEfforts: { low: 'low', high: 'high' }, defaultReasoningEffort: 'high' },
       { id: 'silent' },
     ])
+  })
+
+  it('keeps an undeclared row undeclared when the source states no levels for it', async () => {
+    const discover = vi.fn(() => Promise.resolve(ok([{ id: 'quiet', contextWindow: 4_096 }])))
+    const { mutate } = await mountSection({
+      discover,
+      declaredRoutes: ['openai'],
+      providers: { openai: { baseURL: 'https://proxy.example/v1', models: [{ id: 'quiet' }] } },
+    })
+    openEditor('openai')
+    expandModel(1)
+
+    fireEvent.click(screen.getByText(en.fetchModels))
+    await screen.findByText(en.fetchTitle)
+    // The candidate is already configured, so it starts unchecked.
+    fireEvent.click(screen.getByText('quiet'))
+    fireEvent.click(screen.getByText(en.fetchAdopt))
+
+    // A source that stated no levels leaves the absence an absence: the row is
+    // unchanged, so there is nothing to apply and nothing to write.
+    expect(screen.getByLabelText<HTMLSelectElement>(`${en.modelReasoning} 1`).value).toBe('inherit')
+    expect(mutate).not.toHaveBeenCalled()
   })
 
   it('names the built-in catalog as the source for a route the adapter ships', async () => {
