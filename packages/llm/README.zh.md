@@ -9,7 +9,7 @@ kind: "package-group"
 
 ## 概述
 
-llm 组提供 harness 的模型调用能力：一个提供方无关的服务，任何组合都可以通过它向模型提供方发起流式请求，外加适配器、提供方专用请求元数据、重试执行与计量。核心 `llm` 包定义所有插件与会话日志使用的消息、内容块与流式分片词汇；提供方适配器把某个提供方的协议格式翻译为该词汇；DeepSeek 请求扩展插件在模型输入之外贡献具有生命周期归属的元数据；`llm-retry` 在持久 agent 步骤边界上重跑失败的请求；`token-meter` 从持久日志测量请求与上下文压力。本页是组的映射；每个包 README 负责各自的包级约定。
+llm 组提供 harness 的模型调用能力：一个提供方无关的服务，任何组合都可以通过它向模型提供方发起流式请求，外加适配器、提供方专用请求元数据、重试执行、计量，以及用于补齐适配器未描述部分的公开能力元数据。核心 `llm` 包定义所有插件与会话日志使用的消息、内容块与流式分片词汇；提供方适配器把某个提供方的协议格式翻译为该词汇；DeepSeek 请求扩展插件在模型输入之外贡献具有生命周期归属的元数据；`llm-retry` 在持久 agent 步骤边界上重跑失败的请求；`token-meter` 从持久日志测量请求与上下文压力；`model-capabilities` 解析公开模型数据库对某条已配置路由所作的陈述。本页是组的映射；每个包 README 负责各自的包级约定。
 
 ## 目录
 
@@ -30,6 +30,7 @@ llm 组提供 harness 的模型调用能力：一个提供方无关的服务，�
 | [`deepseek-llm-api-extensions/`](deepseek-llm-api-extensions/README.zh.md) | 在官方 DeepSeek 请求上注册具有生命周期归属的顶层字段 | `ctx.deepseekLlmApiExtensions` |
 | [`plugin-package-inventory-deepseek/`](plugin-package-inventory-deepseek/README.zh.md) | 为官方 DeepSeek 请求贡献活跃 Loader 包清单 | 贡献 `dsh_plugin_packages` |
 | [`llm-retry/`](llm-retry/README.zh.md) | 在持久 agent 步骤边界上按各提供方策略重试失败的模型请求 | 监听 `agent/request-error` |
+| [`model-capabilities/`](model-capabilities/README.zh.md) | 从公开模型数据库解析具备提供方感知的推理强度元数据，并把仅凭模型 id 的声明报告为建议 | 注册到 `ctx.llm` |
 | [`token-meter/`](token-meter/README.zh.md) | 用固定启发式规则从持久会话日志测量请求与上下文压力 | `ctx.tokenMeter` |
 
 -----

@@ -163,6 +163,8 @@
     "verify-persistence-catalog": "tsx scripts/gen-persistence-catalog.ts --check",
     "gen-session-format-catalog": "tsx scripts/gen-session-format-catalog.ts",
     "verify-session-format-catalog": "tsx scripts/gen-session-format-catalog.ts --check",
+    "gen-model-capability-snapshot": "tsx scripts/gen-model-capability-snapshot.ts",
+    "verify-model-capability-snapshot": "tsx scripts/gen-model-capability-snapshot.ts --check",
     "gen-third-party-notices": "tsx scripts/gen-third-party-notices.ts",
     "verify-third-party-notices": "tsx scripts/gen-third-party-notices.ts --check",
     "gen-module-graph": "tsx scripts/gen-module-graph.ts",
