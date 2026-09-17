@@ -29,6 +29,7 @@ flowchart TD
     pkg_llm_deepseek["llm-deepseek"]
     pkg_llm_pi_ai["llm-pi-ai"]
     pkg_llm_retry["llm-retry"]
+    pkg_model_capabilities["model-capabilities"]
     pkg_plugin_package_inventory_deepseek["plugin-package-inventory-deepseek"]
     pkg_token_meter["token-meter"]
   end
@@ -465,6 +466,14 @@ flowchart TD
   pkg_settings --> pkg_session
   pkg_session_snapshot --> pkg_http_proxy
   pkg_session_snapshot --> pkg_session
+  pkg_model_capabilities --> pkg_atomic_write
+  pkg_model_capabilities --> pkg_cmdline
+  pkg_model_capabilities --> pkg_home_paths
+  pkg_model_capabilities --> pkg_llm
+  pkg_model_capabilities --> pkg_settings
+  pkg_model_capabilities --> pkg_timeout
+  pkg_model_capabilities --> pkg_typert_protocol
+  pkg_model_capabilities --> pkg_util_values
   pkg_agent --> pkg_invariants
   pkg_agent --> pkg_llm
   pkg_agent --> pkg_scope
@@ -1350,6 +1359,7 @@ flowchart TD
 | [`session-projection`](../packages/session/session-projection) | `session` | [`session`](../packages/core/session) |
 | [`settings`](../packages/settings/settings) | `settings` | [`brand`](../packages/util/brand), [`invariants`](../packages/runtime-diagnostics/invariants), [`session`](../packages/core/session) |
 | [`session-snapshot`](../packages/test-support/session-snapshot) | `test-support` | [`http-proxy`](../packages/util/http-proxy), [`session`](../packages/core/session) |
+| [`model-capabilities`](../packages/llm/model-capabilities) | `llm` | [`atomic-write`](../packages/util/atomic-write), [`cmdline`](../packages/boot/cmdline), [`home-paths`](../packages/util/home-paths), [`llm`](../packages/llm/llm), [`settings`](../packages/settings/settings), [`timeout`](../packages/util/timeout), [`typert-protocol`](../packages/typert/protocol), [`util-values`](../packages/util/values) |
 | [`agent`](../packages/core/agent) | `core` | [`invariants`](../packages/runtime-diagnostics/invariants), [`llm`](../packages/llm/llm), [`scope`](../packages/core/scope), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection), [`system-prompt`](../packages/core/system-prompt), [`typert-protocol`](../packages/typert/protocol), [`util-values`](../packages/util/values) |
 | [`fs`](../packages/fs/fs) | `fs` | [`brand`](../packages/util/brand), [`invariants`](../packages/runtime-diagnostics/invariants), [`llm`](../packages/llm/llm), [`sandbox`](../packages/sandbox/sandbox) |
 | [`spill-local`](../packages/spill/spill-local) | `spill` | [`spill`](../packages/spill/spill) |
