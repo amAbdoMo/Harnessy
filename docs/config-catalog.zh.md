@@ -2497,10 +2497,12 @@ export type CodexPermissionMode =
 export interface Config {
   /** Grace in milliseconds between managed-range termination tiers. */
   disposeGraceMs?: number
+  /** Whether to register the pre-roster lane tools beside the backend. */
+  toolsEnabled?: boolean
 }
 ```
 
-来源：[`packages/subagent/subagent-commandcode/src/index.ts:66`](../packages/subagent/subagent-commandcode/src/index.ts)
+来源：[`packages/subagent/subagent-commandcode/src/index.ts:67`](../packages/subagent/subagent-commandcode/src/index.ts)
 
 <a id="deepseek-aidsh-subagent-dsh-sdk"></a>
 

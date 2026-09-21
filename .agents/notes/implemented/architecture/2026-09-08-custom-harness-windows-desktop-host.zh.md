@@ -10,7 +10,7 @@ Status: implemented
 
 ## Decision
 
-`apps/desktop` 是一个 Electron 主进程应用，拥有一个原生 BrowserWindow 和一个定制后端。它在启动后端之前取得 Electron 单实例锁；再次启动时恢复并聚焦现有窗口；最后一个窗口关闭时完整退出。
+`apps/desktop` 是一个 Electron 主进程应用，拥有一个原生 BrowserWindow 和一个定制后端。它在启动后端之前取得 Electron 单实例锁，并在再次启动时恢复和聚焦现有窗口。在 Windows 上，只有托盘已经提供重新打开入口时，关闭主窗口才会让进程继续运行；后续的这项决策由 [Windows 托盘后台生命周期](../feature/2026-09-20-windows-tray-background-lifecycle.zh.md) 负责。
 
 桌面服务以 `--profile custom-harness --host 127.0.0.1 --port 48765 --no-open` 启动已构建 CLI。它仅信任该精确回环端口上带认证信息的 `dsh web:` 就绪 URL，在导航前验证 Custom Harness manifest 与图标，将令牌仅保存在内存中，从诊断信息里清除令牌，并在启动后持续监控 manifest。
 
@@ -24,7 +24,7 @@ Windows 打包配方从干净检出及固定的 Node.js、Electron、electron-bu
 
 ## Recovery contract
 
-启动超时、端口冲突、提前退出、定制产物不匹配、后端崩溃及持续健康检查失败进入统一的原生“重试／退出”流程。浏览器打开失败时服务继续运行并显示重试说明。关闭窗口会在退出前停止 Job 所有者；本产品没有托盘生命周期。
+启动超时、端口冲突、提前退出、定制产物不匹配、后端崩溃及持续健康检查失败进入统一的原生“重试／退出”流程。浏览器打开失败时服务继续运行并显示重试说明。托盘可用时，Windows 关闭控件会隐藏主窗口；托盘中的显式退出操作会在进程退出前停止后端。
 
 ## Alternatives considered
 

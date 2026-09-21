@@ -10,7 +10,7 @@ The customized Web profile supplies the product UI and authenticated local servi
 
 ## Decision
 
-`apps/desktop` is an Electron main-process application that owns one native BrowserWindow and one customized backend. It acquires Electron's single-instance lock before backend startup, restores and focuses the existing window on another launch, and exits completely when its last window closes.
+`apps/desktop` is an Electron main-process application that owns one native BrowserWindow and one customized backend. It acquires Electron's single-instance lock before backend startup and restores and focuses the existing window on another launch. On Windows, closing the primary window keeps the process alive only after the tray supplies a reopen path; the [Windows tray background lifecycle](../feature/2026-09-20-windows-tray-background-lifecycle.md) owns that later decision.
 
 The desktop service starts the built CLI with `--profile custom-harness --host 127.0.0.1 --port 48765 --no-open`. It trusts only the authenticated `dsh web:` readiness URL for that exact loopback port, verifies the Custom Harness manifest and icon before navigation, keeps the token in memory, redacts it from diagnostics, and monitors the manifest after startup.
 
@@ -24,7 +24,7 @@ The Windows package recipe produces one per-user NSIS x64 installer from a clean
 
 ## Recovery contract
 
-Startup timeout, port collision, premature exit, customized-asset mismatch, backend crash, and sustained health failure enter one native Retry/Quit path. Browser-open failure leaves the service running and presents retry guidance. Window close stops the Job owner before quit; the product has no tray lifecycle.
+Startup timeout, port collision, premature exit, customized-asset mismatch, backend crash, and sustained health failure enter one native Retry/Quit path. Browser-open failure leaves the service running and presents retry guidance. The Windows close control hides the primary window while the tray is available; the tray's explicit Exit action stops the backend before the process quits.
 
 ## Alternatives considered
 

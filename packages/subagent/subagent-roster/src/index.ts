@@ -29,6 +29,7 @@ import {
   SubagentSettingsSchema,
   automaticRoutingAuthority,
   resolvedSubagentRoster,
+  resolveSubagentConcurrencyLimit,
   storedSubagentRoster,
   subagentRosterView,
   validateSubagentSettings,
@@ -43,6 +44,7 @@ import type {
 
 export * from './types.ts'
 export {
+  ADAPTIVE_SUBAGENT_CONCURRENCY,
   DEFAULT_SUBAGENT_BACKEND,
   DEFAULT_SUBAGENT_DEFINITIONS,
   DEFAULT_SUBAGENT_LIMITS,
@@ -62,6 +64,7 @@ export {
   requireEnabledSubagent,
   resolveSubagentRoster,
   resolvedSubagentRoster,
+  resolveSubagentConcurrencyLimit,
   storedSubagentRoster,
   subagentRosterView,
   validateSubagentSettings,
@@ -200,7 +203,9 @@ export function apply(ctx: Context): void {
     // follows the registration rather than running beside the tools.
     await migrateStoredSubagentConfiguration(ctx, settingsCtx.settings)
   })
-  const limiter = new SubagentRunLimiter(() => source().limits.maxConcurrentRuns)
+  const limiter = new SubagentRunLimiter(
+    () => resolveSubagentConcurrencyLimit(source().limits.maxConcurrentRuns),
+  )
   ctx.plugin(SubagentRosterController, { readSettings: () => source() })
   installRosterTools(ctx, {
     viewFor: workspace => subagentRosterView(source(), workspace),

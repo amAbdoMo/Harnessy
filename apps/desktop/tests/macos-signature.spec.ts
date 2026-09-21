@@ -45,6 +45,7 @@ describe('desktop macOS release signature', () => {
     expect(config.extraResources[1]?.to).toBe('seed')
     expect(config.extraResources[2]?.to).toBe('harnessy.png')
     expect(config.files).toEqual(expect.arrayContaining(['src/startup.html', 'src/startup.css']))
+    expect(config.electronLanguages).toEqual(['en-US'])
     expect(portablePath(config.extraResources[0]?.from ?? '')).toContain('/.desktop-build/targets/mac-arm64/runtime')
     expect(portablePath(config.extraResources[1]?.from ?? '')).toContain('/.desktop-build/targets/mac-arm64/seed')
     expect(config.extraResources[2]?.from).toBe('assets/harnessy.png')

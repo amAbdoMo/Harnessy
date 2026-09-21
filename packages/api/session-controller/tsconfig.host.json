@@ -19,7 +19,8 @@
     "src/list.ts",
     "src/media-references.ts",
     "src/model-selection-projection.ts",
-    "src/skill-catalog.ts"
+    "src/skill-catalog.ts",
+    "src/workspace-settings.ts"
   ],
   "references": [
     { "path": "../../../vendor/cordis" },
@@ -43,6 +44,7 @@
     { "path": "../../session/session-projection" },
     { "path": "../../session/session-projection-cache" },
     { "path": "../../session/session-title" },
+    { "path": "../../settings/settings" },
     { "path": "../../session-query/session-query" },
     { "path": "../../skill/skill" },
     { "path": "../../subagent/subagent" },

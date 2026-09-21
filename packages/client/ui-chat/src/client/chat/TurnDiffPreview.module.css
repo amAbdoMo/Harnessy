@@ -1,0 +1,13 @@
+.root {
+  min-width: 0;
+  padding: 12px;
+}
+
+.path {
+  margin-bottom: 10px;
+  overflow: hidden;
+  color: var(--dsw-alias-label-secondary);
+  font: var(--dsw-font-xs-13);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -9,6 +9,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings-models/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
+import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import { AboutRow, type AboutRowInjected } from './AboutRow.tsx'
 import { AccountLauncher, type AccountLauncherInjected } from './AccountLauncher.tsx'
 import {
@@ -16,19 +17,39 @@ import {
 } from './AccountsManagerCard.tsx'
 import { createAccountsMenuStore } from './accounts-menu-store.ts'
 import { AccountsUsageController } from './accounts-usage.ts'
+import { NotificationCenter, type NotificationCenterInjected } from './NotificationCenter.tsx'
+import {
+  accountSwitchNotification,
+  type HarnessNotificationEvent,
+  NotificationHistoryController,
+} from './notification-history.ts'
+import { notificationPresentation, shouldShowNativeNotification } from './notification-presentation.ts'
 import { SharedSkillsRow, type SharedSkillsRowInjected } from './SharedSkillsRow.tsx'
+import { SessionWorkspaceRow, type SessionWorkspaceRowInjected } from './SessionWorkspaceRow.tsx'
 import {
   McpServersSection, type McpManagerOperations, type McpServersInjected,
 } from './McpServersSection.tsx'
+import {
+  McpConfigurationAction, type McpConfigurationActionInjected,
+} from './McpConfigurationAction.tsx'
+import { McpSessionStatus, type McpSessionStatusInjected } from './McpSessionStatus.tsx'
+import { McpStatusController } from './mcp-status.ts'
 import { createSharedSkillsRowStore } from './shared-skills-store.ts'
+import { createSessionWorkspaceRowStore } from './session-workspace-store.ts'
 import {
   CustomHarnessMark, CustomHarnessName, CustomHarnessTagline, requiredBuildValue,
 } from './Brand.tsx'
-import { en, zh, type BrandKey } from './locales.ts'
+import { en, type BrandKey } from './locales.ts'
 import { CUSTOM_HARNESS_THEME_TOKENS } from './tokens.ts'
 import {
   decodeSharedSkillsSettings, SHARED_SKILLS_SETTINGS_NAMESPACE, type SharedSkillsSettings,
 } from '../shared-skills.ts'
+import {
+  decodeSessionWorkspaceSettings,
+  SESSION_WORKSPACE_SETTINGS_NAMESPACE,
+  type SessionWorkspaceMode,
+  type SessionWorkspaceSettings,
+} from '../session-workspace.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -39,6 +60,28 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 
 const BUILD_PROFILE = 'custom-harness'
 const LOCALE_NS = 'customHarnessBrand'
+
+interface DesktopNotificationBridge {
+  readonly notifications?: {
+    show(payload: { readonly title: string; readonly body: string }): Promise<boolean>
+  }
+}
+
+function shortenNotificationCopy(copy: string, limit: number): string {
+  return copy.length <= limit ? copy : `${copy.slice(0, limit - 1).trimEnd()}…`
+}
+
+function showNativeNotification(title: string, body: string): void {
+  const bridge = (globalThis as typeof globalThis & { dshDesktop?: DesktopNotificationBridge }).dshDesktop
+  const notifications = bridge?.notifications
+  if (notifications === undefined) return
+  void notifications.show({
+    title: shortenNotificationCopy(title, 120),
+    body: shortenNotificationCopy(body, 500),
+  }).catch((reason: unknown) => {
+    console.warn('Harnessy native notification failed:', reason)
+  })
+}
 
 /** Required services: slots, locale, and theme token composition. */
 export const inject = [
@@ -53,7 +96,7 @@ export const inject = [
 export function apply(ctx: ClientContext): void {
   if (process.env.DSH_CLIENT_BUILD_PROFILE !== BUILD_PROFILE) return
 
-  ctx.effect(() => ctx.locale.register(LOCALE_NS, { zh, en }), 'custom-harness brand: dictionaries')
+  ctx.effect(() => ctx.locale.register(LOCALE_NS, { en }), 'custom-harness brand: dictionaries')
   ctx.effect(() => ctx.theme.overrideTokens(
     '@deepseek-ai/dsh-client-ui-brand-custom-harness',
     CUSTOM_HARNESS_THEME_TOKENS,
@@ -84,6 +127,46 @@ export function apply(ctx: ClientContext): void {
     locale: LOCALE_NS,
     inject: about,
   }, AboutRow))
+
+  const sessionWorkspace = ctx.settingsScope.bind<SessionWorkspaceSettings>({
+    namespace: SESSION_WORKSPACE_SETTINGS_NAMESPACE,
+    decode: decodeSessionWorkspaceSettings,
+  })
+  const sessionWorkspaceStore = createSessionWorkspaceRowStore()
+  let sessionWorkspaceActions: BoundActions<typeof sessionWorkspaceStore> | undefined
+  const syncSessionWorkspace = (): void => {
+    sessionWorkspaceActions?.sync(sessionWorkspace.getSnapshot())
+  }
+  ctx.effect(
+    () => sessionWorkspace.subscribe(syncSessionWorkspace),
+    'custom-harness: Session workspace settings row',
+  )
+  const sessionWorkspaceInjected = (
+    actions: BoundActions<typeof sessionWorkspaceStore>,
+  ): SessionWorkspaceRowInjected => {
+    sessionWorkspaceActions = actions
+    syncSessionWorkspace()
+    return {
+      chooseDirectory: async () => {
+        const response = await ctx.remote.directoryPicker.pick()
+        if (!response.ok) return { error: response.error.message }
+        return response.value === null ? {} : { path: response.value }
+      },
+      setMode: (mode: SessionWorkspaceMode) => sessionWorkspace.set('mode', mode),
+      useRemoteDirectory: directory => sessionWorkspace.mutate([
+        { op: 'set', path: ['remoteRoot'], value: directory },
+        { op: 'set', path: ['mode'], value: 'remote-website' },
+      ]),
+    }
+  }
+  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+    name: 'settings.general.item',
+    id: 'custom-harness-session-workspace',
+    order: 20,
+    locale: LOCALE_NS,
+    store: sessionWorkspaceStore,
+    inject: sessionWorkspaceInjected,
+  }, SessionWorkspaceRow))
 
   const sharedSkills = ctx.settingsScope.bind<SharedSkillsSettings>({
     namespace: SHARED_SKILLS_SETTINGS_NAMESPACE,
@@ -116,7 +199,18 @@ export function apply(ctx: ClientContext): void {
     inject: sharedSkillsInjected,
   }, SharedSkillsRow))
 
-  const mcpOperations: McpManagerOperations = {
+  const notifications = new NotificationHistoryController()
+  const notificationText = ctx.locale.bind(LOCALE_NS)
+  const publishNotification = (event: HarnessNotificationEvent): void => {
+    notifications.add(event)
+    const pageIsForeground = document.visibilityState === 'visible' && document.hasFocus()
+    if (!shouldShowNativeNotification(event, pageIsForeground)) return
+    const presentation = notificationPresentation(event, notificationText)
+    showNativeNotification(presentation.title, presentation.message)
+  }
+  ctx.effect(() => () => { notifications.dispose() }, 'custom-harness: notification history lifecycle')
+
+  const mcpRemoteOperations: McpManagerOperations = {
     describe: async () => {
       const response = await ctx.remote.mcpManager.describe()
       return response.ok ? { state: response.value } : { error: response.error.message }
@@ -137,6 +231,26 @@ export function apply(ctx: ClientContext): void {
       const response = await ctx.remote.mcpManager.deleteServer(serverId)
       return response.ok ? { state: response.value } : { error: response.error.message }
     },
+    openConfigurationFile: async () => {
+      const response = await ctx.remote.mcpManager.openConfigurationFile()
+      return response.ok ? {} : { error: response.error.message }
+    },
+  }
+  const mcpStatus = new McpStatusController(mcpRemoteOperations, publishNotification)
+  const publishMcpState = async (
+    request: Promise<{ readonly state?: import('@deepseek-ai/dsh-api-remotes/client').McpManagerState; readonly error?: string }>,
+  ): Promise<{ readonly state?: import('@deepseek-ai/dsh-api-remotes/client').McpManagerState; readonly error?: string }> => {
+    const response = await request
+    if (response.state !== undefined) mcpStatus.publish(response.state)
+    return response
+  }
+  const mcpOperations: McpManagerOperations = {
+    describe: () => publishMcpState(mcpRemoteOperations.describe()),
+    save: input => publishMcpState(mcpRemoteOperations.save(input)),
+    setEnabled: (serverId, enabled) => publishMcpState(mcpRemoteOperations.setEnabled(serverId, enabled)),
+    reconnect: serverId => publishMcpState(mcpRemoteOperations.reconnect(serverId)),
+    remove: serverId => publishMcpState(mcpRemoteOperations.remove(serverId)),
+    openConfigurationFile: mcpRemoteOperations.openConfigurationFile,
   }
   const mcp = (): McpServersInjected => ({ operations: mcpOperations })
   const mcpNav = ctx.locale.bind(LOCALE_NS)
@@ -148,6 +262,15 @@ export function apply(ctx: ClientContext): void {
     locale: LOCALE_NS,
     inject: mcp,
   }, McpServersSection))
+  ctx.slots.inject('settings.action', () => ctx.slots.register({
+    name: 'settings.action',
+    id: 'custom-harness-mcp-configuration',
+    order: 10,
+    locale: LOCALE_NS,
+    inject: (): McpConfigurationActionInjected => ({
+      openConfigurationFile: mcpOperations.openConfigurationFile,
+    }),
+  }, McpConfigurationAction))
 
   const accountRemoteOperations: AccountsManagerOperations = {
     describe: async () => {
@@ -166,6 +289,10 @@ export function apply(ctx: ClientContext): void {
     },
     activate: async (provider, accountId) => {
       const response = await ctx.remote.accounts.activate(provider, accountId)
+      return response.ok ? { state: response.value } : { error: response.error.message }
+    },
+    setAutoSwitch: async (provider, enabled) => {
+      const response = await ctx.remote.accounts.setAutoSwitch(provider, enabled)
       return response.ok ? { state: response.value } : { error: response.error.message }
     },
     rename: async (provider, accountId, name) => {
@@ -194,12 +321,29 @@ export function apply(ctx: ClientContext): void {
     addOAuth: (provider, signal) => accountRemoteOperations.addOAuth(provider, signal),
     addApiKey: (provider, name, key) => publishAccountState(accountRemoteOperations.addApiKey(provider, name, key)),
     activate: (provider, accountId) => publishAccountState(accountRemoteOperations.activate(provider, accountId)),
+    setAutoSwitch: (provider, enabled) => publishAccountState(accountRemoteOperations.setAutoSwitch(provider, enabled)),
     rename: (provider, accountId, name) => publishAccountState(accountRemoteOperations.rename(provider, accountId, name)),
     remove: (provider, accountId) => publishAccountState(accountRemoteOperations.remove(provider, accountId)),
     refreshUsage: signal => publishAccountState(accountRemoteOperations.refreshUsage(signal)),
   }
   const accountsMenuStore = createAccountsMenuStore()
+  ctx.effect(() => mcpStatus.start(), 'custom-harness: live MCP status')
+  ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({
+    name: 'conversation.session.header.actions',
+    id: 'custom-harness-mcp-status',
+    order: 10,
+    locale: LOCALE_NS,
+    store: accountsMenuStore,
+    inject: (): McpSessionStatusInjected => ({
+      hooks: { mcpStatus: mcpStatus.snapshot },
+      reconnect: serverId => mcpStatus.reconnect(serverId),
+    }),
+  }, McpSessionStatus))
   ctx.effect(() => accountsUsage.start(), 'custom-harness: automatic account usage refresh')
+  ctx.effect(() => ctx.remote.$on('accounts/auto-switched', (event) => {
+    publishNotification(accountSwitchNotification(event))
+    void publishAccountState(accountRemoteOperations.describe())
+  }), 'custom-harness: account switch notifications')
   const account = (): AccountsManagerInjected => ({ operations: accountOperations })
   const launcher = (): AccountLauncherInjected => ({
     hooks: { accountUsage: accountsUsage.state },
@@ -219,4 +363,21 @@ export function apply(ctx: ClientContext): void {
     store: accountsMenuStore,
     inject: account,
   }, AccountsManagerCard))
+  const notificationCenter = (): NotificationCenterInjected => ({
+    hooks: {
+      notifications: notifications.history,
+      notificationToast: notifications.toast,
+    },
+    addNotification: publishNotification,
+    markAllRead: () => { notifications.markAllRead() },
+    clearNotifications: () => { notifications.clear() },
+    dismissToast: (id) => { notifications.dismissToast(id) },
+  })
+  ctx.slots.inject('sidebar.workspaces.headerActions', () => ctx.slots.register({
+    name: 'sidebar.workspaces.headerActions',
+    id: 'custom-harness-notifications',
+    order: 10,
+    locale: LOCALE_NS,
+    inject: notificationCenter,
+  }, NotificationCenter))
 }

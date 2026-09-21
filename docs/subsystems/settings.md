@@ -213,6 +213,14 @@ Manage several local identities per provider while keeping one canonical active 
 @Remote async activate(provider: AccountProviderId, accountId: string): Promise<AccountsState>
 
 /**
+ * Enable or disable automatic Codex failover after a supported quota reaches its limit.
+ * @param provider - provider whose failover preference changes; only Codex supports it.
+ * @param enabled - whether fresh usage checks may promote an eligible saved account.
+ * @returns the updated public account state with credentials omitted.
+ */
+@Remote async setAutoSwitch(provider: AccountProviderId, enabled: boolean): Promise<AccountsState>
+
+/**
  * Rename one local account without changing its credential or active state.
  * @param provider - provider containing the saved identity.
  * @param accountId - saved identity to rename.
@@ -251,6 +259,13 @@ Host controller for Harnessy's protected, live MCP server registry.
  * @returns redacted registry state and live connection snapshots.
  */
 @Remote describe(): Promise<McpManagerState>
+
+/**
+ * Materialize and open the dedicated MCP registry document.
+ * @param signal - caller lifetime; abort terminates the native open command.
+ * @returns confirmation after the operating system accepts the document.
+ */
+@Remote openConfigurationFile(signal: AbortSignal): Promise<SettingsDocumentOpenValue>
 
 /**
  * Add or replace one protected server profile and reconcile its connection.
@@ -486,6 +501,27 @@ Host service backing the generated `ctx.remote.settings` namespace. Every remote
 ```
 
 Source: [`packages/api/settings-controller/src/index.ts`](../../packages/api/settings-controller/src/index.ts)
+
+<a id="accounts-events"></a>
+
+### `accounts/*` events
+
+<a id="accountsauto-switched--emit"></a>
+
+#### `accounts/auto-switched` — emit
+
+Report one committed automatic Codex account promotion.
+
+```ts cordis-catalog
+/**
+ * Report one committed automatic Codex account promotion.
+ * @param event - secret-free source, destination, quota, and timestamp facts.
+ * @mode emit
+ */
+'accounts/auto-switched'(event: AccountAutoSwitchEvent): void
+```
+
+Source: [`packages/api/settings-controller/src/types.ts`](../../packages/api/settings-controller/src/types.ts)
 
 <a id="settings-events"></a>
 

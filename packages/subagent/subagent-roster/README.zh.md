@@ -49,7 +49,7 @@ kind: "package-reference"
 | `overrides` | `{}` | 以规范工作区路径为键的按工作区角色补丁 |
 | `automaticRouting.enabled` | `false` | 调用是否可以选择模型路由 |
 | `automaticRouting.allowedModels` | `[]` | 显式选择必须解析到的精确 `{ provider, model }` 路由 |
-| `limits.maxConcurrentRuns` | `2` | 允许同时运行的委派数，前台与后台一并计算（1–16） |
+| `limits.maxConcurrentRuns` | `adaptive` | `adaptive` 让父 Agent 选择最小的有效批次，同时共享运行闸门强制 16 的上限；数字则设置 1–16 之间更严格的手动上限 |
 | `limits.defaultTimeoutMs` | `3600000` | 未指定时长的角色所用的墙钟上限（不超过 `MAX_TIMER_DELAY_MS`） |
 
 ### 角色
@@ -164,7 +164,7 @@ kind: "package-reference"
 
 #### 模型看到什么
 
-`list_subagents` 不接受参数，并为调用会话所在工作区已启用的每个角色报告一行：`id`、`name`、`purpose`、`whenToUse`、`invocation`、解析后的 `model`（精确的 `provider/model` 对及其 `reasoningEffort`，或 `inherit`）、`access` 与 `background`。被禁用的角色以及本工作区移除的角色不会出现。它不报告指令、不报告设置文档，也不报告其他任何包的数据。渲染结果是每个角色一行，因此路由指引与 `delegate` 所接受的 id 出现在同一次调用中。
+`list_subagents` 不接受参数，并为调用会话所在工作区已启用的每个角色报告一行：`id`、`name`、`purpose`、`whenToUse`、`invocation`、解析后的 `model`（精确的 `provider/model` 对及其 `reasoningEffort`，或 `inherit`）、`access` 与 `background`。被禁用的角色以及本工作区移除的角色不会出现。它不报告指令、不报告设置文档，也不报告其他任何包的数据。渲染结果是每个角色一行，因此路由指引与 `delegate` 所接受的 id 出现在同一次调用中。工具描述会要求模型在首次委派前读取该目录、选择最匹配的配置角色、把紧密相关的项目合并为一个完整任务，并把最终整合与验证留给父 Agent。
 
 #### Token 影响
 

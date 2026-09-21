@@ -14,14 +14,17 @@ The Settings controller owns one global `mcpManager` Remote namespace and stores
 
 Enabled profiles start through `startManagedConnection`, the same MCP lifecycle used by declarative plugin entries. It reserves `mcp__<serverName>__*`, supervises reconnects, reports connection snapshots, and releases both tools and namespace on disposal. The controller serializes saves and reconciliation, starts saved enabled profiles on composition, and restarts only profiles whose complete protected record changed.
 
-Settings > MCP Servers supports Streamable HTTP over HTTPS (plus loopback HTTP for local development) and direct stdio commands. It provides add, edit, test/restart, enable/disable, remove, live status, and discovered-tool controls. The page polls redacted state every three seconds while mounted.
+Settings > MCP Servers supports Streamable HTTP over HTTPS (plus loopback HTTP for local development) and direct stdio commands. It provides add, edit, test/restart, enable/disable, remove, live status, and discovered-tool controls. The local editor offers an explicit WordPress MCP Adapter template that fills the current endpoint path, command, arguments, and protected environment names without saving them; generic local providers still start empty. Connection failures use a high-contrast alert, and the paired local text areas retain equal geometry. The page polls redacted state every three seconds while mounted.
+
+The browser owns one shared MCP status observer while Harnessy is open. Every Session header shows a compact MCP action with green, amber, red, or neutral health, and its popover combines the global registry with up to 100 tool-call records derived from that Session's durable Chat projection. Activity records retain only server identity, call id, tool name, status, and timestamps; tool arguments and results are never copied. Failed calls can focus their existing conversation row. A terminal connection error after the supervisor's retries and its later recovery enter notification history and native Desktop notifications, while successful calls remain quiet.
 
 ## Alternatives considered
 
 - **Continue with `cordis.yml` only** — rejected because it requires technical file editing and restart for routine personal use.
 - **Store secrets in browser settings** — rejected because rendered settings and browser state are the wrong trust boundary for authorization values.
 - **Create an unrelated connection implementation** — rejected because it could bypass namespace collision protection and diverge from MCP reconnect and disposal behavior.
-- **Push every status transition over a new event protocol** — deferred because bounded polling is simpler and status is relevant only while the Settings page is visible.
+- **Push every status transition over a new event protocol** — deferred because one bounded browser observer can serve the always-present Session action and Settings without adding another wire lifecycle.
+- **Pre-fill every local server as WordPress** — rejected because local MCP commands span many providers; an explicit template keeps the fast WordPress path without making unrelated profiles erase example values first.
 
 ## Consequences
 

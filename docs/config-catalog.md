@@ -213,7 +213,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/api/session-controller/src/index.ts:70`](../packages/api/session-controller/src/index.ts)
+Source: [`packages/api/session-controller/src/index.ts:71`](../packages/api/session-controller/src/index.ts)
 
 <a id="deepseek-aidsh-api-settings-controller"></a>
 
@@ -1581,7 +1581,7 @@ export interface ReconnectConfig {
 }
 ```
 
-Source: [`packages/mcp/mcp-client/src/index.ts:149`](../packages/mcp/mcp-client/src/index.ts)
+Source: [`packages/mcp/mcp-client/src/index.ts:154`](../packages/mcp/mcp-client/src/index.ts)
 
 <a id="deepseek-aidsh-message-feedback"></a>
 
@@ -2495,10 +2495,12 @@ Requires: `typert` · `settings` · `tools` · `subprocess`
 export interface Config {
   /** Grace in milliseconds between managed-range termination tiers. */
   disposeGraceMs?: number
+  /** Whether to register the pre-roster lane tools beside the backend. */
+  toolsEnabled?: boolean
 }
 ```
 
-Source: [`packages/subagent/subagent-commandcode/src/index.ts:66`](../packages/subagent/subagent-commandcode/src/index.ts)
+Source: [`packages/subagent/subagent-commandcode/src/index.ts:67`](../packages/subagent/subagent-commandcode/src/index.ts)
 
 <a id="deepseek-aidsh-subagent-dsh-sdk"></a>
 

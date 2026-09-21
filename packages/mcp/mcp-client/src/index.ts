@@ -54,6 +54,11 @@ const activeServerNames = new WeakMap<object, Set<string>>()
  * The returned handle releases that reservation after disposal, allowing Host
  * features outside the declarative plugin loader to share the same lifecycle
  * and duplicate-name protection as {@link apply}.
+ * @param ctx - Cordis context that owns the tool registrations.
+ * @param config - Resolved MCP server and transport configuration.
+ * @param policy - Resolved reconnect behavior.
+ * @param observe - Optional listener for committed connection-state changes.
+ * @returns Supervised connection handle whose disposal releases the namespace.
  */
 export function startManagedConnection(
   ctx: Context,

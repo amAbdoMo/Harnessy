@@ -7,6 +7,7 @@
  */
 
 import type {} from '@deepseek-ai/dsh-api-session-controller/remote-events'
+import type {} from '@deepseek-ai/dsh-api-settings-controller/remote-events'
 import type { TypertForwardableEventEntry } from '@deepseek-ai/dsh-typert-protocol'
 
 /**
@@ -14,6 +15,7 @@ import type { TypertForwardableEventEntry } from '@deepseek-ai/dsh-typert-protoc
  * both the Host dispatch strategy and the legal key set of `ctx.remote.$on`.
  */
 export const API_REMOTE_FORWARDED_EVENTS = [
+  { event: 'accounts/auto-switched', mode: 'emit' },
   { event: 'agent-preset/selected', mode: 'emit' },
   { event: 'approval/request', mode: 'waterfall' },
   { event: 'api-session/activity', mode: 'emit' },

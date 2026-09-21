@@ -250,6 +250,7 @@ function makeHarness(
     key => chatSource.source.getSnapshot().nodes.processSource(key),
   )
   const openFile = vi.fn<(path: string) => Promise<void>>().mockResolvedValue(undefined)
+  const openDiff = vi.fn()
   const loadOlder = vi.fn()
   const loadThrough = vi.fn<(seq: number) => Promise<void>>().mockResolvedValue(undefined)
   // Mutable outline holder: tests swap the value and drive a re-render via set().
@@ -395,6 +396,7 @@ function makeHarness(
     openView,
     completeViewRequest: () => {},
     openFile,
+    openDiff,
     loadOlder,
     loadThrough,
     loadImage: vi.fn(() => Promise.reject(new Error('not used'))),
@@ -536,6 +538,7 @@ describe('Chat node rendering', () => {
     expect(formatRunDuration(-500, t)).toBe('0秒')
     expect(formatRunDuration(15_999, t)).toBe('15秒')
     expect(formatRunDuration(125_000, t)).toBe('2分05秒')
+    expect(formatRunDuration(3_725_000, t)).toBe('1时2分05秒')
   })
 
 })
@@ -916,6 +919,7 @@ describe('ChatView', () => {
     const h = makeHarness({
       nodes: [user(1, 'do the thing'), assistant(2, 'running tools'), toolResult(3, 'a'), toolResult(4, 'b')],
     })
+    h.setTranscriptView('normal')
     const view = render(<h.ChatView {...h.props} />)
     expect(view.getByText('do the thing')).toBeTruthy()
     expect(view.getByText('running tools')).toBeTruthy()
@@ -938,6 +942,28 @@ describe('ChatView', () => {
         'fixture:user:1', 'fixture:turn-process:1', 'fixture:assistant:2',
         'fixture:tool:a', 'call:a', 'fixture:tool:b', 'call:b',
       ])
+  })
+
+  it('consumes a Chat focus request after the addressed tool row is rendered', () => {
+    const h = makeHarness({ nodes: [toolResult(3, 'a')] })
+    const completeViewRequest = vi.fn()
+    render(<h.ChatView {...h.props}
+      viewRequest={{ view: 'chat', focus: 'call:a' }}
+      completeViewRequest={completeViewRequest} />)
+    expect(completeViewRequest).toHaveBeenCalledTimes(1)
+  })
+
+  it('opens a live Tool group before consuming a focus request inside it', async () => {
+    const h = makeHarness({ runningCalls: [runningCall('a')] }, { running: true })
+    const completeViewRequest = vi.fn()
+    render(<h.ChatView {...h.props}
+      viewRequest={{ view: 'chat', focus: 'call:a' }}
+      completeViewRequest={completeViewRequest} />)
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /已运行命令/ }).getAttribute('aria-expanded')).toBe('true')
+      expect(completeViewRequest).toHaveBeenCalledTimes(1)
+    })
   })
 
   it('renders Host-pending steering at the flow tail and hands off to the durable node', () => {

@@ -61,28 +61,25 @@ describe('ModelsSection theme styles', () => {
     expect(block('.rowCard')).not.toMatch(/\bbackground\s*:/)
   })
 
-  it('gives every dropdown the shared chevron instead of the OS arrow', () => {
-    // `select.input` caps the control at 240px, and the OS arrow is painted
-    // flush inside that shrunk right edge — visibly tighter than every other
-    // control on the page. `.selectInput` is what removes it, reserves the
-    // right pad, and paints the shared chevron; a `<select>` that takes
-    // `.input` alone silently keeps the OS one.
+  it('renders the shared Select instead of a native dropdown', () => {
+    // The OS paints a native <select>'s popup and arrow and ignores the theme's
+    // tokens, so every dropdown on this page goes through the shared control
+    // (ui-primitives `Select`), which carries its own trigger, chevron, and
+    // listbox styling. A `<select>` reappearing here would silently opt out.
     const sources = readdirSync(fileURLToPath(new URL('../src/client/', import.meta.url)))
       .filter(name => name.endsWith('.tsx'))
       .map(name => ({
         name,
         text: readFileSync(fileURLToPath(new URL(`../src/client/${name}`, import.meta.url)), 'utf8'),
       }))
-    const bare = sources.flatMap(({ name, text }) => text
-      .split('<select')
-      .slice(1)
-      // The element's own attributes end at the first `>`; a child `<option>`
-      // carries no className of its own and must not answer for the select.
-      .map(rest => rest.slice(0, rest.indexOf('>')))
-      .filter(attributes => !attributes.includes('selectInput'))
-      .map(() => name))
-    expect(bare).toEqual([])
+    expect(sources.filter(({ text }) => text.includes('<select')).map(({ name }) => name)).toEqual([])
+    const dropdowns = sources.filter(({ text }) => text.includes('<Select'))
+    expect(dropdowns.map(({ name }) => name).length).toBeGreaterThan(0)
+    for (const { name, text } of dropdowns) {
+      expect(text, `${name} imports the shared Select`).toContain('from \'@deepseek-ai/dsh-client-ui-primitives\'')
+    }
   })
+
 
   it('never falls back to a literal colour', () => {
     // A token that resolves is never the problem; an undeclared one takes this

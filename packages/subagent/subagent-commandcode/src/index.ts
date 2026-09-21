@@ -24,6 +24,7 @@ import { registerCommandCodeBackend } from './backend.ts'
 import {
   COMMAND_CODE_POSIX_COMMAND,
   COMMAND_CODE_PROBE_TIMEOUT_MS,
+  COMMAND_CODE_SKIP_UPDATES_ENV,
   COMMAND_CODE_WINDOWS_COMMAND,
   defaultCommandCodeInvocation,
   probeCommandCode,
@@ -66,11 +67,14 @@ export {
 export interface Config {
   /** Grace in milliseconds between managed-range termination tiers. */
   disposeGraceMs?: number
+  /** Whether to register the pre-roster lane tools beside the backend. */
+  toolsEnabled?: boolean
 }
 
 /** Plugin config schema. */
 export const Config: z<Config> = z.object({
   disposeGraceMs: z.number().default(DEFAULT_DISPOSE_GRACE_MS),
+  toolsEnabled: z.boolean().default(true),
 })
 
 /** Bytes collected from one installation, authentication, or catalog helper. */
@@ -173,7 +177,7 @@ export class CommandCodeController extends TypertRemoteService {
     )
     this.limiter = new CommandCodeRunLimiter(() => this.scope.get().maxConcurrentRuns)
     ctx.effect(() => () => { this.abortProbe() }, 'commandcode delegation: probe lifetime')
-    installCommandCodeTools(ctx, this.delegationApi())
+    if (config.toolsEnabled ?? true) installCommandCodeTools(ctx, this.delegationApi())
     // Mounted through `inject` rather than this plugin's static list, so a
     // profile that composes the plugin without the subagent registry keeps the
     // two tools it already had.
@@ -343,6 +347,7 @@ export class CommandCodeController extends TypertRemoteService {
       const child = this.ctx.subprocess.spawn({
         argv: [invocation.program, ...invocation.prefix, ...args],
         cwd: process.cwd(),
+        env: COMMAND_CODE_SKIP_UPDATES_ENV,
         stdio: {
           stdin: 'ignore',
           stdout: { maxBytes: PROBE_OUTPUT_BYTES },

@@ -84,6 +84,38 @@ function tokenTotal(
       + usage.cacheReadTokens + usage.cacheWriteTokens
 }
 
+/** Exact model id used by the latest request, or selected for the first request. */
+function activeModel(summary: SessionSummary | undefined): string | undefined {
+  const selection = summary?.projectionValues?.modelSelection
+  return selection?.lastUsed?.model ?? selection?.next?.model
+}
+
+/** Reasoning effort used by the latest request, or selected for the first request. */
+function activeReasoningEffort(summary: SessionSummary | undefined): string | undefined {
+  const selection = summary?.projectionValues?.modelSelection
+  return selection?.lastUsed?.reasoningEffort ?? selection?.next?.reasoningEffort
+}
+
+/** Compact localized label for a model route's reasoning effort. */
+function reasoningEffortLabel(
+  effort: string | undefined,
+  t: TranslateNS<typeof NS>,
+): string | undefined {
+  if (effort === undefined) return undefined
+  const key = {
+    off: 'effort.off',
+    none: 'effort.none',
+    minimal: 'effort.minimal',
+    low: 'effort.low',
+    medium: 'effort.medium',
+    high: 'effort.high',
+    xhigh: 'effort.xhigh',
+    max: 'effort.max',
+    ultra: 'effort.ultra',
+  } as const
+  return effort in key ? t(key[effort as keyof typeof key]) : effort
+}
+
 /** Exact whole-second active-turn duration for one catalog row. */
 function activityDuration(
   summary: SessionSummary | undefined,
@@ -300,14 +332,19 @@ function CatalogRows({
         const summary = summaries[entry.id]
         const label = entry.label ?? entry.id
         const mode = entry.mode === 'one-shot' ? t('mode.oneShot') : t('mode.continuable')
-        const activity = entry.activity === 'running' ? t('activity.running') : t('activity.inactive')
-        const secondary = [summary?.title, mode, activity]
+        const activityState = summary?.running === undefined
+          ? entry.activity
+          : summary.running ? 'running' : 'inactive'
+        const activity = activityState === 'running' ? t('activity.running') : t('activity.inactive')
+        const model = activeModel(summary)
+        const effort = reasoningEffortLabel(activeReasoningEffort(summary), t)
+        const secondary = [model, effort, summary?.title, mode, activity]
           .filter(value => value !== undefined)
           .join(' · ')
         const totalTokens = tokenTotal(summary?.projectionValues?.tokenUsage)
         const durationMs = activityDuration(
           summary,
-          entry.activity,
+          activityState,
           now,
         )
         const tokenMetric = totalTokens === undefined
@@ -374,7 +411,7 @@ function CatalogRows({
                   </button>
                 )}
               <div className={css.clickarea}>
-                <StateDot state={entry.activity === 'running' ? 'ongoing' : 'done'} />
+                <StateDot state={activityState === 'running' ? 'ongoing' : 'done'} />
                 <span className={css.content}>
                   <span className={`${css.label} ${isCurrent ? css.currentLabel : ''}`}>{label}</span>
                   <span className={css.summary}>{secondary}</span>
@@ -492,6 +529,7 @@ function CatalogDropdown({
   const [menuPosition, setMenuPosition] = useState<CSSProperties>()
   const [now, setNow] = useState(() => Date.now())
   const [expanded, setExpanded] = useState<ReadonlySet<SessionId>>(() => new Set())
+  const [completedOpen, setCompletedOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -514,8 +552,10 @@ function CatalogDropdown({
   // The catalog can arrive before the session-list baseline; never undercount
   // the already-visible direct rows during that short bootstrap window.
   const descendantCount = Math.max(healthy.length, descendants.count)
-  const totalCountKey = descendantCount === 1 ? 'count.total.one' : 'count.total.other'
-  const runningCountKey = descendants.runningCount === 1 ? 'count.running.one' : 'count.running.other'
+  const runningCount = descendants.runningCount
+  const completedCount = Math.max(0, descendantCount - runningCount)
+  const workingCountKey = runningCount === 1 ? 'count.working.one' : 'count.working.other'
+  const doneCountKey = completedCount === 1 ? 'count.done.one' : 'count.done.other'
   // Session summaries can announce membership before the descriptor-backed catalog catches up.
   // Keep that entry point visible through disabled loading rows; only catalog rows are navigable.
   const summaryBackedLoading = (descendants.count > 0 || variant === 'switcher')
@@ -541,6 +581,7 @@ function CatalogDropdown({
     }
     observedCatalogs.current.clear()
     setExpanded(new Set())
+    setCompletedOpen(false)
   }
 
   const cancelHoverClose = (): void => {
@@ -650,10 +691,10 @@ function CatalogDropdown({
   }, [open])
 
   useEffect(() => {
-    if (!open || descendants.runningCount === 0) return
+    if (!open || runningCount === 0) return
     const timer = setInterval(() => { setNow(Date.now()) }, 1_000)
     return () => { clearInterval(timer) }
-  }, [open, descendants.runningCount])
+  }, [open, runningCount])
 
   useEffect(() => () => {
     cancelHoverOpen()
@@ -711,6 +752,33 @@ function CatalogDropdown({
     }
   }
 
+  const activeCatalog: SubagentCatalogSnapshot = {
+    ...presentedCatalog,
+    entries: presentedCatalog.entries.filter(
+      entry => entry.kind === 'diagnostic'
+        || entry.id === currentSessionId
+        || (summaries[entry.id]?.running ?? entry.activity === 'running'),
+    ),
+  }
+  const completedCatalog: SubagentCatalogSnapshot = {
+    ...presentedCatalog,
+    state: 'ready',
+    error: null,
+    entries: presentedCatalog.entries.filter(
+      entry => entry.kind === 'child'
+        && entry.id !== currentSessionId
+        && !(summaries[entry.id]?.running ?? entry.activity === 'running'),
+    ),
+  }
+  const completedDirectCount = completedCatalog.entries.length
+
+  const toggleCompleted = (event: KeyboardEvent<HTMLDivElement> | MouseEvent<HTMLDivElement>): void => {
+    if ('key' in event && event.key !== 'Enter' && event.key !== ' ') return
+    event.preventDefault()
+    event.stopPropagation()
+    setCompletedOpen(current => !current)
+  }
+
   return (
     <div
       className={`${css.root} ${variant === 'switcher' ? css.switcherRoot : ''}`}
@@ -730,10 +798,10 @@ function CatalogDropdown({
         aria-expanded={open}
         aria-label={variant === 'switcher'
           ? t('switcher.aria', { title: switcherDisplayTitle })
-          : t(
-            descendants.runningCount > 0 ? runningCountKey : totalCountKey,
-            { count: descendants.runningCount > 0 ? descendants.runningCount : descendantCount },
-          )}
+          : t('count.summary', {
+            working: String(runningCount),
+            done: String(completedCount),
+          })}
         onClick={openTitle === undefined
           ? undefined
           : () => {
@@ -752,12 +820,16 @@ function CatalogDropdown({
           ? <span className={css.switcherTitle}>{switcherDisplayTitle}</span>
           : (
             <>
-              {descendants.runningCount > 0 && (
+              {runningCount > 0 && (
                 <span className={css.activitySlot}>
                   <StateDot state="ongoing" />
                 </span>
               )}
-              <span className={css.count}>{t(totalCountKey, { count: descendantCount })}</span>
+              <span className={css.count}>
+                <span className={css.workingCount}>{t(workingCountKey, { count: runningCount })}</span>
+                <span className={css.countDivider}>/</span>
+                <span>{t(doneCountKey, { count: completedCount })}</span>
+              </span>
             </>
           )}
         {variant === 'switcher'
@@ -777,7 +849,7 @@ function CatalogDropdown({
           <CatalogRows
             parentSessionId={rootSessionId}
             currentSessionId={currentSessionId}
-            catalog={presentedCatalog}
+            catalog={activeCatalog}
             catalogs={catalogs}
             summaries={summaries}
             expanded={expanded}
@@ -789,6 +861,44 @@ function CatalogDropdown({
             closeCatalog={() => { changeOpen(false) }}
             t={t}
           />
+          {completedDirectCount > 0 && (
+            <div className={css.completedGroup}>
+              <div
+                role="treeitem"
+                tabIndex={0}
+                aria-level={1}
+                aria-expanded={completedOpen}
+                aria-label={t('completed.toggle', { count: String(completedDirectCount) })}
+                className={css.completedToggle}
+                onClick={toggleCompleted}
+                onKeyDown={toggleCompleted}
+              >
+                <IconChevronRightOutline14
+                  className={completedOpen ? css.completedChevronOpen : undefined}
+                />
+                <span>{t('completed.label', { count: String(completedDirectCount) })}</span>
+              </div>
+              {completedOpen && (
+                <div role="group" className={css.completedRows}>
+                  <CatalogRows
+                    parentSessionId={rootSessionId}
+                    currentSessionId={currentSessionId}
+                    catalog={completedCatalog}
+                    catalogs={catalogs}
+                    summaries={summaries}
+                    expanded={expanded}
+                    level={2}
+                    now={now}
+                    openChild={openChild}
+                    refresh={refresh}
+                    toggleBranch={toggleBranch}
+                    closeCatalog={() => { changeOpen(false) }}
+                    t={t}
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
       ), document.body)}
     </div>

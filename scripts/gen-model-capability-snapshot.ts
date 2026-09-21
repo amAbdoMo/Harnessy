@@ -163,7 +163,53 @@ const GENERATED_BANNER = [
  * @returns the module's exact text.
  */
 export function renderSnapshotModule(snapshot: ModelCapabilitySnapshot): string {
-  return `${GENERATED_BANNER}${JSON.stringify(snapshot, null, 2)}\n`
+  return `${GENERATED_BANNER}${renderLiteral(snapshot, 0)}\n`
+}
+
+const STRING_ESCAPES: Readonly<Record<string, string>> = {
+  '\\': '\\\\',
+  "'": "\\'",
+  '\b': '\\b',
+  '\f': '\\f',
+  '\n': '\\n',
+  '\r': '\\r',
+  '\t': '\\t',
+  '\u2028': '\\u2028',
+  '\u2029': '\\u2029',
+}
+
+function quoteLiteral(value: string): string {
+  const body = value.replace(/[\\'\u0000-\u001f\u2028\u2029]/gu, character => (
+    STRING_ESCAPES[character]
+    ?? `\\u${(character.codePointAt(0) as number).toString(16).padStart(4, '0')}`
+  ))
+  return `'${body}'`
+}
+
+function renderArray(values: readonly unknown[], depth: number): string {
+  if (values.length === 0) return '[]'
+  const indentation = ' '.repeat(depth + 2)
+  const rows = values.map(value => `${indentation}${renderLiteral(value, depth + 2)},`)
+  return `[\n${rows.join('\n')}\n${' '.repeat(depth)}]`
+}
+
+function renderObject(value: Readonly<Record<string, unknown>>, depth: number): string {
+  const entries = Object.entries(value)
+  if (entries.length === 0) return '{}'
+  const indentation = ' '.repeat(depth + 2)
+  const rows = entries.map(([key, entry]) => (
+    `${indentation}${quoteLiteral(key)}: ${renderLiteral(entry, depth + 2)},`
+  ))
+  return `{\n${rows.join('\n')}\n${' '.repeat(depth)}}`
+}
+
+function renderLiteral(value: unknown, depth: number): string {
+  if (typeof value === 'string') return quoteLiteral(value)
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  if (value === null) return 'null'
+  if (Array.isArray(value)) return renderArray(value, depth)
+  if (typeof value === 'object') return renderObject(value as Readonly<Record<string, unknown>>, depth)
+  throw new TypeError(`model capability snapshot: cannot render ${typeof value}`)
 }
 
 /**
@@ -177,7 +223,7 @@ export function renderSnapshotModule(snapshot: ModelCapabilitySnapshot): string 
 export function committedGeneratedAt(path: string): string | undefined {
   const absolute = resolve(root, path)
   if (!existsSync(absolute)) return undefined
-  return /^ {2}"generatedAt": "([^"]+)",$/mu.exec(readFileSync(absolute, 'utf8'))?.[1]
+  return /^ {2}'generatedAt': '([^']+)',$/mu.exec(readFileSync(absolute, 'utf8'))?.[1]
 }
 
 /**

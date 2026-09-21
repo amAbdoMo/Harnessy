@@ -94,8 +94,8 @@
 
 .error,
 .cardError {
-  color: var(--dsw-alias-state-error-primary);
-  background: var(--dsw-alias-state-error-secondary);
+  color: var(--dsw-alias-label-primary-foreground);
+  background: var(--dsw-alias-state-error-primary);
 }
 
 .serverList {
@@ -107,36 +107,26 @@
 }
 
 .serverCard {
-  position: relative;
   display: grid;
   gap: 13px;
-  padding: 16px 16px 14px 18px;
+  padding: 16px 16px 14px;
   overflow: hidden;
   border: 0.5px solid var(--dsw-alias-border-l2);
   border-radius: 12px;
   background: var(--dsw-alias-bg-layer-1);
 }
 
-.serverCard::before {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 3px;
-  background: var(--dsw-alias-border-l3);
-  content: '';
+.status-connected {
+  border-color: var(--dsw-static-green-400);
 }
 
-.status-connected::before {
-  background: var(--dsw-alias-state-success-primary);
+.status-connecting,
+.status-reconnecting {
+  border-color: var(--dsw-alias-state-business-primary);
 }
 
-.status-connecting::before,
-.status-reconnecting::before {
-  background: var(--dsw-alias-state-business-primary);
-  animation: railPulse 1.4s ease-in-out infinite;
-}
-
-.status-error::before {
-  background: var(--dsw-alias-state-error-primary);
+.status-error {
+  border-color: var(--dsw-static-red-400);
 }
 
 .identity {
@@ -273,6 +263,110 @@
   cursor: pointer;
 }
 
+.addActions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 9px;
+}
+
+.fileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.importReview {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 0.5px solid var(--dsw-alias-state-business-primary);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.importHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.importHeading h3,
+.importHeading p,
+.importWarning {
+  margin: 0;
+}
+
+.importHeading h3 {
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  line-height: 21px;
+}
+
+.importHeading p,
+.importWarning {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.importList {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.importList li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.importList div {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.importList strong {
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.importList code,
+.importList span {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 10px;
+  line-height: 15px;
+}
+
+.importList span {
+  flex: 0 0 auto;
+}
+
+.importWarning {
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--dsw-alias-state-warn-label);
+  background: var(--dsw-alias-state-warn-tertiary);
+}
+
 .addButton:disabled {
   opacity: 0.45;
   cursor: default;
@@ -305,6 +399,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+  align-items: stretch;
 }
 
 .stack,
@@ -318,11 +413,30 @@
 }
 
 .field > span,
+.fieldLabelRow,
 .transport legend {
   color: var(--dsw-alias-label-secondary);
   font-size: 11px;
   font-weight: 600;
   line-height: 16px;
+}
+
+.fieldLabelRow {
+  display: flex;
+  min-height: 16px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.templateButton {
+  padding: 0;
+  border: 0;
+  color: var(--dsw-alias-state-business-primary);
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .field input,
@@ -343,17 +457,28 @@
 }
 
 .field textarea {
-  min-height: 84px;
+  height: 124px;
   padding: 9px 11px;
-  resize: vertical;
+  resize: none;
+}
+
+.field input::placeholder,
+.field textarea::placeholder {
+  color: var(--dsw-alias-label-secondary);
+  opacity: 0.9;
 }
 
 .field input:focus,
-.field textarea:focus,
+.field textarea:focus {
+  border-color: var(--dsw-alias-state-business-primary);
+  outline: none;
+}
+
 .transport button:focus-visible,
-.addButton:focus-visible {
-  outline: 2px solid var(--dsw-alias-state-business-primary);
-  outline-offset: 2px;
+.addButton:focus-visible,
+.templateButton:focus-visible {
+  border-color: var(--dsw-alias-state-business-primary);
+  outline: none;
 }
 
 .transport {
@@ -410,16 +535,6 @@
   font-weight: 600;
 }
 
-@keyframes railPulse {
-  0%, 100% { opacity: 0.45; }
-  50% { opacity: 1; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .status-connecting::before,
-  .status-reconnecting::before { animation: none; }
-}
-
 @media (max-width: 640px) {
   .pageHead,
   .serverHead,
@@ -431,8 +546,15 @@
   }
 
   .fieldGrid,
-  .transport {
+  .transport,
+  .addActions {
     grid-template-columns: 1fr;
+  }
+
+  .importHeading,
+  .importList li {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .summary {

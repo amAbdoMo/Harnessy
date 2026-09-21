@@ -8,6 +8,8 @@
 
 import { createHash, randomUUID } from 'node:crypto'
 import { Context } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/dsh-agent'
+import { QUOTA_EXCEEDED_CODE } from '@deepseek-ai/dsh-llm'
 import { openaiCodexProvider } from '@earendil-works/pi-ai/providers/openai-codex'
 import type { OAuthCredential } from '@earendil-works/pi-ai'
 import type { AuthorizationPrompt, AuthorizationService } from '@deepseek-ai/dsh-authorization'
@@ -18,10 +20,12 @@ import type { SettingsProvider } from '@deepseek-ai/dsh-settings'
 import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import type {
   AccountAuthMode,
+  AccountAutoSwitchEvent,
   AccountProviderId,
   AccountProviderView,
   AccountSignInResult,
   AccountsState,
+  AccountUsageScope,
   AccountUsageView,
   AccountUsageWindow,
   ManagedAccountView,
@@ -32,6 +36,7 @@ const PI_AI_SETTINGS = 'llm-pi-ai'
 const USAGE_URL = 'https://chatgpt.com/backend-api/wham/usage'
 const PROFILE_CLAIM = 'https://api.openai.com/profile'
 const AUTH_CLAIM = 'https://api.openai.com/auth'
+const CODEX_AUTO_SWITCH_THRESHOLD = 95
 
 interface ProviderDefinition {
   readonly id: AccountProviderId
@@ -63,12 +68,17 @@ interface StoredAccount {
 
 interface ProviderVault {
   readonly activeAccountId?: string
+  readonly autoSwitchOnLimit?: boolean
   readonly accounts: Readonly<Record<string, StoredAccount>>
 }
 
 interface AccountVault {
   readonly version: 1
   readonly providers: Readonly<Partial<Record<AccountProviderId, ProviderVault>>>
+}
+
+function assertUsageRefreshActive(signal: AbortSignal): void {
+  if (signal.aborted) throw new RemoteError('gateway/cancelled', 'account usage refresh was cancelled', {})
 }
 
 /** Replaceable native and network boundaries for tests. */
@@ -93,6 +103,7 @@ export class AccountsController extends TypertRemoteService {
   private readonly openUrl: (url: string, signal: AbortSignal) => Promise<void>
   private readonly fetchUsage: typeof fetch
   private readonly now: () => number
+  private usageRefreshTail: Promise<void> = Promise.resolve()
 
   /** @param ctx - Host context carrying authorization, credentials, and settings. */
   constructor(ctx: Context, internals: AccountsControllerInternals = {}) {
@@ -100,6 +111,15 @@ export class AccountsController extends TypertRemoteService {
     this.openUrl = internals.openUrl ?? openNativeUrl
     this.fetchUsage = internals.fetchUsage ?? fetch
     this.now = internals.now ?? Date.now
+    ctx.on('agent/request', async ({ signal }, next) => {
+      const config = await next()
+      if (config.provider === 'openai-codex') await this.prepareCodexAccount(signal)
+      return config
+    })
+    ctx.on('agent/request-error', async ({ provider, failure, signal }, next) => {
+      if (provider !== 'openai-codex' || failure.code !== QUOTA_EXCEEDED_CODE) return next()
+      return await this.recoverCodexQuota(signal) ? { kind: 'retry' } : next()
+    })
   }
 
   /**
@@ -251,6 +271,24 @@ export class AccountsController extends TypertRemoteService {
   }
 
   /**
+   * Enable or disable automatic Codex failover after a supported quota reaches its limit.
+   * @param provider - provider whose failover preference changes; only Codex supports it.
+   * @param enabled - whether fresh usage checks may promote an eligible saved account.
+   * @returns the updated public account state with credentials omitted.
+   */
+  @Remote
+  async setAutoSwitch(provider: AccountProviderId, enabled: boolean): Promise<AccountsState> {
+    if (provider !== 'openai-codex') throw rejected(provider, 'automatic limit switching is available only for Codex')
+    const credentials = this.credentials()
+    const vault = await this.importCanonicalAccounts(credentials)
+    const current = vault.providers[provider]
+    if (current === undefined) throw rejected(provider, 'save a Codex account before enabling automatic switching')
+    const next = replaceProviderVault(vault, provider, { ...current, autoSwitchOnLimit: enabled })
+    await this.writeVault(credentials, next)
+    return this.publicState(next, true)
+  }
+
+  /**
    * Rename one local account without changing its credential or active state.
    * @param provider - provider containing the saved identity.
    * @param accountId - saved identity to rename.
@@ -312,12 +350,26 @@ export class AccountsController extends TypertRemoteService {
    */
   @Remote
   async refreshUsage(signal: AbortSignal): Promise<AccountsState> {
+    assertUsageRefreshActive(signal)
+    const predecessor = this.usageRefreshTail
+    let release!: () => void
+    this.usageRefreshTail = new Promise<void>((resolve) => { release = resolve })
+    await predecessor
+    try {
+      assertUsageRefreshActive(signal)
+      return await this.refreshUsageOnce(signal)
+    } finally {
+      release()
+    }
+  }
+
+  private async refreshUsageOnce(signal: AbortSignal): Promise<AccountsState> {
     const credentials = this.credentials()
     let vault = await this.importCanonicalAccounts(credentials)
     const codex = vault.providers['openai-codex']
     if (codex === undefined) return this.publicState(vault, true)
     for (const account of Object.values(codex.accounts)) {
-      if (signal.aborted) throw new RemoteError('gateway/cancelled', 'account usage refresh was cancelled', {})
+      assertUsageRefreshActive(signal)
       const refreshed = await this.refreshCodexAccount(account, signal)
       const currentVault = await this.readVault(credentials)
       const currentProvider = currentVault.providers['openai-codex']
@@ -333,7 +385,74 @@ export class AccountsController extends TypertRemoteService {
         await writeRecord(credentials, providerKey('openai-codex'), refreshed.credential)
       }
     }
+    vault = await this.autoSwitchCodexAtLimit(credentials, vault)
     return this.publicState(vault, true)
+  }
+
+  private async autoSwitchCodexAtLimit(
+    credentials: CredentialProvider,
+    vault: AccountVault,
+  ): Promise<AccountVault> {
+    const provider = vault.providers['openai-codex']
+    if (provider?.autoSwitchOnLimit !== true || provider.activeAccountId === undefined) return vault
+    const active = provider.accounts[provider.activeAccountId]
+    const limit = active === undefined ? undefined : switchableStandardLimit(active)
+    if (active === undefined || limit === undefined) return vault
+    const replacement = bestCodexReplacement(active, Object.values(provider.accounts))
+    if (replacement === undefined) return vault
+    await writeRecord(credentials, providerKey('openai-codex'), replacement.credential)
+    const next = setActive(vault, 'openai-codex', replacement.id)
+    await this.writeVault(credentials, next)
+    const activeIdentity = codexIdentity(active.credential)
+    const replacementIdentity = codexIdentity(replacement.credential)
+    const event: AccountAutoSwitchEvent = {
+      id: randomUUID(),
+      occurredAt: this.now(),
+      provider: 'openai-codex',
+      limit,
+      from: {
+        name: active.name,
+        ...activeIdentity.usageScope === undefined ? {} : { usageScope: activeIdentity.usageScope },
+      },
+      to: {
+        name: replacement.name,
+        ...replacementIdentity.usageScope === undefined ? {} : { usageScope: replacementIdentity.usageScope },
+      },
+    }
+    this.ctx.emit('accounts/auto-switched', event)
+    return next
+  }
+
+  /** Refresh an opted-in Codex route immediately before the model credential is resolved. */
+  private async prepareCodexAccount(signal: AbortSignal): Promise<void> {
+    const credentials = this.ctx.get('credentials')
+    if (credentials === undefined) return
+    const vault = await this.readVault(credentials)
+    if (vault.providers['openai-codex']?.autoSwitchOnLimit !== true) return
+    try {
+      await this.refreshUsage(signal)
+    } catch (error: unknown) {
+      if (signal.aborted) throw error
+      this.ctx.logger.warn(`accounts: pre-request Codex usage refresh failed: ${messageOf(error)}`)
+    }
+  }
+
+  /** Switch after a provider-confirmed quota failure so the open turn can retry instead of stopping. */
+  private async recoverCodexQuota(signal: AbortSignal): Promise<boolean> {
+    const credentials = this.ctx.get('credentials')
+    if (credentials === undefined) return false
+    const before = await this.readVault(credentials)
+    const activeBefore = before.providers['openai-codex']?.activeAccountId
+    if (activeBefore === undefined || before.providers['openai-codex']?.autoSwitchOnLimit !== true) return false
+    try {
+      await this.refreshUsage(signal)
+    } catch (error: unknown) {
+      if (signal.aborted) throw error
+      this.ctx.logger.warn(`accounts: Codex quota recovery refresh failed: ${messageOf(error)}`)
+      return false
+    }
+    const after = await this.readVault(credentials)
+    return after.providers['openai-codex']?.activeAccountId !== activeBefore
   }
 
   private async refreshCodexAccount(account: StoredAccount, signal: AbortSignal): Promise<StoredAccount> {
@@ -382,7 +501,7 @@ export class AccountsController extends TypertRemoteService {
   }
 
   private async importCanonicalAccounts(credentials: CredentialProvider): Promise<AccountVault> {
-    let vault = await this.readVault(credentials)
+    let vault = normalizeCodexAccountIds(await this.readVault(credentials))
     for (const definition of PROVIDERS) {
       const credential = await credentials.readRecord(providerKey(definition.id))
       if (credential === undefined) continue
@@ -406,25 +525,29 @@ export class AccountsController extends TypertRemoteService {
   }
 
   private publicState(vault: AccountVault, writable: boolean): AccountsState {
-    const providers: AccountProviderView[] = PROVIDERS.map((definition) => {
-      const providerVault = vault.providers[definition.id]
-      const flow = this.ctx.get('authorization')?.describe(providerKey(definition.id))
-      return {
-        id: definition.id,
-        label: definition.label,
-        authMode: definition.authMode,
-        available: definition.authMode === 'api-key' || flow?.methods.some(method => method.id === 'oauth') === true,
-        accountCount: Object.keys(providerVault?.accounts ?? {}).length,
-        ...providerVault?.activeAccountId === undefined ? {} : { activeAccountId: providerVault.activeAccountId },
-        usageAvailable: definition.usageAvailable,
-      }
-    })
     const accounts = PROVIDERS.flatMap((definition) => {
       const providerVault = vault.providers[definition.id]
       if (providerVault === undefined) return []
       return Object.values(providerVault.accounts)
         .map(account => publicAccount(account, providerVault.activeAccountId))
         .sort((left, right) => Number(right.active) - Number(left.active) || left.name.localeCompare(right.name))
+    })
+    const providers: AccountProviderView[] = PROVIDERS.map((definition) => {
+      const providerVault = vault.providers[definition.id]
+      const flow = this.ctx.get('authorization')?.describe(providerKey(definition.id))
+      const owners = new Set(accounts
+        .filter(account => account.provider === definition.id)
+        .map(account => account.ownerId))
+      return {
+        id: definition.id,
+        label: definition.label,
+        authMode: definition.authMode,
+        available: definition.authMode === 'api-key' || flow?.methods.some(method => method.id === 'oauth') === true,
+        accountCount: owners.size,
+        ...providerVault?.activeAccountId === undefined ? {} : { activeAccountId: providerVault.activeAccountId },
+        usageAvailable: definition.usageAvailable,
+        autoSwitchOnLimit: definition.id === 'openai-codex' && providerVault?.autoSwitchOnLimit === true,
+      }
     })
     return { writable, providers, accounts }
   }
@@ -436,6 +559,7 @@ export class AccountsController extends TypertRemoteService {
         ...definition,
         available: false,
         accountCount: 0,
+        autoSwitchOnLimit: false,
       })),
       accounts: [],
     }
@@ -500,9 +624,34 @@ function replaceProviderVault(vault: AccountVault, provider: AccountProviderId, 
   return { ...vault, providers: { ...vault.providers, [provider]: value } }
 }
 
+function normalizeCodexAccountIds(vault: AccountVault): AccountVault {
+  const provider = vault.providers['openai-codex']
+  if (provider === undefined) return vault
+  const accounts: Record<string, StoredAccount> = {}
+  let activeAccountId: string | undefined
+  let changed = false
+  for (const [storedId, account] of Object.entries(provider.accounts)) {
+    const id = codexIdentity(account.credential).id
+    const active = storedId === provider.activeAccountId
+    const candidate = id === account.id ? account : { ...account, id }
+    const existing = accounts[id]
+    if (existing === undefined || active || candidate.createdAt > existing.createdAt) accounts[id] = candidate
+    if (active) activeAccountId = id
+    if (storedId !== id || account.id !== id) changed = true
+  }
+  if (!changed) return vault
+  const { activeAccountId: _previousActiveAccountId, ...providerSettings } = provider
+  return replaceProviderVault(vault, 'openai-codex', {
+    ...providerSettings,
+    accounts,
+    ...activeAccountId === undefined ? {} : { activeAccountId },
+  })
+}
+
 function upsertAccount(vault: AccountVault, account: StoredAccount, activeAccountId: string): AccountVault {
   const current = vault.providers[account.provider]
   return replaceProviderVault(vault, account.provider, {
+    ...current,
     accounts: { ...current?.accounts, [account.id]: account },
     activeAccountId,
   })
@@ -512,6 +661,49 @@ function setActive(vault: AccountVault, provider: AccountProviderId, accountId: 
   const current = vault.providers[provider]
   if (current === undefined) return vault
   return replaceProviderVault(vault, provider, { ...current, activeAccountId: accountId })
+}
+
+function standardUsageWindows(account: StoredAccount): readonly AccountUsageWindow[] {
+  return account.usage?.windows.filter(window => window.label === '5h' || window.label === '7d') ?? []
+}
+
+function switchableStandardLimit(account: StoredAccount): '5h' | '7d' | undefined {
+  return standardUsageWindows(account)
+    .find((window): window is AccountUsageWindow & { readonly label: '5h' | '7d' } =>
+      (window.label === '5h' || window.label === '7d')
+      && window.usedPercent >= CODEX_AUTO_SWITCH_THRESHOLD)?.label
+}
+
+function accountHasStandardCapacity(account: StoredAccount): boolean {
+  const windows = standardUsageWindows(account)
+  return windows.length > 0 && windows.every(window => window.usedPercent < CODEX_AUTO_SWITCH_THRESHOLD)
+}
+
+function bestCodexReplacement(
+  active: StoredAccount,
+  accounts: readonly StoredAccount[],
+): StoredAccount | undefined {
+  const activeIdentity = codexIdentity(active.credential)
+  return accounts
+    .filter(candidate => candidate.id !== active.id && accountHasStandardCapacity(candidate))
+    .map(candidate => ({ candidate, rank: codexReplacementRank(activeIdentity, codexIdentity(candidate.credential)) }))
+    .filter((entry): entry is { readonly candidate: StoredAccount; readonly rank: number } => entry.rank !== undefined)
+    .sort((left, right) => left.rank - right.rank
+      || standardUsagePressure(left.candidate) - standardUsagePressure(right.candidate)
+      || left.candidate.createdAt - right.candidate.createdAt)[0]?.candidate
+}
+
+function codexReplacementRank(
+  active: ReturnType<typeof codexIdentity>,
+  candidate: ReturnType<typeof codexIdentity>,
+): number | undefined {
+  if (active.accountId !== undefined && active.accountId === candidate.accountId) return 0
+  if (active.ownerId === candidate.ownerId) return 1
+  return active.usageScope === 'personal' && candidate.usageScope === 'personal' ? 2 : undefined
+}
+
+function standardUsagePressure(account: StoredAccount): number {
+  return Math.max(...standardUsageWindows(account).map(window => window.usedPercent))
 }
 
 function accountFromCredential(
@@ -545,14 +737,17 @@ function accountFromCredential(
 }
 
 function publicAccount(account: StoredAccount, activeAccountId: string | undefined): ManagedAccountView {
+  const codex = account.provider === 'openai-codex' ? codexIdentity(account.credential) : undefined
   return {
     id: account.id,
     provider: account.provider,
+    ownerId: codex?.ownerId ?? account.id,
     name: account.name,
     ...account.detail === undefined ? {} : { detail: account.detail },
     initials: accountInitials(account.name),
     active: account.id === activeAccountId,
     authMode: account.authMode,
+    ...codex?.usageScope === undefined ? {} : { usageScope: codex.usageScope },
     ...account.usage === undefined ? {} : { usage: account.usage },
     ...account.usageUpdatedAt === undefined ? {} : { usageUpdatedAt: account.usageUpdatedAt },
     ...account.usageError === undefined ? {} : { usageError: account.usageError },
@@ -561,14 +756,18 @@ function publicAccount(account: StoredAccount, activeAccountId: string | undefin
 
 function codexIdentity(record: CredentialRecord): {
   readonly id: string
+  readonly ownerId: string
   readonly name: string
   readonly detail?: string
   readonly accountId?: string
+  readonly usageScope?: AccountUsageScope
 } {
   const oauth = oauthCredential(record)
   if (oauth === undefined) {
+    const stable = JSON.stringify(record)
     return {
-      id: `acc_${createHash('sha256').update(JSON.stringify(record)).digest('hex').slice(0, 24)}`,
+      id: opaqueAccountId(stable),
+      ownerId: opaqueOwnerId(stable),
       name: 'Codex account',
     }
   }
@@ -577,20 +776,43 @@ function codexIdentity(record: CredentialRecord): {
   const auth = objectMember(payload, AUTH_CLAIM)
   const email = boundedText(profile.email, 320)
   const accountId = boundedText(oauth.accountId, 256) ?? boundedText(auth.chatgpt_account_id, 256)
-  const stable = accountId
-    ?? boundedText(auth.chatgpt_user_id, 256)
+  const person = boundedText(auth.chatgpt_user_id, 256)
     ?? email
     ?? boundedText(payload.sub, 256)
     ?? oauth.refresh
+  // A ChatGPT account id identifies a workspace and is shared by all of its
+  // members. Pair it with the person id so two seats cannot overwrite each
+  // other, while the owner id still groups that person's Personal and
+  // Workspace memberships in the client.
+  const membership = `${person}\0${accountId ?? 'personal'}`
   const name = boundedText(profile.name, 160) ?? email?.split('@', 1)[0] ?? 'OpenAI account'
-  const plan = boundedText(auth.chatgpt_plan_type, 80)?.toLocaleUpperCase()
+  const planType = boundedText(auth.chatgpt_plan_type, 80)
+  const plan = planType?.toLocaleUpperCase()
   const detail = [email, plan].filter(Boolean).join(' · ') || undefined
+  const usageScope = codexUsageScope(planType)
   return {
-    id: `acc_${createHash('sha256').update(stable).digest('hex').slice(0, 24)}`,
+    id: opaqueAccountId(membership),
+    ownerId: opaqueOwnerId(person),
     name,
     ...detail === undefined ? {} : { detail },
     ...accountId === undefined ? {} : { accountId },
+    ...usageScope === undefined ? {} : { usageScope },
   }
+}
+
+function opaqueAccountId(stable: string): string {
+  return `acc_${createHash('sha256').update(stable).digest('hex').slice(0, 24)}`
+}
+
+function opaqueOwnerId(stable: string): string {
+  return `owner_${createHash('sha256').update(stable).digest('hex').slice(0, 24)}`
+}
+
+function codexUsageScope(planType: string | undefined): AccountUsageScope | undefined {
+  if (planType === undefined) return undefined
+  return /^(?:business|edu|enterprise|self[_-]serve[_-]business|team)$/iu.test(planType)
+    ? 'workspace'
+    : 'personal'
 }
 
 function genericOAuthIdentity(record: CredentialRecord): { readonly stable?: string; readonly name?: string; readonly detail?: string } {
@@ -684,6 +906,10 @@ function boundedText(value: unknown, max: number): string | undefined {
   if (typeof value !== 'string') return undefined
   const clean = value.trim()
   return clean.length > 0 && clean.length <= max ? clean : undefined
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
 function objectMember(record: Record<string, unknown>, key: string): Record<string, unknown> {

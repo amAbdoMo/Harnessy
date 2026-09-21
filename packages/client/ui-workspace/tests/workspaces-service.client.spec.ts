@@ -286,7 +286,7 @@ describe('UiWorkspaceService', () => {
     })
   })
 
-  it('reuses an ungrouped blank and coalesces concurrent ungrouped creation', async () => {
+  it('creates a fresh ungrouped Session and coalesces concurrent creation', async () => {
     const free = summary('free', { blank: true, cwd: '/default' })
     const owned = summary('owned', { blank: true, cwd: '/w/owned' })
     const archived = summary('archived', { blank: true, cwd: '/default' })
@@ -296,8 +296,8 @@ describe('UiWorkspaceService', () => {
     })
 
     reusable.uiWorkspace.startSession()
-    await vi.waitFor(() => { expect(reusable.sessions.open).toHaveBeenCalledWith(free.id) })
-    expect(reusable.sessions.create).not.toHaveBeenCalled()
+    await vi.waitFor(() => { expect(reusable.sessions.open).toHaveBeenCalledWith(sid('created-none')) })
+    expect(reusable.sessions.create).toHaveBeenCalledOnce()
 
     const creating = bench({ sessions: sessionState(), workspaces: workspaceState() })
     const pending = Promise.withResolvers<SessionId>()

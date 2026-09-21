@@ -21,7 +21,7 @@ import * as ToolFs from '@deepseek-ai/dsh-tool-fs'
 import ApprovalService from '@deepseek-ai/dsh-user-approval'
 import { MockAdapter, textResponse } from '../../../core/agent-loop/tests/mock-adapter.ts'
 import { SubagentRunLimiter } from '../src/limiter.ts'
-import { subagentRosterView } from '../src/settings.ts'
+import { resolveSubagentConcurrencyLimit, subagentRosterView } from '../src/settings.ts'
 import { installRosterTools } from '../src/tools.ts'
 import type { SubagentSettings } from '../src/types.ts'
 
@@ -78,7 +78,9 @@ export async function bootRealChild(options: RealChildOptions): Promise<RealChil
     [options.adapterProvider ?? 'mock'],
     new MockAdapter(options.script ?? [textResponse('child done')], options.adapterReasoning),
   )
-  const limiter = new SubagentRunLimiter(() => options.settings.limits.maxConcurrentRuns)
+  const limiter = new SubagentRunLimiter(
+    () => resolveSubagentConcurrencyLimit(options.settings.limits.maxConcurrentRuns),
+  )
   installRosterTools(ctx, {
     viewFor: () => subagentRosterView(options.settings, null),
     acquire: signal => limiter.acquire(signal),

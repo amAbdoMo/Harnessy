@@ -11,6 +11,8 @@ import type { ChatViewSlotProps, OpenFileOptions } from '../contract/slots.ts'
 import type { ChatSnapshot } from '../contract/snapshot.ts'
 import { PendingSteeringBubble, PendingSubmissionBubble } from './MessageItem.tsx'
 import { ChatNodeSeat } from './ChatNodeSeat.tsx'
+import { ActivityGroup } from './ActivityGroup.tsx'
+import { compactFlow } from './activity-groups.ts'
 import { TurnNavigator } from './TurnNavigator.tsx'
 import { mergeTurnRailItems, type TurnRailItem } from './turn-rail-items.ts'
 import { formatRunDuration } from './message-chrome.ts'
@@ -39,7 +41,7 @@ interface PagingAnchor {
 /** Find an already-rendered row without interpolating a selector. */
 function anchorElement(list: HTMLElement, key: string): HTMLElement | null {
   for (const row of list.querySelectorAll<HTMLElement>('[data-chat-anchor-key]:not([hidden])')) {
-    if (row.dataset.chatAnchorKey === key) return row
+    if (row.closest('[hidden]') === null && row.dataset.chatAnchorKey === key) return row
   }
   return null
 }
@@ -164,6 +166,13 @@ function runningTurnStartTime(timeline: ConversationTimelineSnapshot): number | 
   return latest
 }
 
+function openTurnNumber(timeline: ConversationTimelineSnapshot): number | null {
+  for (const turn of [...timeline.turns.values()].reverse()) {
+    if (turn.status === 'open') return turn.turn
+  }
+  return null
+}
+
 /** Turn-level model activity label retained across first-token, tool, and streaming phases. */
 function TurnStatus({ startTime, t }: {
   /** The running turn's logged `turn/start` time; null falls back to mount
@@ -202,12 +211,72 @@ function TurnStatus({ startTime, t }: {
 
 type ChatNodeListProps = Omit<ComponentProps<typeof ChatNodeSeat>, 'nodeKey'> & {
   readonly order: readonly string[]
+  readonly nodeStore: ChatSnapshot['nodes']
+  readonly nodeRevision: ChatSnapshot['legacy']['nodes']
+  readonly groupLiveTurn: number | null
+  readonly focusRequest: string | null
 }
 
-const ChatNodeList = memo(function ChatNodeList({ order, ...seatProps }: ChatNodeListProps) {
-  return order.map(nodeKey => (
-    <ChatNodeSeat key={nodeKey} nodeKey={nodeKey} {...seatProps} />
-  ))
+const ChatNodeList = memo(function ChatNodeList({
+  order, nodeStore, nodeRevision, compactTranscript, groupLiveTurn, focusRequest, ...seatProps
+}: ChatNodeListProps) {
+  const [openActivity, setOpenActivity] = useState<ReadonlySet<string>>(() => new Set())
+  const entries = useMemo(
+    () => groupLiveTurn !== null
+      ? compactFlow(order, nodeStore, groupLiveTurn)
+      : order.map(key => ({ kind: 'node' as const, key })),
+    [groupLiveTurn, nodeRevision, nodeStore, order],
+  )
+  useLayoutEffect(() => {
+    if (focusRequest === null) return
+    const requested = entries.find(entry => entry.kind === 'activity' && entry.anchors.includes(focusRequest))
+    if (requested?.kind !== 'activity') return
+    setOpenActivity(current => current.has(requested.key)
+      ? current
+      : new Set([...current, requested.key]))
+  }, [entries, focusRequest])
+  return entries.flatMap((entry) => {
+    if (entry.kind === 'node') {
+      return [<ChatNodeSeat key={entry.key} nodeKey={entry.key} compactTranscript={compactTranscript} {...seatProps} />]
+    }
+    const open = entry.hasError
+      || openActivity.has(entry.key)
+      || (focusRequest !== null && entry.anchors.includes(focusRequest))
+    return [
+      <div
+        key={entry.key}
+        className={css.activityGroup}
+        data-chat-flow-key={entry.key}
+        data-chat-anchor-key={entry.keys[0]}
+        data-chat-turn={entry.turn}
+      >
+        <ActivityGroup
+          categories={entry.categories}
+          hasError={entry.hasError}
+          turn={entry.turn}
+          open={open}
+          onToggle={() => {
+            setOpenActivity((current) => {
+              const next = new Set(current)
+              if (next.has(entry.key)) next.delete(entry.key)
+              else next.add(entry.key)
+              return next
+            })
+          }}
+          t={seatProps.t}
+        />
+      </div>,
+      ...entry.keys.map(nodeKey => (
+        <ChatNodeSeat
+          key={nodeKey}
+          nodeKey={nodeKey}
+          compactTranscript={false}
+          activityHidden={!open}
+          {...seatProps}
+        />
+      )),
+    ]
+  })
 })
 
 /**
@@ -216,11 +285,12 @@ const ChatNodeList = memo(function ChatNodeList({ order, ...seatProps }: ChatNod
  */
 export function ChatView({
   useSession, useChat, useChatNode, useChatNodeProcess, useSessions, useStore, actions, renderSlot,
-  sessionId, openFile, loadOlder, loadThrough, loadImage, openView, chatScroll, forkAt, fileMentions,
-  useTranscriptView, useProjection, t,
+  sessionId, openFile, openDiff, loadOlder, loadThrough, loadImage, openView, chatScroll, forkAt, fileMentions,
+  useTranscriptView, useProjection, viewRequest, completeViewRequest, t,
 }: ChatViewSlotProps) {
   const order = useChat(s => s.order)
   const nodeStore = useChat(s => s.nodes)
+  const nodeRevision = useChat(s => s.legacy.nodes)
   // The rail's items are accumulated in the Chat snapshot, so this selector is
   // both the data and its change signal: the array identity moves only when a
   // Turn enters, leaves, or changes its preview.
@@ -300,6 +370,7 @@ export function ChatView({
     [loadImage, renderSlot],
   )
   const runningTurnStart = useMemo(() => runningTurnStartTime(timeline), [timeline])
+  const openTurn = useMemo(() => openTurnNumber(timeline), [timeline])
 
   const listRef = useRef<HTMLDivElement | null>(null)
   const columnRef = useRef<HTMLDivElement | null>(null)
@@ -335,6 +406,17 @@ export function ChatView({
    *  scroll-driven at-bottom chrome re-render (which would snap inertial
    *  scrolls the rest of the way to the floor). */
   const followSigRef = useRef<string | null>(null)
+
+  useLayoutEffect(() => {
+    if (viewRequest?.view !== 'chat' || viewRequest.focus === '') return
+    const list = listRef.current
+    if (list === null) return
+    const row = anchorElement(list, viewRequest.focus)
+    if (row === null) return
+    const scrollport = scrollerOf(list)
+    scrollport.scrollTop += flowTop(row, scrollport) - 24
+    completeViewRequest()
+  }, [completeViewRequest, order, viewRequest])
 
   const firstKey = order[0]
   const firstSeq = firstKey === undefined ? null : nodeStore.get(firstKey)?.anchorSeq ?? null
@@ -783,14 +865,19 @@ export function ChatView({
           )}
           <ChatNodeList
             order={order}
+            nodeStore={nodeStore}
+            nodeRevision={nodeRevision}
             useChatNode={useChatNode}
             useChatNodeProcess={useChatNodeProcess}
             historyIncomplete={hasMore}
             compactTranscript={compactTranscript}
+            groupLiveTurn={compactTranscript ? openTurn : null}
+            focusRequest={viewRequest?.view === 'chat' ? viewRequest.focus : null}
             useStore={useStore}
             actions={actions}
             cwd={cwd}
             openFile={requestOpenFile}
+            openDiff={openDiff}
             inspectCall={inspectCall}
             forkAt={forkAt}
             loadImage={loadImage}

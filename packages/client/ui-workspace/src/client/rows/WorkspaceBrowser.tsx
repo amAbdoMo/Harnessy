@@ -1122,6 +1122,11 @@ export function WorkspaceBrowser({
           </span>
         )}
         {wide && (
+          <div className={clsx(css.productActions, searchExpanded && css.productActionsHidden)}>
+            {renderSlot('sidebar.workspaces.headerActions', {})}
+          </div>
+        )}
+        {wide && (
           <div className={clsx(css.searchSlot, searchExpanded && css.searchSlotExpanded)}>
             <div
               ref={searchRoot}

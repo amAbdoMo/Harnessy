@@ -8,12 +8,13 @@ kind: "package-reference"
 
 ## 概述
 
-使用本包可在浏览器中渲染已记录的 Session 对话，包括历史图片、本地化操作和滚动位置恢复。紧凑显示会收起已完成轮次的过程行，同时保持最终答案和独立有用的上下文可见；已打包的历史 Assistant 连续消息保持收起。本地 transcript 与 steering 提交会立即显示并保留在原区域，在权威 Session 记录到达时原子地消失，而 queued 提交始终不进入 Chat。本包不组装或修改模型请求。
+使用本包可在浏览器中渲染已记录的 Session 对话，包括历史图片、本地化操作、实时活动摘要、可靠的逐轮文件变更和滚动位置恢复。紧凑显示会收起已完成轮次的过程行，同时保持最终答案和独立有用的上下文可见；已打包的历史 Assistant 连续消息保持收起。本地 transcript 与 steering 提交会立即显示并保留在原区域，在权威 Session 记录到达时原子地消失，而 queued 提交始终不进入 Chat。本包不组装或修改模型请求。
 
 ## 目录
 
 - [系统提示词行](#system-prompt-row)
 - [轮次 token 用量](#turn-token-usage)
+- [实时活动与文件变更](#live-activity-and-file-changes)
 - [轮次过程折叠](#turn-process-folding)
 - [滚动归属](#scroll-ownership)
 - [模型体验](#model-experience)
@@ -33,6 +34,15 @@ kind: "package-reference"
 ## 轮次 token 用量
 
 只有当已加载窗口包含 `turn/start`，且每次已启动的模型尝试都报告安全、精确的用量时，已完成 Turn 才显示可展开的用量行。该行会省略不可用的可选用量桶。记账不完整或相互矛盾时，整个详情都不显示，避免把部分总量冒充完整结果。
+
+-----
+
+<a id="live-activity-and-file-changes"></a>
+## 实时活动与文件变更
+
+在 Compact 模式下，当前进行中 Turn 内连续的推理行与工具行会收进一条本地化活动摘要，并由普通 Assistant 进度消息分隔。摘要列出其中代表的工作类型；任一调用失败时，该组会强制展开并标记为需要注意。展开与收起只隐藏稳定的 Chat Node Seat，不会重新挂载 renderer，因此运行中的控件与流式结果会保留状态。已完成 Turn 仍使用下文所述的全轮过程折叠。
+
+只有已成功落定且元数据中含有有效已应用 diff hunk 的工具结果才会贡献文件变更；没有这类证据的 shell 命令和其他调用绝不会被猜测为编辑。Chat 按 Turn 与文件汇总这些 hunk，在 composer dock 显示最新 Turn，并在较早 Turn 的完成尾部显示摘要；选择文件后会在右侧栏打开差异查看器。摘要统计不同文件数以及已记录 hunk 的准确新增行与删除行。实时运行时钟在不足一分钟时显示秒，不足一小时时显示分钟与秒，达到一小时后显示小时、剩余分钟与秒。
 
 -----
 

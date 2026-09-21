@@ -133,6 +133,7 @@ interface MountOptions {
   /** The Session's workspace; `null` stands in for a Session that has none. */
   readonly workspace?: string | null
   readonly catalog?: ModelCatalog
+  readonly writeGate?: Promise<void>
 }
 
 function mount(options: MountOptions = {}) {
@@ -161,6 +162,7 @@ function mount(options: MountOptions = {}) {
   // Models the settings scope: a write folds into the mirrored document before
   // it settles, which is what makes the page re-read the rosters afterwards.
   const write = vi.fn<SubagentsOperations['write']>(async (patch) => {
+    await options.writeGate
     current = { ...current, ...patch }
     publish()
   })
@@ -178,6 +180,7 @@ function mount(options: MountOptions = {}) {
       allowedModels: current.automaticRouting.allowedModels.map(route => ({ ...route })),
     }),
     modelCatalog: async (): Promise<ModelCatalog> => options.catalog ?? CATALOG,
+    backendProbe: undefined,
   }
 
   const useSessions = <Selected,>(selector: (state: {
@@ -210,27 +213,52 @@ function expand(name: string): void {
   fireEvent.click(within(card(name)).getByRole('button', { name: en.cardExpand }))
 }
 
-/** The override editor one definition owns, once the Host roster has resolved. */
-async function editor(name: string): Promise<HTMLElement> {
-  const legend = await screen.findByText(
-    new RegExp(`^${name} — \\d+ of ${String(SUBAGENT_OVERRIDE_FIELDS.length)} fields overridden$`, 'u'),
-  )
-  const fieldset = legend.closest('fieldset')
-  if (fieldset === null) throw new Error(`${name} has no override editor`)
-  return fieldset
+/** Save one expanded stored-role editor. */
+function save(group: HTMLElement): void {
+  fireEvent.click(within(group).getByRole('button', { name: en.cardSaveChanges }))
 }
 
-/** The option texts one select renders, in order. */
-function optionsOf(select: HTMLElement): (string | null)[] {
-  return [...select.querySelectorAll('option')].map(option => option.textContent)
+/** The override editor one definition owns, opened, once the roster has resolved. */
+async function editor(name: string): Promise<HTMLElement> {
+  const summary = await screen.findByText(
+    new RegExp(`^${name} — \\d+ of ${String(SUBAGENT_OVERRIDE_FIELDS.length)} fields overridden$`, 'u'),
+  )
+  const details = summary.closest('details')
+  if (details === null) throw new Error(`${name} has no override editor`)
+  if (!details.open) fireEvent.click(summary)
+  return details
+}
+
+/** Reveal every field one override editor can edit. */
+function showAll(group: HTMLElement): void {
+  fireEvent.click(within(group).getByLabelText(en.overrideShowAll))
+}
+
+/** The option labels one control offers, read from its opened popup. */
+function optionsOf(control: HTMLElement): string[] {
+  fireEvent.click(control)
+  const labels = screen.getAllByRole('option').map(option => option.textContent ?? '')
+  fireEvent.keyDown(control, { key: 'Escape' })
+  return labels
+}
+
+/** The label one control currently shows on its trigger. */
+function shownValue(control: HTMLElement): string {
+  return control.textContent ?? ''
+}
+
+/** Pick the option whose visible label is `label`. */
+function pick(control: HTMLElement, label: string): void {
+  fireEvent.click(control)
+  fireEvent.click(screen.getByRole('option', { name: label }))
 }
 
 /** Wait until the model picker inside one scope has read the Host catalog. */
-async function catalogLoaded(scope: HTMLElement): Promise<HTMLSelectElement> {
-  const select = within(scope).getAllByLabelText(en.fieldModel)[0] as HTMLSelectElement | undefined
-  if (select === undefined) throw new Error('the scope has no model control')
-  await waitFor(() => { expect(optionsOf(select)).toContain('GPT-5.6 Sol') })
-  return select
+async function catalogLoaded(scope: HTMLElement): Promise<HTMLElement> {
+  const control = within(scope).getAllByLabelText(en.fieldModel)[0]
+  if (control === undefined) throw new Error('the scope has no model control')
+  await waitFor(() => { expect(optionsOf(control)).toContain('GPT-5.6 Sol') })
+  return control
 }
 
 /** The last patch one write received. */
@@ -249,11 +277,51 @@ function lastRevision(write: ReturnType<typeof mount>['write']): number | undefi
 }
 
 describe('Subagents section', () => {
-  it('reports the run bounds the Host stores', async () => {
-    mount()
+  it('shows and edits the shared delegation limits', async () => {
+    const { write } = mount()
+    const summary = await screen.findByText('2 at a time · 60 minute timeout')
+    fireEvent.click(summary)
+    fireEvent.change(screen.getByLabelText(en.limitsConcurrency), { target: { value: '3' } })
+    fireEvent.change(screen.getByLabelText(en.limitsTimeout), { target: { value: '45' } })
     await waitFor(() => {
-      expect(screen.getByText(/Run limits: 2 delegations at a time/u)).toBeTruthy()
+      expect(lastPatch(write).limits).toEqual({ maxConcurrentRuns: 3, defaultTimeoutMs: 2_700_000 })
     })
+  })
+
+  it('lets the parent choose an adaptive batch or a manual safety cap', async () => {
+    const { write } = mount()
+    fireEvent.click(await screen.findByText('2 at a time · 60 minute timeout'))
+
+    const mode = screen.getByLabelText(en.limitsConcurrencyMode)
+    pick(mode, en.limitsConcurrencyAdaptive)
+    await waitFor(() => {
+      expect(lastPatch(write).limits).toEqual({
+        maxConcurrentRuns: 'adaptive',
+        defaultTimeoutMs: 3_600_000,
+      })
+    })
+    expect(screen.queryByLabelText(en.limitsConcurrency)).toBeNull()
+
+    pick(mode, en.limitsConcurrencyManual)
+    await waitFor(() => {
+      expect(lastPatch(write).limits).toEqual({
+        maxConcurrentRuns: 4,
+        defaultTimeoutMs: 3_600_000,
+      })
+    })
+    expect(screen.getByLabelText(en.limitsConcurrency)).toHaveProperty('value', '4')
+  })
+
+  it('caps concurrent delegations at the Host ceiling', async () => {
+    const { write } = mount()
+    fireEvent.click(await screen.findByText('2 at a time · 60 minute timeout'))
+    const concurrency = screen.getByLabelText(en.limitsConcurrency)
+    expect(concurrency.getAttribute('max')).toBe('16')
+    fireEvent.change(concurrency, { target: { value: '28' } })
+    await waitFor(() => {
+      expect(lastPatch(write).limits).toEqual({ maxConcurrentRuns: 16, defaultTimeoutMs: 3_600_000 })
+    })
+    expect(concurrency).toHaveProperty('value', '16')
   })
 
   it('reports the resolved values on a collapsed card', async () => {
@@ -267,14 +335,42 @@ describe('Subagents section', () => {
     })
     // The catalog read lands after the first paint, so the model name resolves
     // from its display name only once that read is in.
-    expect(await screen.findByText('Code · GPT-5.6 Sol · High · Workspace write · Automatic')).toBeTruthy()
+    const code = card('Code')
+    expect(await within(code).findByText('GPT-5.6 Sol')).toBeTruthy()
+    expect(within(code).getByText('High')).toBeTruthy()
+    expect(within(code).getByText(en.accessWorkspaceWrite)).toBeTruthy()
+    expect(within(code).getByText(en.invocationAutomatic)).toBeTruthy()
+    expect(within(code).getByText(en.cardWorkspaceInherited)).toBeTruthy()
     // A definition that pins no route reports the parent's own model as inherited.
-    expect(screen.getByText('review · inherit · Read only · Automatic')).toBeTruthy()
+    const review = card('review')
+    expect(within(review).getByText(en.modelInherit)).toBeTruthy()
+    expect(within(review).getByText(en.accessReadOnly)).toBeTruthy()
   })
 
   it('reports a role the agent chooses a model for', async () => {
     mount({ value: settings({ subagents: [definition('code', { model: { mode: 'automatic' } })] }) })
-    expect(screen.getByText('Code · agent chooses · Workspace write · Automatic')).toBeTruthy()
+    const code = card('Code')
+    expect(within(code).getByText(en.modelAutomatic)).toBeTruthy()
+    expect(within(code).getByText(en.invocationAutomatic)).toBeTruthy()
+  })
+
+  it('marks a workspace-customized role on its collapsed card', async () => {
+    mount({
+      value: settings({ overrides: { [WORKSPACE]: { subagents: { code: { purpose: 'Workspace code' } } } } }),
+    })
+    expect(await within(card('Code')).findByText(en.cardWorkspaceCustom)).toBeTruthy()
+  })
+
+  it('warns when automatic roles use substantially overlapping routing guidance', () => {
+    mount({
+      value: settings({
+        subagents: [
+          definition('code', { purpose: 'Implement scoped workspace code changes', whenToUse: 'Implement scoped code changes' }),
+          definition('review', { purpose: 'Review scoped workspace code changes', whenToUse: 'Review scoped code changes' }),
+        ],
+      }),
+    })
+    expect(screen.getByText(/Code \/ review use similar automatic criteria/u)).toBeTruthy()
   })
 
   it('expands a card to its labelled fields, with the hints described rather than named', () => {
@@ -311,8 +407,11 @@ describe('Subagents section', () => {
     const expanded = card('Code')
     fireEvent.change(within(expanded).getByLabelText(en.fieldName), { target: { value: 'Primary' } })
     fireEvent.change(within(expanded).getByLabelText(en.fieldPurpose), { target: { value: 'Ship it' } })
+    fireEvent.click(within(expanded).getByText(en.cardRoutingTitle))
     fireEvent.change(within(expanded).getByLabelText(en.fieldWhenToUse), { target: { value: 'For edits' } })
     fireEvent.change(within(expanded).getByLabelText(en.fieldInstructions), { target: { value: 'Be terse.' } })
+    expect(write).not.toHaveBeenCalled()
+    save(expanded)
 
     await waitFor(() => {
       const stored = written(write)[0]
@@ -328,6 +427,7 @@ describe('Subagents section', () => {
     const { write } = mount()
     expand('Code')
     fireEvent.change(within(card('Code')).getByLabelText(en.fieldName), { target: { value: 'Primary' } })
+    save(screen.getByRole('article', { name: 'Primary' }))
     await waitFor(() => { expect(write).toHaveBeenCalled() })
     expect(lastRevision(write)).toBe(REVISION)
     expect(lastPatch(write).overrides).toBeUndefined()
@@ -339,39 +439,104 @@ describe('Subagents section', () => {
     const toggle = within(card('Code')).getByRole('switch', { name: en.fieldEnabled })
     expect(toggle).toHaveProperty('checked', true)
     fireEvent.click(toggle)
+    save(card('Code'))
     await waitFor(() => { expect(written(write)[0]?.enabled).toBe(false) })
+    expect(within(card('Code')).getByRole('switch', { name: en.cardDisabled })).toHaveProperty('checked', false)
+    expect(within(card('Code')).queryByText(en.fieldEnabled)).toBeNull()
+  })
+
+  it('saves a rapid disable then enable edit as one complete role write', async () => {
+    let releaseWrite: (() => void) | undefined
+    const writeGate = new Promise<void>((resolve) => { releaseWrite = resolve })
+    const { write } = mount({ writeGate })
+    expand('Code')
+
+    fireEvent.click(within(card('Code')).getByRole('switch', { name: en.fieldEnabled }))
+    fireEvent.click(within(card('Code')).getByRole('switch', { name: en.cardDisabled }))
+    save(card('Code'))
+
+    expect(written(write)[0]?.enabled).toBe(true)
+    expect(write).toHaveBeenCalledTimes(1)
+    expect(write.mock.calls[0]?.[1]).toBe(REVISION)
+    releaseWrite?.()
+    await waitFor(() => {
+      expect(within(card('Code')).getByRole('switch', { name: en.fieldEnabled })).toHaveProperty('checked', true)
+    })
+  })
+
+  it('keeps a collapsed disable then re-enable while the first write is pending', async () => {
+    let releaseWrite: (() => void) | undefined
+    const writeGate = new Promise<void>((resolve) => { releaseWrite = resolve })
+    const { write } = mount({ writeGate })
+
+    fireEvent.click(within(card('Code')).getByRole('switch', { name: en.fieldEnabled }))
+    fireEvent.click(within(card('Code')).getByRole('switch', { name: en.cardDisabled }))
+
+    expect(written(write)[0]?.enabled).toBe(true)
+    expect(write).toHaveBeenCalledTimes(2)
+    expect(write.mock.calls[0]?.[1]).toBe(REVISION)
+    expect(write.mock.calls[1]?.[1]).toBeUndefined()
+    releaseWrite?.()
+    await waitFor(() => {
+      expect(within(card('Code')).getByRole('switch', { name: en.fieldEnabled })).toHaveProperty('checked', true)
+    })
   })
 
   it('writes the access level and states the full-access consequence', async () => {
     const { write } = mount()
     expand('Code')
     expect(within(card('Code')).queryByText(en.accessFullAccessWarning)).toBeNull()
-    fireEvent.change(within(card('Code')).getByLabelText(en.fieldAccess), { target: { value: 'danger-full-access' } })
-    await waitFor(() => { expect(written(write)[0]?.access).toBe('danger-full-access') })
+    pick(within(card('Code')).getByLabelText(en.fieldAccess), en.accessFullAccess)
     await waitFor(() => {
       expect(within(card('Code')).getByText(en.accessFullAccessWarning)).toBeTruthy()
     })
+    save(card('Code'))
+    await waitFor(() => { expect(written(write)[0]?.access).toBe('danger-full-access') })
   })
 
   it('writes the invocation policy from its own labelled option', async () => {
     const { write } = mount()
     expand('Code')
-    fireEvent.click(within(card('Code')).getByLabelText(en.invocationAskFirst))
+    pick(within(card('Code')).getByLabelText(en.fieldInvocation), en.invocationAskFirst)
+    save(card('Code'))
     await waitFor(() => { expect(written(write)[0]?.invocation).toBe('ask-first') })
   })
 
-  it('offers every invocation policy with its own explanation', () => {
+  it('offers every invocation policy in one concise control', () => {
     mount()
     expand('Code')
-    const group = within(card('Code')).getByRole('group', { name: en.fieldInvocation })
-    for (const [label, hint] of [
-      [en.invocationAutomatic, en.invocationAutomaticHint],
-      [en.invocationAskFirst, en.invocationAskFirstHint],
-      [en.invocationManual, en.invocationManualHint],
-    ] as const) {
-      expect(within(group).getByLabelText(label)).toBeTruthy()
-      expect(within(group).getByText(hint)).toBeTruthy()
-    }
+    const control = within(card('Code')).getByLabelText(en.fieldInvocation)
+    expect(optionsOf(control)).toEqual([
+      en.invocationAutomatic,
+      en.invocationAskFirst,
+      en.invocationManual,
+    ])
+    const describedBy = control.getAttribute('aria-describedby')
+    expect(document.getElementById(describedBy!)?.textContent).toBe(en.fieldInvocationHint)
+  })
+
+  it('checks a complete role without writing settings or starting a model call', async () => {
+    const { write } = mount({
+      value: settings({ subagents: [definition('code', { whenToUse: 'Use for bounded code changes.' })] }),
+    })
+    expand('Code')
+
+    fireEvent.click(within(card('Code')).getByRole('button', { name: en.setupCheck }))
+
+    await waitFor(() => { expect(within(card('Code')).getByText(en.setupReady)).toBeTruthy() })
+    expect(within(card('Code')).getByText(en.setupReadyDescription)).toBeTruthy()
+    expect(within(card('Code')).getByText(en.setupNoModelCall)).toBeTruthy()
+    expect(write).not.toHaveBeenCalled()
+  })
+
+  it('points out missing routing guidance in the setup check', async () => {
+    mount()
+    expand('Code')
+
+    fireEvent.click(within(card('Code')).getByRole('button', { name: en.setupCheck }))
+
+    await waitFor(() => { expect(within(card('Code')).getByText(en.setupAttention)).toBeTruthy() })
+    expect(within(card('Code')).getByText(en.setupGuidanceAttention)).toBeTruthy()
   })
 
   it('writes the tool restriction, and clears it when both lists are emptied', async () => {
@@ -380,15 +545,10 @@ describe('Subagents section', () => {
     })
     expand('Code')
     fireEvent.change(within(card('Code')).getByLabelText(en.fieldToolsAllow), { target: { value: 'read, edit' } })
-    await waitFor(() => { expect(written(write)[0]?.tools).toEqual({ allow: ['read', 'edit'] }) })
-
     fireEvent.change(within(card('Code')).getByLabelText(en.fieldToolsDeny), { target: { value: 'bash' } })
-    await waitFor(() => {
-      expect(written(write)[0]?.tools).toEqual({ allow: ['read', 'edit'], deny: ['bash'] })
-    })
-
     fireEvent.change(within(card('Code')).getByLabelText(en.fieldToolsAllow), { target: { value: '' } })
     fireEvent.change(within(card('Code')).getByLabelText(en.fieldToolsDeny), { target: { value: '' } })
+    save(card('Code'))
     await waitFor(() => {
       expect(Object.hasOwn(written(write)[0] ?? {}, 'tools')).toBe(false)
     })
@@ -399,9 +559,10 @@ describe('Subagents section', () => {
     expand('Code')
     const expanded = card('Code')
     fireEvent.change(within(expanded).getByLabelText(en.fieldBackend), { target: { value: 'fork' } })
-    fireEvent.change(within(expanded).getByLabelText(en.fieldBackground), { target: { value: 'background' } })
+    pick(within(expanded).getByLabelText(en.fieldBackground), en.backgroundBackground)
     fireEvent.change(within(expanded).getByLabelText(en.fieldTimeout), { target: { value: '90' } })
     fireEvent.change(within(expanded).getByLabelText(en.fieldMaxDepth), { target: { value: '3' } })
+    save(expanded)
 
     await waitFor(() => {
       const stored = written(write)[0]
@@ -428,9 +589,7 @@ describe('Subagents model and effort picker', () => {
       expect(optionsOf(within(card('Code')).getByLabelText(en.fieldEffort))).toContain('Medium')
     })
 
-    fireEvent.change(within(card('Code')).getByLabelText(en.fieldModel), {
-      target: { value: 'deepseek\u0000deepseek-chat' },
-    })
+    pick(within(card('Code')).getByLabelText(en.fieldModel), 'DeepSeek Chat')
     await waitFor(() => {
       const effort = within(card('Code')).getByLabelText(en.fieldEffort)
       expect(optionsOf(effort)).toEqual([en.effortDefault, 'Low', 'High'])
@@ -443,7 +602,8 @@ describe('Subagents model and effort picker', () => {
     })
     expand('Code')
     const model = await catalogLoaded(card('Code'))
-    fireEvent.change(model, { target: { value: 'deepseek\u0000deepseek-chat' } })
+    pick(model, 'DeepSeek Chat')
+    save(card('Code'))
     await waitFor(() => {
       expect(written(write)[0]?.model).toEqual({ mode: 'fixed', route: { ...CHAT, reasoningEffort: 'high' } })
     })
@@ -455,7 +615,8 @@ describe('Subagents model and effort picker', () => {
     })
     expand('Code')
     const model = await catalogLoaded(card('Code'))
-    fireEvent.change(model, { target: { value: 'deepseek\u0000deepseek-chat' } })
+    pick(model, 'DeepSeek Chat')
+    save(card('Code'))
     await waitFor(() => { expect(written(write)[0]?.model).toEqual({ mode: 'fixed', route: CHAT }) })
   })
 
@@ -465,12 +626,13 @@ describe('Subagents model and effort picker', () => {
     })
     expand('Code')
     const model = await catalogLoaded(card('Code'))
-    fireEvent.change(model, { target: { value: 'deepseek\u0000deepseek-plain' } })
+    pick(model, 'DeepSeek Plain')
     await waitFor(() => {
       const expanded = card('Code')
       expect(within(expanded).queryByLabelText(en.fieldEffort)).toBeNull()
       expect(within(expanded).getByText(en.effortNotAdvertised)).toBeTruthy()
     })
+    save(card('Code'))
     // The route is stored without an effort rather than with a fabricated one.
     expect(written(write)[0]?.model).toEqual({ mode: 'fixed', route: { provider: 'deepseek', model: 'deepseek-plain' } })
   })
@@ -485,11 +647,10 @@ describe('Subagents model and effort picker', () => {
   it('writes the automatic mode instead of a route', async () => {
     const { write } = mount()
     expand('Code')
-    fireEvent.change(within(card('Code')).getByLabelText(en.fieldModel), {
-      target: { value: 'automatic' },
-    })
-    await waitFor(() => { expect(written(write)[0]?.model).toEqual({ mode: 'automatic' }) })
+    pick(within(card('Code')).getByLabelText(en.fieldModel), en.modelAutomaticOption)
     await waitFor(() => { expect(within(card('Code')).getByText(en.modelAutomaticNote)).toBeTruthy() })
+    save(card('Code'))
+    await waitFor(() => { expect(written(write)[0]?.model).toEqual({ mode: 'automatic' }) })
   })
 
   it('keeps a configured model the catalog no longer advertises, and lets it go', async () => {
@@ -498,39 +659,63 @@ describe('Subagents model and effort picker', () => {
     })
     expand('Code')
     const model = within(card('Code')).getByLabelText(en.fieldModel)
-    expect((model as HTMLSelectElement).value).toBe('ghost\u0000gone')
+    expect(shownValue(model)).toBe(`gone ${en.modelUnavailableSuffix}`)
     expect(optionsOf(model)).toContain(`gone ${en.modelUnavailableSuffix}`)
 
-    fireEvent.change(model, { target: { value: '' } })
+    pick(model, en.modelInheritOption)
+    save(card('Code'))
     await waitFor(() => { expect(written(write)[0]?.model).toEqual({ mode: 'fixed' }) })
   })
 })
 
 describe('Subagents card actions', () => {
-  it('adds a subagent under an id derived from its name', async () => {
+  it('keeps a new subagent local until its required purpose is saved', async () => {
     const { write } = mount()
     fireEvent.change(screen.getByLabelText(en.cardAddTitle), { target: { value: 'Security Audit' } })
     fireEvent.click(screen.getByRole('button', { name: en.cardCreate }))
-
+    const draft = card('Security Audit')
+    expect(write).not.toHaveBeenCalled()
+    expect(within(draft).getByLabelText(en.fieldId)).toHaveProperty('readOnly', false)
+    fireEvent.click(within(draft).getByRole('button', { name: en.cardSaveRole }))
+    expect(within(draft).getByText(en.validationMissingPurpose)).toBeTruthy()
+    fireEvent.change(within(draft).getByLabelText(en.fieldPurpose), { target: { value: 'Audit security risks.' } })
+    fireEvent.click(within(draft).getByRole('button', { name: en.cardSaveRole }))
     await waitFor(() => {
       const added = written(write).at(-1)
       expect(added?.id).toBe('security-audit')
       expect(added?.name).toBe('Security Audit')
-      expect(added?.enabled).toBe(true)
+      expect(added?.enabled).toBe(false)
+      expect(added?.purpose).toBe('Audit security risks.')
       expect(added?.access).toBe('inherit')
       expect(added?.execution.backend).toBe('spawn')
     })
   })
 
-  it('duplicates a definition as a disabled copy under a fresh id', async () => {
+  it('opens a disabled duplicate as an editable draft and writes it only on save', async () => {
     const { write } = mount()
+    expand('Code')
     fireEvent.click(within(card('Code')).getByRole('button', { name: en.cardDuplicate }))
+    const copy = card('Code copy')
+    expect(write).not.toHaveBeenCalled()
+    fireEvent.change(within(copy).getByLabelText(en.fieldName), { target: { value: 'Secure Code' } })
+    fireEvent.change(within(copy).getByLabelText(en.fieldId), { target: { value: 'secure-code' } })
+    fireEvent.click(within(copy).getByRole('button', { name: en.cardSaveRole }))
     await waitFor(() => {
-      const copy = written(write).at(-1)
-      expect(copy?.id).toBe('code-copy')
-      expect(copy?.enabled).toBe(false)
+      const savedCopy = written(write).at(-1)
+      expect(savedCopy?.id).toBe('secure-code')
+      expect(savedCopy?.name).toBe('Secure Code')
+      expect(savedCopy?.enabled).toBe(false)
       expect(written(write)).toHaveLength(3)
     })
+  })
+
+  it('cancels a duplicate without changing stored roles', () => {
+    const { write } = mount()
+    expand('Code')
+    fireEvent.click(within(card('Code')).getByRole('button', { name: en.cardDuplicate }))
+    fireEvent.click(within(card('Code copy')).getByRole('button', { name: en.cardCancel }))
+    expect(write).not.toHaveBeenCalled()
+    expect(screen.queryByRole('article', { name: 'Code copy' })).toBeNull()
   })
 
   it('deletes a definition and its workspace overrides once the user confirms', async () => {
@@ -541,6 +726,7 @@ describe('Subagents card actions', () => {
         overrides: { [WORKSPACE]: { subagents: { code: { name: 'Patched' } } } },
       }),
     })
+    expand('Code')
     fireEvent.click(within(card('Code')).getByRole('button', { name: en.cardDelete }))
     await waitFor(() => {
       expect(written(write).map(entry => entry.id)).toEqual(['review'])
@@ -551,6 +737,7 @@ describe('Subagents card actions', () => {
   it('leaves the document alone when the user cancels the delete', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(false)
     const { write } = mount()
+    expand('Code')
     fireEvent.click(within(card('Code')).getByRole('button', { name: en.cardDelete }))
     expect(write).not.toHaveBeenCalled()
   })
@@ -567,9 +754,13 @@ describe('Subagents workspace overrides', () => {
     await waitFor(() => { expect(screen.getByText(WORKSPACE)).toBeTruthy() })
   })
 
-  it('shows every field as inherited until one is edited', async () => {
+  it('shows every field as inherited, on request, until one is edited', async () => {
     mount()
     const group = await editor('Code')
+    expect(within(group).getByText(en.overrideNone)).toBeTruthy()
+    expect(within(group).queryAllByText(en.overrideInherited)).toHaveLength(0)
+
+    showAll(group)
     expect(within(group).getAllByText(en.overrideInherited)).toHaveLength(SUBAGENT_OVERRIDE_FIELDS.length)
     expect(within(group).queryAllByText(en.overrideOverridden)).toHaveLength(0)
   })
@@ -577,22 +768,41 @@ describe('Subagents workspace overrides', () => {
   it('records one field override and leaves its neighbours inherited', async () => {
     const { write } = mount()
     const group = await editor('Code')
+    showAll(group)
     fireEvent.change(within(group).getByLabelText(en.fieldPurpose), { target: { value: 'Local purpose' } })
 
     await waitFor(() => {
       expect(lastPatch(write).overrides).toEqual({ [WORKSPACE]: { subagents: { code: { purpose: 'Local purpose' } } } })
     })
     await waitFor(() => {
-      const updated = screen.getByRole('group', { name: /^Code — 1 of /u })
+      const updated = screen.getByText(/^Code — 1 of /u).closest('details')
+      if (updated === null) throw new Error('the Code editor is missing')
+      showAll(updated)
       expect(within(updated).getAllByText(en.overrideOverridden)).toHaveLength(1)
       expect(within(updated).getAllByText(en.overrideInherited)).toHaveLength(SUBAGENT_OVERRIDE_FIELDS.length - 1)
     })
   })
 
+  it('lists only the fields this workspace replaces until the rest is asked for', async () => {
+    mount({
+      value: settings({
+        overrides: { [WORKSPACE]: { subagents: { code: { name: 'Patched' } } } },
+      }),
+    })
+    const group = await editor('Code')
+    expect(within(group).getAllByText(en.overrideOverridden)).toHaveLength(1)
+    expect(within(group).getByLabelText(en.fieldName)).toBeTruthy()
+    expect(within(group).queryByLabelText(en.fieldPurpose)).toBeNull()
+
+    showAll(group)
+    expect(within(group).getByLabelText(en.fieldPurpose)).toBeTruthy()
+  })
+
   it('keeps a workspace edit to its own top-level field', async () => {
     const { write } = mount()
     const group = await editor('Code')
-    fireEvent.change(within(group).getByLabelText(en.fieldAccess), { target: { value: 'read-only' } })
+    showAll(group)
+    pick(within(group).getByLabelText(en.fieldAccess), en.accessReadOnly)
     await waitFor(() => {
       const patch = lastPatch(write)
       expect(patch.overrides).toBeDefined()

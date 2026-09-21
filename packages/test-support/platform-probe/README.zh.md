@@ -35,6 +35,7 @@ kind: "package-library"
 
 ```ts
 import { symlinksUsable } from '@deepseek-ai/dsh-platform-probe'
+import { it } from 'vitest'
 
 // A real symbolic link needs Developer Mode or SeCreateSymbolicLinkPrivilege on Windows.
 it.skipIf(!symlinksUsable())('follows a dangling link', async () => { /* ... */ })

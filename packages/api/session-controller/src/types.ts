@@ -12,6 +12,26 @@ import type { JobId } from '@deepseek-ai/dsh-jobs/brand'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 
+/** Settings namespace controlling the location of new ungrouped Sessions. */
+export const SESSION_WORKSPACE_SETTINGS_NAMESPACE = 'session-workspace'
+
+/** Supported local-work locations for newly created ungrouped Sessions. */
+export const SESSION_WORKSPACE_MODES = ['harnessy-default', 'remote-website'] as const
+
+/** Local-work location selected for newly created ungrouped Sessions. */
+export type SessionWorkspaceMode = typeof SESSION_WORKSPACE_MODES[number]
+
+/** Default preserves the Host launch directory until the user chooses remote work. */
+export const DEFAULT_SESSION_WORKSPACE_MODE: SessionWorkspaceMode = 'harnessy-default'
+
+/** Durable preferences used to choose an ungrouped Session's local working directory. */
+export interface SessionWorkspaceSettings {
+  /** Whether Harnessy uses its launch directory or an isolated remote-work folder. */
+  readonly mode: SessionWorkspaceMode
+  /** Parent directory for isolated remote-work folders. */
+  readonly remoteRoot: string
+}
+
 declare module '@deepseek-ai/dsh-session-projection/types' {
   interface SessionProjectionStateMap {
     /** Host state persisted for cold Session list summaries. */

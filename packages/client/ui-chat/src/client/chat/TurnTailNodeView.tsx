@@ -4,6 +4,7 @@ import type { ChatNodeViewProps, TurnTailOwnerProps } from '../contract/slots.ts
 import { MessageIconActions } from './MessageIconActions.tsx'
 import { TurnTimePanel, TurnUsagePanel } from './TurnUsagePanel.tsx'
 import { assistantText } from './turn-assistant.ts'
+import { FileChangesButton } from './FileChangesButton.tsx'
 import css from './TurnTailNodeView.module.css'
 
 type TurnTailNodeViewProps = ChatNodeViewProps<'turn-tail'>
@@ -11,7 +12,7 @@ type TurnTailNodeViewProps = ChatNodeViewProps<'turn-tail'>
 
 /** Turn-local actions and feature tail over the Location index, independent of Assistant placement. */
 export const TurnTailNodeView = memo(function TurnTailNodeView({
-  node, openFile, forkAt, renderSlot, renderSlotChain, t, useChat,
+  node, openFile, openDiff, forkAt, renderSlot, renderSlotChain, t, useChat,
 }: TurnTailNodeViewProps) {
   const data = node.data
   const hasLaterChatNode = useChat(snapshot =>
@@ -24,7 +25,12 @@ export const TurnTailNodeView = memo(function TurnTailNodeView({
   const closing = data.closing
   const owner: TurnTailOwnerProps = { turn, seq: closing?.finalNode.seq ?? data.seq, openFile }
   const tail = renderSlotChain('conversation.chat.turnTail', owner)
-  if (closing === null) return tail === null ? null : <div className={css.root}>{tail}</div>
+  const changes = data.fileChanges !== undefined && !isLatestTurn
+    ? <FileChangesButton changes={data.fileChanges} openDiff={openDiff} t={t} />
+    : null
+  if (closing === null) return tail === null && changes === null
+    ? null
+    : <div className={css.root}>{tail}{changes}</div>
   const runMs = turn.start === undefined || turn.end === undefined
     ? undefined
     : Math.max(0, turn.end.time - turn.start.time)
@@ -41,6 +47,7 @@ export const TurnTailNodeView = memo(function TurnTailNodeView({
       data-actions-reveal={isLatestTurn ? 'always' : 'hover'}
     >
       {tail}
+      {changes}
       <MessageIconActions
         text={assistantText(closing.blocks)}
         time={closing.time}

@@ -22,7 +22,7 @@ import { TEXTPREVIEW_ID, textDefinition } from './definition.ts'
 import { textFace } from './face.ts'
 import { createReadPage } from './rpc.ts'
 import { createTextStore } from './store.ts'
-import { en, zh } from './locales.ts'
+import { en } from './locales.ts'
 
 // Values stay package-private unless another package needs them; the plugin
 // surface is `apply`, `inject`, and the store factory another registration may
@@ -62,7 +62,7 @@ export const inject = ['slots', 'locale', 'sidebarRightTabs', 'remote', 'remote.
  */
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.sidebarRightTabs.register(textDefinition()), 'ui-sidebar-textpreview: text type')
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-sidebar-textpreview: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { en }), 'ui-sidebar-textpreview: dictionaries')
 
   const store = createTextStore()
   const face = textFace(createReadPage(ctx.remote))

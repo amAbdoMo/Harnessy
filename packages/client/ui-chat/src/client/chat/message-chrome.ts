@@ -6,7 +6,7 @@ import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
 export type ClockTranslate = Translate<'clock.md' | 'clock.ymd'>
 
 /** The elapsed-duration share of the conversation dictionary. */
-export type RunDurationTranslate = Translate<'duration.seconds' | 'duration.minutes'>
+export type RunDurationTranslate = Translate<'duration.seconds' | 'duration.minutes' | 'duration.hours'>
 function pad2(n: number): string {
   return String(n).padStart(2, '0')
 }
@@ -41,9 +41,14 @@ export function msUntilNextLocalMidnight(ms: number): number {
  */
 export function formatRunDuration(ms: number, t: RunDurationTranslate): string {
   const total = Math.max(0, Math.floor(ms / 1000))
-  const minutes = Math.floor(total / 60)
+  const totalMinutes = Math.floor(total / 60)
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
   const seconds = total % 60
-  return minutes > 0
+  if (hours > 0) {
+    return t('duration.hours', { hours, minutes, seconds: String(seconds).padStart(2, '0') })
+  }
+  return totalMinutes > 0
     ? t('duration.minutes', { minutes, seconds: String(seconds).padStart(2, '0') })
     : t('duration.seconds', { seconds })
 }

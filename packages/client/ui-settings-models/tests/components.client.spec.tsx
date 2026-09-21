@@ -9,7 +9,7 @@ import type {
 } from '@deepseek-ai/dsh-api-remotes/client'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import {
-  ModelsSection, needsSetup, providerCopy, providerTargetLabel, removeProviderProfile,
+  ModelsSection, needsSetup, providerCopy, providerTargetLabel, removeProviderProfile, visibleProviderRows,
 } from '../src/client/ModelsSection.tsx'
 import type { ModelsSectionInjected, ModelsSectionProps } from '../src/client/ModelsSection.tsx'
 import { pathOps } from '../src/client/ProviderEditor.tsx'
@@ -27,11 +27,43 @@ import { settingsSchema } from './settings-schema.client.ts'
 
 afterEach(cleanup)
 
+/** The label one control currently shows on its trigger. */
+function shownValue(control: HTMLElement): string {
+  return control.textContent ?? ''
+}
+
+/** The option labels one control offers, read from its opened popup. */
+function optionLabels(control: HTMLElement): string[] {
+  fireEvent.click(control)
+  const labels = screen.getAllByRole('option').map(option => option.textContent ?? '')
+  fireEvent.keyDown(control, { key: 'Escape' })
+  return labels
+}
+
+/** Pick the option whose visible label is `label`. */
+function pickOption(control: HTMLElement, label: string): void {
+  fireEvent.click(control)
+  fireEvent.click(screen.getByRole('option', { name: label }))
+}
+
 const t: ModelsSectionInjected['t'] = key => en[key]
 const OPENAI_TARGET = { provider: 'openai', displayName: 'openai' }
 const openaiCopy = (template: string): string => providerCopy(template, OPENAI_TARGET)
 const DEEPSEEK_TARGET = { provider: 'deepseek-official', displayName: 'DeepSeek' }
 const deepSeekCopy = (template: string): string => providerCopy(template, DEEPSEEK_TARGET)
+
+describe('product provider visibility', () => {
+  it('omits the stock DeepSeek route only from Harnessy', () => {
+    const rows = [
+      { entry: { provider: 'deepseek-official' } },
+      { entry: { provider: 'openai-codex' } },
+    ] as ProviderRow[]
+    expect(visibleProviderRows(rows, 'custom-harness').map(row => row.entry.provider))
+      .toEqual(['openai-codex'])
+    expect(visibleProviderRows(rows, 'official').map(row => row.entry.provider))
+      .toEqual(['deepseek-official', 'openai-codex'])
+  })
+})
 
 /** Open one row's capacity disclosure (1-based, as the labels read). */
 function expandRow(position: number): void {
@@ -1073,9 +1105,9 @@ describe('ModelsSection', () => {
   it('adds a dormant provider with a derived reference and stores its key', async () => {
     const { mutate, set } = await mountSection()
     fireEvent.click(screen.getByText(en.add))
-    const pick = await screen.findByLabelText<HTMLSelectElement>(en.provider)
-    expect([...pick.options].map(option => option.value)).toEqual(['anthropic', 'broken', 'plain'])
-    expect(pick.value).toBe('anthropic')
+    const pick = await screen.findByLabelText(en.provider)
+    expect(optionLabels(pick)).toEqual(['anthropic', 'broken', 'plain'])
+    expect(shownValue(pick)).toBe('anthropic')
     // A dormant profile has no endpoint anywhere: the pi-ai placeholder
     // falls back to the provider-default wording.
     fireEvent.click(screen.getByText(en.customized))
@@ -1153,10 +1185,9 @@ describe('ModelsSection', () => {
   it('switches the add card target and degrades unknown or broken targets loudly', async () => {
     await mountSection()
     fireEvent.click(screen.getByText(en.add))
-    const pick = await screen.findByLabelText<HTMLSelectElement>(en.provider)
-    fireEvent.change(pick, { target: { value: 'broken' } })
+    pickOption(await screen.findByLabelText(en.provider), 'broken')
     await screen.findByText(/unresolvable settings path/)
-    fireEvent.change(pick, { target: { value: 'plain' } })
+    pickOption(await screen.findByLabelText(en.provider), 'plain')
     await waitFor(() => {
       expect(screen.getAllByText(content => content.includes(en.advancedHint)).length).toBeGreaterThan(0)
     })

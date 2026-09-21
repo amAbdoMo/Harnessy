@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Harnessy's Subagents page is where the unified subagent roster is configured: one card per stored role, each editing its model and reasoning effort, sandbox access, invocation policy, tool scoping, and standing instructions. It reports which backend each role routes to and, where that backend can answer for itself, whether it is installed, which version it reports, and whether it is signed in. It shows every role's inherited-versus-overridden state for the session's workspace, with a per-field reset and a reset-all, and holds the automatic-routing allowlist that decides which models an agent may pick for a subagent. Each role's model choices, and the reasoning levels offered for them, come from the catalog its backend owns: the Host catalog and each model's own advertised levels for a backend that resolves through Harnessy, and that backend's own listing and its own levels for one that owns its model space. The page is registered only when the browser bundle is built for the `custom-harness` profile.
+Harnessy's Subagents page configures each role's purpose, routing, model, effort, access, invocation, tools, and instructions. Summary cards use compact badges and risk-aware access colors. The editor groups advanced fields, tests resolved settings without model usage, warns about overlapping automatic roles, and exposes delegation limits. Create, Duplicate, and Edit stage one local draft; Save performs one complete Host write and Cancel discards it. New IDs remain editable until first save, and validation explains missing required values. Runtime diagnostics and workspace overrides stay in disclosures. The page is included only in the `custom-harness` browser profile.
 
 ## Table of Contents
 
@@ -38,19 +38,23 @@ The page appears as the `Subagents` entry in the Settings navigation. It reads t
 
 | Area | What the user does |
 |---|---|
-| Roles | Adds, renames, enables, disables, duplicates, and deletes **global** roles. Each card collapses to one line — name, resolved model, effort, access, invocation — and expands to every field: Enabled, ID, Name, Purpose, When to use, Model, Reasoning effort, Access, Invocation, Standing instructions, Tools, and an Advanced block holding the backend, background policy, timeout, and max depth |
-| Backends | Reports every backend a role routes to, and asks a backend that can answer for itself whether it is installed, which version it reports, and whether it is signed in — with the exact login command when it is not, and a re-check |
-| Model and reasoning effort | Pins an exact provider/model route, leaves the role inheriting the calling agent's route, or opts the role into agent-chosen routing. Choices come from the catalog the role's backend owns, and the picker names which one it read. A model from the Host catalog is offered the levels it advertises and none at all when it advertises none; a route in a backend-owned space is offered the levels that backend accepts, since its own listing names none. Changing the model clears an effort the new model is not offered |
-| Workspace override | For the session's workspace, edits any field of any role; each field shows whether this workspace overrides it or inherits it, and resets back to inherited one field at a time, for a whole role, or for the whole workspace |
+| Roles | Adds, renames, enables, disables, duplicates, and deletes **global** roles. Create and Duplicate open disabled editable drafts, existing edits remain local until Save changes, and Cancel performs no write. Each collapsed card shows its purpose and compact policy badges; the switch label states only the current Enabled or Disabled state, and the create action matches the adjacent input height. Its editor keeps routing guidance and optional identity, instructions, tools, runtime, scheduling, timeout, and depth in disclosures |
+| Test role | Refreshes the selected runtime and model catalog, verifies that routing guidance is complete, and reports the selected backend, model, access, and invocation policy without starting a subagent or consuming model usage |
+| Runtime status | Keeps installation, version, and sign-in diagnostics collapsed until needed, with the exact login command and a re-check for a runtime that can report for itself |
+| Model and reasoning effort | Pins an exact provider/model route, leaves the role inheriting the calling agent's route, or opts the role into agent-chosen routing. Choices come from the catalog the role's backend owns. A model from the Host catalog is offered the levels it advertises and none at all when it advertises none; a route in a backend-owned space is offered the levels that backend accepts, since its own listing names none. Changing the model clears an effort the new model is not offered |
+| Workspace override | Keeps advanced per-workspace role patches collapsed until opened; each field shows whether this workspace overrides it or inherits it, and resets back to inherited one field at a time, for a whole role, or for the whole workspace |
 | Automatic routing | Enables agent-chosen models and authorizes the exact `{ provider, model }` routes a choice must resolve to |
+| Delegation limits | Chooses Adaptive so the parent selects the smallest useful batch, or sets a stricter manual safety cap; both modes share the Host's hard limit of 16 and the same editable default timeout |
 
 A role's ID is fixed once the role exists, because it is both the name the agent uses and the key the override layer patches; duplicating a role creates a fresh ID and starts the copy disabled, so a second live route for the same job never appears unreviewed. Deleting a role removes every workspace override that named it in the same write.
 
 Full access is labelled in place with what it costs, and the page never presents access as something the agent can widen: a role can only narrow the calling agent.
 
+Test role performs local validation plus catalog and runtime refreshes. It does not call a model, start a child conversation, or prove that a future provider request will succeed; runtime authentication and catalog availability remain the earliest facts the page can verify without usage.
+
 ### Copy and accessibility
 
-Every string comes from the `settings.subagents` dictionary, registered in both English and Chinese. Controls are native inputs, selects, textareas, and buttons, each labelled by its own visible text and described through `aria-describedby`; icon-free actions carry visible text, and the shared focus ring is visible on every control. The layout collapses to one column on a narrow viewport.
+Every string comes from the `settings.subagents` dictionary, registered in both English and Chinese. Inputs, textareas, buttons, and shared `Select` listboxes use visible labels and `aria-describedby`; icon-free actions carry visible text, and the shared focus ring is visible on every control. The layout collapses to one column on a narrow viewport.
 
 -----
 
@@ -73,6 +77,7 @@ Every string comes from the `settings.subagents` dictionary, registered in both 
 | [`src/client/edit.ts`](src/client/edit.ts) | Pure section edits — field, add, duplicate, delete, override, reset, prune, and id derivation |
 | [`src/client/backends.ts`](src/client/backends.ts) | Pure backend projection: which backends the roster routes to, which of them report for themselves, and the reasoning levels each backend-owned space accepts |
 | [`src/client/catalog.ts`](src/client/catalog.ts) | Pure catalog projection: which catalog a backend owns, route rows, provider groups, the efforts a route offers, and route narrowing |
+| [`src/client/routing-overlap.ts`](src/client/routing-overlap.ts) | Pure overlap detector for enabled automatic roles' purpose and routing guidance |
 | [`src/client/contract.ts`](src/client/contract.ts) | The Host contract this browser half mirrors: namespace, option lists, id pattern, default backend, and the backend that owns its own model space |
 | [`src/client/fields.tsx`](src/client/fields.tsx) | Shared labelled controls and the draft that survives the settings round-trip |
 | [`src/client/section-store.ts`](src/client/section-store.ts) | Renderer mirror of the settings scope |
@@ -82,11 +87,11 @@ Every string comes from the `settings.subagents` dictionary, registered in both 
 
 - **The Host owns the values, the page owns the edits.** The stored document is the settings section; cards render from it, and every edit persists only the top-level fields it moved, so two edits made inside one settings round-trip compose instead of overwriting each other.
 - **Edits are fenced by the revision they were computed from.** A write made against the settled mirrored document carries that revision, so a document that moved elsewhere is refused rather than silently overwritten; while this page is still composing over its own edits, the scope's queue carries the fence.
-- **The catalog is the only source of a selectable route, and the role's backend picks which one.** A backend whose routes resolve through Harnessy is served by the Host catalog, so a deployment that adds a provider needs no change here; a backend that owns its model space is served by its own listing instead, because the composed runtime has no adapter for a model it is not the one to run. Either way a route the source does not advertise stays listed, marked, and removable rather than disappearing from a saved role, and the picker says which of the two it is reading.
+- **The catalog is the only source of a selectable route, and the role's backend picks which one.** A backend whose routes resolve through Harnessy is served by the Host catalog, so a deployment that adds a provider needs no change here; a backend that owns its model space is served by its own listing instead, because the composed runtime has no adapter for a model it is not the one to run. Either way a route the source does not advertise stays listed, marked, and removable rather than disappearing from a saved role; a failed source stays visible as an inline notice and a failed Test role result.
 - **Effort is never fabricated.** The effort control offers only what a route's catalog states. A Host-catalog model offers the levels it advertises, a model that advertises none shows an explanation instead of a control, and a route in a backend-owned space offers that backend's own levels; either way an effort the newly selected model is not offered is cleared from the stored route.
 - **A backend's levels are its own property.** The vocabulary of each backend that owns its model space sits beside that backend's name in `backends.ts`, including the id that means "send no level at all", which the picker realizes as its model-default option rather than as a level of its own. A second such backend states its levels in one more table row, and no literal id reaches the picker.
 - **The Host resolves, the browser shows provenance.** The resolved roster read supplies the values a delegation runs with and the per-field override provenance; the page reads it afresh after each accepted write, so inherited/overridden state converges on the document that was committed.
-- **Text fields keep a local draft.** A settings write reaches the mirrored snapshot one round-trip after the keystroke, so each text control holds what the user typed and adopts an externally committed value instead of being reset by its own write.
+- **A role edit is one complete draft.** Fields, switches, model choices, and advanced values stay local until Save. Client validation mirrors the Host's user-correctable identity and required-field checks, while the Host remains authoritative when the single revision-fenced write arrives.
 - **Profile-gated.** `apply` returns early unless the browser bundle was built for `custom-harness`.
 
 </details>
@@ -120,7 +125,7 @@ None; this package neither assembles nor sends a provider request. The roles it 
 - **A workspace cannot remove a role from this page** — the override layer's `removed` list is read and pruned but has no control here, so removing a role for one workspace is not yet reachable from the browser.
 - **The override editor's model row cannot set an effort separately from its model** — the row writes the whole model policy, so a workspace pins a route and its effort together, or inherits both.
 - **A backend-owned level is offered from the backend, not from its listing** — Command Code's own catalog carries an id and a description and nothing else, so the levels its routes offer are the ones this page records for that backend; a backend whose levels it does not record offers none, and a level a saved route already names stays stored either way.
-- **The Plugins Subagent card still exists** — it keeps its own automatic-routing control over the older `subagent-model-selection` namespace until that namespace is retired.
+- **The Plugins Subagent card remains available outside Harnessy** — the `custom-harness` build omits that redundant card because its complete role and routing workflow lives on the Subagents page; other profiles retain the older `subagent-model-selection` surface.
 - **No role reordering** — roles keep storage order; the page adds new roles at the end.
 
 <a id="dev-note"></a>

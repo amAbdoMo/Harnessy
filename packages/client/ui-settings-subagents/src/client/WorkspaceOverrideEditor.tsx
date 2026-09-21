@@ -11,6 +11,7 @@
  * @module @deepseek-ai/dsh-client-ui-settings-subagents/workspace-override
  */
 
+import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SubagentDefinition } from '@deepseek-ai/dsh-api-remotes/client'
@@ -242,49 +243,69 @@ export function WorkspaceOverrideEditor(props: WorkspaceOverrideEditorProps): Re
     }
   }
 
+  const [showAll, setShowAll] = useState(false)
+  const toggleId = `${base}-all-fields`
+  // Only the fields this workspace replaces are listed until the user asks for
+  // the rest: the workspace layer is advanced work, and eleven rows per role is
+  // what made this block read as a wall of controls.
+  const fields = showAll ? SUBAGENT_OVERRIDE_FIELDS : overridden
   return (
-    <fieldset className={css.projectLane}>
-      <legend className={css.projectLegend}>
+    <details className={css.overrideDetails}>
+      <summary className={css.overrideSummary}>
         {t('overrideLegend', {
           name: definition.name,
           count: String(overridden.length),
           total: String(SUBAGENT_OVERRIDE_FIELDS.length),
         })}
-      </legend>
-      <ul className={css.overrideList}>
-        {SUBAGENT_OVERRIDE_FIELDS.map((field) => {
-          const isOverridden = overridden.includes(field)
-          return (
-            <li key={field} className={css.overrideRow}>
-              <span className={isOverridden ? css.overrideStateOn : css.overrideStateOff}>
-                {isOverridden ? t('overrideOverridden') : t('overrideInherited')}
-              </span>
-              <div className={css.overrideControl}>{control(field)}</div>
-              {isOverridden
-                ? (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={disabled}
-                    onClick={() => { onResetField(field) }}
-                  >
-                    {t('overrideReset')}
-                  </Button>
-                )
-                : null}
-            </li>
-          )
-        })}
-      </ul>
-      {overridden.length === 0
-        ? null
-        : (
-          <div className={css.actions}>
-            <Button size="sm" variant="ghost" disabled={disabled} onClick={onResetAll}>
-              {t('overrideResetAll')}
-            </Button>
-          </div>
-        )}
-    </fieldset>
+      </summary>
+      <div className={css.overrideBody}>
+        {overridden.length === 0 ? <p className={css.hint}>{t('overrideNone')}</p> : null}
+        <label className={css.overrideToggle} htmlFor={toggleId}>
+          <input
+            id={toggleId}
+            type="checkbox"
+            checked={showAll}
+            onChange={(event) => { setShowAll(event.target.checked) }}
+          />
+          {t('overrideShowAll')}
+        </label>
+        <ul className={css.overrideList}>
+          {fields.map((field) => {
+            const isOverridden = overridden.includes(field)
+            return (
+              <li key={field} className={css.overrideRow}>
+                <div className={css.overrideControl}>{control(field)}</div>
+                <div className={css.overrideHead}>
+                  <span className={isOverridden ? css.overrideStateOn : css.overrideStateOff}>
+                    {isOverridden ? t('overrideOverridden') : t('overrideInherited')}
+                  </span>
+                  {isOverridden
+                    ? (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={disabled}
+                        onClick={() => { onResetField(field) }}
+                      >
+                        {t('overrideReset')}
+                      </Button>
+                    )
+                    : null}
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+        {overridden.length === 0
+          ? null
+          : (
+            <div className={css.actions}>
+              <Button size="sm" variant="ghost" disabled={disabled} onClick={onResetAll}>
+                {t('overrideResetAll')}
+              </Button>
+            </div>
+          )}
+      </div>
+    </details>
   )
 }

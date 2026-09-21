@@ -1,6 +1,7 @@
 .root { position: relative; min-width: 0; }
 
 .trigger {
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -9,7 +10,7 @@
   max-width: min(360px, 45cqw);
   height: 28px;
   padding: 0 4px 0 8px;
-  border: none;
+  border: 1px solid transparent;
   border-radius: 24px;
   outline: none;
   background: transparent;
@@ -21,7 +22,7 @@
 }
 
 .trigger:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover); }
-.trigger:focus-visible { box-shadow: 0 0 0 2px var(--dsw-alias-border-l3); }
+.trigger:focus-visible { border-color: var(--dsw-alias-brand-primary); }
 .trigger:disabled { color: var(--dsw-alias-label-dimmed); cursor: default; }
 
 .triggerLabel,

@@ -91,6 +91,22 @@ describe('startCommandCodeRun', () => {
     await run.dispose()
   })
 
+  it('starts the run with the CLI update system switched off', async () => {
+    const { deps, spawned } = harness()
+    const run = startCommandCodeRun(request(), spec(), deps)
+    const child = spawned[0]!
+    child.exit()
+    await run.result
+
+    // `--no-auto-update` covers this run's argv; the environment pin covers the
+    // same CLI process before its argument parser exists, so nothing a
+    // harness-owned process starts can reach the detached `npm i -g` updater
+    // whose console Windows will not hide.
+    expect(child.spec.argv).toContain('--no-auto-update')
+    expect(child.spec.env).toMatchObject({ COMMANDCODE_SKIP_UPDATES: '1' })
+    await run.dispose()
+  })
+
   it('flattens a non-zero exit into a bounded product diagnostic', async () => {
     const { deps, spawned } = harness()
     const run = startCommandCodeRun(request(), spec(), deps)

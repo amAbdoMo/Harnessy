@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-当 Harnessy 会话需要把自包含的任务委派给用户自己安装的 Command Code CLI 时，挂载此插件。它注册一个实时设置命名空间（拥有通道目录与三项运行上限）、两个 token 稳定的模型可见工具（`list_commandcode_lanes` 与 `commandcode_delegate`），以及子代理设置页面读取的 `commandcode` Remote 命名空间。通道属于用户数据：每个通道固定了精确模型、推理强度与访问级别，因此被委派的任务无法选择或提升其中任何一项。插件还会为花名册角色在 `ctx.subagents` 上注册 `commandcode` 后端，并且加载时不会启动任何 Command Code 进程。
+此插件把 Harnessy 连接到用户安装的 Command Code CLI。它拥有通道设置、运行上限、`commandcode` Remote 命名空间，以及角色目录使用的 `ctx.subagents` 后端。直接通过通道委派的 profile 默认获得 token 稳定的 `list_commandcode_lanes` 与 `commandcode_delegate` 工具；只暴露统一角色目录的 profile 可以关闭这些工具，同时保留后端与诊断。每个已存通道固定模型、推理强度与访问级别，因此被委派的任务无法选择或扩大它们。加载时不会启动任何 Command Code 进程。
 
 ## 目录
 
@@ -48,6 +48,7 @@ CLI 由用户自行提供。本包不会内置、安装或再分发 Command Code
 | 字段 | 默认值 | 含义 |
 |---|---|---|
 | `disposeGraceMs` | `3000` | 共享受管范围终止层级之间的宽限时间 |
+| `toolsEnabled` | `true` | 是否注册角色目录出现之前的通道发现与委派工具；设为 false 时，后端、设置、健康状态与 Remote 表面仍然可用 |
 
 用户在运行时调整的一切都位于 `commandcode-delegation` 设置分区，而不是组合配置中，因此修改会对现有会话的下一次委派立即生效。
 

@@ -138,10 +138,14 @@
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
-.workspace:focus-visible,
 .modalInput:focus-visible {
-  outline: 2px solid var(--dsw-alias-state-business-primary);
-  outline-offset: 2px;
+  border-color: var(--dsw-alias-state-business-primary);
+  outline: none;
+}
+
+.workspace:focus-visible {
+  border-color: var(--dsw-alias-state-business-primary);
+  outline: none;
 }
 
 /* Locked form (bound guidance state): a static echo — no hover feedback, no

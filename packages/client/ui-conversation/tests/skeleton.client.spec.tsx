@@ -209,6 +209,7 @@ function mount(
           actions={store.actions}
           renderSlot={renderSlot as never}
           open={open}
+          openView={store.actions.openView}
           selectView={(view) => { store.actions.setView(view) }}
           t={t}
         />

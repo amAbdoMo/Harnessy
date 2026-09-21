@@ -11,7 +11,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import { WorkspaceBriefAction } from './WorkspaceBriefAction.tsx'
 import { WorkspaceBriefCard } from './WorkspaceBriefCard.tsx'
-import { en, NS, zh, type WorkspaceBriefKey } from './locales.ts'
+import { en, NS, type WorkspaceBriefKey } from './locales.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -35,7 +35,7 @@ function commandFailure(result: CommandResult | undefined, unavailable: string):
 
 /** Register one header action and one command-name-keyed Markdown card. */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-workspace-brief: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { en }), 'ui-workspace-brief: dictionaries')
 
   ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({
     name: 'conversation.session.header.actions',

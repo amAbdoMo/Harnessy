@@ -68,6 +68,22 @@
   height: 10px;
 }
 
+.count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.workingCount {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.countDivider {
+  color: var(--dsw-alias-label-caption);
+}
+
 .trigger:hover,
 .trigger:focus-visible {
   color: var(--dsw-alias-label-secondary);
@@ -291,6 +307,46 @@
   left: -4px;
   width: 14px;
   border-top: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.completedGroup {
+  margin: 2px 4px 1px;
+  padding-top: 2px;
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.completedToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 8px;
+  border-radius: 8px;
+  outline: none;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+.completedToggle:hover,
+.completedToggle:focus-visible {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.completedToggle svg {
+  flex: none;
+  transition: transform 120ms ease;
+}
+
+.completedChevronOpen {
+  transform: rotate(90deg);
+}
+
+.completedRows {
+  margin-left: 10px;
 }
 
 .notice,

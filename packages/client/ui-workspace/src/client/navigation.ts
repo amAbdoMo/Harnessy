@@ -21,7 +21,7 @@ export interface UiWorkspace {
   connectWorkspace(workspaceId: WorkspaceId): Promise<SessionId>
   /**
    * Start a New Session flow and navigate to its Session.
-   * @param workspaceId - explicit Workspace target; absent creates or reuses an ungrouped Session.
+   * @param workspaceId - explicit Workspace target; absent creates a new ungrouped Session.
    */
   startSession(workspaceId?: WorkspaceId): void
   /**
@@ -112,20 +112,8 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     return attempt
   }
 
-  /** Resolve the existing provisional ungrouped Session or create one at the Host default directory. */
+  /** Create one ungrouped Session without inheriting a previously blank Session's directory. */
   private connectUngrouped(): Promise<SessionId> {
-    const workspaces = this.workspaces.list.getSnapshot()
-    const sessions = this.sessions.list.getSnapshot()
-    if (workspaces.phase === 'ready' && sessions.phase === 'ready') {
-      const owned = new Set(workspaces.items.flatMap(workspace => workspace.sessionIds))
-      const archived = new Set(workspaces.archivedSessionIds)
-      for (const id of sessions.ids) {
-        const summary = sessions.byId[id]
-        if (summary !== undefined && summary.blank && !owned.has(id) && !archived.has(id)) {
-          return Promise.resolve(id)
-        }
-      }
-    }
     if (this.connectingUngrouped !== undefined) return this.connectingUngrouped
     const attempt = this.sessions.create()
       .finally(() => { this.connectingUngrouped = undefined })

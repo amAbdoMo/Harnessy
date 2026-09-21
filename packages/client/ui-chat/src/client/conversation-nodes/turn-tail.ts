@@ -10,6 +10,7 @@ import type {
   AssistantChatData, FinalAssistantChatData, TurnTailChatData,
 } from '../contract/chat-nodes.ts'
 import { deriveTurnMetrics } from '../contract/turn-metrics.ts'
+import { turnChangesFromEvents } from '../contract/turn-file-changes.ts'
 import { CHAT_SYNTHETIC_SEQ_OFFSETS, chatNode } from './common.ts'
 import { toAssistantBlocks } from './event-projection.ts'
 
@@ -150,6 +151,7 @@ function tailData(context: ConversationNodeContext<TurnTailState>): TurnTailChat
   const tokenUsage = context.start?.event.type === 'turn/start'
     ? deriveTurnTokenUsage(context.matches.map(match => match.event).filter(isSessionEvent))
     : undefined
+  const fileChanges = turnChangesFromEvents(context.matches.map(match => match.event).filter(isSessionEvent))
   return {
     turn: end.event.data.turn,
     seq: end.event.seq,
@@ -159,6 +161,7 @@ function tailData(context: ConversationNodeContext<TurnTailState>): TurnTailChat
     ...metrics?.ttftMs === undefined ? {} : { ttftMs: metrics.ttftMs },
     ...metrics?.tokensPerSecond === undefined ? {} : { tokensPerSecond: metrics.tokensPerSecond },
     ...tokenUsage === undefined ? {} : { tokenUsage },
+    ...fileChanges === undefined ? {} : { fileChanges },
   }
 }
 

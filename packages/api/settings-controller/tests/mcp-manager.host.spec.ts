@@ -1,4 +1,7 @@
-import { describe, expect, it, vi } from 'vitest'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { credentialKey } from '@deepseek-ai/dsh-credentials'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
@@ -14,6 +17,12 @@ interface StartedConnection {
   readonly dispose: ReturnType<typeof vi.fn<() => Promise<void>>>
 }
 
+const temporaryDirectories: string[] = []
+
+afterEach(async () => {
+  await Promise.all(temporaryDirectories.splice(0).map(path => rm(path, { recursive: true, force: true })))
+})
+
 async function boot() {
   const started: StartedConnection[] = []
   const startConnection = vi.fn((
@@ -28,24 +37,49 @@ async function boot() {
     return { ready: Promise.resolve({}), dispose }
   })
   const ctx = new Context()
+  const directory = await mkdtemp(join(tmpdir(), 'dsh-mcp-manager-'))
+  temporaryDirectories.push(directory)
+  const configurationPath = join(directory, 'mcp-servers.json')
+  const openTextFile = vi.fn(async () => {})
   await ctx.plugin(MemoryCredentials)
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
-  await ctx.plugin(McpManagerController, { startConnection })
-  return { ctx, controller: ctx.mcpManagerController, started }
+  await ctx.plugin(McpManagerController, { startConnection, configurationPath, openTextFile })
+  return { ctx, controller: ctx.mcpManagerController, started, configurationPath, openTextFile }
 }
 
 describe('the Harnessy MCP manager Remote namespace', () => {
   it('owns the expected methods and reports unavailable composition safely', async () => {
     const empty = new Context()
-    await empty.plugin(McpManagerController)
+    const directory = await mkdtemp(join(tmpdir(), 'dsh-mcp-manager-empty-'))
+    temporaryDirectories.push(directory)
+    await empty.plugin(McpManagerController, { configurationPath: join(directory, 'mcp-servers.json') })
     expect(await empty.mcpManagerController.describe()).toEqual({
       available: false, writable: false, servers: [],
     })
     const { controller } = await boot()
     expect(remoteMethods(controller).map(method => method.method)).toEqual([
-      'describe', 'save', 'setEnabled', 'reconnect', 'deleteServer',
+      'describe', 'openConfigurationFile', 'save', 'setEnabled', 'reconnect', 'deleteServer',
     ])
+  })
+
+  it('opens one dedicated MCP document and applies later file edits', async () => {
+    const { controller, configurationPath, openTextFile } = await boot()
+    const initial = await controller.save({
+      name: 'Local tools', serverName: 'local', transport: 'stdio', enabled: false,
+      command: 'node', args: ['server.mjs'], cwd: '', environment: { API_TOKEN: 'private' },
+    })
+    const signal = new AbortController().signal
+    await expect(controller.openConfigurationFile(signal)).resolves.toEqual({ opened: true })
+    expect(openTextFile).toHaveBeenCalledWith(configurationPath, signal)
+    const document = JSON.parse(await readFile(configurationPath, 'utf8')) as {
+      servers: Array<{ name: string }>
+    }
+    document.servers[0]!.name = 'Edited tools'
+    await writeFile(configurationPath, `${JSON.stringify(document, null, 2)}\n`)
+    await expect(controller.describe()).resolves.toMatchObject({
+      servers: [{ id: initial.servers[0]!.id, name: 'Edited tools' }],
+    })
   })
 
   it('stores remote authentication only in the protected vault and publishes redacted live state', async () => {

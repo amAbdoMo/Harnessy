@@ -57,6 +57,10 @@
   min-width: 0;
 }
 
+.activityGroup {
+  min-width: 0;
+}
+
 /* A closed process reads as one summary immediately followed by its answer.
    Expanded process rows return to the ordinary 16px rhythm. */
 .flowItem[data-turn-process-answer] {

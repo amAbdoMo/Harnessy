@@ -179,6 +179,22 @@
 .formActions,
 .accountActions { display: flex; align-items: center; gap: 6px; }
 
+.autoSwitchRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+  padding: 11px 12px;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.autoSwitchCopy { min-width: 0; }
+.autoSwitchCopy strong { font-size: 12px; line-height: 18px; }
+.autoSwitchCopy p { margin: 1px 0 0; font-size: 11px; line-height: 16px; color: var(--dsw-alias-label-tertiary); }
+
 .keyForm {
   display: grid;
   grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr) auto;
@@ -208,20 +224,55 @@
 .accountIdentity strong { overflow: hidden; font-size: 14px; line-height: 20px; text-overflow: ellipsis; white-space: nowrap; }
 .activePill { width: fit-content; margin-top: 3px; color: var(--dsw-alias-state-success-primary) !important; }
 
+.usageSection {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 0.5px solid var(--dsw-alias-border-l4);
+}
+
+.scopeSwitch {
+  display: inline-flex;
+  gap: 2px;
+  margin-bottom: 12px;
+  padding: 2px;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 9px;
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.scopeOption,
+.scopeActive {
+  min-width: 84px;
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  color: var(--dsw-alias-label-tertiary);
+  background: transparent;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.scopeOption:hover { color: var(--dsw-alias-label-primary); background: var(--dsw-alias-interactive-bg-hover); }
+.scopeActive { color: var(--dsw-alias-label-primary); background: var(--dsw-alias-interactive-bg-active); }
+.scopeOption:focus-visible,
+.scopeActive:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 1px; }
+
 .usageGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px 18px;
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 0.5px solid var(--dsw-alias-border-l4);
 }
 
 .usageItem { min-width: 0; }
 .usageLabel { align-items: center; gap: 8px; font-size: 11px; line-height: 17px; }
 .usageLabel strong { font-weight: 600; }
 .usageTrack { height: 5px; margin-top: 5px; overflow: hidden; border-radius: 999px; corner-shape: round; background: var(--dsw-alias-interactive-bg-active); }
-.usageFill { display: block; height: 100%; border-radius: inherit; background: var(--dsw-alias-button-primary-fill); transition: width 560ms cubic-bezier(0.22, 1, 0.36, 1); }
+.usageFill { display: block; height: 100%; border-radius: inherit; background: var(--dsw-alias-button-primary-fill); }
+.usageFill[data-level='warning'] { background: var(--dsw-static-amber-400); }
+.usageFill[data-level='danger'] { background: var(--dsw-alias-state-error-primary); }
 .resetTime { display: block; margin-top: 4px; font-size: 10px; line-height: 15px; }
 .usageUnavailable { margin-top: 12px; padding-top: 10px; border-top: 0.5px solid var(--dsw-alias-border-l4); }
 .privacy { margin-top: 14px; text-align: center; }
@@ -251,8 +302,4 @@
   .accountHeader { align-items: flex-start; flex-wrap: wrap; }
   .accountActions { width: 100%; justify-content: flex-end; }
   .usageGrid { grid-template-columns: 1fr; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .usageFill { transition: none; }
 }

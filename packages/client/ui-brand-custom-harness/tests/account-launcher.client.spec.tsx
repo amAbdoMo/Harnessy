@@ -14,10 +14,10 @@ const accountState: AccountsState = {
   writable: true,
   providers: [{
     id: 'openai-codex', label: 'Codex', authMode: 'oauth', available: true,
-    accountCount: 1, activeAccountId: 'codex-1', usageAvailable: true,
+    accountCount: 1, activeAccountId: 'codex-1', usageAvailable: true, autoSwitchOnLimit: false,
   }],
   accounts: [{
-    id: 'codex-1', provider: 'openai-codex', name: 'Abdo Mohamed',
+    id: 'codex-1', ownerId: 'owner-abdo', provider: 'openai-codex', name: 'Abdo Mohamed',
     detail: 'abdo@example.com · plus', initials: 'AM', active: true, authMode: 'oauth',
   }],
 }
@@ -64,6 +64,13 @@ function mountLauncher(initialState: AccountsState | undefined = refreshedAccoun
 }
 
 describe('Harnessy account launcher', () => {
+  it('opens a settings section requested by another Harnessy surface', async () => {
+    const launcher = mountLauncher()
+    act(() => { launcher.store.actions.requestSection('custom-harness-mcp') })
+    await waitFor(() => { expect(launcher.openSection).toHaveBeenCalledWith('custom-harness-mcp') })
+    expect(launcher.store.getSnapshot().sectionRequested).toBeUndefined()
+  })
+
   it('refreshes and displays the current account quota with an uppercase plan', async () => {
     mountLauncher()
     const trigger = await screen.findByRole('button', {
@@ -80,7 +87,10 @@ describe('Harnessy account launcher', () => {
     expect(screen.getByRole('button', { name: /Abdo Mohamed, PLUS · Codex/ })).toBeTruthy()
 
     act(() => { launcher.accountUsage.set(refreshedAccountState) })
-    expect(await screen.findByRole('button', { name: /5h 52% used, 7d 24% used/ })).toBeTruthy()
+    const trigger = await screen.findByRole('button', { name: /5h 52% used, 7d 24% used/ })
+    const fills = trigger.querySelectorAll('[data-level]')
+    expect(fills[0]?.getAttribute('style')).toContain('width: 52%')
+    expect(fills[1]?.getAttribute('style')).toContain('width: 24%')
   })
 
   it('opens the saved-account menu and routes its account row to Accounts', async () => {

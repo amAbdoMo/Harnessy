@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  COMMAND_CODE_SKIP_UPDATES_ENV,
   parseModelCatalog,
   probeCommandCode,
   readCommandCodeCatalog,
@@ -208,5 +209,17 @@ describe('readCommandCodeCatalog', () => {
     )
     expect(catalog.models).toEqual([])
     expect(catalog.detail).toMatch(/manually/u)
+  })
+})
+
+describe('COMMAND_CODE_SKIP_UPDATES_ENV', () => {
+  it('names the switch the CLI reads before its own update system runs', () => {
+    // The CLI gates its whole update system — the version check and the pending
+    // retry — on `process.env.COMMANDCODE_SKIP_UPDATES`, and its updater spawns
+    // the install DETACHED, which gives the child its own console on Windows
+    // that `windowsHide` cannot suppress. Renaming this entry, or weakening it
+    // to a falsy string, silently re-enables that visible global `npm i -g`.
+    expect(Object.keys(COMMAND_CODE_SKIP_UPDATES_ENV)).toEqual(['COMMANDCODE_SKIP_UPDATES'])
+    expect(COMMAND_CODE_SKIP_UPDATES_ENV.COMMANDCODE_SKIP_UPDATES).toBe('1')
   })
 })

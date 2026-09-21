@@ -1,0 +1,49 @@
+/* Interactive controls use their own edge as the focus indicator. The
+ * important declarations make this one visual rule authoritative across
+ * independently loaded component sheets without changing resting geometry. */
+body :is(
+  button,
+  input:not([type='hidden']),
+  textarea,
+  select,
+  summary,
+  [contenteditable='true'],
+  [role='button'],
+  [role='checkbox'],
+  [role='combobox'],
+  [role='listbox'],
+  [role='menuitem'],
+  [role='option'],
+  [role='radio'],
+  [role='slider'],
+  [role='spinbutton'],
+  [role='switch'],
+  [role='tab'],
+  [tabindex]:not([tabindex='-1'])
+):is(:focus, :focus-visible) {
+  border-color: var(--dsw-alias-brand-primary) !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+body :is(
+  button,
+  [role='button'],
+  [role='combobox'],
+  [role='option'],
+  [role='switch'],
+  [role='tab'],
+  [tabindex]:not([tabindex='-1'])
+):focus-visible::before,
+body :is(
+  button,
+  [role='button'],
+  [role='combobox'],
+  [role='option'],
+  [role='switch'],
+  [role='tab'],
+  [tabindex]:not([tabindex='-1'])
+):focus-visible::after {
+  outline: none !important;
+  box-shadow: none !important;
+}

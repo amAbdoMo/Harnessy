@@ -77,6 +77,11 @@
   gap: 6px;
 }
 
+.actions > button {
+  height: 36px;
+  border-radius: 18px;
+}
+
 .error {
   color: var(--dsw-alias-state-error-primary);
 }

@@ -131,6 +131,7 @@ export type ConnectionObserver = (snapshot: ConnectionSnapshot) => void
  * @param ctx - Cordis context providing the `tools` registry and logger.
  * @param config - Resolved plugin config selecting the transport and server identity.
  * @param policy - Resolved reconnect policy from {@link resolveReconnectPolicy}.
+ * @param observe - Optional listener for committed connection-state changes.
  * @returns Handle with a `ready` promise for startup-await and a `dispose` for teardown.
  */
 export function startConnection(

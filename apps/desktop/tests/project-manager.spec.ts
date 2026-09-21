@@ -1,9 +1,10 @@
+import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, relative, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { resolveDesktopPaths } from '../src/paths.ts'
 import {
   createSeedMetadata,
@@ -16,6 +17,11 @@ import { DESKTOP_HOST_PROTOCOL_VERSION } from '../src/host-protocol.ts'
 import { DESKTOP_PACKAGES_DIR, DESKTOP_PACKAGE_SET_FILE } from '../src/core-package-set.ts'
 import type { DesktopRelease } from '../src/release.ts'
 import { archivePnpmStore } from '../src/seed-store.ts'
+
+vi.mock('node:child_process', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:child_process')>()
+  return { ...actual, spawn: vi.fn(actual.spawn) }
+})
 
 const roots: string[] = []
 const releaseWorkers: Array<() => Promise<void>> = []
@@ -221,6 +227,31 @@ describe('desktop project transactions', () => {
     expect(readFileSync(join(paths.profile, 'pnpm-workspace.yaml'), 'utf8')).toContain(
       `${JSON.stringify('@scope/provider@1.0.0')}: ${JSON.stringify(patchPath)}`,
     )
+  })
+
+  it('runs pnpm children without a console window', async () => {
+    const root = temporaryRoot()
+    const seed = join(root, 'seed')
+    createTestSeedMetadata(seed, release())
+    writeFileSync(join(seed, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
+    archiveStore(seed)
+    writeIntegrity(seed)
+    const paths = resolveDesktopPaths(join(root, '.dsh'))
+    const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: writeFakePnpm(root) })
+    vi.mocked(spawn).mockClear()
+    try {
+      await manager.applyRelease(seed, '1.0.0', hooks())
+      // The bundled node.exe running pnpm is a console image spawned from a
+      // GUI process, so only this flag keeps Windows from allocating a
+      // console for first-run and upgrade installs.
+      expect(spawn).toHaveBeenCalledWith(
+        process.execPath,
+        expect.any(Array),
+        expect.objectContaining({ windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }),
+      )
+    } finally {
+      vi.mocked(spawn).mockClear()
+    }
   })
 
   it('installs the offline seed and reconciles a mismatched private Host', async () => {

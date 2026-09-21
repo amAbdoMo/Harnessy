@@ -39,7 +39,7 @@
   padding: 0 14px;
   border: none;
   border-radius: 18px;
-  background: var(--dsw-alias-bg-module-platform);
+  background: var(--dsw-alias-interactive-bg-hover);
   font: inherit;
   font-size: 14px;
   line-height: 22px;
@@ -48,7 +48,7 @@
 }
 
 .selector:hover:not(:disabled) {
-  background: var(--dsw-alias-interactive-bg-hover);
+  background: var(--dsw-alias-interactive-bg-active);
 }
 
 .selector:disabled {

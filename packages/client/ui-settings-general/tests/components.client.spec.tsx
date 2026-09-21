@@ -75,6 +75,26 @@ describe('GeneralSection', () => {
 })
 
 describe('SettingsDocumentAction', () => {
+  it('leaves the MCP page action to its dedicated configuration file', () => {
+    const controller = derivedDocumentStore({
+      settings: {
+        describe: vi.fn(() => Promise.resolve({
+          ok: true as const,
+          value: { writable: true, hasDocument: true, namespaces: [] },
+        })),
+        openSettingsDocument: vi.fn(),
+      },
+    })
+    render(<SettingsDocumentAction
+      {...kit}
+      activeSectionId="custom-harness-mcp"
+      t={t}
+      controller={controller}
+      useSnapshot={bindSnapshotSelector(controller.store)}
+    />)
+    expect(screen.queryByRole('button', { name: 'Open configuration file' })).toBeNull()
+  })
+
   it('appears only for a file-backed provider and requests its Host-owned document', async () => {
     const openDocument = vi.fn(() => Promise.resolve({
       ok: true as const, value: { opened: true as const },
@@ -90,6 +110,7 @@ describe('SettingsDocumentAction', () => {
     })
     render(<SettingsDocumentAction
       {...kit}
+      activeSectionId="general"
       t={t}
       controller={controller}
       useSnapshot={bindSnapshotSelector(controller.store)}
@@ -108,6 +129,7 @@ describe('SettingsDocumentAction', () => {
     const controller = new SettingsDocumentStore(ctx, mirror)
     const first = render(<SettingsDocumentAction
       {...kit}
+      activeSectionId="general"
       t={t}
       controller={controller}
       useSnapshot={bindSnapshotSelector(controller.store)}
@@ -117,6 +139,7 @@ describe('SettingsDocumentAction', () => {
     first.unmount()
     render(<SettingsDocumentAction
       {...kit}
+      activeSectionId="general"
       t={t}
       controller={controller}
       useSnapshot={bindSnapshotSelector(controller.store)}
@@ -145,6 +168,7 @@ describe('SettingsDocumentAction', () => {
     })
     render(<SettingsDocumentAction
       {...kit}
+      activeSectionId="general"
       t={t}
       controller={controller}
       useSnapshot={bindSnapshotSelector(controller.store)}

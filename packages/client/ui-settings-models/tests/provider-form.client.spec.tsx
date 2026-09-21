@@ -20,6 +20,25 @@ import { settingsSchema } from './settings-schema.client.ts'
 
 afterEach(cleanup)
 
+/** The label one control currently shows on its trigger. */
+function shownValue(control: HTMLElement): string {
+  return control.textContent ?? ''
+}
+
+/** The option labels one control offers, read from its opened popup. */
+function optionLabels(control: HTMLElement): string[] {
+  fireEvent.click(control)
+  const labels = screen.getAllByRole('option').map(option => option.textContent ?? '')
+  fireEvent.keyDown(control, { key: 'Escape' })
+  return labels
+}
+
+/** Pick the option whose visible label is `label`. */
+function pickOption(control: HTMLElement, label: string): void {
+  fireEvent.click(control)
+  fireEvent.click(screen.getByRole('option', { name: label }))
+}
+
 const t: ModelsSectionInjected['t'] = key => en[key]
 
 const PROTOCOLS = ['openai-completions', 'openai-responses', 'anthropic-messages']
@@ -530,11 +549,11 @@ describe('model capabilities', () => {
 
     // A model that declares nothing shows the adapter's own answer and no
     // level checks: nothing has been claimed for it yet.
-    const mode = screen.getByLabelText<HTMLSelectElement>(`${en.modelReasoning} 1`)
-    expect(mode.value).toBe('inherit')
+    const mode = screen.getByLabelText(`${en.modelReasoning} 1`)
+    expect(shownValue(mode)).toBe(en.modelReasoningInherit)
     expect(screen.queryByRole('checkbox', { name: en.effortLow })).toBeNull()
 
-    fireEvent.change(mode, { target: { value: 'supported' } })
+    pickOption(mode, en.modelReasoningSupported)
     // A declaration with no level in it is one the adapter refuses, so the
     // write is blocked rather than storing a half-made capability.
     expect(screen.getByText(`${en.model} 1: ${en.modelReasoningEffortsEmpty}`)).toBeTruthy()
@@ -543,10 +562,9 @@ describe('model capabilities', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: en.effortOff }))
     fireEvent.click(screen.getByRole('checkbox', { name: en.effortHigh }))
     // Only the levels this row declares are offered as its default.
-    const defaultSelect = screen.getByLabelText<HTMLSelectElement>(`${en.modelReasoningDefault} 1`)
-    expect([...defaultSelect.options].map(option => option.textContent))
-      .toEqual([en.modelReasoningDefaultNone, en.effortOff, en.effortHigh])
-    fireEvent.change(defaultSelect, { target: { value: 'high' } })
+    const defaultSelect = screen.getByLabelText(`${en.modelReasoningDefault} 1`)
+    expect(optionLabels(defaultSelect)).toEqual([en.modelReasoningDefaultNone, en.effortOff, en.effortHigh])
+    pickOption(defaultSelect, en.effortHigh)
     fireEvent.click(screen.getByText(en.apply))
 
     await waitFor(() => { expect(mutate).toHaveBeenCalled() })
@@ -569,7 +587,7 @@ describe('model capabilities', () => {
     openEditor('openai')
     expandModel(1)
 
-    fireEvent.change(screen.getByLabelText(`${en.modelReasoningDefault} 1`), { target: { value: '' } })
+    pickOption(screen.getByLabelText(`${en.modelReasoningDefault} 1`), en.modelReasoningDefaultNone)
     fireEvent.click(screen.getByText(en.apply))
 
     await waitFor(() => { expect(mutate).toHaveBeenCalled() })
@@ -622,7 +640,7 @@ describe('model capabilities', () => {
     openEditor('openai')
     expandModel(1)
 
-    fireEvent.change(screen.getByLabelText(`${en.modelReasoning} 1`), { target: { value: 'disabled' } })
+    pickOption(screen.getByLabelText(`${en.modelReasoning} 1`), en.modelReasoningDisabled)
     // The level checks leave with the declaration they describe.
     expect(screen.queryByRole('checkbox', { name: en.effortHigh })).toBeNull()
     fireEvent.click(screen.getByText(en.apply))
@@ -642,7 +660,7 @@ describe('model capabilities', () => {
     openEditor('openai')
     expandModel(1)
 
-    fireEvent.change(screen.getByLabelText(`${en.modelReasoning} 1`), { target: { value: 'inherit' } })
+    pickOption(screen.getByLabelText(`${en.modelReasoning} 1`), en.modelReasoningInherit)
     fireEvent.click(screen.getByText(en.apply))
 
     await waitFor(() => { expect(mutate).toHaveBeenCalled() })
@@ -657,13 +675,13 @@ describe('model capabilities', () => {
 
     // One row is open at a time: the checks of two rows carry the same names.
     expandModel(1)
-    fireEvent.change(screen.getByLabelText(`${en.modelReasoning} 1`), { target: { value: 'supported' } })
+    pickOption(screen.getByLabelText(`${en.modelReasoning} 1`), en.modelReasoningSupported)
     fireEvent.click(screen.getByRole('checkbox', { name: en.effortLow }))
     fireEvent.click(screen.getByRole('checkbox', { name: en.effortHigh }))
     expandModel(1)
 
     expandModel(2)
-    fireEvent.change(screen.getByLabelText(`${en.modelReasoning} 2`), { target: { value: 'supported' } })
+    pickOption(screen.getByLabelText(`${en.modelReasoning} 2`), en.modelReasoningSupported)
     for (const level of [en.effortLow, en.effortMedium, en.effortHigh, en.effortExtraHigh]) {
       fireEvent.click(screen.getByRole('checkbox', { name: level }))
     }
@@ -741,7 +759,7 @@ describe('model capabilities', () => {
 
     // A source that stated no levels leaves the absence an absence: the row is
     // unchanged, so there is nothing to apply and nothing to write.
-    expect(screen.getByLabelText<HTMLSelectElement>(`${en.modelReasoning} 1`).value).toBe('inherit')
+    expect(shownValue(screen.getByLabelText(`${en.modelReasoning} 1`))).toBe(en.modelReasoningInherit)
     expect(mutate).not.toHaveBeenCalled()
   })
 
@@ -1221,7 +1239,9 @@ describe('hand-declared providers', () => {
     // which would take the whole provider out of the picker. Each model row
     // declares its own levels instead, and a session's picker then offers
     // exactly those together with the provider and model.
-    const fields = () => [...document.querySelectorAll('input,select')]
+    // The card's controls, by their accessible names: text inputs, and the
+    // shared Select's combobox trigger.
+    const fields = () => [...document.querySelectorAll('input,select,[role="combobox"]')]
       .map(el => el.getAttribute('aria-label')).filter(Boolean)
 
     mountCard()
@@ -1362,9 +1382,9 @@ describe('hand-declared providers', () => {
     })
     openEditor('acme-gateway')
 
-    const protocol = screen.getByLabelText<HTMLSelectElement>(en.customApi)
-    expect(protocol.value).toBe('openai-completions')
-    fireEvent.change(protocol, { target: { value: 'anthropic-messages' } })
+    const protocol = screen.getByLabelText(en.customApi)
+    expect(shownValue(protocol)).toBe('openai-completions')
+    pickOption(protocol, 'anthropic-messages')
     fireEvent.click(screen.getByText(en.apply))
 
     await waitFor(() => { expect(mutate).toHaveBeenCalledTimes(1) })
@@ -1387,7 +1407,7 @@ describe('hand-declared providers', () => {
     })
     openEditor('acme-gateway')
 
-    expect(screen.getByLabelText<HTMLSelectElement>(en.customApi).value).toBe('')
+    expect(shownValue(screen.getByLabelText(en.customApi))).toBe(en.customApiUnset)
   })
 
   it('retries only the key after the profile landed, and reports the provider on cancel', async () => {
@@ -1660,7 +1680,7 @@ describe('hand-declared providers', () => {
 
     fireEvent.change(screen.getByLabelText(en.customRoute), { target: { value: 'acme' } })
     fireEvent.change(screen.getByLabelText(en.baseUrl), { target: { value: 'https://acme.test/v1' } })
-    fireEvent.change(screen.getByLabelText(en.customApi), { target: { value: 'anthropic-messages' } })
+    pickOption(screen.getByLabelText(en.customApi), 'anthropic-messages')
     fireEvent.click(screen.getByRole('button', { name: en.addModel }))
     fireEvent.change(screen.getByLabelText(`${en.modelId} 1`), { target: { value: 'm' } })
     fireEvent.click(screen.getByText(en.create))
@@ -1679,7 +1699,9 @@ describe('hand-declared providers', () => {
 
   it('offers no protocol when the namespace declares none', () => {
     mountCard({ protocols: [] })
-    expect(screen.getByLabelText<HTMLSelectElement>(en.customApi).value).toBe('')
+    // Nothing is offered, so nothing is shown: the trigger stays empty rather
+    // than naming a protocol the namespace never declared.
+    expect(shownValue(screen.getByLabelText(en.customApi))).toBe('')
   })
 
   it('closes without writing on cancel, and honors a read-only deployment', () => {

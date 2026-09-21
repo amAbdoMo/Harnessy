@@ -5,11 +5,19 @@ import type { McpManagerState } from '@deepseek-ai/dsh-api-remotes/client'
 import {
   McpServersSection, type McpManagerOperations, type McpServersSectionProps,
 } from '../src/client/McpServersSection.tsx'
+import {
+  McpConfigurationAction, type McpConfigurationActionProps,
+} from '../src/client/McpConfigurationAction.tsx'
 import { en } from '../src/client/locales.ts'
 
 afterEach(cleanup)
 
-const t = (key: keyof typeof en): string => en[key]
+const t = (key: keyof typeof en, params?: Record<string, unknown>): string => {
+  const template: string = en[key]
+  if (params === undefined) return template
+  return template.replace(/\{(\w+)\}/gu, (whole, name: string) =>
+    name in params ? String(params[name]) : whole)
+}
 
 const connectedState: McpManagerState = {
   available: true,
@@ -38,6 +46,7 @@ function operations(overrides: Partial<McpManagerOperations> = {}): McpManagerOp
     setEnabled: vi.fn(async () => ({ state: connectedState })),
     reconnect: vi.fn(async () => ({ state: connectedState })),
     remove: vi.fn(async () => ({ state: { ...connectedState, servers: [] } })),
+    openConfigurationFile: vi.fn(async () => ({})),
     ...overrides,
   }
 }
@@ -58,7 +67,7 @@ describe('Harnessy MCP server settings', () => {
   })
 
   it('adds a remote server while keeping the authentication value inside the password field', async () => {
-    const save = vi.fn(async () => ({ state: connectedState }))
+    const save = vi.fn<McpManagerOperations['save']>(async () => ({ state: connectedState }))
     const api = operations({
       describe: vi.fn(async () => ({ state: { ...connectedState, servers: [] } })),
       save,
@@ -90,7 +99,7 @@ describe('Harnessy MCP server settings', () => {
         environmentKeys: ['API_TOKEN'], updatedAt: 1,
       }],
     }
-    const save = vi.fn(async () => ({ state }))
+    const save = vi.fn<McpManagerOperations['save']>(async () => ({ state }))
     const setEnabled = vi.fn(async () => ({ state }))
     const reconnect = vi.fn(async () => ({ state }))
     const remove = vi.fn(async () => ({ state: { ...state, servers: [] } }))
@@ -109,5 +118,73 @@ describe('Harnessy MCP server settings', () => {
     fireEvent.click(screen.getByRole('button', { name: en.mcpRemove }))
     fireEvent.click(screen.getAllByRole('button', { name: en.mcpRemove }).at(-1)!)
     await waitFor(() => { expect(remove).toHaveBeenCalledWith('wordpress-id') })
+  })
+
+  it('fills an editable WordPress MCP Adapter template without saving it automatically', async () => {
+    const save = vi.fn<McpManagerOperations['save']>(async () => ({ state: connectedState }))
+    mount(operations({
+      describe: vi.fn(async () => ({ state: { ...connectedState, servers: [] } })),
+      save,
+    }))
+
+    fireEvent.click(await screen.findByRole('button', { name: new RegExp(en.mcpAdd, 'u') }))
+    fireEvent.click(screen.getByRole('button', { name: en.mcpLocal }))
+    fireEvent.click(screen.getByRole('button', { name: en.mcpWordPressTemplate }))
+
+    expect(screen.getByLabelText<HTMLInputElement>(en.mcpCommand).value).toBe('npx')
+    expect(screen.getByLabelText<HTMLTextAreaElement>(en.mcpArguments).value)
+      .toBe('-y\n@automattic/mcp-wordpress-remote@latest')
+    expect(screen.getByLabelText<HTMLTextAreaElement>(en.mcpEnvironment).value).toContain(
+      'WP_API_URL=https://your-site.example/wp-json/mcp/mcp-adapter-default-server',
+    )
+    expect(save).not.toHaveBeenCalled()
+  })
+
+  it('reviews and imports common JSON profiles without rendering protected values', async () => {
+    const save = vi.fn<McpManagerOperations['save']>(async () => ({ state: connectedState }))
+    mount(operations({
+      describe: vi.fn(async () => ({ state: { ...connectedState, servers: [] } })),
+      save,
+    }))
+    const contents = JSON.stringify({
+      mcpServers: {
+        wordpress: {
+          command: 'npx',
+          args: ['-y', '@automattic/mcp-wordpress-remote@latest'],
+          env: { WP_API_PASSWORD: 'secret-password' },
+        },
+        hosted: {
+          type: 'http',
+          url: 'https://tools.example/mcp',
+          headers: { Authorization: 'Bearer secret-token' },
+        },
+      },
+    })
+    const file = new File([contents], 'mcp.json', { type: 'application/json' })
+    Object.defineProperty(file, 'text', { value: async () => contents })
+
+    fireEvent.change(await screen.findByLabelText(en.mcpImportFile), { target: { files: [file] } })
+    expect(await screen.findByRole('region', { name: en.mcpImportReviewTitle })).toBeTruthy()
+    expect(screen.getAllByText('wordpress')).toHaveLength(2)
+    expect(screen.getAllByText('hosted')).toHaveLength(2)
+    expect(document.body.textContent).not.toContain('secret-password')
+    expect(document.body.textContent).not.toContain('secret-token')
+
+    fireEvent.click(screen.getByRole('button', { name: en.mcpImportConfirm }))
+    await waitFor(() => { expect(save).toHaveBeenCalledTimes(2) })
+    expect(save.mock.calls[0]?.[0]).toMatchObject({ transport: 'stdio', serverName: 'wordpress' })
+    expect(save.mock.calls[1]?.[0]).toMatchObject({ transport: 'streamable-http', serverName: 'hosted' })
+  })
+})
+
+describe('Harnessy MCP configuration action', () => {
+  it('opens the dedicated MCP document only from the MCP page', async () => {
+    const openConfigurationFile = vi.fn(async () => ({}))
+    const props = { activeSectionId: 'general', openConfigurationFile, t } as unknown as McpConfigurationActionProps
+    const view = render(<McpConfigurationAction {...props} />)
+    expect(screen.queryByRole('button', { name: en.mcpOpenConfiguration })).toBeNull()
+    view.rerender(<McpConfigurationAction {...props} activeSectionId="custom-harness-mcp" />)
+    fireEvent.click(screen.getByRole('button', { name: en.mcpOpenConfiguration }))
+    await waitFor(() => { expect(openConfigurationFile).toHaveBeenCalledWith() })
   })
 })

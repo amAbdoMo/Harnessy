@@ -10,7 +10,9 @@ Status: implemented
 
 ## Decision
 
-全局 New Session 操作会创建或复用一条未归档、未分组的空白 Session。创建 Session 时同时省略 `workspaceId` 与 `cwd`，由 Host 提供已配置的默认工作目录，不显示文件夹提示。并发的全局请求共享同一次创建，并打开同一条临时 Session。
+全局 New Session 操作会创建一条新的未分组 Session。创建 Session 时同时省略 `workspaceId` 与 `cwd`，由 Host 解析当前 `session-workspace` 设置，不显示文件夹提示。重叠在同一次创建过程中的并发请求会打开同一条 Session，之后的操作则获得新身份，不会继承旧空白 Session 的目录。
+
+默认模式保留 Host 启动目录。远程网站模式要求用户选择绝对父目录，并为每条新 Session 创建一个 `Harnessy Remote Work - <id>` 子目录。现有 Session 保留其不可变 header 中的工作目录。此模式隔离临时本地文件以便清理；它不会把 Session 限制为仅使用 MCP 工具，也不会阻止权限明确允许的绝对路径操作。
 
 Workspace 作用域操作继续传入 Workspace id，并保留每个 Workspace 的空白 Session 复用行为。应用启动导航仍可重新打开最近使用的 Workspace；改为未分组默认值的是显式的全局 New Session 操作。
 
@@ -24,6 +26,6 @@ Workspace 作用域操作继续传入 Workspace id，并保留每个 Workspace �
 
 ## Consequences
 
-以浏览器为主的 Session 可以一键开始，并在选择项目之前显示在 Ungrouped 下。本地编码工作通过现有选择器或 Workspace 作用域操作多做一次显式项目选择。Host 仍为每个 agent 分配有效工作目录，因此要求绝对 `cwd` 的 provider 与工具保持现有约定。
+以浏览器为主的 Session 可以一键开始，并在选择项目之前显示在 Ungrouped 下。本地编码工作通过现有选择器或 Workspace 作用域操作多做一次显式项目选择。已选 Workspace 路径和显式 API `cwd` 的优先级高于该设置。Host 仍为每个 agent 分配有效的绝对工作目录，fork 与 subagent 则保留来源或父目录。
 
-聚焦的 Workspace service 测试覆盖空白复用、排除已归档和 Workspace 所有的 Session、并发创建以及显式目标。Conversation 测试覆盖可输入的未分组 hero 与可选项目选择器。
+聚焦的 Workspace service 测试覆盖新的未分组创建、并发创建和显式 Workspace 目标。Session controller 测试覆盖实时默认值解析、优先级、校验与逐 Session 文件夹隔离。Conversation 测试覆盖可输入的未分组 hero 与可选项目选择器。

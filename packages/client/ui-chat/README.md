@@ -8,12 +8,13 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use this package to render a browser chat from recorded Session conversations, including historical images, localized actions, and restored scroll position. Compact display folds completed-turn process rows while keeping the final answer and independently useful context visible; packed historical Assistant runs remain collapsed. Local transcript and steering submissions appear immediately, remain in their original surface, and disappear atomically when authoritative Session records arrive, while queued submissions stay outside Chat. The package does not assemble or modify model requests.
+Use this package to render a browser chat from recorded Session conversations, including historical images, localized actions, live activity summaries, reliable per-turn file changes, and restored scroll position. Compact display folds completed-turn process rows while keeping the final answer and independently useful context visible; packed historical Assistant runs remain collapsed. Local transcript and steering submissions appear immediately, remain in their original surface, and disappear atomically when authoritative Session records arrive, while queued submissions stay outside Chat. The package does not assemble or modify model requests.
 
 ## Table of Contents
 
 - [System prompt row](#system-prompt-row)
 - [Turn token usage](#turn-token-usage)
+- [Live activity and file changes](#live-activity-and-file-changes)
 - [Turn Process Folding](#turn-process-folding)
 - [Scroll ownership](#scroll-ownership)
 - [Model Experience](#model-experience)
@@ -31,6 +32,15 @@ Each nonempty appended `system/message` owns a collapsed prompt row, including a
 ## Turn token usage
 
 A completed Turn shows an expandable usage row only when the loaded window includes `turn/start` and every started model attempt reports safe, exact usage. The row omits unavailable optional buckets. Incomplete or contradictory accounting hides the complete disclosure instead of presenting a partial total.
+
+-----
+
+<a id="live-activity-and-file-changes"></a>
+## Live activity and file changes
+
+In Compact mode, consecutive reasoning and Tool rows in the current live Turn collapse behind one localized activity summary between ordinary Assistant progress messages. The summary names the represented work categories, while a failed call forces its group open and marks it for attention. Opening and closing the disclosure hides stable Chat Node Seats without remounting their renderers, so running controls and streamed results retain their state. Completed Turns continue to use the Turn-wide process folding described below.
+
+Successful settled Tool results contribute file changes only when their recorded metadata carries valid applied diff hunks; shell commands and other calls without such evidence are never guessed as edits. Chat aggregates those hunks per Turn and per file, shows the newest Turn in the composer dock and older Turns beside their completion tail, and opens a selected file in the right-sidebar diff viewer. The summary counts distinct files and exact added and removed lines across the recorded hunks. The live run clock renders seconds below one minute, minutes and seconds below one hour, and hours, remaining minutes, and seconds at one hour or later.
 
 -----
 

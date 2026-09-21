@@ -107,8 +107,11 @@ export interface SubagentAutomaticRouting {
 
 /** Run bounds shared by every role. */
 export interface SubagentRunLimits {
-  /** Delegations allowed in flight together, foreground and background. */
-  readonly maxConcurrentRuns: number
+  /**
+   * Delegations allowed in flight together, foreground and background.
+   * `adaptive` lets the parent choose each parallel batch up to the product ceiling.
+   */
+  readonly maxConcurrentRuns: number | 'adaptive'
   /** Wall-clock bound used by a definition that names none. */
   readonly defaultTimeoutMs: number
 }

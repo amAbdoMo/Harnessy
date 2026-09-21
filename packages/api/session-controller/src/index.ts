@@ -23,6 +23,7 @@ import { buildModelCatalog } from './catalog.ts'
 import { installModelSelectionProjection } from './model-selection-projection.ts'
 import { SessionSkillCatalog } from './skill-catalog.ts'
 import { SessionMediaReferences } from './media-references.ts'
+import { SessionWorkspaceDirectory } from './workspace-settings.ts'
 import type {
   ModelCatalog,
   SessionAttachmentRequest,
@@ -117,7 +118,12 @@ export class SessionController extends TypertRemoteService {
     super(ctx, 'sessionController', { namespace: 'session' })
     installModelSelectionProjection(ctx)
     this.agents = new ApiSessionAgentController(ctx)
-    this.commands = new SessionCommandController(ctx, this.agents, process.cwd())
+    const workspaceDirectory = new SessionWorkspaceDirectory(ctx, process.cwd())
+    this.commands = new SessionCommandController(
+      ctx,
+      this.agents,
+      sessionId => workspaceDirectory.resolve(sessionId),
+    )
     ctx.effect(() => ctx.fileUploads.registerAgentResolver(async (sessionId) => {
       const result = await this.agents.resolveAgent(sessionId)
       if ('error' in result) throw result.error

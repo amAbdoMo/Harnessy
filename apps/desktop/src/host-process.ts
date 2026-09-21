@@ -117,6 +117,10 @@ export class DesktopHostProcess {
     ], {
       cwd: this.projectDir,
       env: childEnvironment(),
+      // The bundled node.exe is a console image and the shell is a GUI process
+      // with no console to inherit, so Windows would otherwise allocate a
+      // console window for every host child during startup.
+      windowsHide: true,
       stdio: ['ignore', 'pipe', 'pipe', 'pipe', 'pipe', 'ipc'],
     })
     const requestPipe = child.stdio[DESKTOP_REQUEST_PIPE_FD]

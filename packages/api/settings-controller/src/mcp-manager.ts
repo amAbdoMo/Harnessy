@@ -7,6 +7,8 @@
  */
 
 import { randomUUID } from 'node:crypto'
+import { readFile, writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import { credentialKey } from '@deepseek-ai/dsh-credentials'
 import type { CredentialProvider, CredentialRecord } from '@deepseek-ai/dsh-credentials'
@@ -16,9 +18,10 @@ import {
 import type {
   Config as McpClientConfig, ConnectionHandle, ConnectionSnapshot,
 } from '@deepseek-ai/dsh-mcp-client'
+import { openNativeTextFile } from '@deepseek-ai/dsh-native-command'
 import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import type {
-  McpManagerState, McpServerInput, McpServerStatus, McpServerView,
+  McpManagerState, McpServerInput, McpServerStatus, McpServerView, SettingsDocumentOpenValue,
 } from './types.ts'
 
 const VAULT_KEY = credentialKey('mcp-manager', 'servers')
@@ -64,9 +67,16 @@ interface RuntimeEntry {
   readonly handle: ConnectionHandle
 }
 
+interface SynchronizedVault {
+  readonly vault: McpVault
+  readonly imported: boolean
+}
+
 /** Connection factory replaceable by Host unit tests. */
 export interface McpManagerControllerInternals {
   readonly startConnection?: typeof startManagedConnection
+  readonly configurationPath?: string
+  readonly openTextFile?: (path: string, signal: AbortSignal) => Promise<void>
 }
 
 declare module '@deepseek-ai/cordis' {
@@ -84,6 +94,9 @@ export class McpManagerController extends TypertRemoteService {
   private queue: Promise<void> = Promise.resolve()
   private ignoreVaultEvent = false
   private readonly startSupervisedConnection: typeof startManagedConnection
+  private readonly configurationPath: string
+  private readonly openTextFile: (path: string, signal: AbortSignal) => Promise<void>
+  private configurationText: string | undefined
 
   /**
    * @param ctx - Host context carrying credential storage and the tool registry when composed.
@@ -92,13 +105,24 @@ export class McpManagerController extends TypertRemoteService {
   constructor(ctx: Context, internals: McpManagerControllerInternals = {}) {
     super(ctx, 'mcpManagerController', { namespace: 'mcpManager' })
     this.startSupervisedConnection = internals.startConnection ?? startManagedConnection
+    const home = process.env.DSH_HOME
+    this.configurationPath = internals.configurationPath
+      ?? (home === undefined ? '' : join(home, 'mcp-servers.json'))
+    this.openTextFile = internals.openTextFile ?? openNativeTextFile
     ctx.inject(['credentials', 'tools'], (runtimeContext) => {
       runtimeContext.effect(async () => {
         this.runtimeContext = runtimeContext
-        await this.serial(async () => { await this.reconcile(await this.readVault()) })
+        await this.serial(async () => {
+          const synchronized = await this.readSynchronizedVault()
+          await this.reconcile(synchronized.vault)
+        })
         const stop = runtimeContext.on('credentials/record-updated', (key) => {
           if (key !== VAULT_KEY || this.ignoreVaultEvent) return
-          void this.serial(async () => { await this.reconcile(await this.readVault()) })
+          void this.serial(async () => {
+            const vault = await this.readVault()
+            await this.writeConfiguration(vault)
+            await this.reconcile(vault)
+          })
         })
         return async () => {
           stop()
@@ -115,7 +139,28 @@ export class McpManagerController extends TypertRemoteService {
    */
   @Remote
   describe(): Promise<McpManagerState> {
-    return this.serial(async () => this.publicState(await this.readVault()))
+    return this.serial(async () => this.publicState(await this.synchronizedVault()))
+  }
+
+  /**
+   * Materialize and open the dedicated MCP registry document.
+   * @param signal - caller lifetime; abort terminates the native open command.
+   * @returns confirmation after the operating system accepts the document.
+   */
+  @Remote
+  openConfigurationFile(signal: AbortSignal): Promise<SettingsDocumentOpenValue> {
+    return this.serial(async () => {
+      throwIfOpenAborted(signal)
+      const vault = await this.synchronizedVault()
+      await this.writeConfiguration(vault)
+      try {
+        await this.openTextFile(this.requiredConfigurationPath(), signal)
+      } catch (error: unknown) {
+        throwIfOpenAborted(signal)
+        throw new RemoteError('gateway/internal', `MCP configuration open failed: ${messageOf(error)}`, {}, { cause: error })
+      }
+      return { opened: true }
+    })
   }
 
   /**
@@ -127,7 +172,7 @@ export class McpManagerController extends TypertRemoteService {
   save(input: McpServerInput): Promise<McpManagerState> {
     return this.serial(async () => {
       const credentials = this.credentials()
-      const vault = await this.readVault()
+      const vault = await this.synchronizedVault()
       const existing = input.id === undefined ? undefined : vault.servers.find(server => server.id === input.id)
       if (input.id !== undefined && existing === undefined) throw notFound(input.id)
       if (existing === undefined && vault.servers.length >= MAX_SERVERS) {
@@ -143,6 +188,7 @@ export class McpManagerController extends TypertRemoteService {
         : vault.servers.map(server => server.id === saved.id ? saved : server)
       const next: McpVault = { version: 1, servers }
       await this.writeVault(credentials, next)
+      await this.writeConfiguration(next)
       await this.reconcile(next)
       return this.publicState(next)
     })
@@ -158,7 +204,7 @@ export class McpManagerController extends TypertRemoteService {
   setEnabled(serverId: string, enabled: boolean): Promise<McpManagerState> {
     return this.serial(async () => {
       const credentials = this.credentials()
-      const vault = await this.readVault()
+      const vault = await this.synchronizedVault()
       const current = vault.servers.find(server => server.id === serverId)
       if (current === undefined) throw notFound(serverId)
       const next: McpVault = {
@@ -168,6 +214,7 @@ export class McpManagerController extends TypertRemoteService {
           : server),
       }
       await this.writeVault(credentials, next)
+      await this.writeConfiguration(next)
       await this.reconcile(next)
       return this.publicState(next)
     })
@@ -181,7 +228,7 @@ export class McpManagerController extends TypertRemoteService {
   @Remote
   reconnect(serverId: string): Promise<McpManagerState> {
     return this.serial(async () => {
-      const vault = await this.readVault()
+      const vault = await this.synchronizedVault()
       const server = vault.servers.find(candidate => candidate.id === serverId)
       if (server === undefined) throw notFound(serverId)
       if (!server.enabled) throw rejected(serverId, 'enable the server before testing its connection')
@@ -201,13 +248,14 @@ export class McpManagerController extends TypertRemoteService {
   deleteServer(serverId: string): Promise<McpManagerState> {
     return this.serial(async () => {
       const credentials = this.credentials()
-      const vault = await this.readVault()
+      const vault = await this.synchronizedVault()
       if (!vault.servers.some(server => server.id === serverId)) throw notFound(serverId)
       const next: McpVault = {
         version: 1,
         servers: vault.servers.filter(server => server.id !== serverId),
       }
       await this.writeVault(credentials, next)
+      await this.writeConfiguration(next)
       await this.reconcile(next)
       return this.publicState(next)
     })
@@ -281,6 +329,45 @@ export class McpManagerController extends TypertRemoteService {
     const credentials = this.ctx.get('credentials')
     if (credentials === undefined) return { version: 1, servers: [] }
     return parseVault(await credentials.readRecord(VAULT_KEY))
+  }
+
+  private requiredConfigurationPath(): string {
+    if (this.configurationPath === '') {
+      throw unavailable('DSH_HOME is unavailable, so the MCP configuration file has no durable location')
+    }
+    return this.configurationPath
+  }
+
+  private async synchronizedVault(): Promise<McpVault> {
+    const synchronized = await this.readSynchronizedVault()
+    if (synchronized.imported) await this.reconcile(synchronized.vault)
+    return synchronized.vault
+  }
+
+  private async readSynchronizedVault(): Promise<SynchronizedVault> {
+    const vault = await this.readVault()
+    const path = this.requiredConfigurationPath()
+    let text: string
+    try {
+      text = await readFile(path, 'utf8')
+    } catch (error: unknown) {
+      if (!isMissingFile(error)) throw error
+      await this.writeConfiguration(vault)
+      return { vault, imported: false }
+    }
+    if (text === this.configurationText) return { vault, imported: false }
+    const imported = parseConfigurationText(text)
+    this.configurationText = text
+    if (profileKeyOfVault(imported) === profileKeyOfVault(vault)) return { vault, imported: false }
+    await this.writeVault(this.credentials(), imported)
+    return { vault: imported, imported: true }
+  }
+
+  private async writeConfiguration(vault: McpVault): Promise<void> {
+    const path = this.requiredConfigurationPath()
+    const text = `${JSON.stringify(vault, null, 2)}\n`
+    await writeFile(path, text, { encoding: 'utf8', mode: 0o600 })
+    this.configurationText = text
   }
 
   private async writeVault(credentials: CredentialProvider, vault: McpVault): Promise<void> {
@@ -400,6 +487,60 @@ function parseVault(record: CredentialRecord | undefined): McpVault {
   if (payload.version !== 1 || !Array.isArray(payload.servers)) return { version: 1, servers: [] }
   const servers = payload.servers.filter(isStoredServer)
   return { version: 1, servers }
+}
+
+function parseConfigurationText(text: string): McpVault {
+  let value: unknown
+  try {
+    value = JSON.parse(text) as unknown
+  } catch (error: unknown) {
+    throw rejected(undefined, `MCP configuration is not valid JSON: ${messageOf(error)}`)
+  }
+  if (!isRecord(value) || value.version !== 1 || !Array.isArray(value.servers)) {
+    throw rejected(undefined, 'MCP configuration must contain version 1 and a servers array')
+  }
+  if (value.servers.length > MAX_SERVERS || !value.servers.every(isStoredServer)) {
+    throw rejected(undefined, `MCP configuration must contain at most ${MAX_SERVERS} complete server entries`)
+  }
+  const ids = new Set<string>()
+  const namespaces = new Set<string>()
+  for (const server of value.servers) {
+    if (server.id.length === 0 || server.id.length > 128 || ids.has(server.id)) {
+      throw rejected(server.id, 'MCP server ids must be unique and contain 1–128 characters')
+    }
+    ids.add(server.id)
+    bounded(server.name, 80, 'server name')
+    if (!SERVER_NAME.test(server.serverName) || namespaces.has(server.serverName)) {
+      throw rejected(server.id, 'tool namespaces must be unique and use 1–32 letters, numbers, underscores, or hyphens')
+    }
+    namespaces.add(server.serverName)
+    if (!Number.isFinite(server.updatedAt)) throw rejected(server.id, 'updatedAt must be a finite number')
+    if (server.transport === 'streamable-http') {
+      secureMcpUrl(server.url, server.id)
+      if (!HEADER_NAME.test(server.headerName)) throw rejected(server.id, 'authentication header contains invalid characters')
+      optionalSecret(server.authorization)
+    } else {
+      bounded(server.command, 1_024, 'command')
+      if (server.args.length > 64 || server.args.some(arg => arg.length > 2_048)) {
+        throw rejected(server.id, 'command arguments must contain at most 64 entries of 2,048 characters')
+      }
+      if (server.cwd.length > 2_048) throw rejected(server.id, 'working directory can contain at most 2,048 characters')
+      validateEnvironment(server.environment, server.id)
+    }
+  }
+  return { version: 1, servers: value.servers }
+}
+
+function profileKeyOfVault(vault: McpVault): string {
+  return JSON.stringify(vault)
+}
+
+function isMissingFile(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && Reflect.get(error, 'code') === 'ENOENT'
+}
+
+function throwIfOpenAborted(signal: AbortSignal): void {
+  if (signal.aborted) throw new RemoteError('gateway/cancelled', 'MCP configuration open was aborted', {})
 }
 
 function isStoredServer(value: unknown): value is StoredServer {

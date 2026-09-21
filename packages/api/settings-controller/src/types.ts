@@ -108,6 +108,8 @@ export interface AccountProviderView {
   readonly accountCount: number
   readonly activeAccountId?: string
   readonly usageAvailable: boolean
+  /** Whether exhausted Codex limits promote another eligible saved membership. */
+  readonly autoSwitchOnLimit: boolean
 }
 
 /** One quota interval returned by a provider-supported usage service. */
@@ -123,15 +125,22 @@ export interface AccountUsageView {
   readonly windows: readonly AccountUsageWindow[]
 }
 
+/** Codex quota context associated with one saved OAuth membership. */
+export type AccountUsageScope = 'personal' | 'workspace'
+
 /** Secret-free account row returned to the Harnessy client. */
 export interface ManagedAccountView {
   readonly id: string
   readonly provider: AccountProviderId
+  /** Stable browser-safe identity shared by one person's saved provider contexts. */
+  readonly ownerId: string
   readonly name: string
   readonly detail?: string
   readonly initials: string
   readonly active: boolean
   readonly authMode: AccountAuthMode
+  /** Codex quota context; absent for providers without scoped subscription usage. */
+  readonly usageScope?: AccountUsageScope
   readonly usage?: AccountUsageView
   readonly usageUpdatedAt?: number
   readonly usageError?: string
@@ -142,6 +151,33 @@ export interface AccountsState {
   readonly writable: boolean
   readonly providers: readonly AccountProviderView[]
   readonly accounts: readonly ManagedAccountView[]
+}
+
+/** Browser-safe record emitted after Codex promotes another saved membership. */
+export interface AccountAutoSwitchEvent {
+  readonly id: string
+  readonly occurredAt: number
+  readonly provider: 'openai-codex'
+  readonly limit: '5h' | '7d'
+  readonly from: {
+    readonly name: string
+    readonly usageScope?: AccountUsageScope
+  }
+  readonly to: {
+    readonly name: string
+    readonly usageScope?: AccountUsageScope
+  }
+}
+
+declare module '@deepseek-ai/cordis' {
+  interface Events {
+    /**
+     * Report one committed automatic Codex account promotion.
+     * @param event - secret-free source, destination, quota, and timestamp facts.
+     * @mode emit
+     */
+    'accounts/auto-switched'(event: AccountAutoSwitchEvent): void
+  }
 }
 
 /** Terminal result of a cancellable provider account sign-in. */

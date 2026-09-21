@@ -10,7 +10,9 @@ The global New Session action inherited the current or most recently active Work
 
 ## Decision
 
-The global New Session action creates or reuses one unarchived, ungrouped blank Session. Session creation omits both `workspaceId` and `cwd`, so the Host supplies its configured default working directory without exposing a folder prompt. Concurrent global requests share one creation attempt and open the same provisional Session.
+The global New Session action creates a fresh ungrouped Session. Session creation omits both `workspaceId` and `cwd`, so the Host resolves the current `session-workspace` setting without exposing a folder prompt. Concurrent requests that overlap one creation attempt open the same Session, while later gestures receive a new identity and cannot inherit a stale blank Session directory.
+
+The default mode preserves the Host launch directory. Remote website mode requires an absolute user-selected parent directory and creates one `Harnessy Remote Work - <id>` child for each new Session. Existing Sessions retain the working directory in their immutable header. This mode isolates temporary local files for cleanup; it does not restrict the Session to MCP tools or prevent explicitly permitted absolute-path operations.
 
 Workspace-scoped actions keep passing their Workspace id and retain the existing per-Workspace blank reuse. The application-start navigation policy may still reopen the most recent Workspace; the explicit global New Session gesture is the operation whose default is ungrouped.
 
@@ -24,6 +26,6 @@ An ungrouped blank Session renders **No project** in the interactive Workspace c
 
 ## Consequences
 
-Browser-led sessions start with one click and appear under Ungrouped until a project is selected. Local coding work adds one explicit project choice through the existing chip or Workspace-scoped action. The Host still assigns every agent a valid working directory, so providers and tools that require an absolute `cwd` keep their existing contract.
+Browser-led sessions start with one click and appear under Ungrouped until a project is selected. Local coding work adds one explicit project choice through the existing chip or Workspace-scoped action. A selected Workspace path and an explicit API `cwd` take precedence over the setting. The Host still assigns every agent a valid absolute working directory, and forks and subagents retain their source or parent directory.
 
-Focused Workspace-service tests cover blank reuse, archived and Workspace-owned exclusions, concurrent creation, and explicit targeting. Conversation tests cover the writable ungrouped hero and its optional project chip.
+Focused Workspace-service tests cover fresh ungrouped creation, concurrent creation, and explicit Workspace targeting. Session-controller tests cover live default resolution, precedence, validation, and per-Session folder isolation. Conversation tests cover the writable ungrouped hero and its optional project chip.

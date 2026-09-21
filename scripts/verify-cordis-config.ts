@@ -10,7 +10,7 @@
  * Loader fixtures resolve from their package manifest.
  */
 
-import { globSync, readFileSync } from 'node:fs'
+import { existsSync, globSync, readFileSync } from 'node:fs'
 import { dirname, relative, resolve } from 'node:path'
 import { Script } from 'node:vm'
 import ts from 'typescript'
@@ -57,11 +57,24 @@ const CHOOSER_BACKEND_PACKAGES = [
 const errors: string[] = []
 const pluginReferences: PluginReference[] = []
 
+function readConfig(file: string): string {
+  let path = resolve(root, file)
+  for (let depth = 0; depth < 8; depth += 1) {
+    const source = readFileSync(path, 'utf8')
+    const reference = source.trim()
+    if (source !== reference || !/^\.\.?[/\\].+\.ya?ml$/u.test(reference)) return source
+    const target = resolve(dirname(path), reference)
+    if (!existsSync(target)) return source
+    path = target
+  }
+  throw new Error(`${file}: symbolic-link placeholder chain exceeds eight files`)
+}
+
 if (import.meta.main) {
   const files = cordisConfigFiles(root)
 
   for (const file of files) {
-    const document = loadCordisYaml(readFileSync(resolve(root, file), 'utf8'))
+    const document = loadCordisYaml(readConfig(file))
     if (!isUnknownArray(document)) {
       errors.push(`${file}: root must be a Loader entry array`)
       continue
@@ -162,7 +175,7 @@ function validatePresetPlaneSeparation(): string[] {
 
 /** Every entry of one config file, or an empty list when it is not an entry array. */
 function loadEntries(file: string): unknown[] {
-  const document = loadCordisYaml(readFileSync(resolve(root, file), 'utf8'))
+  const document = loadCordisYaml(readConfig(file))
   return isUnknownArray(document) ? document : []
 }
 

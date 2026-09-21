@@ -60,18 +60,18 @@ Windows 默认位置为 `%LOCALAPPDATA%\CustomHarness\Harness`、`%LOCALAPPDATA%
 <a id="command-code-delegation"></a>
 ## Command Code 委派
 
-此 profile 挂载 `commandcode-delegation` 宿主行。它为本 profile 中的每个 agent 添加一个 token 稳定的 `commandcode_delegate` 工具与一个 `list_commandcode_lanes` 发现工具，以及一个保存具名通道与运行上限的实时 `commandcode-delegation` 设置分区。该分区没有自己的设置页面：**子代理** 页面会读取该行的 `commandcode` Remote 命名空间，以获取后端安装状态，以及其角色选择路由所用的模型目录。
+此 profile 挂载 `commandcode-delegation` 宿主行，并关闭其角色目录出现之前的旧工具。实时 `commandcode-delegation` 设置分区、`commandcode` 后端、健康探测与模型目录仍然可用，因此 **子代理** 页面可以针对 Command Code 配置角色，而不会向模型暴露第二条委派路径。
 
-每个通道固定了精确的 Command Code 模型、推理强度与访问级别，因此被委派的任务无法选择或扩大其中任何一项。用户自己安装并登录的 CLI 是唯一的后端：此 profile 不内置任何 Command Code 包、不保存任何 Command Code 凭据，也不回退到任何其他产品、模型或可执行文件。加载该行不会启动任何 Command Code 进程。禁用它会移除这两个工具、该分区，以及子代理页面本会报告的后端状态，且不影响其他任何产品配置档。
+每个通道固定了精确的 Command Code 模型、推理强度与访问级别，因此被委派的任务无法选择或扩大其中任何一项。用户自己安装并登录的 CLI 是唯一的后端：此 profile 不内置任何 Command Code 包、不保存任何 Command Code 凭据，也不回退到任何其他产品、模型或可执行文件。加载该行不会启动任何 Command Code 进程。禁用它会移除该分区以及子代理页面本会报告的后端状态，且不影响其他任何产品配置档。
 
-通道设置分区与统一角色目录并存挂载，因此在用户转向角色目录期间，`commandcode_delegate` 与 `list_commandcode_lanes` 仍可继续通过它工作。
+已存通道分区仍作为迁移输入和后端配置存在。其他 profile 可以保留 `commandcode_delegate` 与 `list_commandcode_lanes`；Harnessy 刻意只暴露角色目录工具。
 
 <a id="subagents"></a>
 ## 子代理
 
 此 profile 挂载 `subagent-roster` 宿主行与 `ui-settings-subagents` 客户端行。两者共同添加设置中的顶层 **子代理** 页面及其背后的角色目录：`subagent-roster` 设置分区，每个已存角色一张卡片——涵盖其模型与推理强度、沙箱访问级别、调用方式、工具范围与固定指令——以及按工作区的覆盖层与 Agent 选择模型时所要解析的自动路由授权。
 
-宿主行会为本 profile 中的每个 agent 添加一个 token 稳定的 `delegate` 工具与一个 `list_subagents` 发现工具，因此两套委派工具并存。它在加载时注册这些工具，且不启动任何子进程。
+宿主行会为本 profile 中的每个 agent 添加一个 token 稳定的 `delegate` 工具与一个 `list_subagents` 发现工具。Harnessy 会禁用通用 `subagent`、`subagent_fork` 工具和角色目录之前的 Command Code 工具，因此每个新子代理都必须指定一个已启用的配置角色。工具指引要求模型在首次委派前读取目录、选择最匹配的角色，并把相关项目批量交给一个子代理，而不是为每张图片、每个文件或每条记录各建一个子代理。最终整合与验证由父 Agent 保留。加载该行不会启动任何子进程。
 
 在首次发现已存通道配置的加载中，宿主行还会把该配置一次性写入 `subagent-roster` 文档。`commandcode-delegation` 分区、其按工作区的 `projects` 覆盖层，以及 `subagent-model-selection` 分区都原样保留，用户可查看或回退；用户已自行编辑过的角色目录绝不会被替换。
 

@@ -42,7 +42,8 @@ async function bench() {
       : stubSettingsScope().scope,
   } as never)
   runtime.ctx.provide('layout', { openRightbar: vi.fn(), closeRightbar: vi.fn() } as never)
-  runtime.ctx.provide('sidebarRight', { openResource: vi.fn() } as never)
+  runtime.ctx.provide('sidebarRight', { openResource: vi.fn(), openTab: vi.fn() } as never)
+  runtime.ctx.provide('sidebarRightTabs', { register: vi.fn(() => () => {}) } as never)
   runtime.ctx.provide('uiWorkspace', {
     connectWorkspace: vi.fn(async () => SID),
   } as never)
@@ -56,6 +57,11 @@ async function bench() {
     'conversation': { kind: 'single', scope: 'session-maybe' },
     'conversation.approval.detail': { kind: 'single', scope: 'session' },
     'settings.general.item': { kind: 'list', scope: 'root' },
+    'sidebar.right.pane.tab': {
+      kind: 'keyed',
+      scope: 'session',
+      inject: { hooks: { tabInfo: () => () => { throw new Error('unused') } } },
+    },
   }, (_props: { renderSlot?: unknown }) => null)
   const conversation = await runtime.mount({
     inject: [...injectConversation],
@@ -77,11 +83,11 @@ describe('Chat apply wiring', () => {
     const b = await bench()
     const views = b.runtime.slots.entries('conversation.view')
     expect(views.map(row => row.options.id)).toEqual(['chat'])
-    expect(resolveSlotLabel(views[0]?.options.label)).toBe('对话')
+    expect(resolveSlotLabel(views[0]?.options.label)).toBe('Chat')
     expect(b.runtime.slots.spec('conversation.chat.node'))
       .toMatchObject({ kind: 'keyed', scope: 'session' })
     expect(b.runtime.slots.entries('conversation.composer.dock').map(row => row.options.id))
-      .toEqual(['stats'])
+      .toEqual(['turn-changes', 'stats'])
     expect(b.runtime.slots.entries('settings.general.item').map(row => row.options.id))
       .toEqual(['transcript-view', 'composer-enter'])
     await b.runtime.dispose()

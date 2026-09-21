@@ -4,6 +4,9 @@
 .section {
   display: grid;
   gap: 20px;
+  /* The section is a grid item of the settings scroller: without this an
+     unbreakable child could stretch the whole page wider than the modal. */
+  min-width: 0;
   padding: 4px 0 24px;
 }
 
@@ -52,6 +55,49 @@
   background: var(--dsw-alias-bg-layer-1);
 }
 
+.runtimeBlock {
+  min-width: 0;
+}
+
+.runtimeDetails {
+  min-width: 0;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: 13px;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.runtimeSummary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 20px;
+  padding: 14px 16px;
+  cursor: pointer;
+  list-style-position: inside;
+}
+
+.runtimeSummary:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.runtimeSummary::marker {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.runtimeSummaryState {
+  margin-left: auto;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.runtimeBody {
+  display: grid;
+  gap: 12px;
+  padding: 0 16px 16px;
+}
+
 .blockHead {
   display: flex;
   align-items: center;
@@ -63,18 +109,19 @@
   margin-right: auto;
 }
 
-.row {
+/* Field tracks clamp to the column itself, so a narrow panel (or the phone
+   layout) stacks the fields instead of overflowing the section. */
+.fieldGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
   gap: 12px;
   align-items: start;
 }
 
-.fieldGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 12px;
-  align-items: start;
+/* A child that owns the whole row: the invocation list and the advanced
+   details read as blocks of their own rather than as one cramped column. */
+.spanAll {
+  grid-column: 1 / -1;
 }
 
 .field,
@@ -101,22 +148,24 @@
   line-height: 16px;
 }
 
+/* Text controls match the shared Select trigger (ui-primitives): one geometry
+   and one token set for every form row in the app. */
 .input,
-.select,
 .textarea {
   box-sizing: border-box;
   width: 100%;
-  border: 0.5px solid var(--dsw-alias-border-l3);
-  border-radius: 9px;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 8px;
   outline: none;
   color: var(--dsw-alias-label-primary);
-  background: var(--dsw-alias-bg-layer-2);
+  background: var(--dsw-alias-bg-layer-1);
   font: inherit;
+  font-size: 14px;
+  line-height: 22px;
 }
 
-.input,
-.select {
-  height: 34px;
+.input {
+  height: 32px;
   padding: 0 10px;
 }
 
@@ -126,26 +175,68 @@
   resize: vertical;
 }
 
+/* Layout seat for the shared Select control inside a field row. */
+.select {
+  width: 100%;
+}
+
 .input:focus-visible,
-.select:focus-visible,
-.textarea:focus-visible,
+.textarea:focus-visible {
+  border-color: var(--dsw-alias-state-business-primary);
+  outline: none;
+}
+
 .switch:focus-visible,
 .section button:focus-visible {
-  outline: 2px solid var(--dsw-alias-state-business-primary);
-  outline-offset: 2px;
+  border-color: var(--dsw-alias-state-business-primary);
+  outline: none;
 }
 
 .input:disabled,
-.select:disabled,
 .textarea:disabled {
   opacity: 0.5;
 }
 
 .switch {
-  width: 16px;
-  height: 16px;
+  position: relative;
+  width: 30px;
+  height: 17px;
   margin: 0;
-  accent-color: var(--dsw-alias-state-business-primary);
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 999px;
+  corner-shape: round;
+  appearance: none;
+  background: var(--dsw-alias-bg-layer-3);
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.switch::after {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--dsw-alias-label-tertiary);
+  content: '';
+  transition: transform 120ms ease, background 120ms ease;
+}
+
+.switch:checked {
+  border-color: var(--dsw-alias-state-business-primary);
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 35%, transparent);
+}
+
+.switch:checked::after {
+  background: var(--dsw-alias-state-business-primary);
+  transform: translateX(13px);
+}
+
+.switch:disabled {
+  cursor: default;
+  opacity: 0.5;
 }
 
 .notice,
@@ -235,11 +326,51 @@
   line-height: 21px;
 }
 
+.cardIdentity {
+  display: grid;
+  min-width: min(260px, 100%);
+  gap: 2px;
+}
+
+.cardPurpose,
+.cardPurposeMissing {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.cardPurposeMissing {
+  color: var(--dsw-alias-label-tertiary);
+}
+
 .cardActions {
   display: flex;
   align-items: center;
   gap: 7px;
+  flex-wrap: wrap;
   margin-left: auto;
+}
+
+.enabledControl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 8px;
+  border-right: 0.5px solid var(--dsw-alias-border-l1);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .badge,
@@ -267,30 +398,233 @@
   background: var(--dsw-alias-state-business-primary);
 }
 
-.summary {
-  margin: 0;
-  color: var(--dsw-alias-label-secondary);
-  font-size: 12px;
-  line-height: 18px;
-  overflow-wrap: anywhere;
+.summaryBadges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
-.summaryName {
+.summaryBadge {
+  padding: 3px 7px;
+  border: 0.5px solid transparent;
+  border-radius: 7px;
+  color: var(--dsw-alias-label-secondary);
+  background: var(--dsw-alias-bg-layer-2);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 14px;
+}
+
+.badgeModel {
+  color: var(--dsw-alias-state-business-primary);
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 10%, transparent);
+}
+
+.badgeAccessRead {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.badgeAccessWrite {
+  color: var(--dsw-alias-state-warn-label);
+  background: var(--dsw-alias-state-warn-tertiary);
+}
+
+.badgeAccessFull {
+  color: var(--dsw-alias-state-error-primary);
+  background: color-mix(in srgb, var(--dsw-alias-state-error-secondary) 45%, transparent);
+}
+
+.badgeInvocation {
+  border-color: var(--dsw-alias-border-l2);
+  background: transparent;
+}
+
+.badgeCustom {
+  color: var(--dsw-alias-state-business-primary);
+  border-color: color-mix(in srgb, var(--dsw-alias-state-business-primary) 35%, transparent);
+}
+
+.editor {
+  display: grid;
+  gap: 14px;
+  padding-top: 2px;
+  border-top: 0.5px solid var(--dsw-alias-border-l1);
+}
+
+.editorSection {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding-top: 12px;
+}
+
+.editorSection + .editorSection {
+  border-top: 0.5px solid var(--dsw-alias-border-l1);
+}
+
+.editorTitle {
+  margin: 0;
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.primaryFields {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.routingGuidance,
+.limitsDetails {
+  min-width: 0;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: 9px;
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.routingGuidanceSummary,
+.limitsSummary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 11px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+.routingGuidanceSummary::marker,
+.limitsSummary::marker {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.routingGuidanceBody,
+.limitsBody {
+  display: grid;
+  gap: 10px;
+  padding: 2px 11px 11px;
+}
+
+.limitsSummary > :last-child {
+  margin-left: auto;
+  color: var(--dsw-alias-label-tertiary);
+  font-weight: 400;
+}
+
+.routingWarning {
+  margin: 0;
+  padding: 9px 11px;
+  border-radius: 9px;
+  color: var(--dsw-alias-state-warn-label);
+  background: var(--dsw-alias-state-warn-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.runGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.setupRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.setupPrivacy {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.setupResult {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: 9px;
+  color: var(--dsw-alias-label-secondary);
+  background: var(--dsw-alias-bg-layer-2);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.setupResult strong {
   color: var(--dsw-alias-label-primary);
   font-weight: 600;
 }
 
-.actions,
-.addRow {
+.setupResult p {
+  margin: 0;
+}
+
+.setupResultReady {
+  border-color: var(--dsw-alias-state-success-primary);
+}
+
+.setupResultReady strong {
+  color: var(--dsw-alias-state-success-primary);
+}
+
+.setupResultAttention {
+  border-color: var(--dsw-alias-border-l3);
+}
+
+.setupFacts {
+  color: var(--dsw-alias-label-tertiary);
+  overflow-wrap: anywhere;
+}
+
+.secondaryActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 0.5px solid var(--dsw-alias-border-l1);
+}
+
+.destructiveActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: auto;
+}
+
+.actions {
   display: flex;
   align-items: flex-end;
   gap: 12px;
   flex-wrap: wrap;
 }
 
+.addRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 12px;
+  align-items: start;
+}
+
 .addRow > .field {
-  min-width: 180px;
-  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.addRow > button {
+  margin-top: 20px;
+}
+
+.createButton {
+  height: 32px;
+  padding-inline: 12px;
 }
 
 .addButton {
@@ -389,6 +723,22 @@
   line-height: 16px;
 }
 
+.overrideToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+.overrideBody {
+  display: grid;
+  gap: 10px;
+  padding-top: 10px;
+}
+
 .overrideList {
   display: grid;
   gap: 10px;
@@ -397,25 +747,31 @@
   list-style: none;
 }
 
+/* One override field per row: the control owns the flexible column and the
+   state pill plus its reset sit beside it, wrapping under when the panel is
+   narrow. The control's own label names the field, so the row head carries
+   only the state. */
 .overrideRow {
   display: grid;
-  grid-template-columns: minmax(96px, 0.8fr) max-content minmax(0, 2fr) max-content;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 8px 10px;
+  align-items: start;
+  min-width: 0;
+  padding-top: 10px;
+  border-top: 0.5px solid var(--dsw-alias-border-l1);
+}
+
+.overrideRow:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.overrideHead {
+  display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
+  justify-content: flex-end;
   min-width: 0;
-}
-
-.overrideGroup {
-  display: grid;
-  grid-template-columns: minmax(96px, 0.8fr) max-content;
-  gap: 10px;
-  min-width: 0;
-}
-
-.overrideLabel {
-  color: var(--dsw-alias-label-secondary);
-  font-size: 12px;
-  font-weight: 600;
 }
 
 .overrideControl {
@@ -429,36 +785,78 @@
   line-height: 15px;
 }
 
-.overrideGroupControls {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 8px;
-}
-
-.projectLane {
-  display: grid;
-  gap: 10px;
+/* One role's override editor, collapsed to its own count line until asked
+   for: the whole workspace layer is advanced work, so the block opens on the
+   roles rather than on eleven rows each. */
+.overrideDetails {
   min-width: 0;
-  margin: 0;
-  padding: 12px;
-  border: 0.5px solid var(--dsw-alias-border-l2);
-  border-radius: 11px;
-  background: var(--dsw-alias-bg-layer-1);
 }
 
-.projectLegend {
-  padding: 0 4px;
+.overrideSummary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-layer-1);
   color: var(--dsw-alias-label-primary);
   font-size: 12px;
   font-weight: 600;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+.overrideSummary:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.overrideSummary::marker {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.overrideCount {
+  margin-left: auto;
+  color: var(--dsw-alias-label-tertiary);
+  font-weight: 400;
+}
+
+/* The advanced half of one role card: closed until asked for, so an expanded
+   card shows the fields most edits touch. */
+.advanced {
+  min-width: 0;
+}
+
+.advancedSummary {
+  padding: 8px 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+.advancedSummary::marker {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.advancedBody {
+  display: grid;
+  gap: 8px;
+  padding-top: 10px;
 }
 
 @media (max-width: 640px) {
-  .overrideRow,
-  .overrideGroup {
-    grid-template-columns: 1fr;
-    align-items: start;
+  .runGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .overrideRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .overrideHead {
+    justify-content: flex-start;
   }
 
   .cardHead {
@@ -468,5 +866,21 @@
 
   .cardActions {
     margin-left: 0;
+  }
+
+  .limitsSummary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .limitsSummary > :last-child {
+    margin-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .switch,
+  .switch::after {
+    transition: none;
   }
 }

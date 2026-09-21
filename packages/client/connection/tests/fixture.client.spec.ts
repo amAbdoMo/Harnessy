@@ -630,7 +630,7 @@ describe('createFixtureApi', () => {
   it('searches current message text with literal unicode61-style token phrases', async () => {
     const api = createFixtureApi()
     const signal = new AbortController().signal
-    const phrase = await api.sessions.search(req({ query: 'FIXTURE 历史消息' }), signal)
+    const phrase = await api.sessions.search(req({ query: 'FIXTURE HISTORY' }), signal)
     expect(phrase.result).toMatchObject({
       ok: true,
       value: {
@@ -639,7 +639,7 @@ describe('createFixtureApi', () => {
       },
     })
     if (!phrase.result.ok) throw new Error('search failed')
-    expect(phrase.result.value.items[0]?.snippet).toContain('fixture 历史消息')
+    expect(phrase.result.value.items[0]?.snippet).toContain('fixture history')
 
     timing().appendUser(
       'fx-alpha',
@@ -958,7 +958,7 @@ describe('createFixtureApi', () => {
     const alpha = first.value.projections['fx-alpha']
     expect(alpha?.asOfSeq).toBeGreaterThan(0)
     expect(alpha?.values).toMatchObject({
-      title: 'Fixture 历史会话',
+      title: 'Fixture history session',
       plan: { active: false, pending: false },
       goal: null,
       imageLimits: { maxImagesPerMessage: 20, maxImageBytes: 5 * 1024 * 1024 },
@@ -1562,7 +1562,7 @@ describe('createFixtureApi', () => {
     hooks.cancelModelRetryDuringBackoff('fx-alpha')
     await vi.waitFor(() => {
       expect(followed.some(frame => frame.type === 'event' && (frame.event as { type: string }).type === 'llm/retry')).toBe(true)
-      expect(followed.some(frame => frame.type === 'event' && JSON.stringify(frame.event.data).includes('重试后的完整回复'))).toBe(true)
+      expect(followed.some(frame => frame.type === 'event' && JSON.stringify(frame.event.data).includes('Complete response after retry'))).toBe(true)
       expect(followed.some(frame => frame.type === 'event'
         && frame.event.type === 'turn/end'
         && frame.event.data.reason.kind === 'aborted')).toBe(true)
@@ -1621,7 +1621,7 @@ describe('createFixtureApi', () => {
           ? [frame.frame.chunk.text]
           : []
       ))
-      expect(deltas).toEqual(['推理', '推理', `\n${marker}`])
+      expect(deltas).toEqual(['reasoning', 'reasoning', `\n${marker}`])
     } finally {
       abort.abort()
       vi.useRealTimers()

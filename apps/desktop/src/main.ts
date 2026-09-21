@@ -1,8 +1,8 @@
 /** Electron shell: desktop project ownership, custom protocol, windows, and lifecycle. */
 
-import { mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
-import { extname, join, normalize, resolve, sep } from 'node:path'
+import { dirname, extname, join, normalize, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   app,
@@ -10,7 +10,11 @@ import {
   dialog,
   ipcMain,
   Menu,
+  nativeImage,
+  Notification as ElectronNotification,
   protocol,
+  shell,
+  Tray,
   type IpcMainInvokeEvent,
   type MenuItemConstructorOptions,
 } from 'electron'
@@ -20,13 +24,20 @@ import {
   resolvePackagedCustomHarnessDesktopState,
   type CustomHarnessDesktopState,
 } from '../../../scripts/custom-harness-product.mjs'
+import { DesktopBackgroundLifecycle, desktopTrayImagePath } from './background-lifecycle.ts'
 import { resolveDesktopPaths } from './paths.ts'
 import { DesktopProjectManager, type DesktopProjectHooks } from './project-manager.ts'
 import { DesktopHostProcess } from './host-process.ts'
-import { DESKTOP_IPC, type DesktopMenuSection, type DesktopUpdateState } from './ipc.ts'
-import { formatDesktopMessage, resolveDesktopLocale } from './locale.ts'
+import {
+  DESKTOP_IPC,
+  parseDesktopNotificationPayload,
+  type DesktopMenuSection,
+  type DesktopUpdateState,
+} from './ipc.ts'
+import { formatDesktopMessage, resolveDesktopLocale, type DesktopMessages } from './locale.ts'
 import { claimDesktopSingleInstance } from './single-instance.ts'
 import { DesktopUpdateCoordinator } from './update-coordinator.ts'
+import { windowsNotificationShortcut } from './windows-notifications.ts'
 
 const SCHEME = 'dsh-app'
 let focusPrimaryWindow = (): void => {}
@@ -56,6 +67,50 @@ function prepareCustomHarnessProductState(state: CustomHarnessDesktopState): voi
     mkdirSync(directory, { recursive: true, mode: 0o700 })
   }
   app.setAppLogsPath(state.logs)
+}
+
+function prepareWindowsNotifications(): void {
+  const shortcut = windowsNotificationShortcut({
+    platform: process.platform,
+    packaged: app.isPackaged,
+    roamingApplicationData: process.env.APPDATA ?? app.getPath('appData'),
+    executable: process.execPath,
+    displayName: CUSTOM_HARNESS_PRODUCT.displayName,
+    applicationId: CUSTOM_HARNESS_PRODUCT.windowsAppId,
+  })
+  if (shortcut === undefined) return
+  try {
+    mkdirSync(dirname(shortcut.path), { recursive: true })
+    const operation = existsSync(shortcut.path) ? 'update' : 'create'
+    if (!shell.writeShortcutLink(shortcut.path, operation, shortcut.details)) {
+      console.warn('Harnessy could not register its Windows notification shortcut.')
+    }
+  } catch (error) {
+    console.warn('Harnessy could not register its Windows notification shortcut.', error)
+  }
+}
+
+function createWindowsTray(messages: DesktopMessages, openWindow: () => void): Tray | undefined {
+  try {
+    const image = nativeImage.createFromPath(desktopTrayImagePath(
+      app.isPackaged,
+      app.getAppPath(),
+      process.resourcesPath,
+    )).resize({ width: 16, height: 16 })
+    if (image.isEmpty()) throw new Error('Harnessy tray image is empty')
+    const tray = new Tray(image)
+    tray.setToolTip(messages.trayTooltip)
+    tray.setContextMenu(Menu.buildFromTemplate([
+      { label: messages.trayOpen, click: openWindow },
+      { type: 'separator' },
+      { label: messages.trayExit, click: () => { app.quit() } },
+    ]))
+    tray.on('click', openWindow)
+    return tray
+  } catch (error) {
+    console.warn('Harnessy could not create its Windows tray icon; closing the main window will exit.', error)
+    return undefined
+  }
 }
 
 function errorOf(reason: unknown, fallback: string): Error {
@@ -175,6 +230,7 @@ async function serveShellAsset(request: Request): Promise<Response> {
 }
 
 async function main(): Promise<void> {
+  prepareWindowsNotifications()
   const resources = runtimeResources()
   const paths = resolveDesktopPaths(desktopProductState.home)
   const development = developmentProject()
@@ -185,14 +241,17 @@ async function main(): Promise<void> {
   let host: DesktopHostProcess | undefined
   let mainWindow: BrowserWindow | undefined
   let pluginWindow: BrowserWindow | undefined
+  let tray: Tray | undefined
   let shellInstallerOwnsQuit = false
   let applicationReady = false
   let updateState: DesktopUpdateState = { phase: 'idle' }
+  const nativeNotifications = new Set<ElectronNotification>()
   const locale = resolveDesktopLocale(app.getLocale())
   const messages = locale.messages
   const appPreload = fileURLToPath(new URL('./preload-app.cjs', import.meta.url))
   const managementPreload = fileURLToPath(new URL('./preload.cjs', import.meta.url))
   const startupPage = join(app.getAppPath(), 'src', 'startup.html')
+  const backgroundLifecycle = new DesktopBackgroundLifecycle(process.platform)
 
   const revealWindow = (window: BrowserWindow): void => {
     if (window.isDestroyed() || window.isVisible()) return
@@ -204,6 +263,11 @@ async function main(): Promise<void> {
     const window = createWindow(appPreload, 'integrated')
     mainWindow = window
     window.once('ready-to-show', () => { revealWindow(window) })
+    window.on('close', (event) => {
+      if (!backgroundLifecycle.shouldHidePrimaryWindow()) return
+      event.preventDefault()
+      window.hide()
+    })
     window.on('closed', () => { if (mainWindow === window) mainWindow = undefined })
     return window
   }
@@ -220,19 +284,30 @@ async function main(): Promise<void> {
     window.focus()
   }
 
+  if (process.platform === 'win32') {
+    tray = createWindowsTray(messages, focusPrimaryWindow)
+    if (tray !== undefined) backgroundLifecycle.markTrayReady()
+  }
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) focusPrimaryWindow()
   })
   app.on('window-all-closed', () => {
+    if (backgroundLifecycle.shouldKeepRunningWithoutWindows()) return
     if (process.platform !== 'darwin') app.quit()
   })
   app.on('before-quit', (event) => {
+    backgroundLifecycle.requestQuit()
     if (shellInstallerOwnsQuit) return
     if (host === undefined) return
     event.preventDefault()
     const active = host
     host = undefined
     void active.stop().finally(() => { app.quit() })
+  })
+  app.on('will-quit', () => {
+    tray?.destroy()
+    tray = undefined
   })
 
   mainWindow = createMainWindow()
@@ -441,6 +516,28 @@ async function main(): Promise<void> {
     const owner = BrowserWindow.fromWebContents(event.sender)
     if (owner === null || owner.isDestroyed()) return
     nativeMenus[section].popup({ window: owner })
+  })
+  ipcMain.handle(DESKTOP_IPC.notificationsShow, (event, payload: unknown) => {
+    assertDesktopSender(event, ['app'])
+    const notificationCopy = parseDesktopNotificationPayload(payload)
+    if (!ElectronNotification.isSupported()) return false
+    const notification = new ElectronNotification({
+      title: notificationCopy.title,
+      body: notificationCopy.body,
+    })
+    const release = (): void => { nativeNotifications.delete(notification) }
+    nativeNotifications.add(notification)
+    notification.once('click', () => {
+      release()
+      focusPrimaryWindow()
+    })
+    notification.once('close', release)
+    notification.once('failed', (_event, error) => {
+      release()
+      console.warn('Harnessy native notification failed.', error)
+    })
+    notification.show()
+    return true
   })
 
   applicationReady = true

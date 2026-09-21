@@ -19,6 +19,17 @@ import type {
   SubagentWorkspaceOverride,
 } from '@deepseek-ai/dsh-api-remotes/client'
 import type { SubagentBackgroundPolicy } from './contract.ts'
+import { SUBAGENT_ID_PATTERN } from './contract.ts'
+
+/** Validation failures the role editor can present before contacting the Host. */
+export type SubagentDefinitionError =
+  | 'invalid-id'
+  | 'duplicate-id'
+  | 'missing-name'
+  | 'missing-purpose'
+  | 'missing-backend'
+  | 'missing-route-provider'
+  | 'missing-route-model'
 
 /** Fields one workspace may override on a global definition. */
 export type SubagentOverrideField = keyof SubagentDefinitionOverride
@@ -273,6 +284,34 @@ export function withNewDefinition(
 }
 
 /**
+ * Validate one complete role before it is written as an atomic edit.
+ *
+ * This mirrors the Host-owned invariants that users can violate through the
+ * editor. The Host remains authoritative; this check keeps an invalid draft
+ * open with a field-level explanation instead of submitting a write that the
+ * settings scope must refuse.
+ * @param settings - the complete section containing existing ids.
+ * @param definition - the role draft to validate.
+ * @param originalId - the stored id when editing an existing role.
+ * @returns the first user-correctable failure, or undefined when the draft is writable.
+ */
+export function subagentDefinitionError(
+  settings: SubagentSettings,
+  definition: SubagentDefinition,
+  originalId?: string,
+): SubagentDefinitionError | undefined {
+  if (!SUBAGENT_ID_PATTERN.test(definition.id)) return 'invalid-id'
+  if (definition.id !== originalId && definitionById(settings, definition.id) !== undefined) return 'duplicate-id'
+  if (definition.name.trim().length === 0) return 'missing-name'
+  if (definition.purpose.trim().length === 0) return 'missing-purpose'
+  if (definition.execution.backend.trim().length === 0) return 'missing-backend'
+  const route = definition.model.route
+  if (route?.provider.trim().length === 0) return 'missing-route-provider'
+  if (route?.model.trim().length === 0) return 'missing-route-model'
+  return undefined
+}
+
+/**
  * Copy one definition under a fresh id and name.
  *
  * The copy starts disabled: it carries the same purpose as the role it came
@@ -282,16 +321,31 @@ export function withNewDefinition(
  * @param id - the definition to copy.
  * @returns the section with the copy last, unchanged when no definition has that id.
  */
-export function duplicateDefinition(settings: SubagentSettings, id: string): SubagentSettings {
+export function duplicateDefinitionDraft(settings: SubagentSettings, id: string): SubagentDefinition | undefined {
   const source = definitionById(settings, id)
-  if (source === undefined) return settings
+  if (source === undefined) return undefined
   const name = `${source.name} copy`
-  return withNewDefinition(settings, {
+  return {
     ...storedDefinition(source),
     id: deriveSubagentId(settings, name),
     name,
     enabled: false,
-  })
+  }
+}
+
+/**
+ * Append a disabled copy immediately.
+ *
+ * Kept as the pure document edit for non-interactive consumers. The settings
+ * UI uses {@link duplicateDefinitionDraft} so a user can review and edit the
+ * copy before one complete write is made.
+ * @param settings - the complete section.
+ * @param id - the definition to copy.
+ * @returns the section with the copy appended, or the original section when the source is absent.
+ */
+export function duplicateDefinition(settings: SubagentSettings, id: string): SubagentSettings {
+  const draft = duplicateDefinitionDraft(settings, id)
+  return draft === undefined ? settings : withNewDefinition(settings, draft)
 }
 
 /**

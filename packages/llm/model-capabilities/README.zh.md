@@ -94,9 +94,14 @@ dsh --profile custom-harness --models-sync=check --models-refresh
 拥有自有目录来源的组合可以跳过插件而直接注册。`origin` 说明每个目录的来源——`fixture`、`bundled`、`live` 或 `cache`——并进入每个答案的来源信息。
 
 ```ts
-import { createPublicCapabilitySource } from '@deepseek-ai/dsh-model-capabilities'
+import type { Context } from '@deepseek-ai/cordis'
+import {
+  createPublicCapabilitySource,
+  loadBundledPublicCatalogs,
+} from '@deepseek-ai/dsh-model-capabilities'
 import type { PublicCatalog } from '@deepseek-ai/dsh-model-capabilities'
 
+declare const ctx: Context
 declare const modelsDev: unknown
 declare const openRouter: unknown
 

@@ -1,8 +1,14 @@
+import { spawn } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DesktopHostProcess } from '../src/host-process.ts'
+
+vi.mock('node:child_process', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:child_process')>()
+  return { ...actual, spawn: vi.fn(actual.spawn) }
+})
 
 const roots: string[] = []
 
@@ -143,6 +149,27 @@ function onRequestFrame() {}
     } finally {
       if (previous === undefined) delete process.env.NODE_USE_SYSTEM_CA
       else process.env.NODE_USE_SYSTEM_CA = previous
+      await host.stop().catch(() => undefined)
+    }
+  })
+
+  it('spawns the bundled Node host without a console window', async () => {
+    const project = projectWithHost(`
+process.send({ type: 'ready', protocolVersion: 3, dshVersion: 'silent' })
+function onRequestFrame() {}
+`)
+    vi.mocked(spawn).mockClear()
+    const host = new DesktopHostProcess(process.execPath, project)
+    try {
+      await expect(host.start()).resolves.toMatchObject({ dshVersion: 'silent' })
+      // The bundled node.exe is a console image spawned from a GUI process, so
+      // only this flag keeps Windows from allocating a console for it.
+      expect(spawn).toHaveBeenCalledWith(
+        process.execPath,
+        expect.any(Array),
+        expect.objectContaining({ windowsHide: true, stdio: ['ignore', 'pipe', 'pipe', 'pipe', 'pipe', 'ipc'] }),
+      )
+    } finally {
       await host.stop().catch(() => undefined)
     }
   })

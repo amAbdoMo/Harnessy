@@ -1,0 +1,216 @@
+.root {
+  display: inline-flex;
+  align-items: center;
+}
+
+.trigger {
+  position: relative;
+  display: inline-flex;
+  height: 28px;
+  padding: 0 9px;
+  gap: 5px;
+  align-items: center;
+  justify-content: center;
+  border: 0.5px solid transparent;
+  border-radius: 8px;
+  color: var(--dsw-alias-label-secondary);
+  background: transparent;
+  cursor: pointer;
+}
+
+.trigger:hover,
+.trigger[aria-expanded='true'] {
+  border-color: var(--dsw-alias-border-l2);
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.trigger:focus-visible,
+.panel button:focus-visible {
+  border-color: var(--dsw-alias-state-business-primary);
+  outline: none;
+}
+
+.triggerDot,
+.statusDot,
+.activityDot {
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--dsw-alias-label-tertiary);
+}
+
+.triggerDot {
+  width: 6px;
+  height: 6px;
+}
+
+.triggerLabel,
+.runningCount {
+  color: inherit;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.triggerLabel {
+  font-weight: 600;
+}
+
+.runningCount {
+  min-width: 15px;
+  padding: 0 4px;
+  border-radius: 999px;
+  corner-shape: round;
+  background: var(--dsw-alias-interactive-bg-active);
+  color: var(--dsw-alias-label-primary);
+  text-align: center;
+}
+
+.trigger[data-status='connected'] .triggerDot,
+.server[data-status='connected'] .statusDot,
+.activityRow[data-status='success'] .activityDot {
+  background: var(--dsw-static-green-400);
+}
+
+.trigger[data-status='connecting'] .triggerDot,
+.server[data-status='connecting'] .statusDot,
+.server[data-status='reconnecting'] .statusDot,
+.activityRow[data-status='running'] .activityDot {
+  background: var(--dsw-alias-state-warn-label);
+}
+
+.trigger[data-status='error'] .triggerDot,
+.server[data-status='error'] .statusDot,
+.activityRow[data-status='error'] .activityDot {
+  background: var(--dsw-static-red-400);
+}
+
+.panel {
+  position: fixed;
+  z-index: 1200;
+  display: grid;
+  width: min(420px, calc(100vw - 24px));
+  max-height: min(620px, calc(100vh - 24px));
+  overflow: hidden;
+  border: 0.5px solid color-mix(in srgb, var(--dsw-alias-state-business-primary) 22%, transparent);
+  border-radius: 13px;
+  background: var(--dsw-alias-bg-layer-1);
+  box-shadow: var(--dsw-elevation-prominent);
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+.panelHeader {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 13px 14px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l1);
+}
+
+.panelHeader > div,
+.serverBody,
+.activityBody {
+  display: grid;
+  min-width: 0;
+}
+
+.panelHeader > div {
+  gap: 1px;
+  margin-right: auto;
+}
+
+.panelHeader strong,
+.serverBody strong,
+.activityBody strong {
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.panelHeader span,
+.serverBody span,
+.activityBody span,
+.empty {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.manage,
+.reconnect,
+.viewCall {
+  min-height: 28px;
+  padding: 0 9px;
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: 8px;
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-layer-2);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.manage:hover,
+.reconnect:hover,
+.viewCall:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.servers,
+.activity {
+  display: grid;
+  overflow: auto;
+}
+
+.servers {
+  max-height: 250px;
+  padding: 6px;
+}
+
+.server,
+.activityRow {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  gap: 9px;
+  align-items: center;
+  padding: 8px;
+  border-radius: 9px;
+}
+
+.server:hover,
+.activityRow:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.statusDot,
+.activityDot {
+  width: 7px;
+  height: 7px;
+}
+
+.activityHeader {
+  padding: 9px 14px 6px;
+  border-top: 0.5px solid var(--dsw-alias-border-l1);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+.activity {
+  min-height: 54px;
+  max-height: 270px;
+  padding: 0 6px 6px;
+}
+
+.empty {
+  margin: 0;
+  padding: 12px 8px;
+}
+
+.reconnect:disabled {
+  cursor: default;
+  opacity: 0.55;
+}

@@ -227,9 +227,14 @@
 /* Options area (figma Options 501:29983): pad (24,0,24,24), scrolls. */
 .options {
   flex: 1;
+  /* min-width: 0 keeps the scroller a grid/flex child that can shrink: without
+     it a section whose content cannot wrap stretches the whole panel instead
+     of scrolling, and the panel's own clip then hides the right edge. */
+  min-width: 0;
   min-height: 0;
   padding: 0 24px 24px;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* Visually-hidden text seat (close button accessible name from slot content). */

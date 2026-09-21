@@ -111,6 +111,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the updated public account state with credentials omitted.',
       },
       {
+        signature: '@Remote async setAutoSwitch(provider: AccountProviderId, enabled: boolean): Promise<AccountsState>',
+        description: 'Enable or disable automatic Codex failover after a supported quota reaches its limit.',
+        parameters: [{ name: 'provider', description: 'provider whose failover preference changes; only Codex supports it.' }, { name: 'enabled', description: 'whether fresh usage checks may promote an eligible saved account.' }],
+        returns: 'the updated public account state with credentials omitted.',
+      },
+      {
         signature: '@Remote async rename(provider: AccountProviderId, accountId: string, name: string): Promise<AccountsState>',
         description: 'Rename one local account without changing its credential or active state.',
         parameters: [{ name: 'provider', description: 'provider containing the saved identity.' }, { name: 'accountId', description: 'saved identity to rename.' }, { name: 'name', description: 'new user-visible label, bounded before storage.' }],
@@ -1407,6 +1413,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Return every saved server without authentication values.',
         parameters: [],
         returns: 'redacted registry state and live connection snapshots.',
+      },
+      {
+        signature: '@Remote openConfigurationFile(signal: AbortSignal): Promise<SettingsDocumentOpenValue>',
+        description: 'Materialize and open the dedicated MCP registry document.',
+        parameters: [{ name: 'signal', description: 'caller lifetime; abort terminates the native open command.' }],
+        returns: 'confirmation after the operating system accepts the document.',
       },
       {
         signature: '@Remote save(input: McpServerInput): Promise<McpManagerState>',
@@ -3158,6 +3170,14 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
 /** Every harness event, sorted by name. */
 export const EVENT_API: readonly EventApiEntry[] = [
   {
+    name: 'accounts/auto-switched',
+    mode: 'emit',
+    signature: '\'accounts/auto-switched\'(event: AccountAutoSwitchEvent): void',
+    summary: 'Report one committed automatic Codex account promotion.',
+    description: 'Report one committed automatic Codex account promotion.',
+    parameters: [{ name: 'event', description: 'secret-free source, destination, quota, and timestamp facts.' }],
+  },
+  {
     name: 'agent-loop/config-start-failed',
     mode: 'emit',
     signature: '\'agent-loop/config-start-failed\'(payload: { sessionId: SessionId; error: unknown }): void',
@@ -3710,12 +3730,16 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type AccountAuthMode = \'oauth\' | \'api-key\';',
   },
   {
+    name: 'AccountAutoSwitchEvent',
+    declaration: 'export interface AccountAutoSwitchEvent {\n    readonly id: string;\n    readonly occurredAt: number;\n    readonly provider: \'openai-codex\';\n    readonly limit: \'5h\' | \'7d\';\n    readonly from: {\n        readonly name: string;\n        readonly usageScope?: AccountUsageScope;\n    };\n    readonly to: {\n        readonly name: string;\n        readonly usageScope?: AccountUsageScope;\n    };\n}',
+  },
+  {
     name: 'AccountProviderId',
     declaration: 'export type AccountProviderId = \'openai-codex\' | \'zai\' | \'kimi-coding\' | \'opencode\' | \'anthropic\';',
   },
   {
     name: 'AccountProviderView',
-    declaration: 'export interface AccountProviderView {\n    readonly id: AccountProviderId;\n    readonly label: string;\n    readonly authMode: AccountAuthMode;\n    readonly available: boolean;\n    readonly accountCount: number;\n    readonly activeAccountId?: string;\n    readonly usageAvailable: boolean;\n}',
+    declaration: 'export interface AccountProviderView {\n    readonly id: AccountProviderId;\n    readonly label: string;\n    readonly authMode: AccountAuthMode;\n    readonly available: boolean;\n    readonly accountCount: number;\n    readonly activeAccountId?: string;\n    readonly usageAvailable: boolean;\n    readonly autoSwitchOnLimit: boolean;\n}',
   },
   {
     name: 'AccountSignInResult',
@@ -3724,6 +3748,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'AccountsState',
     declaration: 'export interface AccountsState {\n    readonly writable: boolean;\n    readonly providers: readonly AccountProviderView[];\n    readonly accounts: readonly ManagedAccountView[];\n}',
+  },
+  {
+    name: 'AccountUsageScope',
+    declaration: 'export type AccountUsageScope = \'personal\' | \'workspace\';',
   },
   {
     name: 'AccountUsageView',
@@ -4811,7 +4839,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ManagedAccountView',
-    declaration: 'export interface ManagedAccountView {\n    readonly id: string;\n    readonly provider: AccountProviderId;\n    readonly name: string;\n    readonly detail?: string;\n    readonly initials: string;\n    readonly active: boolean;\n    readonly authMode: AccountAuthMode;\n    readonly usage?: AccountUsageView;\n    readonly usageUpdatedAt?: number;\n    readonly usageError?: string;\n}',
+    declaration: 'export interface ManagedAccountView {\n    readonly id: string;\n    readonly provider: AccountProviderId;\n    readonly ownerId: string;\n    readonly name: string;\n    readonly detail?: string;\n    readonly initials: string;\n    readonly active: boolean;\n    readonly authMode: AccountAuthMode;\n    readonly usageScope?: AccountUsageScope;\n    readonly usage?: AccountUsageView;\n    readonly usageUpdatedAt?: number;\n    readonly usageError?: string;\n}',
   },
   {
     name: 'ManualCompactAgentContext',
@@ -6035,7 +6063,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubagentRunLimits',
-    declaration: 'export interface SubagentRunLimits {\n    readonly maxConcurrentRuns: number;\n    readonly defaultTimeoutMs: number;\n}',
+    declaration: 'export interface SubagentRunLimits {\n    readonly maxConcurrentRuns: number | \'adaptive\';\n    readonly defaultTimeoutMs: number;\n}',
   },
   {
     name: 'SubagentRuntime',

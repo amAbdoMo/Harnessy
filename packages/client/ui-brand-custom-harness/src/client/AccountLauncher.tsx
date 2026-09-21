@@ -9,6 +9,7 @@ import {
   IconSettingsOutline16,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { createAccountsMenuStore } from './accounts-menu-store.ts'
+import { accountUsageLevel } from './account-usage-presentation.ts'
 import css from './AccountLauncher.module.css'
 
 /** Private account query supplied by the Harnessy browser plugin. */
@@ -38,24 +39,13 @@ function compactUsageWindows(account: ManagedAccountView | undefined): readonly 
   return account?.usage?.windows.filter(window => window.label === '5h' || window.label === '7d') ?? []
 }
 
-function usageLevel(usedPercent: number): 'normal' | 'warning' | 'danger' {
-  if (usedPercent >= 95) return 'danger'
-  return usedPercent >= 80 ? 'warning' : 'normal'
-}
-
 function CompactUsageMeter({ window }: { readonly window: AccountUsageWindow }) {
   const target = Math.round(window.usedPercent)
-  const [width, setWidth] = useState(0)
-  useEffect(() => {
-    setWidth(0)
-    const frame = requestAnimationFrame(() => { setWidth(target) })
-    return () => { cancelAnimationFrame(frame) }
-  }, [target])
   return (
     <span className={css.compactUsageItem}>
       <span className={css.compactUsageLabel}><span>{window.label}</span><strong>{target}%</strong></span>
       <span className={css.compactUsageTrack} aria-hidden="true">
-        <span className={css.compactUsageFill} data-level={usageLevel(target)} style={{ width: `${String(width)}%` }} />
+        <span className={css.compactUsageFill} data-level={accountUsageLevel(target)} style={{ width: `${String(target)}%` }} />
       </span>
     </span>
   )
@@ -80,7 +70,7 @@ function AccountSummary({ name, subtitle, windows }: {
 
 /** Render the active account footer and its compact account/settings menu. */
 export function AccountLauncher({
-  wide, openSettings, openSection, useAccountUsage, refreshAccounts, actions, t,
+  wide, openSettings, openSection, useAccountUsage, useStore, refreshAccounts, actions, t,
 }: AccountLauncherProps) {
   const accountState = useAccountUsage(state => state)
   const [open, setOpen] = useState(false)
@@ -92,6 +82,13 @@ export function AccountLauncher({
   const usageWindows = compactUsageWindows(account)
   const accessibleName = [name, subtitle, ...usageWindows.map(window =>
     `${window.label} ${String(Math.round(window.usedPercent))}% ${t('accountsUsedSuffix')}`)].join(', ')
+  const sectionRequested = useStore(state => state.sectionRequested)
+
+  useEffect(() => {
+    if (sectionRequested === undefined) return
+    openSection(sectionRequested)
+    actions.consumeSectionRequest()
+  }, [actions, openSection, sectionRequested])
 
   useEffect(() => {
     if (!open) return

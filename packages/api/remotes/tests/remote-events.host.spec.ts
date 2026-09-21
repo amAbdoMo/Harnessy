@@ -104,6 +104,21 @@ describe('Remote event Host source', () => {
       value: { event: 'settings/document-updated', args: ['ui-theme', 1] },
     })
 
+    const accountSwitch = {
+      id: 'switch-1', occurredAt: 1, provider: 'openai-codex', limit: '5h',
+      from: { name: 'Personal', usageScope: 'personal' },
+      to: { name: 'Work', usageScope: 'workspace' },
+    }
+    emitRaw(ctx, 'accounts/auto-switched', [accountSwitch])
+    await expect(first.next()).resolves.toEqual({
+      done: false,
+      value: { event: 'accounts/auto-switched', args: [accountSwitch] },
+    })
+    await expect(second.next()).resolves.toEqual({
+      done: false,
+      value: { event: 'accounts/auto-switched', args: [accountSwitch] },
+    })
+
     emitRaw(ctx, 'goal/activation-changed', [{
       sessionId: 'session-1',
       goal: { id: 'goal-1', revision: 1, activation: 'disarmed' },

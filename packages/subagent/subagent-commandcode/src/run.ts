@@ -20,7 +20,7 @@ import {
 import type { SubprocessHandle, SubprocessOutcome, SubprocessSpawnSpec } from '@deepseek-ai/dsh-subprocess'
 import { assertProcessToken, commandCodeArgv } from './argv.ts'
 import { MAX_COMMAND_CODE_OUTPUT_BYTES, boundCommandCodeText } from './bound.ts'
-import type { CommandCodeInvocation } from './cli.ts'
+import { COMMAND_CODE_SKIP_UPDATES_ENV, type CommandCodeInvocation } from './cli.ts'
 import { CommandCodeFrameReader, classifyExitCode, resultFailure } from './protocol.ts'
 import type { CommandCodeActivity, CommandCodeFailureCategory, CommandCodeRunSpec } from './types.ts'
 
@@ -188,6 +188,7 @@ export function startCommandCodeRun(
     child = deps.spawn({
       argv,
       cwd: request.cwd,
+      env: COMMAND_CODE_SKIP_UPDATES_ENV,
       stdio: { stdin: 'pipe', stdout: 'pipe', stderr: { maxBytes: STDERR_TAIL_BYTES } },
       graceMs: deps.graceMs,
       signal: AbortSignal.any([controller.signal, deadline.signal]),

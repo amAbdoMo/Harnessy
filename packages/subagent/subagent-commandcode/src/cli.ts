@@ -22,6 +22,24 @@ export const COMMAND_CODE_POSIX_COMMAND = 'cmd'
 /** Bound on one installation, authentication, or catalog probe. */
 export const COMMAND_CODE_PROBE_TIMEOUT_MS = 20_000
 
+/**
+ * Environment every harness-owned CLI process starts with.
+ *
+ * The CLI runs its own update check on most starts and, when a newer release
+ * exists, spawns a DETACHED shell (`detached: true, shell: true`) that runs
+ * `npm pack` plus `npm i -g <tarball>` against the user's global prefix. On
+ * Windows a detached child is given a console of its own and `windowsHide`
+ * cannot suppress it, so that global npm install opened a visible npm window
+ * over the desktop while the harness was probing the CLI — an install the
+ * harness never asked for and the user never triggered. `COMMANDCODE_SKIP_UPDATES`
+ * is the CLI's own switch for its whole update system (checks and pending
+ * retries both consult it), so harness-owned processes pin it. The user's own
+ * terminal stays the place where a Command Code update is visible and expected.
+ */
+export const COMMAND_CODE_SKIP_UPDATES_ENV: Readonly<Record<string, string>> = {
+  COMMANDCODE_SKIP_UPDATES: '1',
+}
+
 /** How one resolved invocation starts the CLI. */
 export interface CommandCodeInvocation {
   /** Program handed to the operating system as argv[0]. */

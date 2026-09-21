@@ -39,7 +39,11 @@ import { defaultSubagentSettings } from '../src/defaults.ts'
 import * as roster from '../src/index.ts'
 import type { SubagentRosterController } from '../src/index.ts'
 import { SubagentRunLimiter } from '../src/limiter.ts'
-import { SUBAGENT_ROSTER_NAMESPACE, subagentRosterView } from '../src/settings.ts'
+import {
+  resolveSubagentConcurrencyLimit,
+  SUBAGENT_ROSTER_NAMESPACE,
+  subagentRosterView,
+} from '../src/settings.ts'
 import { DELEGATE_TOOL, installRosterTools, LIST_SUBAGENTS_TOOL } from '../src/tools.ts'
 import type { SubagentDefinition, SubagentSettings } from '../src/types.ts'
 
@@ -375,7 +379,9 @@ export async function bootRoster(options: RosterOptions = {}): Promise<Roster> {
   let permits = 0
   let acquireCalls = 0
   const admit: Array<() => void> = []
-  const limiter = new SubagentRunLimiter(() => settings.limits.maxConcurrentRuns)
+  const limiter = new SubagentRunLimiter(
+    () => resolveSubagentConcurrencyLimit(settings.limits.maxConcurrentRuns),
+  )
   installRosterTools(ctx, {
     viewFor: workspace => subagentRosterView(settings, workspace ?? options.workspace ?? null),
     acquire: async (signal) => {

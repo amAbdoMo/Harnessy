@@ -294,8 +294,9 @@ function childRequest(
 export function installRosterTools(ctx: Context, api: SubagentRosterApi): void {
   ctx.tools.register(defineTool({
     name: LIST_SUBAGENTS_TOOL,
-    description: 'List the subagents enabled for this workspace. Each entry fixes its own access, model, and '
-      + 'invocation policy; `delegate` takes one of these ids.',
+    description: 'List the configured subagent roles enabled for this workspace. Call this before the first '
+      + 'delegation in a task, then use `delegate` with the best matching id. Each entry fixes its own access, '
+      + 'model, and invocation policy.',
     parameters: {},
     output: {
       schema: { type: 'array', items: { type: 'json' } },
@@ -313,10 +314,14 @@ export function installRosterTools(ctx: Context, api: SubagentRosterApi): void {
 
   ctx.tools.register(defineTool({
     name: DELEGATE_TOOL,
-    description: 'Delegate a self-contained task to one configured subagent. The subagent decides its own model, '
-      + 'reasoning effort, and access level, so a call cannot change them. Give it a complete, standalone task: '
-      + 'it does not see this conversation. Omit `provider`, `model`, and `reasoning_effort` unless the subagent '
-      + 'uses automatic model selection, which `list_subagents` reports as a selection of allowed routes.',
+    description: 'Delegate a self-contained task to one configured subagent role. Use `list_subagents` before '
+      + 'the first delegation in a task and select the best matching enabled role. Batch closely related items '
+      + 'into one complete delegation; do not create one subagent per image, file, record, or similarly small '
+      + 'item. Start only genuinely independent delegations together, using the smallest parallel batch that '
+      + 'keeps useful work moving. Keep final integration and validation in the parent. The role decides its own model, reasoning '
+      + 'effort, and access level, so a call cannot change them. Give it a complete, standalone task: it does not '
+      + 'see this conversation. Omit `provider`, `model`, and `reasoning_effort` unless the role uses automatic '
+      + 'model selection, which `list_subagents` reports as a selection of allowed routes.',
     parameters: {
       subagent: {
         type: 'string',

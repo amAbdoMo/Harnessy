@@ -34,7 +34,7 @@ Electron 拥有保留 profile `.dsh/profiles/desktop`。其中精确的 `@deepse
 | 共享 `.dsh` owner | 会话、设置、凭据、工作区和存储，由其现有锁与格式版本保护 |
 | 通过 npm 安装的 dsh | 自己的可执行安装和用户管理的 profile；不能访问保留 desktop profile 或包状态 |
 
-渲染进程使用 `nodeIntegration: false`、`contextIsolation: true` 和 `sandbox: true`。Preload 暴露类型化 RPC、生命周期、更新、locale 与桌面插件操作，而不暴露原始 `ipcRenderer`、文件系统访问、shell 命令或 pnpm 参数。Electron 根据应用 locale 选择类型化的中英文字典，并以英文作为 fallback；菜单、原生对话框与插件管理渲染进程使用这些由 locale 持有的文案。
+渲染进程使用 `nodeIntegration: false`、`contextIsolation: true` 和 `sandbox: true`。Preload 暴露类型化 RPC、生命周期、更新、locale 与桌面插件操作，而不暴露原始 `ipcRenderer`、文件系统访问、shell 命令或 pnpm 参数。Electron 对每个应用 locale 都选择类型化的英文字典；菜单、原生对话框与插件管理渲染进程使用这些由 locale 持有的文案。
 
 ## 文件系统布局
 
@@ -73,7 +73,7 @@ Electron 拥有保留 profile `.dsh/profiles/desktop`。其中精确的 `@deepse
 
 打包 seed 是离线安装包，而不是可执行 dsh 目录。它包含发布身份、初始桌面项目 manifest、分别以 dsh 和私有 Desktop Host 为根的第一方包闭包之并集的描述文件及不可变 tarball、仓库声明的依赖补丁及其描述文件、lockfile、完整性清单和所需 store 子集。每个声明的补丁路径都必须验证为项目根目录下的普通文件，再复制到 seed，并写入 seed workspace 的 `patchedDependencies` 映射。每个 `mac-arm64`、`mac-x64` 和 `win-x64` 构建都在 `.desktop-build/targets/<target>` 下持有自己的打包输入、运行时、包集合、seed、pnpm 准备状态、未打包应用、更新元数据和最终产物；只有不可变且经过校验和验证的 Node.js 下载缓存会被共享。发布构建要求 Electron 包、根 dsh 包与私有 Host 包使用相同版本，从正式源码构建生成最终 npm tarball，在本地打包私有 Host，选择可达的 dsh、Host 与 vendored 包以及 Landlock 入口，并验证 Host tarball 中包含 `lib/index.js` 与 `config/desktop.cordis.patch.yml`。Host 的 `files` manifest 只包含该运行入口与 overlay，并且该包不会发布到 npm。公共包 tarball 仍是由各包发布 manifest 控制的正式 `pnpm pack` 结果；Desktop 不删除已发布的声明文件，也不建立第二套包内容策略。seed manifest 把每个选中的包列为本地直接依赖，关闭 peer dependency 自动安装，workspace 文件再把每个选中的第一方包 override 到对应本地 tarball。目标 Node.js 执行内置 pnpm，因此 pnpm 的操作系统和 CPU 选择会使物化的依赖图与 seed 成为目标专用内容。内置 pnpm 关闭全局 virtual store，在禁用生命周期脚本的情况下从 npm 物化外部生产依赖，删除 `node_modules` 以及所有临时 pnpm cache、config 和 state 目录，然后只使用最终 store 执行一次干净的离线安装，并检查私有 Host 的入口与 overlay。构建会拒绝任何通过 registry 版本解析本地第一方包名的 lockfile。生成清单前会删除第二次生成的 `node_modules` 和临时 pnpm 项目注册。在复制 package set 前与离线安装后都要求这两个 Host 文件，可防止进程入口能够加载、却无法组合所需 overlay 的发布进入应用签名阶段。
 
-种子根据规范化 store 路径，把 pnpm 内容放入 16 个确定性的未压缩 tar 分片。Apple 公证会检查这些归档内的 Mach-O 代码，因此 macOS seed 会 staging 每个被引用的内容寻址 Mach-O 对象，最多并发四个独立的 Developer ID 签名进程，并带上安全时间戳与 hardened runtime。任一签名失败后，准备过程会等待已启动的签名进程全部退出，原始 CAS 对象与包索引保持不变。所有签名成功后，准备过程把每个对象写到新的 SHA-512 路径，并以事务方式重写 pnpm MessagePack SQLite 索引内全部基础文件和 side-effects 文件引用。第二次离线安装证明 pnpm 可以解析重写后的 store；准备过程随后完成分片、解包最终归档并验证每个内嵌签名。包路径和非原生字节保持不变；种子保留包内附带的架构变体，因为删除文件会创建 Desktop 专属的包文件集。种子完整性覆盖分片 manifest 和解包前的每个归档。启动时验证归档路径、条目类型、唯一性和数量，把所有分片解包到唯一且由 Desktop 拥有的 staging 目录，替换匹配的不可变 store 文件，并以事务方式把各 pnpm store 版本的 SQLite `package_index` 合并进 `.dsh/desktop/pnpm/store`。Seed 记录替换匹配的键，为 Desktop 插件下载的记录继续保留。中断的文件合并可能留下有效的不可变缓存内容，但每次 SQLite 合并都是原子的，profile 安装与激活仍必须通过 pnpm 完整性与完整健康检查。
+种子根据规范化 store 路径，把 pnpm 内容放入 16 个确定性的未压缩 tar 分片。Apple 公证会检查这些归档内的 Mach-O 代码，因此 macOS seed 会 staging 每个被引用的内容寻址 Mach-O 对象，最多并发四个独立的 Developer ID 签名进程，并带上安全时间戳与 hardened runtime。任一签名失败后，准备过程会等待已启动的签名进程全部退出，原始 CAS 对象与包索引保持不变。所有签名成功后，准备过程把每个对象写到新的 SHA-512 路径，并以事务方式重写 pnpm MessagePack SQLite 索引内全部基础文件和 side-effects 文件引用。第二次离线安装证明 pnpm 可以解析重写后的 store；准备过程随后完成分片、解包最终归档并验证每个内嵌签名。包路径和非原生字节保持不变；种子保留包内附带的架构变体，因为删除文件会创建 Desktop 专属的包文件集。种子完整性覆盖分片 manifest 和解包前的每个归档。启动时验证归档路径、条目类型、唯一性和数量，把所有分片解包到唯一且由 Desktop 拥有的 staging 目录，替换匹配的不可变 store 文件，并以事务方式把各 pnpm store 版本的 SQLite `package_index` 合并进 `.dsh/desktop/pnpm/store`。归档读取、解包、递归 store 复制和临时 store 清理都使用异步文件操作，因此 Electron 在校准期间仍能响应启动窗口。Seed 记录替换匹配的键，为 Desktop 插件下载的记录继续保留。中断的文件合并可能留下有效的不可变缓存内容，但每次 SQLite 合并都是原子的，profile 安装与激活仍必须通过 pnpm 完整性与完整健康检查。
 
 启动过程先要求安装包内的发布身份等于 Electron 应用版本，随后仅当 `.dsh/profiles/desktop/desktop-release.json`、已安装 dsh 包、已安装 Desktop Host 包以及已复制的 seed 完整性清单都与该发布匹配时，才把已安装 profile 视为当前版本。因此，发布编号相同的重新构建产物仍会重新暂存已变化的 seed 内容，而不会复用陈旧包。它在 staging 中通过 `pnpm install --offline --frozen-lockfile --trust-lockfile` 安装新的 seed manifest 与 lockfile。替换期间，结构有效的旧版 manifest 只能提供经过单独检查的可选插件记录；经过验证的 seed 提供全部核心包映射。随后 Electron 通过一次离线 pnpm add，从桌面端现有 store 与元数据缓存恢复每个已记录插件 bundle 的精确安装版本。完整依赖图必须通过同一套健康检查才能激活。
 
@@ -85,7 +85,7 @@ Electron 拥有保留 profile `.dsh/profiles/desktop`。其中精确的 `@deepse
 
 Electron 更新只使用一个 `electron-updater` 发布流和签名 `electron-builder` 产物。该版本就是 Desktop 发布版本；不存在独立 dsh manifest、兼容范围或仅更新 dsh 的操作。前台安装会等待正在进行的后台检查，而不会把检查结果复用成安装结果。更新弹窗下载并安装 Electron 产物，然后重启进入新发布。
 
-新发布在打开窗口前从安装包种子校准 dsh，同时保留已安装桌面插件。健康检查覆盖依赖解析、原生模块、壳 API 兼容性、后端启停、Web 资源和客户端启动图。不兼容插件会阻止激活，并保留上一个项目用于回滚。启动过程会明确失败，而不会运行版本不匹配的壳与 dsh。
+新发布先打开可响应的启动窗口，再从安装包种子校准 dsh，校准完成后才加载产品界面；已安装桌面插件会被保留。健康检查覆盖依赖解析、原生模块、壳 API 兼容性、后端启停、Web 资源和客户端启动图。不兼容插件会阻止激活，并保留上一个项目用于回滚。启动过程会明确失败，而不会运行版本不匹配的壳与 dsh。
 
 `DSH_DESKTOP_AUTO_UPDATE_ENV` 默认为测试部署，也可以选择生产部署，并同时决定目标专用的 generic-provider URL 与 COS 目标。发布自动化通过 `DOWNLOAD_TEST_ORIGIN` 提供测试 HTTPS origin，并通过 `DOWNLOAD_TEST_COS_BUCKET` 或 `DOWNLOAD_PROD_COS_BUCKET` 提供各部署的 bucket；可变的测试路由与 COS 存储身份不写入源码，部署基础设施变更时无需发布新代码，而公开的生产 origin 仍固定。打包只解析公开更新 URL、禁止 electron-builder 发布、从子进程环境中删除每个 COS 凭据字段，并且只有在 electron-builder 以及每个签名或公证 hook 成功后才写入完成记录。目标上传还必须提供所选 bucket，随后会先要求完成记录、根 dsh 版本、Desktop 版本、根据版本得出的频道元数据、产物名称、大小与 SHA-512 全部一致，再读取所选凭据或发送数据。它先上传不可变且带版本的更新载荷与所有独立 blockmap，最后替换 electron-builder 生成的频道元数据，并且不会删除历史对象。稳定版本使用 `latest` 元数据名称，预发布版本则使用语义化版本的第一个预发布标识符。NSIS 把 blockmap 嵌入已签名的可执行文件，macOS ZIP 则使用独立 blockmap；两者都让 electron-updater 在平台支持时只下载变化的数据块，而应用替换与本地 pnpm staging 事务仍是两个独立操作。
 

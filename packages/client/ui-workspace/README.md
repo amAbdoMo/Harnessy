@@ -25,7 +25,7 @@ This package lets users browse grouped or flat Session lists, choose a Workspace
 <a id="use-this-package"></a>
 ## Use this package
 
-Use the sidebar to browse Workspaces and their Sessions, reorder them, and start new ones. The global **New Session** action opens an ungrouped Session immediately, so a project folder is optional; the Session Intent hero keeps a **No project** chip that can select an existing Workspace or add a folder before the first prompt. A Workspace-scoped new-session action keeps targeting that Workspace. An open Workspace shows five non-blank Sessions by default and keeps the selected blank **New Session** as one provisional extra row until its first prompt. **Show more** reveals the hidden remainder; closing and reopening the Workspace restores this folded projection.
+Use the sidebar to browse Workspaces and their Sessions, reorder them, and start new ones. The global **New Session** action creates a fresh ungrouped Session immediately, so a project folder is optional; overlapping clicks share one in-flight creation, but a later click never reuses an older blank Session. The Session Intent hero keeps a **No project** chip that can select an existing Workspace or add a folder before the first prompt. A Workspace-scoped new-session action keeps targeting that Workspace and may reuse that Workspace's selected blank Session. An open Workspace shows five non-blank Sessions by default and keeps the selected blank **New Session** as one provisional extra row until its first prompt. **Show more** reveals the hidden remainder; closing and reopening the Workspace restores this folded projection.
 
 ### Reordering and view options
 
@@ -62,6 +62,10 @@ The package is one composition: both target slots are declared by other plugins,
 ### The directory-flow hole
 
 Each registration declares a **directory-flow child hole** (`single` kind: `conversation.hero.workspace.directoryFlow` / `sidebar.workspaces.directoryFlow`) that the composed picker package's client half fills with its picking interaction — the `-native` backend's renderless OS-chooser driver, an in-app browsing dialog under a `-browse` composition. The flat **Add workspace...** action renders only while the surface's hole is occupied; an empty hole means the composition has no picking affordance. This package owns the trigger and the adoption: the occupant reports one picked path per open through the hole's owner conversation (`open`/`busy`/`onPicked`/`onCancel`/`onError`), and the owner adopts it through the object layer, selecting the committed Workspace only after its list projection has refreshed.
+
+### Header actions
+
+The sidebar registration also declares the root-scoped, list-kind `sidebar.workspaces.headerActions` slot between the Workspaces label and Search. Product-specific compact actions can occupy it without changing the generic browser; the browser hides those occupants while its search field is expanded.
 
 ### View state
 

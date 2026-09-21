@@ -3,6 +3,7 @@ import type {
   ConversationLocation, ConversationViewNode, ModelRetryNode, RunningToolCall,
   ToolCallBlock,
 } from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type { TurnFileChanges } from './turn-file-changes.ts'
 
 /** Final Chat render unit produced by a Chat business Definition. */
 export interface ChatConversationViewNode extends ConversationViewNode {
@@ -95,6 +96,8 @@ export interface TurnTailChatData {
   readonly tokensPerSecond?: number
   /** Exact per-Turn accounting; absent when the loaded evidence is incomplete. */
   readonly tokenUsage?: TurnTokenUsage
+  /** Successful tool-attributed edits made during this Turn. */
+  readonly fileChanges?: TurnFileChanges
 }
 
 /** Turn-level process disclosure projected before the finalized answer. */

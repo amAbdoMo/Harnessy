@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-用侧边栏浏览 Workspace 及其 Session、重排它们并新建会话。全局**新会话**操作会立即打开一条未分组 Session，因此项目文件夹是可选项；Session Intent 主视觉区保留一个**无项目**选择器，可在首条提示词之前选择现有 Workspace 或添加文件夹。Workspace 作用域的新会话操作仍以该 Workspace 为目标。打开的 Workspace 默认显示五条非空白 Session，并在首条提示词落地前把当前选中的空白**新会话**作为一条临时额外行。**展开其余**会显示隐藏条目；关闭再打开 Workspace 会恢复该折叠投影。
+用侧边栏浏览 Workspace 及其 Session、重排它们并新建会话。全局**新会话**操作会立即创建一条新的未分组 Session，因此项目文件夹是可选项；重叠点击共享同一次进行中的创建，但之后的点击绝不会复用旧空白 Session。Session Intent 主视觉区保留一个**无项目**选择器，可在首条提示词之前选择现有 Workspace 或添加文件夹。Workspace 作用域的新会话操作仍以该 Workspace 为目标，并可复用该 Workspace 当前选中的空白 Session。打开的 Workspace 默认显示五条非空白 Session，并在首条提示词落地前把当前选中的空白**新会话**作为一条临时额外行。**展开其余**会显示隐藏条目；关闭再打开 Workspace 会恢复该折叠投影。
 
 ### 重排序与视图选项
 
@@ -62,6 +62,10 @@ Session 行渲染运行时的实时 `pendingInteraction` 分类：审批显示**
 ### 目录流子 slot
 
 每个注册各自声明一个**目录流子 slot**（`single` kind：`conversation.hero.workspace.directoryFlow`／`sidebar.workspaces.directoryFlow`），由组合的选择器包 client half 填入其选取交互——`-native` 后端的无渲染 OS 选择器驱动，`-browse` 组合下则是应用内浏览对话框。平铺显示的**添加工作区…** 操作仅在当前界面的 slot 被占用时渲染；slot 为空意味着该组合没有目录选择能力。本包持有触发与接纳：占用方通过 slot 的属主交互约定（`open`/`busy`/`onPicked`/`onCancel`/`onError`）每次打开上报一个所选路径，owner 通过对象层接纳它，并等待 Workspace 列表投影刷新后才选中已提交的 Workspace。
+
+### 标题栏操作
+
+侧边栏注册还会在 Workspaces 标签与搜索之间声明根范围、`list` kind 的 `sidebar.workspaces.headerActions` slot。产品专属的紧凑操作可以填入此处，而不必修改通用浏览器；搜索字段展开时，浏览器会隐藏这些占用方。
 
 ### 视图状态
 

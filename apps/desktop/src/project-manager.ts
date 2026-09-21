@@ -22,6 +22,11 @@ import {
   writeFileSync,
   writeSync,
 } from 'node:fs'
+import {
+  lstat,
+  rm,
+  unlink,
+} from 'node:fs/promises'
 import { basename, delimiter, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import {
   DESKTOP_PACKAGES_DIR,
@@ -35,7 +40,7 @@ import {
 } from './core-package-set.ts'
 import type { DesktopPaths } from './paths.ts'
 import { parseDesktopRelease, type DesktopRelease } from './release.ts'
-import { extractPnpmStoreArchives, mergePnpmStore } from './seed-store.ts'
+import { mergePnpmStoreArchives } from './seed-store.ts'
 import { CUSTOM_HARNESS_PRODUCT } from '../../../scripts/custom-harness-product.mjs'
 
 /** Files the package transaction copies between active and staging projects. */
@@ -209,6 +214,22 @@ function removeOwnedDirectory(path: string): void {
   }
   if (!stat.isDirectory()) throw new Error(`desktop project: owned directory path is not a directory: ${path}`)
   rmSync(path, { recursive: true })
+}
+
+async function removeOwnedDirectoryAsync(path: string): Promise<void> {
+  let stat: Awaited<ReturnType<typeof lstat>>
+  try {
+    stat = await lstat(path)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
+    throw error
+  }
+  if (stat.isSymbolicLink()) {
+    await unlink(path)
+    return
+  }
+  if (!stat.isDirectory()) throw new Error(`desktop project: owned directory path is not a directory: ${path}`)
+  await rm(path, { recursive: true })
 }
 
 function copyMetadata(source: string, target: string): void {
@@ -510,7 +531,7 @@ export class DesktopProjectManager {
       // can enter writable state during an install or upgrade.
       await verifySeedIntegrityAsync(seedDir)
       await verifyDesktopCorePackageSetAsync(seedDir, target.version)
-      this.mergeSeedPnpmState(seedDir)
+      await this.mergeSeedPnpmState(seedDir)
       const stagingProfile = this.newStagingProfile()
       try {
         if (existsSync(this.paths.profile)) {
@@ -612,14 +633,13 @@ export class DesktopProjectManager {
     }
   }
 
-  private mergeSeedPnpmState(seedDir: string): void {
+  private async mergeSeedPnpmState(seedDir: string): Promise<void> {
     const transactionRoot = join(this.paths.staging, randomUUID())
-    const extractedStore = join(transactionRoot, 'store')
+    const seedIndexes = join(transactionRoot, 'indexes')
     try {
-      extractPnpmStoreArchives(seedDir, extractedStore)
-      mergePnpmStore(extractedStore, this.paths.pnpm.store)
+      await mergePnpmStoreArchives(seedDir, this.paths.pnpm.store, seedIndexes)
     } finally {
-      removeOwnedDirectory(transactionRoot)
+      await removeOwnedDirectoryAsync(transactionRoot)
     }
   }
 
@@ -690,6 +710,9 @@ export class DesktopProjectManager {
           XDG_CONFIG_HOME: this.paths.pnpm.config,
           XDG_STATE_HOME: this.paths.pnpm.state,
         },
+        // The bundled node.exe is a console image; without this the install
+        // child would open a console window during first run and upgrades.
+        windowsHide: true,
         stdio: ['ignore', 'pipe', 'pipe'],
       })
       const childPid = child.pid

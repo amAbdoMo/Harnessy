@@ -24,7 +24,7 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import type { LlmDiscoveredModel, ModelCapabilityInspectionView } from '@deepseek-ai/dsh-api-remotes/client'
-import { Button, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, Modal, Select } from '@deepseek-ai/dsh-client-ui-primitives'
 import {
   declaredCapability, declaredDefaultReasoningEffort, declaredReasoningEfforts, formatCapacity,
   modelReasoningMode, parseCapacity, reasoningEffortsMap,
@@ -281,18 +281,17 @@ function CapabilityFields({
       </div>
       <label className={styles['modelField']}>
         <span className={styles['modelFieldLabel']}>{t('modelReasoningDefault')}</span>
-        <select
-          className={`${styles['input']} ${styles['selectInput']}`}
+        <Select
+          className={styles['select']}
           value={declaredDefaultReasoningEffort(model) ?? ''}
-          aria-label={`${t('modelReasoningDefault')} ${index + 1}`}
+          label={`${t('modelReasoningDefault')} ${String(index + 1)}`}
           disabled={disabled}
-          onChange={(event) => { onDefaultLevel(event.target.value) }}
-        >
-          <option value="">{t('modelReasoningDefaultNone')}</option>
-          {declared.map(level => (
-            <option key={level} value={level}>{effortLabel(level, t)}</option>
-          ))}
-        </select>
+          options={[
+            { value: '', label: t('modelReasoningDefaultNone') },
+            ...declared.map(level => ({ value: level, label: effortLabel(level, t) })),
+          ]}
+          onChange={onDefaultLevel}
+        />
       </label>
     </>
   )
@@ -645,17 +644,18 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
                   : (
                     <label className={styles['modelField']}>
                       <span className={styles['modelFieldLabel']}>{t('modelReasoning')}</span>
-                      <select
-                        className={`${styles['input']} ${styles['selectInput']}`}
+                      <Select
+                        className={styles['select']}
                         value={modelReasoningMode(model)}
-                        aria-label={`${t('modelReasoning')} ${index + 1}`}
+                        label={`${t('modelReasoning')} ${String(index + 1)}`}
                         disabled={disabled}
-                        onChange={(event) => { setReasoningMode(index, event.target.value as ModelReasoningMode) }}
-                      >
-                        <option value="inherit">{t('modelReasoningInherit')}</option>
-                        <option value="supported">{t('modelReasoningSupported')}</option>
-                        <option value="disabled">{t('modelReasoningDisabled')}</option>
-                      </select>
+                        options={[
+                          { value: 'inherit', label: t('modelReasoningInherit') },
+                          { value: 'supported', label: t('modelReasoningSupported') },
+                          { value: 'disabled', label: t('modelReasoningDisabled') },
+                        ]}
+                        onChange={(next) => { setReasoningMode(index, next) }}
+                      />
                     </label>
                   )}
                 {/* What an undeclared row can do about it, said where the

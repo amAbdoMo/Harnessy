@@ -39,7 +39,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * Registrants own visibility, behavior, copy, and failure presentation;
      * the shell supplies only the ordered render site.
      */
-    'settings.action': { kind: 'list'; scope: 'root'; owner: SettingsHeaderOwnerProps }
+    'settings.action': { kind: 'list'; scope: 'root'; owner: SettingsActionOwnerProps }
     /**
      * The close button's visually-hidden label text (the button itself —
      * icon, geometry, focus — is shell chrome). Absent contribution leaves
@@ -127,6 +127,12 @@ export interface SettingsLauncherOwnerProps {
 export interface SettingsHeaderOwnerProps {
   /** Marker field: header owner props are intentionally empty. */
   children?: never
+}
+
+/** Owner share for actions that follow the selected Settings page. */
+export interface SettingsActionOwnerProps {
+  /** Stable id of the page currently rendered in the content column. */
+  activeSectionId: string | undefined
 }
 
 /**

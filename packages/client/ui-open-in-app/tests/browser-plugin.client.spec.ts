@@ -101,13 +101,10 @@ describe('open-in-app browser half', () => {
     await fiber.dispose()
   })
 
-  it('registers both dictionaries under its own namespace and releases them with the fiber', async () => {
+  it('registers the English dictionary under its own namespace and releases it with the fiber', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ apps: [] }), { status: 200 })))
     const { ctx, fiber } = await bench()
-    ctx.locale.setLocale('zh')
     const translate = ctx.locale.bind(NS)
-    expect(translate('menu.aria')).toBe(zh['menu.aria'])
-    ctx.locale.setLocale('en')
     expect(translate('menu.aria')).toBe(en['menu.aria'])
     await fiber.dispose()
     expect(translate('menu.aria')).not.toBe(en['menu.aria'])

@@ -17,6 +17,16 @@
 - id: ui-message-feedback
   disabled: true
 
+# Harnessy delegates through the configurable role roster. The two generic
+# creation tools would bypass the selected role's model, access, instructions,
+# and routing guidance, so this product hides those schemas while retaining the
+# shared subagent runtime, status catalog, and follow-up controls.
+- id: tool-subagent
+  disabled: true
+
+- id: tool-subagent-fork
+  disabled: true
+
 - insert:
     # Interactive account authorization is product-visible only in Custom
     # Harness. llm-pi-ai discovers its OpenAI ChatGPT OAuth flow through this
@@ -48,6 +58,10 @@
     # row, so no other product gains a Command Code route.
     - id: commandcode-delegation
       name: '@deepseek-ai/dsh-subagent-commandcode'
+      config:
+        # The roster owns model-facing delegation in Harnessy. This row remains
+        # mounted for its backend, readiness probe, and model catalog.
+        toolsEnabled: false
 
     # Public model capability metadata. The row declares the local capability
     # integration as an injected service, which is what orders the two: the
@@ -70,8 +84,8 @@
     # settings section, the `delegate` and `list_subagents` tools, the one-shot
     # migration of a stored lane configuration, and the `subagentRoster` Remote
     # namespace the Subagents page reads; it starts no child while loading. The
-    # `commandcode-delegation` row above stays mounted, so both delegation tool
-    # sets coexist until the lane system is retired.
+    # `commandcode-delegation` stays mounted as a backend while its legacy lane
+    # tools remain hidden, so configured roles are the only creation path.
     - id: subagent-roster
       name: '@deepseek-ai/dsh-subagent-roster'
 

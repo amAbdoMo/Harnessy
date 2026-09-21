@@ -60,18 +60,18 @@ Behavior, configuration (`model-capabilities.publicMetadata`), and the sync safe
 <a id="command-code-delegation"></a>
 ## Command Code delegation
 
-The profile mounts the `commandcode-delegation` Host row. It adds one token-stable `commandcode_delegate` tool and one `list_commandcode_lanes` discovery tool to every agent in this profile, and a live `commandcode-delegation` settings section holding named lanes and the run bounds. The section has no Settings page of its own: the **Subagents** page reads this row's `commandcode` Remote namespace for the backend's installation state and for the model catalog its roles choose routes from.
+The profile mounts the `commandcode-delegation` Host row with its pre-roster tools disabled. The live `commandcode-delegation` settings section, `commandcode` backend, health probe, and model catalog remain available, so the **Subagents** page can configure roles against Command Code without exposing a second delegation route to the model.
 
-Each lane fixes an exact Command Code model, a reasoning effort, and an access level, so a delegated task can never choose or widen any of them. The user's own installed and authenticated CLI is the only backend: this profile vendors no Command Code package, stores no Command Code credential, and falls back to no other product, model, or executable. Loading the row starts no Command Code process. Disabling it removes the tools, the section, and the backend state the Subagents page would otherwise report, and leaves every other product profile untouched.
+Each lane fixes an exact Command Code model, a reasoning effort, and an access level, so a delegated task can never choose or widen any of them. The user's own installed and authenticated CLI is the only backend: this profile vendors no Command Code package, stores no Command Code credential, and falls back to no other product, model, or executable. Loading the row starts no Command Code process. Disabling it removes the section and backend state the Subagents page would otherwise report, and leaves every other product profile untouched.
 
-The lane section stays mounted beside the unified roster, so `commandcode_delegate` and `list_commandcode_lanes` keep working through it while a user moves to the roster.
+The stored lane section stays mounted as migration input and backend configuration. Other profiles may retain `commandcode_delegate` and `list_commandcode_lanes`; Harnessy deliberately exposes only the roster's tools.
 
 <a id="subagents"></a>
 ## Subagents
 
 The profile mounts the `subagent-roster` Host row and the `ui-settings-subagents` client row. Together they add the top-level **Subagents** page in Settings and the role directory behind it: the `subagent-roster` settings section with one card per stored role — its model and reasoning effort, its sandbox access, its invocation policy, its tool scoping, and its standing instructions — plus the per-workspace overrides and the automatic-routing authorization an agent's model choice resolves against.
 
-The Host row adds one token-stable `delegate` tool and one `list_subagents` discovery tool to every agent in this profile, so the two delegation tool sets run side by side. It registers its tools while loading and starts no child.
+The Host row adds one token-stable `delegate` tool and one `list_subagents` discovery tool to every agent in this profile. Harnessy disables the generic `subagent` and `subagent_fork` tools and the pre-roster Command Code tools, so every new child must name one enabled configured role. The tool guidance tells the model to read the directory before delegating, choose the best matching role, and batch related items instead of creating one child per image, file, or record. The parent keeps final integration and validation. Loading the row starts no child.
 
 On the first load that finds a stored lane configuration, the Host row also carries that configuration into the `subagent-roster` document, once. The `commandcode-delegation` section, its per-workspace `projects` overrides, and the `subagent-model-selection` section stay exactly where they were stored, so a user can inspect or revert; a roster the user already edited is never replaced.
 

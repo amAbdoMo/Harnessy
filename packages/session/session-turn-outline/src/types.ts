@@ -11,6 +11,9 @@ import type { SessionSeq } from '@deepseek-ai/dsh-session/types'
 
 export {}
 
+/** User-facing outcome of a settled turn. */
+export type TurnOutlineOutcome = 'completed' | 'stopped' | 'failed'
+
 /** One started turn's outline facts, independent of what a client has paged in. */
 export interface TurnOutlineEntry {
   /** Host-assigned turn number (the `turn/start` payload). */
@@ -21,6 +24,8 @@ export interface TurnOutlineEntry {
   readonly prompt: string
   /** Bounded final-response preview (up to three rail-card lines); `''` until the turn ends with assistant text. */
   readonly response: string
+  /** Terminal outcome; absent while this turn is still open. */
+  readonly outcome?: TurnOutlineOutcome | undefined
 }
 
 /**

@@ -11,10 +11,12 @@ import {
   defaultSubagentSettings,
   DEFAULT_SUBAGENT_DEFINITIONS,
   DEFAULT_SUBAGENT_LIMITS,
+  MAX_SUBAGENT_CONCURRENT_RUNS,
 } from '../src/defaults.ts'
 import {
   canonicalWorkspaceKey,
   requireEnabledSubagent,
+  resolveSubagentConcurrencyLimit,
   resolveSubagentRoster,
   SubagentSettingsSchema,
   subagentRosterView,
@@ -81,6 +83,13 @@ describe('SubagentSettingsSchema', () => {
       expect({ id: definition.id, model: definition.model })
         .toEqual({ id: definition.id, model: { mode: 'fixed' } })
     }
+  })
+
+  it('accepts adaptive concurrency and resolves it to the hard product ceiling', () => {
+    expect(parse({ limits: { maxConcurrentRuns: 'adaptive' } }).limits.maxConcurrentRuns)
+      .toBe('adaptive')
+    expect(resolveSubagentConcurrencyLimit('adaptive')).toBe(MAX_SUBAGENT_CONCURRENT_RUNS)
+    expect(resolveSubagentConcurrencyLimit(3)).toBe(3)
   })
 
   it.each<[string, object]>([

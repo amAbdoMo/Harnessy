@@ -219,8 +219,8 @@ export interface HeroAgentPresetOwnerProps {
 
 /** Header actions derive their state from standard Session props. */
 export interface ConversationHeaderActionOwnerProps {
-  /** Marker field: entries receive no owner-specific values. */
-  children?: never
+  /** Open Chat and focus the tool-call row with this durable call id. */
+  openConversationEvent: (callId: string) => void
 }
 
 /** The header corner's occupant derives its state from standard Session props. */
@@ -284,6 +284,8 @@ export interface ConversationSessionHeaderInjected {
   open: (sessionId: SessionId) => void
   /** Select and activate one registered Conversation View. */
   selectView: (view: string) => void
+  /** Select one registered View and address an opaque focus request to it. */
+  openView: (view: string, focus: string) => void
 }
 
 /** Owner share of the resident composer bar. */

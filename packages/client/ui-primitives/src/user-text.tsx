@@ -12,7 +12,7 @@
  * stray `/word` stays plain text. A `/name` token is whitespace-bounded like
  * the host skill gesture (`dsh-tool-skill`): it ends at whitespace or the
  * text end, so slash paths (`/nfs-hg/xxx`, `/plan.md`) and punctuation-glued
- * tokens (`/plan。`) stay plain even for a loaded name.
+ * tokens followed by sentence punctuation stay plain even for a loaded name.
  */
 import type { ReactNode } from 'react'
 import clsx from 'clsx'

@@ -94,9 +94,14 @@ A sync persists only what a provider-aware match resolved, on a row that declare
 A composition with its own catalog source skips the plugin and registers directly. `origin` states where each catalog came from — `fixture`, `bundled`, `live`, or `cache` — and travels into the provenance of every answer.
 
 ```ts
-import { createPublicCapabilitySource } from '@deepseek-ai/dsh-model-capabilities'
+import type { Context } from '@deepseek-ai/cordis'
+import {
+  createPublicCapabilitySource,
+  loadBundledPublicCatalogs,
+} from '@deepseek-ai/dsh-model-capabilities'
 import type { PublicCatalog } from '@deepseek-ai/dsh-model-capabilities'
 
+declare const ctx: Context
 declare const modelsDev: unknown
 declare const openRouter: unknown
 

@@ -72,9 +72,7 @@
 
 .card:has(.input:focus-visible) {
   --dsw-elevation-stroke-color: var(--dsw-alias-state-business-primary);
-  box-shadow:
-    var(--dsw-elevation-soft),
-    0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 24%, transparent);
+  box-shadow: var(--dsw-elevation-soft);
 }
 
 /* No-workspace trigger state: dashed l4 stroke marks the card as a pick-a-

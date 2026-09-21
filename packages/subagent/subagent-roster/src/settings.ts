@@ -25,6 +25,7 @@ import type {
   SubagentDefinitionOverride,
   SubagentModelMode,
   SubagentRosterView,
+  SubagentRunLimits,
   SubagentSettings,
   SubagentStoredRoster,
   SubagentWorkspaceOverride,
@@ -158,12 +159,28 @@ export const SubagentSettingsSchema: z<SubagentSettings> = z.object({
     allowedModels: z.array(AllowedModelRouteSchema).default([]),
   }).default(DEFAULT_SUBAGENT_AUTOMATIC_ROUTING),
   limits: z.object({
-    maxConcurrentRuns: z.number().step(1).min(1).max(MAX_SUBAGENT_CONCURRENT_RUNS)
-      .default(DEFAULT_SUBAGENT_LIMITS.maxConcurrentRuns),
+    maxConcurrentRuns: z.union([
+      'adaptive',
+      z.number().step(1).min(1).max(MAX_SUBAGENT_CONCURRENT_RUNS),
+    ]).default(DEFAULT_SUBAGENT_LIMITS.maxConcurrentRuns),
     defaultTimeoutMs: z.number().step(1).min(1).max(MAX_TIMER_DELAY_MS)
       .default(DEFAULT_SUBAGENT_LIMITS.defaultTimeoutMs),
   }).default(DEFAULT_SUBAGENT_LIMITS),
 }) as unknown as z<SubagentSettings>
+
+/**
+ * Resolve the stored concurrency policy to the limiter capacity it enforces.
+ *
+ * Adaptive mode gives the parent room to select the smallest useful batch;
+ * the product ceiling remains a hard runtime bound.
+ * @param value - stored adaptive policy or manual cap.
+ * @returns the numeric capacity enforced by the run limiter.
+ */
+export function resolveSubagentConcurrencyLimit(
+  value: SubagentRunLimits['maxConcurrentRuns'],
+): number {
+  return value === 'adaptive' ? MAX_SUBAGENT_CONCURRENT_RUNS : value
+}
 
 /**
  * Canonicalize one workspace path into the settings key its overrides live

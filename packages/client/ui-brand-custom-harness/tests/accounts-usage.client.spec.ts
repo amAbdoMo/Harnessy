@@ -13,10 +13,10 @@ const refreshedState: AccountsState = {
   ...describedState,
   providers: [{
     id: 'openai-codex', label: 'Codex', authMode: 'oauth', available: true,
-    accountCount: 1, activeAccountId: 'codex-1', usageAvailable: true,
+    accountCount: 1, activeAccountId: 'codex-1', usageAvailable: true, autoSwitchOnLimit: false,
   }],
   accounts: [{
-    id: 'codex-1', provider: 'openai-codex', name: 'Abdo Mohamed', initials: 'AM',
+    id: 'codex-1', ownerId: 'owner-abdo', provider: 'openai-codex', name: 'Abdo Mohamed', initials: 'AM',
     active: true, authMode: 'oauth',
     usage: { windows: [{ id: 'primary', label: '5h', usedPercent: 28 }] },
   }],

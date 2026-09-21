@@ -25,6 +25,7 @@ export type { PluginInventorySnapshot } from '@deepseek-ai/dsh-host-plugin-inven
 export type {} from '@deepseek-ai/dsh-agent-presets/remote'
 export type {} from '@deepseek-ai/dsh-commands/remote'
 export type {} from '@deepseek-ai/dsh-api-settings-controller/remote'
+export type {} from '@deepseek-ai/dsh-api-settings-controller/types'
 export type {} from '@deepseek-ai/dsh-goal/remote'
 export type {} from '@deepseek-ai/dsh-llm/remote'
 export type {} from '@deepseek-ai/dsh-model-capabilities/remote'
@@ -115,8 +116,8 @@ export type {
 // Credential state vocabulary for the credentials namespace (values never ride it).
 export type { CredentialInfo } from '@deepseek-ai/dsh-credentials/types'
 export type {
-  AccountAuthMode, AccountProviderId, AccountProviderView, AccountSignInResult,
-  AccountsState, AccountUsageView, AccountUsageWindow, ManagedAccountView,
+  AccountAuthMode, AccountAutoSwitchEvent, AccountProviderId, AccountProviderView, AccountSignInResult,
+  AccountsState, AccountUsageScope, AccountUsageView, AccountUsageWindow, ManagedAccountView,
   McpManagerState, McpServerInput, McpServerStatus, McpServerTransport, McpServerView,
   OpenAIAccountSignInResult, OpenAIAccountState,
 } from '@deepseek-ai/dsh-api-settings-controller/types'

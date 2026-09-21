@@ -13,6 +13,7 @@
 
 import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
+import { Select } from '@deepseek-ai/dsh-client-ui-primitives'
 import css from './SubagentsSection.module.css'
 
 /**
@@ -121,11 +122,12 @@ export function DraftTextarea({ id, value, disabled, rows, onChange }: {
 }
 
 /** Numeric control holding its draft as text, so an emptied field clears the bound. */
-export function DraftNumber({ id, value, disabled, min, onChange }: {
+export function DraftNumber({ id, value, disabled, min, max, onChange }: {
   readonly id: string
   readonly value: number | undefined
   readonly disabled: boolean
   readonly min: number
+  readonly max?: number
   readonly onChange: (next: number | undefined) => void
 }): ReactNode {
   const [text, setText] = useState(value === undefined ? '' : String(value))
@@ -141,6 +143,7 @@ export function DraftNumber({ id, value, disabled, min, onChange }: {
       className={css.input}
       type="number"
       min={min}
+      max={max}
       value={text}
       disabled={disabled}
       aria-describedby={hintIdOf(id)}
@@ -156,15 +159,17 @@ export function DraftNumber({ id, value, disabled, min, onChange }: {
         }
         const parsed = Number.parseFloat(next)
         if (Number.isFinite(parsed)) {
-          written.current = parsed
-          onChange(parsed)
+          const bounded = max === undefined ? parsed : Math.min(parsed, max)
+          if (bounded !== parsed) setText(String(bounded))
+          written.current = bounded
+          onChange(bounded)
         }
       }}
     />
   )
 }
 
-/** Select over a fixed option list. */
+/** Single-choice control over a fixed option list. */
 export function DraftSelect<T extends string>({ id, value, disabled, options, onChange }: {
   readonly id: string
   readonly value: T
@@ -173,16 +178,15 @@ export function DraftSelect<T extends string>({ id, value, disabled, options, on
   readonly onChange: (next: T) => void
 }): ReactNode {
   return (
-    <select
+    <Select
       id={id}
       className={css.select}
       value={value}
+      options={options}
       disabled={disabled}
-      aria-describedby={hintIdOf(id)}
-      onChange={(event) => { onChange(event.target.value as T) }}
-    >
-      {options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-    </select>
+      ariaDescribedBy={hintIdOf(id)}
+      onChange={onChange}
+    />
   )
 }
 

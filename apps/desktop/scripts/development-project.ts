@@ -11,7 +11,7 @@ import {
   symlinkSync,
   unlinkSync,
 } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { createDevelopmentProjectMetadata } from '../src/project-manager.ts'
 import type { DesktopRelease } from '../src/release.ts'
 
@@ -62,7 +62,26 @@ function linkDirectory(source: string, destination: string): void {
   symlinkSync(realpathSync(source), destination, process.platform === 'win32' ? 'junction' : 'dir')
 }
 
-function mirrorDependencyLinks(sourceRoot: string, destinationRoot: string): void {
+function linkWorkspaceDependency(source: string, destination: string): string | undefined {
+  let resolved: string
+  try {
+    resolved = realpathSync(source)
+  } catch (error) {
+    // pnpm can leave a virtual-hoist link behind after its workspace package is
+    // removed. It is not part of the current graph, so the disposable project
+    // omits it; every other filesystem failure still aborts preparation.
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined
+    throw error
+  }
+  if (!existsSync(destination)) {
+    mkdirSync(dirname(destination), { recursive: true })
+    symlinkSync(resolved, destination, process.platform === 'win32' ? 'junction' : 'dir')
+  }
+  return resolved
+}
+
+function mirrorDependencyLinks(sourceRoot: string, destinationRoot: string): readonly string[] {
+  const resolved: string[] = []
   for (const entry of readdirSync(sourceRoot, { withFileTypes: true })) {
     if (entry.name === '.bin') continue
     const source = join(sourceRoot, entry.name)
@@ -70,11 +89,49 @@ function mirrorDependencyLinks(sourceRoot: string, destinationRoot: string): voi
       mkdirSync(join(destinationRoot, entry.name), { recursive: true })
       for (const scoped of readdirSync(source, { withFileTypes: true })) {
         if (!scoped.isDirectory() && !scoped.isSymbolicLink()) continue
-        linkDirectory(join(source, scoped.name), join(destinationRoot, entry.name, scoped.name))
+        const linked = linkWorkspaceDependency(
+          join(source, scoped.name),
+          join(destinationRoot, entry.name, scoped.name),
+        )
+        if (linked !== undefined) resolved.push(linked)
       }
       continue
     }
-    if (entry.isDirectory() || entry.isSymbolicLink()) linkDirectory(source, join(destinationRoot, entry.name))
+    if (entry.isDirectory() || entry.isSymbolicLink()) {
+      const linked = linkWorkspaceDependency(source, join(destinationRoot, entry.name))
+      if (linked !== undefined) resolved.push(linked)
+    }
+  }
+  return resolved
+}
+
+function isWorkspacePackage(candidate: string, workspaceRoot: string): boolean {
+  const fromRoot = relative(workspaceRoot, candidate)
+  return fromRoot !== ''
+    && fromRoot !== '..'
+    && !isAbsolute(fromRoot)
+    && !fromRoot.startsWith(`..${sep}`)
+    && !fromRoot.split(/[\\/]/u).includes('node_modules')
+}
+
+function mirrorTransitiveWorkspaceLinks(
+  workspaceRoot: string,
+  packageRoots: readonly string[],
+  destinationRoot: string,
+): void {
+  const pending = [...packageRoots]
+  const visited = new Set<string>()
+  while (pending.length > 0) {
+    const packageRoot = pending.shift()
+    if (packageRoot === undefined) break
+    const canonicalRoot = realpathSync(packageRoot)
+    if (visited.has(canonicalRoot)) continue
+    visited.add(canonicalRoot)
+    const modules = join(canonicalRoot, 'node_modules')
+    if (!existsSync(modules)) continue
+    for (const dependency of mirrorDependencyLinks(modules, destinationRoot)) {
+      if (isWorkspacePackage(dependency, workspaceRoot)) pending.push(dependency)
+    }
   }
 }
 
@@ -110,6 +167,7 @@ export function prepareDevelopmentProject(options: DevelopmentProjectOptions): s
   const destinationModules = join(options.projectDir, 'node_modules')
   mkdirSync(destinationModules, { recursive: true })
   mirrorDependencyLinks(options.dependencyDir, destinationModules)
+  mirrorTransitiveWorkspaceLinks(resolve(options.cliDir, '..', '..'), [options.cliDir, options.hostDir], destinationModules)
   const dshLink = join(destinationModules, '@deepseek-ai', 'dsh')
   removeOwnedPath(dshLink)
   linkDirectory(options.cliDir, dshLink)

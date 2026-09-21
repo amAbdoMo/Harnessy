@@ -65,7 +65,7 @@ describe('turn outline projection unit', () => {
     const { ctx, session } = await harness(true)
     expect(outlineOf(ctx, session)).toEqual([])
     expect(ctx.sessionProjections.checkpoint(session).turnOutline)
-      .toEqual({ ver: 2, seq: -1, val: { turns: [], draft: '' } })
+      .toEqual({ ver: 3, seq: -1, val: { turns: [], draft: '' } })
   })
 
   it('folds each turn with its boundary seq, first prompt, and turn-end response', async () => {
@@ -79,7 +79,7 @@ describe('turn outline projection unit', () => {
     const secondBoundary = session.append('turn/start', { turn: 2 }).seq
     appendPrompt(session, 'second prompt')
     expect(outlineOf(ctx, session)).toEqual([
-      { turn: 1, seq: firstBoundary, prompt: 'hello world', response: 'final answer of turn one' },
+      { turn: 1, seq: firstBoundary, prompt: 'hello world', response: 'final answer of turn one', outcome: 'completed' },
       { turn: 2, seq: secondBoundary, prompt: 'second prompt', response: '' },
     ])
   })
@@ -93,6 +93,19 @@ describe('turn outline projection unit', () => {
     expect(ctx.sessionProjections.stateOf(session, 'turnOutline')?.draft).toBe('streamed but unsettled')
     endTurn(session, 1)
     expect(outlineOf(ctx, session)[0]?.response).toBe('streamed but unsettled')
+  })
+
+  it.each([
+    [{ kind: 'completed' }, 'completed'],
+    [{ kind: 'aborted', reason: { kind: 'user' } }, 'stopped'],
+    [{ kind: 'max-tokens' }, 'stopped'],
+    [{ kind: 'error', error: { message: 'failed', code: 'UNKNOWN' } }, 'failed'],
+    [{ kind: 'blocked' }, 'failed'],
+  ] as const)('projects terminal reason %o as %s', async (reason, outcome) => {
+    const { ctx, session } = await harness(true)
+    session.append('turn/start', { turn: 1 })
+    session.append('turn/end', { turn: 1, reason })
+    expect(outlineOf(ctx, session)[0]?.outcome).toBe(outcome)
   })
 
   it('reads a bounded slice of one oversized text block instead of the whole payload', async () => {
@@ -168,7 +181,7 @@ describe('turn outline projection unit', () => {
     // Whitespace-only prompt text normalizes to nothing: the entry stays unlabeled.
     appendPrompt(session, ' \t  ')
     endTurn(session, 1)
-    expect(outlineOf(ctx, session)).toEqual([{ turn: 1, seq: 0, prompt: '', response: '' }])
+    expect(outlineOf(ctx, session)).toEqual([{ turn: 1, seq: 0, prompt: '', response: '', outcome: 'completed' }])
   })
 
   it('bounds preview reading and keeps repeated or empty drafts quiet (fabricated envelopes)', () => {
@@ -199,10 +212,10 @@ describe('turn outline projection unit', () => {
       data: { turn: 1, reason: { kind: 'completed' } },
     } as unknown as SessionEvent
     expect(def.apply({ turns: [], draft: 'orphan' }, end)).toEqual({ turns: [], draft: '' })
-    // …and a re-settled identical response keeps the entries' identity.
+    // …and a re-settled identical response records the terminal outcome.
     const settled: TurnOutlineState = { turns: [{ turn: 1, seq: SessionSeq(0), prompt: 'p', response: 'done' }], draft: 'done' }
     const recommitted = def.apply(settled, end)
-    expect(recommitted.turns).toBe(settled.turns)
+    expect(recommitted.turns).toEqual([{ ...settled.turns[0]!, outcome: 'completed' }])
     expect(recommitted.draft).toBe('')
   })
 

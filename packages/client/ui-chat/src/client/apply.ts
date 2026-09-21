@@ -27,8 +27,10 @@ import { ApprovalCommand } from './chat/ApprovalCommand.tsx'
 import { ChatView } from './chat/ChatView.tsx'
 import { registerChatNodeRenderers } from './chat/register-node-renderers.ts'
 import { StatsPills } from './chat/StatsPills.tsx'
+import { TurnChangesDock, type TurnChangesDockInjected } from './chat/TurnChangesDock.tsx'
+import { TURN_DIFF_ID, TURN_DIFF_KIND, TurnDiffPreview } from './chat/TurnDiffPreview.tsx'
 import { registerConversationNodes } from './conversation-nodes/register.ts'
-import { en, NS, zh } from './locale.ts'
+import { en, NS } from './locale.ts'
 import { TranscriptViewRow, type TranscriptViewRowInjected } from './settings/TranscriptViewRow.tsx'
 import { createChatStore } from './stores.ts'
 import { TranscriptViewPolicy } from './transcript-view.ts'
@@ -46,7 +48,7 @@ const CHAT_NODE_INJECT: ChatNodeTurnDataInjected = {
 /** Services required by the Chat target and its presentation registrations. */
 export const inject = [
   'slots', 'sessions', 'uiSession', 'uiConversation', 'locale',
-  'settingsScope', 'remote', 'remote.session', 'sidebarRight',
+  'settingsScope', 'remote', 'remote.session', 'sidebarRight', 'sidebarRightTabs',
 ]
 
 /**
@@ -74,13 +76,27 @@ export function apply(ctx: Context): void {
     resolve: binding => ({ hooks: { chat: chatSource(binding) } }),
   })
 
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-chat: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { en }), 'ui-chat: dictionaries')
   const t = ctx.locale.bind(NS)
   const chatStore = createChatStore()
   const chatScrollPositions = new Map<SessionId, ChatScrollPosition>()
   const transcriptView = new TranscriptViewPolicy(
     ctx.settingsScope.bind<ChatSettings>({ namespace: CHAT_SETTINGS_NAMESPACE }),
   )
+  const openDiff: TurnChangesDockInjected['openDiff'] = (path, diffs) => {
+    ctx.sidebarRight.openTab(TURN_DIFF_KIND, { params: { path, diffs } })
+  }
+
+  ctx.effect(() => ctx.sidebarRightTabs.register({
+    id: TURN_DIFF_ID,
+    kind: TURN_DIFF_KIND,
+    priority: 'builtin',
+    title: () => t('changes.title'),
+  }), 'ui-chat: turn diff tab type')
+  ctx.effect(() => ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register(
+    { name: 'sidebar.right.pane.tab', key: TURN_DIFF_ID, locale: NS },
+    TurnDiffPreview,
+  )), 'ui-chat: turn diff tab body')
 
   ctx.slots.inject('settings.general.item', () => ctx.slots.register({
     name: 'settings.general.item',
@@ -136,6 +152,7 @@ export function apply(ctx: Context): void {
             else ctx.sidebarRight.openResource(url, { params: { line: options.line } })
             await Promise.resolve()
           },
+          openDiff,
           loadOlder: () => { void session.loadOlder() },
           loadThrough: seq => session.loadThrough(seq),
           loadImage: Object.assign(
@@ -161,6 +178,12 @@ export function apply(ctx: Context): void {
     }, ChatView)
     return disposeView
   })
+
+  ctx.slots.inject('conversation.composer.dock', () =>
+    ctx.slots.register({
+      name: 'conversation.composer.dock', id: 'turn-changes', order: -10, locale: NS,
+      inject: (): TurnChangesDockInjected => ({ openDiff }),
+    }, TurnChangesDock))
 
   ctx.slots.inject('conversation.composer.dock', () =>
     ctx.slots.register({

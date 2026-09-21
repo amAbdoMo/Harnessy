@@ -18,6 +18,7 @@ interface ChatNodeSeatProps extends ChatNodeOwnerProps {
   readonly actions: ChatViewSlotProps['actions']
   readonly renderSlot: ChatViewSlotProps['renderSlot']
   readonly t: ChatViewSlotProps['t']
+  readonly activityHidden?: boolean
 }
 
 type RoutedChatNodeOwner = {
@@ -37,8 +38,8 @@ function turnOf(node: ChatNode | undefined): number | undefined {
 /** Subscribe, apply Turn-process visibility, and dispatch one stable Context key. */
 export const ChatNodeSeat = memo(function ChatNodeSeat({
   nodeKey, useChatNode, useChatNodeProcess, historyIncomplete, compactTranscript,
-  cwd, openFile, inspectCall, forkAt,
-  loadImage, renderMessageImages, fileMentions, useStore, actions, renderSlot, t,
+  cwd, openFile, openDiff, inspectCall, forkAt,
+  loadImage, renderMessageImages, fileMentions, useStore, actions, renderSlot, t, activityHidden = false,
 }: ChatNodeSeatProps) {
   const node = useChatNode(nodeKey)
   const routedNode = node as ChatNode | undefined
@@ -105,6 +106,7 @@ export const ChatNodeSeat = memo(function ChatNodeSeat({
     : {
       cwd,
       openFile,
+      openDiff,
       inspectCall,
       forkAt,
       loadImage,
@@ -112,7 +114,7 @@ export const ChatNodeSeat = memo(function ChatNodeSeat({
       fileMentions,
       turnProcess,
     }, [
-    node, cwd, openFile, inspectCall, forkAt,
+    node, cwd, openFile, openDiff, inspectCall, forkAt,
     loadImage, renderMessageImages, fileMentions, turnProcess,
   ])
   if (routedNode === undefined || owner === null) return null
@@ -124,6 +126,7 @@ export const ChatNodeSeat = memo(function ChatNodeSeat({
   return (
     <div
       ref={wrapperRef}
+      hidden={activityHidden || undefined}
       className={css.flowItem}
       data-chat-anchor-key={routedNode.key}
       data-chat-flow-key={routedNode.key}

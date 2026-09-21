@@ -53,6 +53,7 @@ export function createElectronBuilderConfig(
     artifactName: `${CUSTOM_HARNESS_PRODUCT.installerName}-\${version}-\${os}-\${arch}.\${ext}`,
     directories: { output: buildPaths.artifacts },
     asar: true,
+    electronLanguages: ['en-US'],
     files: [
       'lib/*.js',
       'lib/*.cjs',

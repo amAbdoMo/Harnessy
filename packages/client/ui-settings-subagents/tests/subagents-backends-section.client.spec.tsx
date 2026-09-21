@@ -185,7 +185,7 @@ function mount(options: MountOptions = {}) {
       allowedModels: current.automaticRouting.allowedModels.map(route => ({ ...route })),
     }),
     modelCatalog: async (): Promise<ModelCatalog> => options.catalog ?? RUNTIME_CATALOG,
-    ...probe === undefined ? {} : { backendProbe: probe },
+    backendProbe: probe,
   }
 
   const useSessions = <Selected,>(selector: (state: {
@@ -219,13 +219,27 @@ function expand(name: string): void {
 }
 
 /** One card's model control. */
-function modelControl(name: string): HTMLSelectElement {
-  return within(card(name)).getByLabelText(en.fieldModel) as HTMLSelectElement
+function modelControl(name: string): HTMLElement {
+  return within(card(name)).getByLabelText(en.fieldModel)
 }
 
-/** The option texts one select renders, in order. */
-function optionsOf(select: HTMLSelectElement): (string | null)[] {
-  return [...select.querySelectorAll('option')].map(option => option.textContent)
+/** The label one control currently shows on its trigger. */
+function shownValue(control: HTMLElement): string {
+  return control.textContent ?? ''
+}
+
+/** The option labels one control offers, read from its opened popup. */
+function optionsOf(control: HTMLElement): string[] {
+  fireEvent.click(control)
+  const labels = screen.getAllByRole('option').map(option => option.textContent ?? '')
+  fireEvent.keyDown(control, { key: 'Escape' })
+  return labels
+}
+
+/** Pick the option whose visible label is `label`. */
+function pick(control: HTMLElement, label: string): void {
+  fireEvent.click(control)
+  fireEvent.click(screen.getByRole('option', { name: label }))
 }
 
 /** The Backends block's region. */
@@ -246,6 +260,17 @@ function deferredRead<T>() {
 }
 
 describe('Subagents Backends block', () => {
+  it('keeps runtime diagnostics collapsed until the summary is opened', () => {
+    mount()
+    const details = block().querySelector('details')
+    if (details === null) throw new Error('runtime status has no disclosure')
+    expect(details.open).toBe(false)
+
+    fireEvent.click(within(block()).getByText(en.backendsTitle))
+    expect(details.open).toBe(true)
+    expect(within(block()).getByText(en.backendsDescription)).toBeTruthy()
+  })
+
   it('reports the backend a role runs on and its detected version and sign-in state', async () => {
     mount({
       value: settings({ subagents: [definition('code', { execution: { backend: BACKEND, background: 'auto' } })] }),
@@ -264,6 +289,24 @@ describe('Subagents Backends block', () => {
     await waitFor(() => {
       expect(within(block()).getByText(`${en.backendDetected} · ${en.backendAuthenticated}`)).toBeTruthy()
     })
+  })
+
+  it('reports runtime authentication failure in a role setup check', async () => {
+    mount({
+      probe: { health: async () => ({ command: 'cmdc', installed: true, authenticated: false }) },
+      value: settings({
+        subagents: [definition('code', {
+          whenToUse: 'Use for code changes.',
+          execution: { backend: BACKEND, background: 'auto' },
+        })],
+      }),
+    })
+    expand('Code')
+
+    fireEvent.click(within(card('Code')).getByRole('button', { name: en.setupCheck }))
+
+    await waitFor(() => { expect(within(card('Code')).getByText(en.setupRuntimeAttention)).toBeTruthy() })
+    expect(within(card('Code')).getByText(en.setupAttention)).toBeTruthy()
   })
 
   it('names the login command instead of a version when the backend is not signed in', async () => {
@@ -393,7 +436,7 @@ describe('Subagents picker catalog source', () => {
 
     await waitFor(() => { expect(optionsOf(modelControl('Code'))).toContain('DeepSeek Chat') })
     expect(optionsOf(modelControl('Code'))).not.toContain('deepseek/deepseek-v4.1-flash')
-    expect(within(card('Code')).getByText(en.modelSourceRuntime)).toBeTruthy()
+    expect(within(card('Code')).queryByText(en.modelSourceRuntime)).toBeNull()
   })
 
   it('sources a role whose backend owns its model space from that backend\'s catalog', async () => {
@@ -409,12 +452,12 @@ describe('Subagents picker catalog source', () => {
 
     await waitFor(() => { expect(optionsOf(modelControl('Code'))).toContain('deepseek/deepseek-v4.1-flash') })
     expect(optionsOf(modelControl('Code'))).not.toContain('DeepSeek Chat')
-    expect(modelControl('Code').value).toBe('deepseek\u0000deepseek-v4.1-flash')
-    expect(within(card('Code')).getByText(backendText('modelSourceBackend', BACKEND))).toBeTruthy()
+    expect(shownValue(modelControl('Code'))).toBe(`deepseek-v4.1-flash ${en.modelUnavailableSuffix}`)
+    expect(within(card('Code')).queryByText(backendText('modelSourceBackend', BACKEND))).toBeNull()
     expect(within(card('Code')).queryByText(en.modelSourceRuntime)).toBeNull()
   })
 
-  it('says which catalog it is reading while a backend-owned read is still in flight', () => {
+  it('reports a setup check as pending while a backend-owned catalog read is in flight', () => {
     const pending = deferredRead<CommandCodeCatalog>()
     mount({
       probe: { catalog: () => pending.promise },
@@ -423,11 +466,13 @@ describe('Subagents picker catalog source', () => {
       }),
     })
     expand('Code')
+    fireEvent.click(within(card('Code')).getByRole('button', { name: en.setupCheck }))
 
-    expect(within(card('Code')).getByText(backendText('modelSourceLoading', BACKEND))).toBeTruthy()
+    expect(within(card('Code')).getByText(en.setupChecking)).toBeTruthy()
+    expect(within(card('Code')).getByText(en.setupCheckingDescription)).toBeTruthy()
   })
 
-  it('switches the catalog source when the role\'s backend changes, and says so', async () => {
+  it('switches the catalog source when the role\'s backend changes', async () => {
     mount({ catalog: RUNTIME_CATALOG })
     expand('Code')
     await waitFor(() => { expect(optionsOf(modelControl('Code'))).toContain('DeepSeek Chat') })
@@ -436,7 +481,6 @@ describe('Subagents picker catalog source', () => {
 
     await waitFor(() => { expect(optionsOf(modelControl('Code'))).toContain('deepseek/deepseek-v4.1-flash') })
     expect(optionsOf(modelControl('Code'))).not.toContain('DeepSeek Chat')
-    expect(within(card('Code')).getByText(backendText('modelSourceBackend', BACKEND))).toBeTruthy()
     expect(within(card('Code')).queryByText(en.modelSourceRuntime)).toBeNull()
   })
 
@@ -453,9 +497,9 @@ describe('Subagents picker catalog source', () => {
 
     const model = modelControl('Code')
     await waitFor(() => { expect(optionsOf(model)).toContain(`gone ${en.modelUnavailableSuffix}`) })
-    expect(model.value).toBe('ghost\u0000gone')
+    expect(shownValue(model)).toBe(`gone ${en.modelUnavailableSuffix}`)
 
-    fireEvent.change(model, { target: { value: '' } })
+    pick(model, en.modelInheritOption)
     await waitFor(() => { expect(written(write)[0]?.model).toEqual({ mode: 'fixed' }) })
   })
 
@@ -475,7 +519,7 @@ describe('Subagents picker catalog source', () => {
       expect(within(card('Code')).getByText(backendText('modelSourceFailed', BACKEND))).toBeTruthy()
     })
     // The saved route stays selected and removable rather than the picker emptying.
-    expect(modelControl('Code').value).toBe('deepseek\u0000deepseek-v4.1-flash')
+    expect(shownValue(modelControl('Code'))).toBe(`deepseek-v4.1-flash ${en.modelUnavailableSuffix}`)
     expect(optionsOf(modelControl('Code'))).toContain(`deepseek-v4.1-flash ${en.modelUnavailableSuffix}`)
   })
 
@@ -491,15 +535,15 @@ describe('Subagents picker catalog source', () => {
     })
     expand('Code')
 
-    expect(modelControl('Code').value).toBe('deepseek\u0000deepseek-v4.1-flash')
+    expect(shownValue(modelControl('Code'))).toBe(`deepseek-v4.1-flash ${en.modelUnavailableSuffix}`)
     expect(within(card('Code')).getByText(backendText('modelSourceFailed', BACKEND))).toBeTruthy()
   })
 })
 
 describe('Subagents picker reasoning levels', () => {
   /** The role card's reasoning-effort control. */
-  function effortControl(name: string): HTMLSelectElement {
-    return within(card(name)).getByLabelText(en.fieldEffort) as HTMLSelectElement
+  function effortControl(name: string): HTMLElement {
+    return within(card(name)).getByLabelText(en.fieldEffort)
   }
 
   /** Mount one role on the Command Code backend, pinned to its advertised route. */
@@ -522,7 +566,7 @@ describe('Subagents picker reasoning levels', () => {
     await waitFor(() => { expect(optionsOf(modelControl('Code'))).toContain('local-model') })
     expect(optionsOf(effortControl('Code')))
       .toEqual([en.effortDefault, en.effortLow, en.effortMedium, en.effortHigh])
-    expect(effortControl('Code').value).toBe('')
+    expect(shownValue(effortControl('Code'))).toBe(en.effortDefault)
   })
 
   it('describes a backend-owned effort control with the backend\'s own rule', async () => {
@@ -538,7 +582,7 @@ describe('Subagents picker reasoning levels', () => {
   it('shows a stored level again after a reload, as one of the levels on offer', async () => {
     mountBackendRole({ reasoningEffort: 'medium' })
 
-    await waitFor(() => { expect(effortControl('Code').value).toBe('medium') })
+    await waitFor(() => { expect(shownValue(effortControl('Code'))).toBe(en.effortMedium) })
     expect(optionsOf(effortControl('Code'))).toContain(en.effortMedium)
     expect(within(card('Code')).getByText(/^Code · local-model · Medium/u)).toBeTruthy()
   })
@@ -546,8 +590,8 @@ describe('Subagents picker reasoning levels', () => {
   it('stores the level a backend-owned role is given', async () => {
     const { write } = mountBackendRole({ reasoningEffort: 'high' })
 
-    await waitFor(() => { expect(effortControl('Code').value).toBe('high') })
-    fireEvent.change(effortControl('Code'), { target: { value: 'medium' } })
+    await waitFor(() => { expect(shownValue(effortControl('Code'))).toBe(en.effortHigh) })
+    pick(effortControl('Code'), en.effortMedium)
     await waitFor(() => {
       expect(written(write)[0]?.model).toEqual({ mode: 'fixed', route: { ...LOCAL, reasoningEffort: 'medium' } })
     })
@@ -556,8 +600,8 @@ describe('Subagents picker reasoning levels', () => {
   it('stores no effort when the model default is chosen', async () => {
     const { write } = mountBackendRole({ reasoningEffort: 'high' })
 
-    await waitFor(() => { expect(effortControl('Code').value).toBe('high') })
-    fireEvent.change(effortControl('Code'), { target: { value: '' } })
+    await waitFor(() => { expect(shownValue(effortControl('Code'))).toBe(en.effortHigh) })
+    pick(effortControl('Code'), en.effortDefault)
     await waitFor(() => {
       expect(written(write)[0]?.model).toEqual({ mode: 'fixed', route: LOCAL })
     })

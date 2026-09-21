@@ -101,6 +101,30 @@
   padding-left: 0;
 }
 
+.productActions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  max-width: 28px;
+  opacity: 1;
+  overflow: hidden;
+  visibility: visible;
+  transition:
+    max-width 180ms var(--ds-ease-in-out),
+    opacity 120ms var(--ds-ease-in-out),
+    transform 180ms var(--ds-ease-in-out),
+    visibility 0s linear;
+}
+
+.productActionsHidden {
+  max-width: 0;
+  opacity: 0;
+  transform: translateX(4px);
+  visibility: hidden;
+  pointer-events: none;
+  transition-delay: 0s, 0s, 0s, 180ms;
+}
+
 .headerActions {
   flex: none;
   display: flex;
@@ -219,15 +243,15 @@
 
 .search:has(.searchInput:focus-visible),
 .renameInput:focus-visible {
-  outline: 2px solid var(--dsw-alias-state-business-primary);
-  outline-offset: 2px;
+  border-color: var(--dsw-alias-state-business-primary);
+  outline: none;
 }
 
 .iconButton:focus-visible,
 .searchButton:focus-visible,
 .clearButton:focus-visible {
-  outline: 2px solid var(--dsw-alias-state-business-primary);
-  outline-offset: 2px;
+  border-color: var(--dsw-alias-state-business-primary);
+  outline: none;
 }
 
 .clearButton {

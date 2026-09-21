@@ -60,15 +60,12 @@ describe('ui-schedule browser half', () => {
     await ctx.fiber.dispose()
   })
 
-  it('registers both dictionaries and releases them with its fiber', async () => {
+  it('registers the English dictionary and releases it with its fiber', async () => {
     const ctx = await baseContext()
     declareHeader(ctx)
-    ctx.locale.setLocale('zh')
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
     const translate = ctx.locale.bind(NS)
-    expect(translate('list.aria')).toBe(zh['list.aria'])
-    ctx.locale.setLocale('en')
     expect(translate('list.aria')).toBe(en['list.aria'])
     expect(Object.keys(en).sort()).toEqual(Object.keys(zh).sort())
 

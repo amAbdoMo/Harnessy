@@ -18,9 +18,13 @@ import type {
 } from '@deepseek-ai/dsh-api-remotes/client'
 import { COMMAND_CODE_BACKEND, SUBAGENT_ROSTER_NAMESPACE } from './contract.ts'
 import { SubagentsSection } from './SubagentsSection.tsx'
-import type { SubagentsOperations, SubagentsSectionInjected } from './SubagentsSection.tsx'
+import type {
+  SubagentBackendProbe,
+  SubagentsOperations,
+  SubagentsSectionInjected,
+} from './SubagentsSection.tsx'
 import { createSubagentsSectionStore } from './section-store.ts'
-import { en, zh, type SubagentsKey } from './locales.ts'
+import { en, type SubagentsKey } from './locales.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -44,17 +48,49 @@ interface BackendRemoteReads {
 }
 
 /**
- * Read the Command Code Remote namespace when this deployment composes it.
- *
- * The page mounts in a Harnessy build without the Command Code package, so this
- * namespace is deliberately absent from {@link inject} and read from the
- * carrier instead: an unmounted namespace has no property there at all, and the
- * page then reports the backend as one Harnessy cannot ask.
- * @param ctx - Client root context carrying the Remote carrier.
- * @returns the namespace's reads, or undefined when it is not mounted.
+ * Unwrap one Remote read, turning a refused call into the failure its caller
+ * reports.
+ * @param read - the namespace method, as the generated client answers it.
+ * @param signal - this read's lifetime; the page aborts a superseded one.
+ * @returns the method's value.
+ * @throws {Error} when the namespace refused the read.
  */
-function backendRemoteReads(ctx: ClientContext): BackendRemoteReads | undefined {
-  return (ctx.remote as unknown as { readonly commandcode?: BackendRemoteReads }).commandcode
+async function backendValue<T>(
+  read: (signal?: AbortSignal) => Promise<RemoteResult<T>>,
+  signal?: AbortSignal,
+): Promise<T> {
+  const response = await read(signal)
+  if (!response.ok) throw new Error(response.error.message)
+  return response.value
+}
+
+/**
+ * Compose the Command Code backend probe when this deployment mounts that
+ * Remote namespace.
+ *
+ * The namespace belongs to the optional Command Code package, so it stays out
+ * of {@link inject}: a required dependency would park this page, and the boot
+ * gate behind it, on a service a Harnessy build without Command Code never
+ * provides. A scope that injects it applies and disposes with the namespace
+ * instead, and the page reports the backend as one Harnessy cannot ask
+ * whenever no such scope is mounted.
+ * @param ctx - Client root context carrying the Remote namespace services.
+ * @param publish - receives the probe, and undefined when its scope leaves.
+ */
+function composeBackendProbe(
+  ctx: ClientContext,
+  publish: (probe: SubagentBackendProbe | undefined) => void,
+): void {
+  ctx.inject(['remote', 'remote.commandcode'], (commandCode: ClientContext) => {
+    const reads: BackendRemoteReads = commandCode.remote.commandcode
+    const probe: SubagentBackendProbe = {
+      backend: COMMAND_CODE_BACKEND,
+      health: signal => backendValue(reads.health, signal),
+      catalog: signal => backendValue(reads.catalog, signal),
+    }
+    publish(probe)
+    commandCode.effect(() => () => { publish(undefined) }, 'subagents settings: Command Code probe')
+  })
 }
 
 /**
@@ -64,10 +100,11 @@ function backendRemoteReads(ctx: ClientContext): BackendRemoteReads | undefined 
 export function apply(ctx: ClientContext): void {
   if (process.env.DSH_CLIENT_BUILD_PROFILE !== BUILD_PROFILE) return
 
-  ctx.effect(() => ctx.locale.register(LOCALE_NS, { zh, en }), 'subagents settings: dictionaries')
+  ctx.effect(() => ctx.locale.register(LOCALE_NS, { en }), 'subagents settings: dictionaries')
 
   const scope = ctx.settingsScope.bind<SubagentSettings>({ namespace: SUBAGENT_ROSTER_NAMESPACE })
-  const backendReads = backendRemoteReads(ctx)
+  let backendProbe: SubagentBackendProbe | undefined
+  composeBackendProbe(ctx, (probe) => { backendProbe = probe })
 
   const operations: SubagentsOperations = {
     snapshot: () => {
@@ -110,23 +147,9 @@ export function apply(ctx: ClientContext): void {
       if (!response.ok) throw new Error(response.error.message)
       return response.value
     },
-    // A deployment without the Command Code package composes no probe, and the
-    // page then reports that backend as one Harnessy cannot ask about.
-    ...backendReads === undefined ? {} : {
-      backendProbe: {
-        backend: COMMAND_CODE_BACKEND,
-        health: async (signal): Promise<CommandCodeHealth> => {
-          const response = await backendReads.health(signal)
-          if (!response.ok) throw new Error(response.error.message)
-          return response.value
-        },
-        catalog: async (signal): Promise<CommandCodeCatalog> => {
-          const response = await backendReads.catalog(signal)
-          if (!response.ok) throw new Error(response.error.message)
-          return response.value
-        },
-      },
-    },
+    // A deployment without the Command Code package mounts no backend scope,
+    // and the page then reports that backend as one Harnessy cannot ask about.
+    get backendProbe() { return backendProbe },
   }
 
   const store = createSubagentsSectionStore()

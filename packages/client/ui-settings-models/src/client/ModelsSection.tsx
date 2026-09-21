@@ -14,7 +14,7 @@
 
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { Button, IconPlusOutline16, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, IconPlusOutline16, Modal, Select } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SettingsSectionOwnerProps } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { InjectFace, PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 // Type-only: pulls this package's SlotMap merge (the two Models child slots).
@@ -160,6 +160,16 @@ function keyConfiguredOf(row: ProviderRow): boolean {
     : row.derivedCredential?.configured === true
 }
 
+/** Provider rows exposed by one product profile. */
+export function visibleProviderRows(
+  rows: readonly ProviderRow[],
+  profile = process.env.DSH_CLIENT_BUILD_PROFILE,
+): readonly ProviderRow[] {
+  return profile === 'custom-harness'
+    ? rows.filter(row => row.entry.provider !== 'deepseek-official')
+    : rows
+}
+
 function targetOf(row: ProviderRow): EditorTarget {
   const managedRef = deriveKeyRef(row.entry.provider)
   const credentialRef = row.apiKeyEnv === managedRef
@@ -217,6 +227,7 @@ function Loaded({ injected, renderSlot, presentModal }: {
 }): ReactNode {
   const { controller, operations, schema, t } = injected
   const state = injected.useSnapshot(snapshot => snapshot)
+  const rows = visibleProviderRows(state.rows)
   const [editing, setEditing] = useState<EditorTarget | undefined>(undefined)
   const [adding, setAdding] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<EditorTarget | undefined>(undefined)
@@ -294,16 +305,16 @@ function Loaded({ injected, renderSlot, presentModal }: {
   // exists to name it with.
   const savedRow = savedTarget === undefined
     ? undefined
-    : state.rows.find(row => row.entry.provider === savedTarget.provider)
+    : rows.find(row => row.entry.provider === savedTarget.provider)
   const savedIdentity = savedRow === undefined
     ? savedTarget
     : { provider: savedRow.entry.provider, displayName: savedRow.entry.displayName }
 
   // One fact decides both first-run postures on this page and the onboarding
   // step: whether the user already has a provider to talk to.
-  const anyUsable = state.rows.some(providerUsable)
-  const configured = state.rows.filter(row => row.configured)
-  const addable = state.rows.filter(row => !row.configured && row.entry.settingsNs !== '')
+  const anyUsable = rows.some(providerUsable)
+  const configured = rows.filter(row => row.configured)
+  const addable = rows.filter(row => !row.configured && row.entry.settingsNs !== '')
   const addTarget = adding ? editing : undefined
   const addNamespace = addTarget === undefined ? undefined : state.namespaces.get(addTarget.settingsNs)
   // The draft's directory row, for the card extension seat. A refresh can drop
@@ -311,7 +322,7 @@ function Loaded({ injected, renderSlot, presentModal }: {
   // draft card stays while the seat simply has no row to dispatch.
   const addRow = addTarget === undefined
     ? undefined
-    : state.rows.find(row => row.entry.provider === addTarget.provider)
+    : rows.find(row => row.entry.provider === addTarget.provider)
   // Hand-declared routes live in the pi-ai namespace, which is also the only
   // one whose schema names the protocols one may speak; without it mounted
   // there is nothing to declare and the entry point stays disabled.
@@ -460,21 +471,18 @@ function Loaded({ injected, renderSlot, presentModal }: {
             <div className={styles['addCard']}>
               <div className={styles['field']}>
                 <span className={styles['fieldLabel']}>{t('provider')}</span>
-                <select
-                  className={`${styles['input']} ${styles['selectInput']}`}
+                <Select
+                  className={styles['select']}
                   value={addTarget.provider}
-                  aria-label={t('provider')}
-                  onChange={(event) => {
-                    const row = addable.find(candidate => candidate.entry.provider === event.target.value)
-                    /* v8 ignore next -- the select only lists addable rows */
+                  label={t('provider')}
+                  options={addable.map(row => ({ value: row.entry.provider, label: row.entry.displayName }))}
+                  onChange={(next) => {
+                    const row = addable.find(candidate => candidate.entry.provider === next)
+                    /* v8 ignore next -- the control only lists addable rows */
                     if (row === undefined) return
                     setEditing(targetOf(row))
                   }}
-                >
-                  {addable.map(row => (
-                    <option key={row.entry.provider} value={row.entry.provider}>{row.entry.displayName}</option>
-                  ))}
-                </select>
+                />
               </div>
               <ProviderEditor
                 key={addTarget.provider}
@@ -502,7 +510,7 @@ function Loaded({ injected, renderSlot, presentModal }: {
             ? (
               <div className={styles['addCard']}>
                 <CustomProviderCard
-                  taken={state.rows.map(row => row.entry.provider)}
+                  taken={rows.map(row => row.entry.provider)}
                   protocols={protocols}
                   efforts={efforts}
                   /* v8 ignore next -- the card only opens from a button disabled without this namespace */

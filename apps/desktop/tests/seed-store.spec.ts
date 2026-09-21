@@ -18,6 +18,7 @@ import {
   archivePnpmStore,
   extractPnpmStoreArchives,
   mergePnpmStore,
+  mergePnpmStoreArchives,
   removePnpmProjectRegistrations,
   SEED_STORE_ARCHIVE_DIR,
   SEED_STORE_ARCHIVE_MANIFEST,
@@ -63,7 +64,7 @@ describe('desktop seed store cleanup', () => {
 })
 
 describe('desktop seed store merge', () => {
-  it('preserves installed package records while the verified seed replaces matching records and files', { timeout: 30_000 }, () => {
+  it('preserves installed package records while the verified seed replaces matching records and files', { timeout: 30_000 }, async () => {
     const root = temporaryRoot()
     const source = join(root, 'source')
     const destination = join(root, 'destination')
@@ -85,7 +86,49 @@ describe('desktop seed store merge', () => {
     writeFileSync(join(destination, 'v11', 'files', 'shared'), 'old')
     writeFileSync(join(destination, 'v11', 'files', 'plugin'), 'plugin')
 
-    mergePnpmStore(source, destination)
+    await mergePnpmStore(source, destination)
+
+    const database = new DatabaseSync(join(destination, 'v11', 'index.db'), { readOnly: true })
+    const records = database.prepare('SELECT key, data FROM package_index ORDER BY key').all() as {
+      key: string
+      data: Uint8Array
+    }[]
+    database.close()
+    expect(records.map(record => [record.key, Buffer.from(record.data).toString()])).toEqual([
+      ['plugin-only', 'plugin'],
+      ['seed-only', 'seed'],
+      ['shared', 'new'],
+    ])
+    expect(readFileSync(join(destination, 'v11', 'files', 'shared'), 'utf8')).toBe('new')
+    expect(readFileSync(join(destination, 'v11', 'files', 'plugin'), 'utf8')).toBe('plugin')
+  })
+
+  it('merges archives directly while preserving plugin index records', async () => {
+    const root = temporaryRoot()
+    const seed = join(root, 'seed')
+    const seedStore = join(seed, 'store')
+    const destination = join(root, 'destination')
+    const scratch = join(root, 'scratch')
+    for (const store of [seedStore, destination]) {
+      mkdirSync(join(store, 'v11', 'files'), { recursive: true })
+      const database = new DatabaseSync(join(store, 'v11', 'index.db'))
+      database.exec('CREATE TABLE package_index (key TEXT PRIMARY KEY, data BLOB NOT NULL) WITHOUT ROWID')
+      const insert = database.prepare('INSERT INTO package_index (key, data) VALUES (?, ?)')
+      if (store === seedStore) {
+        insert.run('seed-only', Buffer.from('seed'))
+        insert.run('shared', Buffer.from('new'))
+      } else {
+        insert.run('plugin-only', Buffer.from('plugin'))
+        insert.run('shared', Buffer.from('old'))
+      }
+      database.close()
+    }
+    writeFileSync(join(seedStore, 'v11', 'files', 'shared'), 'new')
+    writeFileSync(join(destination, 'v11', 'files', 'shared'), 'old')
+    writeFileSync(join(destination, 'v11', 'files', 'plugin'), 'plugin')
+    archivePnpmStore(seed, seedStore)
+
+    await mergePnpmStoreArchives(seed, destination, scratch)
 
     const database = new DatabaseSync(join(destination, 'v11', 'index.db'), { readOnly: true })
     const records = database.prepare('SELECT key, data FROM package_index ORDER BY key').all() as {
@@ -104,7 +147,7 @@ describe('desktop seed store merge', () => {
 })
 
 describe('desktop seed store archives', () => {
-  it('extracts package bytes and executable modes without retaining loose seed files', () => {
+  it('extracts package bytes and executable modes without retaining loose seed files', async () => {
     const root = temporaryRoot()
     const seed = join(root, 'seed')
     const store = join(seed, 'store')
@@ -116,7 +159,7 @@ describe('desktop seed store archives', () => {
 
     archivePnpmStore(seed, store)
     const destination = join(root, 'extracted')
-    extractPnpmStoreArchives(seed, destination)
+    await extractPnpmStoreArchives(seed, destination)
 
     expect(existsSync(store)).toBe(false)
     expect(readFileSync(join(destination, 'v10', 'files', 'package-data'), 'utf8')).toBe('package')
@@ -146,7 +189,35 @@ describe('desktop seed store archives', () => {
     expect(second.map(entry => entry.body)).toEqual(first.map(entry => entry.body))
   })
 
-  it('rejects an archive whose entry count differs from the manifest', () => {
+  it('keeps the startup event loop responsive across seed extraction and merge', async () => {
+    const root = temporaryRoot()
+    const seed = join(root, 'seed')
+    const store = join(seed, 'store')
+    mkdirSync(store, { recursive: true })
+    writeFileSync(join(store, 'package-data'), 'package')
+    archivePnpmStore(seed, store)
+
+    const extracted = join(root, 'extracted')
+    let extractionYielded = false
+    const extraction = extractPnpmStoreArchives(seed, extracted)
+    setImmediate(() => { extractionYielded = true })
+    await extraction
+    expect(extractionYielded).toBe(true)
+
+    let mergeYielded = false
+    const merge = mergePnpmStore(extracted, join(root, 'persistent'))
+    setImmediate(() => { mergeYielded = true })
+    await merge
+    expect(mergeYielded).toBe(true)
+
+    let directMergeYielded = false
+    const directMerge = mergePnpmStoreArchives(seed, join(root, 'direct'), join(root, 'indexes'))
+    setImmediate(() => { directMergeYielded = true })
+    await directMerge
+    expect(directMergeYielded).toBe(true)
+  })
+
+  it('rejects an archive whose entry count differs from the manifest', async () => {
     const root = temporaryRoot()
     const seed = join(root, 'seed')
     const store = join(seed, 'store')
@@ -162,6 +233,31 @@ describe('desktop seed store archives', () => {
     archive.entries += 1
     writeFileSync(manifestPath, JSON.stringify(manifest))
 
-    expect(() => { extractPnpmStoreArchives(seed, join(root, 'extracted')) }).toThrow(/unexpected entry count/u)
+    await expect(extractPnpmStoreArchives(seed, join(root, 'extracted'))).rejects.toThrow(/unexpected entry count/u)
+  })
+
+  it('does not change the persistent store when direct-merge validation fails', async () => {
+    const root = temporaryRoot()
+    const seed = join(root, 'seed')
+    const store = join(seed, 'store')
+    const destination = join(root, 'persistent')
+    mkdirSync(store, { recursive: true })
+    mkdirSync(destination, { recursive: true })
+    writeFileSync(join(store, 'seed-package'), 'seed')
+    writeFileSync(join(destination, 'plugin-package'), 'plugin')
+    archivePnpmStore(seed, store)
+    const manifestPath = join(seed, SEED_STORE_ARCHIVE_MANIFEST)
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
+      archives: { entries: number }[]
+    }
+    const archive = manifest.archives[0]
+    if (archive === undefined) throw new Error('test seed has no archive')
+    archive.entries += 1
+    writeFileSync(manifestPath, JSON.stringify(manifest))
+
+    await expect(mergePnpmStoreArchives(seed, destination, join(root, 'indexes')))
+      .rejects.toThrow(/unexpected entry count/u)
+    expect(readFileSync(join(destination, 'plugin-package'), 'utf8')).toBe('plugin')
+    expect(existsSync(join(destination, 'seed-package'))).toBe(false)
   })
 })

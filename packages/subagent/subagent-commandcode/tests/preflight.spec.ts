@@ -9,7 +9,10 @@ import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import type { CommandCodeHealth } from '../src/types.ts'
-import CommandCodeController from '../src/index.ts'
+import CommandCodeController, {
+  COMMAND_CODE_DELEGATE_TOOL,
+  COMMAND_CODE_LANES_TOOL,
+} from '../src/index.ts'
 import { fakeChild, type FakeChild } from './fake-child.ts'
 
 /** Wait until a condition holds, without racing the probe's own awaits. */
@@ -22,6 +25,7 @@ async function waitFor(predicate: () => boolean): Promise<void> {
 }
 
 interface Mounted {
+  readonly ctx: Context
   readonly controller: CommandCodeController
   /** The helper processes the probe started, in order. */
   readonly spawned: FakeChild[]
@@ -33,7 +37,7 @@ interface Mounted {
  * managed process replaced: the probe's own argv, stream, and settlement
  * handling stay under test.
  */
-async function mount(): Promise<Mounted> {
+async function mount(config: { readonly toolsEnabled?: boolean } = {}): Promise<Mounted> {
   const ctx = new Context()
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
@@ -42,7 +46,7 @@ async function mount(): Promise<Mounted> {
   await ctx.plugin(SettingsFileProvider, {
     path: join(mkdtempSync(join(tmpdir(), 'dsh-commandcode-preflight-')), 'settings.yaml'),
   })
-  await ctx.plugin(CommandCodeController)
+  await ctx.plugin(CommandCodeController, config)
 
   const spawned: FakeChild[] = []
   // `ctx.get` reads the global service store; the `ctx.<name>` property proxy
@@ -62,7 +66,7 @@ async function mount(): Promise<Mounted> {
     return child.handle
   }
 
-  return { controller, spawned, dispose: async () => { await ctx.fiber.dispose() } }
+  return { ctx, controller, spawned, dispose: async () => { await ctx.fiber.dispose() } }
 }
 
 let mounted: Mounted | undefined
@@ -72,6 +76,13 @@ afterEach(async () => {
 })
 
 describe('the shared Command Code probe', () => {
+  it('keeps the backend available when the pre-roster tools are disabled', async () => {
+    mounted = await mount({ toolsEnabled: false })
+    expect(mounted.ctx.tools.get(COMMAND_CODE_DELEGATE_TOOL)).toBeUndefined()
+    expect(mounted.ctx.tools.get(COMMAND_CODE_LANES_TOOL)).toBeUndefined()
+    expect(mounted.controller).toBeDefined()
+  })
+
   it('lets joined callers share one probe without sharing cancellation authority', async () => {
     mounted = await mount()
     const leaving = new AbortController()
@@ -144,5 +155,24 @@ describe('the shared Command Code probe', () => {
     await waitFor(() => mounted!.spawned.length === 4)
     mounted.spawned[3]!.exit()
     await expect(second).resolves.toMatchObject({ installed: true })
+  })
+
+  it('starts every probe helper with the CLI update system switched off', async () => {
+    mounted = await mount()
+    const probe = mounted.controller.health(new AbortController().signal)
+    await waitFor(() => mounted!.spawned.length === 1)
+    mounted.spawned[0]!.exit()
+    await waitFor(() => mounted!.spawned.length === 2)
+    mounted.spawned[1]!.exit()
+    await probe
+
+    // A background probe must never upgrade the user's global CLI: the CLI's own
+    // updater spawns `npm i -g` detached, which opens its own console on Windows
+    // that no `windowsHide` reaches. Both helpers — `--version` and `status` —
+    // therefore carry the kill switch.
+    expect(mounted.spawned.map(child => child.spec.argv.at(-1))).toEqual(['--version', 'status'])
+    for (const child of mounted.spawned) {
+      expect(child.spec.env).toMatchObject({ COMMANDCODE_SKIP_UPDATES: '1' })
+    }
   })
 })

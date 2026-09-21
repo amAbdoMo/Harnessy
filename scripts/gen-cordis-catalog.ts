@@ -198,6 +198,7 @@ export const EVENT_SCOPE_PAGE: Record<string, string> = {
   'agent': 'core.md',
   'agent-loop': 'core.md',
   'agent-preset': 'core.md',
+  'accounts': 'settings.md',
   'api-session': 'session.md',
   'approval': 'approval.md',
   'commands': 'commands.md',
@@ -696,6 +697,7 @@ export const FOUNDATION_TYPE_NAMES: ReadonlySet<string> = new Set([
 export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   z: 'schemastery schema constructor is owned by vendor/schemastery (vendored upstream)',
   AccountProviderId: 'account-provider identity is owned by packages/api/settings-controller/src/types.ts',
+  AccountAutoSwitchEvent: 'account-switch notification payload is owned by packages/api/settings-controller/src/types.ts',
   AccountsState: 'account-manager response state is owned by packages/api/settings-controller/src/types.ts',
   AccountSignInResult: 'account authorization result is owned by packages/api/settings-controller/src/types.ts',
   McpManagerState: 'MCP manager response state is owned by packages/api/settings-controller/src/types.ts',

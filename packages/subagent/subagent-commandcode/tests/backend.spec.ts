@@ -22,6 +22,7 @@ import SettingsFileProvider from '@deepseek-ai/dsh-settings-file'
 import SubagentRuntime from '@deepseek-ai/dsh-subagent'
 import {
   installRosterTools,
+  resolveSubagentConcurrencyLimit,
   SubagentRunLimiter,
   subagentRosterView,
 } from '@deepseek-ai/dsh-subagent-roster'
@@ -130,7 +131,9 @@ async function boot(definition: SubagentDefinition): Promise<Composition> {
   await ctx.plugin(CommandCodeController)
 
   const settings = documentOf(definition)
-  const limiter = new SubagentRunLimiter(() => settings.limits.maxConcurrentRuns)
+  const limiter = new SubagentRunLimiter(
+    () => resolveSubagentConcurrencyLimit(settings.limits.maxConcurrentRuns),
+  )
   installRosterTools(ctx, {
     viewFor: () => subagentRosterView(settings, null),
     acquire: signal => limiter.acquire(signal),

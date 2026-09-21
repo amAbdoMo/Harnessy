@@ -12,6 +12,8 @@
  */
 
 import type { ReactNode } from 'react'
+import { Select } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { SelectEntry } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SubagentModelPolicy } from '@deepseek-ai/dsh-api-remotes/client'
 import {
   SUBAGENT_MODEL_AUTOMATIC_SELECTION,
@@ -45,6 +47,8 @@ export interface ModelEffortPickerProps {
   readonly directory: SubagentModelDirectory
   /** Which catalog those routes come from, so the choice is visible where it is made. */
   readonly source: SubagentModelSource
+  /** Whether catalog provenance is visible below the model control. */
+  readonly sourceDetails?: 'visible' | 'hidden'
   /** Whether the settings document accepts writes. */
   readonly disabled: boolean
   /** The page's translate seat. */
@@ -59,7 +63,7 @@ export interface ModelEffortPickerProps {
  * @returns the model row and the reasoning-effort row.
  */
 export function ModelEffortPicker(props: ModelEffortPickerProps): ReactNode {
-  const { id, model, choices, directory, source, disabled, t, onChange } = props
+  const { id, model, choices, directory, source, sourceDetails = 'visible', disabled, t, onChange } = props
   const modelId = `${id}-model`
   const effortId = `${id}-effort`
   const pinned = model?.mode === 'fixed' ? model.route : undefined
@@ -80,39 +84,46 @@ export function ModelEffortPicker(props: ModelEffortPickerProps): ReactNode {
   // A backend-owned space states its levels once for all of its models, so the
   // explanation of where those levels come from is the backend's, not a model's.
   const effortHint = source.owner === 'backend' ? t('fieldEffortBackendHint') : props.effortHint
+  // The model space as one list: the two policies first, then every advertised
+  // provider group, then the routes the catalog no longer offers.
+  const modelEntries: SelectEntry[] = [
+    { value: '', label: t('modelInheritOption') },
+    { value: SUBAGENT_MODEL_AUTOMATIC_SELECTION, label: t('modelAutomaticOption') },
+    ...directory.groups.map(group => ({
+      label: group.providerName,
+      options: group.choices.map(choice => ({ value: choice.key, label: choice.modelName })),
+    })),
+    ...directory.unavailable.length === 0 ? [] : [{
+      label: t('modelUnavailableGroup'),
+      options: directory.unavailable.map(choice => ({
+        value: choice.key,
+        label: `${choice.modelName} ${t('modelUnavailableSuffix')}`,
+      })),
+    }],
+  ]
+  // An effort a saved route names but the model no longer advertises stays
+  // listed: the route is real, and dropping the option would hide what a
+  // delegation actually runs with.
+  const effortEntries: SelectEntry[] = [
+    { value: '', label: t('effortDefault') },
+    ...efforts.map(effort => ({ value: effort.id, label: effort.name })),
+    ...stored === undefined || advertised ? [] : [{ value: stored, label: stored }],
+  ]
   return (
     <>
       <div className={css.field}>
         <label className={css.label} htmlFor={modelId}>{props.modelLabel}</label>
-        <select
+        <Select
           id={modelId}
           className={css.select}
           value={subagentModelSelection(model)}
+          options={modelEntries}
           disabled={disabled}
-          aria-describedby={hintIdOf(modelId)}
-          onChange={(event) => { onChange(selectSubagentModel(choices, model, event.target.value)) }}
-        >
-          <option value="">{t('modelInheritOption')}</option>
-          <option value={SUBAGENT_MODEL_AUTOMATIC_SELECTION}>{t('modelAutomaticOption')}</option>
-          {directory.groups.map(group => (
-            <optgroup key={group.provider} label={group.providerName}>
-              {group.choices.map(choice => (
-                <option key={choice.key} value={choice.key}>{choice.modelName}</option>
-              ))}
-            </optgroup>
-          ))}
-          {directory.unavailable.length === 0 ? null : (
-            <optgroup label={t('modelUnavailableGroup')}>
-              {directory.unavailable.map(choice => (
-                <option key={choice.key} value={choice.key}>
-                  {`${choice.modelName} ${t('modelUnavailableSuffix')}`}
-                </option>
-              ))}
-            </optgroup>
-          )}
-        </select>
+          ariaDescribedBy={hintIdOf(modelId)}
+          onChange={(next) => { onChange(selectSubagentModel(choices, model, next)) }}
+        />
         <p className={css.hint} id={hintIdOf(modelId)}>{props.modelHint}</p>
-        <p className={css.hint}>{sourceNote}</p>
+        {sourceDetails === 'visible' ? <p className={css.hint}>{sourceNote}</p> : null}
         {source.owner === 'backend' && source.state === 'error'
           ? <p className={css.notice} role="alert">{t('modelSourceFailed', { backend: source.backend })}</p>
           : null}
@@ -133,18 +144,15 @@ export function ModelEffortPicker(props: ModelEffortPickerProps): ReactNode {
           : (
             <>
               <label className={css.label} htmlFor={effortId}>{props.effortLabel}</label>
-              <select
+              <Select
                 id={effortId}
                 className={css.select}
                 value={stored ?? ''}
+                options={effortEntries}
                 disabled={disabled}
-                aria-describedby={hintIdOf(effortId)}
-                onChange={(event) => { onChange({ mode: 'fixed', route: withSubagentEffort(pinned, event.target.value) }) }}
-              >
-                <option value="">{t('effortDefault')}</option>
-                {efforts.map(effort => <option key={effort.id} value={effort.id}>{effort.name}</option>)}
-                {stored === undefined || advertised ? null : <option value={stored}>{stored}</option>}
-              </select>
+                ariaDescribedBy={hintIdOf(effortId)}
+                onChange={(next) => { onChange({ mode: 'fixed', route: withSubagentEffort(pinned, next) }) }}
+              />
               <p className={css.hint} id={hintIdOf(effortId)}>{effortHint}</p>
             </>
           )}

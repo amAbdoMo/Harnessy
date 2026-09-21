@@ -17,13 +17,16 @@ import type {
 /** Provider this roster's shipped roles run on: the in-process spawn backend. */
 export const DEFAULT_SUBAGENT_BACKEND = 'spawn'
 
-/** Runs allowed in flight when the user changes nothing. */
-export const DEFAULT_SUBAGENT_MAX_CONCURRENT_RUNS = 2
+/** Stored value that lets the parent size each independent delegation batch. */
+export const ADAPTIVE_SUBAGENT_CONCURRENCY = 'adaptive' as const
+
+/** Concurrency policy used when the user changes nothing. */
+export const DEFAULT_SUBAGENT_MAX_CONCURRENT_RUNS = ADAPTIVE_SUBAGENT_CONCURRENCY
 
 /** Wall-clock bound for one delegation when the user changes nothing. */
 export const DEFAULT_SUBAGENT_TIMEOUT_MS = 3_600_000
 
-/** Largest concurrency cap the settings schema accepts. */
+/** Largest concurrency cap the settings schema and adaptive policy accept. */
 export const MAX_SUBAGENT_CONCURRENT_RUNS = 16
 
 /** Explicit route selection is off until the user authorizes routes. */

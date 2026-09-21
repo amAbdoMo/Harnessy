@@ -60,6 +60,9 @@
       "path": "../session-controller/tsconfig.host.json"
     },
     {
+      "path": "../settings-controller"
+    },
+    {
       "path": "../workspace-files/tsconfig.host.json"
     },
     {

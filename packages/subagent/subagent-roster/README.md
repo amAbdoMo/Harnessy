@@ -49,7 +49,7 @@ Composition configuration carries nothing: every value a user tunes lives in the
 | `overrides` | `{}` | Per-workspace role patches, keyed by canonical workspace path |
 | `automaticRouting.enabled` | `false` | Whether a call may select a model route at all |
 | `automaticRouting.allowedModels` | `[]` | Exact `{ provider, model }` routes an explicit selection must resolve to |
-| `limits.maxConcurrentRuns` | `2` | Delegations allowed in flight together, foreground and background (1–16) |
+| `limits.maxConcurrentRuns` | `adaptive` | `adaptive` lets the parent choose the smallest useful batch while the shared run gate enforces 16; a number sets a stricter manual cap from 1–16 |
 | `limits.defaultTimeoutMs` | `3600000` | Wall-clock bound for a role that names none (at most `MAX_TIMER_DELAY_MS`) |
 
 ### Roles
@@ -164,7 +164,7 @@ A call resolves the calling session's workspace, requires an enabled role for th
 
 #### What the model sees
 
-`list_subagents` takes no arguments and reports one row per role enabled for the calling session's workspace: `id`, `name`, `purpose`, `whenToUse`, `invocation`, the resolved `model` (an exact `provider/model` pair with its `reasoningEffort`, or `inherit`), `access`, and `background`. Disabled roles and roles this workspace removed are absent. It reports no instructions, no settings document, and no other package's data. The rendered result is one line per role, so the routing guidance arrives in the same call that lists the ids `delegate` accepts.
+`list_subagents` takes no arguments and reports one row per role enabled for the calling session's workspace: `id`, `name`, `purpose`, `whenToUse`, `invocation`, the resolved `model` (an exact `provider/model` pair with its `reasoningEffort`, or `inherit`), `access`, and `background`. Disabled roles and roles this workspace removed are absent. It reports no instructions, no settings document, and no other package's data. The rendered result is one line per role, so the routing guidance arrives in the same call that lists the ids `delegate` accepts. The tool descriptions direct the model to read that directory before its first delegation, choose the best matching configured role, batch closely related items into one coherent task, and retain final integration and validation in the parent.
 
 #### Token effect
 

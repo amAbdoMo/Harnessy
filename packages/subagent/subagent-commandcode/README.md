@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Mount this plugin when Harnessy sessions should delegate self-contained tasks to the user's own installed Command Code CLI. It registers a live settings namespace owning the lane directory and three run bounds, two token-stable model-facing tools (`list_commandcode_lanes` and `commandcode_delegate`), and the `commandcode` Remote namespace the Subagents settings page reads. Lanes are user data: each one fixes an exact model, a reasoning effort, and an access level, so a delegated task cannot choose or escalate them. It also registers a `commandcode` backend on `ctx.subagents` for roster roles, and starts no Command Code process while loading.
+This plugin connects Harnessy to the user's installed Command Code CLI. It owns the lane settings, run bounds, `commandcode` Remote namespace, and `ctx.subagents` backend used by roster roles. Profiles that delegate through lanes directly receive the token-stable `list_commandcode_lanes` and `commandcode_delegate` tools by default; a profile that exposes only the unified roster can disable those tools while retaining the backend and diagnostics. Each stored lane fixes its model, reasoning effort, and access level, so a delegated task cannot choose or widen them. Loading starts no Command Code process.
 
 ## Table of Contents
 
@@ -48,6 +48,7 @@ On Windows the npm shim is read for the JavaScript entry it launches and that en
 | Field | Default | Meaning |
 |---|---|---|
 | `disposeGraceMs` | `3000` | Grace between the shared managed-range owner's termination tiers |
+| `toolsEnabled` | `true` | Whether to register the pre-roster lane discovery and delegation tools; the backend, settings, health, and Remote surfaces remain available when false |
 
 Everything a user tunes at runtime lives in the `commandcode-delegation` settings section rather than in composition configuration, so an edit applies to the next delegation from an existing Session.
 

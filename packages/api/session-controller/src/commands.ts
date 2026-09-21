@@ -62,6 +62,8 @@ type PromptContentCandidate =
   | SessionPromptRequest['content'][number]
   | Extract<SessionUpdateQueueRequest['action'], { readonly kind: 'edit' }>['content'][number]
 
+type DefaultCwd = string | ((sessionId: SessionId) => Promise<string>)
+
 function hasPromptContent(content: readonly PromptContentCandidate[]): boolean {
   return content.some(part => part.type !== 'text' || part.text.trim().length > 0)
 }
@@ -71,12 +73,12 @@ export class SessionCommandController {
   /**
    * @param ctx - Host context carrying Agent, model, attachment, title, and Workspace services.
    * @param agents - sole owner of create, resume, and Session-local model selection.
-   * @param defaultCwd - project directory used when create names neither a Workspace nor a cwd.
+   * @param defaultCwd - directory or live resolver used when create names neither a Workspace nor a cwd.
    */
   constructor(
     private readonly ctx: Context,
     private readonly agents: ApiSessionAgentController,
-    private readonly defaultCwd: string,
+    private readonly defaultCwd: DefaultCwd,
   ) {}
 
   /**
@@ -98,7 +100,9 @@ export class SessionCommandController {
         })
       }
     }
-    const cwd = workspace?.path ?? request.cwd ?? this.defaultCwd
+    const cwd = workspace?.path
+      ?? request.cwd
+      ?? await this.resolveImplicitCwd(sessionId, request.sessionId !== undefined)
     let adopted: Agent
     try {
       adopted = await this.agents.ensureSession(
@@ -123,6 +127,22 @@ export class SessionCommandController {
     }
     const agentPreset = this.agents.presetForSession(adopted.session)
     return { sessionId, ...(agentPreset === undefined ? {} : { agentPreset }) }
+  }
+
+  private async resolveImplicitCwd(sessionId: SessionId, adoptExisting: boolean): Promise<string> {
+    if (adoptExisting) {
+      const attachedCwd = this.ctx.sessions.get(sessionId)?.header.cwd
+      if (attachedCwd !== undefined) return attachedCwd
+      try {
+        const persistedCwd = (await inspectApiSession(this.ctx, sessionId)).meta.cwd
+        if (persistedCwd !== undefined) return persistedCwd
+      } catch (error: unknown) {
+        if (!(error instanceof ApiSessionNotFound)) throw error
+      }
+    }
+    return typeof this.defaultCwd === 'string'
+      ? this.defaultCwd
+      : await this.defaultCwd(sessionId)
   }
 
   /**

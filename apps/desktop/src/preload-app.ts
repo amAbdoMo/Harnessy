@@ -8,6 +8,9 @@ const api: DshDesktopAppApi = {
   titlebar: {
     openMenu: section => ipcRenderer.invoke(DESKTOP_IPC.menuOpen, section) as Promise<void>,
   },
+  notifications: {
+    show: payload => ipcRenderer.invoke(DESKTOP_IPC.notificationsShow, payload) as Promise<boolean>,
+  },
 }
 
 contextBridge.exposeInMainWorld('dshDesktop', api)

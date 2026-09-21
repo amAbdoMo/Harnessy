@@ -1,4 +1,4 @@
-/** Typed English and Chinese copy owned by the Electron shell. */
+/** Typed English copy owned by the Electron shell. */
 
 export const en = {
   fileMenu: 'File',
@@ -8,6 +8,9 @@ export const en = {
   aboutMenu: 'About Harnessy',
   aboutDetail: 'Harnessy {version}',
   startupFailed: 'Harnessy could not start',
+  trayOpen: 'Open Harnessy',
+  trayExit: 'Exit Harnessy',
+  trayTooltip: 'Harnessy — running in the background',
   pluginsMenu: 'Desktop Plugins…',
   pluginsMenuPackagedOnly: 'Desktop Plugins… (available in packaged applications)',
   pluginManagerTitle: 'Desktop Plugins',
@@ -30,50 +33,18 @@ export const en = {
   loadingPlugins: 'Reading Desktop plugins…',
 } as const
 
-/** Every Desktop locale supplies the complete English key set. */
+/** Desktop message keys and values. */
 export type DesktopMessages = { readonly [Key in keyof typeof en]: string }
-
-export const zh = {
-  fileMenu: '文件',
-  editMenu: '编辑',
-  viewMenu: '视图',
-  helpMenu: '帮助',
-  aboutMenu: '关于 Harnessy',
-  aboutDetail: 'Harnessy {version}',
-  startupFailed: 'Harnessy 无法启动',
-  pluginsMenu: '桌面插件…',
-  pluginsMenuPackagedOnly: '桌面插件…（打包应用中可用）',
-  pluginManagerTitle: '桌面插件',
-  pluginWindowTitle: 'Harnessy — 桌面插件',
-  pluginManagerDescription: '插件只安装到桌面端自己的 node_modules，并由内置 pnpm 管理。',
-  refresh: '刷新',
-  npmPackage: 'npm 包',
-  install: '安装',
-  installed: '已安装',
-  noPlugins: '还没有安装桌面插件。',
-  remove: '移除',
-  update: '更新',
-  targetVersion: '输入 {name} 的目标版本',
-  removing: '正在移除 {name}…',
-  updating: '正在更新 {name}…',
-  installing: '正在安装 {spec}…',
-  operationComplete: '操作完成，桌面后端已重新启动。',
-  refreshing: '正在刷新…',
-  refreshed: '插件列表已刷新。',
-  loadingPlugins: '正在读取桌面插件…',
-} as const satisfies DesktopMessages
 
 /** Locale payload exposed to the Desktop-owned renderer. */
 export interface DesktopLocale {
-  readonly id: 'en' | 'zh-CN'
+  readonly id: 'en'
   readonly messages: DesktopMessages
 }
 
-/** Resolve Electron's locale to one shipped Desktop dictionary. */
-export function resolveDesktopLocale(locale: string): DesktopLocale {
-  return locale.toLowerCase().startsWith('zh')
-    ? { id: 'zh-CN', messages: zh }
-    : { id: 'en', messages: en }
+/** Resolve every Electron locale to the shipped English dictionary. */
+export function resolveDesktopLocale(_locale: string): DesktopLocale {
+  return { id: 'en', messages: en }
 }
 
 /** Replace named placeholders in one locale-owned message. */

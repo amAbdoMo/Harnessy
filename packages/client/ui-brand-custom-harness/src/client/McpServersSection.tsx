@@ -1,6 +1,6 @@
 /** Harnessy's global MCP server settings page. */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type {
   McpManagerState, McpServerInput, McpServerTransport, McpServerView,
@@ -8,7 +8,19 @@ import type {
 import { Button, Modal, StateDot, Switch } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BrandKey } from './locales.ts'
+import { parseMcpJson } from './mcp-import.ts'
+import type { McpJsonImport } from './mcp-import.ts'
 import css from './McpServersSection.module.css'
+
+const MAX_IMPORT_BYTES = 1_000_000
+const MAX_SAVED_SERVERS = 64
+const WORDPRESS_ARGUMENTS = '-y\n@automattic/mcp-wordpress-remote@latest'
+const WORDPRESS_ENVIRONMENT = [
+  'WP_API_URL=https://your-site.example/wp-json/mcp/mcp-adapter-default-server',
+  'WP_API_USERNAME=your-username',
+  'OAUTH_ENABLED=false',
+  'WP_API_PASSWORD=your-application-password',
+].join('\n')
 
 /** Result returned by a redacted MCP manager operation. */
 export interface McpManagerOutcome {
@@ -23,6 +35,7 @@ export interface McpManagerOperations {
   readonly setEnabled: (serverId: string, enabled: boolean) => Promise<McpManagerOutcome>
   readonly reconnect: (serverId: string) => Promise<McpManagerOutcome>
   readonly remove: (serverId: string) => Promise<McpManagerOutcome>
+  readonly openConfigurationFile: () => Promise<{ readonly error?: string }>
 }
 
 /** Registration-side data supplied to the MCP settings section. */
@@ -150,6 +163,14 @@ function ServerEditor({ draft, setDraft, t, busy, onCancel, onSave }: {
   const field = <Key extends keyof Draft>(key: Key, value: Draft[Key]): void => {
     setDraft({ ...draft, [key]: value })
   }
+  const fillWordPressTemplate = (): void => {
+    setDraft({
+      ...draft,
+      command: 'npx',
+      args: WORDPRESS_ARGUMENTS,
+      environment: WORDPRESS_ENVIRONMENT,
+    })
+  }
   return (
     <div className={css.editor}>
       <div className={css.editorHeading}>
@@ -174,10 +195,12 @@ function ServerEditor({ draft, setDraft, t, busy, onCancel, onSave }: {
       <fieldset className={css.transport}>
         <legend>{t('mcpConnectionType')}</legend>
         <button type="button" className={draft.transport === 'streamable-http' ? css.transportActive : undefined}
+          aria-label={t('mcpRemote')}
           onClick={() => { field('transport', 'streamable-http') }}>
           <strong>{t('mcpRemote')}</strong><span>{t('mcpRemoteHint')}</span>
         </button>
         <button type="button" className={draft.transport === 'stdio' ? css.transportActive : undefined}
+          aria-label={t('mcpLocal')}
           onClick={() => { field('transport', 'stdio') }}>
           <strong>{t('mcpLocal')}</strong><span>{t('mcpLocalHint')}</span>
         </button>
@@ -218,11 +241,17 @@ function ServerEditor({ draft, setDraft, t, busy, onCancel, onSave }: {
                 <textarea value={draft.args} spellCheck={false} placeholder={t('mcpArgumentsPlaceholder')}
                   onChange={(event) => { field('args', event.target.value) }} />
               </label>
-              <label className={css.field}>
-                <span>{t('mcpEnvironment')}</span>
-                <textarea value={draft.environment} spellCheck={false} placeholder={t('mcpEnvironmentPlaceholder')}
+              <div className={css.field}>
+                <div className={css.fieldLabelRow}>
+                  <label htmlFor="mcp-environment">{t('mcpEnvironment')}</label>
+                  <button type="button" className={css.templateButton} onClick={fillWordPressTemplate}>
+                    {t('mcpWordPressTemplate')}
+                  </button>
+                </div>
+                <textarea id="mcp-environment" value={draft.environment} spellCheck={false}
+                  placeholder={t('mcpEnvironmentPlaceholder')}
                   onChange={(event) => { field('environment', event.target.value) }} />
-              </label>
+              </div>
             </div>
             <label className={css.field}>
               <span>{t('mcpWorkingDirectory')}</span>
@@ -255,6 +284,8 @@ export function McpServersSection({ operations, t }: McpServersSectionProps): Re
   const [busy, setBusy] = useState<string | null>(null)
   const [draft, setDraft] = useState<Draft | null>(null)
   const [removeTarget, setRemoveTarget] = useState<McpServerView | null>(null)
+  const [importReview, setImportReview] = useState<McpJsonImport | null>(null)
+  const importInput = useRef<HTMLInputElement | null>(null)
 
   const load = (): void => {
     void operations.describe().then((outcome) => {
@@ -297,6 +328,47 @@ export function McpServersSection({ operations, t }: McpServersSectionProps): Re
         setDraft(null)
       }
       if (outcome.error !== undefined) setError(outcome.error)
+    }).finally(() => { setBusy(null) })
+  }
+
+  const stageImport = (file: File): void => {
+    if (state === null) return
+    const existingNamespaces = state.servers.map(server => server.serverName)
+    const capacity = MAX_SAVED_SERVERS - state.servers.length
+    setError(null)
+    setImportReview(null)
+    if (file.size > MAX_IMPORT_BYTES) {
+      setError(t('mcpImportTooLarge'))
+      return
+    }
+    void file.text().then((text) => {
+      const staged = parseMcpJson(
+        text,
+        existingNamespaces,
+        capacity,
+      )
+      if (staged.servers.length === 0) {
+        setError(t('mcpImportNoServers'))
+        return
+      }
+      setImportReview(staged)
+    }).catch(() => { setError(t('mcpImportInvalid')) })
+  }
+
+  const saveImport = (): void => {
+    if (importReview === null) return
+    setBusy('import')
+    setError(null)
+    void (async () => {
+      for (const server of importReview.servers) {
+        const outcome = await operations.save(server.input)
+        if (outcome.state !== undefined) setState(outcome.state)
+        if (outcome.error !== undefined) throw new Error(outcome.error)
+      }
+      setImportReview(null)
+    })().catch((cause: unknown) => {
+      const detail = cause instanceof Error ? cause.message : String(cause)
+      setError(`${t('mcpImportStopped')} ${detail}`)
     }).finally(() => { setBusy(null) })
   }
 
@@ -379,10 +451,77 @@ export function McpServersSection({ operations, t }: McpServersSectionProps): Re
                   ))}
                 </ul>
               )}
-            <button type="button" className={css.addButton} disabled={!state.writable}
-              onClick={() => { setDraft(blankDraft()); setError(null) }}>
-              <span>+</span>{t('mcpAdd')}
-            </button>
+            {importReview === null
+              ? null
+              : (
+                <section className={css.importReview} aria-label={t('mcpImportReviewTitle')}>
+                  <div className={css.importHeading}>
+                    <div>
+                      <h3>{t('mcpImportReviewTitle')}</h3>
+                      <p>{t('mcpImportReviewDescription')}</p>
+                    </div>
+                    <span className={css.secureBadge}>{t('mcpProtected')}</span>
+                  </div>
+                  <ul className={css.importList}>
+                    {importReview.servers.map(server => (
+                      <li key={`${server.sourceName}:${server.input.serverName}`}>
+                        <div>
+                          <strong>{server.input.name}</strong>
+                          <code>{server.input.serverName}</code>
+                        </div>
+                        <span>
+                          {server.input.transport === 'stdio' ? t('mcpLocal') : t('mcpRemote')}
+                          {' · '}
+                          {server.input.enabled ? t('mcpEnabled') : t('mcpDisabled')}
+                          {' · '}
+                          {t('mcpImportProtectedValues', { count: String(server.protectedValueCount) })}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  {importReview.skippedNames.length === 0
+                    ? null
+                    : <p className={css.importWarning}>{t('mcpImportSkipped', { count: String(importReview.skippedNames.length) })}</p>}
+                  {importReview.ignoredTimeoutCount === 0
+                    ? null
+                    : <p className={css.importWarning}>{t('mcpImportTimeoutIgnored')}</p>}
+                  {importReview.ignoredHeaderCount === 0
+                    ? null
+                    : <p className={css.importWarning}>{t('mcpImportHeadersIgnored')}</p>}
+                  {importReview.capacitySkippedCount === 0
+                    ? null
+                    : <p className={css.importWarning}>{t('mcpImportCapacity')}</p>}
+                  <div className={css.editorActions}>
+                    <Button variant="outline" disabled={busy !== null}
+                      onClick={() => { setImportReview(null) }}>{t('cancel')}</Button>
+                    <Button disabled={busy !== null} onClick={saveImport}>
+                      {busy === 'import' ? t('mcpImportSaving') : t('mcpImportConfirm')}
+                    </Button>
+                  </div>
+                </section>
+              )}
+            <div className={css.addActions}>
+              <button type="button" className={css.addButton} disabled={!state.writable}
+                onClick={() => { setDraft(blankDraft()); setImportReview(null); setError(null) }}>
+                <span>+</span>{t('mcpAdd')}
+              </button>
+              <Button variant="outline" disabled={!state.writable || busy !== null}
+                onClick={() => { importInput.current?.click() }}>
+                {t('mcpImport')}
+              </Button>
+              <input
+                ref={importInput}
+                className={css.fileInput}
+                type="file"
+                accept=".json,application/json"
+                aria-label={t('mcpImportFile')}
+                onChange={(event) => {
+                  const file = event.target.files?.[0]
+                  event.target.value = ''
+                  if (file !== undefined) stageImport(file)
+                }}
+              />
+            </div>
             <p className={css.privacy}>{t('mcpPrivacy')}</p>
           </>
         )

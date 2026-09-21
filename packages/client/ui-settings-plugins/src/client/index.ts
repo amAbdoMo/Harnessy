@@ -34,7 +34,7 @@ import {
   SUBAGENT_MODEL_SELECTION_NS, SubagentModelSelectionCardController,
 } from './subagent-model-selection-card-controller.ts'
 import { WEB_SEARCH_NS, WebSearchCardController } from './web-search-card-controller.ts'
-import { en, zh } from './locales.ts'
+import { en } from './locales.ts'
 
 export type { PluginsSettingsSectionInjected, PluginsSettingsSectionProps } from './PluginsSettingsSection.tsx'
 export type { ConfigurablePluginsTabProps } from './ConfigurablePluginsTab.tsx'
@@ -63,16 +63,19 @@ export const inject = [
  */
 export function apply(ctx: ClientContext): void {
   const t = ctx.locale.bind(NS)
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-settings-plugins: section dictionaries')
+  const customHarness = process.env.DSH_CLIENT_BUILD_PROFILE === 'custom-harness'
+  ctx.effect(() => ctx.locale.register(NS, { en }), 'ui-settings-plugins: section dictionaries')
 
   const bash = new BashCardController(ctx.settingsScope.bind({ namespace: SHELL_NS }))
   const agentLoop = new AgentLoopCardController(ctx.settingsScope.bind({ namespace: AGENT_LOOP_NS }))
   const webSearch = new WebSearchCardController(
     ctx.settingsScope.bind({ namespace: WEB_SEARCH_NS }), ctx)
-  const subagentModelSelection = new SubagentModelSelectionCardController(
-    ctx.settingsScope.bind({ namespace: SUBAGENT_MODEL_SELECTION_NS }),
-    ctx,
-  )
+  const subagentModelSelection = customHarness
+    ? undefined
+    : new SubagentModelSelectionCardController(
+      ctx.settingsScope.bind({ namespace: SUBAGENT_MODEL_SELECTION_NS }),
+      ctx,
+    )
 
   // The credential a card reports is not part of any settings section, so its
   // scope publishes nothing when one is written. This is the only signal that
@@ -82,18 +85,18 @@ export function apply(ctx: ClientContext): void {
     'ui-settings-plugins: credential invalidations',
   )
   ctx.effect(
-    () => ctx.remote.$on('llm/adapters-updated', () => { subagentModelSelection.refreshCatalog() }),
+    () => ctx.remote.$on('llm/adapters-updated', () => { subagentModelSelection?.refreshCatalog() }),
     'ui-settings-plugins: subagent adapter invalidations',
   )
   ctx.effect(
-    () => ctx.remote.$on('settings/document-updated', () => { subagentModelSelection.refreshCatalog() }),
+    () => ctx.remote.$on('settings/document-updated', () => { subagentModelSelection?.refreshCatalog() }),
     'ui-settings-plugins: subagent settings invalidations',
   )
   ctx.effect(
-    () => ctx.on('connection/reset', () => { subagentModelSelection.resetConnection() }),
+    () => ctx.on('connection/reset', () => { subagentModelSelection?.resetConnection() }),
     'ui-settings-plugins: subagent connection generation',
   )
-  ctx.effect(() => () => { subagentModelSelection.dispose() }, 'ui-settings-plugins: subagent preference')
+  ctx.effect(() => () => { subagentModelSelection?.dispose() }, 'ui-settings-plugins: subagent preference')
 
   // The shared SettingsScope mirror updates after document commits and reconnects.
   const configurable = new ConfigurablePluginsTabController(
@@ -177,12 +180,14 @@ export function apply(ctx: ClientContext): void {
       locale: NS,
       inject: () => agentLoop.inject(),
     }, AgentLoopCard)
-    yield ctx.slots.register({
-      name: 'settings.plugin.item',
-      key: SUBAGENT_MODEL_SELECTION_NS,
-      locale: NS,
-      inject: () => subagentModelSelection.inject(),
-    }, SubagentModelSelectionCard)
+    if (subagentModelSelection !== undefined) {
+      yield ctx.slots.register({
+        name: 'settings.plugin.item',
+        key: SUBAGENT_MODEL_SELECTION_NS,
+        locale: NS,
+        inject: () => subagentModelSelection.inject(),
+      }, SubagentModelSelectionCard)
+    }
     yield ctx.slots.register({
       name: 'settings.plugin.item',
       key: WEB_SEARCH_NS,

@@ -7,6 +7,7 @@ export interface DesktopElectronBuilderConfig {
   readonly directories: {
     readonly output: string
   }
+  readonly electronLanguages: readonly ['en-US']
   readonly files: readonly string[]
   readonly extraResources: readonly [
     { readonly from: string, readonly to: 'runtime' },

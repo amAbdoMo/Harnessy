@@ -20,8 +20,9 @@ body {
   /* The WebKit bar's layout width, mirrored by the ::-webkit-scrollbar rule
      below. A surface that must align itself beside a space-consuming bar
      (ConversationRoot's overlay composer seat) reads this instead of
-     hardcoding the number. */
-  --dsh-scrollbar-width: 8px;
+     hardcoding the number. 10px is the app's own bar: wide enough to grab,
+     narrow enough to stay out of the content's way. */
+  --dsh-scrollbar-width: 10px;
 }
 
 /* The two paths are mutually exclusive, and the gate is load-bearing rather
@@ -64,8 +65,8 @@ body {
    selector matching already does. Not inherited either, hence the unscoped
    selectors. */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 /* Track stays transparent so the thumb reads against whatever surface scrolls
@@ -74,13 +75,24 @@ body {
   background: transparent;
 }
 
+/* The 2px transparent border insets the painted thumb into a pill floating
+   inside the bar's lane — the app's own shape rather than the platform's
+   full-bleed square — and `background-clip: padding-box` keeps the fill out
+   of the border box, so the inset survives whatever corner radius the engine
+   applies. */
 ::-webkit-scrollbar-thumb {
-  border-radius: 4px;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  /* The universal superellipse reaches this surface too, so the pill states
+     its own arc back (same pairing every other full-round rule carries). */
+  corner-shape: round;
   background: var(--dsh-scrollbar-thumb);
+  background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--dsh-scrollbar-thumb-hover);
+  background-clip: padding-box;
 }
 
 /* Both scrollbars meeting in a corner: no separate token, so the corner

@@ -356,10 +356,14 @@
 .projectRow:focus-visible,
 .sessionRow:focus-visible,
 .searchResultRow:focus-visible,
-.renameInput:focus-visible,
 .iconButton:focus-visible {
-  outline: 2px solid var(--dsw-alias-state-business-primary);
-  outline-offset: 2px;
+  border-color: var(--dsw-alias-state-business-primary);
+  outline: none;
+}
+
+.renameInput:focus-visible {
+  border-color: var(--dsw-alias-state-business-primary);
+  outline: none;
 }
 
 /* Chevrons ride the caption grey (#ADB2B8); the folder glyph stays one step
