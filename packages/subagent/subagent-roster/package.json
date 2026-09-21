@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-subagent-roster",
   "description": "Unified subagent roster: role settings, per-workspace resolution, and the delegate/list_subagents router tools",
-  "version": "0.1.5-alpha.1",
+  "version": "0.1.6-alpha.1",
   "publishConfig": {
     "access": "public"
   },

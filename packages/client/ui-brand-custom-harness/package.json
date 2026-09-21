@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-brand-custom-harness",
   "description": "Harnessy identity, product settings, account manager, and theme tokens",
-  "version": "0.1.5-alpha.1",
+  "version": "0.1.6-alpha.1",
   "publishConfig": {
     "access": "public"
   },
