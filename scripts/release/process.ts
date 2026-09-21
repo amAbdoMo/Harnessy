@@ -21,6 +21,14 @@ export interface CommandResult {
   readonly stderr: string
 }
 
+/** Resolve pnpm's Windows command shim to the JavaScript entry that launched this release script. */
+function invocation(command: string, args: readonly string[]): { command: string; args: string[] } {
+  if (process.platform !== 'win32' || command !== 'pnpm') return { command, args: [...args] }
+  const pnpmEntry = process.env['npm_execpath']
+  if (pnpmEntry === undefined) throw new Error('pnpm release command is missing npm_execpath')
+  return { command: process.execPath, args: [pnpmEntry, ...args] }
+}
+
 /**
  * Run a command and capture its output without judging the exit status.
  * @param command - executable name.
@@ -29,7 +37,10 @@ export interface CommandResult {
  * @returns The exit status and captured streams.
  */
 export function attempt(command: string, args: readonly string[], options: RunOptions = {}): CommandResult {
-  const result = spawnSync(command, [...args], { cwd: options.cwd, env: options.env, encoding: 'utf8' })
+  const resolved = invocation(command, args)
+  const result = spawnSync(resolved.command, resolved.args, {
+    cwd: options.cwd, env: options.env, encoding: 'utf8',
+  })
   if (result.error !== undefined) throw result.error
   return { status: result.status, stdout: result.stdout, stderr: result.stderr }
 }
@@ -43,7 +54,8 @@ export function attempt(command: string, args: readonly string[], options: RunOp
  * @returns The exit status and captured streams.
  */
 export function attemptEchoed(command: string, args: readonly string[], options: RunOptions = {}): CommandResult {
-  const result = spawnSync(command, [...args], {
+  const resolved = invocation(command, args)
+  const result = spawnSync(resolved.command, resolved.args, {
     cwd: options.cwd,
     env: options.env,
     encoding: 'utf8',
@@ -80,8 +92,9 @@ export function capture(command: string, args: readonly string[], options: RunOp
  * @returns Resolves when the command exits with status zero.
  */
 export function runConcurrent(command: string, args: readonly string[], options: RunOptions = {}): Promise<void> {
+  const resolved = invocation(command, args)
   return new Promise((resolveRun, rejectRun) => {
-    const child = spawn(command, [...args], { cwd: options.cwd, env: options.env, stdio: 'inherit' })
+    const child = spawn(resolved.command, resolved.args, { cwd: options.cwd, env: options.env, stdio: 'inherit' })
     child.once('error', rejectRun)
     child.once('close', (status, signal) => {
       if (status === 0) resolveRun()
