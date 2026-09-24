@@ -24,12 +24,13 @@ export interface ServerContext {
  * @param ctx - server plugin's registration scope and effect owner.
  * @param server - configured server identity.
  * @param connection - live resource operations and successful instruction snapshot.
+ * @returns disposer that removes the resource and prompt contributions.
  */
-export function registerServerContext(ctx: Context, server: string, connection: ServerContext): void {
-  ctx.inject(['mcpResources'], (inner) => {
+export function registerServerContext(ctx: Context, server: string, connection: ServerContext): () => Promise<void> {
+  const resources = ctx.inject(['mcpResources'], (inner) => {
     inner.mcpResources.register(server, connection.resources)
   })
-  ctx.inject(['systemPrompt'], (inner) => {
+  const instructions = ctx.inject(['systemPrompt'], (inner) => {
     inner.systemPrompt.section({
       name: `mcp:${server}`,
       order: inner.systemPrompt.getSectionOrder('MCP_SERVERS'),
@@ -37,4 +38,7 @@ export function registerServerContext(ctx: Context, server: string, connection: 
       text: () => connection.instructions(),
     })
   })
+  return async () => {
+    await Promise.all([resources.dispose(), instructions.dispose()])
+  }
 }

@@ -6,7 +6,7 @@
  * has none. The pi-ai profile records that derivation as `apiKeyEnv` only when
  * a key is entered; a blank key materializes a reference-free profile for
  * provider-native authentication);
- * the collapsed 自定义设置 area carries the per-family extras (`baseURL` for
+ * the collapsed Custom settings area carries per-family extras (`baseURL` for
  * both families, DeepSeek's id/name/context-window model catalog, and the
  * display name and wire protocol of a pi-ai route the adapter does not ship —
  * the two fields the create card asked that route for, editable here for the
@@ -24,21 +24,26 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type {
-  CredentialInfo, SettingsNamespaceView, SettingsPathOpView,
+  CredentialInfo, ModelCapabilityInspectionView, SettingsNamespaceView, SettingsPathOpView,
 } from '@deepseek-ai/dsh-api-remotes/client'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
+import { Select } from '@deepseek-ai/dsh-client-ui-primitives'
 import {
   DeepSeekModelsEditor, modelDrafts, validateDeepSeekModels,
 } from './DeepSeekModelsEditor.tsx'
 import { apiKeyFailure } from './apiKey.ts'
+import { routeCapabilities } from './capability.ts'
 import { EditorFooter } from './EditorFooter.tsx'
 import { ModelListEditor } from './ModelListEditor.tsx'
-import { deriveKeyRef, protocolChoices } from './store.ts'
+import { deriveKeyRef, protocolChoices, reasoningEffortChoices } from './store.ts'
 import { protocolLabel } from './protocol-label.ts'
 import type { ModelsOperations } from './operations.ts'
 import type { SettingsSchemaOperations } from './schema-operations.ts'
 import type { en } from './locales.ts'
 import styles from './ModelsSection.module.css'
+
+/** Copy lookup this card renders with, including the params its rows need. */
+type Translate = (key: keyof typeof en, params?: Record<string, unknown>) => string
 
 /** Per-adapter-family curated field sets (unknown namespaces get the hint alone). */
 type EditorLayout = 'deepseek' | 'pi-ai' | 'unknown'
@@ -69,8 +74,13 @@ export interface ProviderEditorProps {
   settingsPath: readonly string[]
   /** The Host operations this card writes and interrogates through. */
   operations: ModelsOperations
+  /**
+   * What the Host resolves for every configured model, keyed by
+   * {@link capabilityKey}. Absent on a card that is adding a route.
+   */
+  capability?: ReadonlyMap<string, ModelCapabilityInspectionView>
   /** Section copy. */
-  t: (key: keyof typeof en) => string
+  t: Translate
   /** Disable writes (read-only settings provider). */
   readOnly: boolean
   /** Render only the credential field and actions, without provider settings. */
@@ -190,6 +200,12 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
   // it rehydrates the whole section schema, so the other layouts skip it.
   const protocols = useMemo(
     () => layout === 'pi-ai' ? protocolChoices(namespace, schema) : [],
+    [layout, namespace, schema],
+  )
+  // The same schema read for the reasoning levels a pi-ai model may declare,
+  // so the rows offer exactly what the adapter accepts.
+  const efforts = useMemo(
+    () => layout === 'pi-ai' ? reasoningEffortChoices(namespace, schema) : [],
     [layout, namespace, schema],
   )
 
@@ -441,22 +457,23 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
               ? (
                 <div className={styles['field']}>
                   <span className={styles['fieldLabel']}>{t('customApi')}</span>
-                  <select
-                    className={`${styles['input']} ${styles['selectInput']}`}
+                  {/* A profile naming no protocol — hand-written into its
+                      configuration with no model to need one — selects
+                      nothing rather than reading as if it had picked the
+                      first choice. The option is named because a screen
+                      reader announces it either way, and an empty one is
+                      announced as a choice with no identity. */}
+                  <Select
+                    className={styles['select']}
                     value={probeApi ?? ''}
-                    aria-label={t('customApi')}
+                    label={t('customApi')}
                     disabled={disabled}
-                    onChange={(event) => { setField('api', event.target.value) }}
-                  >
-                    {/* A profile naming no protocol — hand-written into
-                        cordis.patch.yml with no model to need one — selects
-                        nothing rather than reading as if it had picked the
-                        first choice. The option is named because a screen
-                        reader announces it either way, and an empty one is
-                        announced as a choice with no identity. */}
-                    {probeApi === undefined ? <option value="">{t('customApiUnset')}</option> : null}
-                    {protocols.map(choice => <option key={choice} value={choice}>{protocolLabel(t, choice)}</option>)}
-                  </select>
+                    options={[
+                      ...probeApi === undefined ? [{ value: '', label: t('customApiUnset') }] : [],
+                      ...protocols.map(choice => ({ value: choice, label: protocolLabel(t, choice) })),
+                    ]}
+                    onChange={(value) => { setField('api', value) }}
+                  />
                 </div>
               )
               : null}
@@ -476,6 +493,9 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
               : (
                 <ModelListEditor
                   {...catalogProps}
+                  efforts={efforts}
+                  catalogServed={props.declared !== true}
+                  capability={routeCapabilities(props.capability, props.provider)}
                   catalogProvider={props.declared === true ? undefined : props.provider}
                   defaultInput={Array.isArray(defaultInput) ? defaultInput : undefined}
                   probe={probe}

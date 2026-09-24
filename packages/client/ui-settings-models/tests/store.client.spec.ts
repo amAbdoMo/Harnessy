@@ -1,10 +1,11 @@
 /** Page-store join: directory × namespaces × credentials, with last-good rows on failure. */
 import { describe, expect, it } from 'vitest'
-import type { RpcResponse } from '@deepseek-ai/dsh-api-remotes/client'
+import type { ModelCapabilityInspectionView, RemoteResult, RpcResponse } from '@deepseek-ai/dsh-api-remotes/client'
 import { RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
 import { SettingsDescribeMirror } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-mirror.ts'
 import { settingsSchema } from './settings-schema.client.ts'
 import { joinProviderDirectory, ModelsSettingsStore } from '../src/client/store.ts'
+import { capabilityKey } from '../src/client/capability.ts'
 
 it.each([false, true])('retains configuration diagnostics when the route is active: %s', (active) => {
   expect(joinProviderDirectory(active ? [{ id: 'openai', name: 'openai' }] : [], [{
@@ -67,6 +68,7 @@ function api(overrides: {
   providers?: () => Promise<RpcResponse<{ providers: typeof DIRECTORY }>>
   describeSettings?: () => Promise<RemoteAnswer<{ writable: boolean; hasDocument: boolean; namespaces: typeof NAMESPACES }>>
   describeCredentials?: (refs: readonly string[]) => Promise<RemoteAnswer<Record<string, unknown>>>
+  inspectCapabilities?: () => Promise<RemoteResult<ModelCapabilityInspectionView[]>>
 } = {}) {
   const seenRefs: string[][] = []
   const providers = overrides.providers ?? (() => Promise.resolve(ok({ providers: DIRECTORY })))
@@ -101,6 +103,9 @@ function api(overrides: {
       describe: overrides.describeSettings
         ?? (() => Promise.resolve(remoteOk({ writable: true, hasDocument: false, namespaces: NAMESPACES }))),
       mutate: () => Promise.resolve(remoteFail('the store spec issues no writes')),
+    },
+    modelCapabilities: {
+      inspect: overrides.inspectCapabilities ?? (() => Promise.resolve(remoteOk([]))),
     },
     credentials: {
       describe: (refs: readonly string[]) => {
@@ -327,5 +332,40 @@ describe('edge joins', () => {
     await first
     // The stale empty directory never overwrote the newer join.
     expect(store.store.getSnapshot().rows).toHaveLength(4)
+  })
+
+  it('joins capability source by route and model', async () => {
+    const { ctx, mirror } = api({
+      inspectCapabilities: () => Promise.resolve({
+        ok: true as const,
+        value: [
+          { route: 'openai', model: 'gpt-5.6-sol', enabled: true, resolved: { levels: ['low'], source: 'models.dev', provider: 'cortecs', match: 'provider-host', origin: 'cache', fetchedAt: '2026-09-16T12:00:00.000Z' }, suggestions: [] },
+          { route: 'ghost', model: 'gpt-5.6-sol', enabled: true, suggestions: [] },
+        ] satisfies ModelCapabilityInspectionView[],
+      }),
+    })
+    const store = new ModelsSettingsStore(ctx, settingsSchema, mirror)
+    await store.load()
+    const capabilities = store.store.getSnapshot().capabilities
+    // Keyed by route and model, so one id through two routes cannot collide.
+    expect([...capabilities.keys()].sort()).toEqual([
+      capabilityKey('ghost', 'gpt-5.6-sol'),
+      capabilityKey('openai', 'gpt-5.6-sol'),
+    ])
+    expect(capabilities.get(capabilityKey('openai', 'gpt-5.6-sol'))?.resolved?.origin).toBe('cache')
+  })
+
+  it('degrades a refused capability read instead of failing the page', async () => {
+    const { ctx, mirror } = api({
+      inspectCapabilities: () => Promise.resolve({ ok: false as const, error: new RemoteError('gateway/internal', 'no such namespace', {}) } as RemoteResult<ModelCapabilityInspectionView[]>),
+    })
+    const store = new ModelsSettingsStore(ctx, settingsSchema, mirror)
+    await store.load()
+    const state = store.store.getSnapshot()
+    // Source is an enrichment: a composition that answers nothing leaves
+    // every row rendering its own declaration rather than failing the load.
+    expect(state.status).toBe('ready')
+    expect(state.capabilities.size).toBe(0)
+    expect(state.rows).toHaveLength(4)
   })
 })

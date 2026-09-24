@@ -12,6 +12,7 @@ export {
   openNativePath,
   openNativeAssociatedPath,
   openNativeTextFile,
+  openNativeUrl,
 } from './path-opener.ts'
 export type {
   NativeFileManager,

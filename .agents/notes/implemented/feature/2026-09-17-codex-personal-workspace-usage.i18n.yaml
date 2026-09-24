@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-17-codex-personal-workspace-usage.md
+2026-09-17-codex-personal-workspace-usage.md: 17464e53279bf75c19083f17c2e3e59331d48814
+2026-09-17-codex-personal-workspace-usage.zh.md: 708c47d75a540fd73f1637bb1ee8cf3ccc3c89a9

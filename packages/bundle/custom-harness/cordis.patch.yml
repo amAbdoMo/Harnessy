@@ -1,0 +1,121 @@
+# Harnessy is a narrow product layer over the shipped Web application.
+# It replaces the product-owned brand and disables the per-message feedback
+# Host and client rows. Shared runtime, provider, framework, and safety rows
+# remain intact.
+
+- id: web-startup
+  config:
+    profile: custom-harness
+    productName: !!js process.env.CUSTOM_HARNESS_PRODUCT_NAME ?? 'Harnessy'
+
+- id: message-feedback
+  disabled: true
+
+- id: ui-brand-official
+  disabled: true
+
+- id: ui-message-feedback
+  disabled: true
+
+- id: ui-settings-account
+  disabled: true
+
+- id: ui-settings-subagent
+  disabled: true
+
+- id: session-log-deepseek
+  disabled: true
+
+- id: session-telemetry-otel
+  disabled: true
+
+# Harnessy delegates through the configurable role roster. The two generic
+# creation tools would bypass the selected role's model, access, instructions,
+# and routing guidance, so this product hides those schemas while retaining the
+# shared subagent runtime, status catalog, and follow-up controls.
+- id: tool-subagent
+  disabled: true
+
+- id: tool-subagent-fork
+  disabled: true
+
+- insert:
+    # Interactive account authorization is product-visible only in Custom
+    # Harness. llm-pi-ai discovers its OpenAI ChatGPT OAuth flow through this
+    # neutral service and stores the resulting grant in the local credential
+    # provider already mounted by the base profile.
+    - id: authorization
+      name: '@deepseek-ai/dsh-authorization'
+
+    - id: workspace-brief
+      name: '@deepseek-ai/dsh-workspace-brief'
+
+    # A global provider keeps Harnessy's private runtime state isolated while
+    # sharing the user's normal agent skills with every preset and workspace.
+    - id: harnessy-shared-skills
+      name: '@deepseek-ai/dsh-skill-filesystem'
+      config:
+        providerName: harnessy-shared-skills
+        includeDefaultRoots: false
+        directory: !!js "(process.env.USERPROFILE ?? process.env.HOME ?? process.cwd()) + '/.agents/skills'"
+        enabled: true
+
+    - id: ui-brand-custom-harness
+      name: '@deepseek-ai/dsh-client-ui-brand-custom-harness'
+
+    # Command Code delegation. The host row owns the lane settings, the two
+    # model-facing tools, and the `commandcode` Remote namespace; it starts no
+    # Command Code process while loading. Official profiles never mount this
+    # row, so no other product gains a Command Code route.
+    - id: commandcode-delegation
+      name: '@deepseek-ai/dsh-subagent-commandcode'
+      config:
+        # The roster owns model-facing delegation in Harnessy. This row remains
+        # mounted for its backend, readiness probe, and model catalog.
+        toolsEnabled: false
+
+    # Public model capability metadata. The row declares the local capability
+    # integration as an injected service, which is what orders the two: the
+    # Loader mounts sibling rows in parallel, so *file position does not decide
+    # activation order* — the LLM seam asks capability sources in registration
+    # order and the first answer wins, and only a service dependency makes
+    # Command Code's source register first.
+    - id: model-capabilities
+      name: '@deepseek-ai/dsh-model-capabilities/plugin'
+      inject: [commandCodeController]
+
+    # The `--models-sync` / `--models-explain` diagnostics surface. It reads the
+    # store the row above publishes, so it mounts after it and owns no policy of
+    # its own.
+    - id: model-capabilities-cli
+      name: '@deepseek-ai/dsh-model-capabilities/cli'
+      inject: [modelCapabilities]
+
+    # The unified role directory. Its Host row owns the `subagent-roster`
+    # settings section, the `delegate` and `list_subagents` tools, the one-shot
+    # migration of a stored lane configuration, and the `subagentRoster` Remote
+    # namespace the Subagents page reads; it starts no child while loading. The
+    # `commandcode-delegation` stays mounted as a backend while its legacy lane
+    # tools remain hidden, so configured roles are the only creation path.
+    - id: subagent-roster
+      name: '@deepseek-ai/dsh-subagent-roster'
+
+    # The Subagents page reads the `subagent-roster` settings section and the
+    # `subagentRoster` Remote namespace. It is registered here alone, so no
+    # other product gains the page.
+    - id: ui-settings-subagents
+      name: '@deepseek-ai/dsh-client-ui-settings-subagents'
+
+    - id: ui-workspace-brief
+      name: '@deepseek-ai/dsh-client-ui-workspace-brief'
+
+# The public-metadata row is mounted behind a subpath entry, so its Cordis fiber
+# carries no resolvable package specifier and the Typert loader cannot discover
+# its `./typert` manifest from the entry name. Naming the package here is the
+# loader's documented path for a plugin nested behind another entry; without it
+# the Models page's `modelCapabilities/inspect` call would have no Host
+# descriptor to dispatch through.
+- id: typert-loader
+  config:
+    packages:
+      - '@deepseek-ai/dsh-model-capabilities'

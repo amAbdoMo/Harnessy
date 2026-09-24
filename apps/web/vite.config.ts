@@ -18,13 +18,32 @@ function escapeHtmlText(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
-/** Project the public build title into the initial HTML document. */
-function clientDocumentTitle(): Plugin {
+/** Project the public build identity into the initial HTML and install metadata. */
+function clientDocumentIdentity(): Plugin {
   const title = escapeHtmlText(process.env.DSH_CLIENT_TITLE ?? DEFAULT_CLIENT_TITLE)
+  const productName = process.env.DSH_CLIENT_PRODUCT_NAME
+  const shortName = process.env.DSH_CLIENT_MANIFEST_SHORT_NAME
+  const iconPath = process.env.DSH_CLIENT_ICON_PATH
   return {
-    name: 'dsh-client-document-title',
+    name: 'dsh-client-document-identity',
     transformIndexHtml(html) {
-      return html.replace('<title>DSH Local Build</title>', `<title>${title}</title>`)
+      const titled = html.replace('<title>DSH Local Build</title>', `<title>${title}</title>`)
+      if (iconPath === undefined) return titled
+      const branded = titled.replace(/href=["']\.?\/favicon\.svg["']/, `href="${escapeHtmlText(iconPath)}"`)
+      return iconPath.endsWith('.png')
+        ? branded.replace(/(<link\s+rel=["']icon["']\s+type=["'])image\/svg\+xml/u, '$1image/png')
+        : branded
+    },
+    async closeBundle() {
+      if (productName === undefined && shortName === undefined && iconPath === undefined) return
+      const path = src('./dist/manifest.webmanifest')
+      const manifest = JSON.parse(await readFile(path, 'utf8')) as Record<string, unknown>
+      if (productName !== undefined) manifest.name = productName
+      if (shortName !== undefined) manifest.short_name = shortName
+      if (iconPath !== undefined) {
+        manifest.icons = [{ src: iconPath, sizes: '1254x1254', type: 'image/png', purpose: 'any' }]
+      }
+      await writeFile(path, `${JSON.stringify(manifest, null, 2)}\n`)
     },
   }
 }
@@ -156,7 +175,7 @@ export default defineConfig({
   // directory, and the served index resolves identically from the site root.
   base: './',
   plugins: [
-    rejectStandaloneServe(), clientDocumentTitle(), react(), emitPreviewPage(),
+    rejectStandaloneServe(), clientDocumentIdentity(), react(), emitPreviewPage(),
     productWebBundleIsolation(src('../..'), src('.')),
   ],
   build: {

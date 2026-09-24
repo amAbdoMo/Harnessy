@@ -23,7 +23,7 @@ import { z } from 'zod'
 import type { ZodType } from 'zod'
 import { SessionSeq, type SessionEvent } from '@deepseek-ai/dsh-session'
 import type { ProjectionDefinition } from '@deepseek-ai/dsh-session-projection'
-import type { TurnOutlineEntry, TurnOutlineState } from './types.ts'
+import type { TurnOutlineEntry, TurnOutlineOutcome, TurnOutlineState } from './types.ts'
 
 /** Prompt budget: one rail-card line (13px over ~276px), ASCII worst case included. */
 const PROMPT_PREVIEW_LIMIT = 50
@@ -63,6 +63,7 @@ const turnOutlineEntriesSchema: ZodType<readonly TurnOutlineEntry[]> = z.array(z
   seq: z.number().int().nonnegative().transform(SessionSeq),
   prompt: z.string().max(PROMPT_PREVIEW_LIMIT),
   response: z.string().max(RESPONSE_PREVIEW_LIMIT),
+  outcome: z.enum(['completed', 'stopped', 'failed']).optional(),
 }).strict()).superRefine((turns, context) => {
   let previous = -1
   for (const entry of turns) {
@@ -81,10 +82,16 @@ const turnOutlineStateSchema: ZodType<TurnOutlineState> = z.object({
 
 const EMPTY_OUTLINE: TurnOutlineState = { turns: [], draft: '' }
 
+function outcomeOf(event: SessionEvent<'turn/end'>): TurnOutlineOutcome {
+  if (event.data.reason.kind === 'completed') return 'completed'
+  if (event.data.reason.kind === 'error' || event.data.reason.kind === 'blocked') return 'failed'
+  return 'stopped'
+}
+
 /** The `turnOutline` unit registered on `ctx.sessionProjections` (exported for the unit spec). */
 export const turnOutlineProjectionDefinition = {
   key: 'turnOutline',
-  stateVersion: 2,
+  stateVersion: 3,
   stateSchema: turnOutlineStateSchema,
   init: () => EMPTY_OUTLINE,
   apply: (state, event) => {
@@ -121,10 +128,11 @@ export const turnOutlineProjectionDefinition = {
         return { turns: state.turns, draft }
       }
       case 'turn/end': {
-        if (state.draft === '') return state
         const last = state.turns.at(-1)
-        if (last === undefined || last.response === state.draft) return { turns: state.turns, draft: '' }
-        return { turns: [...state.turns.slice(0, -1), { ...last, response: state.draft }], draft: '' }
+        if (last === undefined) return state.draft === '' ? state : { turns: state.turns, draft: '' }
+        const response = state.draft === '' ? last.response : state.draft
+        const settled = { ...last, response, outcome: outcomeOf(event) }
+        return { turns: [...state.turns.slice(0, -1), settled], draft: '' }
       }
       default:
         return state

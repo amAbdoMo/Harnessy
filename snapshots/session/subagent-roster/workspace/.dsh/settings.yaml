@@ -1,0 +1,36 @@
+# The roster document this scenario delegates through, seeded as scenario-local
+# state at `$DSH_HOME/settings.yaml`. It replaces the shipped role directory
+# with two roles, so `list_subagents` renders exactly what this file declares
+# and `delegate` starts exactly the role it names: `audit` carries the standing
+# instructions, the tool restriction, and the read-only access the child is
+# started with, while `builder` stays in the directory undelegated.
+subagent-roster:
+  subagents:
+    - id: audit
+      name: Audit
+      purpose: Review a scoped subject and report defects without changing the workspace.
+      whenToUse: Use when the deliverable is a review of something already in the workspace.
+      invocation: automatic
+      model:
+        mode: fixed
+      access: read-only
+      tools:
+        allow:
+          - read
+          - glob
+          - grep
+      instructions: You audit what is already in the workspace and never change it.
+      execution:
+        backend: spawn
+        background: foreground
+    - id: builder
+      name: Builder
+      purpose: Implement or repair a scoped change in this workspace.
+      whenToUse: Use for a bounded implementation whose exact change you can describe.
+      invocation: automatic
+      model:
+        mode: fixed
+      access: workspace-write
+      execution:
+        backend: spawn
+        background: auto

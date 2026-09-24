@@ -82,6 +82,61 @@ export interface TypeApiEntry {
 /** Every harness `ctx.<key>` service, sorted by key. */
 export const SERVICE_API: readonly ServiceApiEntry[] = [
   {
+    key: 'accountsController',
+    summary: 'Manage several local identities per provider while keeping one canonical active credential at the existing `llm-pi-ai/<provider>` address.',
+    description: 'Manage several local identities per provider while keeping one canonical active credential at the existing `llm-pi-ai/<provider>` address.',
+    methods: [
+      {
+        signature: '@Remote async describe(): Promise<AccountsState>',
+        description: 'Return every managed account without returning its stored credential.',
+        parameters: [],
+        returns: 'the public provider/account state, including whether the vault accepts writes.',
+      },
+      {
+        signature: '@Remote async addOAuth(provider: AccountProviderId, signal: AbortSignal): Promise<AccountSignInResult>',
+        description: 'Add an OAuth-backed identity through the provider\'s installed browser flow. A later account is saved without replacing the currently active identity.',
+        parameters: [{ name: 'provider', description: 'installed OAuth-capable provider to authorize.' }, { name: 'signal', description: 'cancellation for browser opening, prompts, and provider authorization.' }],
+        returns: 'whether authorization completed or the user cancelled it.',
+      },
+      {
+        signature: '@Remote async addApiKey(provider: AccountProviderId, name: string, key: string): Promise<AccountsState>',
+        description: 'Add a named API-key identity; only the first account becomes active automatically.',
+        parameters: [{ name: 'provider', description: 'installed API-key provider that will own the identity.' }, { name: 'name', description: 'user-visible local label, bounded before storage.' }, { name: 'key', description: 'secret API key written to the protected credential vault.' }],
+        returns: 'the updated public account state with credentials omitted.',
+      },
+      {
+        signature: '@Remote async activate(provider: AccountProviderId, accountId: string): Promise<AccountsState>',
+        description: 'Make one saved identity the canonical credential used by model requests.',
+        parameters: [{ name: 'provider', description: 'provider whose active identity changes.' }, { name: 'accountId', description: 'saved identity to promote.' }],
+        returns: 'the updated public account state with credentials omitted.',
+      },
+      {
+        signature: '@Remote async setAutoSwitch(provider: AccountProviderId, enabled: boolean): Promise<AccountsState>',
+        description: 'Enable or disable automatic Codex failover after a supported quota reaches its limit.',
+        parameters: [{ name: 'provider', description: 'provider whose failover preference changes; only Codex supports it.' }, { name: 'enabled', description: 'whether fresh usage checks may promote an eligible saved account.' }],
+        returns: 'the updated public account state with credentials omitted.',
+      },
+      {
+        signature: '@Remote async rename(provider: AccountProviderId, accountId: string, name: string): Promise<AccountsState>',
+        description: 'Rename one local account without changing its credential or active state.',
+        parameters: [{ name: 'provider', description: 'provider containing the saved identity.' }, { name: 'accountId', description: 'saved identity to rename.' }, { name: 'name', description: 'new user-visible label, bounded before storage.' }],
+        returns: 'the updated public account state with credentials omitted.',
+      },
+      {
+        signature: '@Remote async deleteAccount(provider: AccountProviderId, accountId: string): Promise<AccountsState>',
+        description: 'Remove one saved identity and promote the next identity when it was active.',
+        parameters: [{ name: 'provider', description: 'provider containing the saved identity.' }, { name: 'accountId', description: 'saved identity to remove.' }],
+        returns: 'the updated public account state with credentials omitted.',
+      },
+      {
+        signature: '@Remote async refreshUsage(signal: AbortSignal): Promise<AccountsState>',
+        description: 'Refresh every supported usage snapshot for account-management and status surfaces.',
+        parameters: [{ name: 'signal', description: 'cancellation checked between accounts and forwarded to usage requests.' }],
+        returns: 'the updated public account state with refreshed usage when available.',
+      },
+    ],
+  },
+  {
     key: 'agentDefaultModel',
     summary: 'Owns the default model selection independently of any Host or transport.',
     description: 'Owns the default model selection independently of any Host or transport. Each operation reads the owning Config references.',
@@ -601,6 +656,32 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Fires after any flush that recomposed the graph (row added/removed, or a rebuilt rev change). Pull model: listeners re-read graph.',
         parameters: [{ name: 'listener', description: 'notified with no payload.' }],
         returns: 'the unsubscriber.',
+      },
+    ],
+  },
+  {
+    key: 'commandCodeController',
+    summary: 'Host service backing the generated `ctx.remote.commandcode` namespace.',
+    description: 'Host service backing the generated `ctx.remote.commandcode` namespace.\n\nIt owns the settings registration, the model-facing tools, the shipped concurrency gate, and the resolved CLI invocation. The tools resolve the current workspace\'s lanes on every call, so a saved Settings change applies to the next delegation from an existing Session.',
+    methods: [
+      {
+        signature: '@Remote async health(signal: AbortSignal): Promise<CommandCodeHealth>',
+        description: 'Report the installed CLI\'s presence, version, and authentication state.',
+        parameters: [{ name: 'signal', description: 'caller lifetime.' }],
+        returns: 'the bounded health facts the Subagents page shows.',
+      },
+      {
+        signature: '@Remote async catalog(signal: AbortSignal): Promise<CommandCodeCatalog>',
+        description: 'Read the local CLI\'s advisory model catalog.',
+        parameters: [{ name: 'signal', description: 'caller lifetime.' }],
+        returns: 'catalog rows, empty with a bounded explanation when unreadable.',
+      },
+      {
+        signature: '@Remote delegation(workspace: string | null, signal: AbortSignal): CommandCodeDelegationView',
+        description: 'Resolve one workspace\'s lanes and bounds, with per-field override source.\n\nThe read itself is synchronous — it resolves the live settings section — so it carries the caller\'s signal only to refuse a read that was already cancelled rather than to await anything.',
+        parameters: [{ name: 'workspace', description: 'the Session\'s workspace path, or null without one.' }, { name: 'signal', description: 'caller lifetime; a superseded or unmounted reader cancels its own read.' }],
+        returns: 'the resolved delegation view.',
+        throws: ['when the caller\'s read was already cancelled.'],
       },
     ],
   },
@@ -1373,6 +1454,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the disposer that withdraws the offer.',
       },
       {
+        signature: 'registerModelCapabilitySource(name: string, lookup: LlmModelCapabilityLookup): () => void',
+        description: 'Offer one installed integration\'s authoritative per-model capability answers to discovery. A source is consulted only for a model the interrogated adapter stated nothing about, so a provider\'s own listing always wins; the first source that describes the id answers it. Disposed with the fiber.',
+        parameters: [{ name: 'name', description: 'non-empty integration name, for diagnostics and conflicts.' }, { name: 'lookup', description: 'answers by exact model id, or `undefined` when it does not describe it.' }],
+        returns: 'the disposer that withdraws the offer.',
+      },
+      {
         signature: 'async discoverModels( settingsNs: string, request: LlmModelDiscoveryRequest, signal?: AbortSignal, ): Promise<LlmDiscoveredModel[]>',
         description: 'Interrogate one provider endpoint for the models it advertises. The request describes a draft, not a stored route, so nothing here reads or writes settings or credentials — the caller owns both, and the reply is candidate metadata a surface may offer for adoption.',
         parameters: [{ name: 'settingsNs', description: 'namespace whose registered discovery serves this draft.' }, { name: 'request', description: 'the endpoint, protocol, and one-shot credential to use.' }, { name: 'signal', description: 'caller cancellation.' }],
@@ -1455,6 +1542,49 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'mcpManagerController',
+    summary: 'Host controller for Harnessy\'s protected, live MCP server registry.',
+    description: 'Host controller for Harnessy\'s protected, live MCP server registry.',
+    methods: [
+      {
+        signature: '@Remote describe(): Promise<McpManagerState>',
+        description: 'Return every saved server without authentication values.',
+        parameters: [],
+        returns: 'redacted registry state and live connection snapshots.',
+      },
+      {
+        signature: '@Remote openConfigurationFile(signal: AbortSignal): Promise<SettingsDocumentOpenValue>',
+        description: 'Materialize and open the dedicated MCP registry document.',
+        parameters: [{ name: 'signal', description: 'caller lifetime; abort terminates the native open command.' }],
+        returns: 'confirmation after the operating system accepts the document.',
+      },
+      {
+        signature: '@Remote save(input: McpServerInput): Promise<McpManagerState>',
+        description: 'Add or replace one protected server profile and reconcile its connection.',
+        parameters: [{ name: 'input', description: 'complete staged profile; omitted secret fields retain saved values on edit.' }],
+        returns: 'redacted registry state after reconciliation.',
+      },
+      {
+        signature: '@Remote setEnabled(serverId: string, enabled: boolean): Promise<McpManagerState>',
+        description: 'Enable or disable one saved server. Disabled servers publish no tools.',
+        parameters: [{ name: 'serverId', description: 'stable identifier returned by {@link describe}.' }, { name: 'enabled', description: 'whether Harnessy should supervise the connection.' }],
+        returns: 'redacted registry state after reconciliation.',
+      },
+      {
+        signature: '@Remote reconnect(serverId: string): Promise<McpManagerState>',
+        description: 'Restart an enabled server immediately and wait for its first connection attempt.',
+        parameters: [{ name: 'serverId', description: 'stable identifier returned by {@link describe}.' }],
+        returns: 'redacted registry state after the attempt settles.',
+      },
+      {
+        signature: '@Remote deleteServer(serverId: string): Promise<McpManagerState>',
+        description: 'Remove one saved server and unregister all tools it owns.',
+        parameters: [{ name: 'serverId', description: 'stable identifier returned by {@link describe}.' }],
+        returns: 'redacted registry state after removal.',
+      },
+    ],
+  },
+  {
     key: 'mcpResources',
     summary: 'Scoped resource access plus three tools shared by configured MCP servers.',
     description: 'Scoped resource access plus three tools shared by configured MCP servers.',
@@ -1493,6 +1623,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'modelCapabilitiesInspector',
+    summary: 'The Remote namespace a surface reads capability source through.',
+    description: 'The Remote namespace a surface reads capability source through.',
+    methods: [
+      {
+        signature: '@Remote(\'inspect\') // eslint-disable-next-line @typescript-eslint/require-await -- the Remote contract is async async remoteExportInspect(signal: AbortSignal): Promise<ModelCapabilityInspectionView[]>',
+        description: 'Report what capability applies to every configured model, and where it came from.',
+        parameters: [{ name: 'signal', description: 'carrier cancellation supplied by the Remote transport.' }],
+        returns: 'one projection per configured model, in configuration order.',
+      },
+    ],
+  },
+  {
     key: 'officeToPdf',
     summary: 'A provider lifetime owns all converters, queued calls, and temporary files.',
     description: 'A provider lifetime owns all converters, queued calls, and temporary files.',
@@ -1520,6 +1663,30 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Read the current rendering generation before reusing a Client PDF.',
         parameters: [{ name: 'signal', description: 'Remote caller cancellation.' }],
         returns: 'provider lifetime, replaced with rendering, font, or engine configuration.',
+      },
+    ],
+  },
+  {
+    key: 'openAIAccountController',
+    summary: 'Expose the one-click ChatGPT OAuth path used by Harnessy.',
+    description: 'Expose the one-click ChatGPT OAuth path used by Harnessy. The neutral authorization service still owns the provider conversation and token write; this controller supplies the Windows-desktop interaction: browser login and a cancellable wait for the local OAuth callback.',
+    methods: [
+      {
+        signature: '@Remote async describe(): Promise<OpenAIAccountState>',
+        description: 'Return account availability and local sign-in state without exposing a token.',
+        parameters: [],
+        returns: 'Redacted availability, configuration, progress, and writability state.',
+      },
+      {
+        signature: '@Remote async signIn(signal: AbortSignal): Promise<OpenAIAccountSignInResult>',
+        description: 'Start ChatGPT browser OAuth, wait for its local callback, then activate the OpenAI Codex provider route so its models appear immediately.',
+        parameters: [{ name: 'signal', description: 'Remote request lifetime; aborting it cancels the login attempt.' }],
+        returns: 'Whether the provider completed or cancelled authorization.',
+      },
+      {
+        signature: '@Remote async signOut(): Promise<void>',
+        description: 'Remove the local OAuth grant and the model route that depends on it.',
+        parameters: [],
       },
     ],
   },
@@ -2352,6 +2519,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Project Config schemas into forms and own optional instance-level UI policy.',
     methods: [
       {
+        signature: 'whenInitialImportSettles(): Promise<void>',
+        description: 'Wait until the removed settings document has either been imported or found absent.',
+        parameters: [],
+        returns: 'fulfillment after the one-time import attempt completes.',
+      },
+      {
         signature: 'configure(presentation: { auto?: boolean }, owner: Fiber = this.ctx.fiber): () => void',
         description: 'Register the calling plugin instance\'s page policy without changing its Config.',
         parameters: [{ name: 'presentation', description: 'Automatic-page policy for this instance; `auto` defaults to true.' }, { name: 'owner', description: 'Plugin instance the policy belongs to; defaults to the calling fiber.' }],
@@ -2714,6 +2887,34 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Read a detached selection preference for the next eligible Session composition.',
         parameters: [],
         returns: 'the enabled state and exact allowed routes.',
+      },
+    ],
+  },
+  {
+    key: 'subagentRosterController',
+    summary: 'Host service backing the generated `ctx.remote.subagentRoster` namespace.',
+    description: 'Host service backing the generated `ctx.remote.subagentRoster` namespace.\n\nIt reads the same live settings section the two model-facing tools read, so the page and the next delegation cannot disagree about a saved edit. Every method returns role policy and run bounds only: no credential, provider token, host path, or process output crosses it.',
+    methods: [
+      {
+        signature: '@Remote resolvedRoster(workspace: string | null, signal: AbortSignal): SubagentWorkspaceRoster',
+        description: 'Resolve one workspace\'s enabled roles, with per-field override source.\n\nThe read itself is synchronous — it resolves the live settings section — so it carries the caller\'s signal only to refuse a read that was already cancelled rather than to await anything.',
+        parameters: [{ name: 'workspace', description: 'the Session\'s workspace path, or null without one.' }, { name: 'signal', description: 'caller lifetime; a superseded or unmounted reader cancels its own read.' }],
+        returns: 'the enabled roles and the canonical workspace key they resolved for.',
+        throws: ['when the caller\'s read was already cancelled.'],
+      },
+      {
+        signature: '@Remote automaticRouting(signal: AbortSignal): SubagentAutomaticRouting',
+        description: 'Read the automatic-routing authority a page renders its authorization control from.\n\nThe read is synchronous for the same reason as resolvedRoster.',
+        parameters: [{ name: 'signal', description: 'caller lifetime; a superseded or unmounted reader cancels its own read.' }],
+        returns: 'whether explicit route selection is accepted, and which exact routes it must resolve to.',
+        throws: ['when the caller\'s read was already cancelled.'],
+      },
+      {
+        signature: '@Remote storedRoster(signal: AbortSignal): SubagentStoredRoster',
+        description: 'Read the stored document a page edits: every definition, enabled or not, plus the run bounds.\n\nThe read is synchronous for the same reason as resolvedRoster.',
+        parameters: [{ name: 'signal', description: 'caller lifetime; a superseded or unmounted reader cancels its own read.' }],
+        returns: 'the stored definitions and run bounds.',
+        throws: ['when the caller\'s read was already cancelled.'],
       },
     ],
   },
@@ -3588,6 +3789,14 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
 /** Every harness event, sorted by name. */
 export const EVENT_API: readonly EventApiEntry[] = [
   {
+    name: 'accounts/auto-switched',
+    mode: 'emit',
+    signature: '\'accounts/auto-switched\'(event: AccountAutoSwitchEvent): void',
+    summary: 'Report one committed automatic Codex account promotion.',
+    description: 'Report one committed automatic Codex account promotion.',
+    parameters: [{ name: 'event', description: 'secret-free source, destination, quota, and timestamp facts.' }],
+  },
+  {
     name: 'agent-loop/config-start-failed',
     mode: 'emit',
     signature: '\'agent-loop/config-start-failed\'(payload: { sessionId: SessionId; error: unknown }): void',
@@ -4208,6 +4417,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
 /** Shapes of every exported type the Service and Event signatures reference (transitively), sorted by name. */
 export const TYPE_API: readonly TypeApiEntry[] = [
   {
+    name: 'AccountAuthMode',
+    declaration: 'export type AccountAuthMode = \'oauth\' | \'api-key\';',
+  },
+  {
+    name: 'AccountAutoSwitchEvent',
+    declaration: 'export interface AccountAutoSwitchEvent {\n    readonly id: string;\n    readonly occurredAt: number;\n    readonly provider: \'openai-codex\';\n    readonly limit: \'5h\' | \'7d\';\n    readonly from: {\n        readonly name: string;\n        readonly usageScope?: AccountUsageScope;\n    };\n    readonly to: {\n        readonly name: string;\n        readonly usageScope?: AccountUsageScope;\n    };\n}',
+  },
+  {
     name: 'AccountDetails',
     declaration: 'export interface AccountDetails {\n    readonly profile: {\n        readonly status: \'ready\';\n        readonly value: AccountProfile;\n    } | {\n        readonly status: \'failed\';\n    };\n    readonly balance: {\n        readonly status: \'ready\';\n        readonly value: readonly AccountWallet[];\n        readonly bonusWallets: readonly AccountWallet[];\n    } | {\n        readonly status: \'failed\';\n    };\n}',
   },
@@ -4218,6 +4435,34 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'AccountProfile',
     declaration: 'export interface AccountProfile {\n    readonly id: AccountUserId | null;\n    readonly name: string | null;\n    readonly contact: string | null;\n    readonly avatarUrl?: string | null;\n}',
+  },
+  {
+    name: 'AccountProviderId',
+    declaration: 'export type AccountProviderId = \'openai-codex\' | \'zai\' | \'kimi-coding\' | \'opencode\' | \'anthropic\';',
+  },
+  {
+    name: 'AccountProviderView',
+    declaration: 'export interface AccountProviderView {\n    readonly id: AccountProviderId;\n    readonly label: string;\n    readonly authMode: AccountAuthMode;\n    readonly available: boolean;\n    readonly accountCount: number;\n    readonly activeAccountId?: string;\n    readonly usageAvailable: boolean;\n    readonly autoSwitchOnLimit: boolean;\n}',
+  },
+  {
+    name: 'AccountSignInResult',
+    declaration: 'export interface AccountSignInResult {\n    readonly status: \'authorized\' | \'cancelled\';\n}',
+  },
+  {
+    name: 'AccountsState',
+    declaration: 'export interface AccountsState {\n    readonly writable: boolean;\n    readonly providers: readonly AccountProviderView[];\n    readonly accounts: readonly ManagedAccountView[];\n}',
+  },
+  {
+    name: 'AccountUsageScope',
+    declaration: 'export type AccountUsageScope = \'personal\' | \'workspace\';',
+  },
+  {
+    name: 'AccountUsageView',
+    declaration: 'export interface AccountUsageView {\n    readonly windows: readonly AccountUsageWindow[];\n}',
+  },
+  {
+    name: 'AccountUsageWindow',
+    declaration: 'export interface AccountUsageWindow {\n    readonly id: string;\n    readonly label: string;\n    readonly usedPercent: number;\n    readonly resetsAtMs?: number;\n}',
   },
   {
     name: 'AccountUserId',
@@ -4290,6 +4535,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'AgentStatus',
     declaration: 'export type AgentStatus = \'idle\' | \'running\';',
+  },
+  {
+    name: 'AllowedModelRoute',
+    declaration: 'export interface AllowedModelRoute {\n    readonly provider: string;\n    readonly model: string;\n}',
   },
   {
     name: 'ApiKeyRecord',
@@ -4490,6 +4739,38 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'CollectedOutput',
     declaration: 'export interface CollectedOutput {\n    text: string;\n    truncated: boolean;\n    spillPath?: string;\n}',
+  },
+  {
+    name: 'CommandCodeAccess',
+    declaration: 'export type CommandCodeAccess = typeof COMMAND_CODE_ACCESS_MODES[number];',
+  },
+  {
+    name: 'CommandCodeCatalog',
+    declaration: 'export interface CommandCodeCatalog {\n    readonly models: CommandCodeModelSummary[];\n    readonly detail?: string;\n}',
+  },
+  {
+    name: 'CommandCodeDelegationView',
+    declaration: 'export interface CommandCodeDelegationView {\n    workspaceKey: string | null;\n    maxConcurrentRuns: number;\n    timeoutMs: number;\n    maxTurns: number;\n    lanes: ResolvedCommandCodeLane[];\n}',
+  },
+  {
+    name: 'CommandCodeEffort',
+    declaration: 'export type CommandCodeEffort = typeof COMMAND_CODE_EFFORTS[number];',
+  },
+  {
+    name: 'CommandCodeHealth',
+    declaration: 'export interface CommandCodeHealth {\n    readonly command: string;\n    readonly installed: boolean;\n    readonly version?: string;\n    readonly authenticated: boolean;\n    readonly detail?: string;\n}',
+  },
+  {
+    name: 'CommandCodeLaneOverrides',
+    declaration: 'export interface CommandCodeLaneOverrides {\n    name: boolean;\n    purpose: boolean;\n    instructions: boolean;\n    model: boolean;\n    effort: boolean;\n    access: boolean;\n    enabled: boolean;\n}',
+  },
+  {
+    name: 'CommandCodeLaneSetting',
+    declaration: 'export interface CommandCodeLaneSetting {\n    id: string;\n    name: string;\n    purpose: string;\n    instructions: string;\n    model: string;\n    effort: CommandCodeEffort;\n    access: CommandCodeAccess;\n    enabled: boolean;\n}',
+  },
+  {
+    name: 'CommandCodeModelSummary',
+    declaration: 'export interface CommandCodeModelSummary {\n    readonly id: string;\n    readonly description: string;\n}',
   },
   {
     name: 'CommandDefinition',
@@ -5301,7 +5582,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LlmDiscoveredModel',
-    declaration: 'export interface LlmDiscoveredModel {\n    id: string;\n    name?: string;\n    contextWindow?: number;\n    maxTokens?: number;\n    inputModalities?: readonly ModelModality[];\n}',
+    declaration: 'export interface LlmDiscoveredModel {\n    id: string;\n    name?: string;\n    contextWindow?: number;\n    maxTokens?: number;\n    inputModalities?: readonly ModelModality[];\n    reasoningEfforts?: readonly string[];\n    defaultReasoningEffort?: string;\n}',
   },
   {
     name: 'LlmFailure',
@@ -5314,6 +5595,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'LlmImageRequestPricing',
     declaration: 'export interface LlmImageRequestPricing {\n    priceImages(images: readonly ImageBlock[]): readonly LlmImageRequestPrice[];\n}',
+  },
+  {
+    name: 'LlmModelCapability',
+    declaration: 'export interface LlmModelCapability {\n    readonly reasoningEfforts: readonly string[];\n    readonly defaultReasoningEffort?: string;\n}',
+  },
+  {
+    name: 'LlmModelCapabilityLookup',
+    declaration: 'export type LlmModelCapabilityLookup = (modelId: string, request: LlmModelDiscoveryRequest) => LlmModelCapability | undefined;',
   },
   {
     name: 'LlmModelContext',
@@ -5345,7 +5634,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LlmRuntime',
-    declaration: 'export class LlmRuntime extends TypertRemoteService {\n    constructor(ctx: Context);\n    registerAdapter(providers: string[], adapter: LlmAdapter): AdapterRegistrationHandle;\n    @Remote\n    listProviders(): LlmProviderInfo[];\n    registerConfigurableProviders(entries: readonly LlmConfigurableProvider[]): DirectoryRegistrationHandle;\n    @Remote\n    listConfigurableProviders(): LlmConfigurableProvider[];\n    registerModelDiscovery(settingsNs: string, discover: (request: LlmModelDiscoveryRequest, signal?: AbortSignal) => Promise<readonly LlmDiscoveredModel[]>): () => void;\n    async discoverModels(settingsNs: string, request: LlmModelDiscoveryRequest, signal?: AbortSignal): Promise<LlmDiscoveredModel[]>;\n    @Remote(\'discoverModels\')\n    async remoteDiscoverModels(settingsNs: string, request: LlmModelDiscoveryRequest, signal: AbortSignal): Promise<LlmDiscoveredModel[]>;\n    providerRetryPolicy(provider: string): ResolvedRetryPolicy;\n    imageRequestPricing(provider: string, model: string): LlmImageRequestPricing | undefined;\n    fileRequestText(ref: FileAttachmentRef): string;\n    async listModels(provider: string): Promise<LlmModelInfo[]>;\n    async resolveModelInfo(provider: string, model: string, signal?: AbortSignal): Promise<LlmResolvedModelInfo>;\n    async resolveCallConfig(config: LlmCallConfig, signal?: AbortSignal): Promise<LlmCallConfig>;\n    async prepareCall(config: LlmCallConfig, signal?: AbortSignal): Promise<PreparedLlmCall>;\n    stream(options: GenerateOptions) /* …truncated — full shape in source */',
+    declaration: 'export class LlmRuntime extends TypertRemoteService {\n    constructor(ctx: Context);\n    registerAdapter(providers: string[], adapter: LlmAdapter): AdapterRegistrationHandle;\n    @Remote\n    listProviders(): LlmProviderInfo[];\n    registerConfigurableProviders(entries: readonly LlmConfigurableProvider[]): DirectoryRegistrationHandle;\n    @Remote\n    listConfigurableProviders(): LlmConfigurableProvider[];\n    registerModelDiscovery(settingsNs: string, discover: (request: LlmModelDiscoveryRequest, signal?: AbortSignal) => Promise<readonly LlmDiscoveredModel[]>): () => void;\n    registerModelCapabilitySource(name: string, lookup: LlmModelCapabilityLookup): () => void;\n    async discoverModels(settingsNs: string, request: LlmModelDiscoveryRequest, signal?: AbortSignal): Promise<LlmDiscoveredModel[]>;\n    @Remote(\'discoverModels\')\n    async remoteDiscoverModels(settingsNs: string, request: LlmModelDiscoveryRequest, signal: AbortSignal): Promise<LlmDiscoveredModel[]>;\n    providerRetryPolicy(provider: string): ResolvedRetryPolicy;\n    imageRequestPricing(provider: string, model: string): LlmImageRequestPricing | undefined;\n    fileRequestText(ref: FileAttachmentRef): string;\n    async listModels(provider: string): Promise<LlmModelInfo[]>;\n    async resolveModelInfo(provider: string, model: string, signal?: AbortSignal): Promise<LlmResolvedModelInfo>;\n    async resolveCallConfig(config: LlmCallConfig, signal?: AbortSignal): Promise<LlmCallConfig>;\n    async prepareCall(config: LlmCa /* …truncated — full shape in source */',
   },
   {
     name: 'LocalizedText',
@@ -5392,6 +5681,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface LspRange {\n    readonly start: LspPosition;\n    readonly end: LspPosition;\n}',
   },
   {
+    name: 'ManagedAccountView',
+    declaration: 'export interface ManagedAccountView {\n    readonly id: string;\n    readonly provider: AccountProviderId;\n    readonly ownerId: string;\n    readonly name: string;\n    readonly detail?: string;\n    readonly initials: string;\n    readonly active: boolean;\n    readonly authMode: AccountAuthMode;\n    readonly usageScope?: AccountUsageScope;\n    readonly usage?: AccountUsageView;\n    readonly usageUpdatedAt?: number;\n    readonly usageError?: string;\n}',
+  },
+  {
     name: 'ManagementError',
     declaration: 'export interface ManagementError {\n    code: ReadOnlyReason | \'unknown-plugin\' | \'invalid-spec\' | \'ambiguous-install\' | \'not-bundle\' | \'not-removable\' | \'stop-profile\' | \'bundle-in-use\' | \'stale-approval\' | \'operation-error\';\n    diagnostic?: string;\n}',
   },
@@ -5400,12 +5693,32 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ManualCompactAgentContext extends CompactionAgentContext {\n    runMaintenance<T>(task: (signal: AbortSignal) => Promise<T>): Promise<T>;\n}',
   },
   {
+    name: 'McpManagerState',
+    declaration: 'export interface McpManagerState {\n    readonly available: boolean;\n    readonly writable: boolean;\n    readonly servers: readonly McpServerView[];\n}',
+  },
+  {
     name: 'McpResourceProvider',
     declaration: 'export interface McpResourceProvider {\n    request(request: McpResourceRequest, exec: ToolExecution): Promise<JsonValue>;\n}',
   },
   {
     name: 'McpResourceRequest',
     declaration: 'export type McpResourceRequest = {\n    method: \'resources/list\' | \'resources/templates/list\';\n    cursor?: string;\n} | {\n    method: \'resources/read\';\n    uri: string;\n};',
+  },
+  {
+    name: 'McpServerInput',
+    declaration: 'export interface McpServerInput {\n    readonly id?: string;\n    readonly name: string;\n    readonly serverName: string;\n    readonly transport: McpServerTransport;\n    readonly enabled: boolean;\n    readonly url?: string;\n    readonly headerName?: string;\n    readonly authorization?: string;\n    readonly command?: string;\n    readonly args?: readonly string[];\n    readonly cwd?: string;\n    readonly environment?: Readonly<Record<string, string>>;\n    readonly clearAuthentication?: boolean;\n}',
+  },
+  {
+    name: 'McpServerStatus',
+    declaration: 'export type McpServerStatus = \'disabled\' | \'connecting\' | \'connected\' | \'reconnecting\' | \'error\';',
+  },
+  {
+    name: 'McpServerTransport',
+    declaration: 'export type McpServerTransport = \'streamable-http\' | \'stdio\';',
+  },
+  {
+    name: 'McpServerView',
+    declaration: 'export interface McpServerView {\n    readonly id: string;\n    readonly name: string;\n    readonly serverName: string;\n    readonly transport: McpServerTransport;\n    readonly enabled: boolean;\n    readonly endpoint: string;\n    readonly headerName?: string;\n    readonly args: readonly string[];\n    readonly cwd?: string;\n    readonly status: McpServerStatus;\n    readonly tools: readonly string[];\n    readonly error?: string;\n    readonly authenticationConfigured: boolean;\n    readonly environmentKeys: readonly string[];\n    readonly updatedAt: number;\n}',
   },
   {
     name: 'Message',
@@ -5500,6 +5813,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface MessageSourceMap {\n    user: {\n        kind: \'user\';\n    };\n    model: ModelMessageSource;\n    tool: ToolMessageSource;\n    \'system-prompt\': SystemPromptMessageSource;\n}',
   },
   {
+    name: 'ModelCapabilityInspectionView',
+    declaration: 'export interface ModelCapabilityInspectionView {\n    readonly route: string;\n    readonly model: string;\n    readonly enabled: boolean;\n    readonly resolved?: ModelCapabilityResolved;\n    readonly suggestions: readonly ModelCapabilitySuggestion[];\n}',
+  },
+  {
+    name: 'ModelCapabilityResolved',
+    declaration: 'export interface ModelCapabilityResolved {\n    readonly levels: readonly string[];\n    readonly defaultEffort?: string;\n    readonly source: PublicCatalogSource;\n    readonly provider: string;\n    readonly match: string;\n    readonly origin: PublicCatalogTier;\n    readonly fetchedAt?: string;\n}',
+  },
+  {
+    name: 'ModelCapabilitySuggestion',
+    declaration: 'export interface ModelCapabilitySuggestion {\n    readonly source: PublicCatalogSource;\n    readonly provider: string;\n    readonly levels: readonly string[];\n}',
+  },
+  {
     name: 'ModelCatalog',
     declaration: 'export interface ModelCatalog {\n    readonly default: ModelSelection;\n    readonly routableProviders: readonly string[];\n    readonly groups: readonly ModelProviderGroup[];\n    readonly failures: readonly ModelCatalogFailure[];\n}',
   },
@@ -5574,6 +5899,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'OneShotSubagentDescriptorData',
     declaration: 'export interface OneShotSubagentDescriptorData extends SubagentDescriptorBase {\n    readonly mode: \'one-shot\';\n    readonly label?: string;\n}',
+  },
+  {
+    name: 'OpenAIAccountSignInResult',
+    declaration: 'export interface OpenAIAccountSignInResult {\n    readonly status: \'authorized\' | \'cancelled\';\n}',
+  },
+  {
+    name: 'OpenAIAccountState',
+    declaration: 'export interface OpenAIAccountState {\n    readonly available: boolean;\n    readonly configured: boolean;\n    readonly inFlight: boolean;\n    readonly writable: boolean;\n}',
   },
   {
     name: 'OptionalSessionSeq',
@@ -5816,6 +6149,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface PtcRunSpec extends PtcRunRequest {\n    cwd: string;\n    timeoutMs: number | null;\n}',
   },
   {
+    name: 'PublicCatalogSource',
+    declaration: 'export type PublicCatalogSource = \'models.dev\' | \'openrouter\';',
+  },
+  {
+    name: 'PublicCatalogTier',
+    declaration: 'export type PublicCatalogTier = \'live\' | \'cache\' | \'bundled\';',
+  },
+  {
     name: 'QueueAction',
     declaration: 'export type QueueAction = {\n    readonly kind: \'edit\';\n    readonly content: readonly TextBlock[];\n} | {\n    readonly kind: \'remove\';\n} | {\n    readonly kind: \'steer\';\n};',
   },
@@ -5906,6 +6247,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ResolvedAlwaysRetryPolicy',
     declaration: 'export interface ResolvedAlwaysRetryPolicy extends ResolvedRetryBackoff {\n    readonly mode: \'always\';\n}',
+  },
+  {
+    name: 'ResolvedCommandCodeLane',
+    declaration: 'export interface ResolvedCommandCodeLane extends CommandCodeLaneSetting {\n    overrides: CommandCodeLaneOverrides;\n}',
   },
   {
     name: 'ResolvedCredential',
@@ -6812,8 +7157,16 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type StreamChunk = {\n    type: \'block-start\';\n    index: number;\n    blockType: ContentBlockType;\n} | {\n    type: \'text-delta\';\n    index: number;\n    text: string;\n} | {\n    type: \'reasoning-delta\';\n    index: number;\n    text: string;\n} | {\n    type: \'tool-call-delta\';\n    index: number;\n    id: ToolCallId;\n    name?: string;\n    argumentsDelta: string;\n} | {\n    type: \'block-end\';\n    index: number;\n    block: ContentBlock;\n} | {\n    type: \'usage\';\n    usage: TokenUsage;\n} | {\n    type: \'finish\';\n    reason: FinishReason;\n    replayState?: ReplayEnvelope;\n};',
   },
   {
+    name: 'SubagentAccess',
+    declaration: 'export type SubagentAccess = \'inherit\' | SandboxMode;',
+  },
+  {
+    name: 'SubagentAutomaticRouting',
+    declaration: 'export interface SubagentAutomaticRouting {\n    readonly enabled: boolean;\n    readonly allowedModels: AllowedModelRoute[];\n}',
+  },
+  {
     name: 'SubagentCapabilities',
-    declaration: 'export interface SubagentCapabilities {\n    readonly agentOptions: boolean;\n    readonly outputSchema: boolean;\n    readonly depthLimit: boolean;\n    readonly toolFilter: boolean;\n    readonly persona: boolean;\n}',
+    declaration: 'export interface SubagentCapabilities {\n    readonly agentOptions: boolean;\n    readonly outputSchema: boolean;\n    readonly depthLimit: boolean;\n    readonly toolFilter: boolean;\n    readonly persona: boolean;\n    readonly accessPolicy: boolean;\n    readonly runtimeRoute: boolean;\n}',
   },
   {
     name: 'SubagentCatalogEntry',
@@ -6824,12 +7177,24 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type SubagentCatalogRow = {\n    readonly id: SessionId;\n    readonly activity: \'running\' | \'inactive\';\n} & ({\n    readonly mode: \'one-shot\';\n    readonly label?: string;\n} | {\n    readonly mode: \'continuable\';\n    readonly label: string;\n});',
   },
   {
+    name: 'SubagentDefinition',
+    declaration: 'export interface SubagentDefinition {\n    readonly id: string;\n    readonly name: string;\n    readonly enabled: boolean;\n    readonly purpose: string;\n    readonly whenToUse: string;\n    readonly invocation: SubagentInvocationPolicy;\n    readonly model: SubagentModelPolicy;\n    readonly access: SubagentAccess;\n    readonly tools?: ToolRestriction;\n    readonly instructions: string;\n    readonly maxDepth?: number;\n    readonly execution: SubagentExecution;\n}',
+  },
+  {
+    name: 'SubagentDefinitionOverrides',
+    declaration: 'export interface SubagentDefinitionOverrides {\n    name: boolean;\n    purpose: boolean;\n    whenToUse: boolean;\n    invocation: boolean;\n    model: boolean;\n    access: boolean;\n    tools: boolean;\n    instructions: boolean;\n    maxDepth: boolean;\n    execution: boolean;\n    enabled: boolean;\n}',
+  },
+  {
     name: 'SubagentDescendantListEntry',
     declaration: 'export type SubagentDescendantListEntry = SubagentListEntry & {\n    readonly parentId: SessionId;\n    readonly depth: number;\n};',
   },
   {
     name: 'SubagentDescriptorData',
     declaration: 'export type SubagentDescriptorData = OneShotSubagentDescriptorData | ContinuableSubagentDescriptorData;',
+  },
+  {
+    name: 'SubagentExecution',
+    declaration: 'export interface SubagentExecution {\n    readonly backend: string;\n    readonly background: SubagentBackgroundPolicy;\n    readonly timeoutMs?: number;\n}',
   },
   {
     name: 'SubagentInterruptAuthority',
@@ -6842,6 +7207,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SubagentListEntry',
     declaration: 'export type SubagentListEntry = SubagentCatalogRow & {\n    readonly kind: \'child\';\n    readonly hasChildren: boolean;\n} | {\n    readonly kind: \'diagnostic\';\n    readonly id: SessionId;\n    readonly reason: \'corrupt\' | \'unsupported\' | \'unavailable\';\n};',
+  },
+  {
+    name: 'SubagentModelMode',
+    declaration: 'export type SubagentModelMode = \'fixed\' | \'automatic\';',
+  },
+  {
+    name: 'SubagentModelPolicy',
+    declaration: 'export interface SubagentModelPolicy {\n    readonly mode: SubagentModelMode;\n    readonly route?: SubagentModelRoute;\n}',
+  },
+  {
+    name: 'SubagentModelRoute',
+    declaration: 'export interface SubagentModelRoute extends AllowedModelRoute {\n    readonly reasoningEffort?: string;\n}',
   },
   {
     name: 'SubagentPromptReceipt',
@@ -6864,6 +7241,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SubagentResult {\n    readonly output: readonly ContentBlock[];\n    readonly structured?: unknown;\n    readonly diagnostic?: string;\n    readonly stopReason: SubagentStopReason;\n}',
   },
   {
+    name: 'SubagentRoleView',
+    declaration: 'export interface SubagentRoleView {\n    id: string;\n    name: string;\n    purpose: string;\n    whenToUse: string;\n    invocation: SubagentInvocationPolicy;\n    model: SubagentModelPolicy;\n    access: SubagentAccess;\n    execution: SubagentExecution;\n    overrides: SubagentDefinitionOverrides;\n}',
+  },
+  {
     name: 'SubagentRun',
     declaration: 'export interface SubagentRun {\n    readonly id: SessionId;\n    readonly localAgent: Agent | undefined;\n    readonly result: Promise<SubagentResult>;\n    dispose(): Promise<void>;\n}',
   },
@@ -6880,6 +7261,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SubagentRunInfo {\n    readonly runId: SubagentRunId;\n    readonly provider: string;\n    readonly id: SessionId;\n    readonly local: boolean;\n}',
   },
   {
+    name: 'SubagentRunLimits',
+    declaration: 'export interface SubagentRunLimits {\n    readonly maxConcurrentRuns: number | \'adaptive\';\n    readonly defaultTimeoutMs: number;\n}',
+  },
+  {
     name: 'SubagentRuntime',
     declaration: 'export class SubagentRuntime extends TypertRemoteService {\n    static Config;\n    constructor(ctx: Context, private config: Config);\n    resolveMaxDepth(configured?: number | \'provider-managed\'): number | undefined;\n    async startContinuable(spec: ContinuableStartSpec): Promise<ContinuableStart>;\n    async sendMessage(sender: Agent, targetId: SessionId, content: ContentBlock[], options: SubagentSendMessageOptions): Promise<MessageId>;\n    interrupt(targetSessionId: SessionId, authority: SubagentInterruptAuthority): void;\n    async drainContinuableDescendants(parents: readonly Agent[]): Promise<void>;\n    async drainContinuableChildren(parent: Agent, childIds: readonly SessionId[]): Promise<void>;\n    listChildren(parentSessionId: SessionId, signal?: AbortSignal): Promise<SubagentCatalogEntry[]>;\n    listDescendants(rootSessionId: SessionId, signal?: AbortSignal): Promise<SubagentDescendantListEntry[]>;\n    @Remote(\'prompt\')\n    async prompt(request: SubagentPromptRequest, signal: AbortSignal): Promise<SubagentPromptReceipt>;\n    @Remote(\'interruptByParent\')\n    interruptByParent(childSessionId: SessionId, parentSessionId: SessionId, mode: \'continuable\'): SubagentInterruptReceipt;\n    registerProvider(provider: SubagentProvider): () => void;\n    getProvider(name: string): SubagentProvider | undefined;\n    list(): string[];\n    async start(name: string, request: SubagentStartRequest): Promise<SubagentRun>;\n}',
   },
@@ -6889,7 +7274,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubagentStartRequest',
-    declaration: 'export interface SubagentStartRequest {\n    readonly label?: string;\n    readonly prompt: ContentBlock[];\n    readonly parent: Agent;\n    readonly signal: AbortSignal;\n    readonly agentOptions?: AgentOptions;\n    readonly outputSchema?: ObjectJsonSchema;\n    readonly maxDepth?: number;\n    readonly toolFilter?: ToolRestriction;\n    readonly persona?: string;\n}',
+    declaration: 'export interface SubagentStartRequest {\n    readonly label?: string;\n    readonly prompt: ContentBlock[];\n    readonly parent: Agent;\n    readonly signal: AbortSignal;\n    readonly agentOptions?: AgentOptions;\n    readonly outputSchema?: ObjectJsonSchema;\n    readonly maxDepth?: number;\n    readonly toolFilter?: ToolRestriction;\n    readonly persona?: string;\n    readonly sandboxMode?: SubagentAccess;\n}',
   },
   {
     name: 'SubagentStopReason',
@@ -6898,6 +7283,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SubagentStopReasonMap',
     declaration: 'export interface SubagentStopReasonMap {\n    completed: \'completed\';\n    aborted: \'aborted\';\n    error: \'error\';\n    \'max-tokens\': \'max-tokens\';\n    refusal: \'refusal\';\n}',
+  },
+  {
+    name: 'SubagentStoredRoster',
+    declaration: 'export interface SubagentStoredRoster {\n    subagents: SubagentDefinition[];\n    limits: SubagentRunLimits;\n}',
+  },
+  {
+    name: 'SubagentWorkspaceRoster',
+    declaration: 'export interface SubagentWorkspaceRoster {\n    workspaceKey: string | null;\n    subagents: SubagentRoleView[];\n}',
   },
   {
     name: 'SubprocessCollect',

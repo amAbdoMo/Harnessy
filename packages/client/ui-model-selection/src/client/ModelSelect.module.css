@@ -1,24 +1,16 @@
-.root {
-  position: relative;
-  min-width: 0;
-}
+.root { position: relative; min-width: 0; }
 
-/* Figma 313:14108 ToggleButton: 13/20 medium secondary label, 4px gap,
-   12px caption chevron; 28px chip height matches the sibling Plan /
-   Read-only selects in the same tool row. */
 .trigger {
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 4px;
   min-width: 0;
-  /* Legacy fallback, then a row-relative cap that grants long names more
-     room without letting this trailing control consume the composer. */
   max-width: 220px;
   max-width: min(360px, 45cqw);
   height: 28px;
   padding: 0 4px 0 8px;
-  border: none;
-  /* Rounded chip chrome, matching the sibling permission trigger. */
+  border: 1px solid transparent;
   border-radius: 24px;
   outline: none;
   background: transparent;
@@ -29,37 +21,16 @@
   cursor: pointer;
 }
 
-.trigger:hover:not(:disabled) {
-  background: var(--dsw-alias-interactive-bg-hover);
-}
+.trigger:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover); }
+.trigger:focus-visible { border-color: var(--dsw-alias-brand-primary); }
+.trigger:disabled { color: var(--dsw-alias-label-dimmed); cursor: default; }
 
-.trigger:focus-visible {
-  box-shadow: 0 0 0 2px var(--dsw-alias-border-l3);
-}
-
-.trigger:disabled {
-  color: var(--dsw-alias-label-dimmed);
-  cursor: default;
-}
-
-.triggerLabel {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Effort value beside the model name (mock's 'High': same 13/20/500, caption
-   tone). Adaptive priority: the huge shrink factor makes the effort absorb
-   all deficit first — it ellipsizes away to nothing before the model name
-   loses a single pixel, and the chevron stays snug throughout. */
+.triggerLabel,
 .triggerEffort {
-  flex-shrink: 1000;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--dsw-alias-label-caption);
 }
 
 /* The Models glyph replaces the text when the composer row cannot fit it. */
@@ -80,6 +51,7 @@
   color: var(--dsw-alias-label-caption);
   transition: transform 120ms ease;
 }
+.chevronOpen { transform: rotate(180deg); }
 
 .chevronOpen {
   transform: rotate(180deg);
@@ -127,6 +99,124 @@
   line-height: 18px;
 }
 
+.close {
+  display: grid;
+  place-items: center;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+.close:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.close:focus-visible { outline: 2px solid var(--dsw-alias-border-l3); }
+
+.dialogBody {
+  display: grid;
+  grid-template-columns: minmax(0, 2.35fr) minmax(200px, 1fr);
+  min-height: 0;
+  flex: 1;
+}
+.modelsPanel,
+.effortPanel {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  padding: 20px 22px;
+}
+.modelsPanel { border-right: 0.5px solid var(--dsw-alias-border-l1); }
+.panelTitle {
+  margin: 0 0 10px;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 650;
+}
+.panelHelp {
+  margin: -5px 0 12px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+.search { width: 100%; margin-bottom: 12px; }
+.modelList { min-height: 120px; max-height: 390px; overflow-y: auto; }
+.group + .group { margin-top: 10px; }
+.groupTitle {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 5px 9px;
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  line-height: 17px;
+  font-weight: 650;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.modelOption,
+.effortOption {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  outline: none;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  text-align: left;
+  cursor: pointer;
+}
+.modelOption:hover:not(:disabled),
+.effortOption:hover:not(:disabled),
+.modelOption:focus-visible,
+.effortOption:focus-visible { background: var(--dsw-alias-interactive-bg-hover); }
+.modelOption.selected,
+.effortOption.selected {
+  border-color: var(--dsw-alias-border-l3);
+  background: var(--dsw-alias-interactive-bg-active);
+}
+.modelOption:disabled,
+.effortOption:disabled { color: var(--dsw-alias-label-dimmed); cursor: default; }
+.optionCopy { display: flex; min-width: 0; flex-direction: column; }
+.modelName {
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 19px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.modelId {
+  overflow: hidden;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.check { flex: 0 0 auto; color: var(--dsw-alias-label-primary); }
+.effortList { display: flex; flex-direction: column; gap: 3px; }
+.effortOption { min-height: 38px; padding: 6px 9px; font-size: 13px; line-height: 20px; }
+
+.status,
+.empty {
+  padding: 12px 9px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
 .error,
 .warning {
   display: flex;
@@ -141,12 +231,7 @@
   font-size: 11px;
   line-height: 16px;
 }
-
-.warning {
-  background: var(--dsw-alias-bg-module-platform);
-  color: var(--dsw-alias-state-warn-label);
-}
-
+.warning { background: var(--dsw-alias-bg-module-platform); color: var(--dsw-alias-state-warn-label); }
 .retry {
   flex: 0 0 auto;
   padding: 0;
@@ -154,13 +239,17 @@
   background: transparent;
   color: inherit;
   font: inherit;
-  font-weight: 600;
+  font-weight: 650;
   cursor: pointer;
 }
-
-.groups {
-  min-height: 0;
-  overflow-y: auto;
+.interactionHint {
+  margin: 0;
+  padding: 11px 24px 13px;
+  border-top: 0.5px solid var(--dsw-alias-border-l1);
+  color: var(--dsw-alias-label-caption);
+  font-size: 11px;
+  line-height: 17px;
+  text-align: center;
 }
 
 .group + .group {

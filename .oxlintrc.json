@@ -21,6 +21,7 @@
     "**/.oxlint-contract-*/**", // Scratch files created by the executable lint-contract tests.
     "**/oxlint-contract-*", // Flat probes use real TypeScript project include paths.
     "packages/typert/generator/tests/fixtures/type-model/**", // tsgolint rejects this fixture's preserved project shapes before rules run.
+    "packages/llm/model-capabilities/src/snapshot/public-model-capabilities.ts", // Generator-emitted data module: its literal is machine-written, and the snapshot freshness check is the gate that owns it.
     "website/.generated/**",
     "vendor/**", // Vendored source keeps upstream style and idioms.
     "native/**", // The imported landlock-run subtree has its own gates; see native/README.md.

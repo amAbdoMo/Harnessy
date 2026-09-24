@@ -41,6 +41,26 @@ describe('reasoning schema boundary', () => {
     expect(absent.providers['acme-gateway']?.models?.[0]?.reasoningEfforts).toBeUndefined()
   })
 
+  it('accepts a declared default effort only among the levels pi-ai knows', () => {
+    expect(configWith({ reasoningEfforts: { high: 'high' }, defaultReasoningEffort: 'high' })).not.toThrow()
+    expect(configWith({ defaultReasoningEffort: 'ultra' })).toThrow(/"off"/)
+  })
+
+  it('carries the per-model defaults into the resolved profile', () => {
+    const config = routeWith({
+      models: [
+        { id: 'a', reasoningEfforts: { off: null, high: 'high' }, defaultReasoningEffort: 'high' },
+        { id: 'b' },
+      ],
+    })() as Config
+    const resolved = resolveProfiles(config.providers.get() as unknown as Parameters<typeof resolveProfiles>[0]).get('acme-gateway')
+
+    // Only the model that declared one appears: the map is the deployment's
+    // per-model declaration, not a projection of the route's default.
+    expect(resolved?.configuredReasoningDefaults.get('a')).toBe('high')
+    expect(resolved?.configuredReasoningDefaults.has('b')).toBe(false)
+  })
+
   it('rejects a thinking format outside the offered set', () => {
     expect(configWith({ compat: { thinkingFormat: 'quantum' } })).toThrow(/expected/)
   })

@@ -1,0 +1,216 @@
+.root {
+  position: relative;
+  flex: none;
+}
+
+.trigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  corner-shape: round;
+  color: var(--dsw-alias-label-secondary);
+  background: transparent;
+  cursor: pointer;
+}
+
+.trigger:hover,
+.trigger:focus-visible,
+.trigger[aria-expanded='true'] {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.unreadDot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid var(--dsw-alias-bg-base);
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--dsw-alias-button-primary-fill);
+}
+
+.panel {
+  position: fixed;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  width: 360px;
+  max-width: calc(100vw - 24px);
+  max-height: min(500px, calc(100vh - 72px));
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 0;
+  border-radius: 18px;
+  background: var(--dsw-specific-menu);
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
+  box-shadow: var(--dsw-elevation-prominent);
+  animation: panel-in 120ms var(--ds-ease-out);
+}
+
+.panelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 16px 13px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l4);
+}
+
+.panelHeader > div,
+.itemBody,
+.empty {
+  display: flex;
+  flex-direction: column;
+}
+
+.panelHeader strong {
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  line-height: 19px;
+}
+
+.panelHeader span {
+  margin-top: 2px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.textAction,
+.clearAction {
+  flex: none;
+  padding: 3px 5px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--dsw-alias-label-secondary);
+  background: transparent;
+  font: inherit;
+  font-size: 11px;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+.textAction:hover,
+.clearAction:hover {
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.list {
+  min-height: 0;
+  overflow: auto;
+  padding: 6px;
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+.item {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px;
+  border-radius: 10px;
+}
+
+.item[data-read='false'] {
+  background: var(--dsw-alias-interactive-bg-active);
+}
+
+.itemIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  color: var(--dsw-alias-label-secondary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.itemIcon > svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.item[data-read='false'] .itemIcon {
+  color: var(--dsw-alias-button-primary-fill);
+}
+
+.itemBody {
+  min-width: 0;
+  gap: 2px;
+}
+
+.itemBody strong {
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.itemBody > span {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+  line-height: 16px;
+  overflow-wrap: anywhere;
+}
+
+.itemBody time {
+  margin-top: 2px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 10px;
+  line-height: 14px;
+}
+
+.empty {
+  align-items: center;
+  justify-content: center;
+  min-height: 150px;
+  padding: 20px;
+  text-align: center;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.empty strong {
+  margin-top: 10px;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+}
+
+.empty span {
+  max-width: 250px;
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.panelFooter {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 11px;
+  border-top: 0.5px solid var(--dsw-alias-border-l4);
+}
+
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px) scale(0.99);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel { animation: none; }
+}

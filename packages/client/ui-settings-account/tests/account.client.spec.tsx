@@ -11,7 +11,12 @@ import { en, zh, type AccountKey } from '../src/client/locales.ts'
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
 function mount(state: Omit<AccountView, 'links'>, copy: typeof en | typeof zh = en, details?: Partial<AccountDetails>, platform?: PlatformBridge) {
-  const operations: AccountSectionInjected = {
+  const operations: AccountSectionInjected & {
+    presentModal: () => () => void
+    openSection: (id: string) => void
+  } = {
+    presentModal: () => () => {},
+    openSection: () => {},
     ...platform === undefined ? {} : { platform },
     hooks: { account: {
       getSnapshot: () => ({ view: { ...state, links: { usageUrl: 'http://localhost:8081/usage', topUpUrl: 'http://localhost:8081/top_up' } }, details, failed: false }),

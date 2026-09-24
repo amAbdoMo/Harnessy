@@ -9,11 +9,13 @@
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {
-  CredentialInfo, LlmConfigurableProvider, LlmProviderInfo, SettingsNamespaceView,
+  CredentialInfo, LlmConfigurableProvider, LlmProviderInfo,
+  ModelCapabilityInspectionView, SettingsNamespaceView,
 } from '@deepseek-ai/dsh-api-remotes/client'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { SettingsDescribeFace } from '@deepseek-ai/dsh-client-ui-settings/client'
+import { capabilityKey } from './capability.ts'
 import type { SettingsSchemaOperations } from './schema-operations.ts'
 
 /**
@@ -101,6 +103,12 @@ export interface ModelsSettingsState {
   rows: readonly ProviderRow[]
   /** Namespace views by ns, for the editor's schema/layers/secrets. */
   namespaces: ReadonlyMap<string, SettingsNamespaceView>
+  /**
+   * What reasoning capability the Host resolves for each configured model, by
+   * {@link capabilityKey}. Empty when the read was refused, which leaves every
+   * row rendering its own declaration alone.
+   */
+  capabilities: ReadonlyMap<string, ModelCapabilityInspectionView>
 }
 
 /**
@@ -112,6 +120,20 @@ export interface ModelsSettingsState {
  */
 export function deriveKeyRef(provider: string): string {
   return `${provider.toUpperCase().replace(/[^A-Z0-9]+/g, '_')}_API_KEY`
+}
+
+/**
+ * The string members of one union schema node, or an empty list for any other
+ * node. Shared by the two vocabulary reads below so a namespace schema absent
+ * a field, or carrying something other than a union there, answers the same
+ * empty list.
+ * @param node - the resolved schema node, when the path resolved at all.
+ * @returns the union's string values, in declaration order.
+ */
+function unionStrings(node: unknown): string[] {
+  const list = (node as { type?: string; list?: readonly { value?: unknown }[] } | undefined)
+  if (list?.type !== 'union' || list.list === undefined) return []
+  return list.list.map(entry => entry.value).filter((value): value is string => typeof value === 'string')
 }
 
 /**
@@ -128,10 +150,40 @@ export function protocolChoices(
   schema: SettingsSchemaOperations,
 ): string[] {
   if (namespace === undefined) return []
-  const node = schema.nodeAtPath(schema.rehydrate(namespace.schema), ['providers', PROBE_ROUTE, 'api'])
-  const list = (node as { type?: string; list?: readonly { value?: unknown }[] } | undefined)
-  if (list?.type !== 'union' || list.list === undefined) return []
-  return list.list.map(entry => entry.value).filter((value): value is string => typeof value === 'string')
+  return unionStrings(schema.nodeAtPath(
+    schema.rehydrate(namespace.schema),
+    ['providers', PROBE_ROUTE, 'api'],
+  ))
+}
+
+/**
+ * The normalized reasoning-effort levels an adapter accepts for one model,
+ * read out of the owning namespace's own schema for the same reason
+ * {@link protocolChoices} reads protocols: the levels a settings surface
+ * offers are the ones the adapter will accept, so neither list can drift from
+ * the other. The vocabulary lives on the keys of a model entry's
+ * `reasoningEfforts` map — the levels an author may declare and the wire
+ * spellings they carry.
+ * @param namespace - the namespace view whose schema declares the profile shape.
+ * @param schema - settings schema operations.
+ * @returns the level identifiers in dispatch order, or an empty list when the
+ *   schema declares no such map.
+ */
+export function reasoningEffortChoices(
+  namespace: SettingsNamespaceView | undefined,
+  schema: SettingsSchemaOperations,
+): string[] {
+  if (namespace === undefined) return []
+  const node = schema.nodeAtPath(
+    schema.rehydrate(namespace.schema),
+    ['providers', PROBE_ROUTE, 'models', '0', 'reasoningEfforts'],
+  )
+  // The field is a union of `false` (the non-reasoning declaration) and the
+  // level map, so the vocabulary is the map member's own key schema.
+  const members = (node as { type?: string; list?: readonly unknown[] } | undefined)
+  if (members?.type !== 'union' || members.list === undefined) return []
+  const map = members.list.find(member => (member as { type?: string } | undefined)?.type === 'dict')
+  return unionStrings((map as { sKey?: unknown } | undefined)?.sKey)
 }
 
 /** The credential reference a resolved profile names (its `apiKeyEnv` field). */
@@ -152,6 +204,7 @@ export class ModelsSettingsStore {
   /** The snapshot the section renders from (uSES-safe store). */
   readonly store: SnapshotStore<ModelsSettingsState> = createSnapshotStore<ModelsSettingsState>({
     status: 'idle', error: null, credentialError: null, writable: false, rows: [], namespaces: new Map(),
+    capabilities: new Map(),
   })
 
   /** Latest load wins; an older response never overwrites a newer one. */
@@ -215,6 +268,15 @@ export class ModelsSettingsStore {
     const refs = [...new Set(rows.map(row => row.apiKeyEnv ?? deriveKeyRef(row.entry.provider)))]
     let credentials: Record<string, CredentialInfo> = {}
     let credentialError: string | null = null
+    // Capability source is read beside the credential enrichment and
+    // degrades the same way: a composition that mounts no public metadata has
+    // no claims to report, which is not a page failure.
+    const capability = await this.ctx.remote.modelCapabilities.inspect()
+    const capabilities = new Map<string, ModelCapabilityInspectionView>(
+      capability.ok
+        ? capability.value.map(entry => [capabilityKey(entry.route, entry.model), entry])
+        : [],
+    )
     if (refs.length > 0) {
       const response = await this.ctx.remote.credentials.describe(refs)
       // Credential state is an enrichment for the Models page: a failure
@@ -239,6 +301,7 @@ export class ModelsSettingsStore {
         }
       })
       s.namespaces = namespaces
+      s.capabilities = capabilities
     })
   }
 

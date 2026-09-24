@@ -51,6 +51,20 @@ const publicationSourceAllowlist: Readonly<Record<string, readonly string[]>> = 
 }
 /** Public source home recorded in maintained package manifests. */
 const publishedRepositoryUrl = 'git+https://github.com/deepseek-ai/deepseek-harness.git'
+/** Canonical source home for release packages implemented only by this fork. */
+const forkRepositoryUrl = 'git+https://github.com/amAbdoMo/Harnessy.git'
+/** Release-package directories whose source does not exist in upstream. */
+const forkLocalPackageDirectories = new Set([
+  'packages/bundle/custom-harness',
+  'packages/client/ui-brand-custom-harness',
+  'packages/client/ui-settings-subagents',
+  'packages/client/ui-workspace-brief',
+  'packages/llm/model-capabilities',
+  'packages/subagent/subagent-commandcode',
+  'packages/subagent/subagent-roster',
+  'packages/test-support/platform-probe',
+  'packages/workspace/workspace-brief',
+])
 /** Packages that participate in the experimental policy. */
 const experimentalPackageDirectory = /^packages\/experimental\/[^/]+$/
 /** npm namespace reserved for experimental packages. */
@@ -171,8 +185,10 @@ const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
   // Creator's composition guidance travels with the declaration package.
   '@deepseek-ai/dsh-agent-preset': ['skills'],
   // The Web Host mounts the default-off settings owner independently of each
-  // Agent-scoped delegation-tool instance.
-  '@deepseek-ai/dsh-tool-subagent': ['lib/model-selection-settings.js'],
+  // Agent-scoped delegation-tool instance, and the delegation router reads the
+  // model-selection channel as its own bundle through ./model-selection rather
+  // than through the emitted tree, so both ship beside the lib.
+  '@deepseek-ai/dsh-tool-subagent': ['lib/model-selection.js', 'lib/model-selection-settings.js'],
   // The JSONL backend resolves its private verification Worker relative to
   // import.meta.url; it is shipped without a public package subpath.
   '@deepseek-ai/dsh-session-persistence-jsonl': ['lib/worker.cjs'],
@@ -393,10 +409,18 @@ export function checkWorkspaceManifest({ dir, manifest }: WorkspaceManifest): st
     if (manifest.publishConfig?.access !== 'public') {
       errors.push(`${label}: release member must set publishConfig.access to "public"`)
     }
+    // A fork-local release member names the fork, because that is where its
+    // source is; every other release member names the published source home.
+    // Each category requires its exact URL, so this stays a policy rather than
+    // an exemption: a missing, malformed, arbitrary, or cross-category URL all
+    // still fail, and a package that silently swapped categories is caught.
+    const expectedRepositoryUrl = forkLocalPackageDirectories.has(dir)
+      ? forkRepositoryUrl
+      : publishedRepositoryUrl
     if (manifest.repository?.type !== 'git'
-      || manifest.repository.url !== publishedRepositoryUrl
+      || manifest.repository.url !== expectedRepositoryUrl
       || manifest.repository.directory !== dir) {
-      errors.push(`${label}: release member repository must use ${publishedRepositoryUrl} with directory ${dir}`)
+      errors.push(`${label}: release member repository must use ${expectedRepositoryUrl} with directory ${dir}`)
     }
   } else if (!experimentalPackageDirectory.test(dir) && manifest.private !== true) {
     errors.push(`${label}: package.json must set "private": true`)

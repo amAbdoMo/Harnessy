@@ -201,6 +201,7 @@ function member(node: unknown, key: string, own = false): unknown {
 const LEGACY_SECTION_ENTRIES: Record<string, string> = {
   'ui-developer-tools': 'ui-settings',
   'ui-onboarding': 'ui-settings-general',
+  'session-workspace': 'session-controller',
   /* v8 ignore next -- the base bundle composes one shell executor per platform */
   shell: process.platform === 'win32' ? 'pwsh-sandbox' : 'bash-sandbox',
 }
@@ -226,14 +227,22 @@ export class SettingsForms extends Service {
   private closed = false
   private scheduled = false
   private readonly presentations = new Map<Fiber, { auto?: boolean }>()
+  private readonly initialImport: Promise<void>
 
   constructor(private readonly ownerContext: Context) {
     super(ownerContext, 'settings')
     const ctx = ownerContext
     ctx.effect(() => () => { this.closed = true })
     ctx.on('app-boot/config-reload', () => { this.invalidate() })
-    void ctx.root.loader.await().then(() => this.importLegacyDocument()).catch((error: unknown) => { ctx.logger.error(error) })
+    this.initialImport = ctx.root.loader.await().then(() => this.importLegacyDocument())
+    void this.initialImport.catch((error: unknown) => { ctx.logger.error(error) })
   }
+
+  /**
+   * Wait until the removed settings document has either been imported or found absent.
+   * @returns fulfillment after the one-time import attempt completes.
+   */
+  whenInitialImportSettles(): Promise<void> { return this.initialImport }
 
   /** Move the sections of the removed `settings.yaml` into the active profile once the Loader has settled every entry.
    * The document is renamed before the first write, so a partial import never repeats; a section the running

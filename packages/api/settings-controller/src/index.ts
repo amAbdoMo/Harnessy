@@ -1,8 +1,8 @@
 /**
  * Host Remote owner for the configuration surfaces over the settings-domain
- * seams. Two namespaces: `settings`, the redacted reads and writes of
- * `ctx.settings`, owned by the class below; and `credentials`, mounted from
- * here as its own plugin.
+ * seams. Three namespaces: `settings`, the redacted reads and writes of
+ * `ctx.settings`, owned by the class below; plus `credentials` and the narrow
+ * Harnessy `openAIAccount` surface, mounted here as sibling plugins.
  *
  * @module @deepseek-ai/dsh-api-settings-controller
  */
@@ -19,9 +19,15 @@ import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typer
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import { z } from 'zod'
 import { CredentialsController } from './credentials.ts'
+import { AccountsController } from './accounts.ts'
+import { OpenAIAccountController } from './openai-account.ts'
+import { McpManagerController } from './mcp-manager.ts'
 import type { SettingsDocumentOpenValue } from './types.ts'
 
 export { CredentialsController } from './credentials.ts'
+export { AccountsController } from './accounts.ts'
+export { OpenAIAccountController } from './openai-account.ts'
+export { McpManagerController } from './mcp-manager.ts'
 export type * from './types.ts'
 
 const settingsNamespaceRequestSchema = z.object({ ns: z.string().min(1) })
@@ -77,8 +83,8 @@ export class SettingsController extends TypertRemoteService {
   private readonly openTextFile: (path: string, signal: AbortSignal) => Promise<void>
 
   /**
-   * Register the settings namespace and mount the credentials namespace beside
-   * it. Both namespaces stay registered when a provider is absent so calls can
+   * Register the settings namespace and mount its sibling namespaces beside
+   * it. All namespaces stay registered when a provider is absent so calls can
    * return the configuration API's actionable missing-provider diagnostic.
    * @param ctx - Host context where settings and credential providers may be mounted.
    */
@@ -86,6 +92,9 @@ export class SettingsController extends TypertRemoteService {
     super(ctx, 'settingsController', { namespace: 'settings' })
     this.openTextFile = internals.openTextFile ?? openNativeTextFile
     ctx.plugin(CredentialsController)
+    ctx.plugin(AccountsController)
+    ctx.plugin(OpenAIAccountController)
+    ctx.plugin(McpManagerController)
   }
 
   /**

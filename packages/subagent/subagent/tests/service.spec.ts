@@ -25,8 +25,14 @@ function fakeParent(id = 'parent-1'): Agent {
   return { id: SessionId(id) } as unknown as Agent
 }
 
-const ALL_CAPS: SubagentCapabilities = { agentOptions: true, outputSchema: true, depthLimit: true, toolFilter: true, persona: true }
-const NO_CAPS: SubagentCapabilities = { agentOptions: false, outputSchema: false, depthLimit: false, toolFilter: false, persona: false }
+const ALL_CAPS: SubagentCapabilities = {
+  agentOptions: true, outputSchema: true, depthLimit: true, toolFilter: true, persona: true, accessPolicy: true,
+  runtimeRoute: true,
+}
+const NO_CAPS: SubagentCapabilities = {
+  agentOptions: false, outputSchema: false, depthLimit: false, toolFilter: false, persona: false, accessPolicy: false,
+  runtimeRoute: false,
+}
 
 function baseRequest(overrides: Partial<SubagentStartRequest> = {}): SubagentStartRequest {
   return {

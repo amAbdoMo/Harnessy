@@ -28,6 +28,7 @@ import type {} from '@deepseek-ai/dsh-permission-presets'
 // them through the tool registry's global layer.
 import type {} from '@deepseek-ai/dsh-agent-preset-registry'
 import { delegationDepthOf } from './depth.ts'
+import type { SubagentAccess } from './types.ts'
 
 /** Thrown when starting a child would exceed the requested depth cap. */
 export class SubagentDepthError extends Error {
@@ -218,6 +219,32 @@ export function applyChildComposition(
   if (composition.toolFilter !== undefined) childCtx.tools.restrict(composition.toolFilter)
 }
 
+/**
+ * Rank of each {@link SandboxMode} on the strictly-wider ladder
+ * (`read-only < workspace-write < danger-full-access`) that
+ * `@deepseek-ai/dsh-sandbox`'s escalation table encodes. Typing it as a
+ * `Record` over the closed union makes a newly added mode a compile error here
+ * rather than a value that silently ranks nowhere.
+ */
+const SANDBOX_MODE_RANK: Record<SandboxMode, number> = {
+  'read-only': 0,
+  'workspace-write': 1,
+  'danger-full-access': 2,
+}
+
+/**
+ * Narrow one requested sandbox access against the parent's effective mode, so
+ * a child never runs wider than either. Reading the same ladder the escalation
+ * table encodes is what keeps a narrowing decision and an escalation check
+ * agreeing about what "wider" means.
+ * @param parentEffective - the parent session's resolved effective mode.
+ * @param requested - the concrete access this delegation requested.
+ * @returns whichever of the two modes is narrower.
+ */
+export function narrowSandboxMode(parentEffective: SandboxMode, requested: SandboxMode): SandboxMode {
+  return SANDBOX_MODE_RANK[requested] < SANDBOX_MODE_RANK[parentEffective] ? requested : parentEffective
+}
+
 /** Policy seeded onto a child session's log at the delegation boundary. */
 export interface DelegatedPolicyOverrides {
   /** The shared-bundle preset identity when the parent currently runs in Auto or Full access. */
@@ -241,13 +268,20 @@ export interface DelegatedPolicyOverrides {
  * is captured — never deployment defaults or one-shot grants — and the approval
  * policy is pinned to `'never'` regardless of the parent's own policy.
  * @param parent - the delegating parent agent.
- * @returns the sandbox override (or `undefined` without one) and the approval pin.
+ * @param access - the requested child access, `'inherit'` when omitted.
+ * @returns the delegated mode (or `undefined` without one) and the approval pin.
  */
-export function captureDelegatedPolicyOverrides(parent: Agent): DelegatedPolicyOverrides {
+export function captureDelegatedPolicyOverrides(
+  parent: Agent,
+  access: SubagentAccess = 'inherit',
+): DelegatedPolicyOverrides {
   const preset = parent.ctx.get('permissionPresets')?.current(parent.session)
+  const policy = parent.ctx.get('sandboxPolicy')
   return {
     permissionPreset: preset === 'auto' || preset === 'danger-full-access' ? preset : undefined,
-    sandboxMode: parent.ctx.get('sandboxPolicy')?.overrideOf(parent.session),
+    sandboxMode: access === 'inherit'
+      ? policy?.overrideOf(parent.session)
+      : narrowSandboxMode(policy?.resolve({ session: parent.session }).mode ?? access, access),
     approvalPolicy: parent.ctx.get('approval') === undefined ? undefined : 'never',
   }
 }

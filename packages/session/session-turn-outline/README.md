@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package gives history clients a whole-session outline of every started turn, including bounded prompt and settled-response previews. Clients can navigate turns that are not yet loaded and page backward from the exact event sequence needed to load a selected turn. It fits assemblies that provide session projections; elsewhere, clients continue using loaded-window navigation. Previews exclude injected context and tool results, and a response appears only after its turn settles.
+This package gives history clients a whole-session outline of every started turn, including bounded prompt and settled-response previews plus the recorded terminal outcome. Clients can navigate turns that are not yet loaded and page backward from the exact event sequence needed to load a selected turn. It fits assemblies that provide session projections; elsewhere, clients continue using loaded-window navigation. Previews exclude injected context and tool results, and a response appears only after its turn settles.
 
 ## Table of Contents
 
@@ -43,8 +43,9 @@ Mount the plugin beside the session store and the projection registry when clien
 | `seq` | The turn's `turn/start` event seq — paging a window back through this seq loads the whole turn |
 | `prompt` | Preview of the turn's first human prompt (space-joined text blocks, collapsed whitespace, 50-character cap with a trailing ellipsis when clipped — one rail-card line); `''` until an eligible prompt lands |
 | `response` | Preview of the turn's final text-bearing assistant message (same normalization, 120-character cap — up to three rail-card lines); `''` until the turn ends with assistant text |
+| `outcome` | Terminal classification recorded at `turn/end`: `completed`, `stopped` for aborted or token-limited work, or `failed` for error and blocked endings; absent while the turn is open |
 
-The wire value is the complete entry array, strictly increasing by `turn` (whole-value rule): consumers replace, never merge. Prompts fill only from `user/message` events with the human `user` source, so injected context and tool results never leak into navigation; a turn whose prompt is images-only keeps `''` and consumers label it by number. The response buffers as a draft while its turn streams and commits at `turn/end`; the change feed's raw-view identity gate keeps draft-only changes quiet, so the outline pushes at most three times per turn — boundary, prompt, settled response. Preview budgets match the chat rail's loaded-turn previews, so a turn shows the same words before and after its events load.
+The wire value is the complete entry array, strictly increasing by `turn` (whole-value rule): consumers replace, never merge. Prompts fill only from `user/message` events with the human `user` source, so injected context and tool results never leak into navigation; a turn whose prompt is images-only keeps `''` and consumers label it by number. The response buffers as a draft while its turn streams, then `turn/end` commits both the surviving response and the terminal outcome. The change feed's raw-view identity gate keeps draft-only changes quiet, so the outline pushes at most three times per turn — boundary, prompt, terminal settlement. Preview budgets match the chat rail's loaded-turn previews, so a turn shows the same words before and after its events load.
 
 ### Failures and recovery
 
@@ -62,7 +63,7 @@ This section explains the fold behind the outline; the observable behavior is fu
 
 ### Design concept
 
-The unit is a pure fold over committed session events. `turn/start` — not the prompt `user/message` — anchors each entry because its seq is the load-through target for a jump: the agent loop logs `turn/start` before the turn's prompt and steps, so a window paged back through that seq contains the whole turn. The prompt fills from the first human `user/message`, and only while the newest entry is still empty — later human messages in the same turn (steering) keep the first preview. The response cannot fill the same way (`turn/end` carries no text), so each text-bearing `assistant/message` overwrites a state draft and `turn/end` commits the survivor — the newest text, which is the loaded rail's `findLast` semantic.
+The unit is a pure fold over committed session events. `turn/start` — not the prompt `user/message` — anchors each entry because its seq is the load-through target for a jump: the agent loop logs `turn/start` before the turn's prompt and steps, so a window paged back through that seq contains the whole turn. The prompt fills from the first human `user/message`, and only while the newest entry is still empty — later human messages in the same turn (steering) keep the first preview. The response cannot fill the same way (`turn/end` carries no text), so each text-bearing `assistant/message` overwrites a state draft and `turn/end` commits the survivor — the newest text, which is the loaded rail's `findLast` semantic — together with the end reason's terminal classification.
 
 ### Source map
 

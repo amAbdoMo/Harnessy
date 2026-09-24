@@ -4,7 +4,11 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { officialClientBuildEnvironment, writeClientBuildRecord } from '../client-build-environment.ts'
+import {
+  customHarnessClientBuildEnvironment,
+  officialClientBuildEnvironment,
+  writeClientBuildRecord,
+} from '../client-build-environment.ts'
 import { releaseFamily, type ReleaseMember } from './families.ts'
 import { compareVersions, nextVendorVersion, planShared, reachesPayload } from './bump.ts'
 
@@ -44,7 +48,6 @@ afterEach(() => {
 describe('release families', () => {
   it('publishes all current experimental packages', () => {
     const members = releaseFamily('dsh').members(resolve(import.meta.dirname, '../..'))
-
     expect(members
       .filter(member => member.directory.startsWith('packages/experimental/'))
       .map(member => member.name)).toEqual([
@@ -183,7 +186,10 @@ describe('release families', () => {
   it('requires a current official client build only for dsh artifacts', () => {
     const dsh = releaseFamily('dsh')
     const vendor = releaseFamily('vendor')
-    const officialEnvironment = officialClientBuildEnvironment(resolve(import.meta.dirname, '../..'))
+    const officialEnvironment = officialClientBuildEnvironment(
+      resolve(import.meta.dirname, '../..'),
+      { DSH_CLIENT_COMMIT_HASH: 'abcdef0' },
+    )
     vi.stubEnv('DSH_CLIENT_COMMIT_HASH', officialEnvironment.DSH_CLIENT_COMMIT_HASH)
     const official = buildFixture(officialEnvironment)
     const defaultBuild = buildFixture({})
@@ -197,6 +203,19 @@ describe('release families', () => {
 
     write(join(official, 'packages/client/example/lib/client.js'), 'module.exports = { changed: true }\n')
     expect(() => { dsh.verifyBuildArtifacts(official) }).toThrow(/artifacts differ/)
+  })
+
+  it('accepts Harnessy artifacts only through the explicit product pack mode', () => {
+    const dsh = releaseFamily('dsh')
+    const environment = customHarnessClientBuildEnvironment(
+      resolve(import.meta.dirname, '../..'),
+      { DSH_CLIENT_COMMIT_HASH: 'abcdef0' },
+    )
+    vi.stubEnv('DSH_CLIENT_COMMIT_HASH', environment.DSH_CLIENT_COMMIT_HASH)
+    const custom = buildFixture(environment)
+
+    expect(() => { dsh.verifyBuildArtifacts(custom, 'custom-harness') }).not.toThrow()
+    expect(() => { dsh.verifyBuildArtifacts(custom) }).toThrow(/DSH_CLIENT_BUILD_PROFILE/u)
   })
 
   it('publishes a dependency before its consumer, and orders ties by name', () => {

@@ -100,11 +100,8 @@ declare module '@deepseek-ai/cordis' {
 /**
  * English is both the locale the UI opens in when the browser names no registered
  * language (and for non-browser runs), and the dictionary consulted after the
- * active locale misses a key. One constant serves both because the shipped
- * `zh`/`en` dictionaries carry identical key sets, so neither direction can
- * leave a key unresolved; the residual case points at English rather than
- * zh because a browser naming no registered language is the reader least
- * likely to read Chinese.
+ * active locale misses a key. Language packs must end their fallback chains
+ * at English.
  */
 export const FALLBACK_LOCALE: BuiltInLocaleId = 'en'
 
@@ -114,9 +111,9 @@ export const COMMON_NS = 'common'
 /** Namespace owning this feature's settings-row copy. */
 export const SETTINGS_NS = 'settings.locale'
 
-/** The two locales and dictionaries shipped by this package. */
+/** The locale shipped by this package. */
 const BUILT_IN_LOCALE_METADATA = {
-  zh: { label: '中文', fallback: 'en' },
+  zh: { label: '简体中文', fallback: 'en' },
   en: { label: 'English' },
 } as const satisfies Record<BuiltInLocaleId, Omit<LocaleDefinition, 'id'>>
 const BUILT_IN_LOCALES: readonly LocaleDefinition[] = Object.freeze(
@@ -378,15 +375,18 @@ export class LocaleRuntime {
    * Register a declared namespace's dictionaries, all locales in one call —
    * the typed form: each dictionary is checked against the namespace's
    * {@link LocaleNamespaceMap} key union (a missing or extra key is a
-   * compile error), and every shipped locale is required (bilingual balance
-   * enforced at registration). Duplicate (ns, locale) throws (single occupant; a
+   * compile error), and every shipped locale is required. Duplicate (ns, locale)
+   * throws (single occupant; a
    * namespace's texts have one owner). Registration bumps the revision so
    * mounted outlets pick up late-arriving dictionaries.
    * @param ns - a namespace merged into LocaleNamespaceMap.
-   * @param dicts - complete dictionaries keyed by built-in locale id.
+   * @param dicts - English dictionary and optional partial built-in translations.
    * @returns disposer removing every locale registered by this call (idempotent).
    */
-  register<N extends Extract<keyof LocaleNamespaceMap, string>>(ns: N, dicts: Record<BuiltInLocaleId, LocaleDictOf<N>>): () => void
+  register<N extends Extract<keyof LocaleNamespaceMap, string>>(
+    ns: N,
+    dicts: { en: LocaleDictOf<N> } & Partial<Record<Exclude<BuiltInLocaleId, 'en'>, Partial<LocaleDictOf<N>>>>,
+  ): () => void
   /**
    * Single-locale untyped form for language-pack contributions and namespaces
    * outside the merge table.
@@ -397,11 +397,12 @@ export class LocaleRuntime {
    * @throws when locale is not a BCP 47-style tag.
    */
   register(ns: string, locale: string, dict: LocaleDict): () => void
-  register(ns: string, localeOrDicts: string | Record<string, LocaleDict>, dict?: LocaleDict): () => void {
+  register(ns: string, localeOrDicts: string | Record<string, object | undefined>, dict?: LocaleDict): () => void {
     const pairs: [string, LocaleDict][] = typeof localeOrDicts === 'string'
       // Overload guarantees dict on the single-locale arm.
       ? [[localeOrDicts, dict as LocaleDict]]
-      : Object.entries(localeOrDicts)
+      : Object.entries(localeOrDicts).filter((entry): entry is [string, object] => entry[1] !== undefined)
+        .map(([id, entries]) => [id, entries as LocaleDict])
     for (const [locale] of pairs) {
       if (!LOCALE_ID_PATTERN.test(locale)) {
         throw new Error(`locale id "${locale}" is not a BCP 47-style tag`)

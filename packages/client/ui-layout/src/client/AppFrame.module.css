@@ -1,3 +1,90 @@
+.desktopShell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--dsw-alias-bg-base);
+}
+
+.desktopShell > .frame {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+}
+
+.desktopTitlebar {
+  -webkit-app-region: drag;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 36px;
+  padding: 0 142px 0 8px;
+  box-sizing: border-box;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l4);
+  color: var(--dsw-alias-label-secondary);
+  background: var(--dsw-alias-bg-layer-1);
+  user-select: none;
+}
+
+.titlebarIconButton,
+.desktopMenuButton {
+  -webkit-app-region: no-drag;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+}
+
+.titlebarIconButton {
+  width: 28px;
+}
+
+.titlebarIconButton:not(:disabled):hover,
+.desktopMenuButton:hover {
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.titlebarIconButton:disabled {
+  color: var(--dsw-alias-label-tertiary);
+  opacity: 0.45;
+}
+
+.historyControls,
+.desktopMenus {
+  display: flex;
+  align-items: center;
+}
+
+.historyControls {
+  gap: 1px;
+  margin-left: 4px;
+}
+
+.desktopMenus {
+  gap: 2px;
+  margin-left: 8px;
+}
+
+.desktopMenuButton {
+  padding: 0 9px;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.titlebarIconButton:focus-visible,
+.desktopMenuButton:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: -2px;
+}
+
 .frame {
   position: relative; /* anchors the drag handles, which straddle column borders */
   display: grid;

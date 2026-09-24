@@ -78,6 +78,7 @@ async function bench(nodes: ToolResultNode[]) {
   runtime.ctx.provide('layout', layout)
   const sidebarRight = { openResource: vi.fn<(address: string) => void>() }
   runtime.ctx.provide('sidebarRight', sidebarRight as never)
+  runtime.ctx.provide('sidebarRightTabs', { register: vi.fn(() => () => {}) } as never)
   runtime.ctx.provide('uiWorkspace', {
     openWorkspace: vi.fn(async (_workspaceId: WorkspaceId, beforeOpen: (id: SessionId) => void) => {
       beforeOpen(SID)
@@ -297,6 +298,7 @@ describe('registrant declaration injection', () => {
     runtime.ctx.provide('configForms', { developerTools: { enabled: createSnapshotStore(true) }, get: () => stubConfigForm().scope } as never)
     runtime.ctx.provide('layout', { openDetails: vi.fn(), closeDetails: vi.fn() })
     runtime.ctx.provide('sidebarRight', { openResource: vi.fn() } as never)
+    runtime.ctx.provide('sidebarRightTabs', { register: vi.fn(() => () => {}) } as never)
     runtime.ctx.provide('uiWorkspace', {
       openWorkspace: vi.fn(async (_workspaceId: WorkspaceId, beforeOpen: (id: SessionId) => void) => {
         beforeOpen(SID)

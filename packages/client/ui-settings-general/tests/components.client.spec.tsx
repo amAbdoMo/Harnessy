@@ -98,10 +98,10 @@ describe('chrome content', () => {
     expect(screen.getByText('Settings')).toBeTruthy()
   })
 
-  it('TriggerContent drops the label in the rail state', () => {
+  it('TriggerContent keeps an accessible hidden label in the rail state', () => {
     const { container } = render(<TriggerContent {...kit} wide={false} t={t} />)
     expect(container.querySelector('svg')).toBeTruthy()
-    expect(screen.queryByText('Settings')).toBeNull()
+    expect(screen.getByText('Settings').className).toContain('hiddenLabel')
   })
 
   it('HeaderContent and CloseLabel render their translated text', () => {
@@ -117,7 +117,9 @@ describe('GeneralSection', () => {
     const renderSlot = vi.fn(
       ((key: string) => <div data-testid={`slot-${key}`} />) as GeneralSectionComponentProps['renderSlot'],
     )
-    const props: GeneralSectionComponentProps = { ...kit, renderSlot, close: vi.fn() }
+    const props: GeneralSectionComponentProps = {
+      ...kit, renderSlot, close: vi.fn(), presentModal: vi.fn(() => vi.fn()),
+    }
     const view = render(<GeneralSection {...props} />)
     return { view, renderSlot }
   }
@@ -130,6 +132,26 @@ describe('GeneralSection', () => {
 })
 
 describe('SettingsDocumentAction', () => {
+  it('leaves the MCP page action to its dedicated configuration file', () => {
+    const controller = derivedDocumentStore({
+      settings: {
+        describe: vi.fn(() => Promise.resolve({
+          ok: true as const,
+          value: { writable: true, hasDocument: true, namespaces: [] },
+        })),
+        openSettingsDocument: vi.fn(),
+      },
+    })
+    render(<SettingsDocumentAction
+      {...kit}
+      activeSectionId="custom-harness-mcp"
+      t={t}
+      controller={controller}
+      useSnapshot={bindSnapshotSelector(controller.store)}
+    />)
+    expect(screen.queryByRole('button', { name: 'Open configuration file' })).toBeNull()
+  })
+
   it('appears only for a file-backed provider and requests its Host-owned document', async () => {
     const openDocument = vi.fn(() => Promise.resolve({
       ok: true as const, value: { opened: true as const },
@@ -145,6 +167,7 @@ describe('SettingsDocumentAction', () => {
     })
     render(<SettingsDocumentAction
       {...kit}
+      activeSectionId="general"
       t={t}
       controller={controller}
       useSnapshot={bindSnapshotSelector(controller.store)}
@@ -163,6 +186,7 @@ describe('SettingsDocumentAction', () => {
     const controller = new SettingsDocumentStore(ctx, mirror)
     const first = render(<SettingsDocumentAction
       {...kit}
+      activeSectionId="general"
       t={t}
       controller={controller}
       useSnapshot={bindSnapshotSelector(controller.store)}
@@ -172,6 +196,7 @@ describe('SettingsDocumentAction', () => {
     first.unmount()
     render(<SettingsDocumentAction
       {...kit}
+      activeSectionId="general"
       t={t}
       controller={controller}
       useSnapshot={bindSnapshotSelector(controller.store)}
@@ -200,6 +225,7 @@ describe('SettingsDocumentAction', () => {
     })
     render(<SettingsDocumentAction
       {...kit}
+      activeSectionId="general"
       t={t}
       controller={controller}
       useSnapshot={bindSnapshotSelector(controller.store)}

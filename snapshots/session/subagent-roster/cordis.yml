@@ -1,0 +1,12 @@
+# Test-only composition for the unified subagent roster. The shipped headless
+# profile owns application startup and already registers the in-process `spawn`
+# provider the seeded roles name, so this patch mounts only the roster: both
+# tools the model calls, and the directory `list_subagents` renders, belong to
+# the plugin under test.
+#
+# The roles themselves come from `workspace/.dsh/settings.yaml`, the roster's
+# own stored document. The composition supplies no role values and leaves the
+# shipped defaults in place as the base layer.
+- insert:
+    - id: subagent-roster
+      name: '@deepseek-ai/dsh-subagent-roster'

@@ -69,9 +69,15 @@ function mount({
   const listeners = new Set<() => void>()
   const connectionListeners = new Set<() => void>()
   const reconnect = vi.fn()
+  let finishSectionModal: (() => void) | undefined
   const renderSlot = vi.fn(
-    ((key: string, _owner: unknown, opts?: { only?: string; fallback?: import('react').ReactNode }) => {
-      if (key === 'settings.section') return <div data-testid={`section-${opts?.only ?? 'all'}`} />
+    ((key: string, owner: unknown, opts?: { only?: string; fallback?: import('react').ReactNode }) => {
+      if (key === 'settings.section') {
+        const { presentModal } = owner as { presentModal: () => () => void }
+        return <div data-testid={`section-${opts?.only ?? 'all'}`}>
+          <button onClick={() => { finishSectionModal = presentModal() }}>Present section modal</button>
+        </div>
+      }
       return SEAT_CONTENT[key] ?? opts?.fallback
     }) as SettingsRootComponentProps['renderSlot'],
   )
@@ -139,7 +145,8 @@ function mount({
     desktopUpdate = next
     view.rerender(<SettingsRoot {...props} />)
   }
-  return { view, renderSlot, bump, listeners, reconnect, setConnectionState, setDesktopUpdate }
+  return { view, renderSlot, bump, listeners, reconnect, setConnectionState, setDesktopUpdate,
+    finishSectionModal: () => { finishSectionModal?.() } }
 }
 
 function openPanel() {
@@ -278,11 +285,26 @@ describe('SettingsPanel chrome seats', () => {
     const { renderSlot } = mount()
     openPanel()
     expect(screen.getByText('Open configuration file')).toBeTruthy()
-    expect(renderSlot).toHaveBeenCalledWith('settings.action', {})
+    expect(renderSlot).toHaveBeenCalledWith('settings.action', { activeSectionId: 'general' })
   })
 })
 
 describe('SettingsPanel close paths', () => {
+  it('hides its chrome while a section-owned modal is presented and closes after it finishes', () => {
+    const mounted = mount()
+    const trigger = openPanel()
+    fireEvent.click(screen.getByRole('button', { name: 'Present section modal' }))
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    const settingsLayer = mounted.view.container.querySelector<HTMLElement>('[role="presentation"]')
+    expect(settingsLayer?.hidden).toBe(true)
+    expect(settingsLayer === null ? undefined : getComputedStyle(settingsLayer).display).toBe('none')
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+
+    act(() => { mounted.finishSectionModal() })
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+  })
+
   it('closes via the header button and restores trigger focus', async () => {
     mount()
     const trigger = openPanel()

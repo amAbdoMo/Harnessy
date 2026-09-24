@@ -102,10 +102,12 @@ describe('WorkspaceBrowser.module.css list', () => {
     expect(declarations('.searchExpanded')?.get('height')).toBe('30px')
     expect(rowDeclarations('.projectRow')?.get('height')).toBe('34px')
     expect(rowDeclarations('.sessionRow')?.get('height')).toBe('32px')
-    expect(rowDeclarations('.flatSessionRowWithoutStatus .title')?.get('margin-left')).toBe('0')
+    expect(rowDeclarations('.sessionRowWithoutStatus .title')?.get('margin-left')).toBe('0')
     expect(rowDeclarations('.searchResultRow')?.get('min-height')).toBe('48px')
     expect(rowDeclarations('.sessionRow.selected')?.get('background'))
-      .toBe('var(--dsw-alias-interactive-bg-hover)')
+      .toBe('var(--dsw-specific-sidebar-nav-item-active-accent)')
+    expect(rowDeclarations('.sessionRow.selected')?.get('box-shadow')).toBeUndefined()
+    expect(rowDeclarations('.searchResultRow.selected')?.get('box-shadow')).toBeUndefined()
   })
 
   it('marquees a clipped session title on row hover', () => {

@@ -189,6 +189,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     'conversation.hero.workspace': { kind: 'single'; scope: 'root'; owner: EmptyWorkspaceOwnerProps }
     /** Brand mark shown before the blank-session headline. */
     'conversation.hero.brand.mark': { kind: 'single'; scope: 'root'; owner: HeroBrandMarkOwnerProps }
+    /** Optional product orientation shown beneath the blank-session headline. */
+    'conversation.hero.brand.tagline': { kind: 'single'; scope: 'root'; owner: HeroBrandTaglineOwnerProps }
     /** Agent-preset control staged for a New Session. */
     'conversation.hero.agentPreset': { kind: 'single'; scope: 'session-maybe'; owner: HeroAgentPresetOwnerProps }
     /** Full-width entries above the composer card. */
@@ -234,6 +236,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
         'conversation.composer.bar': { kind: 'single'; scope: 'session-maybe' }
         'conversation.input.dock': { kind: 'list'; scope: 'session' }
         'conversation.hero.brand.mark': { kind: 'single'; scope: 'root' }
+        'conversation.hero.brand.tagline': { kind: 'single'; scope: 'root' }
         'conversation.hero.workspace': { kind: 'single'; scope: 'root' }
         'conversation.hero.agentPreset': { kind: 'single'; scope: 'session-maybe' }
       }
@@ -278,8 +281,8 @@ export interface HeroAgentPresetOwnerProps {
 
 /** Header actions derive their state from standard Session props. */
 export interface ConversationHeaderActionOwnerProps {
-  /** Marker field: entries receive no owner-specific values. */
-  children?: never
+  /** Open Chat and focus the tool-call row with this durable call id. */
+  openConversationEvent: (callId: string) => void
 }
 
 /** The header corner's occupant derives its state from standard Session props. */
@@ -354,6 +357,8 @@ export interface ConversationSessionHeaderInjected {
   open: (sessionId: SessionId) => void
   /** Select and activate one registered Conversation View. */
   selectView: (view: string) => void
+  /** Select one registered View and address an opaque focus request to it. */
+  openView: (view: string, focus: string) => void
 }
 
 /** Owner share of the resident composer bar. */
@@ -445,6 +450,12 @@ export interface HeroBrandMarkOwnerProps {
   size: number
   /** Host class preserving the surrounding mark geometry. */
   className?: string | undefined
+}
+
+/** Owner share for optional product copy beneath the shared Hero title. */
+export interface HeroBrandTaglineOwnerProps {
+  /** Marker field: the occupant owns its localized content. */
+  children?: never
 }
 
 /** Full props of the resident optional-Session Conversation shell. */

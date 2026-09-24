@@ -24,8 +24,8 @@ import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { MenuItemButton } from '@deepseek-ai/dsh-client-ui-primitives'
 import { apply, inject } from '@deepseek-ai/dsh-client-ui-workspace/client'
 
-// The service reads its initial locale from the browser; these specs assert
-// the shipped Chinese copy, so they state the browser they assume.
+// The service reads its initial locale from the browser; an unsupported
+// browser language must resolve to the shipped English locale.
 usePinnedBrowserLanguages('zh-CN')
 
 const SID = 's1' as SessionId
@@ -165,16 +165,16 @@ describe('session rename through the assembled browser', () => {
     expect(view.queryByRole('menu')).toBeNull()
 
     // The dialog seeds from the current title; submit a padded value.
-    const input = await view.findByLabelText('会话名称') as HTMLInputElement
+    const input = await view.findByLabelText('Session name') as HTMLInputElement
     expect(input.value).toBe('旧标题')
     fireEvent.change(input, { target: { value: '  分叉  实验记录  ' } })
-    fireEvent.click(view.getByRole('button', { name: '重命名' }))
+    fireEvent.click(view.getByRole('button', { name: 'Rename' }))
 
     // The injected hop reached the session face with the edge-trimmed draft
     // (the dialog trims edges; interior normalization is host-side).
     await waitFor(() => { expect(rename).toHaveBeenCalledWith('分叉  实验记录') })
     // Acceptance closes the dialog without any push-frame wait.
-    await waitFor(() => { expect(view.queryByLabelText('会话名称')).toBeNull() })
+    await waitFor(() => { expect(view.queryByLabelText('Session name')).toBeNull() })
     // The manager lands the unary echo in the list store (its own package
     // tests own that hop); the row re-labels from list state alone.
     await runtime.sessions.updateSummary(SID, { displayTitle: '分叉 实验记录', title: '分叉 实验记录' })
@@ -201,17 +201,17 @@ describe('session rename through the assembled browser', () => {
     await runtime.flush()
 
     const row = (await view.findByText('旧标题')).closest('[role="treeitem"]')!
-    fireEvent.click(within(row as HTMLElement).getByLabelText('会话“旧标题”的操作'))
-    fireEvent.click(view.getByRole('menuitem', { name: '重命名', hidden: true }))
-    const input = await view.findByLabelText('会话名称')
+    fireEvent.click(within(row as HTMLElement).getByLabelText('Session actions for 旧标题'))
+    fireEvent.click(view.getByRole('menuitem', { name: 'Rename', hidden: true }))
+    const input = await view.findByLabelText('Session name')
     fireEvent.change(input, { target: { value: '新名' } })
-    fireEvent.click(view.getByRole('button', { name: '重命名' }))
+    fireEvent.click(view.getByRole('button', { name: 'Rename' }))
 
     // Failure: the injected hop rethrows the business error; the dialog
     // stays open with the alert and the row keeps its title.
     const alert = await view.findByRole('alert')
     expect(alert.textContent).toContain('title write failed')
-    expect(view.getByLabelText('会话名称')).toBeTruthy()
+    expect(view.getByLabelText('Session name')).toBeTruthy()
     expect(view.getByText('旧标题')).toBeTruthy()
     await runtime.dispose()
   })

@@ -7,6 +7,7 @@ import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os'
 import { join, parse } from 'node:path'
 import { isPathUnder } from '../src/containment.ts'
+import { symlinksUsable } from '@deepseek-ai/dsh-platform-probe'
 
 let base: string
 
@@ -30,7 +31,8 @@ describe('filesystem sandbox containment', () => {
     expect(await isPathUnder(join(base, 'case-sensitive-child'), base, true)).toBe(true)
   })
 
-  it('recognizes an alias-equivalent root by filesystem identity for a missing target', async () => {
+  // A real symbolic link needs Developer Mode or SeCreateSymbolicLinkPrivilege on Windows.
+  it.skipIf(!symlinksUsable())('recognizes an alias-equivalent root by filesystem identity for a missing target', async () => {
     const realRoot = join(base, 'real')
     const aliasRoot = join(base, 'alias')
     await mkdir(realRoot)

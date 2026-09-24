@@ -122,6 +122,7 @@ root
 │  │  ├─ sidebar.workspaces.session.menu.item
 │  │  └─ sidebar.workspaces.session.row.action
 │  └─ sidebar.settings
+│     ├─ settings.launcher
 │     ├─ settings.trigger
 │     ├─ settings.header
 │     ├─ settings.action

@@ -132,6 +132,8 @@ The keyless [CI workflow](../.github/workflows/ci.yml) groups independent gates 
 
 The credential-free dsh dependency-layout and dsh/vendor pack rehearsals use the existing Linux self-hosted pool only when `DSH_CI_FAILOVER_LINUX=selfhosted` and the event is a trusted master push or same-repository, non-fork, non-Dependabot pull request. All other cases, including manual dispatch, use `ubuntu-24.04`; manual publication stays hosted. See the [release rehearsal runner decision](../.agents/notes/implemented/process/2026-09-06-release-rehearsal-selfhosted.md) for persistent-store isolation and fallback limits.
 
+Every release member declares its source home in `package.json` `repository`. A package with an upstream counterpart names the published upstream repository; a package whose source exists only in this fork names the fork, because naming upstream would point consumers at a repository that does not contain it. [`check-workspace-constraints.ts`](../scripts/check-workspace-constraints.ts) holds that category list explicitly and requires the exact URL for whichever category a package belongs to, so a missing, malformed, unrelated, or cross-category URL fails rather than passing as an exception.
+
 ### Daily commands
 
 The root [contributor instructions](../AGENTS.md#commands) summarize common commands, while [`package.json`](../package.json) and [scripts/run-gates.ts](../scripts/run-gates.ts) own the current script and gate inventories. Select the smallest checks that cover the changed surface. Documentation changes use `pnpm run doc-sync`; package-public behavior changes also update the owning README or JSDoc, and built-artifact checks require `pnpm run build` first.

@@ -1,0 +1,30 @@
+# Keyless twin of commandcode-delegation.cordis.yml: keep the delegation plugin
+# and its deterministic CLI stand-in, and replace only the external model
+# adapter. The model script is the scenario's replay override.
+- id: llm-deepseek
+  name: '@deepseek-ai/dsh-llm-deepseek'
+  disabled: true
+
+# The replay adapter is a test-support package, so the shipped inventory cannot
+# resolve it as an active product package.
+- id: plugin-package-inventory-deepseek
+  disabled: true
+
+- insert:
+    # Mounted first so its spawn wrapper is in place before the plugin's own
+    # probe and run paths could start a process.
+    - id: commandcode-fake-cli
+      name: '../../../packages/subagent/subagent-commandcode/tests/fixtures/loader/fake-cli.ts'
+
+    - id: llm-replay
+      name: '@deepseek-ai/dsh-llm-replay'
+      config:
+        providers:
+          - id: deepseek-official
+            name: DeepSeek
+            models:
+              - id: deepseek-v4-flash
+              - id: deepseek-v4-pro
+
+    - id: commandcode-delegation
+      name: '@deepseek-ai/dsh-subagent-commandcode'

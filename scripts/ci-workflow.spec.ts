@@ -10,6 +10,19 @@ function evaluateRunsOn(selector: unknown, context: Record<string, unknown>): un
 }
 
 const root = resolve(import.meta.dirname, '..')
+/**
+ * The condition every inherited master-push job carries in this fork.
+ *
+ * `.github/AGENTS.md` and
+ * `.agents/notes/implemented/process/2026-09-09-custom-harness-fork-ci.md` own
+ * that policy: the upstream jobs keep their definitions so an upstream merge
+ * can still be diagnosed, but they run automatically only when the repository
+ * variable opts in, because their API secrets, self-hosted runners, and
+ * multi-platform maintenance are not provisioned here. The gate is part of the
+ * condition, so a job that loses it would start running unprovisioned.
+ */
+const masterPush = "vars.CUSTOM_HARNESS_RUN_UPSTREAM_CI == 'true'"
+  + " && github.event_name == 'push' && github.ref == 'refs/heads/master'"
 const runnerPrivatePnpmDestination = /^\$\{\{ runner\.temp \}\}\/setup-pnpm-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}$/
 const nativeWindowsPnpmDestination = '${{ runner.temp }}/setup-pnpm-js-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}'
 
@@ -284,7 +297,7 @@ describe('CI workflow', () => {
     expect(report?.run).toContain('Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append')
 
     // serial-windows: master-only standby, self-hosted, non-blocking, lives in ci-master.
-    expect(serialWindows.if).toBe("github.event_name == 'push' && github.ref == 'refs/heads/master'")
+    expect(serialWindows.if).toBe(masterPush)
     expect(serialWindows['runs-on']).toEqual(['self-hosted', 'dsh-win-ci', 'windows'])
     expect(serialWindows.name).toBe('serial / windows (self-hosted standby)')
     // Its store must share the ReFS workspace volume for clone; the install

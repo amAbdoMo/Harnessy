@@ -18,6 +18,7 @@ import {
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { performance } from 'node:perf_hooks'
+import { symlinksUsable } from '@deepseek-ai/dsh-platform-probe'
 import {
   JsonlGenerationSourceChangedError,
   JsonlGenerationTargetConflictError,
@@ -1240,7 +1241,8 @@ describe('JSONL immutable generation publication', () => {
     expect(await readFile(expected, 'utf8')).toBe(line(header(SESSION_FORMAT_VERSION)) + line(event0))
   })
 
-  it.each(['different', 'malformed', 'symlink', 'directory'] as const)(
+  // A real symbolic link needs Developer Mode or SeCreateSymbolicLinkPrivilege on Windows.
+  it.skipIf(!symlinksUsable()).each(['different', 'malformed', 'symlink', 'directory'] as const)(
     'fails loud without altering a colliding %s target',
     async (kind) => {
       const root = await tempRoot()

@@ -21,6 +21,7 @@ interface ChatNodeSeatProps extends ChatNodeOwnerProps {
   readonly actions: ChatViewSlotProps['actions']
   readonly renderSlot: ChatViewSlotProps['renderSlot']
   readonly t: ChatViewSlotProps['t']
+  readonly activityHidden?: boolean
 }
 
 type RoutedChatNodeOwner = {
@@ -146,6 +147,7 @@ export const ChatNodeSeat = memo(function ChatNodeSeat({
   return (
     <div
       ref={wrapperRef}
+      hidden={processHidden || undefined}
       className={css.flowItem}
       data-chat-anchor-key={flowKey}
       data-chat-flow-key={flowKey}

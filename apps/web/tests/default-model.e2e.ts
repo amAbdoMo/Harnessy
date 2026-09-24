@@ -105,8 +105,7 @@ describe('web e2e: the composer model switch is the default for later sessions',
     const trigger = page.getByRole('button', { name: /^选择模型/ })
     await trigger.waitFor({ timeout: 15_000 })
     await trigger.click()
-    await page.getByRole('menuitem', { name: /模型/ }).click()
-    await page.getByRole('menuitemradio', { name: 'Acme Large' }).click()
+    await page.getByRole('option', { name: /Acme Large/ }).dblclick()
 
     // The switch is what sets the default: the shared Agent-route settings section
     // now names it, beside the provider profiles the Models page writes.
@@ -154,8 +153,7 @@ describe('web e2e: the composer model switch is the default for later sessions',
     const seat = page.getByRole('button', { name: /^选择模型/ })
     expect(await seat.isEnabled()).toBe(true)
     await seat.click()
-    await page.getByRole('menuitem', { name: /模型/ }).click()
-    await page.getByRole('menuitemradio').first().click()
+    await page.getByRole('listbox', { name: '可用模型' }).getByRole('option').first().dblclick()
     await expect.poll(async () => box.isEnabled(), { timeout: 15_000 }).toBe(true)
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)

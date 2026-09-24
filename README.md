@@ -1,46 +1,82 @@
-# DeepSeek Harness
+# Harnessy
 
-English | [中文](README.zh.md)
+Harnessy is a personal Windows desktop AI harness maintained by [amAbdoMo](https://github.com/amAbdoMo). It is built from [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) and keeps the upstream plugin-based runtime while providing independent branding, isolated application data, and a compact Windows installer.
 
-DeepSeek Harness (`dsh`) is an open-source agent harness developed by [DeepSeek AI](https://deepseek.com).
+This repository is the source-code backup and version history for the customized application. Stable versions are published as installers under [GitHub Releases](https://github.com/amAbdoMo/Harnessy/releases).
 
-It is built on an **everything-is-a-plugin** architecture and powered by [Cordis](https://github.com/cordiverse/cordis), whose design is described in [_A Programming Paradigm for Spatiotemporal Composability_](https://arxiv.org/abs/2608.25512).
+## Project goals
 
-Documentation: [https://deepseek-harness.github.io/deepseek-harness/](https://deepseek-harness.github.io/deepseek-harness/)
+- Preserve the desktop harness features and UI used by the personal build.
+- Install and launch like a normal Windows application without a terminal window.
+- Keep Harnessy data separate from other Harness installations.
+- Support browser-based OpenAI account sign-in for Codex models without requiring an API key.
+- Share personal skills with other compatible agents through a user-selectable folder.
+- Connect reusable local or remote MCP tool servers from a visual manager.
+- Record each source adjustment in Git and provide restorable installers for stable versions.
+- Keep upstream DeepSeek Harness available as a source of compatible fixes and improvements.
 
-## Developer preview
+<a id="run"></a>
 
-DeepSeek Harness is in _developer preview_ and iterating rapidly. **THERE WILL BE COMPATIBILITY-BREAKING CHANGES.**
+## Install on Windows
 
-Review the [safety notice](SAFETY.md) before running the project.
+The personal Harnessy release currently targets Windows x64.
 
-## Run
+1. Open the [latest release](https://github.com/amAbdoMo/Harnessy/releases/latest).
+2. Download the `Harnessy-Setup-*-win-x64.exe` asset.
+3. Run the installer and choose an installation directory when prompted.
+4. Launch **Harnessy** after installation.
 
-### Run from `npm`
+The personal installer is not code-signed, so Windows SmartScreen may display a warning. Confirm that the installer came from this repository's Releases page before running it.
 
-Install `Node.js`, then run:
+## Use the application
 
-```sh
-npx @deepseek-ai/dsh web
+Open **Settings > Models** to configure a provider. For Codex models, use **Sign in with OpenAI** and complete authentication in your default browser; Harnessy activates the OpenAI Codex model route after the callback succeeds. The local browser result page uses Harnessy's identity while the provider authorization and token exchange remain unchanged. API-key providers remain available separately.
+
+OpenAI account sign-in uses the existing Codex OAuth flow described in the [official authentication documentation](https://learn.chatgpt.com/docs/auth). The resulting grant stays in the local Harnessy credential store and is not committed to this repository.
+
+Application state is stored under `%LOCALAPPDATA%\CustomHarness`. Installing a newer Harnessy version uses the same product data directory; source code and installers do not contain your local sessions or credentials.
+
+Harnessy scans `%USERPROFILE%\.agents\skills` by default so the same personal skills can be used by Harnessy, Codex, Pi, and other compatible agents. Open **Settings > General > Shared skills folder** to turn this source on or off, choose another folder, or restore the default. Folder and skill-file changes are detected without restarting the application; project-specific `.agents\skills` and `.dsh\skills` folders still take priority when a skill name overlaps.
+
+Open **Settings > MCP Servers** to add a remote HTTPS MCP service or a local stdio command. Harnessy saves authentication in its protected local credential store, shows live connection state and discovered tool names, and makes enabled servers available to every session automatically. Use **Test connection** after editing a server; disable or remove it to unregister its tools.
+
+Harnessy does not currently check for or install updates automatically. Install a newer version from GitHub Releases when one is published.
+
+## Version and backup flow
+
+Git commits preserve individual source changes. A version tag identifies each stable snapshot, and the matching GitHub Release carries its Windows installer. This keeps development history separate from the smaller set of versions intended for installation.
+
+Personal application data is not committed to GitHub. Back up `%LOCALAPPDATA%\CustomHarness` separately when you need a copy of local sessions and settings, and protect any credentials stored there.
+
+<a id="run-from-source"></a>
+
+## Build a personal installer
+
+Building requires Windows x64, Node.js 24, and pnpm 11.7.0.
+
+```powershell
+git clone https://github.com/amAbdoMo/Harnessy.git
+cd Harnessy
+pnpm install --frozen-lockfile
+pnpm run package:desktop:win:x64:local
 ```
 
-The command starts the Web UI at `http://127.0.0.1:3080` by default and opens it in the default browser for a local launch. An SSH launch only prints the host URL because the SSH client or editor owns the local forwarded address. Pass `--no-open` to run the server without opening a browser. See [Web UI guide](docs/user/guide/index.md).
+The unsigned installer is written to `apps/desktop/.desktop-build/targets/win-x64/artifacts/`. Build outputs and installed dependencies are intentionally excluded from Git so the repository remains a source backup rather than a copy of generated files.
 
-### Run from source
+The upstream signed packaging commands remain separate and fail when the required signing credentials are unavailable. The `:local` command is the explicit path for this personal unsigned Windows build.
 
-To run from a repository checkout:
+## Development checks
 
-```sh
-git clone https://github.com/deepseek-ai/deepseek-harness.git
-cd deepseek-harness
-pnpm install
-pnpm run build
-pnpm dsh web
+For changes to the local Windows packaging path, run:
+
+```powershell
+pnpm exec tsc -b tsconfig.host.json --pretty false
+pnpm exec vitest run apps/desktop/tests/package-target.spec.ts apps/desktop/tests/macos-signature.spec.ts
 ```
 
-`pnpm run build` prepares the repository artifacts. `pnpm dsh web` uses those built artifacts without rebuilding.
+GitHub runs the same focused desktop checks on Windows for pushes and pull requests. Inherited upstream multi-platform, sandbox, and live-API workflows are disabled by default because they require DeepSeek's runners and secrets.
 
-## Community and support
+## Relationship to DeepSeek Harness
 
 - Submit feedback or bug reports through [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions).
 - Add the [`dsh-plugin`](https://github.com/topics/dsh-plugin) topic to your plugin repository for discoverability.
@@ -72,6 +108,4 @@ For agents, follow [AGENTS.md](AGENTS.md).
 
 ## License
 
-[MIT](LICENSE)
-
-Third-party dependencies and their licenses are disclosed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+The source remains available under the [MIT License](LICENSE). Third-party dependencies and their licenses are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

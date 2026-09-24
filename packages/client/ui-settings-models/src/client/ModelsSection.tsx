@@ -22,13 +22,14 @@
 
 import { useId, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Button, IconPlusOutlineRegular, Modal, SegmentedControl } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, IconPlusOutlineRegular, Modal, SegmentedControl, Select } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SettingsNamespaceView } from '@deepseek-ai/dsh-api-remotes/client'
+import type { SettingsSectionOwnerProps } from '@deepseek-ai/dsh-client-ui-settings/client'
 // Type-only: pulls this package's SlotMap merge (the two Models child slots).
 import type {} from './slot-contract.ts'
 import { CustomProviderCard } from './CustomProviderCard.tsx'
-import { deriveKeyRef, protocolChoices, providerUsable } from './store.ts'
+import { deriveKeyRef, protocolChoices, providerUsable, reasoningEffortChoices } from './store.ts'
 import type { ModelsSettingsStore, ProviderRow } from './store.ts'
 import type { ModelsOperations } from './operations.ts'
 import type { SettingsSchemaOperations } from './schema-operations.ts'
@@ -71,7 +72,9 @@ type ModelsRenderSlot = PropsRenderSlots<ModelsChildSlots>['renderSlot']
  * call itself — unlike the inject face it is never absent at runtime — and a
  * direct render that forgets it fails to compile instead of mounting nothing.
  */
-export type ModelsSectionProps = Partial<InjectFace<ModelsSectionInjected>> & PropsRenderSlots<ModelsChildSlots>
+export type ModelsSectionProps = Partial<InjectFace<ModelsSectionInjected>>
+  & PropsRenderSlots<ModelsChildSlots>
+  & SettingsSectionOwnerProps
 
 type ModelsSectionFace = InjectFace<ModelsSectionInjected>
 
@@ -108,7 +111,7 @@ interface CatalogDraft {
 /** Values that vary around the shared provider-editor rendering. */
 interface ProviderEditorRenderProps extends Pick<
   ProviderEditorProps,
-  'namespace' | 'schema' | 'operations' | 't' | 'readOnly' | 'onClose'
+  'namespace' | 'schema' | 'operations' | 'capability' | 't' | 'readOnly' | 'onClose'
 > {
   target: EditorTarget
 }
@@ -184,6 +187,16 @@ function keyConfiguredOf(row: ProviderRow): boolean {
     : row.derivedCredential?.configured === true
 }
 
+/** Provider rows exposed by one product profile. */
+export function visibleProviderRows(
+  rows: readonly ProviderRow[],
+  profile = process.env.DSH_CLIENT_BUILD_PROFILE,
+): readonly ProviderRow[] {
+  return profile === 'custom-harness'
+    ? rows.filter(row => row.entry.provider !== 'deepseek-official')
+    : rows
+}
+
 function targetOf(row: ProviderRow): EditorTarget {
   const managedRef = deriveKeyRef(row.entry.provider)
   const credentialRef = row.apiKeyEnv === managedRef
@@ -220,17 +233,28 @@ export function providerCopy(template: string, target: ProviderIdentity): string
  * @returns the section, or null while the shell has not injected yet.
  */
 export function ModelsSection(props: ModelsSectionProps): ReactNode {
-  const { controller, useSnapshot, operations, schema, t, renderSlot } = props
+  const { controller, useSnapshot, operations, schema, t, renderSlot, presentModal } = props
   if (
     controller === undefined || useSnapshot === undefined || operations === undefined
     || schema === undefined || t === undefined
+    // The injections above are `Partial`, so their checks are live; this one is
+    // defensive against a shell that delivers no owner props at all, which the
+    // owner contract rules out but a mis-composed seat would still reach.
+    // oxlint-disable-next-line typescript/no-unnecessary-condition -- defensive against a seat that injects nothing.
+    || presentModal === undefined
   ) return null
-  return <Loaded injected={{ controller, useSnapshot, operations, schema, t }} renderSlot={renderSlot} />
+  return <Loaded injected={{ controller, useSnapshot, operations, schema, t }}
+    renderSlot={renderSlot} presentModal={presentModal} />
 }
 
-function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderSlot: ModelsRenderSlot }): ReactNode {
+function Loaded({ injected, renderSlot, presentModal }: {
+  injected: ModelsSectionFace
+  renderSlot: ModelsRenderSlot
+  presentModal: ModelsSectionProps['presentModal']
+}): ReactNode {
   const { controller, operations, schema, t } = injected
   const state = injected.useSnapshot(snapshot => snapshot)
+  const rows = visibleProviderRows(state.rows)
   const [editing, setEditing] = useState<EditorTarget | undefined>(undefined)
   const [addOpen, setAddOpen] = useState(false)
   const [addMode, setAddMode] = useState<AddMode>('catalog')
@@ -327,7 +351,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
   // exists to name it with.
   const savedRow = savedTarget === undefined
     ? undefined
-    : state.rows.find(row => row.entry.provider === savedTarget.provider)
+    : rows.find(row => row.entry.provider === savedTarget.provider)
   const savedIdentity = savedRow === undefined
     ? savedTarget
     : { provider: savedRow.entry.provider, displayName: savedRow.entry.displayName }
@@ -411,6 +435,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                   namespace,
                   schema,
                   operations,
+                  capability: state.capabilities,
                   t,
                   readOnly: !state.writable,
                   onClose: (changed) => { closeSetup(changed, target) },
@@ -506,6 +531,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                   namespace,
                   schema,
                   operations,
+                  capability: state.capabilities,
                   t,
                   readOnly: !state.writable,
                   onClose: (changed) => { closeEditor(changed, target) },
@@ -568,22 +594,22 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                   >
                     <div className={styles['field']}>
                       <span className={styles['fieldLabel']}>{t('provider')}</span>
-                      <select
-                        className={`${styles['input']} ${styles['selectInput']}`}
+                      <Select
+                        className={styles['select']}
                         value={draft.target.provider}
-                        aria-label={t('provider')}
+                        label={t('provider')}
                         disabled={catalogBusy}
-                        onChange={(event) => {
-                          const picked = addable.find(candidate => candidate.row.entry.provider === event.target.value)
-                          /* v8 ignore next -- the select only lists addable rows */
+                        options={addable.map(({ row }) => ({
+                          value: row.entry.provider,
+                          label: row.entry.displayName,
+                        }))}
+                        onChange={(value) => {
+                          const picked = addable.find(candidate => candidate.row.entry.provider === value)
+                          /* v8 ignore next -- the control only lists addable rows */
                           if (picked === undefined) return
                           setEditing(targetOf(picked.row))
                         }}
-                      >
-                        {addable.map(({ row }) => (
-                          <option key={row.entry.provider} value={row.entry.provider}>{row.entry.displayName}</option>
-                        ))}
-                      </select>
+                      />
                     </div>
                     <ProviderEditor
                       key={draft.target.provider}
@@ -620,6 +646,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                     <CustomProviderCard
                       taken={state.rows.map(row => row.entry.provider)}
                       protocols={protocols}
+                      efforts={reasoningEffortChoices(piAi, schema)}
                       revision={piAi.revision}
                       operations={operations}
                       t={t}
@@ -661,7 +688,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
             )
             : null}
       </div>
-      {renderSlot('settings.models.footer', {})}
+      {renderSlot('settings.models.footer', { presentModal })}
       <Modal
         open={deleteTarget !== undefined}
         onClose={closeDelete}

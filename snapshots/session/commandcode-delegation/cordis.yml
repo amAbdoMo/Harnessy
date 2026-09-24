@@ -1,0 +1,12 @@
+# Test-only composition for the Command Code delegation surface. The shipped
+# headless profile owns application startup; this patch mounts Harnessy's
+# delegation plugin behind a deterministic stand-in for the user's installed
+# CLI, so the same composition records or replays without the real product.
+- insert:
+    # Mounted first so its spawn wrapper is in place before the plugin's own
+    # probe and run paths could start a process.
+    - id: commandcode-fake-cli
+      name: '../../../packages/subagent/subagent-commandcode/tests/fixtures/loader/fake-cli.ts'
+
+    - id: commandcode-delegation
+      name: '@deepseek-ai/dsh-subagent-commandcode'

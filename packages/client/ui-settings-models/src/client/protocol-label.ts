@@ -1,7 +1,7 @@
 /**
  * Product names for the wire protocols a pi-ai route may speak. The pickers
  * show these instead of the schema identifiers (`openai-completions`), which
- * are what `settings.yaml` carries and what the option values stay.
+ * are what the profile configuration carries and what the option values stay.
  */
 
 import type { ModelsKey } from './locales.ts'
@@ -19,7 +19,7 @@ const PROTOCOL_LABEL_KEYS: Readonly<Record<string, ModelsKey>> = {
  * @param protocol - the schema identifier of the protocol.
  * @returns the product name this page knows the protocol by; a protocol the
  * adapter adds before this page names it shows its identifier, the spelling
- * `settings.yaml` needs anyway.
+ * the profile configuration needs anyway.
  */
 export function protocolLabel(t: (key: ModelsKey) => string, protocol: string): string {
   const key = PROTOCOL_LABEL_KEYS[protocol]

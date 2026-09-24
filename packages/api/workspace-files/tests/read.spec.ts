@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mkdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { FsError } from '@deepseek-ai/dsh-fs'
+import { symlinksUsable } from '@deepseek-ai/dsh-platform-probe'
 import { failureOf, openWorkspace, signal, type Harness } from './harness.ts'
 
 let harness: Harness
@@ -148,7 +149,8 @@ describe('workspaceFiles.read — read access and file kinds', () => {
     await expect(endpoint().read(harness.scope, join(outside, 'notes.txt'), {}, signal())).rejects.toBe(refusal)
   })
 
-  it('rejects a symlink that points out of the workspace — the case a prefix test cannot see', async () => {
+  // A real symbolic link needs Developer Mode or SeCreateSymbolicLinkPrivilege on Windows.
+  it.skipIf(!symlinksUsable())('rejects a symlink that points out of the workspace — the case a prefix test cannot see', async () => {
     await writeFile(join(outside, 'secret.txt'), 'no', 'utf8')
     // The path itself is inside the workspace and would pass any string
     // comparison; only lstat (before the follow) or realpath containment catches it.
@@ -158,7 +160,8 @@ describe('workspaceFiles.read — read access and file kinds', () => {
     expect(failure.details).toMatchObject({ kind: 'symlink' })
   })
 
-  it('rejects a symlink even when it points back inside the workspace', async () => {
+  // A real symbolic link needs Developer Mode or SeCreateSymbolicLinkPrivilege on Windows.
+  it.skipIf(!symlinksUsable())('rejects a symlink even when it points back inside the workspace', async () => {
     await writeFile(join(workspace, 'real.txt'), 'fine', 'utf8')
     await symlink(join(workspace, 'real.txt'), join(workspace, 'alias.txt'))
     const failure = await failureOf(endpoint().read(harness.scope, 'alias.txt', {}, signal()))

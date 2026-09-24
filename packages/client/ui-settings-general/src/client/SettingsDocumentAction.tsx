@@ -26,14 +26,14 @@ export type SettingsDocumentActionProps =
  * @param props - header owner props, localized copy, and injected document state.
  * @returns the action, or null while unavailable or unresolved.
  */
-export function SettingsDocumentAction({ controller, useSnapshot, t }: SettingsDocumentActionProps): ReactNode {
+export function SettingsDocumentAction({ activeSectionId, controller, useSnapshot, t }: SettingsDocumentActionProps): ReactNode {
   const state = useSnapshot(snapshot => snapshot)
 
   useEffect(() => {
     void controller.load()
   }, [controller])
 
-  if (state.status !== 'ready') return null
+  if (state.status !== 'ready' || activeSectionId === 'custom-harness-mcp') return null
 
   return (
     <div className={css.action}>

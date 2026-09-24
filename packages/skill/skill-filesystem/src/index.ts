@@ -13,10 +13,11 @@ import { access, lstat, readdir, readFile, realpath, stat } from 'node:fs/promis
 import { unwatchFile, watchFile, type Stats } from 'node:fs'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { homedir } from 'node:os'
-import type { Context } from '@deepseek-ai/cordis'
+import type { Context, Volatile } from '@deepseek-ai/cordis'
 import chokidar from 'chokidar'
 import z from '@deepseek-ai/schemastery'
 import type Schema from '@deepseek-ai/schemastery'
+import type {} from '@deepseek-ai/dsh-settings'
 import { parse as parseYaml } from 'yaml'
 import type { FileSystem, FsDirEntry, FsTarget } from '@deepseek-ai/dsh-fs'
 import { canonicalizeWatchPath, resolveDshHome } from '@deepseek-ai/dsh-home-paths'
@@ -46,7 +47,7 @@ export const name = 'skill-filesystem'
 export const inject = ['skills']
 
 /** Local filesystem skill provider configuration. */
-export interface Config {
+interface BaseConfig {
   /** Unique provider name. Defaults to `filesystem`. */
   providerName?: string
   /** Whether project and user roots are included around custom roots. */
@@ -73,12 +74,33 @@ export interface Config {
   bundledSkillDir?: string
 }
 
-export const Config: Schema<Config> = z.object({
+/** Runtime configuration with live settings references. */
+export interface Config extends BaseConfig {
+  /** Whether the optional settings-managed skill root participates in discovery. */
+  enabled: Volatile<boolean>
+  /** Settings-managed absolute host directory containing compatible skills. */
+  directory: Volatile<string | undefined>
+}
+
+/** Plain values accepted by direct embedders and tests. */
+export interface Options extends BaseConfig {
+  /** Whether the optional settings-managed skill root participates in discovery. */
+  enabled?: boolean
+  /** Settings-managed absolute host directory containing compatible skills. */
+  directory?: string
+}
+
+/** Live plugin configuration or plain options supplied by direct embedders. */
+export type SkillFilesystemConfig = Config | Options
+
+export const Config = z.object({
   providerName: z.string().min(1).default('filesystem'),
   includeDefaultRoots: z.boolean().default(true),
   dshHome: z.string(),
   agentsHome: z.string(),
   customSkillDirs: z.array(z.string()).default([]),
+  enabled: z.boolean().default(true).volatile(),
+  directory: z.string().min(1).volatile(),
   watch: z.boolean().default(true),
   watchUsePolling: z.boolean().default(false),
   watchStabilityThresholdMs: z.number().default(DEFAULT_WATCH_STABILITY_THRESHOLD_MS),
@@ -130,15 +152,53 @@ interface ResolvedWatchConfig {
   followSymlinks: boolean
 }
 
+/** Durable settings section for one user-selectable custom skill root. */
+export interface ManagedSkillRootSettings {
+  /** Whether this root participates in discovery. */
+  enabled: boolean
+  /** Absolute host directory containing flat skills or skill bundles. */
+  directory: string
+}
+
+/** Schema shared by the managed-root Host registration and settings transport. */
+export const ManagedSkillRootSettingsSchema: Schema<ManagedSkillRootSettings> = z.object({
+  enabled: z.boolean().default(true),
+  directory: z.string().min(1).required(),
+})
+
+function managedRootEntry(config: Config | Options): ManagedSkillRootSettings | undefined {
+  const directory = typeof config.directory === 'object' ? config.directory.get() : config.directory
+  if (directory === undefined) return undefined
+  if (!isAbsolute(directory)) throw new TypeError('skill-filesystem directory must be absolute when set')
+  const enabled = typeof config.enabled === 'object' ? config.enabled.get() : config.enabled
+  return { enabled: enabled ?? true, directory: resolve(directory) }
+}
+
+function effectiveCustomSkillDirs(
+  configured: readonly string[], managed: ManagedSkillRootSettings | undefined,
+): string[] {
+  const paths = [...configured, ...(managed?.enabled === true ? [managed.directory] : [])]
+  return [...new Set(paths.map(path => resolve(path)))]
+}
+
 /** Register the local filesystem skill provider on `ctx.skills`. */
-export function apply(ctx: Context, config: Config = {}): void {
+export function apply(ctx: Context, config: SkillFilesystemConfig = {}): void {
+  const configuredRoots = config.customSkillDirs ?? []
+  const entry = managedRootEntry(config)
   let provider!: FileSystemSkillProvider
   ctx.skills.registerProvider((control) => {
-    provider = new FileSystemSkillProvider(ctx, control, config)
+    provider = new FileSystemSkillProvider(ctx, control, config, effectiveCustomSkillDirs(configuredRoots, entry))
     return provider
   })
+  if (entry !== undefined) ctx.inject(['settings'], settingsCtx => settingsCtx.effect(
+    () => settingsCtx.settings.configure({ auto: false }, ctx.fiber),
+    'skill-filesystem managed-root settings presentation',
+  ))
+
   ctx.effect(function* () {
-    yield async () => { await provider.dispose() }
+    yield async () => {
+      await provider.dispose()
+    }
   }, 'skill-filesystem watcher')
   ctx.on('fs/observed', (target, _observation, actor) => {
     if (mutationToolName(actor) === undefined) return
@@ -160,13 +220,14 @@ export class FileSystemSkillProvider implements SkillProvider {
   constructor(
     private readonly ctx: Context,
     control: SkillProviderControl,
-    config: Config = {},
+    config: BaseConfig = {},
+    customSkillDirs: readonly string[] = config.customSkillDirs ?? [],
   ) {
     this.name = config.providerName ?? 'filesystem'
     this.includeDefaultRoots = config.includeDefaultRoots ?? true
     this.dshHome = resolveDshHome(config.dshHome)
     this.agentsHome = resolve(config.agentsHome ?? process.env.DSH_AGENTS_HOME ?? join(homedir(), '.agents'))
-    this.customSkillDirs = (config.customSkillDirs ?? []).map(root => resolve(root))
+    this.customSkillDirs = customSkillDirs.map(root => resolve(root))
     this.watchManager = new SkillWatchManager(ctx, control.invalidate, resolveWatchConfig(config))
     control.signal.addEventListener('abort', () => { void this.dispose() }, { once: true })
     // The environment bundled root is a default root: an isolated provider
@@ -609,7 +670,7 @@ async function settleWatcherOpening(opening: Promise<void> | undefined): Promise
   }
 }
 
-function resolveWatchConfig(config: Config): ResolvedWatchConfig {
+function resolveWatchConfig(config: BaseConfig): ResolvedWatchConfig {
   const stabilityThresholdMs = config.watchStabilityThresholdMs ?? DEFAULT_WATCH_STABILITY_THRESHOLD_MS
   const pollIntervalMs = config.watchPollIntervalMs ?? DEFAULT_WATCH_POLL_INTERVAL_MS
   const maxProjects = config.watchMaxProjects ?? DEFAULT_WATCH_MAX_PROJECTS

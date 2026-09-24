@@ -78,6 +78,16 @@
     },
     {
       "doc": "docs/subsystems/llm-streaming.md",
+      "symbol": "LlmModelCapability",
+      "source": "packages/llm/llm/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/llm-streaming.md",
+      "symbol": "LlmModelCapabilityLookup",
+      "source": "packages/llm/llm/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/llm-streaming.md",
       "symbol": "LlmModelContext",
       "source": "packages/llm/llm/src/types.ts"
     },
@@ -869,7 +879,7 @@
     {
       "doc": "docs/subsystems/tools.md",
       "symbol": "ToolRestriction",
-      "source": "packages/core/tools/src/index.ts"
+      "source": "packages/core/tools/src/types.ts"
     },
     {
       "doc": "docs/subsystems/tools.md",
@@ -1164,12 +1174,12 @@
     {
       "doc": "docs/subsystems/sandbox.md",
       "symbol": "SandboxMode",
-      "source": "packages/sandbox/sandbox/src/index.ts"
+      "source": "packages/sandbox/sandbox/src/types.ts"
     },
     {
       "doc": "docs/subsystems/sandbox.md",
       "symbol": "ConfinedSandboxMode",
-      "source": "packages/sandbox/sandbox/src/index.ts"
+      "source": "packages/sandbox/sandbox/src/types.ts"
     },
     {
       "doc": "docs/subsystems/sandbox.md",

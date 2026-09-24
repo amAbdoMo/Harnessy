@@ -27,7 +27,7 @@ it('ignores a late catalog response after the provider changes', async () => {
   const onChange = vi.fn()
   const props = {
     models: [{ id: 'm' }], onChange, operations: actions,
-    disabled: false, t: (key: keyof typeof en) => en[key], onBusyChange: () => {},
+    disabled: false, t: (key: keyof typeof en) => en[key], onBusyChange: () => {}, efforts: [], catalogServed: false,
   }
   const { rerender } = render(<ModelListEditor {...props} catalogProvider="old" probe={{ settingsNs: 'llm-pi-ai', provider: 'old' }} />)
   fireEvent.click(screen.getByRole('button', { name: `${en.modelAdvanced} 1` }))
@@ -45,7 +45,7 @@ it('uses provider input defaults for a model absent from the installed catalog',
   render(<ModelListEditor
     models={[{ id: 'custom' }]} onChange={onChange} defaultInput={['image']} catalogProvider="openai"
     probe={{ settingsNs: 'llm-pi-ai', provider: 'openai' }} disabled={false} t={key => en[key]} onBusyChange={() => {}}
-    operations={operations(() => Promise.resolve({ kind: 'found', models: [] }))}
+    operations={operations(() => Promise.resolve({ kind: 'found', models: [] }))} efforts={[]} catalogServed={false}
   />)
   fireEvent.click(screen.getByRole('button', { name: `${en.modelAdvanced} 1` }))
   const text = screen.getByRole<HTMLInputElement>('checkbox', { name: en.modelInputText })
@@ -60,7 +60,7 @@ it('inherits catalog inputs once an incomplete draft has a model id', async () =
   const props = {
     onChange, catalogProvider: 'openai',
     probe: { settingsNs: 'llm-pi-ai', provider: 'openai' },
-    disabled: false, t: (key: keyof typeof en) => en[key], onBusyChange: () => {},
+    disabled: false, t: (key: keyof typeof en) => en[key], onBusyChange: () => {}, efforts: [], catalogServed: false,
     operations: operations(() => Promise.resolve({
       kind: 'found', models: [{ id: 'vision', inputModalities: ['text', 'image'] }],
     })),
@@ -90,7 +90,7 @@ it('restores inherited image input after a failed catalog read is retried manual
   render(<ModelListEditor
     models={[{ id: 'vision' }]} onChange={onChange} catalogProvider="openai"
     probe={{ settingsNs: 'llm-pi-ai', provider: 'openai' }} disabled={false} t={key => en[key]} onBusyChange={() => {}}
-    operations={operations(discover)}
+    operations={operations(discover)} efforts={[]} catalogServed={false}
   />)
   await screen.findByText('Catalog unavailable')
   fireEvent.click(screen.getByRole('button', { name: `${en.modelAdvanced} 1` }))

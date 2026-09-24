@@ -9,6 +9,7 @@ import { gfmFromMarkdown } from 'mdast-util-gfm'
 import { gfm } from 'micromark-extension-gfm'
 import type { Nodes } from 'mdast'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { symlinksUsable } from '@deepseek-ai/dsh-platform-probe'
 import { cleanDocSiteOutput, docSiteBuildOptions } from '../website/build.ts'
 import { docsPages, landingLink, routeLink, sectionSpec, type DocsPage } from '../website/docs.ts'
 import {
@@ -150,7 +151,8 @@ describe('publishableImage', () => {
     expect(publishableImage(join(root, 'packages/logo.svg'), realpathSync(root))).toBe(real)
   })
 
-  it('refuses a target whose real path escapes the repository', () => {
+  // A real symbolic link needs Developer Mode or SeCreateSymbolicLinkPrivilege on Windows.
+  it.skipIf(!symlinksUsable())('refuses a target whose real path escapes the repository', () => {
     // Publication copies the bytes onto the site, so a reference reaching a
     // build-machine file must not be treated as an image the repository owns.
     const { root } = fixture()

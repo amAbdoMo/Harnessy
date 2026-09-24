@@ -9,7 +9,7 @@ import type {
 } from '@deepseek-ai/dsh-api-remotes/client'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import {
-  ModelsSection, needsSetup, providerCopy, providerTargetLabel, removeProviderProfile,
+  ModelsSection, needsSetup, providerCopy, providerTargetLabel, removeProviderProfile, visibleProviderRows,
 } from '../src/client/ModelsSection.tsx'
 import type { ModelsSectionInjected, ModelsSectionProps } from '../src/client/ModelsSection.tsx'
 import { pathOps } from '../src/client/ProviderEditor.tsx'
@@ -27,11 +27,43 @@ import { settingsSchema } from './settings-schema.client.ts'
 
 afterEach(cleanup)
 
+/** The label one control currently shows on its trigger. */
+function shownValue(control: HTMLElement): string {
+  return control.textContent ?? ''
+}
+
+/** The option labels one control offers, read from its opened popup. */
+function optionLabels(control: HTMLElement): string[] {
+  fireEvent.click(control)
+  const labels = screen.getAllByRole('option').map(option => option.textContent ?? '')
+  fireEvent.keyDown(control, { key: 'Escape' })
+  return labels
+}
+
+/** Pick the option whose visible label is `label`. */
+function pickOption(control: HTMLElement, label: string): void {
+  fireEvent.click(control)
+  fireEvent.click(screen.getByRole('option', { name: label }))
+}
+
 const t: ModelsSectionInjected['t'] = key => en[key]
 const OPENAI_TARGET = { provider: 'openai', displayName: 'openai' }
 const openaiCopy = (template: string): string => providerCopy(template, OPENAI_TARGET)
 const DEEPSEEK_TARGET = { provider: 'deepseek-official', displayName: 'DeepSeek' }
 const deepSeekCopy = (template: string): string => providerCopy(template, DEEPSEEK_TARGET)
+
+describe('product provider visibility', () => {
+  it('omits the stock DeepSeek route only from Harnessy', () => {
+    const rows = [
+      { entry: { provider: 'deepseek-official' } },
+      { entry: { provider: 'openai-codex' } },
+    ] as ProviderRow[]
+    expect(visibleProviderRows(rows, 'custom-harness').map(row => row.entry.provider))
+      .toEqual(['openai-codex'])
+    expect(visibleProviderRows(rows, 'official').map(row => row.entry.provider))
+      .toEqual(['deepseek-official', 'openai-codex'])
+  })
+})
 
 /** Open one row's capacity disclosure (1-based, as the labels read). */
 function expandRow(position: number): void {
@@ -190,6 +222,9 @@ function scriptedFace(overrides: {
       update,
       mutate,
     },
+    modelCapabilities: {
+      inspect: () => Promise.resolve(remoteOk([])),
+    },
     credentials: {
       // Typed as the Remote answer rather than the success branch alone: a
       // case that scripts a refusal replaces this mock.
@@ -246,6 +281,11 @@ function stubRenderSlot() {
   return vi.fn((..._call: RenderSlotCall) => null)
 }
 
+/** Settings-shell operations supplied to direct section renders. */
+function settingsOwner(): Pick<ModelsSectionProps, 'close' | 'presentModal'> {
+  return { close: vi.fn(), presentModal: vi.fn(() => vi.fn()) }
+}
+
 /** The provider-card seat dispatches a stub recorded, as (route id, configured, keyConfigured, entryKey). */
 function cardSeatCalls(
   renderSlot: ReturnType<typeof stubRenderSlot>,
@@ -273,6 +313,7 @@ async function mountFace(scripted: ReturnType<typeof scriptedFace>) {
     operations: operationsWith(face),
     schema: settingsSchema,
     t,
+    ...settingsOwner(),
     renderSlot: renderSlot as unknown as ModelsSectionProps['renderSlot'],
   }
   const view = render(<ModelsSection {...injected} />)
@@ -327,8 +368,7 @@ describe('ModelsSection', () => {
     // is the catalog form alone: no mode switch, no custom panel.
     expect(screen.queryByRole('tablist')).toBeNull()
     expect(screen.queryByRole('textbox', { name: en.customRoute })).toBeNull()
-    expect(screen.queryByRole('option', { name: 'anthropic' })).toBeNull()
-    expect(screen.getByRole('option', { name: 'plain' })).toBeTruthy()
+    expect(optionLabels(screen.getByRole('combobox', { name: en.provider }))).toEqual(['plain'])
   })
 
   it('shows a catalog diagnostic while keeping the provider editable', async () => {
@@ -376,9 +416,10 @@ describe('ModelsSection', () => {
     expect(cards).toContainEqual(['openai', true, true, 'llm-pi-ai'])
     expect(cards).toContainEqual(['deepseek-official', true, false, 'llm-deepseek'])
     // The footer seat renders once below the rows and the add controls.
-    expect(renderSlot.mock.calls.filter(call => call[0] === 'settings.models.footer')).toEqual([
-      ['settings.models.footer', {}],
-    ])
+    const footerCalls = renderSlot.mock.calls.filter(call => call[0] === 'settings.models.footer')
+    expect(footerCalls).toHaveLength(1)
+    // oxlint-disable-next-line typescript/no-unsafe-assignment -- Vitest asymmetric matchers are typed as any.
+    expect(footerCalls[0]?.[1]).toMatchObject({ presentModal: expect.any(Function) })
   })
 
   it('dispatches the provider-card seat inside the first-run setup card', async () => {
@@ -464,6 +505,7 @@ describe('ModelsSection', () => {
       operations={operationsWith(face)}
       schema={settingsSchema}
       t={t}
+      {...settingsOwner()}
       renderSlot={() => null}
     />)
 
@@ -489,6 +531,7 @@ describe('ModelsSection', () => {
       operations={operationsWith(face)}
       schema={settingsSchema}
       t={t}
+      {...settingsOwner()}
       renderSlot={() => null}
     />)
     // Now a row with an Edit button, not an open card.
@@ -747,6 +790,24 @@ describe('ModelsSection', () => {
     expect(validateDeepSeekModels([{ id: 'model', maxTokens: 0 }]))
       .toEqual({ index: 0, key: 'modelMaxTokensInvalid' })
     expect(validateDeepSeekModels([{ id: 'model', maxTokens: 8192 }])).toBeUndefined()
+    // An explicit non-reasoning declaration and an omitted one are both complete
+    // statements; only a level map with nothing in it is half-made.
+    expect(validateDeepSeekModels([{ id: 'model', reasoningEfforts: false }])).toBeUndefined()
+    expect(validateDeepSeekModels([{ id: 'model' }])).toBeUndefined()
+    expect(validateDeepSeekModels([{ id: 'model', reasoningEfforts: {} }]))
+      .toEqual({ index: 0, key: 'modelReasoningEffortsEmpty' })
+    // A YAML `reasoningEfforts:` left valueless is the same half-made state.
+    expect(validateDeepSeekModels([{ id: 'model', reasoningEfforts: null }]))
+      .toEqual({ index: 0, key: 'modelReasoningEffortsEmpty' })
+    expect(validateDeepSeekModels([{ id: 'model', reasoningEfforts: { low: 'low' }, defaultReasoningEffort: 'low' }]))
+      .toBeUndefined()
+    expect(validateDeepSeekModels([{ id: 'model', reasoningEfforts: { low: 'low' }, defaultReasoningEffort: 'high' }]))
+      .toEqual({ index: 0, key: 'modelReasoningDefaultInvalid' })
+    // A default with no level set to name is refused in both shapes that lack one.
+    expect(validateDeepSeekModels([{ id: 'model', defaultReasoningEffort: 'high' }]))
+      .toEqual({ index: 0, key: 'modelReasoningDefaultInvalid' })
+    expect(validateDeepSeekModels([{ id: 'model', reasoningEfforts: false, defaultReasoningEffort: 'high' }]))
+      .toEqual({ index: 0, key: 'modelReasoningDefaultInvalid' })
   })
 
   it('reads context windows written as counts, thousands, or millions', () => {
@@ -1146,9 +1207,9 @@ describe('ModelsSection', () => {
   it('adds a dormant provider with a derived reference and stores its key', async () => {
     const { mutate, set } = await mountSection()
     fireEvent.click(screen.getByText(en.add))
-    const pick = await screen.findByLabelText<HTMLSelectElement>(en.provider)
-    expect([...pick.options].map(option => option.value)).toEqual(['anthropic', 'broken', 'plain'])
-    expect(pick.value).toBe('anthropic')
+    const pick = await screen.findByLabelText(en.provider)
+    expect(optionLabels(pick)).toEqual(['anthropic', 'broken', 'plain'])
+    expect(shownValue(pick)).toBe('anthropic')
     // A dormant profile has no endpoint anywhere: the pi-ai placeholder
     // falls back to the provider-default wording.
     fireEvent.click(screen.getByText(en.customized))
@@ -1226,10 +1287,9 @@ describe('ModelsSection', () => {
   it('switches the add card target and degrades unknown or broken targets loudly', async () => {
     await mountSection()
     fireEvent.click(screen.getByText(en.add))
-    const pick = await screen.findByLabelText<HTMLSelectElement>(en.provider)
-    fireEvent.change(pick, { target: { value: 'broken' } })
+    pickOption(await screen.findByLabelText(en.provider), 'broken')
     await screen.findByText(/unresolvable settings path/)
-    fireEvent.change(pick, { target: { value: 'plain' } })
+    pickOption(await screen.findByLabelText(en.provider), 'plain')
     await waitFor(() => {
       expect(screen.getAllByText(content => content.includes(en.advancedHint)).length).toBeGreaterThan(0)
     })
@@ -1261,6 +1321,7 @@ describe('ModelsSection', () => {
       operations={operationsWith(face)}
       schema={settingsSchema}
       t={t}
+      {...settingsOwner()}
       renderSlot={() => null}
     />)
     const key = await screen.findByLabelText<HTMLInputElement>(en.keyInput)
@@ -1395,6 +1456,7 @@ describe('ModelsSection', () => {
       operations={operationsWith(face.face)}
       schema={settingsSchema}
       t={t}
+      {...settingsOwner()}
       renderSlot={() => null}
     />)
     expect(screen.getByText(/directory down/)).toBeTruthy()
@@ -1418,6 +1480,7 @@ describe('ModelsSection', () => {
       operations={operationsWith(face)}
       schema={settingsSchema}
       t={t}
+      {...settingsOwner()}
       renderSlot={() => null}
     />)
     expect(screen.getByText(en.readOnly)).toBeTruthy()
@@ -1543,7 +1606,7 @@ describe('ModelsSection', () => {
     const catalog = screen.getByRole<HTMLButtonElement>('tab', { name: en.addCatalog })
     expect(catalog.disabled).toBe(false)
     fireEvent.click(catalog)
-    expect(screen.getByRole<HTMLSelectElement>('combobox', { name: en.provider }).value).toBe('anthropic')
+    expect(shownValue(screen.getByRole('combobox', { name: en.provider }))).toBe('anthropic')
     expect(within(screen.getByRole('tabpanel', { name: en.addCatalog })).getByLabelText(en.keyInput)).toBeTruthy()
   })
 
@@ -1571,7 +1634,7 @@ describe('ModelsSection', () => {
   it('forgets the catalog target when the custom form closes, so a later refresh opens no row editor', async () => {
     const { face, controller, mirror } = await mountSection()
     fireEvent.click(screen.getByRole('button', { name: en.add }))
-    expect(screen.getByRole<HTMLSelectElement>('combobox', { name: en.provider }).value).toBe('anthropic')
+    expect(shownValue(screen.getByRole('combobox', { name: en.provider }))).toBe('anthropic')
     fireEvent.click(screen.getByRole('tab', { name: en.addCustom }))
     fireEvent.click(within(screen.getByRole('tabpanel', { name: en.addCustom })).getByText(en.cancel))
     expect(screen.queryByRole('tablist')).toBeNull()
@@ -1727,6 +1790,7 @@ describe('ModelsSection', () => {
       operations={operationsWith(face)}
       schema={settingsSchema}
       t={t}
+      {...settingsOwner()}
       renderSlot={() => null}
     />)
     await screen.findByText('DeepSeek')

@@ -39,14 +39,25 @@ interface WebOptions {
   trustedHost?: string[]
 }
 
+/** Product-facing command identity supplied by a later profile layer. */
+export interface Config {
+  /** Profile name rendered in usage and examples. */
+  profile?: string
+  /** Product display name rendered in command help. */
+  productName?: string
+}
+
 /**
  * This app's command: its flags, its description, and its help text.
+ * @param config - product-facing command identity.
  * @returns a fresh program, so one process can parse more than once (tests).
  */
-function webCommand(): Command {
+function webCommand(config: Config): Command {
+  const profile = config.profile ?? 'web'
+  const productName = config.productName ?? 'DeepSeek Harness'
   return new Command()
-    .name('dsh --profile web')
-    .description('Serve the DeepSeek Harness browser UI.')
+    .name(`dsh --profile ${profile}`)
+    .description(`Serve the ${productName} browser UI.`)
     .helpOption('-h, --help', 'show this help')
     .option('--host <host>', 'bind host')
     .option('--no-open', 'do not open the Web UI in the default browser')
@@ -54,9 +65,9 @@ function webCommand(): Command {
     .option('--trusted-host <authority...>', 'extra authority the /api browser-trust fence accepts (host or host:port; repeatable)')
     .addHelpText('after', `
 Examples:
-  dsh --profile web                          serve on the composed host and port
-  dsh --profile web --no-open                serve without opening a browser
-  dsh --profile web --port 8080              serve on another port
+  dsh --profile ${profile}                          serve on the composed host and port
+  dsh --profile ${profile} --no-open                serve without opening a browser
+  dsh --profile ${profile} --port 8080              serve on another port
 `)
 }
 
@@ -66,9 +77,10 @@ Examples:
  * or a non-numeric `--port` is a usage error, so on rejection (and on `--help`)
  * nothing is provided.
  * @param ctx - plugin context carrying the command line.
+ * @param config - optional product-facing command identity.
  */
-export function apply(ctx: Context): void {
-  const program = webCommand()
+export function apply(ctx: Context, config: Config = {}): void {
+  const program = webCommand(config)
   program.action(() => {
     const options = program.opts<WebOptions>()
     if (options.host === '0.0.0.0') {

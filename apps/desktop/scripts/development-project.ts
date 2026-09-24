@@ -65,6 +65,18 @@ function linkDirectory(source: string, destination: string): void {
   symlinkSync(realpathSync(source), destination, process.platform === 'win32' ? 'junction' : 'dir')
 }
 
+function linkWorkspaceDependency(source: string, destination: string): boolean {
+  try {
+    linkDirectory(source, destination)
+    return true
+  } catch (error) {
+    // pnpm can leave a virtual-hoist link behind after removing a workspace
+    // package. That stale link is not part of the current dependency graph.
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false
+    throw error
+  }
+}
+
 function mirrorDependencyLinks(sourceRoot: string, destinationRoot: string): string[] {
   const names: string[] = []
   for (const entry of readdirSync(sourceRoot, { withFileTypes: true })) {
@@ -74,14 +86,15 @@ function mirrorDependencyLinks(sourceRoot: string, destinationRoot: string): str
       mkdirSync(join(destinationRoot, entry.name), { recursive: true })
       for (const scoped of readdirSync(source, { withFileTypes: true })) {
         if (!scoped.isDirectory() && !scoped.isSymbolicLink()) continue
-        linkDirectory(join(source, scoped.name), join(destinationRoot, entry.name, scoped.name))
-        names.push(`${entry.name}/${scoped.name}`)
+        if (linkWorkspaceDependency(
+          join(source, scoped.name),
+          join(destinationRoot, entry.name, scoped.name),
+        )) names.push(`${entry.name}/${scoped.name}`)
       }
       continue
     }
     if (entry.isDirectory() || entry.isSymbolicLink()) {
-      linkDirectory(source, join(destinationRoot, entry.name))
-      names.push(entry.name)
+      if (linkWorkspaceDependency(source, join(destinationRoot, entry.name))) names.push(entry.name)
     }
   }
   return names

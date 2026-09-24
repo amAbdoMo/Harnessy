@@ -6,6 +6,7 @@ import { Context } from '@deepseek-ai/cordis'
 import SkillRegistry from '@deepseek-ai/dsh-skill'
 import { FileSystem, FsError, FsVersion, type FsDirEntry, type FsEditOutcome, type FsEditRequest, type FsInfo, type FsPathInfo, type FsTarget, type FsWriteOutcome } from '@deepseek-ai/dsh-fs'
 import * as SkillFileSystem from '../src/index.ts'
+import { symlinksUsable } from '@deepseek-ai/dsh-platform-probe'
 
 /** Every temp dir created by this file, removed after each test. */
 const tempDirs: string[] = []
@@ -151,7 +152,7 @@ class TestFileSystem extends FileSystem {
   }
 }
 
-async function setupLocal(home: string, config: Partial<SkillFileSystem.Config> = {}): Promise<Context> {
+async function setupLocal(home: string, config: Partial<SkillFileSystem.Options> = {}): Promise<Context> {
   const ctx = new Context()
   await ctx.plugin(SkillRegistry)
   await ctx.plugin(SkillFileSystem, {
@@ -816,7 +817,8 @@ describe('FileSystemSkillProvider', () => {
     disposeProvider()
   })
 
-  it('refreshes frontmatter through a followed skill symlink', { timeout: 10000 }, async () => {
+  // A real symbolic link needs Developer Mode or SeCreateSymbolicLinkPrivilege on Windows.
+  it.skipIf(!symlinksUsable())('refreshes frontmatter through a followed skill symlink', { timeout: 10000 }, async () => {
     const home = await tempDir('skill-watch-symlink-home')
     const external = await tempDir('skill-watch-symlink-external')
     const root = join(home, '.dsh/skills')

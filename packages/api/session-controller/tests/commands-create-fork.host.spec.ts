@@ -67,6 +67,56 @@ describe('Session creation failures', () => {
     await ctx.fiber.dispose()
   })
 
+  it('resolves the live default only when no explicit target is supplied', async () => {
+    const ctx = await baseContext()
+    const workspace = {
+      id: 'workspace-1' as WorkspaceId,
+      path: '/workspace',
+      attachSession: () => Promise.resolve(),
+    } as unknown as Workspace
+    ctx.provide('workspaceRegistry', { get: () => workspace, list: () => [workspace] } as never)
+    const ensureSession = vi.fn((sessionId: SessionId, cwd: string) => {
+      const session = ctx.sessions.create(sessionId, { meta: { cwd } })
+      return Promise.resolve({ id: sessionId, session } as Agent)
+    })
+    const resolveDefault = vi.fn(async () => '/remote-work')
+    const controller = new SessionCommandController(
+      ctx,
+      controllerAgents({ ensureSession }),
+      resolveDefault,
+    )
+
+    await controller.create({ sessionId: SessionId('remote') })
+    await controller.create({ sessionId: SessionId('explicit'), cwd: '/explicit' })
+    await controller.create({ sessionId: SessionId('workspace'), workspaceId: workspace.id })
+
+    expect(resolveDefault).toHaveBeenCalledOnce()
+    expect(ensureSession.mock.calls.map(call => call[1])).toEqual([
+      '/remote-work', '/explicit', '/workspace',
+    ])
+    await ctx.fiber.dispose()
+  })
+
+  it('keeps an adopted Session in its recorded directory after the default changes', async () => {
+    const ctx = await baseContext()
+    ctx.provide('workspaceRegistry', { get: () => undefined, list: () => [] } as never)
+    const sessionId = SessionId('existing-session')
+    const session = ctx.sessions.create(sessionId, { meta: { cwd: '/recorded-workspace' } })
+    const ensureSession = vi.fn(() => Promise.resolve({ id: sessionId, session } as Agent))
+    const resolveDefault = vi.fn(async () => '/new-default')
+    const controller = new SessionCommandController(
+      ctx,
+      controllerAgents({ ensureSession }),
+      resolveDefault,
+    )
+
+    await controller.create({ sessionId })
+
+    expect(resolveDefault).not.toHaveBeenCalled()
+    expect(ensureSession).toHaveBeenCalledWith(sessionId, '/recorded-workspace', true, undefined)
+    await ctx.fiber.dispose()
+  })
+
   it('maps missing Workspaces and attachment failures', async () => {
     const missing = await baseContext()
     missing.provide('workspaceRegistry', { get: () => undefined, list: () => [] } as never)

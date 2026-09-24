@@ -38,10 +38,10 @@ describe('desktop macOS release signature', () => {
     vi.unstubAllEnvs()
   })
 
-  it('loads release identifiers from the environment and requires code signing', async () => {
+  it('uses the fixed Harnessy identity and requires code signing', async () => {
     const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
     const config = createElectronBuilderConfig(RELEASE_ENVIRONMENT, 'darwin', 'arm64')
-    expect(config.protocols).toEqual([{ name: 'DeepSeek Harness', schemes: ['dsh'] }])
+    expect(config.protocols).toEqual([{ name: 'Harnessy', schemes: ['dsh'] }])
     expect(portablePath(config.directories.output)).toContain('/.desktop-build/targets/mac-arm64/artifacts')
     expect(config.mac.extendInfo.NSMicrophoneUsageDescription).toContain('microphone')
     expect(config.extraResources).toHaveLength(2)
@@ -60,7 +60,10 @@ describe('desktop macOS release signature', () => {
       '**/@vscode/ripgrep-*/bin/rg',
     ]))
     expect(config).toMatchObject({
-      appId: RELEASE_ENVIRONMENT.DSH_DESKTOP_APP_ID,
+      appId: 'com.amabdmo.customharness',
+      productName: 'Harnessy',
+      executableName: 'Harnessy',
+      artifactName: 'Harnessy-Setup-${version}-${os}-${arch}.${ext}',
       mac: {
         identity: RELEASE_ENVIRONMENT.DSH_DESKTOP_MACOS_SIGNING_IDENTITY,
         forceCodeSigning: true,

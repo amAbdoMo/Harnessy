@@ -52,6 +52,8 @@ export type {
 } from './FileTypeIcon.tsx'
 export { projectUserText, type UserTextReferences } from './user-text.tsx'
 export { Tooltip } from './Tooltip.tsx'
+export { Select } from './Select.tsx'
+export type { SelectProps, SelectEntry, SelectOption, SelectGroup } from './Select.tsx'
 export type { TooltipSide } from './Tooltip.tsx'
 export { Toast } from './Toast.tsx'
 export { fileSizeText } from './file-size.ts'

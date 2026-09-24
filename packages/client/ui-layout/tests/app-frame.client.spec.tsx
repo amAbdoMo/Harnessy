@@ -19,6 +19,13 @@ type AttentionSnapshot = Parameters<Parameters<AppFrameProps['useSessionStatus']
 const noAttention: AttentionSnapshot = new Map()
 const useSessionStatus: AppFrameProps['useSessionStatus'] = selector => selector(noAttention)
 
+const translate: AppFrameProps['t'] = (key) => {
+  if (key === 'brand.localBuild') return 'DSH Local Build'
+  if (key === 'appMenu.toggleSidebar') return 'Toggle sidebar'
+  if (key === 'appMenu.file') return 'File'
+  return key
+}
+
 let observers: ResizeObserverStub[]
 class ResizeObserverStub {
   disconnected = false
@@ -99,7 +106,7 @@ function mountFrame(windowWidth = frameWidth) {
       useSessionRetainInfo={() => undefined}
       useResource={useResource}
       useWorkspaces={sel => sel(workspaceState)}
-      t={key => key === 'brand.localBuild' ? 'DSH Local Build' : key}
+      t={translate}
     />
   )
   const utils = render(element())
@@ -183,6 +190,21 @@ afterEach(() => {
 })
 
 describe('AppFrame', () => {
+  it('renders the integrated desktop title bar with working sidebar and native menu controls', () => {
+    const openMenu = vi.fn(async () => {})
+    replaceProperty(window as Window & { dshDesktop?: unknown }, 'dshDesktop', {
+      protocolVersion: 1,
+      titlebar: { openMenu },
+    })
+    const { getByRole, container, instance } = mountFrame()
+
+    expect(container.querySelector('[data-desktop-titlebar]')).toBeTruthy()
+    getByRole('button', { name: 'Toggle sidebar' }).click()
+    expect(instance.getSnapshot().layoutInfo.sidebar).toBe(0)
+    getByRole('button', { name: 'File' }).click()
+    expect(openMenu).toHaveBeenCalledWith('file')
+  })
+
   it('localizes the product title without a configured build title', () => {
     mountFrame()
     expect(document.title).toBe('DSH Local Build')

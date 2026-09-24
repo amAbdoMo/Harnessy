@@ -1,0 +1,34 @@
+# Mount the shipped Harnessy product rows over the shipped headless profile: the
+# recorder first, then Command Code's delegation row, then public model
+# capability metadata and its diagnostics surface.
+#
+# The subject under test is `packages/bundle/custom-harness/cordis.patch.yml`,
+# which the spec reads and mirrors here; this file exists only because the
+# headless profile's own rows have to be stood down for a Loader smoke run.
+- id: headless-startup
+  disabled: true
+
+- id: headless-runner
+  disabled: true
+
+- insert:
+    - id: capability-registration-recorder
+      name: './registration-recorder.ts'
+
+    - id: commandcode-delegation
+      name: '@deepseek-ai/dsh-subagent-commandcode'
+
+    - id: model-capabilities
+      name: '@deepseek-ai/dsh-model-capabilities/plugin'
+      inject: [commandCodeController]
+
+    - id: model-capabilities-cli
+      name: '@deepseek-ai/dsh-model-capabilities/cli'
+      inject: [modelCapabilities]
+
+# Mirrors the shipped row: this plugin mounts behind a subpath entry, so its
+# Typert manifest is named explicitly rather than discovered from the entry.
+- id: typert-loader
+  config:
+    packages:
+      - '@deepseek-ai/dsh-model-capabilities'

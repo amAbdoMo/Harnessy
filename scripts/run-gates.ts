@@ -804,6 +804,10 @@ function docSyncLeafGates(options: {
     pnpmScript('persistence-releases', 'verify-persistence-releases', { label: 'released persistence history' }),
     pnpmScript('persistence-formats', 'verify-persistence-formats', { label: 'Session format references', quick: true }),
     pnpmScript('session-format-catalog', 'verify-session-format-catalog', { label: 'Session format catalog' }),
+    pnpmScript('model-capability-snapshot', 'verify-model-capability-snapshot', {
+      label: 'model capability snapshot',
+      quick: true,
+    }),
     pnpmScript('public-repository-links', 'verify-public-repository-links', { label: 'public repository links', quick: true }),
     pnpmScript('repository-references', 'verify-repository-references', { label: 'repository references', quick: true }),
     pnpmScript('concrete-terms', 'verify-concrete-terms', { label: 'concrete terms', quick: true }),

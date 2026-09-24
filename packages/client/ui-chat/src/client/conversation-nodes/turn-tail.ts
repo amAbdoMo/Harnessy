@@ -5,6 +5,7 @@ import type {
 import type {} from '@deepseek-ai/dsh-llm-retry/types'
 import type { SessionEvent } from '@deepseek-ai/dsh-session/types'
 import { deriveTurnTokenUsage } from '@deepseek-ai/dsh-token-meter/client'
+import { turnChangesFromEvents } from '../contract/turn-file-changes.ts'
 import type {
   AssistantChatData, FinalAssistantChatData, TurnTailChatData,
 } from '../contract/chat-nodes.ts'
@@ -90,6 +91,7 @@ function tailData(context: ConversationNodeContext<TurnTailState>): TurnTailChat
   const tokenUsage = context.start?.event.type === 'turn/start'
     ? deriveTurnTokenUsage(context.matches.map(match => match.event).filter(isSessionEvent))
     : undefined
+  const fileChanges = turnChangesFromEvents(context.matches.map(match => match.event).filter(isSessionEvent))
   return {
     turn: end.event.data.turn,
     seq: end.event.seq,
@@ -97,6 +99,7 @@ function tailData(context: ConversationNodeContext<TurnTailState>): TurnTailChat
     closing,
     branchUnavailable: closing === null || latestTranscriptSeq !== closing.finalNode.seq,
     ...tokenUsage === undefined ? {} : { tokenUsage },
+    ...fileChanges === undefined ? {} : { fileChanges },
   }
 }
 

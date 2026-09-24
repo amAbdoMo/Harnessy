@@ -19,7 +19,7 @@ function view(partial: Partial<AgentPresetSectionState> = {}, startCreatorDraft?
   const props: AgentPresetSectionProps = { ...actions,
     ...(startCreatorDraft === undefined ? {} : { startCreatorDraft }),
     usePanelInfo: unusedHook, useSessions: unusedHook, useSessionStatus: unusedHook, useSessionRetainInfo: unusedHook,
-    useWorkspaces: unusedHook, useResource: unusedHook,
+    useWorkspaces: unusedHook, useResource: unusedHook, presentModal: () => () => {},
     useAgentPresetSection: bindSnapshotSelector(store),
     useDeveloperTools: bindSnapshotSelector(createSnapshotStore(developerTools)),
     t: key => translations.get(key) ?? key }

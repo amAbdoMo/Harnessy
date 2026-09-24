@@ -76,6 +76,11 @@ body {
   background: transparent;
 }
 
+/* The 2px transparent border insets the painted thumb into a pill floating
+   inside the bar's lane — the app's own shape rather than the platform's
+   full-bleed square — and `background-clip: padding-box` keeps the fill out
+   of the border box, so the inset survives whatever corner radius the engine
+   applies. */
 ::-webkit-scrollbar-thumb {
   border: var(--dsh-scrollbar-thumb-border) solid transparent;
   border-radius: 999px;

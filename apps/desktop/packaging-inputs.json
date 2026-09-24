@@ -1,0 +1,13 @@
+{
+  "formatVersion": 1,
+  "electronVersion": "44.2.0",
+  "electronBuilderVersion": "26.15.7",
+  "nodeVersion": "24.19.0",
+  "pnpmVersion": "11.7.0",
+  "platform": "win32",
+  "arch": "x64",
+  "installer": "nsis",
+  "portable": false,
+  "automaticUpdates": false,
+  "signingRequiredForDistribution": true
+}

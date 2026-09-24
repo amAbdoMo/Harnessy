@@ -329,4 +329,5 @@ describe('desktop link-backend projections', () => {
     expect(lstatSync(join(profile, 'node_modules', 'bridge'), { throwIfNoEntry: false })).toBeUndefined()
     expect(existsSync(join(target, 'package.json'))).toBe(true)
   })
+
 })

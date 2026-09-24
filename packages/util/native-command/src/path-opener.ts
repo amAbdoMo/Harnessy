@@ -17,6 +17,35 @@ import { runNativeCommand, type NativeCommandRunner } from './runner.ts'
 /** Testable command boundary; native implementations never invoke a shell. */
 export type PathOpenerRunner = NativeCommandRunner
 
+/**
+ * Open an HTTP(S) authorization page in the operating system's default browser.
+ * @param url - absolute HTTP(S) URL to open.
+ * @param signal - caller lifetime forwarded to the native process.
+ * @param internals - injectable platform and process operations for tests.
+ * @returns when the native opener exits successfully.
+ */
+export async function openNativeUrl(
+  url: string,
+  signal: AbortSignal,
+  internals: PathOpenerInternals = {},
+): Promise<void> {
+  const parsed = new URL(url)
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new TypeError('native URL opener accepts only HTTP(S) URLs')
+  }
+  const platform = internals.platform ?? process.platform
+  const run = internals.run ?? runNativeCommand
+  if (platform === 'win32') {
+    await run('rundll32.exe', ['url.dll,FileProtocolHandler', url], signal)
+  } else if (platform === 'darwin') {
+    await run('open', [url], signal)
+  } else if (platform === 'linux') {
+    await run('xdg-open', [url], signal)
+  } else {
+    throw new Error(`native URL opener is unsupported on ${platform}`)
+  }
+}
+
 /** Injectable platform facts for deterministic adapter tests. */
 export interface PathOpenerInternals {
   platform?: NodeJS.Platform

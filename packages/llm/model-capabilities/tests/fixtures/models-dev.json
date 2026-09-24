@@ -1,0 +1,239 @@
+{
+  "openai": {
+    "id": "openai",
+    "env": ["OPENAI_API_KEY"],
+    "npm": "@ai-sdk/openai",
+    "api": "https://api.openai.com/v1",
+    "name": "OpenAI",
+    "models": {
+      "gpt-5.6-sol": {
+        "id": "gpt-5.6-sol",
+        "name": "GPT-5.6 Sol",
+        "reasoning": true,
+        "reasoning_options": [
+          { "type": "effort", "values": ["none", "low", "medium", "high", "xhigh", "max"] }
+        ],
+        "tool_call": true,
+        "modalities": { "input": ["text", "image"], "output": ["text"] },
+        "limit": { "context": 400000, "output": 128000 }
+      },
+      "gpt-5.4": {
+        "id": "gpt-5.4",
+        "name": "GPT-5.4",
+        "reasoning": true,
+        "reasoning_options": [{ "type": "effort", "values": ["low", "medium", "high"] }],
+        "tool_call": true
+      }
+    }
+  },
+  "anthropic": {
+    "id": "anthropic",
+    "api": "https://api.anthropic.com/v1",
+    "name": "Anthropic",
+    "models": {
+      "claude-sonnet-4-6": {
+        "id": "claude-sonnet-4-6",
+        "name": "Claude Sonnet 4.6",
+        "reasoning": true,
+        "reasoning_options": [{ "type": "effort", "values": ["low", "medium", "high", "max"] }]
+      }
+    }
+  },
+  "agentrouter": {
+    "id": "agentrouter",
+    "api": "https://agentrouter.org/v1",
+    "name": "AgentRouter",
+    "models": {
+      "gpt-5.6-sol": {
+        "id": "gpt-5.6-sol",
+        "name": "GPT-5.6 Sol",
+        "reasoning": true,
+        "reasoning_options": [
+          { "type": "effort", "values": ["none", "low", "medium", "high", "xhigh", "max"] }
+        ]
+      }
+    }
+  },
+  "pioneer": {
+    "id": "pioneer",
+    "api": "https://api.pioneer.ai/v1",
+    "name": "Pioneer",
+    "models": {
+      "gpt-5.6-sol": {
+        "id": "gpt-5.6-sol",
+        "name": "GPT-5.6 Sol",
+        "reasoning": true,
+        "reasoning_options": [{ "type": "effort", "values": ["low", "medium", "high", "xhigh"] }]
+      }
+    }
+  },
+  "opencode": {
+    "id": "opencode",
+    "api": "https://opencode.ai/zen/v1",
+    "name": "OpenCode Zen",
+    "models": {
+      "gpt-5.6-luna": {
+        "id": "gpt-5.6-luna",
+        "name": "GPT-5.6 Luna",
+        "reasoning": true,
+        "reasoning_options": [
+          { "type": "effort", "values": ["none", "low", "medium", "high", "xhigh", "max"] }
+        ]
+      },
+      "gpt-5.6-sol": {
+        "id": "gpt-5.6-sol",
+        "name": "GPT-5.6 Sol",
+        "reasoning": true,
+        "reasoning_options": [
+          { "type": "effort", "values": ["none", "low", "medium", "high", "xhigh", "max"] }
+        ]
+      },
+      "ling-3.0-flash": {
+        "id": "ling-3.0-flash",
+        "name": "Ling 3.0 Flash",
+        "reasoning": true,
+        "reasoning_options": [{ "type": "effort", "values": ["none"] }]
+      }
+    }
+  },
+  "routing-run": {
+    "id": "routing-run",
+    "api": "https://api.routing.run/v1",
+    "name": "Routing Run",
+    "models": {
+      "gpt-5.6-luna": {
+        "id": "gpt-5.6-luna",
+        "name": "GPT-5.6 Luna",
+        "reasoning": true,
+        "reasoning_options": [{ "type": "effort", "values": ["low", "medium", "high"] }]
+      },
+      "gpt-5.6-sol": {
+        "id": "gpt-5.6-sol",
+        "name": "GPT-5.6 Sol",
+        "reasoning": true,
+        "reasoning_options": [{ "type": "toggle" }]
+      }
+    }
+  },
+  "requesty": {
+    "id": "requesty",
+    "api": "https://router.requesty.ai/v1",
+    "name": "Requesty",
+    "models": {
+      "gpt-5.6-sol": {
+        "id": "gpt-5.6-sol",
+        "name": "GPT-5.6 Sol",
+        "reasoning": true,
+        "reasoning_options": [{ "type": "effort", "values": ["none", "low", "medium", "high", "max"] }]
+      }
+    }
+  },
+  "acme-gateway": {
+    "id": "acme-gateway",
+    "api": "HTTPS://API.ACME-GATEWAY.EXAMPLE:443/v1/",
+    "name": "Acme Gateway",
+    "models": {
+      "acme-think": {
+        "id": "acme-think",
+        "name": "Acme Think",
+        "reasoning": true,
+        "reasoning_options": [{ "type": "effort", "values": ["low", "high"] }]
+      }
+    }
+  },
+  "aifarm": {
+    "id": "aifarm",
+    "api": "aifarm.example",
+    "name": "AI Farm",
+    "models": {
+      "aifarm-think": {
+        "id": "aifarm-think",
+        "name": "AI Farm Think",
+        "reasoning": true,
+        "reasoning_options": [{ "type": "effort", "values": ["minimal", "high"] }]
+      }
+    }
+  },
+  "mystery-cloud": {
+    "id": "mystery-cloud",
+    "name": "Mystery Cloud",
+    "models": {
+      "mystery-think": {
+        "id": "mystery-think",
+        "name": "Mystery Think",
+        "reasoning": true,
+        "reasoning_options": [{ "type": "effort", "values": ["low", "max"] }]
+      }
+    }
+  },
+  "unidentified": {
+    "id": "",
+    "api": "https://unidentified.example/v1",
+    "name": "Unidentified",
+    "models": {
+      "unidentified-think": {
+        "id": "unidentified-think",
+        "name": "Unidentified Think",
+        "reasoning": true,
+        "reasoning_options": [{ "type": "effort", "values": ["low"] }]
+      }
+    }
+  },
+  "local-farm": {
+    "id": "local-farm",
+    "api": "http://127.0.0.1:8080/v1",
+    "name": "Local Farm",
+    "models": {
+      "local-think": {
+        "id": "local-think",
+        "name": "Local Think",
+        "reasoning": true,
+        "reasoning_options": [{ "type": "effort", "values": ["low", "medium"] }]
+      }
+    }
+  },
+  "trailing-slash": {
+    "id": "trailing-slash",
+    "api": "https://gateway.example/",
+    "name": "Trailing Slash",
+    "models": {
+      "slash-think": {
+        "id": "slash-think",
+        "name": "Slash Think",
+        "reasoning": true,
+        "reasoning_options": [{ "type": "effort", "values": ["medium"] }]
+      }
+    }
+  },
+  "null-models": {
+    "id": "null-models",
+    "api": "https://null-models.example/v1",
+    "name": "Null Models",
+    "models": null
+  },
+  "malformed-provider": null,
+  "scalar-provider": "not-a-provider-entry",
+  "scalar-model": {
+    "id": "scalar-model",
+    "api": "https://scalar-model.example/v1",
+    "name": "Scalar Model",
+    "models": {
+      "broken-model": "not-a-model-entry",
+      "broken-options": {
+        "id": "broken-options",
+        "reasoning_options": "not-an-option-list"
+      },
+      "broken-values": {
+        "id": "broken-values",
+        "reasoning_options": [{ "type": "effort", "values": "high" }]
+      },
+      "unusable-values": {
+        "id": "unusable-values",
+        "reasoning_options": [
+          { "type": "budget_tokens" },
+          { "type": "effort", "values": [42, null, "", "high", "turbo"] }
+        ]
+      }
+    }
+  }
+}

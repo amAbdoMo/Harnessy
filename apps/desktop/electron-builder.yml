@@ -1,0 +1,49 @@
+appId: com.amabdmo.customharness
+productName: Harnessy
+copyright: Copyright © 2026 ${env.CUSTOM_HARNESS_PUBLISHER_NAME}
+asar: true
+electronVersion: 44.2.0
+electronDist: ${env.CUSTOM_HARNESS_ELECTRON_DIST}
+publish: null
+directories:
+  output: dist
+  buildResources: assets
+files:
+  - src/**/*
+  - assets/harnessy.png
+  - package.json
+extraResources:
+  - from: .package-stage/dsh
+    to: dsh
+  - from: .package-stage/runtime
+    to: runtime
+  - from: assets/windows-job-launcher.exe
+    to: windows-job-launcher.exe
+  - from: assets/harnessy.png
+    to: harnessy.png
+  - from: ../../LICENSE
+    to: LICENSE.txt
+  - from: ../../THIRD_PARTY_NOTICES.md
+    to: THIRD_PARTY_NOTICES.md
+  - from: third-party-licenses
+    to: third-party-licenses
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: assets/harnessy.png
+  executableName: Harnessy
+  artifactName: Harnessy-Setup-${version}-windows-${arch}.${ext}
+  publisherName: ${env.CUSTOM_HARNESS_PUBLISHER_NAME}
+nsis:
+  oneClick: false
+  perMachine: false
+  # Preserve the registered executable/shortcut path across upgrades so a
+  # Windows taskbar pin continues to target the same application identity.
+  allowToChangeInstallationDirectory: false
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Harnessy
+  deleteAppDataOnUninstall: false
+  runAfterFinish: false

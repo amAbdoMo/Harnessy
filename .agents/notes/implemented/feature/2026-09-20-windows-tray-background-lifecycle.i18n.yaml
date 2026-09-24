@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-20-windows-tray-background-lifecycle.md
+2026-09-20-windows-tray-background-lifecycle.md: 6c5ad07ca730357e809a5b2ae089ad1db1dab526
+2026-09-20-windows-tray-background-lifecycle.zh.md: b449809404d3aae4eda6561857fd793d35152278

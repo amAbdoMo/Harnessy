@@ -25,7 +25,177 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
      * reference, never the value.
      */
     'credential/rejected': { readonly ref: string }
+    /** The OpenAI account flow or one of its required Host services is unavailable. */
+    'openai-account/unavailable': Record<string, never>
+    /** The operating system refused to open the secure OpenAI sign-in page. */
+    'openai-account/browser-failed': Record<string, never>
+    /** The Harnessy account manager or one of its Host dependencies is unavailable. */
+    'accounts/unavailable': Record<string, never>
+    /** The requested managed account does not exist. */
+    'accounts/not-found': { readonly provider: AccountProviderId; readonly accountId: string }
+    /** The requested account operation is not valid for this provider or account. */
+    'accounts/rejected': { readonly provider: AccountProviderId }
+    /** The Harnessy MCP manager or one of its required Host services is unavailable. */
+    'mcp-manager/unavailable': Record<string, never>
+    /** The requested MCP server does not exist. */
+    'mcp-manager/not-found': { readonly serverId: string }
+    /** The requested MCP server profile is invalid or cannot be stored. */
+    'mcp-manager/rejected': { readonly serverId?: string }
   }
+}
+
+/** Transport supported by Harnessy's MCP manager. */
+export type McpServerTransport = 'streamable-http' | 'stdio'
+
+/** Live state of one saved MCP server. */
+export type McpServerStatus = 'disabled' | 'connecting' | 'connected' | 'reconnecting' | 'error'
+
+/** Secret-free saved server profile returned to the Harnessy client. */
+export interface McpServerView {
+  readonly id: string
+  readonly name: string
+  readonly serverName: string
+  readonly transport: McpServerTransport
+  readonly enabled: boolean
+  readonly endpoint: string
+  readonly headerName?: string
+  readonly args: readonly string[]
+  readonly cwd?: string
+  readonly status: McpServerStatus
+  readonly tools: readonly string[]
+  readonly error?: string
+  readonly authenticationConfigured: boolean
+  readonly environmentKeys: readonly string[]
+  readonly updatedAt: number
+}
+
+/** Complete redacted snapshot of Harnessy's global MCP server registry. */
+export interface McpManagerState {
+  readonly available: boolean
+  readonly writable: boolean
+  readonly servers: readonly McpServerView[]
+}
+
+/** Add or edit input. Authentication values are accepted but never returned. */
+export interface McpServerInput {
+  readonly id?: string
+  readonly name: string
+  readonly serverName: string
+  readonly transport: McpServerTransport
+  readonly enabled: boolean
+  readonly url?: string
+  readonly headerName?: string
+  readonly authorization?: string
+  readonly command?: string
+  readonly args?: readonly string[]
+  readonly cwd?: string
+  readonly environment?: Readonly<Record<string, string>>
+  readonly clearAuthentication?: boolean
+}
+
+/** Providers currently presented by Harnessy's local account manager. */
+export type AccountProviderId = 'openai-codex' | 'zai' | 'kimi-coding' | 'opencode' | 'anthropic'
+
+/** Authentication experience offered for a managed provider. */
+export type AccountAuthMode = 'oauth' | 'api-key'
+
+/** Browser-safe provider metadata for the account-manager selector. */
+export interface AccountProviderView {
+  readonly id: AccountProviderId
+  readonly label: string
+  readonly authMode: AccountAuthMode
+  readonly available: boolean
+  readonly accountCount: number
+  readonly activeAccountId?: string
+  readonly usageAvailable: boolean
+  /** Whether exhausted Codex limits promote another eligible saved membership. */
+  readonly autoSwitchOnLimit: boolean
+}
+
+/** One quota interval returned by a provider-supported usage service. */
+export interface AccountUsageWindow {
+  readonly id: string
+  readonly label: string
+  readonly usedPercent: number
+  readonly resetsAtMs?: number
+}
+
+/** Usage snapshot attached to a managed account. */
+export interface AccountUsageView {
+  readonly windows: readonly AccountUsageWindow[]
+}
+
+/** Codex quota context associated with one saved OAuth membership. */
+export type AccountUsageScope = 'personal' | 'workspace'
+
+/** Secret-free account row returned to the Harnessy client. */
+export interface ManagedAccountView {
+  readonly id: string
+  readonly provider: AccountProviderId
+  /** Stable browser-safe identity shared by one person's saved provider contexts. */
+  readonly ownerId: string
+  readonly name: string
+  readonly detail?: string
+  readonly initials: string
+  readonly active: boolean
+  readonly authMode: AccountAuthMode
+  /** Codex quota context; absent for providers without scoped subscription usage. */
+  readonly usageScope?: AccountUsageScope
+  readonly usage?: AccountUsageView
+  readonly usageUpdatedAt?: number
+  readonly usageError?: string
+}
+
+/** Complete browser-safe snapshot of Harnessy's managed provider accounts. */
+export interface AccountsState {
+  readonly writable: boolean
+  readonly providers: readonly AccountProviderView[]
+  readonly accounts: readonly ManagedAccountView[]
+}
+
+/** Browser-safe record emitted after Codex promotes another saved membership. */
+export interface AccountAutoSwitchEvent {
+  readonly id: string
+  readonly occurredAt: number
+  readonly provider: 'openai-codex'
+  readonly limit: '5h' | '7d'
+  readonly from: {
+    readonly name: string
+    readonly usageScope?: AccountUsageScope
+  }
+  readonly to: {
+    readonly name: string
+    readonly usageScope?: AccountUsageScope
+  }
+}
+
+declare module '@deepseek-ai/cordis' {
+  interface Events {
+    /**
+     * Report one committed automatic Codex account promotion.
+     * @param event - secret-free source, destination, quota, and timestamp facts.
+     * @mode emit
+     */
+    'accounts/auto-switched'(event: AccountAutoSwitchEvent): void
+  }
+}
+
+/** Terminal result of a cancellable provider account sign-in. */
+export interface AccountSignInResult {
+  readonly status: 'authorized' | 'cancelled'
+}
+
+/** Browser-safe OpenAI account status. OAuth material is intentionally absent. */
+export interface OpenAIAccountState {
+  readonly available: boolean
+  readonly configured: boolean
+  readonly inFlight: boolean
+  readonly writable: boolean
+}
+
+/** Terminal result of a cancellable OpenAI account attempt. */
+export interface OpenAIAccountSignInResult {
+  readonly status: 'authorized' | 'cancelled'
 }
 
 /** Confirmation that the settings document was handed to the native editor. */

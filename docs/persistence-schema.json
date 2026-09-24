@@ -21885,11 +21885,11 @@
       },
       "names": [
         "packages/session/session-title/src/types.ts#SessionTitleModelIdentity",
-        "packages/subagent/tool-subagent/src/model-selection.ts#AllowedModelRoute"
+        "packages/subagent/tool-subagent/src/types.ts#AllowedModelRoute"
       ],
       "sources": [
         "packages/session/session-title/src/types.ts:20",
-        "packages/subagent/tool-subagent/src/model-selection.ts:9"
+        "packages/subagent/tool-subagent/src/types.ts:17"
       ]
     },
     {
@@ -22477,7 +22477,7 @@
         "packages/llm/llm/src/types.ts#ReplayEnvelope"
       ],
       "sources": [
-        "packages/llm/llm/src/types.ts:418"
+        "packages/llm/llm/src/types.ts:455"
       ]
     },
     {
@@ -33284,7 +33284,7 @@
       },
       "names": [],
       "sources": [
-        "packages/llm/llm/src/types.ts:443"
+        "packages/llm/llm/src/types.ts:480"
       ]
     },
     {
@@ -36140,7 +36140,7 @@
       },
       "names": [],
       "sources": [
-        "packages/llm/llm/src/types.ts:441"
+        "packages/llm/llm/src/types.ts:478"
       ]
     },
     {
@@ -36272,10 +36272,10 @@
         ]
       },
       "names": [
-        "packages/core/tools/src/index.ts#ToolRestriction"
+        "packages/core/tools/src/types.ts#ToolRestriction"
       ],
       "sources": [
-        "packages/core/tools/src/index.ts:689"
+        "packages/core/tools/src/types.ts:68"
       ]
     },
     {
@@ -43014,7 +43014,7 @@
         "packages/llm/llm/src/types.ts#StreamChunk"
       ],
       "sources": [
-        "packages/llm/llm/src/types.ts:440"
+        "packages/llm/llm/src/types.ts:477"
       ]
     },
     {
@@ -44608,7 +44608,7 @@
         "packages/workflow/workflow/src/types.ts#WorkflowRunId"
       ],
       "sources": [
-        "packages/api/session-controller/src/types.ts:396",
+        "packages/api/session-controller/src/types.ts:416",
         "packages/attachment/attachment/src/brand.ts:6",
         "packages/compaction/compaction/src/brand.ts:4",
         "packages/core/session/src/types.ts:20",
@@ -54560,7 +54560,7 @@
         "packages/llm/llm/src/types.ts#ToolSchema"
       ],
       "sources": [
-        "packages/llm/llm/src/types.ts:461"
+        "packages/llm/llm/src/types.ts:498"
       ]
     },
     {
@@ -58191,7 +58191,7 @@
       },
       "names": [],
       "sources": [
-        "packages/api/session-controller/src/types.ts:401"
+        "packages/api/session-controller/src/types.ts:421"
       ]
     },
     {
@@ -63183,7 +63183,7 @@
       },
       "names": [],
       "sources": [
-        "packages/llm/llm/src/types.ts:444"
+        "packages/llm/llm/src/types.ts:481"
       ]
     },
     {
@@ -64253,7 +64253,7 @@
       },
       "names": [],
       "sources": [
-        "packages/llm/llm/src/types.ts:442"
+        "packages/llm/llm/src/types.ts:479"
       ]
     },
     {
@@ -68976,7 +68976,7 @@
       },
       "names": [],
       "sources": [
-        "packages/llm/llm/src/types.ts:447"
+        "packages/llm/llm/src/types.ts:484"
       ]
     },
     {
@@ -77737,7 +77737,7 @@
       },
       "names": [],
       "sources": [
-        "packages/llm/llm/src/types.ts:445"
+        "packages/llm/llm/src/types.ts:482"
       ]
     },
     {
@@ -86750,7 +86750,7 @@
         "packages/api/session-controller/src/types.ts#ModelSelection"
       ],
       "sources": [
-        "packages/api/session-controller/src/types.ts:100"
+        "packages/api/session-controller/src/types.ts:120"
       ]
     },
     {
@@ -87154,7 +87154,7 @@
       },
       "names": [],
       "sources": [
-        "packages/llm/llm/src/types.ts:446"
+        "packages/llm/llm/src/types.ts:483"
       ]
     },
     {
@@ -87323,7 +87323,7 @@
         "packages/llm/llm/src/types.ts#SystemPromptUpdate"
       ],
       "sources": [
-        "packages/llm/llm/src/types.ts:397"
+        "packages/llm/llm/src/types.ts:434"
       ]
     },
     {
@@ -93786,10 +93786,10 @@
         ]
       },
       "names": [
-        "packages/sandbox/sandbox/src/index.ts#SandboxMode"
+        "packages/sandbox/sandbox/src/types.ts#SandboxMode"
       ],
       "sources": [
-        "packages/sandbox/sandbox/src/index.ts:29"
+        "packages/sandbox/sandbox/src/types.ts:15"
       ]
     },
     {

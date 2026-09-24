@@ -60,6 +60,8 @@ The package occupies the root-scoped `main` key `conversation`. Its `main.conver
 
 A blank Session retains the header's leading and corner controls, including the right-sidebar opener, while hiding its title, actions, utilities, and View tabs. Selecting a Workspace creates the Session needed by these controls; the first message is not required. Without a selected Session, the strict header is absent; the resident container reserves a 40px drag band on macOS desktop and no empty vertical space on Web, Windows, or Linux. Sidebar entries retain their own data and execution prerequisites. A started Session header uses one row when fewer than two Views are available; the tab row reserves space only while rendered.
 
+Session-header action owners can request a registered View and an optional focus key. The shell activates that View before forwarding the focus request, which lets status surfaces navigate to the exact durable Chat event without owning Chat state.
+
 View selection is deterministic: a registered persisted selection wins, otherwise registered `chat` wins, otherwise no View renders. It never chooses the first registered View. Shell phase combines Session lifecycle with the active-target set; no target-specific snapshot is read by the shell.
 
 The shell reads the persisted View preference before rendering when a Session first binds or a cached Session becomes current, activates the registered preferred View or Chat fallback, and activates later tab or focus selections before committing them to the store. A blank Session still omits the `conversation.view` slot; no unselected target is activated.

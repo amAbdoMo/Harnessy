@@ -246,6 +246,30 @@ describe('dsh-tool-subagent model selection', () => {
     expect(result.isError).toBe(false)
   })
 
+  it('refuses a child effort the selected model does not offer', async () => {
+    const ctx = await setup({ provider: 'mock', withModelSelection: true })
+    // The selected model's global capability metadata is the only source: this
+    // route offers `low` alone, so a parent asking for `high` is refused before
+    // any child exists, rather than reaching a provider that would reject it
+    // mid-turn.
+    ctx.llm.registerAdapter(['alpha'], new MockAdapter([], {
+      efforts: [{ id: ReasoningEffortId('low'), name: 'Low' }],
+      defaultEffort: ReasoningEffortId('low'),
+    }))
+    const parent = modelSelectionSetupAgent(ctx)
+    ;(parent as unknown as { options: Agent['options'] }).options = parentWithRoute().options
+
+    const result = await callSubagent(ctx, {
+      description: 'unsupported effort',
+      prompt: 'do it',
+      provider: 'alpha',
+      model: 'configured-model',
+      reasoning_effort: 'high',
+    })
+    expect(result.isError).toBe(true)
+    expect(text(result)).toContain('does not support reasoning effort "high"')
+  })
+
   it('compares explicit routes with the latest logged parent selection', async () => {
     const requests: SubagentStartRequest[] = []
     const ctx = await setup({

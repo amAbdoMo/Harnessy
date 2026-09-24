@@ -1,0 +1,10 @@
+version: 1
+scenario: commandcode-delegation
+profile: headless
+composition: commandcode-delegation
+recording: authored
+header:
+  class: commandcode-delegation
+  pin: true
+replay:
+  override: true

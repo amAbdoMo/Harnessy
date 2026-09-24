@@ -69,6 +69,15 @@ The completed-turn action footer follows the recorded Turn end. Its action row s
 
 -----
 
+<a id="live-activity-and-file-changes"></a>
+## Live activity and file changes
+
+In Compact mode, consecutive reasoning and Tool rows in the current live Turn collapse behind one localized activity summary between ordinary Assistant progress messages. The summary names the represented work categories, while a failed call forces its group open and marks it for attention. Opening and closing the disclosure hides stable Chat Node Seats without remounting their renderers, so running controls and streamed results retain their state. Completed Turns continue to use the Turn-wide process folding described below.
+
+Successful settled Tool results contribute file changes only when their recorded metadata carries valid applied diff hunks; shell commands and other calls without such evidence are never guessed as edits. Chat aggregates those hunks per Turn and per file, shows the newest Turn in the composer dock and older Turns beside their completion tail, and opens a selected file in the right-sidebar diff viewer. The summary counts distinct files and exact added and removed lines across the recorded hunks. The live run clock renders seconds below one minute, minutes and seconds below one hour, and hours, remaining minutes, and seconds at one hour or later.
+
+-----
+
 <a id="turn-process-folding"></a>
 ## Turn Process Folding
 

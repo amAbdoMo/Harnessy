@@ -132,6 +132,7 @@ export interface TranslationPairingManifest {
 const README_ARTIFACT = /(?:^|\/)readme(?:\.md|\.zh\.md|\.i18n\.yaml)$/i
 const ROOT_PAIRED_DOCUMENT_ARTIFACT = /^(?:brand_guidelines|contributing|safety)(?:\.md|\.zh\.md|\.i18n\.yaml)$/i
 const NON_SOURCE_DIRECTORIES = new Set([
+  'CustomHarness',
   'node_modules',
   'lib',
   '.pnpm-store',
@@ -150,6 +151,7 @@ const NON_SOURCE_DIRECTORIES = new Set([
 /** Glob traversal exclusions corresponding to the non-source path predicate. */
 export const TRANSLATION_SCOPE_GLOB_EXCLUDES = [
   '.agents/notes/archived/**',
+  'CustomHarness/**',
   '**/node_modules/**',
   '**/lib/**',
   '**/.pnpm-store/**',

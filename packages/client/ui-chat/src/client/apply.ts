@@ -12,6 +12,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 // The `file` entry of `SidebarRightResourceParamsMap`, which types `{ params: { line } }` below.
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar-documentpreview/client'
 import { fileAddressFor } from '@deepseek-ai/dsh-util-workspace-path'
+import type { DiffHunk } from '@deepseek-ai/dsh-client-ui-primitives'
 // Type-only service and declaration merges used by the apply world.
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
@@ -30,8 +31,10 @@ import { ApprovalCommand } from './chat/ApprovalCommand.tsx'
 import { ChatView } from './chat/ChatView.tsx'
 import { registerChatNodeRenderers } from './chat/register-node-renderers.ts'
 import { StatsPills } from './chat/StatsPills.tsx'
+import { TurnChangesDock, type TurnChangesDockInjected } from './chat/TurnChangesDock.tsx'
+import { TURN_DIFF_ID, TURN_DIFF_KIND, TurnDiffPreview } from './chat/TurnDiffPreview.tsx'
 import { registerConversationNodes } from './conversation-nodes/register.ts'
-import { en, NS, zh } from './locale.ts'
+import { en, NS } from './locale.ts'
 import { TranscriptViewRow, type TranscriptViewRowInjected } from './settings/TranscriptViewRow.tsx'
 import { createChatStore } from './stores.ts'
 import { TranscriptViewPolicy } from './transcript-view.ts'
@@ -82,8 +85,11 @@ export function apply(ctx: Context): void {
     resolve: binding => ({ hooks: { chat: chatSource(binding) } }),
   })
 
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-chat: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { en }), 'ui-chat: dictionaries')
   const t = ctx.locale.bind(NS)
+  const openDiff = (path: string, diffs: readonly DiffHunk[]): void => {
+    ctx.sidebarRight.openTab(TURN_DIFF_KIND, { params: { path, diffs } })
+  }
   const chatStore = createChatStore()
   const chatScrollPositions = new Map<SessionId, ChatScrollPosition>()
   const chatSettings = ctx.configForms.get<ChatSettings>(CHAT_SETTINGS_NAMESPACE)
@@ -94,6 +100,13 @@ export function apply(ctx: Context): void {
   }))
   ctx.inject(['sidebarRightTabs'], (scope) => {
     const tabs = scope.sidebarRightTabs
+    scope.effect(() => tabs.register({
+      id: TURN_DIFF_ID, kind: TURN_DIFF_KIND, multiple: true, priority: 'builtin',
+      title: () => t('changes.title'),
+    }), 'ui-chat: turn diff tab')
+    scope.slots.inject('sidebar.right.pane.tab', () => scope.slots.register({
+      name: 'sidebar.right.pane.tab', key: TURN_DIFF_ID, locale: NS,
+    }, TurnDiffPreview))
     const browserAvailable: ObservableSnapshot<boolean> = {
       getSnapshot: () => tabs.get('browser') !== undefined,
       subscribe: listener => tabs.subscribe(listener),
@@ -163,6 +176,7 @@ export function apply(ctx: Context): void {
         const conversation = ctx.uiConversation.binding(binding)
         return {
           hooks: { presentation },
+          openDiff,
           keyedHooks: {
             chatNode: key => chat.getSnapshot().nodes.source(key),
             chatNodeProcess: key => chat.getSnapshot().nodes.processSource(key),
@@ -225,6 +239,12 @@ export function apply(ctx: Context): void {
     }, ChatView)
     return disposeView
   })
+
+  ctx.slots.inject('conversation.composer.dock', () =>
+    ctx.slots.register({
+      name: 'conversation.composer.dock', id: 'turn-changes', order: -10, locale: NS,
+      inject: (): TurnChangesDockInjected => ({ openDiff }),
+    }, TurnChangesDock))
 
   ctx.slots.inject('conversation.composer.dock', () =>
     ctx.slots.register({

@@ -1,4 +1,4 @@
-<!-- 英文源文件由 scripts/gen-config-catalog.ts 生成；本中文文件是通过双语配对维护的经评审对侧。
+<!-- 英文源文件由 scripts/gen-config-catalog.ts 生成；本中文文件是通过双语配对维护的经评审对应版本。
      更新时先运行 `pnpm run gen-config-catalog` 更新英文，再更新本文件并运行 `pnpm run verify-translation-pairing --write docs/config-catalog.md` 重新记录配对。 -->
 
 # 插件配置目录
@@ -223,11 +223,21 @@ Source: [`packages/api/job-controller/src/index.ts:35`](../packages/api/job-cont
 需要： `agentDefaultModel` · `agents` · `attachments` · `fileUploads` · `fs` · `llm` · `sessions` · `sessionProjections` · `sessionQuery` · `typert` · `workspaceRegistry`
 
 ```ts config-catalog
+/** Optional deployment values accepted by the Session Remote owner. */
+export type SessionControllerConfig = Partial<Config>
+
 /** Session Controller deployment policy. */
 export interface Config {
   /** Override platform desktop-opener detection. */
   readonly nativeOpen?: boolean
+  /** Location policy applied to newly created ungrouped Sessions. */
+  readonly mode: Volatile<SessionWorkspaceMode>
+  /** Parent directory for isolated remote-website work. */
+  readonly remoteRoot: Volatile<string>
 }
+
+/** Local-work location selected for newly created ungrouped Sessions. */
+export type SessionWorkspaceMode = typeof SESSION_WORKSPACE_MODES[number]
 ```
 
 来源： [`packages/api/session-controller/src/index.ts:79`](../packages/api/session-controller/src/index.ts)
@@ -1651,6 +1661,13 @@ export interface PiAiModelProfile {
    * declares the offered levels and their wire spellings.
    */
   reasoningEfforts?: false | PiAiReasoningEfforts
+  /**
+   * Level dispatch sends when a request names none, winning over the route's
+   * `reasoning`. One of this entry's own {@link reasoningEfforts} keys — a
+   * default needs a declared level to name, so it is refused beside omitted or
+   * `false` efforts rather than silently ignored.
+   */
+  defaultReasoningEffort?: ModelThinkingLevel
   /** pi-ai wire-compatibility switches for this model, winning over the route's per field; one its protocol does not declare is refused. */
   compat?: PiAiCompatProfile
 }
@@ -2700,8 +2717,27 @@ export interface Config {
 需要： `skills`
 
 ```ts config-catalog
+/** Live plugin configuration or plain options supplied by direct embedders. */
+export type SkillFilesystemConfig = Config | Options
+
+/** Runtime configuration with live settings references. */
+export interface Config extends BaseConfig {
+  /** Whether the optional settings-managed skill root participates in discovery. */
+  enabled: Volatile<boolean>
+  /** Settings-managed absolute host directory containing compatible skills. */
+  directory: Volatile<string | undefined>
+}
+
+/** Plain values accepted by direct embedders and tests. */
+export interface Options extends BaseConfig {
+  /** Whether the optional settings-managed skill root participates in discovery. */
+  enabled?: boolean
+  /** Settings-managed absolute host directory containing compatible skills. */
+  directory?: string
+}
+
 /** Local filesystem skill provider configuration. */
-export interface Config {
+interface BaseConfig {
   /** Unique provider name. Defaults to `filesystem`. */
   providerName?: string
   /** Whether project and user roots are included around custom roots. */
@@ -3053,6 +3089,83 @@ export type CodexPermissionMode =
 
 来源： [`packages/subagent/subagent-codex/src/index.ts:36`](../packages/subagent/subagent-codex/src/index.ts)
 
+<a id="deepseek-aidsh-subagent-commandcode"></a>
+
+## `@deepseek-ai/dsh-subagent-commandcode`
+
+依赖：`typert` · `tools` · `subprocess`
+
+```ts config-catalog
+/** Deployment-owned process-release timing. */
+export interface Config {
+  /** Grace in milliseconds between managed-range termination tiers. */
+  disposeGraceMs?: number
+  /** Whether to register the pre-roster lane tools beside the backend. */
+  toolsEnabled?: boolean
+  /** Legacy lane concurrency retained until the unified roster imports it. */
+  maxConcurrentRuns: Volatile<number>
+  /** Legacy lane timeout retained until the unified roster imports it. */
+  timeoutMs: Volatile<number>
+  /** Legacy lane turn cap retained until the unified roster imports it. */
+  maxTurns: Volatile<number>
+  /** Legacy lanes retained until the unified roster imports them. */
+  lanes: Volatile<CommandCodeDelegationSettings['lanes']>
+  /** Legacy workspace overrides retained until the unified roster imports them. */
+  projects: Volatile<CommandCodeDelegationSettings['projects']>
+}
+
+/** The complete Command Code delegation settings section. */
+export interface CommandCodeDelegationSettings {
+  /** Maximum Command Code runs in flight across foreground and background calls. */
+  maxConcurrentRuns: number
+  /** Wall-clock bound in milliseconds for one delegated run. */
+  timeoutMs: number
+  /** Conversation-turn bound passed to the CLI's `--max-turns`. */
+  maxTurns: number
+  /** Global lane definitions. */
+  lanes: CommandCodeLaneSetting[]
+  /** Per-workspace lane overrides keyed by canonical workspace path. */
+  projects: Record<string, CommandCodeProjectOverrideSetting>
+}
+
+/** One lane definition as stored in the user's settings document. */
+export interface CommandCodeLaneSetting {
+  /** Stable lane id the model names; immutable across renames. */
+  id: string
+  /** Display name shown in Settings and in background job labels. */
+  name: string
+  /** One-line purpose the lane discovery tool reports. */
+  purpose: string
+  /** Instructions prepended to every delegated brief; empty adds none. */
+  instructions: string
+  /** Exact Command Code model id. */
+  model: string
+  /** Reasoning effort requested from the CLI; `default` omits the flag. */
+  effort: CommandCodeEffort
+  /** Access level; `full-access` runs the CLI with `--yolo`. */
+  access: CommandCodeAccess
+  /** Whether the lane is offered to the model and accepted for delegation. */
+  enabled: boolean
+}
+
+/** One workspace's overrides, keyed by the global lane id they patch. */
+export interface CommandCodeProjectOverrideSetting {
+  /** Global lane id to the field patch replacing that lane's global values. */
+  lanes: Record<string, CommandCodeLaneOverride>
+}
+
+/** One lane's reasoning-effort selection. */
+export type CommandCodeEffort = typeof COMMAND_CODE_EFFORTS[number]
+
+/** One lane's access level. */
+export type CommandCodeAccess = typeof COMMAND_CODE_ACCESS_MODES[number]
+
+/** Fields one project may override on a global lane; omitted fields are inherited. */
+export type CommandCodeLaneOverride = Partial<Omit<CommandCodeLaneSetting, 'id'>>
+```
+
+来源：[`packages/subagent/subagent-commandcode/src/index.ts:67`](../packages/subagent/subagent-commandcode/src/index.ts)
+
 <a id="deepseek-aidsh-subagent-dsh-sdk"></a>
 
 ## `@deepseek-ai/dsh-subagent-dsh-sdk`
@@ -3124,6 +3237,135 @@ export interface Config {
 ```
 
 来源： [`packages/subagent/subagent-fork-in-process/src/index.ts:31`](../packages/subagent/subagent-fork-in-process/src/index.ts)
+
+<a id="deepseek-aidsh-subagent-roster"></a>
+
+## `@deepseek-ai/dsh-subagent-roster`
+
+需要： `tools` · `subagents` · `agents` · `sessionProjections`
+
+```ts config-catalog
+/** Live role configuration edited through the profile settings form. */
+export type Config = Volatile<SubagentSettings>
+
+/** The complete subagent roster settings section. */
+export interface SubagentSettings {
+  /** Global role definitions. */
+  readonly subagents: SubagentDefinition[]
+  /** Per-workspace role overrides keyed by canonical workspace path. */
+  readonly overrides: Record<string, SubagentWorkspaceOverride>
+  /** Authority for `automatic` model selection. */
+  readonly automaticRouting: SubagentAutomaticRouting
+  /** Run bounds. */
+  readonly limits: SubagentRunLimits
+}
+
+/** One subagent role as stored in the user's settings document. */
+export interface SubagentDefinition {
+  /** Stable id the model names; immutable across renames. */
+  readonly id: string
+  /** Display name shown in Settings and in background job labels. */
+  readonly name: string
+  /** Whether the role is offered in the directory and accepted for delegation. */
+  readonly enabled: boolean
+  /** One-line purpose the directory reports. */
+  readonly purpose: string
+  /** Routing guidance telling the parent when this role is the right one. */
+  readonly whenToUse: string
+  /** How the parent may invoke this role. */
+  readonly invocation: SubagentInvocationPolicy
+  /** This role's model policy. */
+  readonly model: SubagentModelPolicy
+  /** Sandbox access the child is narrowed to; `inherit` keeps the parent's effective mode. */
+  readonly access: SubagentAccess
+  /** Tool scoping applied to the child; omission leaves its tool set unscoped. */
+  readonly tools?: ToolRestriction
+  /** Standing instructions delivered as the child's persona. */
+  readonly instructions: string
+  /** Optional absolute delegation-depth cap for the child. */
+  readonly maxDepth?: number
+  /** Backend and schedule. */
+  readonly execution: SubagentExecution
+}
+
+/** One workspace's overrides, keyed by the global definition id they patch. */
+export interface SubagentWorkspaceOverride {
+  /** Global definition id to the field patch replacing that definition's global values. */
+  readonly subagents: Record<string, SubagentDefinitionOverride>
+  /** Definition ids this workspace removes entirely. */
+  readonly removed?: readonly string[]
+}
+
+/** Which LLM routes a parent may select for an `automatic` role. */
+export interface SubagentAutomaticRouting {
+  /** Whether an explicit route selection is accepted at all. */
+  readonly enabled: boolean
+  /** Exact routes an explicit selection must resolve to. */
+  readonly allowedModels: AllowedModelRoute[]
+}
+
+/** Run bounds shared by every role. */
+export interface SubagentRunLimits {
+  /**
+   * Delegations allowed in flight together, foreground and background.
+   * `adaptive` lets the parent choose each parallel batch up to the product ceiling.
+   */
+  readonly maxConcurrentRuns: number | 'adaptive'
+  /** Wall-clock bound used by a definition that names none. */
+  readonly defaultTimeoutMs: number
+}
+
+/** How the parent agent may invoke one subagent. */
+export type SubagentInvocationPolicy = 'automatic' | 'ask-first' | 'manual'
+
+/** Where one subagent's model comes from and, when fixed, which route it is. */
+export interface SubagentModelPolicy {
+  /** Defaults to `fixed`, which leaves the parent no say; `automatic` is an opt-in per definition. */
+  readonly mode: SubagentModelMode
+  /**
+   * The exact route a `fixed` definition pins. An omitted route contributes
+   * none, so the child inherits the calling parent's resolved route while the
+   * parent still may not choose another.
+   */
+  readonly route?: SubagentModelRoute
+}
+
+/** Where one subagent's work physically runs. */
+export interface SubagentExecution {
+  /** The `ctx.subagents` provider name that establishes the child. */
+  readonly backend: string
+  /** Which schedule the parent's `run_in_background` defaults to, and what it may force. */
+  readonly background: SubagentBackgroundPolicy
+  /** Wall-clock bound in milliseconds for one delegation; omission uses the run limit. */
+  readonly timeoutMs?: number
+}
+
+/** Fields one workspace may override on a global definition; omitted fields are inherited. */
+export type SubagentDefinitionOverride = Partial<Omit<SubagentDefinition, 'id'>>
+
+/**
+ * Where one subagent's model comes from. `fixed` is the default: the user owns
+ * the route, and only an explicit per-definition `automatic` opt-in lets the
+ * parent agent choose one.
+ */
+export type SubagentModelMode = 'fixed' | 'automatic'
+
+/**
+ * One exact LLM route plus the reasoning effort that belongs to it. The effort
+ * travels with the route because changing the model must re-validate it.
+ */
+export interface SubagentModelRoute extends AllowedModelRoute {
+  /** Adapter-owned reasoning effort; omission uses the selected model's own default. */
+  readonly reasoningEffort?: string
+}
+
+/** How one definition's execution schedule is fixed. */
+export type SubagentBackgroundPolicy = 'auto' | 'foreground' | 'background'
+```
+
+依赖： [`AllowedModelRoute`](subsystems/subagent.zh.md) · `SubagentAccess` (`@deepseek-ai/dsh-subagent/client`) · [`ToolRestriction`](subsystems/tools.zh.md) · `Volatile` (`@deepseek-ai/cordis`)
+
+来源： [`packages/subagent/subagent-roster/src/index.ts:186`](../packages/subagent/subagent-roster/src/index.ts)
 
 <a id="deepseek-aidsh-subagent-spawn-in-process"></a>
 
@@ -4099,6 +4341,7 @@ export interface Config {
 - `@deepseek-ai/dsh-client-ui-agent-preset`（[`packages/client/ui-agent-preset/src/index.ts`](../packages/client/ui-agent-preset/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-approval`（[`packages/client/ui-approval/src/index.ts`](../packages/client/ui-approval/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-attachment`（[`packages/client/ui-attachment/src/index.ts`](../packages/client/ui-attachment/src/index.ts)）
+- `@deepseek-ai/dsh-client-ui-brand-custom-harness`（[`packages/client/ui-brand-custom-harness/src/index.ts`](../packages/client/ui-brand-custom-harness/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-brand-official`（[`packages/client/ui-brand-official/src/index.ts`](../packages/client/ui-brand-official/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-chat`（[`packages/client/ui-chat/src/index.ts`](../packages/client/ui-chat/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-commands`（[`packages/client/ui-commands/src/index.ts`](../packages/client/ui-commands/src/index.ts)）
@@ -4128,6 +4371,7 @@ export interface Config {
 - `@deepseek-ai/dsh-client-ui-settings-plugins`（[`packages/client/ui-settings-plugins/src/index.ts`](../packages/client/ui-settings-plugins/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-settings-shell`（[`packages/client/ui-settings-shell/src/index.ts`](../packages/client/ui-settings-shell/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-settings-subagent`（[`packages/client/ui-settings-subagent/src/index.ts`](../packages/client/ui-settings-subagent/src/index.ts)）
+- `@deepseek-ai/dsh-client-ui-settings-subagents`（[`packages/client/ui-settings-subagents/src/index.ts`](../packages/client/ui-settings-subagents/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-settings-web-search`（[`packages/client/ui-settings-web-search/src/index.ts`](../packages/client/ui-settings-web-search/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-sidebar`（[`packages/client/ui-sidebar/src/index.ts`](../packages/client/ui-sidebar/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-sidebar-browser`（[`packages/client/ui-sidebar-browser/src/index.ts`](../packages/client/ui-sidebar-browser/src/index.ts)）
@@ -4141,6 +4385,7 @@ export interface Config {
 - `@deepseek-ai/dsh-client-ui-user-questions`（[`packages/client/ui-user-questions/src/index.ts`](../packages/client/ui-user-questions/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-workflow-run`（[`packages/client/ui-workflow-run/src/index.ts`](../packages/client/ui-workflow-run/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-workspace`（[`packages/client/ui-workspace/src/index.ts`](../packages/client/ui-workspace/src/index.ts)）
+- `@deepseek-ai/dsh-client-ui-workspace-brief`（[`packages/client/ui-workspace-brief/src/index.ts`](../packages/client/ui-workspace-brief/src/index.ts)）
 - `@deepseek-ai/dsh-command-compact` — 需要 `commands` · `compact`（[`packages/compaction/command-compact/src/index.ts`](../packages/compaction/command-compact/src/index.ts)）
 - `@deepseek-ai/dsh-command-feedback` — 需要 `commands`（[`packages/feedback/command-feedback/src/index.ts`](../packages/feedback/command-feedback/src/index.ts)）
 - `@deepseek-ai/dsh-command-goal` — 需要 `commands` · `goals`（[`packages/goal/command-goal/src/index.ts`](../packages/goal/command-goal/src/index.ts)）
@@ -4183,6 +4428,7 @@ export interface Config {
 - `@deepseek-ai/dsh-user-questions`（[`packages/interaction/user-questions/src/index.ts`](../packages/interaction/user-questions/src/index.ts)）
 - `@deepseek-ai/dsh-webhook` — 需要 `agents` · `agentDefaultModel` · `agentPresets` · `permissionPresets` · `sessionTitle` · `workspaceRegistry`（[`packages/webhook/webhook/src/index.ts`](../packages/webhook/webhook/src/index.ts)）
 - `@deepseek-ai/dsh-workspace` — 需要 `storageDomain` · `sessionPersistence`（[`packages/workspace/workspace/src/index.ts`](../packages/workspace/workspace/src/index.ts)）
+- `@deepseek-ai/dsh-workspace-brief` — 需要 `commands` · `fs` · `sandboxPolicy` · `shell` · `workspaceRegistry`（[`packages/workspace/workspace-brief/src/index.ts`](../packages/workspace/workspace-brief/src/index.ts)）
 
 ## Seam 包（不可直接加载）
 
@@ -4223,6 +4469,7 @@ export interface Config {
 - `@deepseek-ai/dsh-client-ui-slots`（[`packages/client/ui-slots/src/index.ts`](../packages/client/ui-slots/src/index.ts)）
 - `@deepseek-ai/dsh-client-web`（[`packages/client/web/src/index.ts`](../packages/client/web/src/index.ts)）
 - `@deepseek-ai/dsh-cmdline`（[`packages/boot/cmdline/src/index.ts`](../packages/boot/cmdline/src/index.ts)）
+- `@deepseek-ai/dsh-custom-harness`（[`packages/bundle/custom-harness/src/index.ts`](../packages/bundle/custom-harness/src/index.ts)）
 - `@deepseek-ai/dsh-deque`（[`packages/util/deque/src/index.ts`](../packages/util/deque/src/index.ts)）
 - `@deepseek-ai/dsh-experimental-agent-team-profile`（[`packages/experimental/agent-team-profile/src/index.ts`](../packages/experimental/agent-team-profile/src/index.ts)）
 - `@deepseek-ai/dsh-experimental-browser-use-runtime`（[`packages/experimental/browser-use-runtime/src/index.ts`](../packages/experimental/browser-use-runtime/src/index.ts)）
@@ -4236,9 +4483,11 @@ export interface Config {
 - `@deepseek-ai/dsh-lazy-require`（[`packages/util/lazy-require/src/index.ts`](../packages/util/lazy-require/src/index.ts)）
 - `@deepseek-ai/dsh-llm-mock-server`（[`packages/test-support/llm-mock-server/src/index.ts`](../packages/test-support/llm-mock-server/src/index.ts)）
 - `@deepseek-ai/dsh-loader-smoke`（[`packages/test-support/loader-smoke/src/index.ts`](../packages/test-support/loader-smoke/src/index.ts)）
+- `@deepseek-ai/dsh-model-capabilities` ([`packages/llm/model-capabilities/src/index.ts`](../packages/llm/model-capabilities/src/index.ts))
 - `@deepseek-ai/dsh-native-command`（[`packages/util/native-command/src/index.ts`](../packages/util/native-command/src/index.ts)）
 - `@deepseek-ai/dsh-output-retention`（[`packages/util/output-retention/src/index.ts`](../packages/util/output-retention/src/index.ts)）
 - `@deepseek-ai/dsh-package-manifest`（[`packages/util/package-manifest/src/index.ts`](../packages/util/package-manifest/src/index.ts)）
+- `@deepseek-ai/dsh-platform-probe`（[`packages/test-support/platform-probe/src/index.ts`](../packages/test-support/platform-probe/src/index.ts)）
 - `@deepseek-ai/dsh-remote-mock`（[`packages/test-support/remote-mock/src/index.ts`](../packages/test-support/remote-mock/src/index.ts)）
 - `@deepseek-ai/dsh-sandbox-windows-acl`（[`packages/sandbox/sandbox-windows-acl/src/index.ts`](../packages/sandbox/sandbox-windows-acl/src/index.ts)）
 - `@deepseek-ai/dsh-scope`（[`packages/core/scope/src/index.ts`](../packages/core/scope/src/index.ts)）

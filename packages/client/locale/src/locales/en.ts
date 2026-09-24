@@ -1,6 +1,4 @@
-import type { CommonKey } from './zh.ts'
-
-/** en base dictionary for the common namespace, checked complete against the zh key set. */
+/** English base dictionary for the common namespace. */
 export const en = {
   'ok': 'OK',
   'cancel': 'Cancel',
@@ -31,6 +29,15 @@ export const en = {
   'expand': 'Expand',
   'back': 'Back',
   'brand.localBuild': 'DSH Local Build',
+  'appMenu.toggleSidebar': 'Toggle sidebar',
+  'appMenu.navigationHistory': 'Navigation history',
+  'appMenu.goBack': 'Go back',
+  'appMenu.goForward': 'Go forward',
+  'appMenu.label': 'Application menu',
+  'appMenu.file': 'File',
+  'appMenu.edit': 'Edit',
+  'appMenu.view': 'View',
+  'appMenu.help': 'Help',
   'unknown': 'Unknown',
   'none': 'None',
   'truncated': 'Truncated',
@@ -39,4 +46,7 @@ export const en = {
   'markdown.truncatedCharacters': '… truncated at {total} characters',
   'number.thousand': '{value}K',
   'number.million': '{value}M',
-} satisfies Record<CommonKey, string>
+} satisfies Record<string, string>
+
+/** The common vocabulary key union. */
+export type CommonKey = keyof typeof en

@@ -4,6 +4,11 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DesktopHostProcess, DesktopHostUncleanExitError } from '../src/host-process.ts'
 
+vi.mock('node:child_process', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:child_process')>()
+  return { ...actual, spawn: vi.fn(actual.spawn) }
+})
+
 const roots: string[] = []
 const hosts: DesktopHostProcess[] = []
 

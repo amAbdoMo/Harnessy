@@ -13,6 +13,9 @@ function createProductApi(): DshDesktopProductApi {
   return {
     protocolVersion: 1,
     browser: createDesktopBrowserBridge(),
+    notifications: {
+      show: payload => ipcRenderer.invoke(DESKTOP_IPC.notificationsShow, payload) as Promise<boolean>,
+    },
     updates: {
       status: () => ipcRenderer.invoke(DESKTOP_IPC.updatesStatus) as Promise<DesktopUpdatePresentation>,
       open: () => ipcRenderer.invoke(DESKTOP_IPC.updatesOpen) as Promise<void>,

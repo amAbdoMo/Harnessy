@@ -51,8 +51,10 @@ function normalizeSubagentDiagnostic(result: SubagentResult): SubagentResult {
 /**
  * The capability advertisement of an out-of-process backend: NONE. A child in
  * another process cannot honor parent-enforced start features
- * (`agentOptions`/`outputSchema`/`maxDepth`/`toolFilter`/`persona`), so the service rejects a
- * request needing any of them before `start` runs — never accepted-then-ignored.
+ * (`agentOptions`/`outputSchema`/`maxDepth`/`toolFilter`/`persona`/
+ * `sandboxMode`), so the service rejects a request needing any of them before
+ * `start` runs — never accepted-then-ignored. The child's models are its own
+ * runtime's, so `runtimeRoute` is false as well.
  */
 export const NO_START_CAPABILITIES: SubagentCapabilities = Object.freeze({
   agentOptions: false,
@@ -60,6 +62,8 @@ export const NO_START_CAPABILITIES: SubagentCapabilities = Object.freeze({
   depthLimit: false,
   toolFilter: false,
   persona: false,
+  accessPolicy: false,
+  runtimeRoute: false,
 })
 
 /**

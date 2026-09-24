@@ -13,6 +13,9 @@ import { capture } from './process.ts'
 /** Name of the file recording the order in which a packed family uploads. */
 export const PUBLISH_ORDER_FILE = 'publish-order.txt'
 
+/** Marker written beside product-specific package bytes that must never enter the upstream publish flow. */
+export const PUBLISH_DISABLED_FILE = 'publish-disabled.txt'
+
 /** What a packed tarball calls itself. */
 export interface PackedIdentity {
   /** Package name from the packed manifest. */

@@ -62,8 +62,9 @@ async function launchElectron(): Promise<void> {
   const mainPort = debugPort('DSH_DESKTOP_MAIN_INSPECT_PORT', 9229)
   const rendererPort = debugPort('DSH_DESKTOP_RENDERER_DEBUG_PORT', 9222)
   const hostPort = debugPort('DSH_DESKTOP_HOST_INSPECT_PORT', 9230)
-  const home = resolve(process.env.DSH_HOME ?? join(DEVELOPMENT_ROOT, 'home'))
-  const userData = join(DEVELOPMENT_ROOT, 'electron-user-data')
+  const home = resolve(process.env.DSH_HOME ?? join(DEVELOPMENT_ROOT, 'Harness'))
+  const cache = join(DEVELOPMENT_ROOT, 'Cache')
+  const userData = join(cache, 'DesktopUserData')
   const environment: NodeJS.ProcessEnv = {
     ...process.env,
     DSH_HOME: home,
@@ -90,7 +91,7 @@ async function launchElectron(): Promise<void> {
 async function main(): Promise<void> {
   const { values } = parseArgs({ options: { 'skip-build': { type: 'boolean', default: false } } })
   if (!values['skip-build']) {
-    await runPackageScript('build', REPOSITORY_ROOT)
+    await runPackageScript('build:custom-harness', REPOSITORY_ROOT)
     await runPackageScript('build', APP_ROOT)
   }
   for (const path of [

@@ -57,7 +57,7 @@ function equalBreadcrumbs(left: readonly Breadcrumb[], right: readonly Breadcrum
  */
 export function ConversationSessionHeader({
   sessionId, hideChrome, useSessions, useConversationViews, useStore,
-  renderSlot, open, selectView, t,
+  renderSlot, open, selectView, openView, t,
 }: ConversationSessionHeaderProps) {
   const tabs = useConversationViews(value => value)
   const selectedId = useStore(s => s.view)
@@ -125,11 +125,15 @@ export function ConversationSessionHeader({
                 {ancestry.length === 0 && <span className={css.crumbCurrent}>{sessionId}</span>}
               </nav>
               <div className={css.headerActions}>
-                {renderSlot('conversation.session.header.actions', {})}
+                {renderSlot('conversation.session.header.actions', {
+                  openConversationEvent: (callId) => { openView('chat', `call:${callId}`) },
+                })}
               </div>
             </div>
             <div className={css.headerUtilities}>
-              {renderSlot('conversation.session.header.utilities', {})}
+              {renderSlot('conversation.session.header.utilities', {
+                openConversationEvent: (callId) => { openView('chat', `call:${callId}`) },
+              })}
             </div>
           </>
         )}

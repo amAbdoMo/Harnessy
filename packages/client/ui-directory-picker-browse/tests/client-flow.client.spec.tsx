@@ -11,8 +11,8 @@ import { apply, inject } from '../src/client/index.ts'
 import { BrowseDirectoryFlow } from '../src/client/flow.ts'
 import { apply as nodeApply } from '../src/index.ts'
 
-// The service reads its initial locale from the browser; these specs assert
-// the shipped Chinese copy, so they state the browser they assume.
+// The service reads its initial locale from the browser; an unsupported
+// browser language must resolve to the shipped English locale.
 usePinnedBrowserLanguages('zh-CN')
 
 afterEach(cleanup)
@@ -138,7 +138,7 @@ describe('directory-picker-browse client half', () => {
     }
   })
 
-  it('rolls back the zh dictionary when a rival already owns the namespace en slot', async () => {
+  it('fails without disturbing a rival that already owns the English namespace slot', async () => {
     const b = await bench()
     b.declare()
     const locale = b.ctx.get('locale') as LocaleRuntime
@@ -150,11 +150,10 @@ describe('directory-picker-browse client half', () => {
     try {
       const fiber = b.ctx.plugin({ inject: [...inject], apply })
       await expect(fiber.await()).rejects.toThrow(/already has locale/)
-      // The zh registration rolled back with the failure: once the rival
-      // leaves, a fresh registrant owns the whole namespace again.
+      // Once the rival leaves, a fresh registrant can own the namespace.
       disposeRival()
-      const disposeZh = locale.register('directory-browser', 'zh', { 'browser.title': '空闲' })
-      disposeZh()
+      const disposeEn = locale.register('directory-browser', 'en', { 'browser.title': 'Idle' })
+      disposeEn()
     } finally {
       await new Promise(resolve => setTimeout(resolve, 0))
       process.off('unhandledRejection', onUnhandled)
@@ -167,10 +166,9 @@ describe('directory-picker-browse client half', () => {
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     const entry = b.slots.entries(HOLES[0])[0]!
     const injected = (entry.inject as () => { t: (key: string) => string })()
-    // zh is the shipped default locale.
-    expect(injected.t('browser.title')).toBe('选择工作区目录')
-    expect(injected.t('browser.newFolder')).toBe('新建文件夹')
-    expect(injected.t('browser.showHidden')).toBe('显示隐藏文件')
+    expect(injected.t('browser.title')).toBe('Select Workspace Directory')
+    expect(injected.t('browser.newFolder')).toBe('New folder')
+    expect(injected.t('browser.showHidden')).toBe('Show hidden files')
   })
 
   it('drives the injected browse calls through the hole entry', async () => {

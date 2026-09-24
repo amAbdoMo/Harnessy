@@ -22,6 +22,159 @@ A form namespace is the local id of a uniquely addressed entry in the active pro
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxaccountscontroller--accountscontroller"></a>
+
+### `ctx.accountsController` — `AccountsController`
+
+Manage several local identities per provider while keeping one canonical active credential at the existing `llm-pi-ai/<provider>` address.
+
+```ts cordis-catalog
+/**
+ * Return every managed account without returning its stored credential.
+ * @returns the public provider/account state, including whether the vault accepts writes.
+ */
+@Remote async describe(): Promise<AccountsState>
+
+/**
+ * Add an OAuth-backed identity through the provider's installed browser flow.
+ * A later account is saved without replacing the currently active identity.
+ * @param provider - installed OAuth-capable provider to authorize.
+ * @param signal - cancellation for browser opening, prompts, and provider authorization.
+ * @returns whether authorization completed or the user cancelled it.
+ */
+@Remote async addOAuth(provider: AccountProviderId, signal: AbortSignal): Promise<AccountSignInResult>
+
+/**
+ * Add a named API-key identity; only the first account becomes active automatically.
+ * @param provider - installed API-key provider that will own the identity.
+ * @param name - user-visible local label, bounded before storage.
+ * @param key - secret API key written to the protected credential vault.
+ * @returns the updated public account state with credentials omitted.
+ */
+@Remote async addApiKey(provider: AccountProviderId, name: string, key: string): Promise<AccountsState>
+
+/**
+ * Make one saved identity the canonical credential used by model requests.
+ * @param provider - provider whose active identity changes.
+ * @param accountId - saved identity to promote.
+ * @returns the updated public account state with credentials omitted.
+ */
+@Remote async activate(provider: AccountProviderId, accountId: string): Promise<AccountsState>
+
+/**
+ * Enable or disable automatic Codex failover after a supported quota reaches its limit.
+ * @param provider - provider whose failover preference changes; only Codex supports it.
+ * @param enabled - whether fresh usage checks may promote an eligible saved account.
+ * @returns the updated public account state with credentials omitted.
+ */
+@Remote async setAutoSwitch(provider: AccountProviderId, enabled: boolean): Promise<AccountsState>
+
+/**
+ * Rename one local account without changing its credential or active state.
+ * @param provider - provider containing the saved identity.
+ * @param accountId - saved identity to rename.
+ * @param name - new user-visible label, bounded before storage.
+ * @returns the updated public account state with credentials omitted.
+ */
+@Remote async rename(provider: AccountProviderId, accountId: string, name: string): Promise<AccountsState>
+
+/**
+ * Remove one saved identity and promote the next identity when it was active.
+ * @param provider - provider containing the saved identity.
+ * @param accountId - saved identity to remove.
+ * @returns the updated public account state with credentials omitted.
+ */
+@Remote async deleteAccount(provider: AccountProviderId, accountId: string): Promise<AccountsState>
+
+/**
+ * Refresh every supported usage snapshot for account-management and status surfaces.
+ * @param signal - cancellation checked between accounts and forwarded to usage requests.
+ * @returns the updated public account state with refreshed usage when available.
+ */
+@Remote async refreshUsage(signal: AbortSignal): Promise<AccountsState>
+```
+
+Source: [`packages/api/settings-controller/src/accounts.ts`](../../packages/api/settings-controller/src/accounts.ts)
+
+<a id="ctxmcpmanagercontroller--mcpmanagercontroller"></a>
+
+### `ctx.mcpManagerController` — `McpManagerController`
+
+Host controller for Harnessy's protected, live MCP server registry.
+
+```ts cordis-catalog
+/**
+ * Return every saved server without authentication values.
+ * @returns redacted registry state and live connection snapshots.
+ */
+@Remote describe(): Promise<McpManagerState>
+
+/**
+ * Materialize and open the dedicated MCP registry document.
+ * @param signal - caller lifetime; abort terminates the native open command.
+ * @returns confirmation after the operating system accepts the document.
+ */
+@Remote openConfigurationFile(signal: AbortSignal): Promise<SettingsDocumentOpenValue>
+
+/**
+ * Add or replace one protected server profile and reconcile its connection.
+ * @param input - complete staged profile; omitted secret fields retain saved values on edit.
+ * @returns redacted registry state after reconciliation.
+ */
+@Remote save(input: McpServerInput): Promise<McpManagerState>
+
+/**
+ * Enable or disable one saved server. Disabled servers publish no tools.
+ * @param serverId - stable identifier returned by {@link describe}.
+ * @param enabled - whether Harnessy should supervise the connection.
+ * @returns redacted registry state after reconciliation.
+ */
+@Remote setEnabled(serverId: string, enabled: boolean): Promise<McpManagerState>
+
+/**
+ * Restart an enabled server immediately and wait for its first connection attempt.
+ * @param serverId - stable identifier returned by {@link describe}.
+ * @returns redacted registry state after the attempt settles.
+ */
+@Remote reconnect(serverId: string): Promise<McpManagerState>
+
+/**
+ * Remove one saved server and unregister all tools it owns.
+ * @param serverId - stable identifier returned by {@link describe}.
+ * @returns redacted registry state after removal.
+ */
+@Remote deleteServer(serverId: string): Promise<McpManagerState>
+```
+
+Source: [`packages/api/settings-controller/src/mcp-manager.ts`](../../packages/api/settings-controller/src/mcp-manager.ts)
+
+<a id="ctxopenaiaccountcontroller--openaiaccountcontroller"></a>
+
+### `ctx.openAIAccountController` — `OpenAIAccountController`
+
+Expose the one-click ChatGPT OAuth path used by Harnessy. The neutral authorization service still owns the provider conversation and token write; this controller supplies the Windows-desktop interaction: browser login and a cancellable wait for the local OAuth callback.
+
+```ts cordis-catalog
+/**
+ * Return account availability and local sign-in state without exposing a token.
+ * @returns Redacted availability, configuration, progress, and writability state.
+ */
+@Remote async describe(): Promise<OpenAIAccountState>
+
+/**
+ * Start ChatGPT browser OAuth, wait for its local callback, then activate the
+ * OpenAI Codex provider route so its models appear immediately.
+ * @param signal - Remote request lifetime; aborting it cancels the login attempt.
+ * @returns Whether the provider completed or cancelled authorization.
+ */
+@Remote async signIn(signal: AbortSignal): Promise<OpenAIAccountSignInResult>
+
+/** Remove the local OAuth grant and the model route that depends on it. */
+@Remote async signOut(): Promise<void>
+```
+
+Source: [`packages/api/settings-controller/src/openai-account.ts`](../../packages/api/settings-controller/src/openai-account.ts)
+
 <a id="ctxsettings--settingsforms"></a>
 
 ### `ctx.settings` — `SettingsForms`
@@ -29,6 +182,12 @@ Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnp
 Project Config schemas into forms and own optional instance-level UI policy.
 
 ```ts cordis-catalog
+/**
+ * Wait until the removed settings document has either been imported or found absent.
+ * @returns fulfillment after the one-time import attempt completes.
+ */
+whenInitialImportSettles(): Promise<void>
+
 /** Register the calling plugin instance's page policy without changing its Config.
  * @param presentation Automatic-page policy for this instance; `auto` defaults to true.
  * @param owner Plugin instance the policy belongs to; defaults to the calling fiber.
@@ -129,6 +288,27 @@ Host service backing the generated `ctx.remote.settings` namespace. Every remote
 ```
 
 Source: [`packages/api/settings-controller/src/index.ts`](../../packages/api/settings-controller/src/index.ts)
+
+<a id="accounts-events"></a>
+
+### `accounts/*` events
+
+<a id="accountsauto-switched--emit"></a>
+
+#### `accounts/auto-switched` — emit
+
+Report one committed automatic Codex account promotion.
+
+```ts cordis-catalog
+/**
+ * Report one committed automatic Codex account promotion.
+ * @param event - secret-free source, destination, quota, and timestamp facts.
+ * @mode emit
+ */
+'accounts/auto-switched'(event: AccountAutoSwitchEvent): void
+```
+
+Source: [`packages/api/settings-controller/src/types.ts`](../../packages/api/settings-controller/src/types.ts)
 
 <a id="settings-events"></a>
 

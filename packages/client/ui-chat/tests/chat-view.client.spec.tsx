@@ -446,6 +446,7 @@ function makeHarness(
     openView,
     completeViewRequest: () => {},
     openFile,
+    openDiff: vi.fn(),
     openSkill,
     openExternalLink: vi.fn(),
     loadOlder,
@@ -1461,6 +1462,7 @@ describe('ChatView', () => {
     const h = makeHarness({
       nodes: [user(1, 'do the thing'), assistant(2, 'running tools'), toolResult(3, 'a'), toolResult(4, 'b')],
     })
+    h.setTranscriptView('detailed')
     const view = render(<h.ChatView {...h.props} />)
     expect(view.getByText('do the thing')).toBeTruthy()
     expect(view.getByText('running tools')).toBeTruthy()

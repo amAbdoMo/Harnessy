@@ -22,9 +22,10 @@ A provider advertises its **start-time** features on a static descriptor the ser
  * degradation" rule). These flags describe the ONE-SHOT
  * {@link SubagentProvider.start} path, where the provider composes the child;
  * continuable children are composed by the continuation manager itself and are
- * gated by {@link SubagentProvider.prepareContinuable} instead. Each flag
- * corresponds one-to-one to a {@link SubagentStartRequest} option: `depthLimit`
- * to `maxDepth`; the other names match.
+ * gated by {@link SubagentProvider.prepareContinuable} instead. Every flag but
+ * {@link SubagentCapabilities.runtimeRoute} corresponds one-to-one to a
+ * {@link SubagentStartRequest} option: `depthLimit` to `maxDepth`,
+ * `accessPolicy` to `sandboxMode`; the other names match.
  */
 interface SubagentCapabilities {
   readonly agentOptions: boolean
@@ -32,6 +33,26 @@ interface SubagentCapabilities {
   readonly depthLimit: boolean
   readonly toolFilter: boolean
   readonly persona: boolean
+  /**
+   * Whether the provider confines the child to a requested
+   * {@link SubagentStartRequest.sandboxMode}. Only a provider that composes the
+   * child inside this process can narrow a creation window; an out-of-process
+   * provider cannot, so it advertises `false` and a request carrying a concrete
+   * access is rejected at start rather than accepted as an unenforced scope.
+   */
+  readonly accessPolicy: boolean
+  /**
+   * Whether an `agentOptions` route this provider receives names a model the
+   * composed LLM runtime resolves, so a caller must preflight that route
+   * through `ctx.llm` before starting. A provider that owns its model space —
+   * a command-line tool with its own catalog — advertises `false`: the route
+   * reaches the provider untouched and the provider validates it, because the
+   * composed runtime has no adapter for a model it is not the one to run. This
+   * describes the provider itself rather than a
+   * {@link SubagentStartRequest} option, so no request field asks for it and
+   * no request that omits `agentOptions` consults it.
+   */
+  readonly runtimeRoute: boolean
 }
 ```
 
@@ -103,6 +124,15 @@ interface SubagentStartRequest {
    * persona (strict `{{…}}` interpolation against the registered variables).
    */
   readonly persona?: string
+  /**
+   * Optional child sandbox-mode scope. Requires
+   * {@link SubagentCapabilities.accessPolicy}; a concrete mode is rejected at
+   * start on a provider without it. The child's delegated mode is the NARROWER
+   * of its parent's effective mode and this value, so a request can only
+   * tighten access — never widen it — and `'inherit'` (or omission) preserves
+   * the behavior of a request that names no access at all.
+   */
+  readonly sandboxMode?: SubagentAccess
 }
 ```
 
@@ -475,6 +505,45 @@ The spawn and fork backends create an ordinary one-shot agent through `parent.ct
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxcommandcodecontroller--commandcodecontroller"></a>
+
+### `ctx.commandCodeController` — `CommandCodeController`
+
+Host service backing the generated `ctx.remote.commandcode` namespace.
+
+It owns the settings registration, the model-facing tools, the shipped concurrency gate, and the resolved CLI invocation. The tools resolve the current workspace's lanes on every call, so a saved Settings change applies to the next delegation from an existing Session.
+
+```ts cordis-catalog
+/**
+ * Report the installed CLI's presence, version, and authentication state.
+ * @param signal - caller lifetime.
+ * @returns the bounded health facts the Subagents page shows.
+ */
+@Remote async health(signal: AbortSignal): Promise<CommandCodeHealth>
+
+/**
+ * Read the local CLI's advisory model catalog.
+ * @param signal - caller lifetime.
+ * @returns catalog rows, empty with a bounded explanation when unreadable.
+ */
+@Remote async catalog(signal: AbortSignal): Promise<CommandCodeCatalog>
+
+/**
+ * Resolve one workspace's lanes and bounds, with per-field override source.
+ *
+ * The read itself is synchronous — it resolves the live settings section —
+ * so it carries the caller's signal only to refuse a read that was already
+ * cancelled rather than to await anything.
+ * @param workspace - the Session's workspace path, or null without one.
+ * @param signal - caller lifetime; a superseded or unmounted reader cancels its own read.
+ * @returns the resolved delegation view.
+ * @throws when the caller's read was already cancelled.
+ */
+@Remote delegation(workspace: string | null, signal: AbortSignal): CommandCodeDelegationView
+```
+
+Source: [`packages/subagent/subagent-commandcode/src/index.ts`](../../packages/subagent/subagent-commandcode/src/index.ts)
+
 <a id="ctxsubagentmodelselection--subagentmodelselectionconfig"></a>
 
 ### `ctx.subagentModelSelection` — `SubagentModelSelectionConfig`
@@ -490,6 +559,53 @@ current(): SubagentModelSelectionSettings
 ```
 
 Source: [`packages/subagent/tool-subagent/src/model-selection-settings.ts`](../../packages/subagent/tool-subagent/src/model-selection-settings.ts)
+
+<a id="ctxsubagentrostercontroller--subagentrostercontroller"></a>
+
+### `ctx.subagentRosterController` — `SubagentRosterController`
+
+Host service backing the generated `ctx.remote.subagentRoster` namespace.
+
+It reads the same live settings section the two model-facing tools read, so the page and the next delegation cannot disagree about a saved edit. Every method returns role policy and run bounds only: no credential, provider token, host path, or process output crosses it.
+
+```ts cordis-catalog
+/**
+ * Resolve one workspace's enabled roles, with per-field override source.
+ *
+ * The read itself is synchronous — it resolves the live settings section —
+ * so it carries the caller's signal only to refuse a read that was already
+ * cancelled rather than to await anything.
+ * @param workspace - the Session's workspace path, or null without one.
+ * @param signal - caller lifetime; a superseded or unmounted reader cancels its own read.
+ * @returns the enabled roles and the canonical workspace key they resolved for.
+ * @throws when the caller's read was already cancelled.
+ */
+@Remote resolvedRoster(workspace: string | null, signal: AbortSignal): SubagentWorkspaceRoster
+
+/**
+ * Read the automatic-routing authority a page renders its authorization
+ * control from.
+ *
+ * The read is synchronous for the same reason as {@link resolvedRoster}.
+ * @param signal - caller lifetime; a superseded or unmounted reader cancels its own read.
+ * @returns whether explicit route selection is accepted, and which exact routes it must resolve to.
+ * @throws when the caller's read was already cancelled.
+ */
+@Remote automaticRouting(signal: AbortSignal): SubagentAutomaticRouting
+
+/**
+ * Read the stored document a page edits: every definition, enabled or not,
+ * plus the run bounds.
+ *
+ * The read is synchronous for the same reason as {@link resolvedRoster}.
+ * @param signal - caller lifetime; a superseded or unmounted reader cancels its own read.
+ * @returns the stored definitions and run bounds.
+ * @throws when the caller's read was already cancelled.
+ */
+@Remote storedRoster(signal: AbortSignal): SubagentStoredRoster
+```
+
+Source: [`packages/subagent/subagent-roster/src/index.ts`](../../packages/subagent/subagent-roster/src/index.ts)
 
 <a id="ctxsubagents--subagentruntime"></a>
 

@@ -63,6 +63,12 @@
       "path": "../../subagent/subagent"
     },
     {
+      "path": "../../subagent/subagent-commandcode"
+    },
+    {
+      "path": "../../subagent/subagent-roster"
+    },
+    {
       "path": "../../interaction/user-approval"
     },
     {

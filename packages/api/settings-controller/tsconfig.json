@@ -18,7 +18,13 @@
       "path": "../../preset/agent-preset-registry"
     },
     {
+      "path": "../../credentials/authorization"
+    },
+    {
       "path": "../../credentials/credentials"
+    },
+    {
+      "path": "../../mcp/mcp-client"
     },
     {
       "path": "../../core/session"

@@ -1,8 +1,9 @@
-import { WINDOWS_TITLEBAR_HEIGHT } from './windows-layout.ts'
 /** Electron shell: desktop project ownership, custom protocol, windows, and lifecycle. */
 
+import { WINDOWS_TITLEBAR_HEIGHT } from './windows-layout.ts'
+import { existsSync, mkdirSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   app,
@@ -11,15 +12,25 @@ import {
   dialog,
   ipcMain,
   Menu,
+  nativeImage,
+  Notification as ElectronNotification,
   powerMonitor,
   nativeTheme,
   net,
   protocol,
   session,
   shell,
+  Tray,
   type IpcMainInvokeEvent,
   type MenuItemConstructorOptions,
 } from 'electron'
+import {
+  CUSTOM_HARNESS_PRODUCT,
+  resolveDevelopmentCustomHarnessDesktopState,
+  resolvePackagedCustomHarnessDesktopState,
+  type CustomHarnessDesktopState,
+} from '../../../scripts/custom-harness-product.mjs'
+import { DesktopBackgroundLifecycle, desktopTrayImagePath } from './background-lifecycle.ts'
 import { resolveDesktopPaths } from './paths.ts'
 import { DesktopProjectManager } from './project-manager.ts'
 import { DesktopHostProcess, DesktopHostUncleanExitError } from './host-process.ts'
@@ -27,7 +38,7 @@ import { DesktopPlatformView, PLATFORM_IPC, platformBounds } from './platform-vi
 import { installDesktopDirectoryPicker } from './directory-picker.ts'
 import { installMicrophonePermissions } from './microphone-permissions.ts'
 import { DesktopBackendController } from './backend-controller.ts'
-import { DESKTOP_IPC, SCHEME, assertDesktopSender, type DesktopUpdateState } from './ipc.ts'
+import { DESKTOP_IPC, SCHEME, assertDesktopSender, parseDesktopNotificationPayload, type DesktopUpdateState } from './ipc.ts'
 import { formatDesktopMessage, resolveDesktopLocale, resolveDesktopStartupLocale } from './locale.ts'
 import { claimDesktopSingleInstance } from './single-instance.ts'
 import { DesktopUpdateCoordinator } from './update-coordinator.ts'
@@ -47,11 +58,82 @@ import { DesktopPolicyTestAuth } from './policy-test-auth.ts'
 import { DesktopUpdateDialog, type UpdateDialogOptions } from './update-dialog.ts'
 import { readDesktopRuntime } from './runtime-tree.ts'
 import { DesktopBrowserGuests } from './browser-guests.ts'
+import { windowsNotificationShortcut } from './windows-notifications.ts'
 
 let focusPrimaryWindow = (): void => {}
 let stopForRecovery = async (): Promise<void> => {}
 let shuttingDown = false
 let windowsLanguage: string | undefined
+
+function customHarnessDesktopState(): CustomHarnessDesktopState {
+  const localApplicationData = process.env.LOCALAPPDATA ?? app.getPath('appData')
+  const developmentData = join(localApplicationData, CUSTOM_HARNESS_PRODUCT.dataDirectoryName, 'Development')
+  return app.isPackaged
+    ? resolvePackagedCustomHarnessDesktopState(localApplicationData)
+    : resolveDevelopmentCustomHarnessDesktopState(developmentData)
+}
+
+function configureCustomHarnessProductIdentity(state: CustomHarnessDesktopState): void {
+  process.env.DSH_HOME = state.home
+  process.env.DSH_AGENTS_HOME = state.agents
+  process.env.CUSTOM_HARNESS_DATA_DIR = state.data
+  process.env.CUSTOM_HARNESS_AGENTS_DIR = state.agents
+  process.env.CUSTOM_HARNESS_LOG_DIR = state.logs
+  process.env.CUSTOM_HARNESS_CACHE_DIR = state.cache
+  app.setName(CUSTOM_HARNESS_PRODUCT.displayName)
+  app.setAppUserModelId(CUSTOM_HARNESS_PRODUCT.windowsAppId)
+  app.setPath('userData', state.userData)
+}
+
+function prepareCustomHarnessProductState(state: CustomHarnessDesktopState): void {
+  for (const directory of [state.data, state.home, state.agents, state.logs, state.cache, state.userData]) {
+    mkdirSync(directory, { recursive: true, mode: 0o700 })
+  }
+  app.setAppLogsPath(state.logs)
+}
+
+function prepareWindowsNotifications(): void {
+  const shortcut = windowsNotificationShortcut({
+    platform: process.platform,
+    packaged: app.isPackaged,
+    roamingApplicationData: process.env.APPDATA ?? app.getPath('appData'),
+    executable: process.execPath,
+    displayName: CUSTOM_HARNESS_PRODUCT.displayName,
+    applicationId: CUSTOM_HARNESS_PRODUCT.windowsAppId,
+  })
+  if (shortcut === undefined) return
+  try {
+    mkdirSync(dirname(shortcut.path), { recursive: true })
+    const operation = existsSync(shortcut.path) ? 'update' : 'create'
+    if (!shell.writeShortcutLink(shortcut.path, operation, shortcut.details)) {
+      console.warn('Harnessy could not register its Windows notification shortcut.')
+    }
+  } catch (error) {
+    console.warn('Harnessy could not register its Windows notification shortcut.', error)
+  }
+}
+
+function createWindowsTray(openWindow: () => void): Tray | undefined {
+  try {
+    const image = nativeImage.createFromPath(desktopTrayImagePath(
+      app.isPackaged, app.getAppPath(), process.resourcesPath,
+    )).resize({ width: 16, height: 16 })
+    if (image.isEmpty()) throw new Error('Harnessy tray image is empty')
+    const tray = new Tray(image)
+    tray.setToolTip(CUSTOM_HARNESS_PRODUCT.displayName)
+    const messages = currentDesktopLocale().messages
+    tray.setContextMenu(Menu.buildFromTemplate([
+      { label: messages.trayOpen, click: openWindow },
+      { type: 'separator' },
+      { label: messages.trayExit, click: () => { app.quit() } },
+    ]))
+    tray.on('click', openWindow)
+    return tray
+  } catch (error) {
+    console.warn('Harnessy could not create its Windows tray icon; closing the main window will exit.', error)
+    return undefined
+  }
+}
 
 function currentDesktopLocale(): ReturnType<typeof resolveDesktopLocale> {
   return resolveDesktopLocale(windowsLanguage ?? app.getLocale())
@@ -236,6 +318,7 @@ function createWindow(preload: string, show = false, primary = false): BrowserWi
 }
 
 async function main(): Promise<void> {
+  prepareWindowsNotifications()
   const journalDirectory = process.env.DSH_DESKTOP_UPDATE_JOURNAL_DIR
   const updateJournal = journalDirectory === undefined ? undefined : new DesktopUpdateJournal(journalDirectory, app.getVersion())
   const resources = runtimeResources()
@@ -247,6 +330,7 @@ async function main(): Promise<void> {
   let startup: Promise<void> | undefined
   let workspaceRecovery: Promise<void> | undefined
   let mainWindow: BrowserWindow | undefined
+  let tray: Tray | undefined
   let welcomeWindow: BrowserWindow | undefined
   let enteredWorkspace = false
   let shellInstallerOwnsQuit = false
@@ -254,6 +338,8 @@ async function main(): Promise<void> {
   let updateStoppedHost = false
   let updateStopFailure: DesktopHostUncleanExitError | undefined
   let updateState: DesktopUpdateState = { phase: 'idle' }
+  const backgroundLifecycle = new DesktopBackgroundLifecycle(process.platform)
+  const nativeNotifications = new Set<ElectronNotification>()
   const systemLanguages = app.getPreferredSystemLanguages()
   let locale = resolveDesktopStartupLocale(null, systemLanguages)
   windowsLanguage = locale.id
@@ -294,6 +380,22 @@ async function main(): Promise<void> {
       throw new Error('dsh desktop: rejected IPC from an unowned renderer')
     }
   }
+  ipcMain.handle(DESKTOP_IPC.notificationsShow, (event, payload: unknown): boolean => {
+    assertProductSender(event)
+    const copy = parseDesktopNotificationPayload(payload)
+    if (!ElectronNotification.isSupported()) return false
+    const notification = new ElectronNotification(copy)
+    const release = (): void => { nativeNotifications.delete(notification) }
+    nativeNotifications.add(notification)
+    notification.once('click', () => { release(); focusPrimaryWindow() })
+    notification.once('close', release)
+    notification.once('failed', (_event, error) => {
+      release()
+      console.warn('Harnessy native notification failed.', error)
+    })
+    notification.show()
+    return true
+  })
   let navigation: { window: BrowserWindow; url: string; promise: Promise<void> } | undefined
   const navigateMain = (url: string): Promise<void> => {
     const window = mainWindow
@@ -480,6 +582,8 @@ async function main(): Promise<void> {
       }
       return true
     },
+    undefined,
+    () => CUSTOM_HARNESS_PRODUCT.automaticUpdates,
   )
 
   const updateSchedule = new DesktopUpdateSchedule(updates, resolveDesktopUpdateScheduleConfig(process.env))
@@ -726,13 +830,16 @@ async function main(): Promise<void> {
   }
   powerMonitor.on('resume', automaticCheck)
   app.on('will-quit', () => {
+    tray?.destroy()
+    tray = undefined
+    nativeNotifications.clear()
     updateSchedule.dispose()
     powerMonitor.off('resume', automaticCheck)
     updates.dispose()
   })
 
   app.setAboutPanelOptions({
-    applicationName: 'DeepSeek Harness',
+    applicationName: CUSTOM_HARNESS_PRODUCT.displayName,
     applicationVersion: app.getVersion(),
     // The release has no separate build number; omit Electron's bundle version.
     version: '',
@@ -836,6 +943,11 @@ async function main(): Promise<void> {
     mainWindow = window
     browserGuests.bind(window)
     window.on('focus', automaticCheck)
+    window.on('close', (event) => {
+      if (!backgroundLifecycle.shouldHidePrimaryWindow()) return
+      event.preventDefault()
+      window.hide()
+    })
     window.on('closed', () => { if (mainWindow === window) mainWindow = undefined })
     window.webContents.on('did-fail-load', (_event, code, description, url, isMainFrame) => {
       if (isMainFrame && code !== -3 && !quitting && !window.isDestroyed()) {
@@ -948,6 +1060,11 @@ async function main(): Promise<void> {
     window.focus()
   }
 
+  if (process.platform === 'win32') {
+    tray = createWindowsTray(focusPrimaryWindow)
+    if (tray !== undefined) backgroundLifecycle.markTrayReady()
+  }
+
   if (app.isPackaged || process.env.DSH_DESKTOP_DEV_APP === '1') app.setAsDefaultProtocolClient('dsh')
   app.on('open-url', (event, url) => {
     event.preventDefault()
@@ -958,9 +1075,11 @@ async function main(): Promise<void> {
     if (BrowserWindow.getAllWindows().length === 0) focusPrimaryWindow()
   })
   app.on('window-all-closed', () => {
+    if (backgroundLifecycle.shouldKeepRunningWithoutWindows()) return
     if (process.platform !== 'darwin') app.quit()
   })
   app.on('before-quit', (event) => {
+    backgroundLifecycle.requestQuit()
     shuttingDown = true
     updateJournal?.action('quit-requested')
     if (shellInstallerOwnsQuit) {
@@ -1038,6 +1157,10 @@ async function main(): Promise<void> {
   publishUpdate(updateState)
 }
 
+const desktopProductState = customHarnessDesktopState()
+configureCustomHarnessProductIdentity(desktopProductState)
+// Electron stores its instance lock under userData, so the directory must exist before the claim.
+prepareCustomHarnessProductState(desktopProductState)
 const ownsDesktopInstance = claimDesktopSingleInstance(app, () => { focusPrimaryWindow() })
 
 if (ownsDesktopInstance) void app.whenReady().then(main).catch(async (error: unknown) => {
