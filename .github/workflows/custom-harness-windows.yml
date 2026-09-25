@@ -77,19 +77,7 @@ jobs:
         shell: pwsh
         run: |
           pnpm run package:desktop:win:x64:local *>&1 | Tee-Object -FilePath installer-build.log
-          $packageExit = $LASTEXITCODE
-          if ($packageExit -ne 0) {
-            $retryable = Select-String -LiteralPath installer-build.log -SimpleMatch 'loadComponentFromURL returned an empty reference' -Quiet
-            if (-not $retryable) { exit $packageExit }
-
-            Write-Output 'LibreOffice reported its known empty-reference transient; retrying packaged-runtime verification once.' |
-              Tee-Object -FilePath installer-build.log -Append
-            $env:DSH_DESKTOP_TARGET_PLATFORM = 'win32'
-            $env:DSH_DESKTOP_TARGET_ARCH = 'x64'
-            pnpm --dir apps/desktop exec tsx scripts/smoke-packaged-runtime.ts --unsigned *>&1 |
-              Tee-Object -FilePath installer-build.log -Append
-            if ($LASTEXITCODE -ne 0) { exit $packageExit }
-          }
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Report an installer failure
         if: failure()

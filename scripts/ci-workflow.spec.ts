@@ -27,20 +27,6 @@ const runnerPrivatePnpmDestination = /^\$\{\{ runner\.temp \}\}\/setup-pnpm-\$\{
 const nativeWindowsPnpmDestination = '${{ runner.temp }}/setup-pnpm-js-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}'
 
 describe('Custom Harness Windows workflow', () => {
-  it('retries only the observed LibreOffice native-load transient against the completed package', () => {
-    const installer = workflowJob(loadWorkflow('.github/workflows/custom-harness-windows.yml'), 'unsigned-installer')
-    if (!Array.isArray(installer.steps)) throw new TypeError('Unsigned installer job must define steps')
-    const build = installer.steps.filter(isRecord).find(step => step.name === 'Build and verify the installer')
-    if (!isRecord(build) || typeof build.run !== 'string') {
-      throw new TypeError('Unsigned installer job must build and verify the installer')
-    }
-
-    expect(build.run).toContain("-SimpleMatch 'loadComponentFromURL returned an empty reference' -Quiet")
-    expect(build.run).toContain('if (-not $retryable) { exit $packageExit }')
-    expect(build.run.match(/smoke-packaged-runtime\.ts --unsigned/gu)).toHaveLength(1)
-    expect(build.run).toContain('if ($LASTEXITCODE -ne 0) { exit $packageExit }')
-  })
-
   it('publishes the redacted packaging journal when installer verification fails', () => {
     const installer = workflowJob(loadWorkflow('.github/workflows/custom-harness-windows.yml'), 'unsigned-installer')
     if (!Array.isArray(installer.steps)) throw new TypeError('Unsigned installer job must define steps')

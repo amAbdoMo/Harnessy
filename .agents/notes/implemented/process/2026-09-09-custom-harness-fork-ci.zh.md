@@ -10,7 +10,7 @@ Status: implemented
 
 ## Decision
 
-[Custom Harness Windows](../../../../.github/workflows/custom-harness-windows.yml) 是此 fork 针对推送和拉取请求自动运行的工作流。它在托管的 Windows x64 运行器上无凭据运行，检查桌面宿主的类型，并执行区分个人未签名安装程序与上游签名发布路径的专用打包策略测试。手动运行或头部提交包含 `[build-installer]` 的 `master` 推送，还会构建未签名的 Windows x64 安装程序、执行已打包运行时验证，并将生成的文件上传为工作流产物。如果已打包运行时报告 LibreOffice 的确切原生加载瞬态错误 `loadComponentFromURL returned an empty reference`，工作流会保留该失败记录，并针对已完成的包在新进程中重试一次 smoke；再次失败或任何其他错误都会停止任务。打包失败时，检查批注会显示最新的脱敏打包日志，并将完整日志与安装程序日志一起保存在诊断产物中。成功生成的安装程序产物与上游签名发布路径保持区分，也不会上传到更新源。
+[Custom Harness Windows](../../../../.github/workflows/custom-harness-windows.yml) 是此 fork 针对推送和拉取请求自动运行的工作流。它在托管的 Windows x64 运行器上无凭据运行，检查桌面宿主的类型，并执行区分个人未签名安装程序与上游签名发布路径的专用打包策略测试。手动运行或头部提交包含 `[build-installer]` 的 `master` 推送，还会构建未签名的 Windows x64 安装程序、执行已打包运行时验证，并将生成的文件上传为工作流产物。打包失败时，检查批注会显示最新的脱敏打包日志，并将完整日志与安装程序日志一起保存在诊断产物中。成功生成的安装程序产物与上游签名发布路径保持区分，也不会上传到更新源。
 
 继承的 master、sandbox 和真实 API 工作流保留手动触发器及源定义，用于上游同步诊断。只有仓库变量 `CUSTOM_HARNESS_RUN_UPSTREAM_CI` 等于 `true` 时，其自动任务才会运行；启用该变量还需要对应的密钥、运行器容量和多平台维护意图。
 
