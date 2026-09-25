@@ -290,6 +290,7 @@ function mount(
           resolveDraftAttachments={() => []}
           toggleCommandMenu={vi.fn()}
           useBusyEnter={bindSnapshotSelector(createSnapshotStore<'queue' | 'steer'>('queue'))}
+          useStopShortcut={bindSnapshotSelector(createSnapshotStore<readonly string[]>([]))}
           useNotices={bindSnapshotSelector(wiring.notices)}
           useLexicon={bindSnapshotSelector(wiring.lexicon)}
           useMenuLauncher={bindSnapshotSelector(createSnapshotStore<string | null>(null))}
@@ -447,18 +448,20 @@ describe('ConversationRoot resident composer', () => {
     expect(seat('conversation.input.plan')).toEqual({ locked: true })
   })
 
-  it('keeps an ungrouped blank session writable while its project remains optional', () => {
+  it('lets the no-workspace posture win over a block', () => {
+    // Picking a workspace is the earlier prerequisite; naming a model first
+    // would send the user somewhere they cannot act yet.
     const b = mount(sessionSnapshotOf({ blank: true }), [], undefined, {
       summaryBlank: true,
+      composerBlock: { reason: 'select a model first' },
     })
     const box = b.view.getByRole('textbox')
     expect(box.getAttribute('aria-disabled')).not.toBe('true')
-    expect(box.getAttribute('contenteditable')).toBe('true')
-    expect(box.getAttribute('aria-haspopup')).toBeNull()
-    expect(b.view.getByText('无项目')).toBeTruthy()
-    expect(b.view.getByRole('button', { name: '选择工作区' })).toBeTruthy()
+    expect(box.getAttribute('contenteditable')).not.toBe('true')
+    expect(box.getAttribute('aria-haspopup')).toBe('menu')
+    expect(box.getAttribute('data-placeholder')).not.toBe('select a model first')
     const modelSeat = b.seatOwners.filter(call => call.key === 'conversation.input.model').at(-1)?.owner
-    expect(modelSeat).toEqual({ locked: false })
+    expect(modelSeat).toEqual({ locked: true })
   })
 
   it('keeps composer text in the machine, mirrors to the Conversation store, and submits through the sink', () => {
@@ -652,7 +655,7 @@ describe('ConversationRoot resident composer', () => {
     expect(b.view.queryByTestId('view-new-view')).toBeNull()
     expect(b.view.getByRole('tab', { name: 'Chat' }).getAttribute('aria-selected')).toBe('true')
     expect(b.view.getByRole('tab', { name: 'New view' }).getAttribute('aria-selected')).toBe('false')
-    // ui-layout's window drag band deepens by matching this marker (:has).
+    // The browser drag lane anchors its header tab-strip probe on this marker.
     expect(b.view.getByRole('tablist').hasAttribute('data-conversation-tabs')).toBe(true)
   })
 

@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-08-custom-harness-brand-identity.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-08-custom-harness-brand-identity.md
-2026-09-08-custom-harness-brand-identity.md: a30408155bd522431a8e724d5f06223f725800eb
-2026-09-08-custom-harness-brand-identity.zh.md: 813688000b4493c5835cfc2538131422a123e53c
+/agent-note-harnessy-identity-as-a-product-profile-layer:
+  en: 5febc2b4a814143b
+  zh: 9cfbc3d4fdf2a52a
+/agent-note-harnessy-identity-as-a-product-profile-layer/problem:
+  en: ad3577a8b8a4ef3a
+  zh: c33b31b758b8e11f
+/agent-note-harnessy-identity-as-a-product-profile-layer/decision:
+  en: ee1ffb8cccb6c6a7
+  zh: fc499bb3d0a16abc
+/agent-note-harnessy-identity-as-a-product-profile-layer/alternatives-considered:
+  en: 502004d62793c204
+  zh: cb5d9d0d7387d63a
+/agent-note-harnessy-identity-as-a-product-profile-layer/consequences:
+  en: cd24f8f0540e2b77
+  zh: 32b3b60b4e24974c

@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-20-windows-tray-background-lifecycle.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-20-windows-tray-background-lifecycle.md
-2026-09-20-windows-tray-background-lifecycle.md: 6c5ad07ca730357e809a5b2ae089ad1db1dab526
-2026-09-20-windows-tray-background-lifecycle.zh.md: b449809404d3aae4eda6561857fd793d35152278
+/agent-note-windows-tray-background-lifecycle:
+  en: 69cb3a47b381c155
+  zh: 59d63b35b6189f6f
+/agent-note-windows-tray-background-lifecycle/problem:
+  en: 711dda5990da574c
+  zh: 687edab8266e7ea1
+/agent-note-windows-tray-background-lifecycle/decision:
+  en: 7d1e610aed11128d
+  zh: d3a75499b10520d2
+/agent-note-windows-tray-background-lifecycle/alternatives-considered:
+  en: 668f3375bce43e39
+  zh: 255611cdfe9e510a
+/agent-note-windows-tray-background-lifecycle/testing:
+  en: adc3dfce912b6658
+  zh: cb4b2cda37baf8cd
+/agent-note-windows-tray-background-lifecycle/consequences:
+  en: facc54d699e48bc7
+  zh: 0d6b78f33a3aa8cc

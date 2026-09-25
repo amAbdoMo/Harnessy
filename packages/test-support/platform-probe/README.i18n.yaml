@@ -1,6 +1,49 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/test-support/platform-probe/README.md
-README.md: ebbe9c190c922a3371ad1e3bb4a76a12cd3d4359
-README.zh.md: eba117b642b9168182cfde1d6efe4643a6b81271
+/:
+  en: 15207782f0a39393
+  zh: edb337cbd95128d6
+/deepseek-ai-dsh-platform-probe:
+  en: 889977072f2f5c6d
+  zh: 2f30863dfadb5898
+/deepseek-ai-dsh-platform-probe/summary:
+  en: 6b78786a1a4138d4
+  zh: d0c90c8731e2b217
+/deepseek-ai-dsh-platform-probe/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 09388d293f9be9cb
+/deepseek-ai-dsh-platform-probe/use-this-package:
+  en: bbff250eba0f1b89
+  zh: 0a618f05cc88ee2b
+/deepseek-ai-dsh-platform-probe/use-this-package/when-to-use-it:
+  en: 44fe57b8104abcdf
+  zh: 02eeb4dd64bd5d3a
+/deepseek-ai-dsh-platform-probe/use-this-package/entry-point:
+  en: 5ad1693cf0e161cb
+  zh: 6d6f8535e1b9c2d5
+/deepseek-ai-dsh-platform-probe/understand-the-implementation:
+  en: 42b15ac6321706aa
+  zh: 4ed0861911abaf5d
+/deepseek-ai-dsh-platform-probe/understand-the-implementation/design:
+  en: ab21c1598654f329
+  zh: a9acad90d02d935c
+/deepseek-ai-dsh-platform-probe/understand-the-implementation/source-map:
+  en: e0d9871a753b4dad
+  zh: 475428b0ed38a928
+/deepseek-ai-dsh-platform-probe/further-exploration:
+  en: d1ef164626f37726
+  zh: 316b5afe3ad9f022
+/deepseek-ai-dsh-platform-probe/model-experience:
+  en: 0bb911d85fb99c7e
+  zh: c7878dba434b5810
+/deepseek-ai-dsh-platform-probe/model-experience/kv-cache-effect:
+  en: 659b0c01643f0ccb
+  zh: 486497326ed9fb31
+/deepseek-ai-dsh-platform-probe/known-limitations-and-deferred-work:
+  en: 483785ac7963ce7b
+  zh: c3a0e71763326e41
+/deepseek-ai-dsh-platform-probe/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: 3bb0c20c93f16f98

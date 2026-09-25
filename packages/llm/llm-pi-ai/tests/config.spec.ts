@@ -47,13 +47,13 @@ describe('reasoning schema boundary', () => {
   })
 
   it('carries the per-model defaults into the resolved profile', () => {
-    const config = routeWith({
+    const options = routeWith({
       models: [
         { id: 'a', reasoningEfforts: { off: null, high: 'high' }, defaultReasoningEffort: 'high' },
         { id: 'b' },
       ],
-    })() as Config
-    const resolved = resolveProfiles(config.providers.get() as unknown as Parameters<typeof resolveProfiles>[0]).get('acme-gateway')
+    })() as Options
+    const resolved = resolveProfiles(options.providers).get('acme-gateway')
 
     // Only the model that declared one appears: the map is the deployment's
     // per-model declaration, not a projection of the route's default.

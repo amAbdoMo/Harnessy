@@ -11,6 +11,7 @@ import {
 } from '../src/client/SessionWorkspaceRow.tsx'
 import { createSessionWorkspaceRowStore } from '../src/client/session-workspace-store.ts'
 import { en } from '../src/client/locales.ts'
+import { slotTestProps } from './slot-test-props.ts'
 
 afterEach(cleanup)
 
@@ -27,14 +28,14 @@ function mountRow(snapshot: ConfigFormSnapshot<SessionWorkspaceSettings>) {
   )
   const setMode = vi.fn(async () => {})
   const useRemoteDirectory = vi.fn(async () => {})
-  render(<SessionWorkspaceRow {...({
+  render(<SessionWorkspaceRow {...slotTestProps<SessionWorkspaceRowProps>({
     useStore,
     actions: store.actions,
     t: (key: keyof typeof en) => en[key],
     chooseDirectory,
     setMode,
     useRemoteDirectory,
-  } as unknown as SessionWorkspaceRowProps)} />)
+  })} />)
   return { chooseDirectory, setMode, useRemoteDirectory }
 }
 

@@ -13,7 +13,7 @@ function node(key: string, kind: ChatNode['kind'], data: unknown, turn = 1): Cha
     visibility: 'visible',
     location: { kind: 'turn', turn: { turn } },
     data,
-  } as unknown as ChatNode
+  } as ChatNode
 }
 
 function store(nodes: readonly ChatNode[]): ChatNodeStore {
@@ -82,7 +82,7 @@ describe('turn file changes', () => {
       },
     })
     const nodes = store([successful, failed])
-    const snapshot = { nodes } as unknown as ChatSnapshot
+    const snapshot = { nodes } as ChatSnapshot
     expect(turnChangesFromChat(snapshot, 1)).toEqual({
       files: [
         {

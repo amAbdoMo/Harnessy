@@ -257,7 +257,7 @@ describe('dsh-tool-subagent model selection', () => {
       defaultEffort: ReasoningEffortId('low'),
     }))
     const parent = modelSelectionSetupAgent(ctx)
-    ;(parent as unknown as { options: Agent['options'] }).options = parentWithRoute().options
+    ;(parent as { options: Agent['options'] }).options = parentWithRoute().options
 
     const result = await callSubagent(ctx, {
       description: 'unsupported effort',

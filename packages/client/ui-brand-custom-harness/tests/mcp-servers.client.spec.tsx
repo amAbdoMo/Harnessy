@@ -9,6 +9,7 @@ import {
   McpConfigurationAction, type McpConfigurationActionProps,
 } from '../src/client/McpConfigurationAction.tsx'
 import { en } from '../src/client/locales.ts'
+import { slotTestProps } from './slot-test-props.ts'
 
 afterEach(cleanup)
 
@@ -52,7 +53,7 @@ function operations(overrides: Partial<McpManagerOperations> = {}): McpManagerOp
 }
 
 function mount(api: McpManagerOperations): void {
-  render(<McpServersSection {...({ operations: api, t } as unknown as McpServersSectionProps)} />)
+  render(<McpServersSection {...slotTestProps<McpServersSectionProps>({ operations: api, t })} />)
 }
 
 describe('Harnessy MCP server settings', () => {
@@ -180,7 +181,7 @@ describe('Harnessy MCP server settings', () => {
 describe('Harnessy MCP configuration action', () => {
   it('opens the dedicated MCP document only from the MCP page', async () => {
     const openConfigurationFile = vi.fn(async () => ({}))
-    const props = { activeSectionId: 'general', openConfigurationFile, t } as unknown as McpConfigurationActionProps
+    const props = slotTestProps<McpConfigurationActionProps>({ activeSectionId: 'general', openConfigurationFile, t })
     const view = render(<McpConfigurationAction {...props} />)
     expect(screen.queryByRole('button', { name: en.mcpOpenConfiguration })).toBeNull()
     view.rerender(<McpConfigurationAction {...props} activeSectionId="custom-harness-mcp" />)

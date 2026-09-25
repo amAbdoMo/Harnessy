@@ -112,7 +112,7 @@ export function parseRequest(args: readonly string[]): SnapshotRequest {
  */
 export function readCapture(path: string): { readonly document: unknown; readonly digest: string } {
   const text = readFileSync(resolve(root, path), 'utf8')
-  return { document: JSON.parse(text) as unknown, digest: createHash('sha256').update(text).digest('hex') }
+  return { document: JSON.parse(text), digest: createHash('sha256').update(text).digest('hex') }
 }
 
 /**

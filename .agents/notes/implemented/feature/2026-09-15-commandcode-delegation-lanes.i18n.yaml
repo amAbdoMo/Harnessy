@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-15-commandcode-delegation-lanes.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-15-commandcode-delegation-lanes.md
-2026-09-15-commandcode-delegation-lanes.md: 693334f58aaf803b268fd3866a8b90a751f97c5d
-2026-09-15-commandcode-delegation-lanes.zh.md: bdc404cd4c018d7b22c9fc1bfb01603db49eb16f
+/agent-note-harnessy-delegates-to-command-code-through-user-owned-lanes:
+  en: 676be9ccb9779768
+  zh: 7019eb370c9e1c2f
+/agent-note-harnessy-delegates-to-command-code-through-user-owned-lanes/problem:
+  en: c02c1fd61ee44f86
+  zh: 315149f1e5a47000
+/agent-note-harnessy-delegates-to-command-code-through-user-owned-lanes/decision:
+  en: 5c55a7a5e5c12d92
+  zh: 4624551bc621b323
+/agent-note-harnessy-delegates-to-command-code-through-user-owned-lanes/alternatives-considered:
+  en: 00732fafb0f64710
+  zh: 1eedb821b84c304d
+/agent-note-harnessy-delegates-to-command-code-through-user-owned-lanes/consequences:
+  en: 002219f221b6d7be
+  zh: 26387082fbf17b99
+/agent-note-harnessy-delegates-to-command-code-through-user-owned-lanes/related:
+  en: 53457ade9d06e897
+  zh: 08b95e7389842adb

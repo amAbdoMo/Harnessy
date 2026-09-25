@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-16-subagents-settings-page.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-16-subagents-settings-page.md
-2026-09-16-subagents-settings-page.md: fdb4a9468b004bbba1f413a1580a2dbc92e4a1ac
-2026-09-16-subagents-settings-page.zh.md: 3a4b29139975b32ea90191024562b8a880ba8c0c
+/agent-note-harnessy-edits-the-unified-subagent-roster-from-one-settings-page:
+  en: 22e85b68fbf8fda0
+  zh: 1fdced59b0b09052
+/agent-note-harnessy-edits-the-unified-subagent-roster-from-one-settings-page/problem:
+  en: 27a86d382edf0dea
+  zh: 0eba24d568ea099e
+/agent-note-harnessy-edits-the-unified-subagent-roster-from-one-settings-page/decision:
+  en: f12cdc1098864099
+  zh: ad71088337c31e16
+/agent-note-harnessy-edits-the-unified-subagent-roster-from-one-settings-page/alternatives-considered:
+  en: 5db3e5a27ee17ef7
+  zh: b725fd9bc9e6024c
+/agent-note-harnessy-edits-the-unified-subagent-roster-from-one-settings-page/consequences:
+  en: f6672b77ce67b87c
+  zh: 6868cedbba90b1f2
+/agent-note-harnessy-edits-the-unified-subagent-roster-from-one-settings-page/related:
+  en: 7915341c1e366667
+  zh: 6478b3b770ce823b

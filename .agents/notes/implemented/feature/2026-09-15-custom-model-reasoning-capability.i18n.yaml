@@ -1,6 +1,28 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-15-custom-model-reasoning-capability.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-15-custom-model-reasoning-capability.md
-2026-09-15-custom-model-reasoning-capability.md: 8c7f1f683d34cd5b39c73dd0317b94258a014fe6
-2026-09-15-custom-model-reasoning-capability.zh.md: d40bba8b7d6c992a865c7c4cc94067548bf9828a
+/agent-note-custom-models-declare-their-own-reasoning-capability:
+  en: d976d29b35ee2b30
+  zh: 6bec54a7ee8a69fc
+/agent-note-custom-models-declare-their-own-reasoning-capability/problem:
+  en: 1b8374cb6b582dee
+  zh: f7a67a20732f8ed0
+/agent-note-custom-models-declare-their-own-reasoning-capability/decision:
+  en: 0bae657b535adb6f
+  zh: 8b8e139be9667c47
+/agent-note-custom-models-declare-their-own-reasoning-capability/where-a-model-s-levels-come-from:
+  en: 6d05b2bf351d5e0b
+  zh: 48e2c5214ad6245f
+/agent-note-custom-models-declare-their-own-reasoning-capability/capabilities-a-provider-publishes-outside-its-model-listing:
+  en: dc08e9b357398a24
+  zh: 55ce7b3084b9c70c
+/agent-note-custom-models-declare-their-own-reasoning-capability/verification:
+  en: 730ef5f6eb6b3edc
+  zh: 05133e8da077e75e
+/agent-note-custom-models-declare-their-own-reasoning-capability/alternatives-considered:
+  en: c05eb113e70da0f4
+  zh: de5d35787e569b39
+/agent-note-custom-models-declare-their-own-reasoning-capability/consequences:
+  en: ac5bbfd6ab6305fd
+  zh: b599cefda2eb024d

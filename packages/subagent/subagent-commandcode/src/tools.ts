@@ -10,7 +10,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { GenericCallView, ToolExecution } from '@deepseek-ai/dsh-tools'
-import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import type { SubagentRun } from '@deepseek-ai/dsh-subagent'
 import { MAX_COMMAND_CODE_OUTPUT_BYTES } from './bound.ts'
 import { startCommandCodeJob } from './job.ts'
@@ -111,19 +110,33 @@ export function installCommandCodeTools(ctx: Context, api: CommandCodeDelegation
       + 'reasoning effort, and an access level; `commandcode_delegate` takes one of these ids.',
     parameters: {},
     output: {
-      schema: { type: 'array', items: { type: 'json' } },
+      schema: {
+        type: 'array',
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            id: { type: 'string', required: true },
+            name: { type: 'string', required: true },
+            purpose: { type: 'string', required: true },
+            model: { type: 'string', required: true },
+            effort: { type: 'string', required: true, enum: ['default', 'low', 'medium', 'high'] },
+            access: { type: 'string', required: true, enum: ['read-only', 'full-access'] },
+          },
+        },
+      },
       render: (_args, lanes) => [{
         type: 'text',
         text: lanes.length === 0
           ? '(no Command Code lanes are enabled)'
-          : (lanes as unknown as CommandCodeLaneSummary[])
+          : lanes
             .map(lane => `${lane.id} — ${lane.name} (${lane.access}, model ${lane.model}, effort ${lane.effort}): ${lane.purpose}`)
             .join('\n'),
       }],
     },
-    execute(_args, exec): Promise<JsonValue[]> {
+    execute(_args, exec): Promise<CommandCodeLaneSummary[]> {
       const lanes = laneDirectory(api.viewFor(workspaceOf(exec) ?? null).lanes)
-      return Promise.resolve(lanes as unknown as JsonValue[])
+      return Promise.resolve(lanes)
     },
     presentCall: () => ({ card: 'generic', title: 'List Command Code lanes', kind: 'read' }),
   }))

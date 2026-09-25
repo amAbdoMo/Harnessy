@@ -1,6 +1,25 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-08-custom-harness-message-feedback-disablement.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/simplification/2026-09-08-custom-harness-message-feedback-disablement.md
-2026-09-08-custom-harness-message-feedback-disablement.md: 1919bc5c5819d0c3e29a75ac59be76eb356f64cd
-2026-09-08-custom-harness-message-feedback-disablement.zh.md: ce80aa681988d87f988b7f3772d7b6ce19c619db
+/agent-note-custom-harness-disables-per-message-feedback:
+  en: 4882f5a59827966b
+  zh: 42cd02e9f32aa57e
+/agent-note-custom-harness-disables-per-message-feedback/problem:
+  en: e7727db319bcb6fb
+  zh: 09820794c0157685
+/agent-note-custom-harness-disables-per-message-feedback/decision:
+  en: f9c74d0b4eafe570
+  zh: 8d008de6e00d2c0c
+/agent-note-custom-harness-disables-per-message-feedback/verification:
+  en: e45390544bb7778e
+  zh: 6ff0dfcf012bf3d8
+/agent-note-custom-harness-disables-per-message-feedback/alternatives-considered:
+  en: 03222f7c4a2a6c7e
+  zh: fbe9f1346fe740bd
+/agent-note-custom-harness-disables-per-message-feedback/consequences:
+  en: a872f13b9ace52e7
+  zh: 6fd628cb51fa9a58
+/agent-note-custom-harness-disables-per-message-feedback/related:
+  en: 4e5c587e032671e5
+  zh: c0dd57b6ff064197

@@ -7,6 +7,7 @@ import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { AccountLauncher, type AccountLauncherProps } from '../src/client/AccountLauncher.tsx'
 import { createAccountsMenuStore } from '../src/client/accounts-menu-store.ts'
 import { en } from '../src/client/locales.ts'
+import { slotTestProps } from './slot-test-props.ts'
 
 afterEach(cleanup)
 
@@ -49,7 +50,7 @@ function mountLauncher(initialState: AccountsState | undefined = refreshedAccoun
       listener => accountUsage.subscribe(listener),
       () => accountUsage.getSnapshot(),
     ))
-  const props = {
+  const props = slotTestProps<AccountLauncherProps>({
     wide: true,
     openSettings,
     openSection,
@@ -58,7 +59,7 @@ function mountLauncher(initialState: AccountsState | undefined = refreshedAccoun
     useStore,
     actions: store.actions,
     t: (key: keyof typeof en) => en[key],
-  } as unknown as AccountLauncherProps
+  })
   render(<AccountLauncher {...props} />)
   return { accountUsage, openSection, openSettings, refreshAccounts, store }
 }

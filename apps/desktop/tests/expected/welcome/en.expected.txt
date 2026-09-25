@@ -1,6 +1,6 @@
-DeepSeek Harness
-DeepSeek Harness
-Welcome to DeepSeek Harness
+Harnessy
+Harnessy
+Welcome to Harnessy
 Build potential. Explore intelligence.
 Sign in
 Add API Key

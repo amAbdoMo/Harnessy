@@ -6,7 +6,7 @@ import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import {
   IconChevronDownOutlineRegular, IconChevronRightOutlineRegular, IconChevronUpOutlineRegular,
-  IconSettingsOutlineRegular,
+  IconSettingsOutlineRegular, MenuSurface,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { createAccountsMenuStore } from './accounts-menu-store.ts'
 import { accountUsageLevel } from './account-usage-presentation.ts'
@@ -123,7 +123,7 @@ export function AccountLauncher({
   return (
     <div ref={root} className={wide ? css.root : css.railRoot}>
       {open && (
-        <div className={css.menu} role="menu" aria-label={t('accountsMenuLabel')}>
+        <MenuSurface compact className={css.menu} role="menu" aria-label={t('accountsMenuLabel')}>
           <button type="button" className={css.accountMenuItem} role="menuitem"
             aria-label={accessibleName} onClick={openAccounts}>
             <span className={css.avatar}>{initials}</span>
@@ -135,7 +135,7 @@ export function AccountLauncher({
             <IconSettingsOutlineRegular size={16} />
             <span>{t('accountsSettings')}</span>
           </button>
-        </div>
+        </MenuSurface>
       )}
       <button
         type="button"

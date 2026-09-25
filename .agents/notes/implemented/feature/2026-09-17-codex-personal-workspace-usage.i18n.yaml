@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-17-codex-personal-workspace-usage.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-17-codex-personal-workspace-usage.md
-2026-09-17-codex-personal-workspace-usage.md: 17464e53279bf75c19083f17c2e3e59331d48814
-2026-09-17-codex-personal-workspace-usage.zh.md: 708c47d75a540fd73f1637bb1ee8cf3ccc3c89a9
+/agent-note-codex-personal-and-workspace-usage-remain-separate-memberships-of-one-person:
+  en: cb939922e9a5e43f
+  zh: 590d89e36df656ea
+/agent-note-codex-personal-and-workspace-usage-remain-separate-memberships-of-one-person/problem:
+  en: ae82a84202482bac
+  zh: 22e03356e74e2e02
+/agent-note-codex-personal-and-workspace-usage-remain-separate-memberships-of-one-person/decision:
+  en: bfb505f8895e6ee3
+  zh: 9ea3b557d4327cc8
+/agent-note-codex-personal-and-workspace-usage-remain-separate-memberships-of-one-person/alternatives-considered:
+  en: e0e90289f3d665d6
+  zh: 2f50cdbd521f1623
+/agent-note-codex-personal-and-workspace-usage-remain-separate-memberships-of-one-person/consequences:
+  en: 7ce32dda53593f8c
+  zh: 0cde57e69b6b069c
+/agent-note-codex-personal-and-workspace-usage-remain-separate-memberships-of-one-person/related:
+  en: 145add94768f14d5
+  zh: cc9c5fd9cd14a028

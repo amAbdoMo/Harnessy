@@ -12,7 +12,7 @@
   align-items: center;
   justify-content: center;
   border: 0.5px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-sm);
   color: var(--dsw-alias-label-secondary);
   background: transparent;
   cursor: pointer;
@@ -92,7 +92,7 @@
   max-height: min(620px, calc(100vh - 24px));
   overflow: hidden;
   border: 0.5px solid color-mix(in srgb, var(--dsw-alias-state-business-primary) 22%, transparent);
-  border-radius: 13px;
+  border-radius: var(--dsw-radius-md);
   background: var(--dsw-alias-bg-layer-1);
   box-shadow: var(--dsw-elevation-prominent);
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
@@ -143,7 +143,7 @@
   min-height: 28px;
   padding: 0 9px;
   border: 0.5px solid var(--dsw-alias-border-l3);
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-sm);
   color: var(--dsw-alias-label-primary);
   background: var(--dsw-alias-bg-layer-2);
   font: inherit;
@@ -176,7 +176,7 @@
   gap: 9px;
   align-items: center;
   padding: 8px;
-  border-radius: 9px;
+  border-radius: var(--dsw-radius-sm);
 }
 
 .server:hover,

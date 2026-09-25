@@ -6,6 +6,7 @@ import {
   CustomHarnessMark, CustomHarnessName, CustomHarnessTagline, type CustomHarnessTaglineProps,
   requiredBuildValue,
 } from '../src/client/Brand.tsx'
+import { slotTestProps } from './slot-test-props.ts'
 
 afterEach(() => {
   cleanup()
@@ -53,13 +54,13 @@ describe('Harnessy identity components', () => {
       projectLink: 'Project repository',
       supportLink: 'Support and issues',
     } as const
-    const props = {
+    const props = slotTestProps<AboutRowProps>({
       productName: 'Harnessy',
       productUrl: 'https://github.com/amAbdoMo/Harnessy',
       supportUrl: 'https://github.com/amAbdoMo/Harnessy/issues',
       version: '0.1.2-rc.1',
       t: (key: keyof typeof copy) => copy[key],
-    } as unknown as AboutRowProps
+    })
     render(<AboutRow {...props} />)
     screen.getByRole('region', { name: copy.aboutLabel })
     expect(screen.getByText('0.1.2-rc.1')).not.toBeNull()
@@ -71,7 +72,7 @@ describe('Harnessy identity components', () => {
 
   it('renders the localized product orientation in the shared hero slot', () => {
     const copy = { heroTagline: 'Build deliberately.' } as const
-    const props = { t: (key: keyof typeof copy) => copy[key] } as unknown as CustomHarnessTaglineProps
+    const props = slotTestProps<CustomHarnessTaglineProps>({ t: (key: keyof typeof copy) => copy[key] })
     render(<CustomHarnessTagline {...props} />)
     expect(screen.getByText(copy.heroTagline).tagName).toBe('P')
   })

@@ -11,6 +11,7 @@ import {
 import { createSharedSkillsRowStore } from '../src/client/shared-skills-store.ts'
 import { en } from '../src/client/locales.ts'
 import type { SharedSkillsSettings } from '../src/shared-skills.ts'
+import { slotTestProps } from './slot-test-props.ts'
 
 afterEach(cleanup)
 
@@ -28,7 +29,7 @@ function mountRow(snapshot: ConfigFormSnapshot<SharedSkillsSettings>) {
   const setDirectory = vi.fn(async () => {})
   const resetDirectory = vi.fn(async () => {})
   const setEnabled = vi.fn(async () => {})
-  const props = {
+  const props = slotTestProps<SharedSkillsRowProps>({
     useStore,
     actions: store.actions,
     t: (key: keyof typeof en) => en[key],
@@ -36,7 +37,7 @@ function mountRow(snapshot: ConfigFormSnapshot<SharedSkillsSettings>) {
     setDirectory,
     resetDirectory,
     setEnabled,
-  } as unknown as SharedSkillsRowProps
+  })
   render(<SharedSkillsRow {...props} />)
   return { chooseDirectory, setDirectory, resetDirectory, setEnabled }
 }

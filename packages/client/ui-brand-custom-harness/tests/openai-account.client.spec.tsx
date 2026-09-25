@@ -5,13 +5,14 @@ import {
   OpenAIAccountCard, type OpenAIAccountCardProps, type OpenAIAccountOperations,
 } from '../src/client/OpenAIAccountCard.tsx'
 import { en } from '../src/client/locales.ts'
+import { slotTestProps } from './slot-test-props.ts'
 
 afterEach(cleanup)
 
 const t = (key: keyof typeof en): string => en[key]
 
 function renderCard(operations: OpenAIAccountOperations) {
-  return render(<OpenAIAccountCard {...({ operations, t } as unknown as OpenAIAccountCardProps)} />)
+  return render(<OpenAIAccountCard {...slotTestProps<OpenAIAccountCardProps>({ operations, t })} />)
 }
 
 async function enabledButton(name: string): Promise<HTMLElement> {

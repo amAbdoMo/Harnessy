@@ -139,7 +139,7 @@ function harness(options: {
         },
       }
       : undefined,
-  } as unknown as Context
+  } as Context
   installCommandCodeTools(ctx, api)
   return {
     tools,
@@ -190,8 +190,8 @@ async function waitFor(predicate: () => boolean): Promise<void> {
 }
 
 function execution(stub: Partial<ToolExecution> = {}): ToolExecution {
-  const agent = { session: { header: { cwd: WORKSPACE } } } as unknown as Agent
-  return { agent, signal: new AbortController().signal, ...stub } as unknown as ToolExecution
+  const agent = { session: { header: { cwd: WORKSPACE } } } as Agent
+  return { agent, signal: new AbortController().signal, ...stub } as ToolExecution
 }
 
 /** Invoke one registered tool's executor. */
@@ -451,7 +451,7 @@ describe('commandcode_delegate in the background', () => {
 
   it('refuses to delegate without a session workspace', async () => {
     const target = harness()
-    const agent = { session: { header: {} } } as unknown as Agent
+    const agent = { session: { header: {} } } as Agent
     await expect(call(target, COMMAND_CODE_DELEGATE_TOOL, { lane: 'review', task: 'x' }, execution({ agent })))
       .rejects.toThrow(/needs a session workspace/u)
     expect(target.jobs).toHaveLength(0)

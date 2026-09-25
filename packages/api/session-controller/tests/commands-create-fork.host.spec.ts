@@ -69,11 +69,19 @@ describe('Session creation failures', () => {
 
   it('resolves the live default only when no explicit target is supplied', async () => {
     const ctx = await baseContext()
-    const workspace = {
+    const workspace: Workspace = {
       id: 'workspace-1' as WorkspaceId,
       path: '/workspace',
+      title: 'Workspace',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      sessionIds: [],
+      setTitle: () => Promise.resolve(),
       attachSession: () => Promise.resolve(),
-    } as unknown as Workspace
+      insertSessionBefore: () => Promise.resolve(),
+      detachSession: () => Promise.resolve(),
+      status: () => Promise.resolve('ok'),
+    }
     ctx.provide('workspaceRegistry', { get: () => workspace, list: () => [workspace] } as never)
     const ensureSession = vi.fn((sessionId: SessionId, cwd: string) => {
       const session = ctx.sessions.create(sessionId, { meta: { cwd } })

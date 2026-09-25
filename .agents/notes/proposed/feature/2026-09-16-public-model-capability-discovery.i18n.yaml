@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-16-public-model-capability-discovery.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/proposed/feature/2026-09-16-public-model-capability-discovery.md
-2026-09-16-public-model-capability-discovery.md: 11488346758b4dbebc29a06466d37b38871416c9
-2026-09-16-public-model-capability-discovery.zh.md: 458397eb440a0deb6802f32973ef46b3f8134769
+/agent-note-public-model-capability-discovery-reasoning-efforts-first:
+  en: 48374cc12ec5fa02
+  zh: bf47a58f4087a3b2
+/agent-note-public-model-capability-discovery-reasoning-efforts-first/problem:
+  en: b63e1dad417843e5
+  zh: 141f4da5a7b7366a
+/agent-note-public-model-capability-discovery-reasoning-efforts-first/proposal:
+  en: 4c637fedc1dd803f
+  zh: 7a4604582eb1a6dd
+/agent-note-public-model-capability-discovery-reasoning-efforts-first/alternatives-considered:
+  en: 4b0c6f883217d441
+  zh: 6eac6428c59c2713
+/agent-note-public-model-capability-discovery-reasoning-efforts-first/acceptance-criteria:
+  en: 70081c0a774388ab
+  zh: c658bad8abf6712e
+/agent-note-public-model-capability-discovery-reasoning-efforts-first/risks:
+  en: ac93f24ebb4eea44
+  zh: 6123843f08556c34

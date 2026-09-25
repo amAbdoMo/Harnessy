@@ -29,13 +29,15 @@ export function TurnDiffPreview({ useTabInfo, t }: TurnDiffPreviewProps): ReactN
       <DiffBlock
         diffs={[...params.diffs]}
         labels={{
+          codeLabel: t('changes.code'),
+          wrapLabel: t('changes.wrap'),
+          unwrapLabel: t('changes.unwrap'),
           copy: t('changes.copy'),
           copied: t('changes.copied'),
           collapseAria: t('changes.collapse'),
           expandAria: hidden => t('changes.expand', { count: hidden }),
           collapse: t('changes.collapse'),
           expand: hidden => t('changes.expand', { count: hidden }),
-          files: count => t('changes.summary', { count }),
         }}
       />
     </div>

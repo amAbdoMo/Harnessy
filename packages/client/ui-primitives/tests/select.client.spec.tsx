@@ -222,6 +222,6 @@ describe('Select reveal', () => {
     const { trigger } = renderSelect()
     fireEvent.keyDown(trigger, { key: 'ArrowDown' })
     expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' })
-    delete (Element.prototype as unknown as Record<string, unknown>).scrollIntoView
+    Reflect.deleteProperty(Element.prototype, 'scrollIntoView')
   })
 })

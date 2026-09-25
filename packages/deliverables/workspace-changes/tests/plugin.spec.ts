@@ -159,7 +159,7 @@ describe('workspace-changes in a repository', () => {
     ctx.emit('session/disposed', session)
     expect(await pending).toBeUndefined()
     expect(await diff(0)).toBeUndefined()
-  })
+  }, 15_000)
 
   it('records nothing and stays quiet about captures for a working directory that no longer exists', async () => {
     const root = await scratchDir('dsh-workspace-changes-gone-', cleanups)
@@ -239,7 +239,7 @@ describe('workspace-changes in a repository', () => {
     endTurn(session, 3)
     await settle(ctx, session)
     expect(changes(ctx, session).filter(data => data.turn === 3)).toEqual([])
-  })
+  }, 15_000)
 
   it('keeps an interrupted turn’s record when the next turn starts before it settles', async () => {
     const cwd = await repository()

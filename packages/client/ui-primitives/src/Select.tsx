@@ -10,6 +10,7 @@ import clsx from 'clsx'
 import { IconCheckOutlineRegular, IconChevronDownOutlineRegular } from './icons/index.tsx'
 import { useAnchoredPosition } from './useAnchoredPosition.ts'
 import { useDismissOnOutsidePointer } from './useDismissOnOutsidePointer.ts'
+import { MenuSurface } from './MenuSurface.tsx'
 import css from './Select.module.css'
 
 /** One selectable row: the stored value and the copy shown for it. */
@@ -232,7 +233,8 @@ export function Select<Value extends string = string>(props: SelectProps<Value>)
       </button>
       {open
         ? createPortal(
-          <div className={css.list} role="listbox" id={listId} aria-label={label} ref={listRef} style={position ?? undefined}>
+          <MenuSurface compact className={css.list} role="listbox" id={listId}
+            aria-label={label} ref={listRef} style={position ?? undefined}>
             {entries.map(entry => entry.kind === 'group'
               ? (
                 <div key={entry.label} className={css.group} role="group" aria-labelledby={entry.id}>
@@ -241,7 +243,7 @@ export function Select<Value extends string = string>(props: SelectProps<Value>)
                 </div>
               )
               : renderRow(entry.row))}
-          </div>,
+          </MenuSurface>,
           document.body,
         )
         : null}

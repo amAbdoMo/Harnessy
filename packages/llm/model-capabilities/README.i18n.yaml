@@ -1,6 +1,85 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/llm/model-capabilities/README.md
-README.md: 451f3d38c0f49d8558fc9071f700c3f8de1140f4
-README.zh.md: 621bc7ee0b4db3455f1de53b193c5bbef9d3d9f7
+/:
+  en: 58bd5e665cf2f892
+  zh: 9d52ba409e36726c
+/deepseek-ai-dsh-model-capabilities:
+  en: 53d88fa8e89b8992
+  zh: 36ba88708a09b99d
+/deepseek-ai-dsh-model-capabilities/summary:
+  en: c8924efacf2d57b5
+  zh: dfd20dae8f4c477b
+/deepseek-ai-dsh-model-capabilities/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: ffab54373e9e61f0
+/deepseek-ai-dsh-model-capabilities/use-this-package:
+  en: 5bd3691c6c089f6e
+  zh: 7cb6d59ac860ca3e
+/deepseek-ai-dsh-model-capabilities/use-this-package/mount-the-plugin:
+  en: 34da88a3c91a3bab
+  zh: 4a8bcbd27d909541
+/deepseek-ai-dsh-model-capabilities/use-this-package/inspect-and-sync-from-the-command-line:
+  en: 21a3ee6b57926791
+  zh: ced4f4e06d6fd46b
+/deepseek-ai-dsh-model-capabilities/use-this-package/configure-it:
+  en: b5ee3242153cfd37
+  zh: a40546437a9a91ee
+/deepseek-ai-dsh-model-capabilities/use-this-package/what-each-setting-does:
+  en: b46d69d74865a217
+  zh: f28f74e7ae74f51b
+/deepseek-ai-dsh-model-capabilities/use-this-package/what-write-will-not-do:
+  en: b7be5119e420aeeb
+  zh: f46adb74945f044a
+/deepseek-ai-dsh-model-capabilities/use-this-package/build-the-capability-source-yourself:
+  en: adbe73e6d02702ef
+  zh: 0f7b0b89f3bb640c
+/deepseek-ai-dsh-model-capabilities/use-this-package/regenerate-the-bundled-snapshot:
+  en: f497c82d8c2ead06
+  zh: 3ad4630dfa5b0a15
+/deepseek-ai-dsh-model-capabilities/use-this-package/resolve-without-registering:
+  en: f7362779b567bcc2
+  zh: f5178b669d038725
+/deepseek-ai-dsh-model-capabilities/use-this-package/what-the-answer-may-be:
+  en: 1e8de2349c35d227
+  zh: ad110f419801cdf0
+/deepseek-ai-dsh-model-capabilities/understand-the-implementation:
+  en: 42b15ac6321706aa
+  zh: 42b15ac6321706aa
+/deepseek-ai-dsh-model-capabilities/understand-the-implementation/design-philosophy:
+  en: 63dabe883f7a74f7
+  zh: 899e824278986a4b
+/deepseek-ai-dsh-model-capabilities/understand-the-implementation/source-map:
+  en: 4d41a4d9e25aebc3
+  zh: 0950ef44a16dde19
+/deepseek-ai-dsh-model-capabilities/understand-the-implementation/catalog-selection:
+  en: 083fd004fd17b575
+  zh: 6ad1b79333c50cfd
+/deepseek-ai-dsh-model-capabilities/understand-the-implementation/refresh-and-failure:
+  en: d2d24adfa136d7c3
+  zh: 51602bd2b8c4fce6
+/deepseek-ai-dsh-model-capabilities/understand-the-implementation/reading-the-databases:
+  en: 86ffde434226395a
+  zh: bedba4626240e3cb
+/deepseek-ai-dsh-model-capabilities/understand-the-implementation/inspecting-and-syncing:
+  en: 9719ddcf11e31b85
+  zh: 308d3b8f6f045bc4
+/deepseek-ai-dsh-model-capabilities/understand-the-implementation/what-the-models-page-reads:
+  en: 00dc4a19d9224202
+  zh: 17ecae8a3384aa3e
+/deepseek-ai-dsh-model-capabilities/further-exploration:
+  en: fd272b6ed629eb3b
+  zh: 874fb95bdd0585a0
+/deepseek-ai-dsh-model-capabilities/model-experience:
+  en: dd21e76d7397999b
+  zh: dd21e76d7397999b
+/deepseek-ai-dsh-model-capabilities/model-experience/kv-cache-effect:
+  en: 257e33d75cb83f8e
+  zh: 15d4dc298978cdf4
+/deepseek-ai-dsh-model-capabilities/known-limitations-and-deferred-work:
+  en: e64821ea8988dda9
+  zh: d7a561bb427fff45
+/deepseek-ai-dsh-model-capabilities/known-limitations-and-deferred-work/dev-note:
+  en: 3699bf46d7b3b67d
+  zh: 58e2ba0840383a7f

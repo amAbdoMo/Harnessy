@@ -395,7 +395,7 @@ export function buildSnapshot(inputs: SnapshotInputs, generatedAt: string): Buil
  * @param value - the parsed `sources.<database>` value.
  * @returns whether it carries an input path, a digest, and an entry count.
  */
-function isSnapshotSource(value: unknown): boolean {
+function isSnapshotSource(value: unknown): value is SnapshotSourceMetadata {
   return isRecord(value)
     && typeof value.input === 'string' && value.input.length > 0
     && typeof value.digest === 'string' && value.digest.length > 0
@@ -403,16 +403,18 @@ function isSnapshotSource(value: unknown): boolean {
 }
 
 /**
- * Whether one value is the catalog this layer's readers accept for a database.
- *
- * A models.dev catalog is its provider map; an OpenRouter catalog is its `data`
- * list. An empty map or list is refused rather than accepted as an empty
- * database, because a snapshot with nothing to resolve is a failed generation,
- * not a deployment with no public metadata.
- * @param source - the database the catalog belongs to.
- * @param value - the parsed catalog for that database.
- * @returns whether it states at least one entry in that database's own shape.
+ * Whether one value is the non-empty catalog container this layer accepts.
+ * Entry validation stays with the resolver, so one bad public row states
+ * nothing instead of making every other row unavailable.
+ * @param source - database whose container is being checked.
+ * @param value - parsed catalog candidate.
+ * @returns whether the database's own container is present and non-empty.
  */
+function isSnapshotCatalog(source: 'models.dev', value: unknown): value is Record<string, unknown>
+function isSnapshotCatalog(
+  source: 'openrouter',
+  value: unknown,
+): value is Record<string, unknown> & { readonly data: readonly unknown[] }
 function isSnapshotCatalog(source: 'models.dev' | 'openrouter', value: unknown): boolean {
   if (!isRecord(value)) return false
   return source === 'openrouter'
@@ -445,14 +447,23 @@ export function parseSnapshot(value: unknown): ModelCapabilitySnapshot {
   }
   const sources = isRecord(snapshot.sources) ? snapshot.sources : {}
   const catalogs = isRecord(snapshot.catalogs) ? snapshot.catalogs : {}
-  const stated: readonly [keyof ModelCapabilitySnapshot['catalogs'], 'models.dev' | 'openrouter'][] = [
-    ['modelsDev', 'models.dev'],
-    ['openRouter', 'openrouter'],
-  ]
-  for (const [field, source] of stated) {
-    if (!isSnapshotSource(sources[source]) || !isSnapshotCatalog(source, catalogs[field])) {
-      throw new Error(`bundled capability snapshot states no usable "${source}" catalog and source metadata`)
-    }
+  const modelsDevSource = sources['models.dev']
+  const openRouterSource = sources.openrouter
+  const modelsDev = catalogs.modelsDev
+  const openRouter = catalogs.openRouter
+  if (!isSnapshotSource(modelsDevSource) || !isSnapshotCatalog('models.dev', modelsDev)) {
+    throw new Error('bundled capability snapshot states no usable "models.dev" catalog and source metadata')
   }
-  return snapshot as unknown as ModelCapabilitySnapshot
+  if (!isSnapshotSource(openRouterSource) || !isSnapshotCatalog('openrouter', openRouter)) {
+    throw new Error('bundled capability snapshot states no usable "openrouter" catalog and source metadata')
+  }
+  return {
+    schemaVersion: SNAPSHOT_SCHEMA_VERSION,
+    generatedAt: snapshot.generatedAt,
+    sources: { 'models.dev': modelsDevSource, openrouter: openRouterSource },
+    catalogs: {
+      modelsDev: modelsDev as ModelsDevSnapshotCatalog,
+      openRouter: openRouter as OpenRouterSnapshotCatalog,
+    },
+  }
 }

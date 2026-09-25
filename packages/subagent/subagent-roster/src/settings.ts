@@ -41,6 +41,10 @@ export const SUBAGENT_ID_PATTERN = /^[a-z][a-z0-9-]{0,39}$/u
 /** The access vocabulary one definition may name, `inherit` included. */
 const SUBAGENT_ACCESS_MODES = ['inherit', 'read-only', 'workspace-write', 'danger-full-access'] as const
 
+// Schemastery's default API excludes `undefined` even when omission is the
+// stored meaning. The runtime accepts it and preserves the absent key.
+const OMITTED_DEFAULT = undefined as never
+
 /**
  * The object one route schema resolves to. An omitted route is stored as an
  * absent key, and schemastery types a default by its declared shape, so this
@@ -81,14 +85,14 @@ const modelRouteSchema = z.object({
 // without the parent being able to change it.
 const modelPolicySchema = z.object({
   mode: z.union(['fixed', 'automatic'] as const).default('fixed'),
-  route: modelRouteSchema.default(undefined as unknown as RouteFields),
+  route: modelRouteSchema.default(OMITTED_DEFAULT),
 })
 
 // Preserve omission; an empty `{ allow: [] }` would deny every tool.
 const toolRestrictionSchema = z.object({
-  allow: z.array(z.string()).default(undefined as unknown as string[]),
-  deny: z.array(z.string()).default(undefined as unknown as string[]),
-}).default(undefined as unknown as ToolRestrictionFields)
+  allow: z.array(z.string()).default(OMITTED_DEFAULT),
+  deny: z.array(z.string()).default(OMITTED_DEFAULT),
+}).default(OMITTED_DEFAULT)
 
 const executionSchema = z.object({
   backend: z.string().required(),
@@ -123,20 +127,20 @@ const definitionOverrideSchema = z.object({
   invocation: z.union(['automatic', 'ask-first', 'manual'] as const),
   model: z.object({
     mode: z.union(['fixed', 'automatic'] as const).default('fixed'),
-    route: modelRouteSchema.default(undefined as unknown as RouteFields),
-  }).default(undefined as unknown as ModelPolicyFields),
+    route: modelRouteSchema.default(OMITTED_DEFAULT),
+  }).default(OMITTED_DEFAULT),
   access: z.union(SUBAGENT_ACCESS_MODES),
   tools: z.object({
     allow: z.array(z.string()),
     deny: z.array(z.string()),
-  }).default(undefined as unknown as ToolRestrictionFields),
+  }).default(OMITTED_DEFAULT),
   instructions: z.string(),
   maxDepth: z.natural().max(Number.MAX_SAFE_INTEGER),
   execution: z.object({
     backend: z.string(),
     background: z.union(['auto', 'foreground', 'background'] as const),
     timeoutMs: z.number().step(1).min(1).max(MAX_TIMER_DELAY_MS),
-  }).default(undefined as unknown as ExecutionFields),
+  }).default(OMITTED_DEFAULT),
 })
 
 const workspaceOverrideSchema = z.object({
@@ -153,7 +157,7 @@ const workspaceOverrideSchema = z.object({
  */
 /** Schemastery fields shared by persisted settings and the live plugin Config. */
 export const SubagentSettingsFields = {
-  subagents: z.array(definitionSchema).default(defaultSubagentDefinitions() as unknown as DefinitionFields[]),
+  subagents: z.array(definitionSchema).default(defaultSubagentDefinitions() as DefinitionFields[]),
   overrides: z.dict(workspaceOverrideSchema).default({}),
   automaticRouting: z.object({
     enabled: z.boolean().default(DEFAULT_SUBAGENT_AUTOMATIC_ROUTING.enabled),
@@ -170,7 +174,7 @@ export const SubagentSettingsFields = {
 }
 
 /** Complete persisted subagent settings schema shared by Host and transport readers. */
-export const SubagentSettingsSchema: z<SubagentSettings> = z.object(SubagentSettingsFields) as unknown as z<SubagentSettings>
+export const SubagentSettingsSchema: z<SubagentSettings> = z.object(SubagentSettingsFields) as z<SubagentSettings>
 
 /**
  * Resolve the stored concurrency policy to the limiter capacity it enforces.

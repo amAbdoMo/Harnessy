@@ -51,7 +51,7 @@ describe('MCP Session activity', () => {
   it('reports running and failed calls newest first and ignores other tools', () => {
     const running = {
       callId: 'call-running', name: 'mcp__travel__search_flights', argsRaw: '{}',
-      turn: 2, step: 1, time: 300, subCalls: [],
+      turn: 2, step: 1, time: 300, phase: 'start', subCalls: [],
     } as ToolCallBlock
     const failed = {
       kind: 'tool-result', seq: 2, time: 250, callId: 'call-failed',
@@ -59,7 +59,7 @@ describe('MCP Session activity', () => {
       content: [], isError: true, subCalls: [],
     } as ToolCallBlock
     const ordinary = {
-      callId: 'call-local', name: 'read_file', argsRaw: '{}', turn: 1, step: 1, time: 400, subCalls: [],
+      callId: 'call-local', name: 'read_file', argsRaw: '{}', turn: 1, step: 1, time: 400, phase: 'start', subCalls: [],
     } as ToolCallBlock
     expect(mcpActivity(chat([failed], [ordinary, running]), [server('travel', 'travel')]).map(record => ({
       callId: record.callId,

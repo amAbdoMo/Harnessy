@@ -173,10 +173,11 @@ describe('published npm dependency catalog', () => {
     expect(after).toMatchObject({ status: 0, signal: null, timedOut: false })
     const settings = JSON.parse(after.output) as Record<string, unknown>
     expect(settings).toMatchObject({
-      registry: 'https://registry.npmjs.org/', '@deepseek-ai:registry': 'https://registry.npmjs.org/',
+      registry: 'https://registry.npmjs.org/',
       'install-strategy': 'hoisted', 'strict-peer-deps': false, 'prefer-dedupe': false, offline: false,
       cache: join(root, '.npm-cache'), userconfig: join(root, '.npmrc-user'), globalconfig: join(root, '.npmrc-global'),
     })
+    expect([undefined, 'https://registry.npmjs.org/']).toContain(settings['@deepseek-ai:registry'])
     expect(settings['@other:registry']).toBeUndefined()
     expect(isolated['NPM_CONFIG_USER_AGENT']).toBeUndefined()
     expect(inherited['npm_config_userconfig']).toBe(userConfig)

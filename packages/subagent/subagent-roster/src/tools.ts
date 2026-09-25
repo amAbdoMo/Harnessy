@@ -33,7 +33,6 @@ import {
 } from '@deepseek-ai/dsh-tool-subagent/model-selection'
 import type { DelegationModelRequest } from '@deepseek-ai/dsh-tool-subagent/model-selection'
 import { assertNever } from '@deepseek-ai/dsh-util-values'
-import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import { delegationAuthorityWindow, requireDirectHuman } from './authority.ts'
 import { renderSubagentDirectory, subagentDirectory } from './directory.ts'
 import { requireEnabledSubagent } from './settings.ts'
@@ -299,15 +298,44 @@ export function installRosterTools(ctx: Context, api: SubagentRosterApi): void {
       + 'model, and invocation policy.',
     parameters: {},
     output: {
-      schema: { type: 'array', items: { type: 'json' } },
+      schema: {
+        type: 'array',
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            id: { type: 'string', required: true },
+            name: { type: 'string', required: true },
+            purpose: { type: 'string', required: true },
+            whenToUse: { type: 'string', required: true },
+            invocation: {
+              type: 'string',
+              required: true,
+              enum: ['automatic', 'ask-first', 'manual'],
+            },
+            model: { type: 'string', required: true },
+            reasoningEffort: { type: 'string' },
+            access: {
+              type: 'string',
+              required: true,
+              enum: ['inherit', 'read-only', 'workspace-write', 'danger-full-access'],
+            },
+            background: {
+              type: 'string',
+              required: true,
+              enum: ['auto', 'foreground', 'background'],
+            },
+          },
+        },
+      },
       render: (_args, entries) => [{
         type: 'text',
-        text: renderSubagentDirectory(entries as unknown as readonly SubagentDirectoryEntry[]),
+        text: renderSubagentDirectory(entries),
       }],
     },
-    execute(_args, exec): Promise<JsonValue[]> {
+    execute(_args, exec): Promise<SubagentDirectoryEntry[]> {
       const entries = subagentDirectory(api.viewFor(workspaceOf(exec) ?? null))
-      return Promise.resolve(entries as unknown as JsonValue[])
+      return Promise.resolve(entries)
     },
     presentCall: (): GenericCallView => ({ card: 'generic', title: 'List subagents', kind: 'read' }),
   }))

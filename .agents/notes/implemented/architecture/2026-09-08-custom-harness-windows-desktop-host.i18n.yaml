@@ -1,6 +1,25 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-08-custom-harness-windows-desktop-host.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-08-custom-harness-windows-desktop-host.md
-2026-09-08-custom-harness-windows-desktop-host.md: 8865533b4e64b63cbd947f8e3cc0727edc090f0c
-2026-09-08-custom-harness-windows-desktop-host.zh.md: 0376d34a46e17c188c1a26b5423c6b4f245387e8
+/agent-note-custom-harness-windows-desktop-host:
+  en: a2912457e07130e0
+  zh: d68818a648999863
+/agent-note-custom-harness-windows-desktop-host/problem:
+  en: 5af60a262d154d12
+  zh: a0021691b600947f
+/agent-note-custom-harness-windows-desktop-host/decision:
+  en: 49a5b7e5d68ed472
+  zh: bdffc6aa07e51128
+/agent-note-custom-harness-windows-desktop-host/recovery-contract:
+  en: 783440e2038ae294
+  zh: ca4c1a7e48626471
+/agent-note-custom-harness-windows-desktop-host/alternatives-considered:
+  en: a66144acdc1bf68f
+  zh: 1e9f81a7c664e616
+/agent-note-custom-harness-windows-desktop-host/testing:
+  en: dbe8b55abf6f17ba
+  zh: 83f1e235666c5d14
+/agent-note-custom-harness-windows-desktop-host/consequences:
+  en: 5264a05d08d63903
+  zh: ae7898e5cd4468c8

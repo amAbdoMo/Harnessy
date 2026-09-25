@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-09-custom-harness-english-root-readme.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-09-09-custom-harness-english-root-readme.md
-2026-09-09-custom-harness-english-root-readme.md: 10c0ef7615f1208a0a20968f89bb1ffab4a5847c
-2026-09-09-custom-harness-english-root-readme.zh.md: 7ee4a3b64026ea78729d0acf95b5e88f7a40805d
+/agent-note-keep-the-custom-harness-root-readme-english-only:
+  en: 47fc2a3d38efc92f
+  zh: 26750295f2d1a875
+/agent-note-keep-the-custom-harness-root-readme-english-only/problem:
+  en: c79298e6e8b79f11
+  zh: 5c9ab2487ddc9d3a
+/agent-note-keep-the-custom-harness-root-readme-english-only/decision:
+  en: c93d28033e17a7d4
+  zh: 96b6c8d7e414ed7c
+/agent-note-keep-the-custom-harness-root-readme-english-only/alternatives-considered:
+  en: e8295e3d2e7dad32
+  zh: 92537593db71788c
+/agent-note-keep-the-custom-harness-root-readme-english-only/consequences:
+  en: d4ac29da916204ab
+  zh: fb2647f9d2d6ad7e

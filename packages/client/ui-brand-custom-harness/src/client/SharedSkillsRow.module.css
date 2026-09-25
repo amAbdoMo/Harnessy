@@ -53,7 +53,7 @@
   padding: 7px 12px;
   overflow: hidden;
   border: 0.5px solid var(--dsw-alias-border-l3);
-  border-radius: 10px;
+  border-radius: var(--dsw-radius-sm);
   color: var(--dsw-alias-label-secondary);
   background: var(--dsw-alias-bg-layer-1);
   font-size: 12px;
@@ -79,7 +79,7 @@
 
 .actions > button {
   height: 36px;
-  border-radius: 18px;
+  border-radius: var(--dsw-radius-xl);
 }
 
 .error {

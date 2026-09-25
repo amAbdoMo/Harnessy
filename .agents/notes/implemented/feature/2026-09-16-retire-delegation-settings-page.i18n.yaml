@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-16-retire-delegation-settings-page.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-16-retire-delegation-settings-page.md
-2026-09-16-retire-delegation-settings-page.md: fc68c3166e09497116e3cd0955a1670c9c843a05
-2026-09-16-retire-delegation-settings-page.zh.md: c34de42bde58fd1f6b4a73635780a586ca98afb5
+/agent-note-retire-the-delegation-settings-page-into-the-subagents-page:
+  en: b030d0b79ffc6a7c
+  zh: 77c429ab4d39bd60
+/agent-note-retire-the-delegation-settings-page-into-the-subagents-page/problem:
+  en: 29e159973fe7606e
+  zh: 66e9823a266288e5
+/agent-note-retire-the-delegation-settings-page-into-the-subagents-page/decision:
+  en: 9146792e3b52b883
+  zh: a89025b0c919b457
+/agent-note-retire-the-delegation-settings-page-into-the-subagents-page/alternatives-considered:
+  en: 0c1fd522ad152132
+  zh: 3fa1517f79694ec5
+/agent-note-retire-the-delegation-settings-page-into-the-subagents-page/consequences:
+  en: 0e9abc1fb23c7346
+  zh: 81214f4fbeadeb73
+/agent-note-retire-the-delegation-settings-page-into-the-subagents-page/related:
+  en: efcc9bd4ea8ab7b7
+  zh: c787ced0950a9bef

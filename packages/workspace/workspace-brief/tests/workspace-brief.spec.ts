@@ -34,7 +34,7 @@ function invocation(rawInput = '', signal = new AbortController().signal): Comma
     attachments: [],
     agent: {
       session: { header: { cwd: CWD } },
-    } as unknown as Agent,
+    } as Agent,
   }
 }
 
@@ -102,7 +102,11 @@ function bench(options: {
     }),
   }
   const sandboxPolicy = { resolve: vi.fn(() => ({ mode: 'read-only' })) }
-  const ctx = { fs, shell, workspaceRegistry, sandboxPolicy } as unknown as Context
+  const ctx = new Context()
+  ctx.provide('fs', fs as never)
+  ctx.provide('shell', shell as never)
+  ctx.provide('workspaceRegistry', workspaceRegistry as never)
+  ctx.provide('sandboxPolicy', sandboxPolicy as never)
   return { ctx, runner: new workspaceBrief.WorkspaceBriefRunner(ctx), calls, fs, shell, workspaceRegistry }
 }
 
@@ -286,12 +290,30 @@ describe('workspace-brief command lifecycle', () => {
       isSeeded: false,
     }
     const session = Session.create(id, undefined, header)
-    const agent = {
+    const agent: Agent = {
+      id,
       session,
       status: 'idle',
       options: {},
-      reserveTurnAdmission: () => () => undefined,
-    } as unknown as Agent
+      ctx,
+      inbox: {
+        nextTurn: [],
+        nextStep: [],
+        clear: () => {},
+        append: () => {},
+        prepend: () => {},
+        replace: () => false,
+        remove: () => false,
+        splice: () => [],
+      },
+      cancel: () => {},
+      whenIdle: () => Promise.resolve(),
+      runMaintenance: task => task(new AbortController().signal),
+      send: () => {},
+      followup: () => {},
+      steer: () => {},
+      inject: () => {},
+    }
 
     expect(ctx.commands.find(agent, 'workspace-brief')).toBeDefined()
     const execution = await ctx.commands.execute(agent, '/workspace-brief', [], new AbortController().signal)

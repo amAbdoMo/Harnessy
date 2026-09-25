@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-12-harnessy-shared-skills-folder.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-12-harnessy-shared-skills-folder.md
-2026-09-12-harnessy-shared-skills-folder.md: 15b90910d7813c7a21a35300adf218de1cce4185
-2026-09-12-harnessy-shared-skills-folder.zh.md: 55a8e349eb9471cb6598bc34abeac803ebab38bf
+/agent-note-harnessy-shared-skills-folder:
+  en: bea17af4e3c5600b
+  zh: 429a406bbf277088
+/agent-note-harnessy-shared-skills-folder/problem:
+  en: 59c4b66cfe2248e5
+  zh: 99807eb508559a26
+/agent-note-harnessy-shared-skills-folder/decision:
+  en: e563c4d2ca9dc9ad
+  zh: 22011f74848c1077
+/agent-note-harnessy-shared-skills-folder/alternatives-considered:
+  en: 302c795c0b790a5b
+  zh: 3385b8e2011d18f2
+/agent-note-harnessy-shared-skills-folder/consequences:
+  en: 3b3e82e670eb899a
+  zh: ad72392b260d061a

@@ -35,7 +35,7 @@ function actionProps(
     useSession: (selector: (snapshot: { openState: string }) => unknown) => selector({ openState }),
     sessionId: sid('s1'),
     t,
-  } as unknown as WorkspaceBriefActionProps
+  } as WorkspaceBriefActionProps
 }
 
 function cardProps(outcome: { kind: 'success' | 'error'; text?: string } | null): WorkspaceBriefCardProps {
@@ -51,7 +51,7 @@ function cardProps(outcome: { kind: 'success' | 'error'; text?: string } | null)
     },
     sessionId: sid('s1'),
     t,
-  } as unknown as WorkspaceBriefCardProps
+  } as WorkspaceBriefCardProps
 }
 
 afterEach(() => {
@@ -170,8 +170,9 @@ describe('ui-workspace-brief plugin lifecycle', () => {
 
   it('dispatches the exact bounded command and rejects transport or command failures', async () => {
     const test = await pluginBench()
-    const injectAction = test.actionEntry()?.inject as unknown as ((sessionId: SessionId) => WorkspaceBriefActionInjected)
-    const face = injectAction(sid('selected'))
+    const injectAction = test.actionEntry()?.inject
+    if (typeof injectAction !== 'function') throw new Error('workspace brief action has no injector')
+    const face = Reflect.apply(injectAction, undefined, [sid('selected')]) as WorkspaceBriefActionInjected
     await expect(face.createBrief()).resolves.toBeUndefined()
     expect(test.calls).toEqual([{ sessionId: 'selected', command: '/workspace-brief', attachments: [] }])
 

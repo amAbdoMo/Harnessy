@@ -81,9 +81,35 @@ function storedSection(descriptor: SettingsDescriptor | undefined): Record<strin
   return isRecord(user) && Object.keys(user).length > 0 ? user : undefined
 }
 
-/** Whether a stored map holds plain data objects only, so a projection may dereference its entries. */
-function isRecordMap(value: unknown): value is Record<string, unknown> {
-  return isRecord(value) && Object.values(value).every(isRecord)
+/** Whether one legacy lane or lane patch carries only the field types the projection reads. */
+function isLegacyLane(value: unknown, requireAll: boolean): value is Record<string, unknown> {
+  if (!isRecord(value)) return false
+  const strings = ['name', 'purpose', 'instructions', 'model', 'effort', 'access'] as const
+  if (requireAll && (typeof value.id !== 'string' || strings.some(field => typeof value[field] !== 'string')
+    || typeof value.enabled !== 'boolean')) return false
+  if (!requireAll && (value.id !== undefined
+    || strings.some(field => value[field] !== undefined && typeof value[field] !== 'string')
+    || (value.enabled !== undefined && typeof value.enabled !== 'boolean'))) return false
+  return true
+}
+
+/** Decode one legacy workspace's optional lane patches. */
+function legacyProject(value: unknown): LegacyCommandCodeDelegation['projects'][string] | undefined {
+  if (!isRecord(value) || !isRecord(value.lanes)) return undefined
+  const lanes: LegacyCommandCodeDelegation['projects'][string]['lanes'] = {}
+  for (const [id, lane] of Object.entries(value.lanes)) {
+    if (!isLegacyLane(lane, false)) return undefined
+    lanes[id] = {
+      ...typeof lane.name === 'string' ? { name: lane.name } : {},
+      ...typeof lane.purpose === 'string' ? { purpose: lane.purpose } : {},
+      ...typeof lane.instructions === 'string' ? { instructions: lane.instructions } : {},
+      ...typeof lane.model === 'string' ? { model: lane.model } : {},
+      ...typeof lane.effort === 'string' ? { effort: lane.effort } : {},
+      ...typeof lane.access === 'string' ? { access: lane.access } : {},
+      ...typeof lane.enabled === 'boolean' ? { enabled: lane.enabled } : {},
+    }
+  }
+  return { lanes }
 }
 
 /**
@@ -101,10 +127,30 @@ function legacyCommandCode(value: unknown): LegacyCommandCodeDelegation | undefi
   if (!isRecord(value)) return undefined
   const lanes = value['lanes']
   const projects = value['projects']
-  if (!Array.isArray(lanes) || !lanes.every(isRecord)) return undefined
-  if (!isRecordMap(projects)) return undefined
-  if (!Object.values(projects).every(project => isRecord(project) && isRecordMap(project['lanes']))) return undefined
-  return value as unknown as LegacyCommandCodeDelegation
+  if (typeof value.maxConcurrentRuns !== 'number' || typeof value.timeoutMs !== 'number') return undefined
+  if (!Array.isArray(lanes) || !lanes.every(lane => isLegacyLane(lane, true))) return undefined
+  if (!isRecord(projects)) return undefined
+  const decodedProjects: LegacyCommandCodeDelegation['projects'] = {}
+  for (const [workspace, project] of Object.entries(projects)) {
+    const decoded = legacyProject(project)
+    if (decoded === undefined) return undefined
+    decodedProjects[workspace] = decoded
+  }
+  return {
+    maxConcurrentRuns: value.maxConcurrentRuns,
+    timeoutMs: value.timeoutMs,
+    lanes: lanes.map(lane => ({
+      id: String(lane.id),
+      name: String(lane.name),
+      purpose: String(lane.purpose),
+      instructions: String(lane.instructions),
+      model: String(lane.model),
+      effort: String(lane.effort),
+      access: String(lane.access),
+      enabled: lane.enabled === true,
+    })),
+    projects: decodedProjects,
+  }
 }
 
 /**
@@ -115,8 +161,16 @@ function legacyCommandCode(value: unknown): LegacyCommandCodeDelegation | undefi
 function legacyModelSelection(value: unknown): LegacySubagentModelSelection | undefined {
   if (!isRecord(value)) return undefined
   const allowedModels = value['allowedModels']
-  if (!Array.isArray(allowedModels) || !allowedModels.every(isRecord)) return undefined
-  return value as unknown as LegacySubagentModelSelection
+  if (typeof value.enabled !== 'boolean' || !Array.isArray(allowedModels)) return undefined
+  const routes: Array<{ provider: string; model: string }> = []
+  for (const route of allowedModels) {
+    if (!isRecord(route) || typeof route.provider !== 'string' || typeof route.model !== 'string') return undefined
+    routes.push({ provider: route.provider, model: route.model })
+  }
+  return {
+    enabled: value.enabled,
+    allowedModels: routes,
+  }
 }
 
 /**

@@ -22,7 +22,7 @@ const FIXTURES = join(import.meta.dirname, 'fixtures')
 
 /** Read one fixture as the parsed JSON it is. */
 function fixture(name: string): unknown {
-  return JSON.parse(readFileSync(join(FIXTURES, name), 'utf8')) as unknown
+  return JSON.parse(readFileSync(join(FIXTURES, name), 'utf8'))
 }
 
 /** The two captured databases as published documents, for a fake fetch to answer. */
@@ -48,12 +48,12 @@ function cached(source: PublicCatalogSource, ageDays: number, catalog: unknown =
 }
 
 /** An in-memory cache, so no test touches the real file location. */
-function memoryCache(initial: readonly CachedCatalog[] = []): PublicCatalogCache & { written: CachedCatalog[][] } {
+function memoryCache(initial: readonly unknown[] = []): PublicCatalogCache & { written: CachedCatalog[][] } {
   const written: CachedCatalog[][] = []
-  let entries = initial
+  let entries: readonly unknown[] = initial
   return {
     written,
-    read: () => Promise.resolve(entries),
+    read: () => Promise.resolve(JSON.parse(JSON.stringify(entries))),
     write: (next) => {
       written.push([...next])
       entries = next
@@ -158,13 +158,13 @@ describe('selection tiers', () => {
       { source: 'openrouter', fetchedAt: new Date(NOW).toISOString(), catalog: { data: 'not-a-list' } },
       // Entries that are not entries at all, which a hand-edited or truncated
       // cache file can state.
-      null as unknown as CachedCatalog,
-      'scalar' as unknown as CachedCatalog,
-      [] as unknown as CachedCatalog,
-      { source: 'models.dev' } as unknown as CachedCatalog,
-      { source: 'models.dev', fetchedAt: new Date(NOW).toISOString(), catalog: null } as unknown as CachedCatalog,
-      { source: 'openrouter', fetchedAt: new Date(NOW).toISOString(), catalog: 'scalar' } as unknown as CachedCatalog,
-      { source: 'somewhere-else', fetchedAt: new Date(NOW).toISOString(), catalog: PUBLISHED['models.dev'] } as unknown as CachedCatalog,
+      null,
+      'scalar',
+      [],
+      { source: 'models.dev' },
+      { source: 'models.dev', fetchedAt: new Date(NOW).toISOString(), catalog: null },
+      { source: 'openrouter', fetchedAt: new Date(NOW).toISOString(), catalog: 'scalar' },
+      { source: 'somewhere-else', fetchedAt: new Date(NOW).toISOString(), catalog: PUBLISHED['models.dev'] },
     ])
     const { store: catalogStore } = store({ cache })
     await catalogStore.load()

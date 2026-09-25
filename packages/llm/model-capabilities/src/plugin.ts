@@ -105,7 +105,7 @@ function reportFailure(logger: Context['logger'], source: PublicCatalogSource, r
  * @param generatedAt - the snapshot's stated generation time.
  * @param now - current time in milliseconds.
  */
-export function reportSnapshotAge(logger: Context['logger'], generatedAt: string, now: number): void {
+export function reportSnapshotAge(logger: Pick<Context['logger'], 'warn'>, generatedAt: string, now: number): void {
   const generated = Date.parse(generatedAt)
   if (Number.isNaN(generated)) {
     logger.warn('model-capabilities: the bundled snapshot states no usable generation time')

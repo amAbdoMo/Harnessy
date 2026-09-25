@@ -92,7 +92,7 @@ export async function fetchPublicCatalog(
   if (text === undefined) return { source, catalog: undefined }
   let document: unknown
   try {
-    document = JSON.parse(text) as unknown
+    document = JSON.parse(text)
   } catch (_notJson) {
     // A proxy error page or a truncated body parses as nothing; the caller
     // keeps its previous catalog rather than replacing it with an empty one.

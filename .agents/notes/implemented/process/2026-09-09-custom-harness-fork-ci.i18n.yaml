@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-09-custom-harness-fork-ci.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-09-09-custom-harness-fork-ci.md
-2026-09-09-custom-harness-fork-ci.md: b6ed1cfa63b7e646e8a5b9b09a7fa1a2517891d4
-2026-09-09-custom-harness-fork-ci.zh.md: ac5adef70f2b8c236ddc5843fbaf4acd9eb30ecb
+/agent-note-custom-harness-fork-ci:
+  en: 344ee30146fe6471
+  zh: 9ce8234006a1a8b1
+/agent-note-custom-harness-fork-ci/problem:
+  en: 65c589ef3f96ad12
+  zh: e4f36e09c2f8aadc
+/agent-note-custom-harness-fork-ci/decision:
+  en: 8d4b0f93befd5f61
+  zh: 158ed778b03fd121
+/agent-note-custom-harness-fork-ci/alternatives-considered:
+  en: 452b3bbac6891afa
+  zh: bd4b9c3474c318a4
+/agent-note-custom-harness-fork-ci/consequences:
+  en: e16d8361924d2bbb
+  zh: 42e035759b496105

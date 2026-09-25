@@ -93,7 +93,7 @@ function page(subject: Awaited<ReturnType<typeof bench>>): RegisteredPage {
   const call = subject.register.mock.calls.find(([params]) =>
     (params as { name?: string }).name === HOLE)
   if (call === undefined) throw new Error('no settings page was registered')
-  return call[0] as unknown as RegisteredPage
+  return call[0] as Partial<RegisteredPage> as RegisteredPage
 }
 
 describe('Harnessy Subagents client composition', () => {

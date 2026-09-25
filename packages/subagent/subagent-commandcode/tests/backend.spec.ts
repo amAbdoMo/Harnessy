@@ -89,7 +89,7 @@ function delegatingAgent(): Agent {
   return {
     options: {},
     session: { header: { cwd: WORKSPACE }, requestHeader: () => undefined },
-  } as unknown as Agent
+  } as Agent
 }
 
 /**

@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-09-custom-harness-upstream-desktop-adoption.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/proposed/architecture/2026-09-09-custom-harness-upstream-desktop-adoption.md
-2026-09-09-custom-harness-upstream-desktop-adoption.md: 27933bc12ce57c743227a494dc9ce38d075e6231
-2026-09-09-custom-harness-upstream-desktop-adoption.zh.md: b90441d2ac44d5e512529f452758a56f1b38b6e8
+/agent-note-custom-harness-upstream-desktop-adoption:
+  en: 5cef270fb25fa25e
+  zh: d98392728e6fdff6
+/agent-note-custom-harness-upstream-desktop-adoption/problem:
+  en: 5a2e942e20db2a13
+  zh: b42d0fb43487a375
+/agent-note-custom-harness-upstream-desktop-adoption/proposal:
+  en: a2d5f6ca637edc46
+  zh: e09e1a28cac060c4
+/agent-note-custom-harness-upstream-desktop-adoption/alternatives-considered:
+  en: 279c75f341ab0f6b
+  zh: f5338b5af8c01acd
+/agent-note-custom-harness-upstream-desktop-adoption/acceptance-criteria:
+  en: 621c038f84a16419
+  zh: f4d1725375841246
+/agent-note-custom-harness-upstream-desktop-adoption/risks:
+  en: 32500482e9a4bdd4
+  zh: 169ece8dfbc4dbe0

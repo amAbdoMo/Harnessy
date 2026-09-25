@@ -1,6 +1,52 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/bundle/custom-harness/README.md
-README.md: 3e45224de2c082f54b9c3dbb95cf51b57e44a2dd
-README.zh.md: 2b9acee27ba12512c75b59f920e35bc0bb3b6fc1
+/:
+  en: c5503a597e017849
+  zh: 92dc4ac021f64387
+/deepseek-ai-dsh-custom-harness:
+  en: 2cb1e41688973473
+  zh: 13e88e1f660eba17
+/deepseek-ai-dsh-custom-harness/summary:
+  en: 5650fd84b3f83509
+  zh: a9cd5c2a2080a188
+/deepseek-ai-dsh-custom-harness/table-of-contents:
+  en: d87497a170768f00
+  zh: 0ab1668df05dfffc
+/deepseek-ai-dsh-custom-harness/use-this-package:
+  en: 6c64c13793fb77bc
+  zh: 7e0dea45f5fda47e
+/deepseek-ai-dsh-custom-harness/disabled-per-message-feedback:
+  en: 70e7687b1100d22a
+  zh: 0ff5754ec49eac36
+/deepseek-ai-dsh-custom-harness/workspace-brief:
+  en: 1e0f2adf45c06a3b
+  zh: f37ced85eb009933
+/deepseek-ai-dsh-custom-harness/public-model-capability-metadata:
+  en: 367c8e681b44cd09
+  zh: 5cb2e4bff29f38d6
+/deepseek-ai-dsh-custom-harness/command-code-delegation:
+  en: b27c75ae1a793c6b
+  zh: 35073a9ccaca0b72
+/deepseek-ai-dsh-custom-harness/subagents:
+  en: 385870934ac1fd52
+  zh: 4b10acb96e44a425
+/deepseek-ai-dsh-custom-harness/openai-account-login:
+  en: 7c2d47919f82f4a3
+  zh: 5679e3ae8ab48508
+/deepseek-ai-dsh-custom-harness/shared-skills-folder:
+  en: cd07c3d8b0ca4b55
+  zh: 63550782da0a7e43
+/deepseek-ai-dsh-custom-harness/model-experience:
+  en: 162d7081299b9e37
+  zh: 42d7071071fed219
+/deepseek-ai-dsh-custom-harness/model-experience/kv-cache-effect:
+  en: 1628d025658dbfd1
+  zh: d7421f8730f4a6bf
+/deepseek-ai-dsh-custom-harness/known-limitations-and-deferred-work:
+  en: 05df650b7a241192
+  zh: b29e208ff39facb8
+/deepseek-ai-dsh-custom-harness/known-limitations-and-deferred-work/dev-note:
+  en: 52413a44d083ecb6
+  zh: cc11e75e3c9dda0a

@@ -1,6 +1,31 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-16-subagent-roster-legacy-migration.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-16-subagent-roster-legacy-migration.md
-2026-09-16-subagent-roster-legacy-migration.md: bda82787d3cf52e8e10ecb6f3069e689cafd55df
-2026-09-16-subagent-roster-legacy-migration.zh.md: 3ad6fd009c6d65b3e3df10ec89080aca76288133
+/agent-note-harnessy-mounts-the-unified-roster-and-carries-its-stored-lane-configuration-into-it:
+  en: c24129d1703fee21
+  zh: 36b6ffd3eaef14e1
+/agent-note-harnessy-mounts-the-unified-roster-and-carries-its-stored-lane-configuration-into-it/problem:
+  en: 9ba6fcf50aefd0fe
+  zh: 408a669d53302b1c
+/agent-note-harnessy-mounts-the-unified-roster-and-carries-its-stored-lane-configuration-into-it/decision:
+  en: 0751d413f0789498
+  zh: 6aea8f6983f3cac1
+/agent-note-harnessy-mounts-the-unified-roster-and-carries-its-stored-lane-configuration-into-it/what-the-migration-reads-and-what-makes-it-run:
+  en: 9b4e244dd71f57c9
+  zh: 33fd82e39b8e33c2
+/agent-note-harnessy-mounts-the-unified-roster-and-carries-its-stored-lane-configuration-into-it/what-it-writes-and-what-it-refuses-to-write:
+  en: 3f03e7caaf4223de
+  zh: acaf7a801350a3c8
+/agent-note-harnessy-mounts-the-unified-roster-and-carries-its-stored-lane-configuration-into-it/declared-namespace-names:
+  en: 7b2b23c115f275d9
+  zh: b100d22e5e829d3d
+/agent-note-harnessy-mounts-the-unified-roster-and-carries-its-stored-lane-configuration-into-it/alternatives-considered:
+  en: ba6968418b39fb95
+  zh: 1a67c75897b58649
+/agent-note-harnessy-mounts-the-unified-roster-and-carries-its-stored-lane-configuration-into-it/consequences:
+  en: 48bf3423dad7642e
+  zh: 8863b52bdfa38bd2
+/agent-note-harnessy-mounts-the-unified-roster-and-carries-its-stored-lane-configuration-into-it/related:
+  en: f50f6cea78443058
+  zh: 6c6c839e13a56adf

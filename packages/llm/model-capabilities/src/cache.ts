@@ -91,7 +91,7 @@ function readCacheDocument(path: string): readonly CachedCatalog[] {
   }
   let document: unknown
   try {
-    document = JSON.parse(text) as unknown
+    document = JSON.parse(text)
   } catch (_notJson) {
     return []
   }

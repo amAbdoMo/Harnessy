@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-custom-harness",
   "description": "The product patch layer for the independent Harnessy browser profile",
-  "version": "0.1.7-alpha.1",
+  "version": "0.1.7-rc.2",
   "publishConfig": {
     "access": "public"
   },
@@ -43,20 +43,20 @@
     }
   },
   "dependencies": {
-    "@deepseek-ai/dsh-authorization": "workspace:^",
-    "@deepseek-ai/dsh-client-ui-brand-custom-harness": "workspace:^",
-    "@deepseek-ai/dsh-client-ui-settings-subagents": "workspace:^",
-    "@deepseek-ai/dsh-client-ui-workspace-brief": "workspace:^",
-    "@deepseek-ai/dsh-model-capabilities": "workspace:^",
-    "@deepseek-ai/dsh-skill-filesystem": "workspace:^",
-    "@deepseek-ai/dsh-subagent-commandcode": "workspace:^",
-    "@deepseek-ai/dsh-subagent-roster": "workspace:^",
-    "@deepseek-ai/dsh-workspace-brief": "workspace:^"
+    "@deepseek-ai/dsh-authorization": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-brand-custom-harness": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-settings-subagents": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-workspace-brief": "workspace:*",
+    "@deepseek-ai/dsh-model-capabilities": "workspace:*",
+    "@deepseek-ai/dsh-skill-filesystem": "workspace:*",
+    "@deepseek-ai/dsh-subagent-commandcode": "workspace:*",
+    "@deepseek-ai/dsh-subagent-roster": "workspace:*",
+    "@deepseek-ai/dsh-workspace-brief": "workspace:*"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:~"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:~"
   }
 }

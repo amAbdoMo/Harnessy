@@ -8,6 +8,7 @@ import { createAccountsMenuStore } from '../src/client/accounts-menu-store.ts'
 import { en } from '../src/client/locales.ts'
 import { McpSessionStatus, type McpSessionStatusProps } from '../src/client/McpSessionStatus.tsx'
 import type { McpStatusSnapshot } from '../src/client/mcp-status.ts'
+import { slotTestProps } from './slot-test-props.ts'
 
 afterEach(cleanup)
 
@@ -35,7 +36,7 @@ function mount(status: McpServerView['status']) {
   const useConversation: McpSessionStatusProps['useConversation'] = selector => selector({
     views: { get: () => undefined, grouped: () => undefined }, activeTargets: new Set(),
   })
-  render(<McpSessionStatus {...({
+  render(<McpSessionStatus {...slotTestProps<McpSessionStatusProps>({
     useStore,
     actions: menu.actions,
     useMcpStatus,
@@ -47,7 +48,7 @@ function mount(status: McpServerView['status']) {
       for (const [name, value] of Object.entries(values ?? {})) copy = copy.replace(`{${name}}`, String(value))
       return copy
     },
-  } as unknown as McpSessionStatusProps)} />)
+  })} />)
   return { menu, reconnect }
 }
 

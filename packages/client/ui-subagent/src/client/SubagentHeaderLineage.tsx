@@ -7,15 +7,13 @@ import {
 import type { SubagentAddress } from '@deepseek-ai/dsh-subagent/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import {
-  IconChevronDownOutlineRegular, IconChevronRightOutlineRegular, IconRefreshOutlineRegular, StateDot,
+  IconChevronDownOutlineRegular, IconChevronRightOutlineRegular, IconRefreshOutlineRegular, StateDot, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime, TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import { NS } from './locales.ts'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-token-meter/client'
 import css from './SubagentHeaderLineage.module.css'
-import { indexSubagentDescendants } from './subagent-lineage.ts'
-
 const NO_DESCENDANTS = { count: 0, runningCount: 0 } as const
 
 type SubagentCatalogSnapshot = Omit<SessionProjectionSnapshot, 'values' | 'state'> & {
@@ -23,6 +21,37 @@ type SubagentCatalogSnapshot = Omit<SessionProjectionSnapshot, 'values' | 'state
   entries: (SessionProjectionMap['subagentCatalog'][number] & { activity: 'running' | 'inactive' })[]
 }
 type Catalogs = Readonly<Record<SessionId, SubagentCatalogSnapshot>>
+
+interface CatalogDescendants {
+  count: number
+  runningCount: number
+}
+
+/** Index only descendants present in authoritative projected catalogs. */
+function indexCatalogDescendants(catalogs: Catalogs): ReadonlyMap<SessionId, CatalogDescendants> {
+  const index = new Map<SessionId, CatalogDescendants>()
+  const collect = (root: SessionId): CatalogDescendants => {
+    const visited = new Set<SessionId>()
+    let runningCount = 0
+    const visit = (parent: SessionId, path: ReadonlySet<SessionId>): void => {
+      if (path.has(parent)) return
+      const nextPath = new Set(path).add(parent)
+      for (const entry of catalogs[parent]?.entries ?? []) {
+        if (!visited.has(entry.id)) {
+          visited.add(entry.id)
+          if (entry.activity === 'running') runningCount += 1
+        }
+        visit(entry.id, nextPath)
+      }
+    }
+    visit(root, new Set())
+    return { count: visited.size, runningCount }
+  }
+  for (const root of Object.keys(catalogs) as SessionId[]) {
+    index.set(root, collect(root))
+  }
+  return index
+}
 
 /** Business actions supplied by the slot registration. */
 export interface SubagentCatalogInjected {
@@ -386,16 +415,17 @@ function CatalogRows({
                   </span>
                 )}
                 {!isCurrent && (
-                  <button
-                    type="button"
-                    className={css.sidebarButton}
-                    aria-label={t('open.sidebar', { label })}
-                    title={t('open.sidebar', { label })}
-                    onClick={openAside}
-                    onKeyDown={(event) => { event.stopPropagation() }}
-                  >
-                    <IconChevronRightOutlineRegular />
-                  </button>
+                  <Tooltip label={t('open.sidebar')} side="bottom" align="end">
+                    <button
+                      type="button"
+                      className={css.sidebarButton}
+                      aria-label={t('open.sidebar.aria', { label })}
+                      onClick={openAside}
+                      onKeyDown={(event) => { event.stopPropagation() }}
+                    >
+                      <IconChevronRightOutlineRegular />
+                    </button>
+                  </Tooltip>
                 )}
               </div>
             </div>
@@ -504,6 +534,8 @@ function CatalogDropdown({
   const menuRef = useRef<HTMLDivElement>(null)
   const hoverOpenTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const hoverCloseTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  // A click-opened (pinned) menu ignores hover-out; only explicit dismissal closes it.
+  const pinnedRef = useRef(false)
   const currentEntry = currentSessionId === undefined
     ? undefined
     : catalog?.entries.find(entry => entry.id === currentSessionId)
@@ -511,26 +543,19 @@ function CatalogDropdown({
     ? currentEntry.label ?? currentEntry.id
     : displayTitle
   const directChildren = catalog?.entries ?? []
-  const directCount = directChildren.length
-  const activitySummaries = useMemo(() => Object.fromEntries(
-    Object.entries(summaries).map(([id, summary]) => [id, {
-      ...summary,
-      running: statuses.get(id as SessionId)?.running ?? summary.running,
-    }]),
-  ), [summaries, statuses])
   const descendantIndex = useMemo(
-    () => indexSubagentDescendants(activitySummaries),
-    [activitySummaries],
+    () => indexCatalogDescendants(catalogs),
+    [catalogs],
   )
   const descendants = descendantIndex.get(rootSessionId) ?? NO_DESCENDANTS
-  const descendantCount = Math.max(directCount, descendants.count)
+  const descendantCount = descendants.count
   const directRunningCount = directChildren.filter(entry => entry.activity === 'running'
     || (descendantIndex.get(entry.id)?.runningCount ?? 0) > 0).length
   const runningCount = Math.min(descendantCount, Math.max(directRunningCount, descendants.runningCount))
   const completedCount = Math.max(0, descendantCount - runningCount)
   const workingCountKey = runningCount === 1 ? 'count.working.one' : 'count.working.other'
   const doneCountKey = completedCount === 1 ? 'count.done.one' : 'count.done.other'
-  const summaryBackedLoading = (descendants.count > 0 || variant === 'switcher')
+  const summaryBackedLoading = variant === 'switcher'
     && (catalog === undefined || (catalog.state === 'ready' && catalog.entries.length === 0))
   const presentedCatalog: SubagentCatalogSnapshot | undefined = summaryBackedLoading
     ? { entries: [], state: 'loading', error: null }
@@ -561,6 +586,7 @@ function CatalogDropdown({
       setMenuPosition(catalogMenuPosition(trigger))
     }
     else {
+      pinnedRef.current = false
       setOpen(false)
       setMenuPosition(undefined)
       setExpanded(new Set())
@@ -582,6 +608,7 @@ function CatalogDropdown({
   const scheduleHoverClose = (): void => {
     cancelHoverOpen()
     cancelHoverClose()
+    if (pinnedRef.current) return
     hoverCloseTimer.current = setTimeout(() => {
       hoverCloseTimer.current = undefined
       changeOpen(false)
@@ -659,6 +686,7 @@ function CatalogDropdown({
     cancelHoverOpen()
     cancelHoverClose()
     if (!open) return
+    pinnedRef.current = false
     setOpen(false)
     setExpanded(new Set())
   }, [visible, open])
@@ -724,11 +752,11 @@ function CatalogDropdown({
       className={`${css.root} ${variant === 'switcher' ? css.switcherRoot : ''}`}
       ref={rootRef}
       onKeyDown={navigate}
-      onMouseEnter={scheduleHoverOpen}
       onMouseLeave={scheduleHoverClose}
     >
       <button
         ref={triggerRef}
+        onMouseEnter={scheduleHoverOpen}
         type="button"
         className={variant === 'switcher'
           ? `${css.switcherTrigger} ${ancestorSwitcher ? css.ancestorSwitcherTrigger : ''}`
@@ -742,7 +770,12 @@ function CatalogDropdown({
             done: String(completedCount),
           })}
         onClick={openTitle === undefined
-          ? undefined
+          ? () => {
+            cancelHoverOpen()
+            cancelHoverClose()
+            pinnedRef.current = true
+            if (!open) changeOpen(true)
+          }
           : () => {
             cancelHoverOpen()
             if (open) changeOpen(false)
@@ -780,65 +813,65 @@ function CatalogDropdown({
           ref={menuRef}
           className={css.menu}
           style={menuPosition}
-          role="tree"
-          aria-label={t('tree.aria')}
           onMouseEnter={cancelHoverClose}
           onMouseLeave={scheduleHoverClose}
         >
-          <CatalogRows
-            parentSessionId={rootSessionId}
-            currentSessionId={currentSessionId}
-            catalog={activeCatalog}
-            catalogs={catalogs}
-            summaries={summaries}
-            expanded={expanded}
-            level={1}
-            openChild={openChild}
-            openChildAside={openChildAside}
-            refreshProjection={refreshProjection}
-            toggleBranch={toggleBranch}
-            closeCatalog={() => { changeOpen(false) }}
-            t={t}
-          />
-          {completedDirectCount > 0 && (
-            <div className={css.completedGroup}>
-              <div
-                role="treeitem"
-                tabIndex={0}
-                aria-level={1}
-                aria-expanded={completedOpen}
-                aria-label={t('completed.toggle', { count: String(completedDirectCount) })}
-                className={css.completedToggle}
-                onClick={toggleCompleted}
-                onKeyDown={toggleCompleted}
-              >
-                <IconChevronRightOutlineRegular
-                  size={14}
-                  className={completedOpen ? css.completedChevronOpen : undefined}
-                />
-                <span>{t('completed.label', { count: String(completedDirectCount) })}</span>
-              </div>
-              {completedOpen && (
-                <div role="group" className={css.completedRows}>
-                  <CatalogRows
-                    parentSessionId={rootSessionId}
-                    currentSessionId={currentSessionId}
-                    catalog={completedCatalog}
-                    catalogs={catalogs}
-                    summaries={summaries}
-                    expanded={expanded}
-                    level={2}
-                    openChild={openChild}
-                    openChildAside={openChildAside}
-                    refreshProjection={refreshProjection}
-                    toggleBranch={toggleBranch}
-                    closeCatalog={() => { changeOpen(false) }}
-                    t={t}
+          <div className={css.menuBody} role="tree" aria-label={t('tree.aria')}>
+            <CatalogRows
+              parentSessionId={rootSessionId}
+              currentSessionId={currentSessionId}
+              catalog={activeCatalog}
+              catalogs={catalogs}
+              summaries={summaries}
+              expanded={expanded}
+              level={1}
+              openChild={openChild}
+              openChildAside={openChildAside}
+              refreshProjection={refreshProjection}
+              toggleBranch={toggleBranch}
+              closeCatalog={() => { changeOpen(false) }}
+              t={t}
+            />
+            {completedDirectCount > 0 && (
+              <div className={css.completedGroup}>
+                <div
+                  role="treeitem"
+                  tabIndex={0}
+                  aria-level={1}
+                  aria-expanded={completedOpen}
+                  aria-label={t('completed.toggle', { count: String(completedDirectCount) })}
+                  className={css.completedToggle}
+                  onClick={toggleCompleted}
+                  onKeyDown={toggleCompleted}
+                >
+                  <IconChevronRightOutlineRegular
+                    size={14}
+                    className={completedOpen ? css.completedChevronOpen : undefined}
                   />
+                  <span>{t('completed.label', { count: String(completedDirectCount) })}</span>
                 </div>
-              )}
-            </div>
-          )}
+                {completedOpen && (
+                  <div role="group" className={css.completedRows}>
+                    <CatalogRows
+                      parentSessionId={rootSessionId}
+                      currentSessionId={currentSessionId}
+                      catalog={completedCatalog}
+                      catalogs={catalogs}
+                      summaries={summaries}
+                      expanded={expanded}
+                      level={2}
+                      openChild={openChild}
+                      openChildAside={openChildAside}
+                      refreshProjection={refreshProjection}
+                      toggleBranch={toggleBranch}
+                      closeCatalog={() => { changeOpen(false) }}
+                      t={t}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       ), document.body)}
     </div>
@@ -851,7 +884,7 @@ export type SubagentCatalogActionProps =
 
 /**
  * Session-header catalog action for root sessions: the descendant count and
- * its dropdown, ordered after the task list. Child sessions render nothing
+ * its dropdown at the start of the header actions band. Child sessions render nothing
  * here — their breadcrumb switcher in the lineage slot owns the same
  * navigation.
  * @param props - Session standard props plus the catalog actions and translator.
@@ -896,12 +929,12 @@ export function SubagentHeaderLineage({
   })
   const shared = { useSessions, useSessionStatus, openChild, openChildAside, refreshProjection, t }
   // Root sessions carry no breadcrumb; their descendant count lives in the
-  // header actions band (SubagentCatalogAction), after the task list.
+  // header actions band (SubagentCatalogAction).
   if (parentId === undefined) return null
   return (
     <>
       <CatalogDropdown
-        key={lineageSessionId}
+        key={`lineage:${lineageSessionId}`}
         rootSessionId={parentId}
         currentSessionId={lineageSessionId}
         variant="switcher"
@@ -911,7 +944,7 @@ export function SubagentHeaderLineage({
       />
       {openTitle === undefined && (
         <CatalogDropdown
-          key={lineageSessionId}
+          key={`catalog:${lineageSessionId}`}
           rootSessionId={lineageSessionId}
           variant="count"
           {...shared}

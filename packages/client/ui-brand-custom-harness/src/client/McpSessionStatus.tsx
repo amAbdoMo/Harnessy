@@ -169,7 +169,7 @@ export function McpSessionStatus({
   const snapshot = useMcpStatus(value => value)
   const conversation = useConversation(value => value)
   const servers = snapshot.state?.servers ?? []
-  const chat = (conversation as unknown as {
+  const chat = (conversation as {
     readonly views: { readonly get: (id: string) => unknown }
   } | undefined)?.views.get('chat') as McpActivityChatSnapshot | undefined
   // Conversation views may preserve their outer identity while their legacy

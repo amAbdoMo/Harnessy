@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-08-custom-harness-workspace-brief.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-08-custom-harness-workspace-brief.md
-2026-09-08-custom-harness-workspace-brief.md: 3093fa96a530baadec14b63b6fb8e1ebfa882dc4
-2026-09-08-custom-harness-workspace-brief.zh.md: b6d516b388a4e782ffe4ce5d7122a8137842f6fd
+/agent-note-custom-harness-workspace-brief-as-a-bounded-human-command:
+  en: cb8248a6c7796413
+  zh: 61a6716d486cedf4
+/agent-note-custom-harness-workspace-brief-as-a-bounded-human-command/problem:
+  en: 12f75e7a3e5f534c
+  zh: 8f9b8a0516ec4349
+/agent-note-custom-harness-workspace-brief-as-a-bounded-human-command/decision:
+  en: 2b379a63198232c4
+  zh: 628cf0f93b60e8fc
+/agent-note-custom-harness-workspace-brief-as-a-bounded-human-command/alternatives-considered:
+  en: cef7428d50c5e800
+  zh: aaf94b66f29d36c9
+/agent-note-custom-harness-workspace-brief-as-a-bounded-human-command/consequences:
+  en: 3521bb460d44b16a
+  zh: 4b9ff2ba3b523c03

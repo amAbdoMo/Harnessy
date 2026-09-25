@@ -8,6 +8,7 @@ import {
 } from '../src/client/AccountsManagerCard.tsx'
 import { en } from '../src/client/locales.ts'
 import { createAccountsMenuStore } from '../src/client/accounts-menu-store.ts'
+import { slotTestProps } from './slot-test-props.ts'
 
 afterEach(() => {
   cleanup()
@@ -57,9 +58,9 @@ function renderManager(value: AccountsManagerOperations, presentModal = vi.fn(()
     ))
   return {
     ...render(<AccountsManagerCard
-      {...({
+      {...slotTestProps<AccountsManagerCardProps>({
         operations: value, t, presentModal, useStore, actions: store.actions,
-      } as unknown as AccountsManagerCardProps)} />),
+      })} />),
     presentModal,
     store,
   }

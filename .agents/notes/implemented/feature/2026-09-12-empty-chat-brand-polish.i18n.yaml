@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-12-empty-chat-brand-polish.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-12-empty-chat-brand-polish.md
-2026-09-12-empty-chat-brand-polish.md: cca86c6111586cbae0763f4e1aa5c9b6228956bd
-2026-09-12-empty-chat-brand-polish.zh.md: c972d6e2e447831987249b93eb9602617cf9710e
+/agent-note-empty-chat-brand-polish:
+  en: e6117122e72c3a31
+  zh: ec2a87975382e0f2
+/agent-note-empty-chat-brand-polish/problem:
+  en: c13b89b31c690919
+  zh: f1ef5240c07e2fc2
+/agent-note-empty-chat-brand-polish/decision:
+  en: 0fea983cc698a4c4
+  zh: 38956ac2c1d419c9
+/agent-note-empty-chat-brand-polish/alternatives-considered:
+  en: 61abc694ef58a574
+  zh: b9ace1f54364f650
+/agent-note-empty-chat-brand-polish/consequences:
+  en: e125871ad2caab8c
+  zh: 79e1cbd8bf035202

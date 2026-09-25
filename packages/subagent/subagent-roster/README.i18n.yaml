@@ -1,6 +1,97 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/subagent/subagent-roster/README.md
-README.md: 7dcf43f2722c669863489fb1fbbe78bc0e6dbc4d
-README.zh.md: 73ccf4e8c2c39e554a8531629b2152ed2995cced
+/:
+  en: 2fa5e4cc81470022
+  zh: 2a72abeb035c7fa1
+/deepseek-ai-dsh-subagent-roster:
+  en: 78f9f73ad9553fa4
+  zh: cce6db9e7dc83f0e
+/deepseek-ai-dsh-subagent-roster/summary:
+  en: 46c2c038557d3bdd
+  zh: a5065da2b8a6c56d
+/deepseek-ai-dsh-subagent-roster/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 1e999a6205f4986c
+/deepseek-ai-dsh-subagent-roster/use-this-package:
+  en: a22d7433f0dc753a
+  zh: 442b1a481c3c06c5
+/deepseek-ai-dsh-subagent-roster/use-this-package/configuration:
+  en: d43b4c07b1dca0fd
+  zh: f07d4ff47846af40
+/deepseek-ai-dsh-subagent-roster/use-this-package/roles:
+  en: 68da3788a5058f8a
+  zh: 8987550b8f5a6d14
+/deepseek-ai-dsh-subagent-roster/use-this-package/access:
+  en: 9618d0e2592387fe
+  zh: 477143db2ae70209
+/deepseek-ai-dsh-subagent-roster/use-this-package/invocation-policies:
+  en: 9ebef72c05f8cb17
+  zh: 0a27a6cd1f7e57f5
+/deepseek-ai-dsh-subagent-roster/use-this-package/model-routing:
+  en: 3b9d62458d836f2a
+  zh: bdaf1f71446a174c
+/deepseek-ai-dsh-subagent-roster/use-this-package/workspace-overrides:
+  en: d25665e9231d81e7
+  zh: aee6cfa08829744f
+/deepseek-ai-dsh-subagent-roster/use-this-package/background-runs:
+  en: 11d42e7cee66b56c
+  zh: 2ca65eab37798f60
+/deepseek-ai-dsh-subagent-roster/use-this-package/failure-and-recovery:
+  en: 57fe1cee487ba54f
+  zh: 3a7f4bb777903aa2
+/deepseek-ai-dsh-subagent-roster/use-this-package/migration:
+  en: 4611a00dbdb65071
+  zh: dbda895b8243d525
+/deepseek-ai-dsh-subagent-roster/use-this-package/remote-surface:
+  en: 47db979afd7168f6
+  zh: 5847b877d0f33f01
+/deepseek-ai-dsh-subagent-roster/understand-the-implementation:
+  en: 42b15ac6321706aa
+  zh: 4ed0861911abaf5d
+/deepseek-ai-dsh-subagent-roster/understand-the-implementation/design-concept:
+  en: 8b5b115fdd3db870
+  zh: 39d6d67cf102b4a1
+/deepseek-ai-dsh-subagent-roster/understand-the-implementation/source-map:
+  en: ac41fe91735e9ca6
+  zh: 7aedab91b5730821
+/deepseek-ai-dsh-subagent-roster/understand-the-implementation/run-flow:
+  en: 41acf86c17382fb4
+  zh: a67bf8d4e91c8538
+/deepseek-ai-dsh-subagent-roster/further-exploration:
+  en: f53f0a0babf9f9bc
+  zh: a802a62406bf6522
+/deepseek-ai-dsh-subagent-roster/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-subagent-roster/model-experience/subagent-discovery:
+  en: 403dcba906ce1af2
+  zh: 1e00ada6a1df4b35
+/deepseek-ai-dsh-subagent-roster/model-experience/subagent-discovery/what-the-model-sees:
+  en: d3221564425cee52
+  zh: 44d99d625dc61107
+/deepseek-ai-dsh-subagent-roster/model-experience/subagent-discovery/token-effect:
+  en: 387d9ce6cc13856b
+  zh: a0b6911d37be14c9
+/deepseek-ai-dsh-subagent-roster/model-experience/subagent-discovery/kv-cache-effect:
+  en: 6d2f5f62def91333
+  zh: e5a704066fe30e3d
+/deepseek-ai-dsh-subagent-roster/model-experience/delegation:
+  en: bc076c8910ea032e
+  zh: a95ed63ea47ebf2f
+/deepseek-ai-dsh-subagent-roster/model-experience/delegation/what-the-model-sees:
+  en: dda7da49a8afee5b
+  zh: 2f9267c002894bc3
+/deepseek-ai-dsh-subagent-roster/model-experience/delegation/token-effect:
+  en: 1dfd868e825bfa86
+  zh: 3a893644886f5753
+/deepseek-ai-dsh-subagent-roster/model-experience/delegation/kv-cache-effect:
+  en: 51ebd89b94cef888
+  zh: 5caa34695ed2dc49
+/deepseek-ai-dsh-subagent-roster/known-limitations-and-deferred-work:
+  en: cbc578a9bc47f4fc
+  zh: 317d858514fe71f6
+/deepseek-ai-dsh-subagent-roster/known-limitations-and-deferred-work/dev-note:
+  en: e29bbcf3e72eb82f
+  zh: 3cd0792e3ae0e6f0

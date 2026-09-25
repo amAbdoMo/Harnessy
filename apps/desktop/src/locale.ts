@@ -2,13 +2,24 @@
 
 export const en = {
   application: 'Application',
-  trayOpen: 'Open Harnessy',
-  trayExit: 'Exit Harnessy',
+  fileMenu: 'File',
+  closePage: 'Close Page or Window',
   aboutMenu: 'About Harnessy',
+  aboutProduct: 'Harnessy',
+  aboutVersion: 'Version V{version}',
   hideApplication: 'Hide Harnessy',
   hideOtherApplications: 'Hide Others',
   showAllApplications: 'Show All',
   quitApplication: 'Quit Harnessy',
+  openApplication: 'Open Harnessy',
+  quit: 'Quit',
+  cancel: 'Cancel',
+  quitTitle: 'Quit Harnessy?',
+  quitActiveTasks: 'Running tasks will be interrupted.',
+  quitScheduledTasks: 'Scheduled tasks will not run while the app is closed.',
+  quitActiveAndScheduledTasks: 'Running tasks will be interrupted, and scheduled tasks will not run while the app is closed.',
+  backgroundNoticeBody: 'Running tasks will continue. You can reopen the window from the system tray.',
+  backgroundNoticeConfirm: 'Confirm',
   edit: 'Edit',
   menuBar: 'Application menu',
   delete: 'Delete',
@@ -21,7 +32,8 @@ export const en = {
   startupFailed: 'Harnessy is unavailable',
   fatalSummary: 'The application could not start or stopped unexpectedly.',
   startupAddressInUse: 'Another DSH instance (such as dsh web or the desktop app) is running. They cannot start at the same time. Quit the other running DSH instance, then restart.',
-  diagnosticTruncated: '… Error details shortened. The full diagnostic was written to the Electron console.',
+  diagnosticTruncated: '… Error details shortened.',
+  reportWrittenTo: 'Diagnostic report: {path}',
   startupReinstallAdvice: 'If application files are missing or damaged, close the application and reinstall it. Your tasks are stored separately.',
   exitApplication: 'Exit',
   restartApplication: 'Restart',
@@ -53,6 +65,7 @@ export const en = {
   welcomeKeySave: 'Save and continue',
   welcomeKeyLater: 'Set up later',
   welcomeKeyBack: 'Back to sign in',
+  welcomeSessionExpired: 'You have signed out of your account, please log in again.',
   welcomeKeyBlank: 'Enter an API key.',
   welcomeKeyInvalid: 'Enter the API key itself, without quotes, spaces, or an environment-variable assignment.',
   welcomeKeyFailed: 'Could not save the API key. Please try again.',
@@ -74,6 +87,8 @@ export const en = {
   updateDownload: 'Download update',
   updateDownloadedTitle: 'Harnessy v{version} downloaded',
   updateDownloadedDetail: 'The update package has downloaded. Select “Install and Restart” to restart the app and begin installation.',
+  updateDownloadedTitleWindows: 'New version v{version} is ready',
+  updateDownloadedDetailWindows: 'The app will close temporarily during the update and reopen automatically when it is complete.\n\nThe update may take some time. Please wait and do not launch the app again during installation.',
   updateClose: 'Close',
   updateAcknowledge: 'OK',
   updateLater: 'Update later',
@@ -90,7 +105,7 @@ export const en = {
   updateTechnicalDetails: 'View technical details',
   updateTitle: 'Harnessy Update',
   updateAvailable: 'An update is available',
-  updateDetail: 'Harnessy {version}\n\nThis release includes its matching dsh version. The application will restart after installation.',
+  updateDetail: 'Harnessy {version}\n\nHarnessy will restart to complete the update.',
   installAndRestart: 'Install and Restart',
   later: 'Later',
   updateFailedTitle: 'Update Failed',
@@ -131,13 +146,24 @@ export type DesktopMessages = { readonly [Key in keyof typeof en]: string }
 
 export const zh = {
   application: '应用',
-  trayOpen: '打开 Harnessy',
-  trayExit: '退出 Harnessy',
+  fileMenu: '文件',
+  closePage: '关闭页面或窗口',
   aboutMenu: '关于 Harnessy',
+  aboutProduct: 'Harnessy',
+  aboutVersion: '版本 V{version}',
   hideApplication: '隐藏 Harnessy',
   hideOtherApplications: '隐藏其他',
   showAllApplications: '显示全部',
   quitApplication: '退出 Harnessy',
+  openApplication: '打开 Harnessy',
+  quit: '退出',
+  cancel: '取消',
+  quitTitle: '退出 Harnessy？',
+  quitActiveTasks: '当前正在运行的任务将会中断',
+  quitScheduledTasks: '应用关闭期间，定时任务不会运行',
+  quitActiveAndScheduledTasks: '当前正在运行的任务将会中断，且应用关闭期间，定时任务不会运行',
+  backgroundNoticeBody: '正在运行的任务不会中断，可在系统托盘中重新打开窗口',
+  backgroundNoticeConfirm: '确认',
   edit: '编辑',
   menuBar: '应用菜单',
   delete: '删除',
@@ -150,7 +176,8 @@ export const zh = {
   startupFailed: 'Harnessy 无法使用',
   fatalSummary: '应用无法启动或已意外停止。',
   startupAddressInUse: '有其他正在运行的 DSH（如其他 dsh web、桌面端），无法同时启动，请退出其他正在运行的 DSH 后重启。',
-  diagnosticTruncated: '… 错误详情已截短，完整诊断已写入 Electron 控制台。',
+  diagnosticTruncated: '… 错误详情已截短。',
+  reportWrittenTo: '诊断报告：{path}',
   startupReinstallAdvice: '如果应用文件缺失或损坏，请关闭应用并重新安装。任务数据存储在独立位置。',
   exitApplication: '退出',
   restartApplication: '重启',
@@ -182,6 +209,7 @@ export const zh = {
   welcomeKeySave: '保存并继续',
   welcomeKeyLater: '稍后配置',
   welcomeKeyBack: '返回登录',
+  welcomeSessionExpired: '登录信息已失效，请重新登录',
   welcomeKeyBlank: '请输入 API 密钥。',
   welcomeKeyInvalid: '请仅输入 API 密钥，不要包含引号、空格或环境变量赋值。',
   welcomeKeyFailed: '无法保存 API 密钥，请重试。',
@@ -203,6 +231,8 @@ export const zh = {
   updateDownload: '下载更新',
   updateDownloadedTitle: 'Harnessy v{version} 下载完成',
   updateDownloadedDetail: '安装包已下载完毕，点击“安装并重启”，即刻重启客户端，开始部署。',
+  updateDownloadedTitleWindows: '新版本 v{version} 已准备就绪',
+  updateDownloadedDetailWindows: '更新期间应用将暂时关闭，完成后会自动打开。\n\n更新可能需要一些时间，请耐心等待，期间请勿重复启动应用。',
   updateClose: '关闭',
   updateAcknowledge: '确定',
   updateLater: '稍后更新',
@@ -219,7 +249,7 @@ export const zh = {
   updateTechnicalDetails: '查看技术详情',
   updateTitle: 'Harnessy 更新',
   updateAvailable: '发现可用更新',
-  updateDetail: 'Harnessy {version}\n\n新版本绑定匹配的 dsh，安装后将重新启动。',
+  updateDetail: 'Harnessy {version}\n\nHarnessy 将重启以完成更新。',
   installAndRestart: '安装并重启',
   later: '稍后',
   updateFailedTitle: '更新失败',
@@ -290,4 +320,22 @@ export function formatDesktopMessage(
   values: Readonly<Record<string, string>>,
 ): string {
   return message.replaceAll(/\{([^{}]+)\}/gu, (placeholder, key: string) => values[key] ?? placeholder)
+}
+
+/**
+ * Select localized copy for an ordinary downloaded-update confirmation.
+ * @param messages - Selected Desktop dictionary.
+ * @param version - Prepared update version without a leading v.
+ * @param platform - Operating system presenting the confirmation.
+ * @returns The versioned title and installation guidance.
+ */
+export function desktopUpdateReadyConfirmation(
+  messages: DesktopMessages,
+  version: string,
+  platform: string,
+): { message: string; detail: string } {
+  return {
+    message: formatDesktopMessage(platform === 'win32' ? messages.updateDownloadedTitleWindows : messages.updateDownloadedTitle, { version }),
+    detail: platform === 'win32' ? messages.updateDownloadedDetailWindows : messages.updateDownloadedDetail,
+  }
 }

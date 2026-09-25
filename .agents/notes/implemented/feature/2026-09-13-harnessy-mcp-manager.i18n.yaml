@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-13-harnessy-mcp-manager.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-13-harnessy-mcp-manager.md
-2026-09-13-harnessy-mcp-manager.md: 34fbe3c0113468b6ac420c6e37f39b5b2c096b38
-2026-09-13-harnessy-mcp-manager.zh.md: d45a891332163217422b3df0fb0ce78fea4660a4
+/agent-note-harnessy-mcp-manager:
+  en: edcd5b70bd104f02
+  zh: 1501c55d7a894468
+/agent-note-harnessy-mcp-manager/problem:
+  en: e8b495b3882a6d7b
+  zh: 302956731d7e0baf
+/agent-note-harnessy-mcp-manager/decision:
+  en: 4ef58cd9a550149a
+  zh: e6085202a512f27b
+/agent-note-harnessy-mcp-manager/alternatives-considered:
+  en: 606e21207c30f039
+  zh: fba61a89a06c0539
+/agent-note-harnessy-mcp-manager/consequences:
+  en: 704cf80963fea922
+  zh: b1cb7e8ea8e7f475

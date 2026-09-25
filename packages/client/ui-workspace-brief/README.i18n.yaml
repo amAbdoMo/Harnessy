@@ -1,6 +1,40 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-workspace-brief/README.md
-README.md: fbae61aa880727ed15bf114f40ccd28ad7c20091
-README.zh.md: 3b67495eba0b5c5219b2d19a4c7a50c90590ab86
+/:
+  en: 802115ce77e1c790
+  zh: 39f5ebee5d885a5c
+/deepseek-ai-dsh-client-ui-workspace-brief:
+  en: 1cb49f02054f52dc
+  zh: 3e7e2f399c39647b
+/deepseek-ai-dsh-client-ui-workspace-brief/summary:
+  en: 81bd70e85e1d7ac3
+  zh: e53cab96abecd794
+/deepseek-ai-dsh-client-ui-workspace-brief/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: f9eec6518f31908c
+/deepseek-ai-dsh-client-ui-workspace-brief/use-this-package:
+  en: e394016154a8c211
+  zh: 6f81ab827b3cbac3
+/deepseek-ai-dsh-client-ui-workspace-brief/use-this-package/minimal-composition:
+  en: 780bd0c0b00a1ec3
+  zh: 435cc76e10525516
+/deepseek-ai-dsh-client-ui-workspace-brief/understand-the-implementation:
+  en: bf53f578fbe22303
+  zh: 21a9ad56ec43e1c8
+/deepseek-ai-dsh-client-ui-workspace-brief/further-exploration:
+  en: d328e9fbdc6f6ebf
+  zh: 98b7ecd83bfd3cb1
+/deepseek-ai-dsh-client-ui-workspace-brief/model-experience:
+  en: 4bb5504b189c6a65
+  zh: f556296ef2e745fa
+/deepseek-ai-dsh-client-ui-workspace-brief/model-experience/kv-cache-effect:
+  en: deafe3a4f55210d6
+  zh: 3b3a86fe20924171
+/deepseek-ai-dsh-client-ui-workspace-brief/known-limitations-and-deferred-work:
+  en: 9715c9ab8ef24937
+  zh: 3c40b3f11063c425
+/deepseek-ai-dsh-client-ui-workspace-brief/known-limitations-and-deferred-work/dev-note:
+  en: d724e1c82cfbeff8
+  zh: eeb807e18a5f32ec

@@ -117,6 +117,10 @@ export interface SettingsTriggerOwnerProps {
 export interface SettingsLauncherOwnerProps {
   /** Whether the sidebar renders wide content (false = 56px rail). */
   wide: boolean
+  /** Whether the settings dialog currently covers the sidebar. */
+  settingsOpen: boolean
+  /** Effective Settings key labels and accessible combination; omitted when unbound. */
+  settingsShortcut?: { readonly keys: readonly string[]; readonly aria?: string | undefined }
   /** Open Settings on its default section. */
   openSettings: () => void
   /** Open Settings directly on one registered section. */

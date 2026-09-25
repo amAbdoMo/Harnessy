@@ -617,7 +617,84 @@ function parseVault(record: CredentialRecord | undefined): AccountVault {
   if (record?.kind !== 'grant' || !isRecord(record.payload)) return { version: 1, providers: {} }
   const payload = record.payload
   if (payload.version !== 1 || !isRecord(payload.providers)) return { version: 1, providers: {} }
-  return payload as unknown as AccountVault
+  const providers: Partial<Record<AccountProviderId, ProviderVault>> = {}
+  for (const definition of PROVIDERS) {
+    const candidate = decodeProviderVault(payload.providers[definition.id], definition)
+    if (candidate !== undefined) providers[definition.id] = candidate
+  }
+  return { version: 1, providers }
+}
+
+/** Decode one provider's protected account records from durable JSON. */
+function decodeProviderVault(value: unknown, definition: ProviderDefinition): ProviderVault | undefined {
+  if (!isRecord(value) || !isRecord(value.accounts)
+    || (value.activeAccountId !== undefined && typeof value.activeAccountId !== 'string')
+    || (value.autoSwitchOnLimit !== undefined && typeof value.autoSwitchOnLimit !== 'boolean')) return undefined
+  const accounts: Record<string, StoredAccount> = {}
+  for (const [storedId, candidate] of Object.entries(value.accounts)) {
+    const account = decodeStoredAccount(candidate, definition)
+    if (account === undefined || account.id !== storedId) return undefined
+    accounts[storedId] = account
+  }
+  return {
+    accounts,
+    ...typeof value.activeAccountId === 'string' ? { activeAccountId: value.activeAccountId } : {},
+    ...typeof value.autoSwitchOnLimit === 'boolean' ? { autoSwitchOnLimit: value.autoSwitchOnLimit } : {},
+  }
+}
+
+/** Decode one durable account while keeping its credential opaque to this manager. */
+function decodeStoredAccount(value: unknown, definition: ProviderDefinition): StoredAccount | undefined {
+  if (!isRecord(value) || typeof value.id !== 'string' || value.provider !== definition.id
+    || value.authMode !== definition.authMode || typeof value.name !== 'string'
+    || typeof value.createdAt !== 'number' || !Number.isFinite(value.createdAt)
+    || !isCredentialRecord(value.credential)
+    || (value.detail !== undefined && typeof value.detail !== 'string')
+    || (value.usageUpdatedAt !== undefined
+      && (typeof value.usageUpdatedAt !== 'number' || !Number.isFinite(value.usageUpdatedAt)))
+    || (value.usageError !== undefined && typeof value.usageError !== 'string')) return undefined
+  const usage = value.usage === undefined ? undefined : decodeUsage(value.usage)
+  if (value.usage !== undefined && usage === undefined) return undefined
+  return {
+    id: value.id,
+    provider: definition.id,
+    authMode: definition.authMode,
+    credential: value.credential,
+    name: value.name,
+    createdAt: value.createdAt,
+    ...typeof value.detail === 'string' ? { detail: value.detail } : {},
+    ...usage === undefined ? {} : { usage },
+    ...typeof value.usageUpdatedAt === 'number' ? { usageUpdatedAt: value.usageUpdatedAt } : {},
+    ...typeof value.usageError === 'string' ? { usageError: value.usageError } : {},
+  }
+}
+
+/** Decode the credential seam's tagged durable value. */
+function isCredentialRecord(value: unknown): value is CredentialRecord {
+  if (!isRecord(value)) return false
+  if (value.kind === 'grant') return Object.hasOwn(value, 'payload')
+  if (value.kind !== 'api-key' || (value.key !== undefined && typeof value.key !== 'string')) return false
+  return value.env === undefined || (isRecord(value.env) && Object.values(value.env)
+    .every(entry => typeof entry === 'string'))
+}
+
+/** Decode a provider usage snapshot attached to an account. */
+function decodeUsage(value: unknown): AccountUsageView | undefined {
+  if (!isRecord(value) || !Array.isArray(value.windows)) return undefined
+  const windows: AccountUsageWindow[] = []
+  for (const candidate of value.windows) {
+    if (!isRecord(candidate) || typeof candidate.id !== 'string' || typeof candidate.label !== 'string'
+      || typeof candidate.usedPercent !== 'number' || !Number.isFinite(candidate.usedPercent)
+      || (candidate.resetsAtMs !== undefined
+        && (typeof candidate.resetsAtMs !== 'number' || !Number.isFinite(candidate.resetsAtMs)))) return undefined
+    windows.push({
+      id: candidate.id,
+      label: candidate.label,
+      usedPercent: candidate.usedPercent,
+      ...typeof candidate.resetsAtMs === 'number' ? { resetsAtMs: candidate.resetsAtMs } : {},
+    })
+  }
+  return { windows }
 }
 
 function replaceProviderVault(vault: AccountVault, provider: AccountProviderId, value: ProviderVault): AccountVault {
@@ -845,7 +922,7 @@ function oauthCredential(record: CredentialRecord): OAuthCredential | undefined 
   const payload = record.payload
   if (payload.type !== 'oauth' || typeof payload.access !== 'string' || typeof payload.refresh !== 'string'
     || typeof payload.expires !== 'number' || !Number.isFinite(payload.expires)) return undefined
-  return payload as unknown as OAuthCredential
+  return payload as OAuthCredential
 }
 
 function extractCodexUsage(payload: unknown, nowMs: number): AccountUsageView {
@@ -926,7 +1003,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function jsonImage(value: unknown): unknown {
-  return JSON.parse(JSON.stringify(value)) as unknown
+  return JSON.parse(JSON.stringify(value))
 }
 
 function sameRecord(left: CredentialRecord, right: CredentialRecord): boolean {

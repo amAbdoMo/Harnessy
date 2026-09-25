@@ -202,7 +202,7 @@ export const inject = ['tools', 'subagents', 'agents', 'sessionProjections']
  * @param ctx - Context that owns the registrations.
  */
 export function apply(ctx: Context, config: Config): void {
-  const source = (): SubagentSettings => config.get() as unknown as SubagentSettings
+  const source = (): SubagentSettings => config.get() as SubagentSettings
   validateSubagentSettings(source())
   ctx.sessionProjections.register(delegationAuthorityProjectionDefinition)
   ctx.inject(['settings'], (settingsCtx) => {

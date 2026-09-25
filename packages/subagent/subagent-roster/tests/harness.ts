@@ -116,7 +116,7 @@ export function headerAgent(workspace?: string): Agent {
       header: workspace === undefined ? {} : { cwd: workspace },
       requestHeader: () => undefined,
     },
-  } as unknown as Agent
+  } as Agent
 }
 
 /** Every scripted-backend observation one harness collected. */

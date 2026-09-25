@@ -51,7 +51,7 @@
   min-width: 0;
   padding: 16px;
   border: 0.5px solid var(--dsw-alias-border-l2);
-  border-radius: 13px;
+  border-radius: var(--dsw-radius-md);
   background: var(--dsw-alias-bg-layer-1);
 }
 
@@ -62,7 +62,7 @@
 .runtimeDetails {
   min-width: 0;
   border: 0.5px solid var(--dsw-alias-border-l2);
-  border-radius: 13px;
+  border-radius: var(--dsw-radius-md);
   background: var(--dsw-alias-bg-layer-1);
 }
 
@@ -155,7 +155,7 @@
   box-sizing: border-box;
   width: 100%;
   border: 0.5px solid var(--dsw-alias-border-l4);
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-sm);
   outline: none;
   color: var(--dsw-alias-label-primary);
   background: var(--dsw-alias-bg-layer-1);
@@ -244,7 +244,7 @@
 .danger {
   margin: 0;
   padding: 10px 12px;
-  border-radius: 9px;
+  border-radius: var(--dsw-radius-sm);
   font-size: 12px;
   line-height: 18px;
 }
@@ -302,7 +302,7 @@
   min-width: 0;
   padding: 14px;
   border: 0.5px solid var(--dsw-alias-border-l2);
-  border-radius: 12px;
+  border-radius: var(--dsw-radius-md);
   background: var(--dsw-alias-bg-layer-1);
 }
 
@@ -408,7 +408,7 @@
 .summaryBadge {
   padding: 3px 7px;
   border: 0.5px solid transparent;
-  border-radius: 7px;
+  border-radius: var(--dsw-radius-sm);
   color: var(--dsw-alias-label-secondary);
   background: var(--dsw-alias-bg-layer-2);
   font-size: 10px;
@@ -481,7 +481,7 @@
 .limitsDetails {
   min-width: 0;
   border: 0.5px solid var(--dsw-alias-border-l2);
-  border-radius: 9px;
+  border-radius: var(--dsw-radius-sm);
   background: var(--dsw-alias-bg-layer-2);
 }
 
@@ -519,7 +519,7 @@
 .routingWarning {
   margin: 0;
   padding: 9px 11px;
-  border-radius: 9px;
+  border-radius: var(--dsw-radius-sm);
   color: var(--dsw-alias-state-warn-label);
   background: var(--dsw-alias-state-warn-tertiary);
   font-size: 11px;
@@ -551,7 +551,7 @@
   gap: 3px;
   padding: 10px 12px;
   border: 0.5px solid var(--dsw-alias-border-l2);
-  border-radius: 9px;
+  border-radius: var(--dsw-radius-sm);
   color: var(--dsw-alias-label-secondary);
   background: var(--dsw-alias-bg-layer-2);
   font-size: 12px;
@@ -634,7 +634,7 @@
   align-items: center;
   justify-content: center;
   border: 1px dashed var(--dsw-alias-border-l3);
-  border-radius: 11px;
+  border-radius: var(--dsw-radius-md);
   color: var(--dsw-alias-state-business-primary);
   background: transparent;
   font: inherit;
@@ -798,7 +798,7 @@
   gap: 8px;
   padding: 8px 10px;
   border: 0.5px solid var(--dsw-alias-border-l2);
-  border-radius: 10px;
+  border-radius: var(--dsw-radius-sm);
   background: var(--dsw-alias-bg-layer-1);
   color: var(--dsw-alias-label-primary);
   font-size: 12px;

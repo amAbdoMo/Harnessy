@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-17-app-chrome-select-startup-and-subagents-polish.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-17-app-chrome-select-startup-and-subagents-polish.md
-2026-09-17-app-chrome-select-startup-and-subagents-polish.md: 0c401b78864bff19e744977e4f8d58a142abfbf2
-2026-09-17-app-chrome-select-startup-and-subagents-polish.zh.md: 97f8bc6f546bf571f35aec2ff4bb356b5ffac064
+/agent-note-the-app-s-own-chrome-a-shared-select-silent-children-and-the-subagents-page-s-first-glance:
+  en: 862efc1a846cb7d1
+  zh: 172c15c08d544744
+/agent-note-the-app-s-own-chrome-a-shared-select-silent-children-and-the-subagents-page-s-first-glance/problem:
+  en: 10d51e554a8c6e56
+  zh: ad53a1ea375c03c8
+/agent-note-the-app-s-own-chrome-a-shared-select-silent-children-and-the-subagents-page-s-first-glance/decision:
+  en: 101dfd846f2fb11e
+  zh: 32113fce0f7c93ac
+/agent-note-the-app-s-own-chrome-a-shared-select-silent-children-and-the-subagents-page-s-first-glance/alternatives-considered:
+  en: 1b7fff1cd680551b
+  zh: 6473b717b5eefd65
+/agent-note-the-app-s-own-chrome-a-shared-select-silent-children-and-the-subagents-page-s-first-glance/consequences:
+  en: ff0bd9fed85082b2
+  zh: b5091ce2bfb27319
+/agent-note-the-app-s-own-chrome-a-shared-select-silent-children-and-the-subagents-page-s-first-glance/related:
+  en: 1fa40f56f9d9274e
+  zh: bfd92e9e1e539e12

@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-09-custom-harness-openai-account-login.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-09-custom-harness-openai-account-login.md
-2026-09-09-custom-harness-openai-account-login.md: a2f1b910ea6839532884ff687aa88f7d427183a3
-2026-09-09-custom-harness-openai-account-login.zh.md: 2e2f92ee81b0c8a8837143d9af7016ec96b8ea07
+/agent-note-custom-harness-openai-account-login:
+  en: 16691be99948dc5c
+  zh: 34968ccc477fee06
+/agent-note-custom-harness-openai-account-login/problem:
+  en: 5879f0783582f110
+  zh: cc42b07b8e4daddf
+/agent-note-custom-harness-openai-account-login/decision:
+  en: d34d8a8d05599d19
+  zh: e043e9446945d8b2
+/agent-note-custom-harness-openai-account-login/alternatives-considered:
+  en: 616da9642228649a
+  zh: 38e95d6e33083250
+/agent-note-custom-harness-openai-account-login/consequences:
+  en: 2cc5b85475c96832
+  zh: d8e72d6d9b74a757

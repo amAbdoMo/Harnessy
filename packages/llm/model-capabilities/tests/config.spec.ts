@@ -24,7 +24,7 @@ function config(publicMetadata: Partial<ModelCapabilitiesConfig['publicMetadata'
  * @returns the resolved section.
  */
 function resolveSection(raw: unknown): unknown {
-  const parsed = (ModelCapabilitiesConfigSchema as unknown as (value: unknown) => {
+  const parsed = (ModelCapabilitiesConfigSchema as (value: unknown) => {
     publicMetadata: { get: () => ModelCapabilitiesConfig['publicMetadata'] }
   })(raw)
   return { publicMetadata: parsed.publicMetadata.get() }

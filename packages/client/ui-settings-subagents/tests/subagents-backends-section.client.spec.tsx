@@ -201,7 +201,7 @@ function mount(options: MountOptions = {}) {
     presentModal: () => () => {},
     t: translate,
     operations,
-  } as unknown as SubagentsSectionProps
+  } as SubagentsSectionProps
   render(<SubagentsSection {...props} />)
   return { write }
 }

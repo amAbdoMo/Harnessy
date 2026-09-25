@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-13-combined-model-thinking-picker.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-13-combined-model-thinking-picker.md
-2026-09-13-combined-model-thinking-picker.md: 65c17e457a590c7a35d0f4ce4abf19c434effcc5
-2026-09-13-combined-model-thinking-picker.zh.md: a4e3b1c453dd20e583ec8ed443db92fd62b558e7
+/agent-note-combined-model-and-thinking-picker:
+  en: add90446b3161db5
+  zh: 00f525ccd5a594b3
+/agent-note-combined-model-and-thinking-picker/problem:
+  en: 4124c996fbfb91d5
+  zh: 7524562b4ea5c958
+/agent-note-combined-model-and-thinking-picker/decision:
+  en: a9a91d68fbf182f7
+  zh: c6b6284758307832
+/agent-note-combined-model-and-thinking-picker/alternatives-considered:
+  en: 234b8864c5efa1c4
+  zh: b375f7fe4bb418d4
+/agent-note-combined-model-and-thinking-picker/consequences:
+  en: cced2da3973d59c4
+  zh: 14851a3a4f934eb4

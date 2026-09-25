@@ -376,7 +376,7 @@ export class McpManagerController extends TypertRemoteService {
     try {
       await credentials.modifyRecord(VAULT_KEY, () => Promise.resolve({
         kind: 'grant',
-        payload: JSON.parse(JSON.stringify(vault)) as unknown,
+        payload: jsonImage(vault),
       }))
     } finally {
       this.ignoreVaultEvent = false
@@ -399,6 +399,11 @@ export class McpManagerController extends TypertRemoteService {
     if (credentials === undefined) throw unavailable('protected credential storage is not mounted')
     return credentials
   }
+}
+
+/** Return the JSON value the credential store will persist. */
+function jsonImage(value: unknown): unknown {
+  return JSON.parse(JSON.stringify(value))
 }
 
 function validateInput(input: McpServerInput, existing: StoredServer | undefined): StoredServer {
@@ -493,7 +498,7 @@ function parseVault(record: CredentialRecord | undefined): McpVault {
 function parseConfigurationText(text: string): McpVault {
   let value: unknown
   try {
-    value = JSON.parse(text) as unknown
+    value = JSON.parse(text)
   } catch (error: unknown) {
     throw rejected(undefined, `MCP configuration is not valid JSON: ${messageOf(error)}`)
   }

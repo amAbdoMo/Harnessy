@@ -77,7 +77,7 @@ async function boot(namespaces: ComposedNamespaces) {
       if (specifier !== PACKAGE) throw new Error(`unexpected Loader import: ${specifier}`)
       return subagentsPlugin
     },
-  } as unknown as NonNullable<typeof ctx.loader.internal>
+  } as never
   await ctx.plugin(SlotRegistry).await()
   const slots = ctx.get('slots')
   if (slots === undefined) throw new Error('the slot registry did not mount')
@@ -124,7 +124,7 @@ function page(slots: NonNullable<Context['slots']>): RegisteredPage {
   if (registered === undefined) throw new Error('no settings page was registered')
   return {
     id: registered.options.id,
-    inject: registered.inject as unknown as RegisteredPage['inject'],
+    inject: registered.inject as RegisteredPage['inject'],
   }
 }
 

@@ -7,7 +7,7 @@ import LlmRuntime, { LlmAdapter, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import type { LlmModelInfo, LlmResolvedModelInfo } from '@deepseek-ai/dsh-llm'
 import * as plugin from '@deepseek-ai/dsh-model-capabilities/plugin'
 import { MODEL_CAPABILITIES_DEFAULTS, parseSnapshot } from '@deepseek-ai/dsh-model-capabilities'
-import type { Config, ModelCapabilitiesConfig } from '@deepseek-ai/dsh-model-capabilities/src/config.ts'
+import type { ModelCapabilitiesConfig } from '@deepseek-ai/dsh-model-capabilities/src/config.ts'
 
 /** One reasoning model the fake models.dev response publishes for `acme`. */
 const MODELS_DEV_RESPONSE = {
@@ -137,7 +137,7 @@ async function mount(options: {
   ctx.llm.registerAdapter(['acme'], new CatalogAdapter(options.nativeReasoning ?? false))
   ctx.llm.registerModelDiscovery('llm-example', () => Promise.resolve(ADAPTER_CATALOG))
   options.beforeMount?.(ctx)
-  await ctx.plugin(plugin, (options.config ?? MODEL_CAPABILITIES_DEFAULTS) as unknown as Config)
+  await ctx.plugin(plugin, (options.config ?? MODEL_CAPABILITIES_DEFAULTS) as never)
   return {
     ctx,
     requests: network.requests,
@@ -373,7 +373,7 @@ describe('lifecycle', () => {
       await ctx.plugin(LlmRuntime)
       ctx.llm.registerAdapter(['acme'], new CatalogAdapter(false))
       ctx.llm.registerModelDiscovery('llm-example', () => Promise.resolve(ADAPTER_CATALOG))
-      const fiber = await ctx.plugin(plugin, MODEL_CAPABILITIES_DEFAULTS as unknown as Config)
+      const fiber = await ctx.plugin(plugin, MODEL_CAPABILITIES_DEFAULTS as never)
       await fiber.dispose()
       // The seam refuses a second registration under the same name only when
       // the first one is gone, which is what proves the effect was withdrawn.

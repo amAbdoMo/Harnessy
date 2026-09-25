@@ -74,7 +74,7 @@ async function bench(commandcode?: Record<string, unknown>) {
   await settle()
   const call = register.mock.calls.find(([params]) => (params as { name?: string }).name === HOLE)
   if (call === undefined) throw new Error('no settings page was registered')
-  return { operations: (call[0] as unknown as RegisteredPage).inject({ sync: () => {} }).operations, fiber }
+  return { operations: (call[0] as RegisteredPage).inject({ sync: () => {} }).operations, fiber }
 }
 
 describe('Subagents backend probe composition', () => {

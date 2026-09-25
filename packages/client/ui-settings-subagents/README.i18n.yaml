@@ -1,6 +1,49 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-settings-subagents/README.md
-README.md: 50cebcdb3d0c83709e6e0cca45638f2f0674fe00
-README.zh.md: 682716a330cb59864cabbf065dc41949a203434f
+/:
+  en: 5cdff09b311b7a3d
+  zh: 9f1edcc779d1762b
+/deepseek-ai-dsh-client-ui-settings-subagents:
+  en: 64d19283e45b1eab
+  zh: b234b56fb4a0a023
+/deepseek-ai-dsh-client-ui-settings-subagents/summary:
+  en: 969ee19f2b5089a7
+  zh: 6d894bc45c761e77
+/deepseek-ai-dsh-client-ui-settings-subagents/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 1db86285abf6c499
+/deepseek-ai-dsh-client-ui-settings-subagents/use-this-package:
+  en: e63d5ae370ea1d98
+  zh: 76f15235147626c5
+/deepseek-ai-dsh-client-ui-settings-subagents/use-this-package/what-the-page-manages:
+  en: e31d6c084aa759bd
+  zh: da043d25a5a43a80
+/deepseek-ai-dsh-client-ui-settings-subagents/use-this-package/copy-and-accessibility:
+  en: 2fb0db3c04b5ce8e
+  zh: 21c0cf413578b97d
+/deepseek-ai-dsh-client-ui-settings-subagents/understand-the-implementation:
+  en: 42b15ac6321706aa
+  zh: 4ed0861911abaf5d
+/deepseek-ai-dsh-client-ui-settings-subagents/understand-the-implementation/source-map:
+  en: 37d87e9023af0509
+  zh: 4ba3f08c0a49042c
+/deepseek-ai-dsh-client-ui-settings-subagents/understand-the-implementation/design-concept:
+  en: c0fc5c7e6a69cd45
+  zh: a65b14806bd679d3
+/deepseek-ai-dsh-client-ui-settings-subagents/further-exploration:
+  en: cb94e603ca4c5a94
+  zh: d5c922ae3ddb83ed
+/deepseek-ai-dsh-client-ui-settings-subagents/model-experience:
+  en: 4211431ae1083c38
+  zh: ffd88bfbfb6ae704
+/deepseek-ai-dsh-client-ui-settings-subagents/model-experience/kv-cache-effect:
+  en: 3b0ce4820a84358b
+  zh: 83d0a3a452b7157a
+/deepseek-ai-dsh-client-ui-settings-subagents/known-limitations-and-deferred-work:
+  en: f7dc0934e2983d1e
+  zh: 7927060f5a083db5
+/deepseek-ai-dsh-client-ui-settings-subagents/known-limitations-and-deferred-work/dev-note:
+  en: 7fe2126c27711c57
+  zh: b25921bb290a1323

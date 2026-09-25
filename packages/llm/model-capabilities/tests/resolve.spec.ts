@@ -13,7 +13,7 @@ const FIXTURES = join(import.meta.dirname, 'fixtures')
  * @returns the parsed JSON document.
  */
 function fixture(name: string): unknown {
-  return JSON.parse(readFileSync(join(FIXTURES, name), 'utf8')) as unknown
+  return JSON.parse(readFileSync(join(FIXTURES, name), 'utf8'))
 }
 
 /** The two public databases, most authoritative first, as a composition would load them. */

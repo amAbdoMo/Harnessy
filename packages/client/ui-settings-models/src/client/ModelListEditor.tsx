@@ -696,10 +696,9 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
                       checked={picked.has(candidate.id)}
                       onChange={() => { toggle(candidate.id) }}
                     />
-                    {/* The id alone: it is the string adoption writes, and the
-                        capacities and capability the source stated are adopted
-                        with it and editable in the row that appears. */}
-                    <span className={styles['candidateId']}>{candidate.id}</span>
+                    <span className={styles['candidateId']} title={candidate.name ?? candidate.id}>
+                      {candidate.id}
+                    </span>
                   </label>
                   {/* The exact levels this candidate stated, named the way the
                       composer will name them. A candidate that stated none says

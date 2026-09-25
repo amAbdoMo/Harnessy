@@ -10,6 +10,7 @@ import {
   accountSwitchNotification, type HarnessNotificationEvent, NotificationHistoryController,
 } from '../src/client/notification-history.ts'
 import { en } from '../src/client/locales.ts'
+import { slotTestProps } from './slot-test-props.ts'
 
 const switchEvent: AccountAutoSwitchEvent = {
   id: 'switch-1',
@@ -41,7 +42,7 @@ function mount(controller: NotificationHistoryController) {
     projectionsBySession: {},
   })
   const useSessionStatus: NotificationCenterProps['useSessionStatus'] = selector => selector(new Map())
-  render(<NotificationCenter {...({
+  render(<NotificationCenter {...slotTestProps<NotificationCenterProps>({
     useNotifications,
     useNotificationToast,
     useSessions,
@@ -51,7 +52,7 @@ function mount(controller: NotificationHistoryController) {
     clearNotifications: () => { controller.clear() },
     dismissToast: (id: string) => { controller.dismissToast(id) },
     t,
-  } as unknown as NotificationCenterProps)} />)
+  })} />)
 }
 
 describe('Harnessy notification center', () => {
