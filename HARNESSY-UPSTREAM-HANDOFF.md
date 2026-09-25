@@ -4,8 +4,6 @@ description: "Review only new DeepSeek Harness upstream work, preserve Harnessy'
 
 # Cookbook: reviewing upstream for Harnessy
 
-English | [中文](reviewing-upstream-for-harnessy.zh.md)
-
 ## Summary
 
 Use this handoff when comparing Harnessy with the main DeepSeek Harness repository. It keeps the review limited to upstream commits that Harnessy does not already contain, routes each change to the current Harnessy owner, and turns the result into **Adopt**, **Adapt**, or **Skip** recommendations. Ask the owner only when a choice changes visible behavior, stored data, security, operating cost, or release scope. A completed synchronization must include the selected improvements, preserve Harnessy's custom MCP, subagent, account, workspace, notification, and Desktop behavior, and leave the upstream-only commit count at zero.
@@ -44,18 +42,18 @@ git status --short
 <a id="load-context"></a>
 ## 1. Load the smallest useful context
 
-Read [AGENTS.md](../../AGENTS.md) first. Read [the architecture](../architecture.md) before changing `packages/`, [defensive patterns](../defensive-patterns.md) before lifecycle, concurrency, subprocess, or teardown work, and the applicable package README before editing its implementation. Do not read every old Agent Note.
+Read [AGENTS.md](AGENTS.md) first. Read [the architecture](docs/architecture.md) before changing `packages/`, [defensive patterns](docs/defensive-patterns.md) before lifecycle, concurrency, subprocess, or teardown work, and the applicable package README before editing its implementation. Do not read every old Agent Note.
 
 The following files are the fast product map. Read the first three for every synchronization, then open only the area-specific decisions affected by the new upstream diff.
 
 | Area | Current owner and focused decisions |
 | --- | --- |
-| Product identity and contributor entry | [Root README](../../README.md), [custom bundle README](../../packages/bundle/custom-harness/README.md), and [Harnessy client README](../../packages/client/ui-brand-custom-harness/README.md) |
-| MCP management and activity | [MCP manager decision](../../.agents/notes/implemented/feature/2026-09-13-harnessy-mcp-manager.md) |
-| Configured subagents and routing | [Subagents Settings decision](../../.agents/notes/implemented/feature/2026-09-16-subagents-settings-page.md), [Command Code lanes](../../.agents/notes/implemented/feature/2026-09-15-commandcode-delegation-lanes.md), and [runtime signals and failover](../../.agents/notes/implemented/bug-fix/2026-09-19-harnessy-runtime-signals-and-failover.md) |
-| Accounts, usage, and switching | [Multi-account manager decision](../../.agents/notes/implemented/feature/2026-09-12-harnessy-multi-account-manager.md) and [account usage decision](../../.agents/notes/implemented/feature/2026-09-17-codex-personal-workspace-usage.md) |
-| Optional and remote workspaces | [Optional workspace decision](../../.agents/notes/implemented/feature/2026-09-12-optional-workspace-sessions.md) and [default workspace decision](../../.agents/notes/implemented/feature/2026-09-20-default-workspace.md) |
-| Windows background lifecycle and packaging | [Desktop README](../../apps/desktop/README.md) and [fork CI decision](../../.agents/notes/implemented/process/2026-09-09-custom-harness-fork-ci.md) |
+| Product identity and contributor entry | [Root README](README.md), [custom bundle README](packages/bundle/custom-harness/README.md), and [Harnessy client README](packages/client/ui-brand-custom-harness/README.md) |
+| MCP management and activity | [MCP manager decision](.agents/notes/implemented/feature/2026-09-13-harnessy-mcp-manager.md) |
+| Configured subagents and routing | [Subagents Settings decision](.agents/notes/implemented/feature/2026-09-16-subagents-settings-page.md), [Command Code lanes](.agents/notes/implemented/feature/2026-09-15-commandcode-delegation-lanes.md), and [runtime signals and failover](.agents/notes/implemented/bug-fix/2026-09-19-harnessy-runtime-signals-and-failover.md) |
+| Accounts, usage, and switching | [Multi-account manager decision](.agents/notes/implemented/feature/2026-09-12-harnessy-multi-account-manager.md) and [account usage decision](.agents/notes/implemented/feature/2026-09-17-codex-personal-workspace-usage.md) |
+| Optional and remote workspaces | [Optional workspace decision](.agents/notes/implemented/feature/2026-09-12-optional-workspace-sessions.md) and [default workspace decision](.agents/notes/implemented/feature/2026-09-20-default-workspace.md) |
+| Windows background lifecycle and packaging | [Desktop README](apps/desktop/README.md) and [fork CI decision](.agents/notes/implemented/process/2026-09-09-custom-harness-fork-ci.md) |
 
 Scan upstream filenames and diff statistics before opening implementation files. This identifies the affected rows in the table and avoids loading unrelated packages, documentation, and old decisions.
 
