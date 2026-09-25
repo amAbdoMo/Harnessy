@@ -41,3 +41,46 @@ jobs:
       - name: Test Windows packaging policy
         shell: pwsh
         run: pnpm exec vitest run apps/desktop/tests/package-target.spec.ts apps/desktop/tests/macos-signature.spec.ts
+
+  unsigned-installer:
+    name: unsigned installer / Windows x64
+    if: github.event_name == 'workflow_dispatch'
+    needs: desktop-checks
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        shell: pwsh
+        run: pnpm install --frozen-lockfile
+
+      - name: Configure the unsigned Harnessy package
+        shell: pwsh
+        run: |
+          @(
+            'DSH_DESKTOP_APP_ID=com.amabdmo.customharness'
+            'DSH_DESKTOP_AUTO_UPDATE_ENV=production'
+            'DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN=https://github.com'
+          ) | Set-Content -LiteralPath apps/desktop/.env.windows -Encoding utf8
+
+      - name: Build and verify the installer
+        shell: pwsh
+        run: pnpm run package:desktop:win:x64:local
+
+      - name: Upload the installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: Harnessy-windows-x64-unsigned-${{ github.sha }}
+          path: apps/desktop/.desktop-build/targets/win-x64/unsigned-artifacts/**
+          if-no-files-found: error
+          compression-level: 0

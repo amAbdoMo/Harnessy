@@ -10,7 +10,7 @@ Status: implemented
 
 ## Decision
 
-[Custom Harness Windows](../../../../.github/workflows/custom-harness-windows.yml) 是此 fork 针对推送和拉取请求自动运行的工作流。它在托管的 Windows x64 运行器上无凭据运行，检查桌面宿主的类型，并执行区分个人未签名安装程序与上游签名发布路径的专用打包策略测试。
+[Custom Harness Windows](../../../../.github/workflows/custom-harness-windows.yml) 是此 fork 针对推送和拉取请求自动运行的工作流。它在托管的 Windows x64 运行器上无凭据运行，检查桌面宿主的类型，并执行区分个人未签名安装程序与上游签名发布路径的专用打包策略测试。手动运行还会构建未签名的 Windows x64 安装程序、执行已打包运行时验证，并将生成的文件上传为工作流产物。该手动产物与上游签名发布路径保持区分，也不会上传到更新源。
 
 继承的 master、sandbox 和真实 API 工作流保留手动触发器及源定义，用于上游同步诊断。只有仓库变量 `CUSTOM_HARNESS_RUN_UPSTREAM_CI` 等于 `true` 时，其自动任务才会运行；启用该变量还需要对应的密钥、运行器容量和多平台维护意图。
 
@@ -24,4 +24,4 @@ Status: implemented
 
 ## Consequences
 
-默认 GitHub 状态能够反映 Windows 桌面产品，并且不需要密钥。此 fork 不会自动检查上游多平台或真实服务回归；诊断上游合并时，维护者必须明确启用并配置这些工作流。
+默认 GitHub 状态能够反映 Windows 桌面产品，并且不需要密钥。维护者无需准备本地 Visual Studio 工具链，即可通过手动工作流运行获得经过验证的未签名安装程序。此 fork 不会自动检查上游多平台或真实服务回归；诊断上游合并时，维护者必须明确启用并配置这些工作流。

@@ -10,7 +10,7 @@ The inherited default-branch workflows assume DeepSeek-owned API secrets, self-h
 
 ## Decision
 
-[Custom Harness Windows](../../../../.github/workflows/custom-harness-windows.yml) is the automatic push and pull-request workflow for this fork. It runs on a hosted Windows x64 runner without product credentials, type-checks the desktop host, and exercises the focused packaging-policy tests that distinguish the personal unsigned installer from the signed upstream release path.
+[Custom Harness Windows](../../../../.github/workflows/custom-harness-windows.yml) is the automatic push and pull-request workflow for this fork. It runs on a hosted Windows x64 runner without product credentials, type-checks the desktop host, and exercises the focused packaging-policy tests that distinguish the personal unsigned installer from the signed upstream release path. A manual run also builds the unsigned Windows x64 installer, executes the packaged-runtime verification, and uploads the resulting files as a workflow artifact. The manual artifact remains distinct from the signed upstream release path and is not uploaded to an update feed.
 
 Inherited master, sandbox, and real-API workflows keep their manual triggers and source definitions for upstream synchronization diagnostics. Their automatic jobs run only when the repository variable `CUSTOM_HARNESS_RUN_UPSTREAM_CI` equals `true`; enabling the variable also requires the matching secrets, runner capacity, and multi-platform maintenance intent.
 
@@ -24,4 +24,4 @@ Inherited master, sandbox, and real-API workflows keep their manual triggers and
 
 ## Consequences
 
-The default GitHub signal describes the Windows desktop product and remains keyless. Upstream multi-platform or live-service regressions are not checked automatically in this fork; maintainers must deliberately enable and provision those workflows when diagnosing an upstream merge.
+The default GitHub signal describes the Windows desktop product and remains keyless. A maintainer can obtain a verified unsigned installer from a manual workflow run without preparing a local Visual Studio toolchain. Upstream multi-platform or live-service regressions are not checked automatically in this fork; maintainers must deliberately enable and provision those workflows when diagnosing an upstream merge.
