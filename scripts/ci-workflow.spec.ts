@@ -27,6 +27,20 @@ const runnerPrivatePnpmDestination = /^\$\{\{ runner\.temp \}\}\/setup-pnpm-\$\{
 const nativeWindowsPnpmDestination = '${{ runner.temp }}/setup-pnpm-js-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}'
 
 describe('Custom Harness Windows workflow', () => {
+  it('retries only the observed LibreOffice native-load transient against the completed package', () => {
+    const installer = workflowJob(loadWorkflow('.github/workflows/custom-harness-windows.yml'), 'unsigned-installer')
+    if (!Array.isArray(installer.steps)) throw new TypeError('Unsigned installer job must define steps')
+    const build = installer.steps.filter(isRecord).find(step => step.name === 'Build and verify the installer')
+    if (!isRecord(build) || typeof build.run !== 'string') {
+      throw new TypeError('Unsigned installer job must build and verify the installer')
+    }
+
+    expect(build.run).toContain("-SimpleMatch 'loadComponentFromURL returned an empty reference' -Quiet")
+    expect(build.run).toContain('if (-not $retryable) { exit $packageExit }')
+    expect(build.run.match(/smoke-packaged-runtime\.ts --unsigned/gu)).toHaveLength(1)
+    expect(build.run).toContain('if ($LASTEXITCODE -ne 0) { exit $packageExit }')
+  })
+
   it('publishes the redacted packaging journal when installer verification fails', () => {
     const installer = workflowJob(loadWorkflow('.github/workflows/custom-harness-windows.yml'), 'unsigned-installer')
     if (!Array.isArray(installer.steps)) throw new TypeError('Unsigned installer job must define steps')
@@ -38,8 +52,9 @@ describe('Custom Harness Windows workflow', () => {
     }
 
     expect(report.run).toContain('apps/desktop/.desktop-build/packaging-runs')
-    expect(report.run).toContain("@('result.json', 'fatal.json', 'stderr.log', 'stdout.log', 'events.jsonl')")
+    expect(report.run).toContain("@('stderr.log', 'stdout.log', 'fatal.json', 'result.json', 'events.jsonl')")
     expect(report.run).toContain('if ($report.Length -gt 50000)')
+    expect(report.run).toContain('$report = $report.Substring(0, 50000)')
     expect(upload.with.path).toBe([
       'installer-build.log',
       'apps/desktop/.desktop-build/packaging-runs/**',
