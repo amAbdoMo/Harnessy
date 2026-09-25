@@ -78,6 +78,7 @@ GitHub runs the same focused desktop checks on Windows for pushes and pull reque
 
 ## Relationship to DeepSeek Harness
 
+- Future upstream reviews should follow the [Harnessy upstream-review handoff](docs/cookbook/reviewing-upstream-for-harnessy.md). It limits each audit to new upstream commits, protects the custom product surfaces, and provides a reusable recommendation and verification report.
 - Submit feedback or bug reports through [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions).
 - Add the [`dsh-plugin`](https://github.com/topics/dsh-plugin) topic to your plugin repository for discoverability.
 - Join <a href="https://discord.gg/Ycq5dCaS4">DeepSeek Harness Discord community</a>.
