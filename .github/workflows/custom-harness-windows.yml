@@ -75,9 +75,28 @@ jobs:
 
       - name: Build and verify the installer
         shell: pwsh
-        run: pnpm run package:desktop:win:x64:local
+        run: |
+          pnpm run package:desktop:win:x64:local *>&1 | Tee-Object -FilePath installer-build.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Report an installer failure
+        if: failure()
+        shell: pwsh
+        run: |
+          $tail = (Get-Content -LiteralPath installer-build.log -Tail 60) -join "`n"
+          $annotation = $tail.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+          Write-Output "::error title=Installer packaging failed::$annotation"
+
+      - name: Upload installer diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Harnessy-windows-x64-installer-diagnostics-${{ github.sha }}
+          path: installer-build.log
+          if-no-files-found: error
 
       - name: Upload the installer
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: Harnessy-windows-x64-unsigned-${{ github.sha }}
