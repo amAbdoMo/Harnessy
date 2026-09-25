@@ -26,6 +26,28 @@ const masterPush = "vars.CUSTOM_HARNESS_RUN_UPSTREAM_CI == 'true'"
 const runnerPrivatePnpmDestination = /^\$\{\{ runner\.temp \}\}\/setup-pnpm-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}$/
 const nativeWindowsPnpmDestination = '${{ runner.temp }}/setup-pnpm-js-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}'
 
+describe('Custom Harness Windows workflow', () => {
+  it('publishes the redacted packaging journal when installer verification fails', () => {
+    const installer = workflowJob(loadWorkflow('.github/workflows/custom-harness-windows.yml'), 'unsigned-installer')
+    if (!Array.isArray(installer.steps)) throw new TypeError('Unsigned installer job must define steps')
+    const steps = installer.steps.filter(isRecord)
+    const report = steps.find(step => step.name === 'Report an installer failure')
+    const upload = steps.find(step => step.name === 'Upload installer diagnostics')
+    if (!isRecord(report) || typeof report.run !== 'string' || !isRecord(upload) || !isRecord(upload.with)) {
+      throw new TypeError('Unsigned installer job must report and upload diagnostics')
+    }
+
+    expect(report.run).toContain('apps/desktop/.desktop-build/packaging-runs')
+    expect(report.run).toContain("@('result.json', 'fatal.json', 'stderr.log', 'stdout.log', 'events.jsonl')")
+    expect(report.run).toContain('if ($report.Length -gt 50000)')
+    expect(upload.with.path).toBe([
+      'installer-build.log',
+      'apps/desktop/.desktop-build/packaging-runs/**',
+      '',
+    ].join('\n'))
+  })
+})
+
 describe('CI workflow', () => {
   it('prepares confinement before Node compatibility smokes', () => {
     const job = workflowJob(loadWorkflow('.github/workflows/ci.yml'), 'node-compat')

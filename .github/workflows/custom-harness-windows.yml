@@ -83,8 +83,37 @@ jobs:
         if: failure()
         shell: pwsh
         run: |
-          $tail = (Get-Content -LiteralPath installer-build.log -Tail 12) -join "`n"
-          $annotation = $tail.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+          $sections = [System.Collections.Generic.List[string]]::new()
+          $sections.Add('=== installer-build.log matches ===')
+          $matches = Select-String -LiteralPath installer-build.log -Pattern 'Error:|ERR_|ENOENT|not found|failed|desktop smoke|Host smoke|payload smoke'
+          foreach ($match in @($matches | Select-Object -Last 30)) {
+            $sections.Add($match.Line)
+          }
+
+          $runs = 'apps/desktop/.desktop-build/packaging-runs'
+          $run = Get-ChildItem -LiteralPath $runs -Directory -ErrorAction SilentlyContinue |
+            Sort-Object LastWriteTimeUtc -Descending |
+            Select-Object -First 1
+          if ($null -ne $run) {
+            $sections.Add("=== packaging run $($run.Name) ===")
+            foreach ($name in @('result.json', 'fatal.json', 'stderr.log', 'stdout.log', 'events.jsonl')) {
+              $path = Join-Path $run.FullName $name
+              if (Test-Path -LiteralPath $path) {
+                $sections.Add("=== $name ===")
+                foreach ($line in @(Get-Content -LiteralPath $path -Tail 40)) {
+                  $sections.Add($line)
+                }
+              }
+            }
+          } else {
+            $sections.Add('No desktop packaging run directory was created.')
+          }
+
+          $report = [string]::Join("`n", $sections)
+          if ($report.Length -gt 50000) {
+            $report = $report.Substring($report.Length - 50000)
+          }
+          $annotation = $report.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
           Write-Output "::error title=Installer packaging failed::$annotation"
 
       - name: Upload installer diagnostics
@@ -92,7 +121,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Harnessy-windows-x64-installer-diagnostics-${{ github.sha }}
-          path: installer-build.log
+          path: |
+            installer-build.log
+            apps/desktop/.desktop-build/packaging-runs/**
           if-no-files-found: error
 
       - name: Upload the installer
