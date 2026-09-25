@@ -83,7 +83,7 @@ jobs:
         if: failure()
         shell: pwsh
         run: |
-          $tail = (Get-Content -LiteralPath installer-build.log -Tail 60) -join "`n"
+          $tail = (Get-Content -LiteralPath installer-build.log -Tail 12) -join "`n"
           $annotation = $tail.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
           Write-Output "::error title=Installer packaging failed::$annotation"
 
