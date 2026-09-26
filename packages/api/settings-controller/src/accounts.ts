@@ -23,6 +23,9 @@ import type {
   AccountAutoSwitchEvent,
   AccountProviderId,
   AccountProviderView,
+  AccountResetCreditOutcome,
+  AccountResetCreditResult,
+  AccountResetCreditsView,
   AccountSignInResult,
   AccountsState,
   AccountUsageScope,
@@ -34,6 +37,7 @@ import type {
 const VAULT_KEY = credentialKey('account-manager', 'accounts')
 const PI_AI_SETTINGS = 'llm-pi-ai'
 const USAGE_URL = 'https://chatgpt.com/backend-api/wham/usage'
+const CONSUME_RESET_CREDIT_URL = 'https://chatgpt.com/backend-api/wham/rate-limit-reset-credits/consume'
 const PROFILE_CLAIM = 'https://api.openai.com/profile'
 const AUTH_CLAIM = 'https://api.openai.com/auth'
 const CODEX_AUTO_SWITCH_THRESHOLD = 95
@@ -296,6 +300,39 @@ export class AccountsController extends TypertRemoteService {
   }
 
   /**
+   * Consume one provider-issued Codex reset credit for a saved account.
+   * @param accountId - saved Codex identity whose reset credit will be consumed.
+   * @param idempotencyKey - stable identifier reused when retrying the same user action.
+   * @param signal - cancellation forwarded to provider requests.
+   * @returns the provider outcome and refreshed public account state.
+   */
+  @Remote
+  async consumeResetCredit(
+    accountId: string,
+    idempotencyKey: string,
+    signal: AbortSignal,
+  ): Promise<AccountResetCreditResult> {
+    const cleanKey = boundedText(idempotencyKey, 128)
+    if (cleanKey === undefined) throw rejected('openai-codex', 'a reset attempt identifier is required')
+    const credentials = this.credentials()
+    const vault = await this.importCanonicalAccounts(credentials)
+    const account = vault.providers['openai-codex']?.accounts[accountId]
+    if (account === undefined) throw notFound('openai-codex', accountId)
+    const access = await this.codexAccess(account, signal)
+    await this.persistCodexCredential(credentials, account, access.credential)
+    const response = await this.fetchUsage(CONSUME_RESET_CREDIT_URL, {
+      method: 'POST',
+      headers: { ...codexUsageHeaders(access.oauth.access, access.accountId), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ redeem_request_id: cleanKey }),
+      signal: combinedSignal(signal),
+    })
+    if (!response.ok) throw unavailable(`reset credit request failed (${String(response.status)})`)
+    const outcome = decodeResetCreditOutcome(await response.json())
+    const state = await this.refreshUsage(signal)
+    return { outcome, state }
+  }
+
+  /**
    * Rename one local account without changing its credential or active state.
    * @param provider - provider containing the saved identity.
    * @param accountId - saved identity to rename.
@@ -465,24 +502,10 @@ export class AccountsController extends TypertRemoteService {
   private async refreshCodexAccount(account: StoredAccount, signal: AbortSignal): Promise<StoredAccount> {
     let credential = account.credential
     try {
-      let oauth = oauthCredential(credential)
-      if (oauth === undefined) throw new Error('the saved account is not an OAuth account')
-      if (oauth.expires <= this.now() + 60_000) {
-        const refresh = openaiCodexProvider().auth.oauth
-        if (refresh === undefined) throw new Error('the Codex OAuth refresher is unavailable')
-        oauth = await refresh.refresh(oauth, combinedSignal(signal))
-        credential = { kind: 'grant', payload: jsonImage(oauth) }
-      }
-      const identity = codexIdentity(credential)
-      const response = await this.fetchUsage(USAGE_URL, {
-        headers: {
-          Authorization: `Bearer ${oauth.access}`,
-          Accept: 'application/json',
-          'User-Agent': 'Harnessy',
-          ...identity.accountId === undefined ? {} : { 'chatgpt-account-id': identity.accountId },
-        },
-        signal: combinedSignal(signal),
-      })
+      const access = await this.codexAccess(account, signal)
+      credential = access.credential
+      const headers = codexUsageHeaders(access.oauth.access, access.accountId)
+      const response = await this.fetchUsage(USAGE_URL, { headers, signal: combinedSignal(signal) })
       if (!response.ok) throw new Error(`usage request failed (${String(response.status)})`)
       const usage = extractCodexUsage(await response.json(), this.now())
       const { usageError: _previousError, ...accountWithoutError } = account
@@ -505,6 +528,57 @@ export class AccountsController extends TypertRemoteService {
           : 'Usage is temporarily unavailable.',
       }
     }
+  }
+
+  private async persistCodexCredential(
+    credentials: CredentialProvider,
+    account: StoredAccount,
+    credential: CredentialRecord,
+  ): Promise<void> {
+    if (sameRecord(credential, account.credential)) return
+    const updated = await credentials.modifyRecord(VAULT_KEY, (record) => {
+      const currentVault = parseVault(record)
+      const providerVault = currentVault.providers['openai-codex']
+      const current = providerVault?.accounts[account.id]
+      if (providerVault === undefined || current === undefined
+        || !sameRecord(current.credential, account.credential)) return Promise.resolve(undefined)
+      return Promise.resolve({
+        kind: 'grant',
+        payload: jsonImage(replaceProviderVault(currentVault, 'openai-codex', {
+          ...providerVault,
+          accounts: { ...providerVault.accounts, [account.id]: { ...current, credential } },
+        })),
+      })
+    })
+    const updatedVault = parseVault(updated)
+    if (!sameRecord(updatedVault.providers['openai-codex']?.accounts[account.id]?.credential, credential)) {
+      throw unavailable('the saved account changed before its credentials could be refreshed')
+    }
+    const latest = await this.readVault(credentials)
+    const latestProvider = latest.providers['openai-codex']
+    if (latestProvider?.activeAccountId !== account.id
+      || !sameRecord(latestProvider.accounts[account.id]?.credential, credential)) return
+    await credentials.modifyRecord(providerKey('openai-codex'), current => Promise.resolve(
+      sameRecord(current, account.credential) || sameRecord(current, credential) ? credential : undefined,
+    ))
+  }
+
+  private async codexAccess(account: StoredAccount, signal: AbortSignal): Promise<{
+    readonly credential: CredentialRecord
+    readonly oauth: OAuthCredential
+    readonly accountId?: string
+  }> {
+    let credential = account.credential
+    let oauth = oauthCredential(credential)
+    if (oauth === undefined) throw new Error('the saved account is not an OAuth account')
+    if (oauth.expires <= this.now() + 60_000) {
+      const refresh = openaiCodexProvider().auth.oauth
+      if (refresh === undefined) throw new Error('the Codex OAuth refresher is unavailable')
+      oauth = await refresh.refresh(oauth, combinedSignal(signal))
+      credential = { kind: 'grant', payload: jsonImage(oauth) }
+    }
+    const accountId = codexIdentity(credential).accountId
+    return { credential, oauth, ...accountId === undefined ? {} : { accountId } }
   }
 
   private async importCanonicalAccounts(credentials: CredentialProvider): Promise<AccountVault> {
@@ -705,6 +779,8 @@ function isCredentialRecord(value: unknown): value is CredentialRecord {
 /** Decode a provider usage snapshot attached to an account. */
 function decodeUsage(value: unknown): AccountUsageView | undefined {
   if (!isRecord(value) || !Array.isArray(value.windows)) return undefined
+  const resetCredits = value.resetCredits === undefined ? undefined : decodeResetCredits(value.resetCredits)
+  if (value.resetCredits !== undefined && resetCredits === undefined) return undefined
   const windows: AccountUsageWindow[] = []
   for (const candidate of value.windows) {
     if (!isRecord(candidate) || typeof candidate.id !== 'string' || typeof candidate.label !== 'string'
@@ -718,7 +794,7 @@ function decodeUsage(value: unknown): AccountUsageView | undefined {
       ...typeof candidate.resetsAtMs === 'number' ? { resetsAtMs: candidate.resetsAtMs } : {},
     })
   }
-  return { windows }
+  return { windows, ...resetCredits === undefined ? {} : { resetCredits } }
 }
 
 function replaceProviderVault(vault: AccountVault, provider: AccountProviderId, value: ProviderVault): AccountVault {
@@ -949,13 +1025,39 @@ function oauthCredential(record: CredentialRecord): OAuthCredential | undefined 
   return payload as OAuthCredential
 }
 
+function codexUsageHeaders(accessToken: string, accountId: string | undefined): Record<string, string> {
+  return {
+    Authorization: `Bearer ${accessToken}`,
+    Accept: 'application/json',
+    'User-Agent': 'Harnessy',
+    ...accountId === undefined ? {} : { 'chatgpt-account-id': accountId },
+  }
+}
+
 function extractCodexUsage(payload: unknown, nowMs: number): AccountUsageView {
   const root = isRecord(payload) ? payload : {}
   const windows = [
     ...rateLimitWindows(root.rate_limit, '', 'standard', nowMs),
     ...rateLimitWindows(root.code_review_rate_limit, 'Code review', 'code-review', nowMs),
   ]
-  return { windows }
+  const resetCredits = decodeResetCredits(root.rate_limit_reset_credits)
+  return { windows, ...resetCredits === undefined ? {} : { resetCredits } }
+}
+
+function decodeResetCredits(value: unknown): AccountResetCreditsView | undefined {
+  if (!isRecord(value)) return undefined
+  const available = finite(value.available_count) ?? finite(value.availableCount)
+  if (available === undefined || !Number.isSafeInteger(available) || available < 0) return undefined
+  return { availableCount: available }
+}
+
+function decodeResetCreditOutcome(payload: unknown): AccountResetCreditOutcome {
+  const raw = isRecord(payload) ? payload.code ?? payload.outcome ?? payload.status : undefined
+  if (raw === 'reset') return 'reset'
+  if (raw === 'nothing_to_reset' || raw === 'nothingToReset') return 'nothing-to-reset'
+  if (raw === 'no_credit' || raw === 'noCredit') return 'no-credit'
+  if (raw === 'already_redeemed' || raw === 'alreadyRedeemed') return 'already-redeemed'
+  throw unavailable('the reset credit service returned an unknown outcome')
 }
 
 function rateLimitWindows(
@@ -1030,7 +1132,7 @@ function jsonImage(value: unknown): unknown {
   return JSON.parse(JSON.stringify(value))
 }
 
-function sameRecord(left: CredentialRecord, right: CredentialRecord): boolean {
+function sameRecord(left: CredentialRecord | undefined, right: CredentialRecord | undefined): boolean {
   return JSON.stringify(left) === JSON.stringify(right)
 }
 

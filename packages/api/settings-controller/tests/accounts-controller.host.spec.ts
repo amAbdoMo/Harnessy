@@ -62,7 +62,8 @@ describe('the Harnessy accounts Remote namespace', () => {
     expect(await empty.accountsController.describe()).toMatchObject({ writable: false, accounts: [] })
     const { controller } = await boot()
     expect(remoteMethods(controller).map(method => method.method)).toEqual([
-      'describe', 'addOAuth', 'addApiKey', 'activate', 'setAutoSwitch', 'rename', 'deleteAccount', 'refreshUsage',
+      'describe', 'addOAuth', 'addApiKey', 'activate', 'setAutoSwitch', 'consumeResetCredit', 'rename', 'deleteAccount',
+      'refreshUsage',
     ])
   })
 
@@ -248,6 +249,7 @@ describe('the Harnessy accounts Remote namespace', () => {
     const fetchUsage = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
       requestedAccountId = new Headers(init?.headers).get('chatgpt-account-id')
       return new Response(JSON.stringify({
+        rate_limit_reset_credits: { available_count: 1 },
         rate_limit: {
           primary_window: {
             used_percent: 40,
@@ -270,12 +272,63 @@ describe('the Harnessy accounts Remote namespace', () => {
         expires: now + 3_600_000,
       } }))
     const state = await controller.refreshUsage(new AbortController().signal)
-    expect(state.accounts[0]?.usage?.windows).toEqual([
-      expect.objectContaining({ label: '5h', usedPercent: 40, resetsAtMs: now + 900_000 }),
-      expect.objectContaining({ label: '7d', usedPercent: 12, resetsAtMs: 2_000_000_000_000 }),
-    ])
+    expect(state.accounts[0]?.usage).toEqual({
+      windows: [
+        expect.objectContaining({ label: '5h', usedPercent: 40, resetsAtMs: now + 900_000 }),
+        expect.objectContaining({ label: '7d', usedPercent: 12, resetsAtMs: 2_000_000_000_000 }),
+      ],
+      resetCredits: { availableCount: 1 },
+    })
     expect(fetchUsage).toHaveBeenCalledOnce()
     expect(requestedAccountId).toBe('account-a')
+  })
+
+  it('consumes a provider reset credit idempotently and refreshes usage', async () => {
+    const requests: Array<{ readonly input: string; readonly init?: RequestInit }> = []
+    const fetchUsage = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const requestUrl = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+      requests.push({ input: requestUrl, ...init === undefined ? {} : { init } })
+      if (requests.length === 1) return new Response(JSON.stringify({ code: 'reset', windows_reset: 2 }), { status: 200 })
+      return new Response(JSON.stringify({
+        rate_limit_reset_credits: { available_count: 0 },
+        rate_limit: {
+          primary_window: { used_percent: 0, limit_window_seconds: 18_000, reset_after_seconds: 18_000 },
+          secondary_window: { used_percent: 0, limit_window_seconds: 604_800, reset_after_seconds: 604_800 },
+        },
+      }), { status: 200 })
+    }) as typeof fetch
+    const { ctx, controller } = await boot({ fetchUsage })
+    await ctx.credentials.modifyRecord(credentialKey('llm-pi-ai', 'openai-codex'), () =>
+      Promise.resolve(codexGrant('abdo@example.com', 'account-a')))
+    const account = (await controller.describe()).accounts[0]!
+
+    const result = await controller.consumeResetCredit(account.id, 'reset-attempt-1', new AbortController().signal)
+
+    expect(result.outcome).toBe('reset')
+    expect(result.state.accounts[0]?.usage?.resetCredits).toEqual({ availableCount: 0 })
+    expect(requests[0]?.input).toBe('https://chatgpt.com/backend-api/wham/rate-limit-reset-credits/consume')
+    expect(requests[0]?.init?.method).toBe('POST')
+    expect(requests[0]?.init?.body).toBe(JSON.stringify({ redeem_request_id: 'reset-attempt-1' }))
+    expect(new Headers(requests[0]?.init?.headers).get('chatgpt-account-id')).toBe('account-a')
+  })
+
+  it.each([
+    ['nothing_to_reset', 'nothing-to-reset'],
+    ['no_credit', 'no-credit'],
+    ['already_redeemed', 'already-redeemed'],
+  ] as const)('decodes the provider reset-credit outcome %s', async (code, outcome) => {
+    let request = 0
+    const fetchUsage = vi.fn(async () => request++ === 0
+      ? new Response(JSON.stringify({ code, windows_reset: 0 }), { status: 200 })
+      : usageResponse(20)) as typeof fetch
+    const { ctx, controller } = await boot({ fetchUsage })
+    await ctx.credentials.modifyRecord(credentialKey('llm-pi-ai', 'openai-codex'), () =>
+      Promise.resolve(codexGrant('abdo@example.com', 'account-a')))
+    const account = (await controller.describe()).accounts[0]!
+
+    const result = await controller.consumeResetCredit(account.id, `attempt-${code}`, new AbortController().signal)
+
+    expect(result.outcome).toBe(outcome)
   })
 
   it('serializes overlapping Host usage refreshes', async () => {

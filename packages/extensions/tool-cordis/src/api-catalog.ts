@@ -117,6 +117,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the updated public account state with credentials omitted.',
       },
       {
+        signature: '@Remote async consumeResetCredit( accountId: string, idempotencyKey: string, signal: AbortSignal, ): Promise<AccountResetCreditResult>',
+        description: 'Consume one provider-issued Codex reset credit for a saved account.',
+        parameters: [{ name: 'accountId', description: 'saved Codex identity whose reset credit will be consumed.' }, { name: 'idempotencyKey', description: 'stable identifier reused when retrying the same user action.' }, { name: 'signal', description: 'cancellation forwarded to provider requests.' }],
+        returns: 'the provider outcome and refreshed public account state.',
+      },
+      {
         signature: '@Remote async rename(provider: AccountProviderId, accountId: string, name: string): Promise<AccountsState>',
         description: 'Rename one local account without changing its credential or active state.',
         parameters: [{ name: 'provider', description: 'provider containing the saved identity.' }, { name: 'accountId', description: 'saved identity to rename.' }, { name: 'name', description: 'new user-visible label, bounded before storage.' }],
@@ -4587,6 +4593,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface AccountProviderView {\n    readonly id: AccountProviderId;\n    readonly label: string;\n    readonly authMode: AccountAuthMode;\n    readonly available: boolean;\n    readonly accountCount: number;\n    readonly activeAccountId?: string;\n    readonly usageAvailable: boolean;\n    readonly autoSwitchOnLimit: boolean;\n}',
   },
   {
+    name: 'AccountResetCreditOutcome',
+    declaration: 'export type AccountResetCreditOutcome = \'reset\' | \'nothing-to-reset\' | \'no-credit\' | \'already-redeemed\';',
+  },
+  {
+    name: 'AccountResetCreditResult',
+    declaration: 'export interface AccountResetCreditResult {\n    readonly outcome: AccountResetCreditOutcome;\n    readonly state: AccountsState;\n}',
+  },
+  {
+    name: 'AccountResetCreditsView',
+    declaration: 'export interface AccountResetCreditsView {\n    readonly availableCount: number;\n}',
+  },
+  {
     name: 'AccountSignInResult',
     declaration: 'export interface AccountSignInResult {\n    readonly status: \'authorized\' | \'cancelled\';\n}',
   },
@@ -4600,7 +4618,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AccountUsageView',
-    declaration: 'export interface AccountUsageView {\n    readonly windows: readonly AccountUsageWindow[];\n}',
+    declaration: 'export interface AccountUsageView {\n    readonly windows: readonly AccountUsageWindow[];\n    readonly resetCredits?: AccountResetCreditsView;\n}',
   },
   {
     name: 'AccountUsageWindow',

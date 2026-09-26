@@ -854,6 +854,8 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   Socket: 'Node.js byte stream API is owned by https://nodejs.org/api/net.html#class-netsocket',
   z: 'schemastery schema constructor is owned by vendor/schemastery (vendored upstream)',
   AccountProviderId: 'account-provider identity is owned by packages/api/settings-controller/src/types.ts',
+  AccountResetCreditOutcome: 'reset-credit redemption outcome is owned by packages/api/settings-controller/src/types.ts',
+  AccountResetCreditResult: 'reset-credit redemption result is owned by packages/api/settings-controller/src/types.ts',
   AccountAutoSwitchEvent: 'account-switch notification payload is owned by packages/api/settings-controller/src/types.ts',
   AccountsState: 'account-manager response state is owned by packages/api/settings-controller/src/types.ts',
   AccountSignInResult: 'account authorization result is owned by packages/api/settings-controller/src/types.ts',

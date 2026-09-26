@@ -22,9 +22,9 @@ Models footer 通过 settings section 的独占模态框 presenter 打开 manage
 
 Harnessy 通过可选的 `settings.launcher` slot 替换外壳默认的侧边栏 Settings 启动控件。替换项显示当前 Codex 身份、大写方案名称以及动画 `5h` 与 `7d` 用量条，并打开包含相同账户摘要与 Settings 操作的紧凑菜单。启动控件会在应用启动时、document 可见期间每分钟以及窗口回到前台时刷新用量，并串行处理这些触发，确保只保留一个进行中的 refresh。账户操作请求既有 Models-footer manager，因此 refresh、切换与独占模态框行为仍由同一个账户实现持有。settings 外壳继续持有面板可见性与直接分区导航。
 
-当前只有 Codex 声明用量可用。每次打开 manager 都会调用 `refreshUsage`；Host 在 provider implementation 下刷新即将过期的 Codex OAuth credential，并请求经过认证的 quota window。其他 provider 仍可完整添加和切换，但不会返回虚构用量。client 将每个返回百分比从零动画填充到目标值，并为 reduced-motion 用户禁用 transition。
+当前只有 Codex 声明用量可用。每次打开 manager 都会调用 `refreshUsage`；Host 在 provider implementation 下刷新即将过期的 Codex OAuth credential，并请求经过认证的 quota window。provider 报告的重置额度会显示在这些窗口旁，client 可以通过 provider 的幂等兑换操作使用一次额度，然后刷新快照。client 会把每个重置时间显示为实时更新的紧凑时长。其他 provider 仍可完整添加和切换，但不会返回虚构用量。client 将每个返回百分比从零动画填充到目标值，并为 reduced-motion 用户禁用 transition。
 
-Remote response 只包含账户标签、provider id、active 状态、initial、时间戳与用量百分比。API key、access token、refresh token 与完整 credential record 永远不会跨越 Host 边界。
+Remote response 只包含账户标签、provider id、active 状态、initial、时间戳、用量百分比、重置时间与 provider 报告的重置额度数量。API key、access token、refresh token 与完整 credential record 永远不会跨越 Host 边界。
 
 ## Alternatives considered
 
@@ -37,6 +37,6 @@ Remote response 只包含账户标签、provider id、active 状态、initial、
 
 ## Consequences
 
-用户可以从侧边栏查看当前 Codex 身份、方案名称与主要 quota window，通过一个紧凑弹出菜单进入账户管理器，并从同一位置继续打开 Settings。用户可以为每个受支持 provider 保留多个账户，并通过一个动作切换新模型请求所用 credential。移除 active account 时，如果存在另一个已保存身份则会提升它，否则会禁用该 provider route。Codex quota window 会在启动时、窗口可见期间每分钟、窗口回到前台、打开 manager 时以及手动请求时 refresh。隐藏窗口会跳过周期工作，并在再次可见时补充 refresh。provider-specific usage gap 会明确显示，而不是静默显示零。Accounts 操作会替换 Settings，而不是在其上叠加第二个可见对话框。
+用户可以从侧边栏查看当前 Codex 身份、方案名称与主要 quota window，通过一个紧凑弹出菜单进入账户管理器，并从同一位置继续打开 Settings。用户可以为每个受支持 provider 保留多个账户，并通过一个动作切换新模型请求所用 credential。移除 active account 时，如果存在另一个已保存身份则会提升它，否则会禁用该 provider route。Codex quota window 与重置额度数量会在启动时、窗口可见期间每分钟、窗口回到前台、打开 manager、兑换后以及手动请求时 refresh。隐藏窗口会跳过周期工作，并在再次可见时补充 refresh。provider-specific usage gap 会明确显示，而不是静默显示零。Accounts 操作会替换 Settings，而不是在其上叠加第二个可见对话框。
 
-vault 有意复制 provider credential record，因此未来每次 provider-format migration 都必须保留 canonical record 与 managed copy。聚焦 Host 与 client 测试覆盖 canonical import、secret redaction、API-key account lifecycle、添加 OAuth 且不替换 active account、Codex quota parsing、启动、周期、回到前台与打开 manager 时的自动 refresh、切换与 animated bar。
+vault 有意复制 provider credential record，因此未来每次 provider-format migration 都必须保留 canonical record 与 managed copy。聚焦 Host 与 client 测试覆盖 canonical import、secret redaction、API-key account lifecycle、添加 OAuth 且不替换 active account、Codex quota 与重置额度解析、重置兑换、启动、周期、回到前台与打开 manager 时的自动 refresh、切换、倒计时与 animated bar。

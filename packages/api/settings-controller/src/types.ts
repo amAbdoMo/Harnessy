@@ -120,10 +120,19 @@ export interface AccountUsageWindow {
   readonly resetsAtMs?: number
 }
 
+/** Provider-reported reset credits that can restore eligible usage windows. */
+export interface AccountResetCreditsView {
+  readonly availableCount: number
+}
+
 /** Usage snapshot attached to a managed account. */
 export interface AccountUsageView {
   readonly windows: readonly AccountUsageWindow[]
+  readonly resetCredits?: AccountResetCreditsView
 }
+
+/** Result reported after attempting to consume one provider reset credit. */
+export type AccountResetCreditOutcome = 'reset' | 'nothing-to-reset' | 'no-credit' | 'already-redeemed'
 
 /** Codex quota context associated with one saved OAuth membership. */
 export type AccountUsageScope = 'personal' | 'workspace'
@@ -151,6 +160,12 @@ export interface AccountsState {
   readonly writable: boolean
   readonly providers: readonly AccountProviderView[]
   readonly accounts: readonly ManagedAccountView[]
+}
+
+/** Provider result and refreshed account state after redeeming a reset credit. */
+export interface AccountResetCreditResult {
+  readonly outcome: AccountResetCreditOutcome
+  readonly state: AccountsState
 }
 
 /** Browser-safe record emitted after Codex promotes another saved membership. */

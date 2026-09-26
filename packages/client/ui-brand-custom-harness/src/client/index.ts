@@ -292,6 +292,10 @@ export function apply(ctx: ClientContext): void {
       const response = await ctx.remote.accounts.setAutoSwitch(provider, enabled)
       return response.ok ? { state: response.value } : { error: response.error.message }
     },
+    consumeResetCredit: async (accountId, idempotencyKey, signal) => {
+      const response = await ctx.remote.accounts.consumeResetCredit(accountId, idempotencyKey, signal)
+      return response.ok ? response.value : { error: response.error.message }
+    },
     rename: async (provider, accountId, name) => {
       const response = await ctx.remote.accounts.rename(provider, accountId, name)
       return response.ok ? { state: response.value } : { error: response.error.message }
@@ -319,6 +323,11 @@ export function apply(ctx: ClientContext): void {
     addApiKey: (provider, name, key) => publishAccountState(accountRemoteOperations.addApiKey(provider, name, key)),
     activate: (provider, accountId) => publishAccountState(accountRemoteOperations.activate(provider, accountId)),
     setAutoSwitch: (provider, enabled) => publishAccountState(accountRemoteOperations.setAutoSwitch(provider, enabled)),
+    consumeResetCredit: async (accountId, idempotencyKey, signal) => {
+      const response = await accountRemoteOperations.consumeResetCredit(accountId, idempotencyKey, signal)
+      accountsUsage.publish(response.state)
+      return response
+    },
     rename: (provider, accountId, name) => publishAccountState(accountRemoteOperations.rename(provider, accountId, name)),
     remove: (provider, accountId) => publishAccountState(accountRemoteOperations.remove(provider, accountId)),
     refreshUsage: signal => publishAccountState(accountRemoteOperations.refreshUsage(signal)),

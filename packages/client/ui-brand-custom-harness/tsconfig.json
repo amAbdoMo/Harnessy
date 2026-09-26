@@ -22,6 +22,7 @@
     { "path": "../ui-workspace" },
     { "path": "../ui-slots" },
     { "path": "../ui-primitives" },
-    { "path": "../ui-theme/tsconfig.client.json" }
+    { "path": "../ui-theme/tsconfig.client.json" },
+    { "path": "../../util/crypto" }
   ]
 }

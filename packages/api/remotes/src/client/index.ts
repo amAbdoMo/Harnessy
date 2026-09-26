@@ -141,8 +141,9 @@ export type {
 // Credential state vocabulary for the credentials namespace (values never ride it).
 export type { CredentialInfo } from '@deepseek-ai/dsh-credentials/types'
 export type {
-  AccountAuthMode, AccountAutoSwitchEvent, AccountProviderId, AccountProviderView, AccountSignInResult,
-  AccountsState, AccountUsageScope, AccountUsageView, AccountUsageWindow, ManagedAccountView,
+  AccountAuthMode, AccountAutoSwitchEvent, AccountProviderId, AccountProviderView, AccountResetCreditOutcome,
+  AccountResetCreditResult, AccountResetCreditsView, AccountSignInResult, AccountsState, AccountUsageScope, AccountUsageView,
+  AccountUsageWindow, ManagedAccountView,
   McpManagerState, McpServerInput, McpServerStatus, McpServerTransport, McpServerView,
   OpenAIAccountSignInResult, OpenAIAccountState,
 } from '@deepseek-ai/dsh-api-settings-controller/types'

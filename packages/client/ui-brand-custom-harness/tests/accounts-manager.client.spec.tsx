@@ -6,7 +6,7 @@ import type { AccountsState } from '@deepseek-ai/dsh-api-remotes/client'
 import {
   AccountsManagerCard, type AccountsManagerCardProps, type AccountsManagerOperations,
 } from '../src/client/AccountsManagerCard.tsx'
-import { en } from '../src/client/locales.ts'
+import { en, zh } from '../src/client/locales.ts'
 import { createAccountsMenuStore } from '../src/client/accounts-menu-store.ts'
 import { slotTestProps } from './slot-test-props.ts'
 
@@ -42,6 +42,7 @@ function operations(overrides: Partial<AccountsManagerOperations> = {}): Account
     addApiKey: vi.fn(async () => ({ state: baseState })),
     activate: vi.fn(async () => ({ state: baseState })),
     setAutoSwitch: vi.fn(async () => ({ state: baseState })),
+    consumeResetCredit: vi.fn(async () => ({ outcome: 'reset' as const, state: baseState })),
     rename: vi.fn(async () => ({ state: baseState })),
     remove: vi.fn(async () => ({ state: baseState })),
     refreshUsage: vi.fn(async () => ({ state: baseState })),
@@ -49,7 +50,11 @@ function operations(overrides: Partial<AccountsManagerOperations> = {}): Account
   }
 }
 
-function renderManager(value: AccountsManagerOperations, presentModal = vi.fn(() => vi.fn())) {
+function renderManager(
+  value: AccountsManagerOperations,
+  presentModal = vi.fn(() => vi.fn()),
+  translate: (key: keyof typeof en) => string = t,
+) {
   const store = createAccountsMenuStore().create()
   const useStore = <Selected,>(selector: (state: ReturnType<typeof store.getSnapshot>) => Selected): Selected =>
     selector(useSyncExternalStore(
@@ -59,7 +64,7 @@ function renderManager(value: AccountsManagerOperations, presentModal = vi.fn(()
   return {
     ...render(<AccountsManagerCard
       {...slotTestProps<AccountsManagerCardProps>({
-        operations: value, t, presentModal, useStore, actions: store.actions,
+        operations: value, t: translate, presentModal, useStore, actions: store.actions,
       })} />),
     presentModal,
     store,
@@ -212,14 +217,11 @@ describe('Harnessy account manager', () => {
     expect(screen.queryByRole('group', { name: en.accountsUsageScope })).toBeNull()
   })
 
-  it('counts down the 5h reset and omits the year from the 7d reset', async () => {
+  it('counts down both 5h and weekly resets', async () => {
     const now = Date.UTC(2026, 8, 18, 10, 0)
     const fiveHourReset = now + (2 * 60 + 30) * 60_000
-    const sevenDayReset = Date.UTC(2026, 8, 24, 22, 41)
+    const sevenDayReset = now + (3 * 24 + 5) * 60 * 60_000
     vi.spyOn(Date, 'now').mockReturnValue(now)
-    const shortSevenDayReset = new Date(sevenDayReset).toLocaleString(undefined, {
-      month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit',
-    })
     const state: AccountsState = {
       ...baseState,
       accounts: [{
@@ -237,11 +239,76 @@ describe('Harnessy account manager', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: en.accountsManage }))
     expect(await screen.findByText(`${en.accountsResetsInPrefix} 2h 30m`)).toBeTruthy()
-    expect(screen.getByText(`${en.accountsResetsPrefix} ${shortSevenDayReset}`)).toBeTruthy()
+    expect(screen.getByText(`${en.accountsResetsInPrefix} 3d 5h`)).toBeTruthy()
 
     vi.mocked(Date.now).mockReturnValue(now + 60 * 60_000)
     fireEvent(window, new Event('focus'))
     expect(await screen.findByText(`${en.accountsResetsInPrefix} 1h 30m`)).toBeTruthy()
+    expect(screen.getByText(`${en.accountsResetsInPrefix} 3d 4h`)).toBeTruthy()
+  })
+
+  it('localizes Chinese reset durations without English unit abbreviations', async () => {
+    const now = Date.UTC(2026, 8, 18, 10, 0)
+    vi.spyOn(Date, 'now').mockReturnValue(now)
+    const state: AccountsState = {
+      ...baseState,
+      accounts: [{
+        ...baseState.accounts[0]!,
+        usage: { windows: [{
+          id: '7d', label: '7d', usedPercent: 20, resetsAtMs: now + (3 * 24 + 5) * 60 * 60_000,
+        }] },
+      }],
+    }
+    renderManager(operations({
+      describe: vi.fn(async () => ({ state })),
+      refreshUsage: vi.fn(async () => ({ state })),
+    }), undefined, key => zh[key])
+
+    fireEvent.click(await screen.findByRole('button', { name: zh.accountsManage }))
+    expect(await screen.findByText(`${zh.accountsResetsInPrefix} 3天 5小时`)).toBeTruthy()
+  })
+
+  it('shows banked resets and reuses the redemption key after a failed attempt', async () => {
+    const resetState: AccountsState = {
+      ...baseState,
+      accounts: [{
+        ...baseState.accounts[0]!,
+        usage: {
+          windows: [{ id: '7d', label: '7d', usedPercent: 95 }],
+          resetCredits: { availableCount: 1 },
+        },
+      }],
+    }
+    const consumedState: AccountsState = {
+      ...resetState,
+      accounts: [{
+        ...resetState.accounts[0]!,
+        usage: { windows: [{ id: '7d', label: '7d', usedPercent: 0 }], resetCredits: { availableCount: 0 } },
+      }],
+    }
+    const consumeResetCredit = vi.fn()
+      .mockResolvedValueOnce({ error: 'Reset temporarily unavailable.' })
+      .mockResolvedValueOnce({ outcome: 'reset' as const, state: consumedState })
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    renderManager(operations({
+      describe: vi.fn(async () => ({ state: resetState })),
+      refreshUsage: vi.fn(async () => ({ state: resetState })),
+      consumeResetCredit,
+    }))
+
+    fireEvent.click(await screen.findByRole('button', { name: en.accountsManage }))
+    expect(await screen.findByText(en.accountsBankedResetCount.replace('{count}', '1'))).toBeTruthy()
+    const resetActionName = en.accountsUseBankedResetFor.replace('{account}', baseState.accounts[0]!.name)
+    fireEvent.click(screen.getByRole('button', { name: resetActionName }))
+    expect(await screen.findByText('Reset temporarily unavailable.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: resetActionName }))
+    await waitFor(() => { expect(consumeResetCredit).toHaveBeenCalledTimes(2) })
+    expect(window.confirm).toHaveBeenCalledWith(
+      en.accountsBankedResetConfirm.replace('{account}', baseState.accounts[0]!.name),
+    )
+    expect(consumeResetCredit.mock.calls[1]?.[1]).toBe(consumeResetCredit.mock.calls[0]?.[1])
+    expect(await screen.findByText(en.accountsBankedResetsCount.replace('{count}', '0'))).toBeTruthy()
+    expect(screen.getByRole('button', { name: resetActionName }).hasAttribute('disabled')).toBe(true)
   })
 
   it('collects API keys only in the key form and never renders the value afterward', async () => {

@@ -24,7 +24,7 @@
 .sectionTitle {
   margin: 0;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 22px;
 }
 
@@ -119,7 +119,7 @@
   border-radius: var(--dsw-radius-sm);
   color: var(--dsw-alias-label-primary-foreground);
   background: var(--dsw-alias-button-primary-fill);
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .providerMark { width: 28px; height: 28px; font-size: 12px; }
@@ -134,7 +134,7 @@
   border: 0.5px solid var(--dsw-alias-border-l3);
   border-radius: var(--dsw-radius-sm);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1;
   color: var(--dsw-alias-label-secondary);
   background: var(--dsw-alias-bg-layer-2);
@@ -251,7 +251,7 @@
   background: transparent;
   font: inherit;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -267,6 +267,30 @@
 }
 
 .usageItem { min-width: 0; }
+
+.bankedReset {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: var(--dsw-radius-md);
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.bankedResetCopy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.bankedResetCopy strong { font-weight: 500; color: var(--dsw-alias-label-primary); }
+.bankedResetCopy span { color: var(--dsw-alias-label-tertiary); }
 .usageLabel { align-items: center; gap: 8px; font-size: 11px; line-height: 17px; }
 .usageLabel strong { font-weight: 600; }
 .usageTrack { height: 5px; margin-top: 5px; overflow: hidden; border-radius: 999px; corner-shape: round; background: var(--dsw-alias-interactive-bg-active); }
