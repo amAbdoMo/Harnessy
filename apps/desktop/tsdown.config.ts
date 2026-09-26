@@ -94,20 +94,7 @@ export default defineConfig([
     target: 'es2024',
     fixedExtension: false,
     // Electron's sandboxed preload loader cannot require Rolldown shared chunks.
-    // Keep both bridges self-contained so contextBridge is always installed.
-    outputOptions: { codeSplitting: false },
-    dts: false,
-    clean: false,
-    deps: { neverBundle: ['electron'] },
-  },
-  {
-    // A separate single-entry build prevents a shared chunk that sandboxed preload code cannot load.
-    entry: ['lib/types/preload-app.js'],
-    outDir: 'lib',
-    format: ['cjs'],
-    platform: 'node',
-    target: 'es2024',
-    fixedExtension: false,
+    // Keep every bridge self-contained so contextBridge is always installed.
     outputOptions: { codeSplitting: false },
     dts: false,
     clean: false,

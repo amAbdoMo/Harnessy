@@ -4,7 +4,6 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { McpManagerState, McpServerView } from '@deepseek-ai/dsh-api-remotes/client'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
-import { createAccountsMenuStore } from '../src/client/accounts-menu-store.ts'
 import { en } from '../src/client/locales.ts'
 import { McpSessionStatus, type McpSessionStatusProps } from '../src/client/McpSessionStatus.tsx'
 import type { McpStatusSnapshot } from '../src/client/mcp-status.ts'
@@ -21,14 +20,10 @@ function server(status: McpServerView['status']): McpServerView {
 }
 
 function mount(status: McpServerView['status']) {
-  const menu = createAccountsMenuStore().create()
   const registry: McpManagerState = { available: true, writable: true, servers: [server(status)] }
   const mcpStatus = createSnapshotStore<McpStatusSnapshot>({ state: registry, error: undefined, refreshing: false })
   const reconnect = vi.fn(async () => undefined)
-  const useStore: McpSessionStatusProps['useStore'] = selector => selector(useSyncExternalStore(
-    listener => menu.subscribe(listener),
-    () => menu.getSnapshot(),
-  ))
+  const manage = vi.fn()
   const useMcpStatus: McpSessionStatusProps['useMcpStatus'] = selector => selector(useSyncExternalStore(
     listener => mcpStatus.subscribe(listener),
     () => mcpStatus.getSnapshot(),
@@ -37,11 +32,10 @@ function mount(status: McpServerView['status']) {
     views: { get: () => undefined, grouped: () => undefined }, activeTargets: new Set(),
   })
   render(<McpSessionStatus {...slotTestProps<McpSessionStatusProps>({
-    useStore,
-    actions: menu.actions,
     useMcpStatus,
     useConversation,
     reconnect,
+    manage,
     openConversationEvent: vi.fn(),
     t: (key: keyof typeof en, values?: Record<string, unknown>) => {
       let copy: string = en[key]
@@ -49,7 +43,7 @@ function mount(status: McpServerView['status']) {
       return copy
     },
   })} />)
-  return { menu, reconnect }
+  return { manage, reconnect }
 }
 
 describe('MCP Session status', () => {
@@ -60,7 +54,7 @@ describe('MCP Session status', () => {
     expect(screen.getByRole('dialog', { name: en.mcpSessionTitle })).toBeTruthy()
     expect(screen.getByText('WordPress')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: en.mcpSessionManage }))
-    expect(mounted.menu.getSnapshot().sectionRequested).toBe('custom-harness-mcp')
+    expect(mounted.manage).toHaveBeenCalledOnce()
   })
 
   it('offers reconnect only for a failed enabled server', () => {

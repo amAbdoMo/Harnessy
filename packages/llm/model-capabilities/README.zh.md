@@ -62,6 +62,8 @@ dsh --profile custom-harness --models-explain=openai-codex/gpt-5.6-sol
 dsh --profile custom-harness --models-sync=check --models-refresh
 ```
 
+诊断插件仅在调用包含这些 `--models-*` 标志之一时解析参数。普通 Web 与 Desktop 标志仍由其应用命令负责，因此挂载这个可选界面不会干扰 Harnessy 的正常启动。
+
 `check` 报告每个已配置模型以及同步会采取的动作，且不修改任何内容。`write` 只持久化按提供方匹配解析出的行，其余每一行保持逐字节不变。`explain` 打印某一个按路由限定的模型的完整链路——每个公开层级、作答的提供方条目，以及最终等级或那些被拒绝的建议。
 
 模型参数是 `<route>/<model>`，绝不是裸 id：同一个模型经由不同网关可能解析出不同结果，甚至完全无法解析，而裸 id 正是本层拒绝猜测的那种歧义。两个开关都可重复，并按 argv 顺序执行，因此一次调用可以先写入同步再检查它留下了什么。

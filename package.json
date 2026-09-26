@@ -22,6 +22,7 @@
     "build:bench": "npm run build:native-system && npm run build:lib && tsdown --config benchmarks/tsdown.config.ts",
     "build:official": "tsx scripts/build.ts --profile official",
     "build:custom-harness": "tsx scripts/build.ts --profile custom-harness",
+    "verify:harnessy-product": "tsx scripts/verify-custom-harness-product.ts && node --test apps/desktop/tests/custom-harness-product.test.js && vitest run scripts/verify-custom-harness-product.spec.ts apps/desktop/tests/development-product-paths.spec.ts apps/desktop/tests/paths.spec.ts apps/desktop/tests/development-project.spec.ts apps/desktop/tests/welcome-startup.spec.ts packages/client/ui-brand-custom-harness/tests/account-launcher.client.spec.tsx packages/client/ui-brand-custom-harness/tests/mcp-session-status.client.spec.tsx packages/client/ui-brand-custom-harness/tests/mcp-servers.client.spec.tsx packages/client/ui-model-selection/tests/model-select.client.spec.tsx packages/client/ui-settings-models/tests/apply.client.spec.ts packages/client/ui-settings-subagents/tests/composition.client.spec.ts packages/subagent/subagent-roster/tests/routing.spec.ts",
     "custom-harness": "tsx scripts/run-custom-harness.ts",
     "build:lib": "pnpm run build:lib:host && pnpm run build:lib:client",
     "build:lib:host": "node --max-old-space-size=4096 ./node_modules/typescript/bin/tsc -b tsconfig.host.json && tsdown --env.DSH_BUILD_FACE host && pnpm --filter @deepseek-ai/dsh-desktop run bundle",

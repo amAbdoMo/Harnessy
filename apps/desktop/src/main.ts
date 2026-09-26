@@ -29,7 +29,7 @@ import {
   resolvePackagedCustomHarnessDesktopState,
   type CustomHarnessDesktopState,
 } from '../../../scripts/custom-harness-product.mjs'
-import { resolveDesktopPaths } from './paths.ts'
+import { resolveDesktopPaths, type DesktopPaths } from './paths.ts'
 import { DesktopProjectManager } from './project-manager.ts'
 import { DesktopHostFatalError, DesktopHostProcess, DesktopHostUncleanExitError } from './host-process.ts'
 import { DesktopPlatformView, PLATFORM_IPC, platformBounds } from './platform-view.ts'
@@ -44,7 +44,7 @@ import { serveWebDocument, authenticateWebHost, forwardWebRequest } from './web-
 import { DesktopFatalRecovery } from './fatal-recovery.ts'
 import { pruneCrashReports, RendererConsoleTail, writeCrashReport, type CrashReportSource } from './crash-report.ts'
 import { openWelcomeWindow } from './welcome-window.ts'
-import { WELCOME_IPC, needsWelcome, type WelcomeNotice } from './welcome-api.ts'
+import { WELCOME_IPC, needsWelcome, type WelcomeAuthentication, type WelcomeNotice } from './welcome-api.ts'
 import { connectDesktopWelcome, type DesktopWelcomeBackend } from './welcome-backend.ts'
 import { DesktopUpdateJournal } from './update-journal.ts'
 import { DesktopUpdatePreparationError } from './update-error.ts'
@@ -107,6 +107,10 @@ function configureCustomHarnessProductIdentity(state: CustomHarnessDesktopState)
   app.setPath('userData', state.userData)
 }
 
+function currentDesktopPaths(): DesktopPaths {
+  return resolveDesktopPaths(undefined, app.isPackaged ? undefined : process.env.DSH_DESKTOP_PROFILE_DIR)
+}
+
 function prepareCustomHarnessProductState(state: CustomHarnessDesktopState): void {
   for (const directory of [state.data, state.home, state.agents, state.logs, state.cache, state.userData]) {
     mkdirSync(directory, { recursive: true, mode: 0o700 })
@@ -148,7 +152,7 @@ const recovery = new DesktopFatalRecovery({
   show: options => dialog.showMessageBox(options),
   stop: () => { shuttingDown = true; return stopForRecovery() },
   disablePlugins: async () => {
-    const manager = new DesktopProjectManager(resolveDesktopPaths(), runtimeResources())
+    const manager = new DesktopProjectManager(currentDesktopPaths(), runtimeResources())
     const backupPath = await manager.disableAllPlugins()
     console.info('Desktop profile recovery completed:', { profilePatchBackup: backupPath ?? null, homePatch: 'unchanged' })
   },
@@ -370,7 +374,7 @@ async function main(): Promise<void> {
   const journalDirectory = process.env.DSH_DESKTOP_UPDATE_JOURNAL_DIR
   const updateJournal = journalDirectory === undefined ? undefined : new DesktopUpdateJournal(journalDirectory, app.getVersion())
   const resources = runtimeResources()
-  const paths = resolveDesktopPaths()
+  const paths = currentDesktopPaths()
   const development = !app.isPackaged
   const primaryRuntime = development
     ? developmentPrimaryRuntime()
@@ -440,6 +444,8 @@ async function main(): Promise<void> {
   let returnedAttempt: string | undefined
   let pendingWelcomeNotice: WelcomeNotice | undefined
   let previousAccountStatus: string | undefined
+  const requiresNativeWelcome = (authentication: WelcomeAuthentication): boolean =>
+    CUSTOM_HARNESS_PRODUCT.nativeDeepSeekOnboarding && needsWelcome(authentication)
   const assertProductSender = (event: IpcMainInvokeEvent): void => {
     assertDesktopSender(event, ['app'])
     if (mainWindow === undefined || mainWindow.isDestroyed() || event.sender !== mainWindow.webContents
@@ -511,7 +517,7 @@ async function main(): Promise<void> {
           if (state.status === 'credential-stored' && attempt?.phase === 'succeeded' && welcomeWindow !== undefined) void enterWorkspace({ activate: false }).catch(() => undefined)
           if (previousAccountStatus === 'credential-stored' && state.status === 'signed-out') {
             void readWelcomeState().then(async (value) => {
-              if (needsWelcome(value) && !quitting) {
+              if (requiresNativeWelcome(value) && !quitting) {
                 enteredWorkspace = false
                 await showWelcome()
                 if (welcomeWindow !== undefined && !welcomeWindow.isDestroyed()) welcomeWindow.webContents.send(WELCOME_IPC.state, state)
@@ -524,7 +530,7 @@ async function main(): Promise<void> {
           // The stream reconnects; a transport failure does not change account state.
         }, () => {
           void readWelcomeState().then(async (value) => {
-            if (!needsWelcome(value) || quitting) return
+            if (!requiresNativeWelcome(value) || quitting) return
             pendingWelcomeNotice = 'session-expired'
             enteredWorkspace = false
             await showWelcome()
@@ -1162,6 +1168,7 @@ async function main(): Promise<void> {
   let openingWelcome: Promise<void> | undefined
   const showWelcome = (): Promise<void> => {
     if (quitting) return Promise.resolve()
+    if (!CUSTOM_HARNESS_PRODUCT.nativeDeepSeekOnboarding) return enterWorkspace()
     if (welcomeWindow !== undefined && !welcomeWindow.isDestroyed()) {
       welcomeWindow.show()
       welcomeWindow.focus()
@@ -1225,7 +1232,7 @@ async function main(): Promise<void> {
     locale = resolveDesktopStartupLocale(state.localePreference, systemLanguages)
     windowsLanguage = locale.id
     refreshApplicationMenu()
-    if (!enteredWorkspace && needsWelcome({ loggedIn: state.loggedIn, hasApiKey: state.hasApiKey })) {
+    if (!enteredWorkspace && requiresNativeWelcome({ loggedIn: state.loggedIn, hasApiKey: state.hasApiKey })) {
       // A later login must retain its own activation policy instead of replaying startup focus.
       raiseAfterUpdate = false
       await showWelcome()

@@ -8,7 +8,7 @@ Public APIs are pre-stable; update every consumer. Follow [version/status](docs/
 
 Acknowledge [declared persistence-type changes](docs/cookbook/reviewing-persistence-type-changes.md).
 
-**Application launch.** Only `dsh` profiles launch supported Node apps; package bins, demos, and public SDK argv escapes are forbidden ([rule](docs/architecture.md#application-launch)).
+**Launch and sync.** Use only `dsh` profiles ([rule](docs/architecture.md#application-launch)). Isolate changes, preserve Harnessy owners, and run `pnpm run verify:harnessy-product` before merging ([procedure](HARNESSY-UPSTREAM-HANDOFF.md)).
 
 ## Repository layout
 

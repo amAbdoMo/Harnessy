@@ -27,6 +27,16 @@ const runnerPrivatePnpmDestination = /^\$\{\{ runner\.temp \}\}\/setup-pnpm-\$\{
 const nativeWindowsPnpmDestination = '${{ runner.temp }}/setup-pnpm-js-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}'
 
 describe('Custom Harness Windows workflow', () => {
+  it('verifies the Harnessy product before Desktop compilation', () => {
+    const checks = workflowJob(loadWorkflow('.github/workflows/custom-harness-windows.yml'), 'desktop-checks')
+    if (!Array.isArray(checks.steps)) throw new TypeError('Desktop checks job must define steps')
+    const steps = checks.steps.filter(isRecord)
+    const product = steps.findIndex(step => step.run === 'pnpm run verify:harnessy-product')
+    const compilation = steps.findIndex(step => step.run === 'pnpm exec tsc -b tsconfig.host.json --pretty false')
+    expect(product).toBeGreaterThanOrEqual(0)
+    expect(compilation).toBeGreaterThan(product)
+  })
+
   it('publishes the redacted packaging journal when installer verification fails', () => {
     const installer = workflowJob(loadWorkflow('.github/workflows/custom-harness-windows.yml'), 'unsigned-installer')
     if (!Array.isArray(installer.steps)) throw new TypeError('Unsigned installer job must define steps')

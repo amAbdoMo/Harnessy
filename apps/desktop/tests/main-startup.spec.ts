@@ -1028,6 +1028,24 @@ describe('desktop main startup', () => {
     return harness.hosts[0]!
   }
 
+  it('opens Harnessy directly when no DeepSeek credential is configured', async () => {
+    await import('../src/main.ts')
+    await harness.preparing.promise
+    harness.prepared.resolve()
+    await harness.hostStarted.promise
+    const host = harness.hosts[0]!
+    host.fetch.mockResolvedValue(Response.json({ loggedIn: false, hasApiKey: false, writable: true, localePreference: null }))
+    host.ready.resolve()
+    await harness.navigated.promise
+    expect(harness.windows).toHaveLength(1)
+    await vi.waitFor(() => { expect(harness.windows[0]!.show).toHaveBeenCalledOnce() })
+    const links = { usageUrl: '', topUpUrl: '' }
+    harness.publishAccount({ status: 'credential-stored', attempt: null, links })
+    harness.publishAccount({ status: 'signed-out', attempt: null, links })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(harness.windows).toHaveLength(1)
+  })
+
   it.each([
     ['win32', ['--updated'], true],
     ['win32', [], false],

@@ -62,6 +62,8 @@ dsh --profile custom-harness --models-explain=openai-codex/gpt-5.6-sol
 dsh --profile custom-harness --models-sync=check --models-refresh
 ```
 
+The diagnostics plugin parses an invocation only when one of these `--models-*` flags is present. Ordinary Web and Desktop flags remain owned by their application command, so mounting this optional surface does not interfere with normal Harnessy startup.
+
 `check` reports every configured model and the action a sync would take, and modifies nothing. `write` persists the rows a provider-aware match resolved and leaves every other row byte-identical. `explain` prints one route-qualified model's whole chain — each public tier, the provider entry that answered it, and the final levels or the suggestions that were refused.
 
 The model argument is `<route>/<model>`, never a bare id: the same model may resolve differently, or not at all, through another gateway, and a bare id is exactly the ambiguity this layer refuses to guess through. Both flags repeat and run in argv order, so one invocation can write a sync and then check what it left behind.

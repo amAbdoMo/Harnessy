@@ -123,7 +123,7 @@ Use a compact table with these columns: **Decision**, **Upstream improvement**, 
 <a id="integrate"></a>
 ## 7. Integrate and verify
 
-For a synchronization, integrate upstream in a way that preserves ancestry, resolve overlaps in the product owners above, and update every affected consumer. Preserve the user's work and do not use destructive reset or checkout commands. Follow the repository's pre-push procedure and run the smallest focused behavior, type, documentation, and packaging checks that cover the changed surfaces; exhaustive platform and live-API coverage belongs to CI unless the task specifically requires it.
+For a synchronization, create an isolated `codex/upstream-*` branch before integrating upstream; never merge upstream directly into `master`. Integrate in a way that preserves ancestry, resolve overlaps in the product owners above, and update every affected consumer. Preserve the user's work and do not use destructive reset or checkout commands. Run `pnpm run verify:harnessy-product` after resolving overlaps and before merging the integration branch. This mandatory guard verifies Harnessy's identity, isolated state, custom bundle, Desktop launcher, accounts/models, MCP status, and configured-subagent surfaces; the Harnessy Windows workflow repeats it for every pull request and `master` update. Follow the repository's pre-push procedure and run any additional focused behavior, type, documentation, and packaging checks required by the changed surfaces; exhaustive platform and live-API coverage belongs to CI unless the task specifically requires it.
 
 After the integration commit, verify the working tree, ancestry, and fork remote:
 

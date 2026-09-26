@@ -1,4 +1,11 @@
 vi.mock('../src/web-document.ts', () => ({ authenticateWebHost: async () => 'test-cookie', serveWebDocument: vi.fn(), forwardWebRequest: vi.fn() }))
+vi.mock('../../../scripts/custom-harness-product.mjs', async (importOriginal) => {
+  const product = await importOriginal<typeof import('../../../scripts/custom-harness-product.mjs')>()
+  return {
+    ...product,
+    CUSTOM_HARNESS_PRODUCT: { ...product.CUSTOM_HARNESS_PRODUCT, nativeDeepSeekOnboarding: true },
+  }
+})
 /** Welcome startup uses the Host before transitioning to the workspace. */
 
 import { afterEach, expect, it, vi } from 'vitest'

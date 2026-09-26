@@ -55,6 +55,28 @@ const EXIT_OK = 0
 /** The command could not do what it was asked. */
 const EXIT_FAILURE = 1
 
+/** Flags owned by this optional diagnostics surface. */
+const MODEL_CAPABILITY_FLAGS = [
+  '--models-sync',
+  '--models-explain',
+  '--models-refresh',
+] as const
+
+/**
+ * Whether an invocation asks this optional command surface to parse it.
+ *
+ * The custom Harness profile also mounts the Web application's command. A
+ * diagnostics plugin must leave ordinary Web and Desktop flags to that owner
+ * instead of rejecting them as unknown options.
+ * @param args - the launcher's immutable application arguments.
+ * @returns true when at least one model-capability flag is present.
+ */
+function requestsModelCapabilities(args: readonly string[]): boolean {
+  return args.some(argument => MODEL_CAPABILITY_FLAGS.some(
+    flag => argument === flag || argument.startsWith(`${flag}=`),
+  ))
+}
+
 /** One route's effective policy, resolved from configuration. */
 export interface CliPolicy {
   /** Whether the public metadata layer runs at all. */
@@ -486,6 +508,8 @@ export function boundedExit(ctx: Context, options: ModelCapabilitiesOptions): Ap
  * @param ctx - the plugin context.
  */
 export function apply(ctx: Context): void {
+  const args = ctx.get('cmdlineArgs')
+  if (args !== undefined && !requestsModelCapabilities(args.get())) return
   const program = modelCapabilitiesCommand()
   program.action(() => {})
   parseCmdline(ctx, program)

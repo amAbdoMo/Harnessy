@@ -1,6 +1,6 @@
 /** Harnessy occupants for brand slots, product tokens, and the About row. */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import type { BoundActions } from '@deepseek-ai/dsh-client-store'
+import { createSnapshotStore, type BoundActions } from '@deepseek-ai/dsh-client-store'
 import type { AccountsState } from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
@@ -324,16 +324,17 @@ export function apply(ctx: ClientContext): void {
     refreshUsage: signal => publishAccountState(accountRemoteOperations.refreshUsage(signal)),
   }
   const accountsMenuStore = createAccountsMenuStore()
+  const settingsSectionRequest = createSnapshotStore<string | undefined>(undefined)
   ctx.effect(() => mcpStatus.start(), 'custom-harness: live MCP status')
   ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({
     name: 'conversation.session.header.actions',
     id: 'custom-harness-mcp-status',
     order: 10,
     locale: LOCALE_NS,
-    store: accountsMenuStore,
     inject: (): McpSessionStatusInjected => ({
       hooks: { mcpStatus: mcpStatus.snapshot },
       reconnect: serverId => mcpStatus.reconnect(serverId),
+      manage: () => { settingsSectionRequest.set('custom-harness-mcp') },
     }),
   }, McpSessionStatus))
   ctx.effect(() => accountsUsage.start(), 'custom-harness: automatic account usage refresh')
@@ -343,8 +344,12 @@ export function apply(ctx: ClientContext): void {
   }), 'custom-harness: account switch notifications')
   const account = (): AccountsManagerInjected => ({ operations: accountOperations })
   const launcher = (): AccountLauncherInjected => ({
-    hooks: { accountUsage: accountsUsage.state },
+    hooks: {
+      accountUsage: accountsUsage.state,
+      settingsSectionRequest,
+    },
     refreshAccounts: () => { void accountsUsage.refresh() },
+    consumeSettingsSectionRequest: () => { settingsSectionRequest.set(undefined) },
   })
   ctx.slots.inject('settings.launcher', () => ctx.slots.register({
     name: 'settings.launcher',

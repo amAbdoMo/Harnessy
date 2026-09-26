@@ -34,13 +34,17 @@ jobs:
         shell: pwsh
         run: pnpm install --frozen-lockfile
 
+      - name: Verify the Harnessy product
+        shell: pwsh
+        run: pnpm run verify:harnessy-product
+
       - name: Type-check the desktop host
         shell: pwsh
         run: pnpm exec tsc -b tsconfig.host.json --pretty false
 
       - name: Test Windows packaging policy
         shell: pwsh
-        run: pnpm exec vitest run apps/desktop/tests/package-target.spec.ts apps/desktop/tests/macos-signature.spec.ts
+        run: pnpm exec vitest run scripts/ci-workflow.spec.ts apps/desktop/tests/package-target.spec.ts apps/desktop/tests/macos-signature.spec.ts
 
   unsigned-installer:
     name: unsigned installer / Windows x64

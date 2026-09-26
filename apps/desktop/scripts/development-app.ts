@@ -10,6 +10,7 @@ export interface DevelopmentAppOptions {
   readonly appRoot: string
   readonly directory: string
   readonly home: string
+  readonly profile: string
   readonly userData: string
   readonly mainPort: number
   readonly rendererPort: number
@@ -62,6 +63,7 @@ export function prepareDevelopmentApp(options: DevelopmentAppOptions): string {
 export function developmentLauncher(options: DevelopmentAppOptions, bundle: string): string {
   const environment = {
     DSH_HOME: options.home,
+    DSH_DESKTOP_PROFILE_DIR: options.profile,
     DSH_DESKTOP_DEV_APP: '1',
     DSH_DESKTOP_HOST_INSPECT_PORT: String(options.hostPort),
     DSH_DESKTOP_OPEN_DEVTOOLS: options.openDevtools,

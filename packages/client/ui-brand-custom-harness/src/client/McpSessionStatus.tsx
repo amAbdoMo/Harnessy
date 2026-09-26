@@ -3,11 +3,10 @@ import type { CSSProperties, RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import type { McpServerView } from '@deepseek-ai/dsh-api-remotes/client'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
-import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import {
   Tooltip, useAnchoredPosition, useDismissOnOutsidePointer,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { createAccountsMenuStore } from './accounts-menu-store.ts'
 import { mcpActivity, type McpActivityChatSnapshot, type McpActivityRecord } from './mcp-activity.ts'
 import type { McpStatusSnapshot } from './mcp-status.ts'
 import css from './McpSessionStatus.module.css'
@@ -18,12 +17,12 @@ const MEASURE_STYLE = { left: 0, top: 0, visibility: 'hidden' as const }
 export interface McpSessionStatusInjected {
   readonly hooks: { readonly mcpStatus: ObservableSnapshot<McpStatusSnapshot> }
   readonly reconnect: (serverId: string) => Promise<string | undefined>
+  readonly manage: () => void
 }
 
 /** Full props for the Session header MCP status action. */
 export type McpSessionStatusProps = PropsRuntime<'conversation.session.header.actions'>
   & PropsLocale<'customHarnessBrand'>
-  & PropsStore<ReturnType<typeof createAccountsMenuStore>>
   & InjectFace<McpSessionStatusInjected>
 
 type OverallStatus = 'empty' | 'disabled' | 'connected' | 'connecting' | 'error'
@@ -164,7 +163,7 @@ function McpPanel({ panelRef, position, servers, activity, reconnecting, reconne
 
 /** Render global MCP health and current-Session MCP activity in the title bar. */
 export function McpSessionStatus({
-  useMcpStatus, useConversation, actions, reconnect, openConversationEvent, t,
+  useMcpStatus, useConversation, manage, reconnect, openConversationEvent, t,
 }: McpSessionStatusProps) {
   const snapshot = useMcpStatus(value => value)
   const conversation = useConversation(value => value)
@@ -207,9 +206,9 @@ export function McpSessionStatus({
     })
   }
 
-  const manage = (): void => {
+  const openManager = (): void => {
     setOpen(false)
-    actions.requestSection('custom-harness-mcp')
+    manage()
   }
 
   return (
@@ -225,7 +224,7 @@ export function McpSessionStatus({
         </button>
       </Tooltip>
       {open && <McpPanel panelRef={panelRef} position={position} servers={servers} activity={activity}
-        reconnecting={reconnecting} reconnect={reconnectServer} manage={manage}
+        reconnecting={reconnecting} reconnect={reconnectServer} manage={openManager}
         viewCall={(callId) => { setOpen(false); openConversationEvent(callId) }} t={t} />}
     </div>
   )

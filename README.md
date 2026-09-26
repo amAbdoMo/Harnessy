@@ -70,11 +70,12 @@ The upstream signed packaging commands remain separate and fail when the require
 For changes to the local Windows packaging path, run:
 
 ```powershell
+pnpm run verify:harnessy-product
 pnpm exec tsc -b tsconfig.host.json --pretty false
-pnpm exec vitest run apps/desktop/tests/package-target.spec.ts apps/desktop/tests/macos-signature.spec.ts
+pnpm exec vitest run scripts/ci-workflow.spec.ts apps/desktop/tests/package-target.spec.ts apps/desktop/tests/macos-signature.spec.ts
 ```
 
-GitHub runs the same focused desktop checks on Windows for pushes and pull requests. Inherited upstream multi-platform, sandbox, and live-API workflows are disabled by default because they require DeepSeek's runners and secrets.
+The product verification fails when an upstream integration replaces Harnessy's identity, isolated data, custom bundle, Desktop launcher, accounts/models, MCP status, or configured-subagent surfaces. GitHub runs the same focused checks on Windows for pushes and pull requests. Inherited upstream multi-platform, sandbox, and live-API workflows are disabled by default because they require DeepSeek's runners and secrets.
 
 ## Relationship to DeepSeek Harness
 

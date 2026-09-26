@@ -37,6 +37,7 @@ const refreshedAccountState: AccountsState = {
 function mountLauncher(initialState: AccountsState | undefined = refreshedAccountState) {
   const store = createAccountsMenuStore().create()
   const accountUsage = createSnapshotStore<AccountsState | undefined>(initialState)
+  const settingsSectionRequest = createSnapshotStore<string | undefined>(undefined)
   const openSettings = vi.fn()
   const openSection = vi.fn()
   const refreshAccounts = vi.fn()
@@ -50,26 +51,34 @@ function mountLauncher(initialState: AccountsState | undefined = refreshedAccoun
       listener => accountUsage.subscribe(listener),
       () => accountUsage.getSnapshot(),
     ))
+  const useSettingsSectionRequest = <Selected,>(
+    selector: (state: string | undefined) => Selected,
+  ): Selected => selector(useSyncExternalStore(
+    listener => settingsSectionRequest.subscribe(listener),
+    () => settingsSectionRequest.getSnapshot(),
+  ))
   const props = slotTestProps<AccountLauncherProps>({
     wide: true,
     openSettings,
     openSection,
     useAccountUsage,
+    useSettingsSectionRequest,
     refreshAccounts,
+    consumeSettingsSectionRequest: () => { settingsSectionRequest.set(undefined) },
     useStore,
     actions: store.actions,
     t: (key: keyof typeof en) => en[key],
   })
   render(<AccountLauncher {...props} />)
-  return { accountUsage, openSection, openSettings, refreshAccounts, store }
+  return { accountUsage, openSection, openSettings, refreshAccounts, settingsSectionRequest, store }
 }
 
 describe('Harnessy account launcher', () => {
   it('opens a settings section requested by another Harnessy surface', async () => {
     const launcher = mountLauncher()
-    act(() => { launcher.store.actions.requestSection('custom-harness-mcp') })
+    act(() => { launcher.settingsSectionRequest.set('custom-harness-mcp') })
     await waitFor(() => { expect(launcher.openSection).toHaveBeenCalledWith('custom-harness-mcp') })
-    expect(launcher.store.getSnapshot().sectionRequested).toBeUndefined()
+    expect(launcher.settingsSectionRequest.getSnapshot()).toBeUndefined()
   })
 
   it('refreshes and displays the current account quota with an uppercase plan', async () => {

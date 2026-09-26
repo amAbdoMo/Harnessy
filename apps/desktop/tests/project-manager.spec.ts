@@ -6,6 +6,7 @@ import { resolveDesktopPaths } from '../src/paths.ts'
 import { DesktopProjectManager } from '../src/project-manager.ts'
 import { readProfilePlugins } from '@deepseek-ai/dsh-app-boot'
 import { runtimeFixture } from './runtime-fixture.ts'
+import { CUSTOM_HARNESS_PRODUCT } from '../../../scripts/custom-harness-product.mjs'
 
 const roots: string[] = []
 function temporaryRoot(): string {
@@ -43,6 +44,34 @@ afterEach(() => {
 })
 
 describe('desktop external plugin profile', () => {
+  it('initializes the Harnessy product bundles in their required order', async () => {
+    const { manager } = setup()
+    await manager.applyRelease()
+    const manifest = JSON.parse(readFileSync(join(manager.paths.profile, 'package.json'), 'utf8')) as {
+      dsh: { profile: { bundles: string[] } }
+    }
+    expect(manifest.dsh.profile.bundles).toEqual(CUSTOM_HARNESS_PRODUCT.desktopProfileBundles)
+  })
+
+  it('adds the Harnessy product layer to an existing upstream desktop profile without removing plugins', async () => {
+    const { manager } = setup()
+    await manager.applyRelease()
+    seedPlugin(manager)
+    const manifestPath = join(manager.paths.profile, 'package.json')
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
+      dsh: { profile: { bundles: string[] } }
+    }
+    manifest.dsh.profile.bundles = ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', 'plugin']
+    writeFileSync(manifestPath, JSON.stringify(manifest))
+
+    await manager.applyRelease()
+
+    expect((JSON.parse(readFileSync(manifestPath, 'utf8')) as typeof manifest).dsh.profile.bundles).toEqual([
+      ...CUSTOM_HARNESS_PRODUCT.desktopProfileBundles,
+      'plugin',
+    ])
+  })
+
   it('preserves installed packages, profile state, and the lockfile when preparing a launch', async () => {
     const { manager } = setup()
     await manager.applyRelease()
@@ -121,7 +150,7 @@ describe('desktop external plugin profile', () => {
     }
     expect(manifest.dependencies.plugin).toBe('1.0.0')
     expect(manifest.dsh.profile.bundles).not.toContain('plugin')
-    expect(manifest.dsh.profile.bundles).toContain('@deepseek-ai/dsh-web-app')
+    expect(manifest.dsh.profile.bundles).toEqual(CUSTOM_HARNESS_PRODUCT.desktopProfileBundles)
     await manager.applyRelease()
     expect(readFileSync(patch, 'utf8')).toContain('[]')
   })

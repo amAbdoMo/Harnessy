@@ -7,6 +7,7 @@ import { DESKTOP_HOST_PROTOCOL_VERSION } from '../src/host-protocol.ts'
 import { DesktopProjectManager } from '../src/project-manager.ts'
 import { resolveDesktopPaths } from '../src/paths.ts'
 import type { DesktopRelease } from '../src/release.ts'
+import { CUSTOM_HARNESS_PRODUCT } from '../../../scripts/custom-harness-product.mjs'
 
 const roots: string[] = []
 
@@ -87,9 +88,11 @@ describe('desktop development project', () => {
       .toBe(realpathSync(join(dependencies, '@scope', 'dependency')))
     const manifest = JSON.parse(readFileSync(join(project, 'package.json'), 'utf8')) as {
       dependencies: Record<string, string>
+      dsh: { profile: { bundles: string[] } }
     }
     expect(manifest.dependencies['@deepseek-ai/dsh']).toBe('1.2.3')
     expect(manifest.dependencies['@deepseek-ai/dsh-desktop-host']).toBe('1.2.3')
+    expect(manifest.dsh.profile.bundles).toEqual(CUSTOM_HARNESS_PRODUCT.desktopProfileBundles)
     const descriptor = JSON.parse(readFileSync(join(project, 'desktop-runtime.json'), 'utf8')) as { platform: string; arch: string }
     expect(descriptor).toMatchObject({ platform: 'win32', arch: 'x64' })
     const manager = new DesktopProjectManager(resolveDesktopPaths(join(root, 'home')), {

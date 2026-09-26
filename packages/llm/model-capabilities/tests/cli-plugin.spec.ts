@@ -268,6 +268,15 @@ async function mount(
 // package actually publishes rather than a test-local copy of them.
 
 describe('the command-line surface', () => {
+  it('leaves ordinary Web and Desktop flags to their command owner', async () => {
+    const mounted = await mount(['--no-open', '--port', '0'])
+    await new Promise<void>((resolve) => { setTimeout(resolve, 20) })
+    expect(mounted.exits).toEqual([])
+    expect(mounted.out()).toBe('')
+    expect(mounted.err()).toBe('')
+    await mounted.ctx.fiber.dispose()
+  })
+
   it('reports every configured model for --models-sync=check and exits success', async () => {
     const mounted = await mount(['--models-sync=check'])
     await mounted.settle()
@@ -388,12 +397,12 @@ describe('the command-line surface', () => {
     await mounted.ctx.fiber.dispose()
   })
 
-  it('does not run a command when no capability flag was given', async () => {
+  it('does not claim general help when no capability flag was given', async () => {
     const mounted = await mount(['--help'])
     await new Promise<void>((resolve) => { setTimeout(resolve, 20) })
-    // Only commander's own help exit, and no report from the command.
-    expect(mounted.exits).toEqual([0])
-    expect(mounted.out()).toContain('--models-sync')
+    expect(mounted.exits).toEqual([])
+    expect(mounted.out()).toBe('')
+    expect(mounted.err()).toBe('')
     await mounted.ctx.fiber.dispose()
   })
 

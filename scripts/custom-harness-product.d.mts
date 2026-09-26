@@ -16,6 +16,7 @@ export interface CustomHarnessProduct {
     '@deepseek-ai/dsh-web-app',
     '@deepseek-ai/dsh-custom-harness',
   ]
+  readonly nativeDeepSeekOnboarding: boolean
   readonly automaticUpdates: false
   readonly productUrl: string
   readonly supportUrl: string

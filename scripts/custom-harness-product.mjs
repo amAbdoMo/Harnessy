@@ -19,6 +19,7 @@ export const CUSTOM_HARNESS_PRODUCT = Object.freeze({
     '@deepseek-ai/dsh-web-app',
     '@deepseek-ai/dsh-custom-harness',
   ]),
+  nativeDeepSeekOnboarding: false,
   automaticUpdates: false,
   productUrl: 'https://github.com/amAbdoMo/Harnessy',
   supportUrl: 'https://github.com/amAbdoMo/Harnessy/issues',

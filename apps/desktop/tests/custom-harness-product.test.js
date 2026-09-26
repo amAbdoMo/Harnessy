@@ -18,6 +18,7 @@ test('resolves stable packaged state and ignores ambient Harness homes', () => {
     '@deepseek-ai/dsh-web-app',
     '@deepseek-ai/dsh-custom-harness',
   ])
+  assert.equal(CUSTOM_HARNESS_PRODUCT.nativeDeepSeekOnboarding, false)
   assert.equal(CUSTOM_HARNESS_PRODUCT.automaticUpdates, false)
 })
 

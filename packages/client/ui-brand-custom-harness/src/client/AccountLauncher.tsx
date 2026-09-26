@@ -16,8 +16,10 @@ import css from './AccountLauncher.module.css'
 export interface AccountLauncherInjected {
   hooks: {
     accountUsage: ObservableSnapshot<AccountsState | undefined>
+    settingsSectionRequest: ObservableSnapshot<string | undefined>
   }
   refreshAccounts: () => void
+  consumeSettingsSectionRequest: () => void
 }
 
 /** Complete props for the Harnessy sidebar account launcher. */
@@ -70,7 +72,8 @@ function AccountSummary({ name, subtitle, windows }: {
 
 /** Render the active account footer and its compact account/settings menu. */
 export function AccountLauncher({
-  wide, openSettings, openSection, useAccountUsage, useStore, refreshAccounts, actions, t,
+  wide, openSettings, openSection, useAccountUsage, useSettingsSectionRequest,
+  refreshAccounts, consumeSettingsSectionRequest, actions, t,
 }: AccountLauncherProps) {
   const accountState = useAccountUsage(state => state)
   const [open, setOpen] = useState(false)
@@ -82,13 +85,13 @@ export function AccountLauncher({
   const usageWindows = compactUsageWindows(account)
   const accessibleName = [name, subtitle, ...usageWindows.map(window =>
     `${window.label} ${String(Math.round(window.usedPercent))}% ${t('accountsUsedSuffix')}`)].join(', ')
-  const sectionRequested = useStore(state => state.sectionRequested)
+  const sectionRequested = useSettingsSectionRequest(value => value)
 
   useEffect(() => {
     if (sectionRequested === undefined) return
     openSection(sectionRequested)
-    actions.consumeSectionRequest()
-  }, [actions, openSection, sectionRequested])
+    consumeSettingsSectionRequest()
+  }, [consumeSettingsSectionRequest, openSection, sectionRequested])
 
   useEffect(() => {
     if (!open) return
