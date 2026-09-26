@@ -515,8 +515,10 @@ function AccountCard({ account, contexts, provider, busy, consumingReset, editin
         ? (
           <div className={css.usageSection}>
             <UsageScopeSwitch contexts={contexts} selected={account.id} onSelect={onSelectContext} t={t} />
-            <UsageGrid account={account} t={t} />
-            <BankedReset account={account} disabled={busy} consuming={consumingReset} onConsume={onConsumeReset} t={t} />
+            <div className={css.usagePanels}>
+              <UsageGrid account={account} t={t} />
+              <BankedReset account={account} disabled={busy} consuming={consumingReset} onConsume={onConsumeReset} t={t} />
+            </div>
           </div>
         )
         : <p className={css.usageUnavailable}>{t('accountsUsageUnavailable')}</p>}
@@ -553,7 +555,11 @@ function UsageGrid({ account, t }: {
   const windows = account.usage?.windows ?? []
   const nowMs = useUsageClock(windows.some(window => window.resetsAtMs !== undefined))
   if (windows.length === 0) {
-    return <p className={css.usageUnavailable}>{account.usageError ?? t('accountsUsagePending')}</p>
+    return (
+      <div className={css.usageGrid}>
+        <p className={css.usageUnavailable}>{account.usageError ?? t('accountsUsagePending')}</p>
+      </div>
+    )
   }
   return (
     <div className={css.usageGrid}>
@@ -637,7 +643,7 @@ function usageResetLabel(
   const hour = t('accountsDurationHour')
   const minute = t('accountsDurationMinute')
   const duration = days > 0
-    ? `${String(days)}${day}${hours > 0 ? ` ${String(hours)}${hour}` : ''}`
+    ? `${String(days)}${day} ${String(hours)}${hour} ${String(minutes)}${minute}`
     : hours > 0 ? `${String(hours)}${hour} ${String(minutes)}${minute}` : `${String(minutes)}${minute}`
   return `${t('accountsResetsInPrefix')} ${duration}`
 }

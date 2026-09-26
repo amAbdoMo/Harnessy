@@ -220,7 +220,7 @@ describe('Harnessy account manager', () => {
   it('counts down both 5h and weekly resets', async () => {
     const now = Date.UTC(2026, 8, 18, 10, 0)
     const fiveHourReset = now + (2 * 60 + 30) * 60_000
-    const sevenDayReset = now + (3 * 24 + 5) * 60 * 60_000
+    const sevenDayReset = now + ((3 * 24 + 5) * 60 + 12) * 60_000
     vi.spyOn(Date, 'now').mockReturnValue(now)
     const state: AccountsState = {
       ...baseState,
@@ -239,12 +239,12 @@ describe('Harnessy account manager', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: en.accountsManage }))
     expect(await screen.findByText(`${en.accountsResetsInPrefix} 2h 30m`)).toBeTruthy()
-    expect(screen.getByText(`${en.accountsResetsInPrefix} 3d 5h`)).toBeTruthy()
+    expect(screen.getByText(`${en.accountsResetsInPrefix} 3d 5h 12m`)).toBeTruthy()
 
     vi.mocked(Date.now).mockReturnValue(now + 60 * 60_000)
     fireEvent(window, new Event('focus'))
     expect(await screen.findByText(`${en.accountsResetsInPrefix} 1h 30m`)).toBeTruthy()
-    expect(screen.getByText(`${en.accountsResetsInPrefix} 3d 4h`)).toBeTruthy()
+    expect(screen.getByText(`${en.accountsResetsInPrefix} 3d 4h 12m`)).toBeTruthy()
   })
 
   it('localizes Chinese reset durations without English unit abbreviations', async () => {
@@ -255,7 +255,7 @@ describe('Harnessy account manager', () => {
       accounts: [{
         ...baseState.accounts[0]!,
         usage: { windows: [{
-          id: '7d', label: '7d', usedPercent: 20, resetsAtMs: now + (3 * 24 + 5) * 60 * 60_000,
+          id: '7d', label: '7d', usedPercent: 20, resetsAtMs: now + ((3 * 24 + 5) * 60 + 12) * 60_000,
         }] },
       }],
     }
@@ -265,7 +265,26 @@ describe('Harnessy account manager', () => {
     }), undefined, key => zh[key])
 
     fireEvent.click(await screen.findByRole('button', { name: zh.accountsManage }))
-    expect(await screen.findByText(`${zh.accountsResetsInPrefix} 3天 5小时`)).toBeTruthy()
+    expect(await screen.findByText(`${zh.accountsResetsInPrefix} 3天 5小时 12分钟`)).toBeTruthy()
+  })
+
+  it('shows a minutes-only reset countdown under one hour', async () => {
+    const now = Date.UTC(2026, 8, 18, 10, 0)
+    vi.spyOn(Date, 'now').mockReturnValue(now)
+    const state: AccountsState = {
+      ...baseState,
+      accounts: [{
+        ...baseState.accounts[0]!,
+        usage: { windows: [{ id: '5h', label: '5h', usedPercent: 20, resetsAtMs: now + 25 * 60_000 }] },
+      }],
+    }
+    renderManager(operations({
+      describe: vi.fn(async () => ({ state })),
+      refreshUsage: vi.fn(async () => ({ state })),
+    }))
+
+    fireEvent.click(await screen.findByRole('button', { name: en.accountsManage }))
+    expect(await screen.findByText(`${en.accountsResetsInPrefix} 25m`)).toBeTruthy()
   })
 
   it('shows banked resets and reuses the redemption key after a failed attempt', async () => {

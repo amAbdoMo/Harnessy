@@ -260,25 +260,39 @@
 .scopeOption:focus-visible,
 .scopeActive:focus-visible { border-color: var(--dsw-alias-state-business-primary); outline: none; }
 
+.usagePanels {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.usagePanels:has(> .bankedReset) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.usagePanels:has(> .bankedReset) > .usageGrid { grid-column: span 2; }
+
 .usageGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 18px;
+  gap: 12px;
 }
 
-.usageItem { min-width: 0; }
-
+.usageItem,
 .bankedReset {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-top: 12px;
+  min-width: 0;
   padding: 10px 12px;
   border: 0.5px solid var(--dsw-alias-border-l4);
   border-radius: var(--dsw-radius-md);
   background: var(--dsw-alias-bg-layer-1);
 }
+
+.bankedReset {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bankedReset > button { align-self: flex-end; }
 
 .bankedResetCopy {
   display: flex;
@@ -292,13 +306,14 @@
 .bankedResetCopy strong { font-weight: 500; color: var(--dsw-alias-label-primary); }
 .bankedResetCopy span { color: var(--dsw-alias-label-tertiary); }
 .usageLabel { align-items: center; gap: 8px; font-size: 11px; line-height: 17px; }
-.usageLabel strong { font-weight: 600; }
+.usageLabel strong { font-weight: 500; }
 .usageTrack { height: 5px; margin-top: 5px; overflow: hidden; border-radius: 999px; corner-shape: round; background: var(--dsw-alias-interactive-bg-active); }
 .usageFill { display: block; height: 100%; border-radius: inherit; background: var(--dsw-alias-button-primary-fill); }
 .usageFill[data-level='warning'] { background: var(--dsw-static-amber-400); }
 .usageFill[data-level='danger'] { background: var(--dsw-alias-state-error-primary); }
 .resetTime { display: block; margin-top: 4px; font-size: 10px; line-height: 15px; }
 .usageUnavailable { margin-top: 12px; padding-top: 10px; border-top: 0.5px solid var(--dsw-alias-border-l4); }
+.usageGrid > .usageUnavailable { grid-column: 1 / -1; margin-top: 0; padding-top: 0; border-top: 0; }
 .privacy { margin-top: 14px; text-align: center; }
 
 .empty {
@@ -325,5 +340,7 @@
   .keyForm { grid-template-columns: 1fr; }
   .accountHeader { align-items: flex-start; flex-wrap: wrap; }
   .accountActions { width: 100%; justify-content: flex-end; }
+  .usagePanels:has(> .bankedReset) { grid-template-columns: 1fr; }
+  .usagePanels:has(> .bankedReset) > .usageGrid { grid-column: auto; }
   .usageGrid { grid-template-columns: 1fr; }
 }

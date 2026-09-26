@@ -18,7 +18,7 @@ The Host returns both ids plus a `personal` or `workspace` usage scope. Provider
 
 Both full and compact meters use one classifier: normal below 80%, warning from 80%, and danger from 95%. The UI continues to use semantic theme tokens for the three colors.
 
-The full account card presents the short `5h` reset as a minute-based countdown and updates it while the card is open and when the window regains focus or visibility. The `7d` reset remains an absolute local date and time without the redundant year. The compact sidebar refreshes account usage on startup, once per visible minute, and when the window regains focus or visibility; its meter jumps directly to the latest value so returning from another application does not replay stale progress animation.
+The full account card presents both `5h` and `7d` resets as live countdowns; weekly values include days, hours, and minutes, while shorter values omit leading zero units. It updates them while the card is open and when the window regains focus or visibility. The compact sidebar refreshes account usage on startup, once per visible minute, and when the window regains focus or visibility; its meter jumps directly to the latest value so returning from another application does not replay stale progress animation.
 
 Codex automatic switching is an opt-in provider preference evaluated only after every saved membership receives a fresh usage result. Either standard `5h` or `7d` window at 100% makes the active membership exhausted; a replacement must expose at least one standard window and have every exposed standard window below 100%. Selection prefers another seat with the same ChatGPT workspace id, then the same owner's paired Personal or Workspace membership, then another Personal membership when the active membership is Personal. It never crosses between unrelated Workspace memberships and leaves the active credential unchanged when no eligible replacement has capacity.
 
@@ -38,7 +38,7 @@ When automatic switching is enabled, the account controller repeats that refresh
 
 Two workspace members can be saved and switched independently even when their tokens carry the same ChatGPT account id. One person can save Personal and Workspace memberships, compare their independent `5h` and `7d` windows on one card, and choose which membership becomes active.
 
-Reset information stays readable without second-level churn: the short window reports whole remaining minutes, while the weekly window keeps a compact calendar reference. Backgrounded windows catch up immediately when revisited, and the compact sidebar always reflects the newest received snapshot without a width transition.
+Reset information stays readable without second-level churn: the short window reports whole remaining minutes, while the weekly window reports remaining days, hours, and minutes. Backgrounded windows catch up immediately when revisited, and the compact sidebar always reflects the newest received snapshot without a width transition.
 
 The public account view gains `ownerId` and optional `usageScope`. Every public account has an owner id; non-Codex providers use the stored account id because their entries do not expose a separate usage membership. Existing writable Codex vaults migrate on their next account-manager read without exposing source identity claims to the browser.
 
