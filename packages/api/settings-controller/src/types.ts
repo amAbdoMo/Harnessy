@@ -173,7 +173,8 @@ export interface AccountAutoSwitchEvent {
   readonly id: string
   readonly occurredAt: number
   readonly provider: 'openai-codex'
-  readonly limit: '5h' | '7d'
+  readonly reason: 'threshold' | 'quota'
+  readonly limit?: '5h' | '7d'
   readonly from: {
     readonly name: string
     readonly usageScope?: AccountUsageScope

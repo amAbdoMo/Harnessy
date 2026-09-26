@@ -5,14 +5,19 @@ import AuthorizationService from '@deepseek-ai/dsh-authorization'
 import { credentialKey } from '@deepseek-ai/dsh-credentials'
 import { remoteMethods } from '@deepseek-ai/dsh-typert-protocol'
 import AccountsController from '../src/accounts.ts'
+import type { AccountAutoSwitchEvent } from '../src/types.ts'
 import { MemoryCredentials } from '../../../credentials/credentials/tests/memory.ts'
 import { MemorySettings } from './memory-settings.ts'
 
-async function boot(internals: ConstructorParameters<typeof AccountsController>[1] = {}) {
+async function boot(
+  internals: ConstructorParameters<typeof AccountsController>[1] = {},
+  beforeAccounts?: (ctx: Context) => void,
+) {
   const ctx = new Context()
   await ctx.plugin(MemoryCredentials)
   await ctx.plugin(MemorySettings)
   await ctx.plugin(AuthorizationService)
+  beforeAccounts?.(ctx)
   await ctx.plugin(AccountsController, internals)
   return { ctx, controller: ctx.accountsController }
 }
@@ -424,9 +429,9 @@ describe('the Harnessy accounts Remote namespace', () => {
     expect(await ctx.credentials.readRecord(key)).toEqual(second)
   })
 
-  it('switches a Codex account at the pre-request safety threshold', async () => {
+  it('switches a Codex account when rounded usage reaches the displayed safety threshold', async () => {
     let request = 0
-    const fetchUsage = vi.fn(async () => request++ === 0 ? usageResponse(95, 40) : usageResponse(20)) as typeof fetch
+    const fetchUsage = vi.fn(async () => request++ === 0 ? usageResponse(94.6, 40) : usageResponse(20)) as typeof fetch
     const { ctx, controller } = await boot({ fetchUsage, openUrl: async () => {} })
     const key = credentialKey('llm-pi-ai', 'openai-codex')
     const first = codexGrant('first@example.com', 'shared-workspace', {
@@ -459,7 +464,7 @@ describe('the Harnessy accounts Remote namespace', () => {
 
   it('switches and retries after a Codex quota failure reaches the request boundary', async () => {
     let request = 0
-    const fetchUsage = vi.fn(async () => request++ === 0 ? usageResponse(100, 40) : usageResponse(20)) as typeof fetch
+    const fetchUsage = vi.fn(async () => request++ === 0 ? usageResponse(60, 40) : usageResponse(20)) as typeof fetch
     const { ctx, controller } = await boot({ fetchUsage, openUrl: async () => {} })
     const key = credentialKey('llm-pi-ai', 'openai-codex')
     const first = codexGrant('first@example.com', 'shared-workspace', {
@@ -478,6 +483,60 @@ describe('the Harnessy accounts Remote namespace', () => {
       async run() { await ctx.credentials.modifyRecord(key, () => Promise.resolve(second)) },
     })
     await controller.addOAuth('openai-codex', new AbortController().signal)
+    const switches: AccountAutoSwitchEvent[] = []
+    ctx.on('accounts/auto-switched', (event) => { switches.push(event) })
+
+    const agent = {} as Agent
+    const payload = {
+      turn: 1,
+      step: 1,
+      provider: 'openai-codex',
+      failure: { code: 'QUOTA' as const, message: 'usage limit reached' },
+      retryPolicy: undefined,
+      signal: new AbortController().signal,
+    }
+    const action = await agentEvents(ctx, agent).waterfall(
+      'agent/request-error',
+      payload,
+      () => Promise.resolve(undefined),
+    )
+    const secondAction = await agentEvents(ctx, agent).waterfall(
+      'agent/request-error',
+      payload,
+      () => Promise.resolve({ kind: 'retry' as const }),
+    )
+
+    expect(action).toEqual({ kind: 'retry' })
+    expect(secondAction).toBeUndefined()
+    expect(await ctx.credentials.readRecord(key)).toEqual(second)
+    expect(switches).toEqual([expect.objectContaining({ reason: 'quota' })])
+  })
+
+  it('retries with the original Codex account when its refreshed quota has reset', async () => {
+    let request = 0
+    const fetchUsage = vi.fn(async () => request++ === 0 ? usageResponse(10, 20) : usageResponse(20)) as typeof fetch
+    const { ctx, controller } = await boot({ fetchUsage, openUrl: async () => {} })
+    const key = credentialKey('llm-pi-ai', 'openai-codex')
+    const first = codexGrant('first@example.com', 'shared-workspace', {
+      userId: 'user-first', plan: 'business',
+    })
+    const second = codexGrant('second@example.com', 'shared-workspace', {
+      userId: 'user-second', plan: 'business',
+    })
+    await ctx.credentials.modifyRecord(key, () => Promise.resolve(first))
+    await controller.describe()
+    await controller.setAutoSwitch('openai-codex', true)
+    ctx.authorization.registerFlow({
+      key,
+      label: 'OpenAI Codex',
+      methods: [{ id: 'oauth', label: 'Browser login' }],
+      async run() { await ctx.credentials.modifyRecord(key, () => Promise.resolve(second)) },
+    })
+    await controller.addOAuth('openai-codex', new AbortController().signal)
+    const firstAccount = (await controller.describe()).accounts
+      .find(account => account.detail?.startsWith('first@example.com'))
+    expect(firstAccount).toBeDefined()
+    await controller.activate('openai-codex', firstAccount!.id)
 
     const action = await agentEvents(ctx, {} as Agent).waterfall(
       'agent/request-error',
@@ -493,7 +552,88 @@ describe('the Harnessy accounts Remote namespace', () => {
     )
 
     expect(action).toEqual({ kind: 'retry' })
-    expect(await ctx.credentials.readRecord(key)).toEqual(second)
+    expect(await ctx.credentials.readRecord(key)).toEqual(first)
+  })
+
+  it('stops quota recovery before an earlier generic retry listener when every account is exhausted', async () => {
+    const fetchUsage = vi.fn(async () => usageResponse(100, 100)) as typeof fetch
+    const genericRetry = vi.fn()
+    const { ctx, controller } = await boot({ fetchUsage, openUrl: async () => {} }, (context) => {
+      context.on('agent/request-error', async (_payload, next) => {
+        await next()
+        genericRetry()
+        return { kind: 'retry' }
+      })
+    })
+    const key = credentialKey('llm-pi-ai', 'openai-codex')
+    const first = codexGrant('first@example.com', 'shared-workspace', {
+      userId: 'user-first', plan: 'business',
+    })
+    const second = codexGrant('second@example.com', 'shared-workspace', {
+      userId: 'user-second', plan: 'business',
+    })
+    await ctx.credentials.modifyRecord(key, () => Promise.resolve(first))
+    await controller.describe()
+    await controller.setAutoSwitch('openai-codex', true)
+    ctx.authorization.registerFlow({
+      key,
+      label: 'OpenAI Codex',
+      methods: [{ id: 'oauth', label: 'Browser login' }],
+      async run() { await ctx.credentials.modifyRecord(key, () => Promise.resolve(second)) },
+    })
+    await controller.addOAuth('openai-codex', new AbortController().signal)
+    const finalRecovery = vi.fn(async () => ({ kind: 'retry' as const }))
+
+    const action = await agentEvents(ctx, {} as Agent).waterfall(
+      'agent/request-error',
+      {
+        turn: 1,
+        step: 1,
+        provider: 'openai-codex',
+        failure: { code: 'QUOTA', message: 'usage limit reached' },
+        retryPolicy: undefined,
+        signal: new AbortController().signal,
+      },
+      finalRecovery,
+    )
+
+    expect(action).toBeUndefined()
+    expect(genericRetry).not.toHaveBeenCalled()
+    expect(finalRecovery).not.toHaveBeenCalled()
+  })
+
+  it('returns to an earlier Personal account when it regains the most capacity', async () => {
+    let request = 0
+    const fetchUsage = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      const accountId = new Headers(init?.headers).get('chatgpt-account-id')
+      const round = Math.floor(request++ / 2)
+      if (round === 0) return accountId === 'personal-first' ? usageResponse(95) : usageResponse(20)
+      return accountId === 'personal-first' ? usageResponse(10) : usageResponse(100)
+    }) as typeof fetch
+    const { ctx, controller } = await boot({ fetchUsage, openUrl: async () => {} })
+    const key = credentialKey('llm-pi-ai', 'openai-codex')
+    const first = codexGrant('first@example.com', 'personal-first', { userId: 'user-first' })
+    const second = codexGrant('second@example.com', 'personal-second', { userId: 'user-second' })
+    await ctx.credentials.modifyRecord(key, () => Promise.resolve(first))
+    await controller.describe()
+    ctx.authorization.registerFlow({
+      key,
+      label: 'OpenAI Codex',
+      methods: [{ id: 'oauth', label: 'Browser login' }],
+      async run() { await ctx.credentials.modifyRecord(key, () => Promise.resolve(second)) },
+    })
+    await controller.addOAuth('openai-codex', new AbortController().signal)
+    const firstAccount = (await controller.describe()).accounts
+      .find(account => account.detail?.startsWith('first@example.com'))
+    expect(firstAccount).toBeDefined()
+    await controller.activate('openai-codex', firstAccount!.id)
+    await controller.setAutoSwitch('openai-codex', true)
+
+    const switched = await controller.refreshUsage(new AbortController().signal)
+    expect(switched.accounts.find(account => account.detail?.startsWith('second@example.com'))?.active).toBe(true)
+    const returned = await controller.refreshUsage(new AbortController().signal)
+    expect(returned.accounts.find(account => account.detail?.startsWith('first@example.com'))?.active).toBe(true)
+    expect(await ctx.credentials.readRecord(key)).toEqual(first)
   })
 
   it('uses the same owner\'s Workspace membership when their Personal limit is exhausted', async () => {

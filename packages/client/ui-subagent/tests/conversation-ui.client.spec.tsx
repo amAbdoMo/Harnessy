@@ -647,6 +647,75 @@ describe('SubagentHeaderLineage', () => {
     expect(screen.getByRole('treeitem', { name: /interrupted.*当前未运行.*123M tok · 6秒/ })).toBeTruthy()
   })
 
+  it('leads each row secondary line with the exact model id and localized reasoning effort', () => {
+    const second = 'child-2' as SessionId
+    const third = 'child-3' as SessionId
+    const model = 'deepseek-v4.1-flash'
+    const summaries = {
+      [CHILD]: {
+        ...summary(CHILD, 1),
+        parentId: PARENT,
+        origin: 'subagent',
+        running: true,
+        title: '正在扫描项目文件',
+        projectionValues: {
+          modelSelection: {
+            lastUsed: { provider: 'deepseek-official', model, reasoningEffort: 'medium' },
+            next: { provider: 'deepseek-official', model: 'pending-model', reasoningEffort: 'low' },
+          },
+        },
+      },
+      [second]: {
+        ...summary(second, 1),
+        parentId: PARENT,
+        origin: 'subagent',
+        title: '复核补丁',
+        projectionValues: {
+          modelSelection: {
+            lastUsed: null,
+            next: { provider: 'deepseek-official', model: 'deepseek-v4.1-pro', reasoningEffort: 'vendor-tier' },
+          },
+        },
+      },
+      [third]: {
+        ...summary(third, 1),
+        parentId: PARENT,
+        origin: 'subagent',
+        title: '整理结论',
+        projectionValues: {
+          modelSelection: {
+            lastUsed: { provider: 'deepseek-official', model: 'deepseek-v4.1-mini' },
+            next: { provider: 'deepseek-official', model: 'pending-model', reasoningEffort: 'high' },
+          },
+        },
+      },
+    } satisfies Record<SessionId, SessionSummary>
+    const input = props(catalog({
+      entries: [
+        { id: CHILD, mode: 'continuable', label: 'worker', activity: 'running' },
+        { id: second, mode: 'one-shot', label: 'reviewer', activity: 'inactive' },
+        { id: third, mode: 'continuable', label: 'summarizer', activity: 'inactive' },
+      ],
+    }), {}, summaries)
+    render(<HeaderCatalog {...input} />)
+    hoverCatalog(countTrigger())
+
+    const secondary = (name: RegExp): string =>
+      screen.getByRole('treeitem', { name }).querySelector('[class*="summary"]')?.textContent ?? ''
+    // The row ellipsizes its secondary line, so the model route leads and the
+    // truncatable title, mode, and activity follow.
+    expect(secondary(/^worker /))
+      .toBe(`${model} · 中 · 正在扫描项目文件 · 可继续 · 正在运行`)
+    expect(secondary(/^reviewer /))
+      .toBe('deepseek-v4.1-pro · vendor-tier · 复核补丁 · 一次性 · 当前未运行')
+    expect(secondary(/^summarizer /))
+      .toBe('deepseek-v4.1-mini · 整理结论 · 可继续 · 当前未运行')
+    // The accessible name carries the same order for the exact row.
+    expect(screen.getByRole('treeitem', {
+      name: `worker ${model} · 中 · 正在扫描项目文件 · 可继续 · 正在运行`,
+    })).toBeTruthy()
+  })
+
   it('ticks expanded running grandchildren under an idle child and releases their clock on collapse', async () => {
     const now = 2_000_000_000_000
     vi.useFakeTimers()

@@ -20,7 +20,7 @@ Host 返回两个 id，以及 `personal` 或 `workspace` 用量范围。provider
 
 完整账户卡片把 `5h` 和 `7d` 重置时间都显示为实时倒计时；周用量值包含天、小时和分钟，较短的值省略前置零单位。倒计时会在卡片打开期间以及窗口重新获得焦点或可见时更新。紧凑侧边栏会在启动时、可见期间每分钟以及窗口重新获得焦点或可见时刷新账户用量；它的用量条会直接跳到最新值，因此从其他应用返回时不会重播过时的进度动画。
 
-Codex 自动切换是 provider 的可选偏好，仅在所有已保存 membership 都取得最新用量结果后评估。标准 `5h` 或 `7d` 窗口中任意一个达到 100%，当前 membership 就视为已耗尽；替代项必须至少提供一个标准窗口，并且所有已提供的标准窗口都低于 100%。选择顺序依次为具有相同 ChatGPT workspace id 的另一个席位、同一所有者配对的 Personal 或 Workspace membership，以及当前 membership 为 Personal 时的另一个 Personal membership。它绝不会在互不相关的 Workspace membership 之间切换；没有符合条件且有额度的替代项时，当前凭据保持不变。
+Codex 自动切换是 provider 的可选偏好，仅在所有已保存 membership 都取得最新用量结果后评估。标准 `5h` 或 `7d` 窗口中任意一个显示达到 95%，当前 membership 就符合主动切换条件；替代项必须至少提供一个标准窗口，并且所有已提供的标准窗口显示值都低于 95%。选择时先使用标准窗口用量压力最低的符合条件 membership；用量相同时，依次优先选择相同 ChatGPT workspace 中的另一个席位、同一所有者配对的 Personal 或 Workspace membership，以及当前 membership 为 Personal 时的另一个 Personal membership。它绝不会在互不相关的 Workspace membership 之间切换。provider 拒绝额度后会刷新所有账户，可在当前 membership 额度已重置时继续使用它，并且对同一请求最多重试一次；没有可用额度时，请求会停止而不会交给其他重试策略。
 
 启用自动切换后，账户控制器会在 `agent/request` waterfall 中重复执行该刷新与选择；此时请求路由已经确定，但 `prepareCall()` 尚未解析 canonical credential。一次已提交的提升会发出不含秘密的 `accounts/auto-switched` 事件。浏览器把该事件显示为短暂 toast，并在本地通知历史中最多保存 50 条切换记录；历史从 Workspaces 工具栏打开，打开时标记为已读，使用“清除历史记录”即可删除。
 

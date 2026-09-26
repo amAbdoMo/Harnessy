@@ -576,7 +576,7 @@ function BankedReset({ account, disabled, consuming, onConsume, t }: {
   readonly t: AccountsManagerCardProps['t']
 }) {
   const count = account.usage?.resetCredits?.availableCount
-  if (count === undefined) return null
+  if (count === undefined || count === 0) return null
   return (
     <div className={css.bankedReset}>
       <div className={css.bankedResetCopy}>

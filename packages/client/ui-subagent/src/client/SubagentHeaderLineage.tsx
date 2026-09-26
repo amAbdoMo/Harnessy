@@ -105,16 +105,13 @@ function tokenTotal(
       + usage.cacheReadTokens + usage.cacheWriteTokens
 }
 
-/** Exact model id used by the latest request, or selected for the first request. */
-function activeModel(summary: SessionSummary | undefined): string | undefined {
+/** Model route used by the latest request, or selected for the first request. */
+function activeModelRoute(summary: SessionSummary | undefined): {
+  readonly model: string
+  readonly reasoningEffort?: string
+} | undefined {
   const selection = summary?.projectionValues?.modelSelection
-  return selection?.lastUsed?.model ?? selection?.next?.model
-}
-
-/** Reasoning effort used by the latest request, or selected for the first request. */
-function activeReasoningEffort(summary: SessionSummary | undefined): string | undefined {
-  const selection = summary?.projectionValues?.modelSelection
-  return selection?.lastUsed?.reasoningEffort ?? selection?.next?.reasoningEffort
+  return selection?.lastUsed ?? selection?.next ?? undefined
 }
 
 /** Compact localized label for a model route's reasoning effort. */
@@ -311,7 +308,11 @@ function CatalogRows({
           : completed
             ? t('activity.completed')
             : t('activity.inactive')
-        const secondary = [summary?.title, mode, activity, activeModel(summary), reasoningEffortLabel(activeReasoningEffort(summary), t)]
+        const modelRoute = activeModelRoute(summary)
+        const effort = reasoningEffortLabel(modelRoute?.reasoningEffort, t)
+        // The secondary line ellipsizes at its tail, so the model route leads
+        // and only title, mode, and activity can be truncated away.
+        const secondary = [modelRoute?.model, effort, summary?.title, mode, activity]
           .filter(value => value !== undefined)
           .join(' · ')
         const totalTokens = tokenTotal(summary?.projectionValues?.tokenUsage)

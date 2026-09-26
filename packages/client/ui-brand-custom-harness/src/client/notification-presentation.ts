@@ -36,14 +36,18 @@ export function notificationPresentation(
   t: Translate,
 ): NotificationPresentation {
   switch (event.kind) {
-    case 'account-switch':
+    case 'account-switch': {
+      const from = partyLabel(event.from, t)
+      const to = partyLabel(event.to, t)
       return {
         title: t('notificationsSwitchTitle'),
-        message: t('notificationsSwitchMessage')
-          .replace('{from}', partyLabel(event.from, t))
-          .replace('{limit}', event.limit)
-          .replace('{to}', partyLabel(event.to, t)),
+        message: event.reason === 'quota'
+          ? t('notificationsQuotaSwitchMessage').replace('{from}', from).replace('{to}', to)
+          : t('notificationsSwitchMessage').replace('{from}', from)
+            .replace('{limit}', event.limit ?? '')
+            .replace('{to}', to),
       }
+    }
     case 'task-completed':
       return sessionPresentation('notificationsTaskCompletedTitle', 'notificationsTaskCompletedMessage', event.sessionTitle, t)
     case 'task-stopped':

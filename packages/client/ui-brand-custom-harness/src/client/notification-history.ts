@@ -164,8 +164,10 @@ function decodeItem(candidate: unknown): NotificationHistoryItem[] {
   }
   // Records written before the notification center supported Sessions have no kind.
   if (kind !== undefined && kind !== 'account-switch') return []
-  if (candidate.provider !== 'openai-codex'
-    || (candidate.limit !== '5h' && candidate.limit !== '7d')) return []
+  if (candidate.provider !== 'openai-codex') return []
+  const reason = candidate.reason === 'quota' ? 'quota' : 'threshold'
+  const limit = candidate.limit === '5h' || candidate.limit === '7d' ? candidate.limit : undefined
+  if (reason === 'threshold' && limit === undefined) return []
   const from = decodeParty(candidate.from)
   const to = decodeParty(candidate.to)
   if (from === undefined || to === undefined) return []
@@ -174,7 +176,8 @@ function decodeItem(candidate: unknown): NotificationHistoryItem[] {
     occurredAt: candidate.occurredAt,
     kind: 'account-switch',
     provider: candidate.provider,
-    limit: candidate.limit,
+    reason,
+    ...limit === undefined ? {} : { limit },
     from,
     to,
     read: candidate.read,

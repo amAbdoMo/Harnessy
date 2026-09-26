@@ -112,7 +112,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: '@Remote async setAutoSwitch(provider: AccountProviderId, enabled: boolean): Promise<AccountsState>',
-        description: 'Enable or disable automatic Codex failover after a supported quota reaches its limit.',
+        description: 'Enable or disable automatic Codex failover at the displayed 95% safety threshold and after quota refusal.',
         parameters: [{ name: 'provider', description: 'provider whose failover preference changes; only Codex supports it.' }, { name: 'enabled', description: 'whether fresh usage checks may promote an eligible saved account.' }],
         returns: 'the updated public account state with credentials omitted.',
       },
@@ -4554,7 +4554,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AccountAutoSwitchEvent',
-    declaration: 'export interface AccountAutoSwitchEvent {\n    readonly id: string;\n    readonly occurredAt: number;\n    readonly provider: \'openai-codex\';\n    readonly limit: \'5h\' | \'7d\';\n    readonly from: {\n        readonly name: string;\n        readonly usageScope?: AccountUsageScope;\n    };\n    readonly to: {\n        readonly name: string;\n        readonly usageScope?: AccountUsageScope;\n    };\n}',
+    declaration: 'export interface AccountAutoSwitchEvent {\n    readonly id: string;\n    readonly occurredAt: number;\n    readonly provider: \'openai-codex\';\n    readonly reason: \'threshold\' | \'quota\';\n    readonly limit?: \'5h\' | \'7d\';\n    readonly from: {\n        readonly name: string;\n        readonly usageScope?: AccountUsageScope;\n    };\n    readonly to: {\n        readonly name: string;\n        readonly usageScope?: AccountUsageScope;\n    };\n}',
   },
   {
     name: 'AccountBonusBatch',

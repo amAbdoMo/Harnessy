@@ -326,8 +326,10 @@ describe('Harnessy account manager', () => {
       en.accountsBankedResetConfirm.replace('{account}', baseState.accounts[0]!.name),
     )
     expect(consumeResetCredit.mock.calls[1]?.[1]).toBe(consumeResetCredit.mock.calls[0]?.[1])
-    expect(await screen.findByText(en.accountsBankedResetsCount.replace('{count}', '0'))).toBeTruthy()
-    expect(screen.getByRole('button', { name: resetActionName }).hasAttribute('disabled')).toBe(true)
+    await waitFor(() => {
+      expect(screen.queryByText(en.accountsBankedResetsCount.replace('{count}', '0'))).toBeNull()
+      expect(screen.queryByRole('button', { name: resetActionName })).toBeNull()
+    })
   })
 
   it('collects API keys only in the key form and never renders the value afterward', async () => {

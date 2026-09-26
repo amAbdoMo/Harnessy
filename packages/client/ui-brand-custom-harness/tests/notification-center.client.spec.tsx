@@ -10,12 +10,14 @@ import {
   accountSwitchNotification, type HarnessNotificationEvent, NotificationHistoryController,
 } from '../src/client/notification-history.ts'
 import { en } from '../src/client/locales.ts'
+import { notificationPresentation } from '../src/client/notification-presentation.ts'
 import { slotTestProps } from './slot-test-props.ts'
 
 const switchEvent: AccountAutoSwitchEvent = {
   id: 'switch-1',
   occurredAt: Date.UTC(2026, 8, 18, 10, 30),
   provider: 'openai-codex',
+  reason: 'threshold',
   limit: '5h',
   from: { name: 'Abdo', usageScope: 'personal' },
   to: { name: 'Abdo Work', usageScope: 'workspace' },
@@ -78,6 +80,19 @@ describe('Harnessy notification center', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Clear history' }))
     expect(screen.getByText('You’re all caught up')).toBeTruthy()
     expect(restored.history.getSnapshot().items).toEqual([])
+  })
+
+  it('describes a provider-quota recovery without claiming a specific usage window', () => {
+    const event = accountSwitchNotification({
+      id: 'switch-quota',
+      occurredAt: switchEvent.occurredAt,
+      provider: 'openai-codex',
+      reason: 'quota',
+      from: switchEvent.from,
+      to: switchEvent.to,
+    })
+    expect(notificationPresentation(event, t).message)
+      .toBe('Abdo (Personal) reached its provider limit. Retrying with Abdo Work (Workspace).')
   })
 
   it('drops malformed persisted data instead of trusting local storage', () => {

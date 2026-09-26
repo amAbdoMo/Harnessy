@@ -62,7 +62,7 @@ Manage several local identities per provider while keeping one canonical active 
 @Remote async activate(provider: AccountProviderId, accountId: string): Promise<AccountsState>
 
 /**
- * Enable or disable automatic Codex failover after a supported quota reaches its limit.
+ * Enable or disable automatic Codex failover at the displayed 95% safety threshold and after quota refusal.
  * @param provider - provider whose failover preference changes; only Codex supports it.
  * @param enabled - whether fresh usage checks may promote an eligible saved account.
  * @returns the updated public account state with credentials omitted.

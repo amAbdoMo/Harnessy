@@ -108,6 +108,7 @@ export class AccountsController extends TypertRemoteService {
   private readonly fetchUsage: typeof fetch
   private readonly now: () => number
   private usageRefreshTail: Promise<void> = Promise.resolve()
+  private readonly quotaRecoveryAttempts = new WeakMap<object, { readonly turn: number; readonly step: number }>()
 
   /** @param ctx - Host context carrying authorization, credentials, and settings. */
   constructor(ctx: Context, internals: AccountsControllerInternals = {}) {
@@ -127,10 +128,15 @@ export class AccountsController extends TypertRemoteService {
       if (config.provider === 'openai-codex') await this.prepareCodexAccount(signal)
       return config
     })
-    ctx.on('agent/request-error', async ({ provider, failure, signal }, next) => {
+    ctx.on('agent/request-error', async ({ agent, turn, step, provider, failure, signal }, next) => {
       if (provider !== 'openai-codex' || failure.code !== QUOTA_EXCEEDED_CODE) return next()
-      return await this.recoverCodexQuota(signal) ? { kind: 'retry' } : next()
-    })
+      if (!await this.codexAutoSwitchEnabled()) return next()
+      const previous = this.quotaRecoveryAttempts.get(agent)
+      if (previous?.turn === turn && previous.step === step) return undefined
+      if (!await this.recoverCodexQuota(signal)) return undefined
+      this.quotaRecoveryAttempts.set(agent, { turn, step })
+      return { kind: 'retry' }
+    }, { prepend: true })
   }
 
   /**
@@ -282,7 +288,7 @@ export class AccountsController extends TypertRemoteService {
   }
 
   /**
-   * Enable or disable automatic Codex failover after a supported quota reaches its limit.
+   * Enable or disable automatic Codex failover at the displayed 95% safety threshold and after quota refusal.
    * @param provider - provider whose failover preference changes; only Codex supports it.
    * @param enabled - whether fresh usage checks may promote an eligible saved account.
    * @returns the updated public account state with credentials omitted.
@@ -453,6 +459,7 @@ export class AccountsController extends TypertRemoteService {
       id: randomUUID(),
       occurredAt: this.now(),
       provider: 'openai-codex',
+      reason: 'threshold',
       limit,
       from: {
         name: active.name,
@@ -465,6 +472,13 @@ export class AccountsController extends TypertRemoteService {
     }
     this.ctx.emit('accounts/auto-switched', event)
     return next
+  }
+
+  private async codexAutoSwitchEnabled(): Promise<boolean> {
+    const credentials = this.ctx.get('credentials')
+    if (credentials === undefined) return false
+    const vault = await this.readVault(credentials)
+    return vault.providers['openai-codex']?.autoSwitchOnLimit === true
   }
 
   /** Refresh an opted-in Codex route immediately before the model credential is resolved. */
@@ -481,13 +495,16 @@ export class AccountsController extends TypertRemoteService {
     }
   }
 
-  /** Switch after a provider-confirmed quota failure so the open turn can retry instead of stopping. */
+  /** Select a refreshed account after a provider-confirmed quota failure so the open turn can retry once. */
   private async recoverCodexQuota(signal: AbortSignal): Promise<boolean> {
     const credentials = this.ctx.get('credentials')
     if (credentials === undefined) return false
     const before = await this.readVault(credentials)
-    const activeBefore = before.providers['openai-codex']?.activeAccountId
-    if (activeBefore === undefined || before.providers['openai-codex']?.autoSwitchOnLimit !== true) return false
+    const providerBefore = before.providers['openai-codex']
+    if (providerBefore?.autoSwitchOnLimit !== true || providerBefore.activeAccountId === undefined) return false
+    const activeBefore = providerBefore.activeAccountId
+    const failed = providerBefore.accounts[activeBefore]
+    if (failed === undefined) return false
     try {
       await this.refreshUsage(signal)
     } catch (error: unknown) {
@@ -496,7 +513,33 @@ export class AccountsController extends TypertRemoteService {
       return false
     }
     const after = await this.readVault(credentials)
-    return after.providers['openai-codex']?.activeAccountId !== activeBefore
+    const providerAfter = after.providers['openai-codex']
+    if (providerAfter === undefined) return false
+    if (providerAfter.activeAccountId !== activeBefore) return true
+    const refreshedFailed = providerAfter.accounts[activeBefore]
+    if (refreshedFailed === undefined) return false
+    const replacement = bestCodexRecovery(refreshedFailed, Object.values(providerAfter.accounts))
+    if (replacement === undefined) return false
+    if (replacement.id === activeBefore) return true
+    await writeRecord(credentials, providerKey('openai-codex'), replacement.credential)
+    await this.writeVault(credentials, setActive(after, 'openai-codex', replacement.id))
+    const failedIdentity = codexIdentity(refreshedFailed.credential)
+    const replacementIdentity = codexIdentity(replacement.credential)
+    this.ctx.emit('accounts/auto-switched', {
+      id: randomUUID(),
+      occurredAt: this.now(),
+      provider: 'openai-codex',
+      reason: 'quota',
+      from: {
+        name: refreshedFailed.name,
+        ...failedIdentity.usageScope === undefined ? {} : { usageScope: failedIdentity.usageScope },
+      },
+      to: {
+        name: replacement.name,
+        ...replacementIdentity.usageScope === undefined ? {} : { usageScope: replacementIdentity.usageScope },
+      },
+    })
+    return true
   }
 
   private async refreshCodexAccount(account: StoredAccount, signal: AbortSignal): Promise<StoredAccount> {
@@ -848,12 +891,12 @@ function switchableStandardLimit(account: StoredAccount): '5h' | '7d' | undefine
   return standardUsageWindows(account)
     .find((window): window is AccountUsageWindow & { readonly label: '5h' | '7d' } =>
       (window.label === '5h' || window.label === '7d')
-      && window.usedPercent >= CODEX_AUTO_SWITCH_THRESHOLD)?.label
+      && Math.round(window.usedPercent) >= CODEX_AUTO_SWITCH_THRESHOLD)?.label
 }
 
 function accountHasStandardCapacity(account: StoredAccount): boolean {
   const windows = standardUsageWindows(account)
-  return windows.length > 0 && windows.every(window => window.usedPercent < CODEX_AUTO_SWITCH_THRESHOLD)
+  return windows.length > 0 && windows.every(window => Math.round(window.usedPercent) < CODEX_AUTO_SWITCH_THRESHOLD)
 }
 
 function bestCodexReplacement(
@@ -865,8 +908,25 @@ function bestCodexReplacement(
     .filter(candidate => candidate.id !== active.id && accountHasStandardCapacity(candidate))
     .map(candidate => ({ candidate, rank: codexReplacementRank(activeIdentity, codexIdentity(candidate.credential)) }))
     .filter((entry): entry is { readonly candidate: StoredAccount; readonly rank: number } => entry.rank !== undefined)
-    .sort((left, right) => left.rank - right.rank
-      || standardUsagePressure(left.candidate) - standardUsagePressure(right.candidate)
+    .sort((left, right) => standardUsagePressure(left.candidate) - standardUsagePressure(right.candidate)
+      || left.rank - right.rank
+      || left.candidate.createdAt - right.candidate.createdAt)[0]?.candidate
+}
+
+function bestCodexRecovery(
+  failed: StoredAccount,
+  accounts: readonly StoredAccount[],
+): StoredAccount | undefined {
+  const failedIdentity = codexIdentity(failed.credential)
+  return accounts
+    .filter(accountHasStandardCapacity)
+    .map(candidate => ({
+      candidate,
+      rank: candidate.id === failed.id ? 0 : codexReplacementRank(failedIdentity, codexIdentity(candidate.credential)),
+    }))
+    .filter((entry): entry is { readonly candidate: StoredAccount; readonly rank: number } => entry.rank !== undefined)
+    .sort((left, right) => standardUsagePressure(left.candidate) - standardUsagePressure(right.candidate)
+      || left.rank - right.rank
       || left.candidate.createdAt - right.candidate.createdAt)[0]?.candidate
 }
 
