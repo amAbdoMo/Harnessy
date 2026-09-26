@@ -5,6 +5,12 @@ Var dshNewDirectory
 Var dshOldDirectory
 Var dshOldMoved
 Var dshNewMoved
+Var dshRenameSource
+Var dshRenameDestination
+Var dshRenameAttempt
+
+!define DSH_DIRECTORY_RENAME_ATTEMPTS 40
+!define DSH_DIRECTORY_RENAME_DELAY_MS 250
 
 !macro dshExtractPayload FILE
   !ifmacrodef customInstallerExtract
@@ -69,6 +75,30 @@ Function dshCleanupDirectories
   ${EndIf}
 FunctionEnd
 
+Function dshRenameDirectory
+  Pop $dshRenameDestination
+  Pop $dshRenameSource
+  StrCpy $dshRenameAttempt 0
+  dshRenameDirectoryRetry:
+    ClearErrors
+    Rename $dshRenameSource $dshRenameDestination
+    ${IfNot} ${Errors}
+      ClearErrors
+      Return
+    ${EndIf}
+    IntOp $dshRenameAttempt $dshRenameAttempt + 1
+    ${If} $dshRenameAttempt >= ${DSH_DIRECTORY_RENAME_ATTEMPTS}
+      DetailPrint "$dshRenameSource -> $dshRenameDestination"
+      SetErrors
+      Return
+    ${EndIf}
+    !ifmacrodef InstallerDirectoryRenameRetry
+      !insertmacro InstallerDirectoryRenameRetry
+    !endif
+    Sleep ${DSH_DIRECTORY_RENAME_DELAY_MS}
+    Goto dshRenameDirectoryRetry
+FunctionEnd
+
 ; Only directories created or renamed by this installer are removed during rollback.
 Function dshRollbackDirectories
   SetOutPath $PLUGINSDIR
@@ -77,8 +107,9 @@ Function dshRollbackDirectories
     StrCpy $dshNewMoved ""
   ${EndIf}
   ${If} $dshOldMoved == "1"
-    ClearErrors
-    Rename $dshOldDirectory $dshFinalDirectory
+    Push $dshOldDirectory
+    Push $dshFinalDirectory
+    Call dshRenameDirectory
     ${If} ${Errors}
       ; Leave the complete backup in place if another process prevents restoration.
       DetailPrint $dshOldDirectory
@@ -100,7 +131,9 @@ Function dshPromoteDirectories
   SetOutPath $PLUGINSDIR
   ClearErrors
   ${If} ${FileExists} "$dshFinalDirectory\*.*"
-    Rename $dshFinalDirectory $dshOldDirectory
+    Push $dshFinalDirectory
+    Push $dshOldDirectory
+    Call dshRenameDirectory
     ${If} ${Errors}
       Call dshRollbackDirectories
       SetErrors
@@ -111,8 +144,9 @@ Function dshPromoteDirectories
     ; NSIS can create the destination before the install section starts.
     RMDir $dshFinalDirectory
   ${EndIf}
-  ClearErrors
-  Rename $dshNewDirectory $dshFinalDirectory
+  Push $dshNewDirectory
+  Push $dshFinalDirectory
+  Call dshRenameDirectory
   ${If} ${Errors}
     Call dshRollbackDirectories
     SetErrors

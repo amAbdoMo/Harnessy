@@ -10,6 +10,14 @@ LangString decompressionFailed ${LANG_ENGLISH} "Payload extraction failed"
 !macro installApplicationFiles
   !insertmacro dshExtractPayload "${PAYLOAD_FILE}"
 !macroend
+!ifdef TRANSIENT_LOCK
+  !macro InstallerDirectoryRenameRetry
+    Push $9
+    FileOpen $9 "${RELEASE_LOCK_FILE}" w
+    FileClose $9
+    Pop $9
+  !macroend
+!endif
 !ifdef SOURCE_DLL
   LoadLanguageFile "${NSISDIR}\Contrib\Language files\SimpChinese.nlf"
   !include "..\..\installer\strings.nsh"

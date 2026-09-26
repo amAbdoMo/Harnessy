@@ -29,7 +29,7 @@ try {
   $brokenArchive = Join-Path $scratch 'broken.7z'
   [System.IO.File]::WriteAllText($brokenArchive, 'invalid archive')
 
-  foreach ($mode in @('first', 'upgrade', 'locked', 'missing-stage', 'broken', 'cancelled')) {
+  foreach ($mode in @('first', 'upgrade', 'transient-lock', 'locked', 'missing-stage', 'broken', 'cancelled')) {
     $caseRoot = Join-Path $scratch $mode
     $target = Join-Path $caseRoot 'Application'
     New-Item -ItemType Directory -Path $caseRoot | Out-Null
@@ -48,13 +48,41 @@ try {
     if ($FrameLibrary) { $compileArgs += @("/DSOURCE_DLL=$FrameLibrary", "/DREPORT_DIR=$reportDir") }
     if ($mode -eq 'missing-stage') { $compileArgs += '/DMISSING_STAGE' }
     if ($mode -eq 'cancelled') { $compileArgs += '/DCANCELLED' }
+    $releaseLock = Join-Path $caseRoot 'release-lock'
+    if ($mode -eq 'transient-lock') { $compileArgs += @('/DTRANSIENT_LOCK', "/DRELEASE_LOCK_FILE=$releaseLock") }
     Invoke-Checked $Makensis ($compileArgs + $fixture)
     if ($null -ne $SignExecutable) { & $SignExecutable $probe }
     $handle = $null
+    $lockJob = $null
     $process = $null
     try {
       if ($mode -eq 'locked') {
         $handle = [System.IO.File]::Open((Join-Path $target 'asset.txt'), 'Open', 'Read', 'Read')
+      } elseif ($mode -eq 'transient-lock') {
+        $lockReady = Join-Path $caseRoot 'lock-ready'
+        $lockJob = Start-Job -ScriptBlock {
+          param($asset, $ready, $release)
+          $lock = [System.IO.File]::Open($asset, 'Open', 'Read', 'Read')
+          try {
+            [System.IO.File]::WriteAllText($ready, 'ready')
+            $deadline = [DateTime]::UtcNow.AddSeconds(30)
+            while (-not (Test-Path -LiteralPath $release)) {
+              if ([DateTime]::UtcNow -ge $deadline) { throw 'Timed out waiting for the installer rename retry' }
+              Start-Sleep -Milliseconds 25
+            }
+          } finally {
+            $lock.Dispose()
+          }
+        } -ArgumentList (Join-Path $target 'asset.txt'), $lockReady, $releaseLock
+        $deadline = [DateTime]::UtcNow.AddSeconds(10)
+        while (-not (Test-Path -LiteralPath $lockReady)) {
+          if ($lockJob.State -in @('Completed', 'Failed', 'Stopped')) {
+            Receive-Job -Job $lockJob -ErrorAction Stop | Out-Host
+            throw 'Transient-lock helper exited before acquiring the file'
+          }
+          if ([DateTime]::UtcNow -ge $deadline) { throw 'Timed out waiting for the transient file lock' }
+          Start-Sleep -Milliseconds 25
+        }
       }
       $process = Start-Process -FilePath $probe -ArgumentList '/S' -WindowStyle Hidden -PassThru
       if (-not $process.WaitForExit(60000)) {
@@ -62,19 +90,24 @@ try {
         $process.WaitForExit()
         throw "Directory smoke $mode did not exit within 60 seconds"
       }
-      $expectedExit = if ($mode -in @('first', 'upgrade')) { 0 } else { 2 }
+      $expectedExit = if ($mode -in @('first', 'upgrade', 'transient-lock')) { 0 } else { 2 }
       if ($process.ExitCode -ne $expectedExit) {
         throw "Directory smoke $mode exited with $($process.ExitCode), expected $expectedExit"
       }
     } finally {
       if ($null -ne $handle) { $handle.Dispose() }
+      if ($null -ne $lockJob) {
+        if (-not (Wait-Job -Job $lockJob -Timeout 10)) { Stop-Job -Job $lockJob }
+        Receive-Job -Job $lockJob -ErrorAction Stop | Out-Host
+        Remove-Job -Job $lockJob -Force
+      }
       if ($null -ne $process) { $process.Dispose() }
     }
-    $expectedAsset = if ($mode -in @('first', 'upgrade')) { 'new asset' } else { 'old asset' }
+    $expectedAsset = if ($mode -in @('first', 'upgrade', 'transient-lock')) { 'new asset' } else { 'old asset' }
     if ([System.IO.File]::ReadAllText((Join-Path $target 'asset.txt')) -ne $expectedAsset) {
       throw "Directory smoke $mode changed the wrong version"
     }
-    $expectObsolete = $mode -notin @('first', 'upgrade')
+    $expectObsolete = $mode -notin @('first', 'upgrade', 'transient-lock')
     if ((Test-Path -LiteralPath (Join-Path $target 'obsolete.txt')) -ne $expectObsolete) {
       throw "Directory smoke $mode did not preserve the expected old-only file state"
     }
