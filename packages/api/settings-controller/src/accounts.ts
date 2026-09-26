@@ -111,6 +111,13 @@ export class AccountsController extends TypertRemoteService {
     this.openUrl = internals.openUrl ?? openNativeUrl
     this.fetchUsage = internals.fetchUsage ?? fetch
     this.now = internals.now ?? Date.now
+    ctx.inject(['credentials', 'settings'], (providerContext) => {
+      let active = true
+      providerContext.effect(() => () => { active = false }, 'accounts.reconcileProviderRoutes()')
+      void providerContext.settings.whenInitialImportSettles().then(async () => {
+        if (active) await this.reconcileProviderRoutes(providerContext.credentials, providerContext.settings)
+      }).catch((error: unknown) => { ctx.logger.error(error) })
+    })
     ctx.on('agent/request', async ({ signal }, next) => {
       const config = await next()
       if (config.provider === 'openai-codex') await this.prepareCodexAccount(signal)
@@ -576,6 +583,19 @@ export class AccountsController extends TypertRemoteService {
     }))
   }
 
+  /** Restore model routes for active credentials after settings and credentials have loaded. */
+  private async reconcileProviderRoutes(credentials: CredentialProvider, settings: SettingsForms): Promise<void> {
+    const descriptor = settings.describe().find(candidate => candidate.ns === PI_AI_SETTINGS)
+    const providers = descriptor === undefined ? undefined : propertyOf(descriptor.value, 'providers')
+    const operations = []
+    for (const definition of PROVIDERS) {
+      if (await credentials.readRecord(providerKey(definition.id)) === undefined) continue
+      if (isRecord(providers) && Object.hasOwn(providers, definition.id)) continue
+      operations.push({ op: 'set' as const, path: ['providers', definition.id], value: {} })
+    }
+    if (operations.length > 0) await settings.mutate(PI_AI_SETTINGS, operations)
+  }
+
   private async activateProviderRoute(provider: AccountProviderId): Promise<void> {
     await this.settings().mutate(PI_AI_SETTINGS, [{ op: 'set', path: ['providers', provider], value: {} }])
   }
@@ -607,6 +627,10 @@ function providerDefinition(provider: AccountProviderId): ProviderDefinition {
   const definition = PROVIDERS.find(candidate => candidate.id === provider)
   if (definition === undefined) throw unavailable('the requested account provider is not supported')
   return definition
+}
+
+function propertyOf(value: unknown, key: string): unknown {
+  return isRecord(value) ? Reflect.get(value, key) : undefined
 }
 
 function providerKey(provider: AccountProviderId): CredentialKey {

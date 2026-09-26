@@ -11,6 +11,11 @@ export class MemorySettings extends Service {
     super(ctx, 'settings')
   }
 
+  /** Test settings have no legacy import work. */
+  whenInitialImportSettles(): Promise<void> {
+    return Promise.resolve()
+  }
+
   /** Return detached live values in the production descriptor vocabulary. */
   describe(): SettingsDescriptor[] {
     return Object.entries(this.sections).map(([ns, value]) => ({

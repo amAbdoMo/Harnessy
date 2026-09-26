@@ -78,6 +78,20 @@ describe('the Harnessy accounts Remote namespace', () => {
     expect(JSON.stringify(state)).not.toContain('signature')
   })
 
+  it('restores the model route for an active account when the Host starts', async () => {
+    const ctx = new Context()
+    await ctx.plugin(MemoryCredentials)
+    await ctx.plugin(MemorySettings)
+    await ctx.credentials.modifyRecord(credentialKey('llm-pi-ai', 'openai-codex'), () =>
+      Promise.resolve(codexGrant('abdo@example.com', 'account-a')))
+    await ctx.plugin(AccountsController)
+
+    await vi.waitFor(() => {
+      expect(ctx.settings.describe().find(entry => entry.ns === 'llm-pi-ai')?.value)
+        .toEqual({ providers: { 'openai-codex': {} } })
+    })
+  })
+
   it('migrates workspace-only legacy Codex ids without losing the active account', async () => {
     const { ctx, controller } = await boot()
     const credential = codexGrant('abdo@example.com', 'shared-workspace', { userId: 'user-abdo' })
