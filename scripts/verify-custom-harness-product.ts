@@ -3,7 +3,17 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { CUSTOM_HARNESS_PRODUCT, type CustomHarnessProduct } from './custom-harness-product.ts'
+import { CUSTOM_HARNESS_PRODUCT } from './custom-harness-product.ts'
+
+interface ProductIdentityEvidence {
+  readonly displayName: string
+  readonly slug: string
+  readonly windowsAppId: string
+  readonly dataDirectoryName: string
+  readonly nativeDeepSeekOnboarding: boolean
+  readonly automaticUpdates: boolean
+  readonly desktopProfileBundles: readonly string[]
+}
 
 interface RootManifest {
   readonly scripts?: Readonly<Record<string, string>>
@@ -19,11 +29,12 @@ interface BundleManifest {
 }
 
 interface CustomHarnessProductEvidence {
-  readonly product: CustomHarnessProduct
+  readonly product: ProductIdentityEvidence
   readonly rootManifest: RootManifest
   readonly bundleManifest: BundleManifest
   readonly bundlePatch: string
   readonly desktopDevelopmentLauncher: string
+  readonly desktopPackageTarget: string
   readonly windowsWorkflow: string
 }
 
@@ -72,10 +83,6 @@ const DISABLED_STOCK_ROWS = [
   'tool-subagent-fork',
 ] as const
 
-function readJson<T>(path: string): T {
-  return JSON.parse(readFileSync(path, 'utf8')) as T
-}
-
 function hasPatchRow(source: string, id: string): boolean {
   return new RegExp(`^\\s*- id: ${id}\\s*$`, 'mu').test(source)
 }
@@ -84,7 +91,7 @@ function hasDisabledPatchRow(source: string, id: string): boolean {
   return new RegExp(`^\\s*- id: ${id}\\s*\\r?\\n\\s+disabled: true\\s*$`, 'mu').test(source)
 }
 
-function verifyProductIdentity(product: CustomHarnessProduct): string[] {
+function verifyProductIdentity(product: ProductIdentityEvidence): string[] {
   const failures: string[] = []
   if (product.displayName !== 'Harnessy') failures.push('product display name must remain Harnessy')
   if (product.slug !== 'custom-harness') failures.push('product slug must remain custom-harness')
@@ -137,6 +144,12 @@ function verifyDevelopmentAndCi(evidence: CustomHarnessProductEvidence): string[
   if (!evidence.desktopDevelopmentLauncher.includes('resolveCustomHarnessPaths')) {
     failures.push('Desktop development must use the Harnessy state resolver')
   }
+  if (!evidence.desktopPackageTarget.includes("execute(['run', 'build:custom-harness']")) {
+    failures.push('Desktop packaging must build the custom-harness profile')
+  }
+  if (!/['"]--client-profile['"],\s*['"]custom-harness['"]/u.test(evidence.desktopPackageTarget)) {
+    failures.push('Desktop packaging must pack the custom-harness client profile')
+  }
   if (!evidence.windowsWorkflow.includes('run: pnpm run verify:harnessy-product')) {
     failures.push('Harnessy Windows CI must run verify:harnessy-product')
   }
@@ -165,10 +178,11 @@ export function customHarnessProductViolations(evidence: CustomHarnessProductEvi
 export function readCustomHarnessProductEvidence(root: string): CustomHarnessProductEvidence {
   return {
     product: CUSTOM_HARNESS_PRODUCT,
-    rootManifest: readJson<RootManifest>(resolve(root, 'package.json')),
-    bundleManifest: readJson<BundleManifest>(resolve(root, 'packages/bundle/custom-harness/package.json')),
+    rootManifest: JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')) as RootManifest,
+    bundleManifest: JSON.parse(readFileSync(resolve(root, 'packages/bundle/custom-harness/package.json'), 'utf8')) as BundleManifest,
     bundlePatch: readFileSync(resolve(root, 'packages/bundle/custom-harness/cordis.patch.yml'), 'utf8'),
     desktopDevelopmentLauncher: readFileSync(resolve(root, 'apps/desktop/scripts/dev.ts'), 'utf8'),
+    desktopPackageTarget: readFileSync(resolve(root, 'apps/desktop/scripts/package-target.ts'), 'utf8'),
     windowsWorkflow: readFileSync(resolve(root, '.github/workflows/custom-harness-windows.yml'), 'utf8'),
   }
 }

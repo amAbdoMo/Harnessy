@@ -26,6 +26,7 @@ describe('Harnessy product contract', () => {
         .replace('    - id: ui-brand-custom-harness', '    - id: ui-brand-stock')
         .replace('- id: tool-subagent\n  disabled: true', '- id: tool-subagent\n  disabled: false'),
       desktopDevelopmentLauncher: 'await runPackageScript(\'build:official\', REPOSITORY_ROOT)',
+      desktopPackageTarget: "await execute(['run', 'build:official'])\nawait execute(['run', 'release:pack'])\n",
       windowsWorkflow: 'jobs: {}\n',
     }
 
@@ -34,6 +35,8 @@ describe('Harnessy product contract', () => {
     expect(failures).toContain('custom-harness patch must disable stock row tool-subagent')
     expect(failures).toContain('Desktop development must build the custom-harness profile')
     expect(failures).toContain('Desktop development must use the Harnessy state resolver')
+    expect(failures).toContain('Desktop packaging must build the custom-harness profile')
+    expect(failures).toContain('Desktop packaging must pack the custom-harness client profile')
     expect(failures).toContain('Harnessy Windows CI must run verify:harnessy-product')
     expect(failures).toContain('custom-harness bundle is missing @deepseek-ai/dsh-subagent-roster')
   })

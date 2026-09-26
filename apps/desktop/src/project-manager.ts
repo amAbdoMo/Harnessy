@@ -26,6 +26,7 @@ import {
   initProfile, readProfileManifest, removeLinkProjections, sanitizeProfile, writeProfileBundles,
 } from '@deepseek-ai/dsh-app-boot'
 import { CUSTOM_HARNESS_PRODUCT } from '../../../scripts/custom-harness-product.mjs'
+import { migrateLegacyProfileCorePackages } from './legacy-profile-migration.ts'
 
 const PROJECT_NAME = '@deepseek-ai/dsh-desktop-runtime'
 const DSH_PACKAGE = '@deepseek-ai/dsh'
@@ -85,6 +86,7 @@ export class DesktopProjectManager {
     await this.withLock(() => {
       // Validation only: an unreadable or mismatched runtime descriptor stops preparation before the Host starts.
       readDesktopRuntime(this.runtime.dsh)
+      migrateLegacyProfileCorePackages(this.paths.profile)
       migrateProfileSettings(this.paths.profile)
       createPluginProfile(this.paths.profile)
       removeLinkProjections(this.paths.profile)

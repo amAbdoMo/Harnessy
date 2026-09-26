@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-09-26-harnessy-legacy-profile-core-migration.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-26-harnessy-legacy-profile-core-migration.md
+/agent-note-migrate-released-harnessy-profiles-away-from-bundled-core-copies:
+  en: e7c84f98b20d043a
+  zh: e5184638cdd937cb
+/agent-note-migrate-released-harnessy-profiles-away-from-bundled-core-copies/problem:
+  en: fb3702285c8bf0b8
+  zh: f6ec7cb8ed26b7a5
+/agent-note-migrate-released-harnessy-profiles-away-from-bundled-core-copies/decision:
+  en: 7e3ada83f07a3169
+  zh: 70e08e5c94327e12
+/agent-note-migrate-released-harnessy-profiles-away-from-bundled-core-copies/alternatives-considered:
+  en: 21a1e25454f86d53
+  zh: c0133da11e2089a0
+/agent-note-migrate-released-harnessy-profiles-away-from-bundled-core-copies/consequences:
+  en: 6435f43a3970b63f
+  zh: 5587a2db72ddabeb

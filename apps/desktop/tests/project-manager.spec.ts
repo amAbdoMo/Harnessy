@@ -7,6 +7,7 @@ import { DesktopProjectManager } from '../src/project-manager.ts'
 import { readProfilePlugins } from '@deepseek-ai/dsh-app-boot'
 import { runtimeFixture } from './runtime-fixture.ts'
 import { CUSTOM_HARNESS_PRODUCT } from '../../../scripts/custom-harness-product.mjs'
+import { LEGACY_PROFILE_CORE_MIGRATION_FILE } from '../src/legacy-profile-migration.ts'
 
 const roots: string[] = []
 function temporaryRoot(): string {
@@ -103,6 +104,36 @@ describe('desktop external plugin profile', () => {
     expect(files.map(file => readFileSync(join(profile, file), 'utf8'))).toEqual(before)
     expect(lstatSync(path).isDirectory()).toBe(true)
     expect(lstatSync(join(profile, 'node_modules/plugin')).isDirectory()).toBe(true)
+  })
+
+  it('migrates a released legacy package inventory before starting the Host', async () => {
+    const { manager } = setup()
+    await manager.applyRelease()
+    seedPlugin(manager)
+    const profile = manager.paths.profile
+    const core = '@deepseek-ai/dsh-web-app'
+    const names = ['@deepseek-ai/dsh', '@deepseek-ai/dsh-custom-harness', '@deepseek-ai/dsh-desktop-host', core]
+      .sort((left, right) => left.localeCompare(right))
+    writeFileSync(join(profile, 'desktop-packages.json'), JSON.stringify({
+      schemaVersion: 1,
+      packages: names.map((name, index) => ({
+        name, version: '0.1.5-alpha.1', file: `${String(index)}.tgz`, bytes: 1, integrity: 'sha512-YQ==',
+      })),
+    }))
+    const manifestPath = join(profile, 'package.json')
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { dependencies: Record<string, string> }
+    manifest.dependencies[core] = 'file:./desktop-packages/core.tgz'
+    writeFileSync(manifestPath, JSON.stringify(manifest))
+    mkdirSync(join(profile, 'node_modules', core), { recursive: true })
+    writeFileSync(join(profile, 'node_modules', core, 'package.json'), JSON.stringify({ name: core, version: '0.1.5-alpha.1' }))
+    writeFileSync(join(profile, 'pnpm-lock.yaml'), 'legacy resolutions\n')
+
+    await manager.applyRelease()
+
+    expect(existsSync(join(profile, 'node_modules', core))).toBe(false)
+    expect(existsSync(join(profile, 'node_modules/plugin/package.json'))).toBe(true)
+    expect(existsSync(join(profile, 'pnpm-lock.yaml'))).toBe(false)
+    expect(existsSync(join(profile, LEGACY_PROFILE_CORE_MIGRATION_FILE))).toBe(true)
   })
   it('reuses plugin files without scanning manifests and can disable them', async () => {
     const { manager } = setup()

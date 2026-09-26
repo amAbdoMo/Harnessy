@@ -447,8 +447,18 @@ export async function packageTarget(
         { cwd: APP_ROOT, env: electronBuilderEnv, timeoutMs: 60_000 })
     })
   }
-  await execute(['run', 'build:official'], buildEnv, REPOSITORY_ROOT)
-  await execute(['run', 'release:pack', '--family', 'dsh', '--out', buildPaths.packedDsh, ...packArguments], buildEnv, REPOSITORY_ROOT)
+  await execute(['run', 'build:custom-harness'], buildEnv, REPOSITORY_ROOT)
+  await execute([
+    'run',
+    'release:pack',
+    '--family',
+    'dsh',
+    '--client-profile',
+    'custom-harness',
+    '--out',
+    buildPaths.packedDsh,
+    ...packArguments,
+  ], buildEnv, REPOSITORY_ROOT)
   await execute([
     '--dir',
     'apps/desktop-host',

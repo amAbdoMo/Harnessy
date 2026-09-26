@@ -95,7 +95,7 @@ On macOS the custom menu retains Electron's standard Window menu and application
 The signed `resources/app.asar/dsh/desktop-runtime.json` binds the shell version, Electron's Node version, platform, architecture, shared package versions, and final file inventory. Startup reads the metadata and checks shared package records. Release schema, shell version, target compatibility, and file integrity are verified during packaging. Core packages are never copied into profile storage or installed by pnpm at first launch.
 
 1. The main window loads the shared Web loading page offscreen from packaged static assets before profile preparation or backend startup. Shared profile initialization creates missing manifest, empty user patch, and pnpm workspace files without overwriting existing files.
-2. Before Host startup, Desktop validates the runtime descriptor and prepares the profile without modifying installed packages, declarations, or the lockfile; it removes only the `.dsh-module-fallback` projections earlier link-backend launches wrote, and startup never runs pnpm. Packages inside the profile keep native precedence, and installation package names resolve through the runtime resolution ([lookup order](../../.agents/notes/implemented/architecture/2026-09-19-profile-resolution-lookup-order.md); [cleanup removal](../../.agents/notes/implemented/simplification/2026-09-19-remove-desktop-profile-core-cleanup.md)).
+2. Before Host startup, Desktop validates the runtime descriptor and prepares the profile. A one-time compatibility migration recognizes the package inventory written by released legacy Harnessy profiles, removes only those application-owned package copies and their dependency declarations or overrides, discards the stale lockfile when package state changes, and writes its completion marker last. Other plugins, bundle selections, configuration, credentials, MCP servers, and sessions remain. Profiles without that inventory and profiles already marked migrated keep installed packages, declarations, and lockfiles unchanged; startup also removes `.dsh-module-fallback` projections from earlier link-backend launches and never runs pnpm ([legacy migration](../../.agents/notes/implemented/bug-fix/2026-09-26-harnessy-legacy-profile-core-migration.md); [lookup order](../../.agents/notes/implemented/architecture/2026-09-19-profile-resolution-lookup-order.md)).
 3. Changes to Electron's Node version, platform, or architecture preserve installed plugins. Native incompatibilities surface during loading and can be repaired through pnpm.
 4. The main application’s Plugins page uses the shared [plugin manager](../../packages/boot/plugin-manager/README.md) against the Desktop profile. Package operations use bundled pnpm with normal user and profile configuration.
 5. The shared manager owns installation errors, activation, and restart requirements. Native recovery can disable third-party bundles even when the Host cannot start.
@@ -191,7 +191,7 @@ pnpm --dir apps/desktop run check:package
 pnpm run package:desktop
 ```
 
-Release automation uses fixed target commands so runtime preparation, dsh preparation, and electron-builder receive the same platform and architecture:
+Release automation uses fixed target commands so runtime preparation, dsh preparation, and electron-builder receive the same platform and architecture. Every Desktop package builds and packs the `custom-harness` client profile; `verify:harnessy-product` rejects a packaging path that falls back to the stock client:
 
 ```sh
 pnpm run package:desktop:mac:arm64
