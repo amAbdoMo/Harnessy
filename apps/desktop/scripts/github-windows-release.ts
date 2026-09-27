@@ -61,7 +61,8 @@ async function releaseInputs(): Promise<{ version: string; tag: string; assets: 
     || !('commit' in record) || typeof record.commit !== 'string' || !/^[a-f\d]{40}$/u.test(record.commit)
     || !('dirty' in record) || record.dirty !== false
     || !('signerThumbprint' in record) || typeof record.signerThumbprint !== 'string'
-    || !/^[A-F\d]{40}$/u.test(record.signerThumbprint)) {
+    || !/^[A-F\d]{40}$/u.test(record.signerThumbprint)
+    || !('artifacts' in record) || !Array.isArray(record.artifacts) || record.artifacts.length !== 3) {
     throw new Error('Harnessy release: production package completion record is missing, dirty, or does not match')
   }
   const tag = `v${version}`
@@ -76,6 +77,19 @@ async function releaseInputs(): Promise<{ version: string; tag: string; assets: 
     if (!info.isFile() || info.size === 0) throw new Error(`Harnessy release: missing artifact ${path}`)
     return info
   }))
+  const localArtifacts = await Promise.all(assets.map(async (path, index) => ({
+    name: names[index], size: assetStats[index]!.size, sha256: await hashFile(path, 'sha256', 'hex'),
+  })))
+  if (record.artifacts.some((entry: unknown) => typeof entry !== 'object' || entry === null
+    || !('name' in entry) || typeof entry.name !== 'string'
+    || !('size' in entry) || typeof entry.size !== 'number'
+    || !('sha256' in entry) || typeof entry.sha256 !== 'string'
+    || !localArtifacts.some(local => local.name === entry.name && local.size === entry.size && local.sha256 === entry.sha256))
+    || localArtifacts.some(local => !record.artifacts.some((entry: unknown) => typeof entry === 'object' && entry !== null
+      && 'name' in entry && local.name === entry.name && 'size' in entry && local.size === entry.size
+      && 'sha256' in entry && local.sha256 === entry.sha256))) {
+    throw new Error('Harnessy release: packaged artifact bytes do not match the completion record')
+  }
   const signature = await inspectWindowsRuntimeSignature(assets[0]!)
   if (signature.status !== 'Valid' || !signature.timestamped || signature.thumbprint !== record.signerThumbprint) {
     throw new Error('Harnessy release: installer lacks the packaged signer identity and a valid timestamp')
@@ -120,16 +134,18 @@ async function verifyDraft(tag: string, assetPaths: readonly string[]): Promise<
 }
 
 const command = process.argv[2]
-if (command !== 'draft' && command !== 'verify' && command !== 'publish') {
-  throw new Error('Usage: github-windows-release.ts <draft|verify|publish>')
+if (command !== 'check' && command !== 'draft' && command !== 'verify' && command !== 'publish') {
+  throw new Error('Usage: github-windows-release.ts <check|draft|verify|publish>')
 }
 const { version, tag, assets } = await releaseInputs()
-const repo = `${CUSTOM_HARNESS_PRODUCT.updateRepository.owner}/${CUSTOM_HARNESS_PRODUCT.updateRepository.repo}`
-if (command === 'draft') {
-  runGh(['release', 'create', tag, ...assets, '--repo', repo, '--draft', '--verify-tag', '--title', `Harnessy v${version}`, '--generate-notes'])
-}
-await verifyDraft(tag, assets)
-if (command === 'publish') {
-  runGh(['release', 'edit', tag, '--repo', repo, '--draft=false', '--latest'])
+if (command !== 'check') {
+  const repo = `${CUSTOM_HARNESS_PRODUCT.updateRepository.owner}/${CUSTOM_HARNESS_PRODUCT.updateRepository.repo}`
+  if (command === 'draft') {
+    runGh(['release', 'create', tag, ...assets, '--repo', repo, '--draft', '--verify-tag', '--title', `Harnessy v${version}`, '--generate-notes'])
+  }
+  await verifyDraft(tag, assets)
+  if (command === 'publish') {
+    runGh(['release', 'edit', tag, '--repo', repo, '--draft=false', '--latest'])
+  }
 }
 console.info(`HARNESSY_GITHUB_RELEASE ${command} ${tag}`)

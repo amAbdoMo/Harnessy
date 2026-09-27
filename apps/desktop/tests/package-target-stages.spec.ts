@@ -25,10 +25,17 @@ vi.mock('../scripts/windows-signature-cache-directory.mjs', () => ({
 }))
 
 // Keep the real orchestration and manifest reads; this suite owns no release directories or subprocesses.
-vi.mock('node:fs', async importOriginal => ({
-  ...await importOriginal<typeof import('node:fs')>(),
-  rmSync: vi.fn(), mkdirSync: vi.fn(), writeFileSync: vi.fn(), renameSync: vi.fn(),
-}))
+vi.mock('node:fs', async (importOriginal) => {
+  const original = await importOriginal<typeof import('node:fs')>()
+  return {
+    ...original,
+    readFileSync: vi.fn((path: Parameters<typeof original.readFileSync>[0], options?: Parameters<typeof original.readFileSync>[1]) =>
+      /Harnessy-Setup-.*(?:\.exe|\.blockmap)$|latest\.yml$/u.test(String(path))
+        ? Buffer.from('artifact')
+        : original.readFileSync(path, options)),
+    rmSync: vi.fn(), mkdirSync: vi.fn(), writeFileSync: vi.fn(), renameSync: vi.fn(),
+  }
+})
 
 afterEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks() })
 
@@ -72,8 +79,24 @@ it('requires one signing preflight before building, then records only the comple
     }
   }
   expect(writeFileSync).toHaveBeenCalledOnce()
-  const record = JSON.parse(vi.mocked(writeFileSync).mock.calls[0]![1] as string) as { publicUrl: string }
+  const record = JSON.parse(vi.mocked(writeFileSync).mock.calls[0]![1] as string) as {
+    publicUrl: string
+    artifacts: { name: string; size: number; sha256: string }[]
+  }
   expect(record.publicUrl).toBe('https://updates.example.com/dsh-desk/0123456789abcdef0123456789abcdef/feeds/win-x64/')
+  expect(record.artifacts.map(({ name, size }) => ({ name, size }))).toEqual([
+    { name: 'Harnessy-Setup-0.1.7-rc.2-win-x64.exe', size: 8 },
+    { name: 'Harnessy-Setup-0.1.7-rc.2-win-x64.exe.blockmap', size: 8 },
+    { name: 'latest.yml', size: 8 },
+  ])
+})
+
+it('refuses a non-production dotenv before the signing preflight when production is required', async () => {
+  const { run, stages } = supervisor()
+  const invocation = parseDesktopPackageInvocation(['win-x64', '--require-production'], 'win32', 'x64')
+  await expect(packageTarget(invocation, environment, run)).rejects.toThrow(/DSH_DESKTOP_AUTO_UPDATE_ENV=production/)
+  expect(stages).toEqual([])
+  expect(writeFileSync).not.toHaveBeenCalled()
 })
 
 it('initializes shared storage only after acquiring the preflight stage lock', async () => {

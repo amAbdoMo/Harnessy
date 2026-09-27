@@ -1,13 +1,14 @@
 /** Build one release target with matching Electron and dsh architecture. */
 
 import { spawn } from 'node:child_process'
-import { X509Certificate } from 'node:crypto'
+import { X509Certificate, createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 import { join, resolve } from 'node:path'
 import {
   desktopBuildRecordFilename,
   resolveDesktopAutoUpdateConfig,
+  resolveDesktopAutoUpdateEnvironment,
 } from './desktop-auto-update-environment.mjs'
 import { desktopTargetBuildPaths } from './desktop-build-paths.mjs'
 import { packageMacOSArtifacts, type DesktopPrepackagedArtifact } from './package-macos.ts'
@@ -23,6 +24,7 @@ import { resolveMacOSNotarizationEnvironment } from './desktop-release-environme
 import { DESKTOP_BUILD_VERSION_ENV, resolveDesktopBuildVersion, validateDesktopBuildVersion } from './desktop-build-version.mjs'
 import { suggestDesktopBuildVersion } from './desktop-build-version-discovery.ts'
 import { desktopBuildCommitEnvironment, readDesktopBuildCommit, resolveDesktopBuildCommit } from './desktop-build-commit.mjs'
+import { CUSTOM_HARNESS_PRODUCT } from '../../../scripts/custom-harness-product.mjs'
 import { requireDesktopToolchain } from './desktop-toolchain-preflight.ts'
 import { withMacOSNotarizationProxy } from './macos-notarization-proxy.ts'
 
@@ -154,6 +156,14 @@ function writeReleaseRecord(
     if (certificateFile === undefined) throw new Error('desktop package: Windows certificate file is required for the release record')
     signerThumbprint = new X509Certificate(readFileSync(certificateFile)).fingerprint.replaceAll(':', '').toUpperCase()
   }
+  const releaseArtifacts = target.platform === 'win32'
+    ? [`${CUSTOM_HARNESS_PRODUCT.installerName}-${buildVersion}-win-x64.exe`,
+      `${CUSTOM_HARNESS_PRODUCT.installerName}-${buildVersion}-win-x64.exe.blockmap`, 'latest.yml']
+      .map((name) => {
+        const bytes = readFileSync(join(artifactsRoot, name))
+        return { name, size: bytes.byteLength, sha256: createHash('sha256').update(bytes).digest('hex') }
+      })
+    : undefined
   const temporaryPath = `${recordPath}.tmp`
   writeFileSync(temporaryPath, `${JSON.stringify({
     schemaVersion: 1,
@@ -162,6 +172,7 @@ function writeReleaseRecord(
     environment: update.environment,
     publicUrl: update.publicUrl,
     ...signerThumbprint === undefined ? {} : { signerThumbprint },
+    ...releaseArtifacts === undefined ? {} : { artifacts: releaseArtifacts },
     // Upload reads this to tag the commit a production release was packaged from.
     ...packaged === undefined ? {} : { commit: packaged.commit, dirty: packaged.dirty },
   }, null, 2)}\n`)
@@ -205,6 +216,8 @@ interface DesktopPackageInvocation {
   readonly prepareOnly: boolean
   readonly unsigned: boolean
   readonly check: boolean
+  /** Whether this invocation refuses a non-production update deployment. */
+  readonly requireProduction: boolean
   /** Build identifier to publish under, when this build does not publish the product version. */
   readonly requestedBuildVersion: string | undefined
 }
@@ -237,6 +250,7 @@ export function parseDesktopPackageInvocation(
       'prepare-only': { type: 'boolean', default: false },
       unsigned: { type: 'boolean', default: false },
       check: { type: 'boolean', default: false },
+      'require-production': { type: 'boolean', default: false },
       'build-version': { type: 'string' },
     },
   })
@@ -254,6 +268,7 @@ export function parseDesktopPackageInvocation(
     prepareOnly: values['prepare-only'],
     unsigned: values.unsigned,
     check: values.check,
+    requireProduction: values['require-production'],
     requestedBuildVersion,
   }
 }
@@ -337,10 +352,17 @@ async function resolveRequestedBuildVersion(
   })
 }
 
+function requireRequestedDeployment(invocation: DesktopPackageInvocation, environment: NodeJS.ProcessEnv): void {
+  if (invocation.requireProduction && resolveDesktopAutoUpdateEnvironment(environment) !== 'production') {
+    throw new Error('desktop package: --require-production requires DSH_DESKTOP_AUTO_UPDATE_ENV=production in the target dotenv file')
+  }
+}
+
 async function main(): Promise<void> {
   const invocation = parseDesktopPackageInvocation(process.argv.slice(2))
   const { target } = invocation
   const environment = loadDesktopPackageEnvironment(target.platform)
+  requireRequestedDeployment(invocation, environment)
   const productVersion = packageVersion(join(APP_ROOT, 'package.json'), 'desktop package')
   // Release settings come from the target dotenv file alone, so the version this run publishes is an
   // argument; the environment variable below only carries it to the child processes that build.
@@ -404,6 +426,7 @@ export async function packageTarget(
   run: ReturnType<typeof createPackagingRun> | undefined,
 ): Promise<void> {
   const { target } = invocation
+  requireRequestedDeployment(invocation, environment)
   const execute = (args: readonly string[], env: NodeJS.ProcessEnv, cwd: string = APP_ROOT) => runPnpm(args, env, cwd, run)
   const journal = target.platform === 'darwin' ? process.env.DSH_DESKTOP_PACKAGING_RUN_DIR : undefined
   const proxyEvent = (status: string) => { if (journal) recordPackagingEvent(journal, { type: 'notarization-proxy', status }) }
