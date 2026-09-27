@@ -1,4 +1,4 @@
-import { writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { afterEach, expect, it, vi } from 'vitest'
 import { packageTarget, parseDesktopPackageInvocation } from '../scripts/package-target.ts'
@@ -49,7 +49,8 @@ const environment = { DSH_DESKTOP_APP_ID: 'com.example.test', DSH_DESKTOP_AUTO_U
   DSH_DESKTOP_WINDOWS_CER_FILE: import.meta.filename,
   DSH_DESKTOP_WINDOWS_TOKEN_PIN: 'fixture-pin', DSH_DESKTOP_WINDOWS_SIGNATURE_CACHE_CONCURRENCY: '2' }
 const productionEnvironment = { DSH_DESKTOP_APP_ID: 'com.example.test', DSH_DESKTOP_AUTO_UPDATE_ENV: 'production' }
-const releaseArtifacts = ['Harnessy-Setup-0.1.7-rc.2-win-x64.exe', 'Harnessy-Setup-0.1.7-rc.2-win-x64.exe.blockmap', 'latest.yml']
+const desktopVersion = (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version
+const releaseArtifacts = [`Harnessy-Setup-${desktopVersion}-win-x64.exe`, `Harnessy-Setup-${desktopVersion}-win-x64.exe.blockmap`, 'latest.yml']
   .map(name => ({ name, size: 8, sha256: createHash('sha256').update(Buffer.from('artifact')).digest('hex') }))
 
 function supervisor(failure?: string) {
@@ -95,8 +96,8 @@ it('requires one signing preflight before building, then records only the comple
   expect(record.publicUrl).toBe('https://updates.example.com/dsh-desk/0123456789abcdef0123456789abcdef/feeds/win-x64/')
   expect(record.signatureMode).toBe('signed')
   expect(record.artifacts.map(({ name, size }) => ({ name, size }))).toEqual([
-    { name: 'Harnessy-Setup-0.1.7-rc.2-win-x64.exe', size: 8 },
-    { name: 'Harnessy-Setup-0.1.7-rc.2-win-x64.exe.blockmap', size: 8 },
+    { name: `Harnessy-Setup-${desktopVersion}-win-x64.exe`, size: 8 },
+    { name: `Harnessy-Setup-${desktopVersion}-win-x64.exe.blockmap`, size: 8 },
     { name: 'latest.yml', size: 8 },
   ])
 })
@@ -166,7 +167,7 @@ it('builds the release-unsigned installer set without a certificate or any signi
   expect(writeFileSync).toHaveBeenCalledOnce()
   expect(String(vi.mocked(writeFileSync).mock.calls[0]![0])).toMatch(/targets[\\/]win-x64[\\/]artifacts[\\/]win-x64-release\.json\.tmp$/u)
   expect(JSON.parse(vi.mocked(writeFileSync).mock.calls[0]![1] as string)).toEqual({
-    schemaVersion: 1, target: 'win-x64', version: '0.1.7-rc.2', environment: 'production',
+    schemaVersion: 1, target: 'win-x64', version: desktopVersion, environment: 'production',
     publicUrl: 'https://download.deepseek.com/dsh-desk/feeds/win-x64/', signatureMode: 'unsigned',
     artifacts: releaseArtifacts,
   })
