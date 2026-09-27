@@ -73,17 +73,21 @@ function requireReadableFile(environment, name) {
  * Validate release configuration before preparation without invoking a token or Apple's services.
  * @param {NodeJS.ProcessEnv} environment File-owned release settings.
  * @param {{ platform: 'win32' | 'darwin', arch: string }} target Selected release target.
- * @param {{ unsigned?: boolean, prepareOnly?: boolean }} options Explicit packaging mode.
+ * @param {{ signatureMode?: 'signed' | 'local-unsigned' | 'release-unsigned', prepareOnly?: boolean }} options Explicit packaging mode.
  * @returns {void}
  */
 export function validateDesktopPackageEnvironment(environment, target, options = {}) {
+  const signatureMode = options.signatureMode ?? 'signed'
   resolveDesktopAppId(environment)
   resolveNpmRegistry(environment)
   resolveDesktopPolicyEnvironment(environment)
   if (target.platform === 'darwin') resolveMacOSPackageSettings(environment)
   else resolveWindowsPackageSettings(environment)
-  if (options.unsigned) return
+  if (signatureMode === 'local-unsigned') return
+  // A release-unsigned build still ships through the production updater, so its feed is validated.
   if (!options.prepareOnly) resolveDesktopAutoUpdateConfig(environment, target.platform, target.arch)
+  // Without Authenticode there is no certificate, token, or notarization input to resolve.
+  if (signatureMode === 'release-unsigned') return
   if (target.platform === 'win32') {
     if (!options.prepareOnly) createWindowsTokenSigner({
       certificateFile: environment.DSH_DESKTOP_WINDOWS_CER_FILE,

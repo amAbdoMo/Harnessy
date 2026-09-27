@@ -6,10 +6,10 @@
  * exists cannot be withdrawn safely. This command therefore fixes the order:
  * validate both worktrees, commit the stable version when the manifests still
  * declare another one, run the focused updater gate, tag the exact commit, create
- * or reuse its verified signed artifact, push the tag, create and verify the
+ * or reuse its byte-verified release artifact, push the tag, create and verify the
  * draft, then fast-forward and lease-protect `master`.
  *
- * Before the signed package passes the local release-input check, only the
+ * Before the release package passes the local release-input check, only the
  * version commit and local tag can change. The remote tag and verified draft
  * may remain after a later master race, but master never moves before draft
  * verification. Publishing the draft is a separate command this script never calls.
@@ -46,13 +46,13 @@ const DESKTOP_MANIFEST = `${DESKTOP_DIRECTORY}/package.json`
 const VERSION_SCRIPT = 'release:dsh'
 
 /** Hardware-free production configuration and Windows toolchain preflight. */
-const PACKAGE_CHECK_SCRIPT = 'check:package:win:x64:production'
+const PACKAGE_CHECK_SCRIPT = 'check:package:win:x64:release-unsigned'
 
-/** Focused updater regression gate run before the hardware signing attempt. */
+/** Focused updater regression gate run before the release build. */
 const QUALIFY_SCRIPT = 'release:win:x64:qualify'
 
-/** Existing command that builds and signs the production Windows x64 artifact. */
-const PACKAGE_SCRIPT = 'package:win:x64:production'
+/** Existing command that builds the production Windows x64 update artifact. */
+const PACKAGE_SCRIPT = 'package:win:x64:release-unsigned'
 
 /** Existing command that validates the packaged release inputs without network writes. */
 const CHECK_SCRIPT = 'release:github:win:x64:check'
@@ -60,7 +60,7 @@ const CHECK_SCRIPT = 'release:github:win:x64:check'
 /** Existing command that creates the GitHub draft release. */
 const DRAFT_SCRIPT = 'release:github:win:x64:draft'
 
-/** Existing command that requires the draft to hold the exact signed artifact set. */
+/** Existing command that requires the draft to hold the exact release artifact set. */
 const VERIFY_SCRIPT = 'release:github:win:x64:verify'
 
 /** One external command an approval step runs. */
@@ -118,9 +118,9 @@ export interface PromoteWindowsReleaseOptions {
   readonly confirm: PromoteConfirmation
   /** Master worktree named by `--master`, when the operator named one. */
   readonly masterPath?: string
-  /** Host platform, checked against the signed Windows target. */
+  /** Host platform, checked against the Windows release target. */
   readonly platform?: NodeJS.Platform
-  /** Host architecture, checked against the signed Windows target. */
+  /** Host architecture, checked against the Windows release target. */
   readonly arch?: string
   /** Reads the file-owned update deployment; tests substitute production. */
   readonly releaseEnvironment?: (stagingRoot: string) => 'test' | 'production'
@@ -202,13 +202,13 @@ export function approvalPhrase(tag: string): string {
 }
 
 /**
- * Refuse a host that cannot build the signed Windows x64 artifact.
+ * Refuse a host that cannot build the Windows x64 release artifact.
  * @param platform - Host Node.js platform.
  * @param arch - Host Node.js architecture.
  */
 export function requireWindowsX64Host(platform: NodeJS.Platform = process.platform, arch: string = process.arch): void {
   if (platform !== 'win32' || arch !== 'x64') {
-    throw new Error(`promote: the signed Windows x64 release requires a Windows x64 host, got ${platform}-${arch}`)
+    throw new Error(`promote: the Windows x64 release requires a Windows x64 host, got ${platform}-${arch}`)
   }
 }
 
@@ -486,7 +486,7 @@ async function ensureFamilyVersion(session: PromoteSession, version: string): Pr
 }
 
 /**
- * Refuse a release tag that already names another commit before hardware signing.
+ * Refuse a release tag that already names another commit before packaging.
  * @param session - Approval state.
  * @param tag - Release tag.
  * @param commit - Qualified commit the tag must name.
@@ -516,13 +516,13 @@ async function ensureLocalTag(session: PromoteSession, tag: string, commit: stri
 }
 
 /**
- * Reuse a byte-verified signed package from an interrupted run, or create it once.
+ * Reuse a byte-verified release package from an interrupted run, or create it once.
  * @param session - Approval state.
  */
 async function ensureSignedArtifacts(session: PromoteSession): Promise<void> {
   const check = pnpmScript(session.stagingRoot, DESKTOP_DIRECTORY, CHECK_SCRIPT)
   if (session.adapter.inspect(check).status === 0) {
-    session.log('promote: reusing the signed package already verified for this commit and tag')
+    session.log('promote: reusing the release package already byte-verified for this commit and tag')
     return
   }
   await session.adapter.run(pnpmScript(session.stagingRoot, DESKTOP_DIRECTORY, PACKAGE_SCRIPT))
@@ -603,7 +603,7 @@ async function pushMaster(session: PromoteSession, masterRoot: string, commit: s
 /**
  * Create the GitHub draft, or accept the verified draft a repeated run left.
  *
- * A draft that exists but does not hold the exact signed artifact set fails the
+ * A draft that exists but does not hold the exact release artifact set fails the
  * draft command instead of being replaced, because replacing a release is a
  * separate operator decision.
  * @param session - Approval state.
@@ -615,7 +615,7 @@ async function ensureDraft(session: PromoteSession): Promise<boolean> {
     session.log('promote: the verified GitHub draft already exists')
     return false
   }
-  session.log('promote: creating the GitHub draft and requiring the exact signed artifact set')
+  session.log('promote: creating the GitHub draft and requiring the exact release artifact set')
   await session.adapter.run(pnpmScript(session.stagingRoot, DESKTOP_DIRECTORY, DRAFT_SCRIPT))
   await session.adapter.run(verify)
   return true
@@ -632,7 +632,7 @@ function releaseEnvironment(stagingRoot: string): 'test' | 'production' {
 }
 
 /**
- * Approve one signed Windows x64 release from the staging worktree.
+ * Approve one Windows x64 release from the staging worktree.
  *
  * The returned result reports what this run did, so a repeated run reports the
  * steps it skipped rather than repeating them.
@@ -665,7 +665,7 @@ export async function promoteWindowsRelease(options: PromoteWindowsReleaseOption
   log(`promote: master worktree  ${masterPath}`)
   log(`promote: origin          ${officialOrigin()}`)
   log(`promote: origin/master   ${readGit(session, masterPath, ['rev-parse', 'origin/master'])}`)
-  log(`promote: ${tag} will be qualified, signed, and drafted; master moves only after the draft is verified`)
+  log(`promote: ${tag} will be qualified, packaged, and drafted; master moves only after the draft is verified`)
   if (!await options.confirm(phrase)) throw new Error(`promote: declined; type "${phrase}" to approve a release`)
 
   await ensureFamilyVersion(session, version)

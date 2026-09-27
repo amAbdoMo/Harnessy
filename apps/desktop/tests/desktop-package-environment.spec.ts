@@ -11,6 +11,7 @@ const POLICY = { DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: 'https://policy.examp
   DSH_DESKTOP_MANDATORY_UPDATE_CONFIG: JSON.stringify({ allowedAuthOrigins: ['https://login.example.com'] }) }
 const RELEASE = { ...POLICY, DSH_DESKTOP_APP_ID: 'com.example.desktop', DOWNLOAD_TEST_ORIGIN: 'https://updates.example.com',
   DOWNLOAD_TEST_RELEASE_ID: '0123456789abcdef0123456789abcdef' }
+const PRODUCTION = { DSH_DESKTOP_AUTO_UPDATE_ENV: 'production', DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN: 'https://policy.example.com' }
 const MAC_IDENTITY = { DSH_DESKTOP_MACOS_SIGNING_IDENTITY: 'Example Company (TEAMID1234)', DSH_DESKTOP_MACOS_TEAM_ID: 'TEAMID1234' }
 
 async function withDirectory(action: (directory: string) => Promise<void>): Promise<void> {
@@ -40,7 +41,7 @@ describe('Desktop local packaging configuration', () => {
 
   it.each(['', '0', '-1', '9', '1.5', 'Infinity', '01'])('rejects invalid cache concurrency %s', (value) => {
     expect(() => resolveWindowsPackageSettings({ DSH_DESKTOP_WINDOWS_SIGNATURE_CACHE_CONCURRENCY: value })).toThrow('integer from 1 to 8')
-    for (const options of [{ unsigned: true }, { prepareOnly: true }]) {
+    for (const options of [{ signatureMode: 'local-unsigned' as const }, { prepareOnly: true }]) {
       expect(() => {
         validateDesktopPackageEnvironment({ ...RELEASE, DSH_DESKTOP_WINDOWS_SIGNATURE_CACHE_CONCURRENCY: value }, WINDOWS, options)
       }).toThrow('integer from 1 to 8')
@@ -120,7 +121,7 @@ describe('Desktop local packaging configuration', () => {
 
   it('checks application and update configuration before Windows credentials while preserving unsigned and preparation modes', () => {
     expect(() => {
-      validateDesktopPackageEnvironment({}, WINDOWS, { unsigned: true })
+      validateDesktopPackageEnvironment({}, WINDOWS, { signatureMode: 'local-unsigned' })
     }).toThrow(/DSH_DESKTOP_APP_ID/u)
     expect(() => {
       validateDesktopPackageEnvironment({ DSH_DESKTOP_APP_ID: 'invalid' }, WINDOWS)
@@ -132,21 +133,41 @@ describe('Desktop local packaging configuration', () => {
       validateDesktopPackageEnvironment(RELEASE, WINDOWS)
     }).toThrow(/DSH_DESKTOP_WINDOWS_CER_FILE/u)
     expect(() => {
-      validateDesktopPackageEnvironment({ ...POLICY, DSH_DESKTOP_APP_ID: RELEASE.DSH_DESKTOP_APP_ID }, WINDOWS, { unsigned: true })
+      validateDesktopPackageEnvironment({ ...POLICY, DSH_DESKTOP_APP_ID: RELEASE.DSH_DESKTOP_APP_ID }, WINDOWS, { signatureMode: 'local-unsigned' })
     }).not.toThrow()
     expect(() => {
       validateDesktopPackageEnvironment({ ...POLICY, DSH_DESKTOP_APP_ID: RELEASE.DSH_DESKTOP_APP_ID }, WINDOWS, { prepareOnly: true })
     }).not.toThrow()
   })
 
+  it('validates the production update deployment for release-unsigned without any certificate input', () => {
+    const production = { ...PRODUCTION, DSH_DESKTOP_APP_ID: RELEASE.DSH_DESKTOP_APP_ID }
+    expect(() => {
+      validateDesktopPackageEnvironment(production, WINDOWS, { signatureMode: 'release-unsigned' })
+    }).not.toThrow()
+    // The signed mode still requires the certificate these fields would resolve.
+    expect(() => {
+      validateDesktopPackageEnvironment(production, WINDOWS)
+    }).toThrow(/DSH_DESKTOP_WINDOWS_CER_FILE/u)
+    expect(() => {
+      validateDesktopPackageEnvironment({ ...production, DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN: undefined }, WINDOWS, { signatureMode: 'release-unsigned' })
+    }).toThrow(/DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN/u)
+    expect(() => {
+      validateDesktopPackageEnvironment({ ...production, DSH_DESKTOP_WINDOWS_SIGNATURE_CACHE_CONCURRENCY: '9' }, WINDOWS, { signatureMode: 'release-unsigned' })
+    }).toThrow(/integer from 1 to 8/u)
+    expect(() => {
+      validateDesktopPackageEnvironment({ ...production, DSH_DESKTOP_MANDATORY_UPDATE_CONFIG: 'not-json' }, WINDOWS, { signatureMode: 'release-unsigned' })
+    }).toThrow(/must be valid JSON/u)
+  })
+
   it('accepts one local npm registry mirror and rejects other registry forms', () => {
     const release = { ...POLICY, DSH_DESKTOP_APP_ID: RELEASE.DSH_DESKTOP_APP_ID }
     expect(() => {
-      validateDesktopPackageEnvironment({ ...release, DSH_DESKTOP_NPM_REGISTRY: 'https://registry.npmmirror.com/' }, WINDOWS, { unsigned: true })
+      validateDesktopPackageEnvironment({ ...release, DSH_DESKTOP_NPM_REGISTRY: 'https://registry.npmmirror.com/' }, WINDOWS, { signatureMode: 'local-unsigned' })
     }).not.toThrow()
     for (const value of ['http://registry.example.com/', 'https://registry.example.com/path', 'https://user:secret@registry.example.com/', 'not-a-url']) {
       expect(() => {
-        validateDesktopPackageEnvironment({ ...release, DSH_DESKTOP_NPM_REGISTRY: value }, WINDOWS, { unsigned: true })
+        validateDesktopPackageEnvironment({ ...release, DSH_DESKTOP_NPM_REGISTRY: value }, WINDOWS, { signatureMode: 'local-unsigned' })
       }).toThrow(/DSH_DESKTOP_NPM_REGISTRY/u)
     }
   })

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { Arch, Platform } from 'electron-builder'
 import { Packager } from 'app-builder-lib'
 import { describe, expect, it, vi } from 'vitest'
+import { CUSTOM_HARNESS_PRODUCT } from '../../../scripts/custom-harness-product.mjs'
 
 const { execute } = vi.hoisted(() => ({ execute: vi.fn(async () => undefined) }))
 vi.mock('node:child_process', async (importOriginal) => {
@@ -10,6 +11,18 @@ vi.mock('node:child_process', async (importOriginal) => {
   const { promisify } = await import('node:util')
   return { ...original, execFile: Object.assign(vi.fn(), { [promisify.custom]: execute }) }
 })
+
+/** Production release settings for an unsigned Windows release, which carries no certificate field. */
+function releaseUnsignedEnvironment(): NodeJS.ProcessEnv {
+  return {
+    DSH_DESKTOP_APP_ID: 'com.example.installer',
+    DSH_DESKTOP_AUTO_UPDATE_ENV: 'production',
+    DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN: 'https://policy.example.com',
+    DSH_DESKTOP_TARGET_PLATFORM: 'win32',
+    DSH_DESKTOP_TARGET_ARCH: 'x64',
+    DSH_DESKTOP_RELEASE_UNSIGNED: '1',
+  }
+}
 
 describe('installer preparation preserves application dependencies', () => {
   it.each(['win32', 'darwin'] as const)('rejects a missing production policy before signing on %s', async (platform) => {
@@ -74,7 +87,41 @@ describe('installer preparation preserves application dependencies', () => {
       DSH_DESKTOP_TARGET_ARCH: 'x64',
       DSH_DESKTOP_UNSIGNED: '1',
     }, 'win32', 'x64')
-    expect(config.artifactName).toBe('deepseek-harness-${version}-${os}-${arch}-unsigned.${ext}')
+    expect(config.artifactName).toBe(`${CUSTOM_HARNESS_PRODUCT.installerName}-\${version}-\${os}-\${arch}-unsigned.\${ext}`)
+  })
+
+  it('packages the release-unsigned installer under the release name with the GitHub production feed', async () => {
+    const { createElectronBuilderConfig } = await import('../scripts/electron-builder-config.mjs')
+    const config = createElectronBuilderConfig(releaseUnsignedEnvironment(), 'win32', 'x64')
+    // No suffix and the normal artifact directory: these bytes are the release, not a local build.
+    expect(config.artifactName).toBe(`${CUSTOM_HARNESS_PRODUCT.installerName}-\${version}-\${os}-\${arch}.\${ext}`)
+    expect(config.directories.output.replaceAll('\\', '/')).toMatch(/\/targets\/win-x64\/artifacts$/u)
+    expect(config).toMatchObject({
+      // Without a publisher name electron-updater verifies the download through latest.yml's SHA-512.
+      win: { forceCodeSigning: false, verifyUpdateCodeSignature: false, signtoolOptions: { sign: undefined, publisherName: undefined } },
+      publish: [{ provider: 'github', owner: CUSTOM_HARNESS_PRODUCT.updateRepository.owner,
+        repo: CUSTOM_HARNESS_PRODUCT.updateRepository.repo, channel: 'latest', releaseType: 'release' }],
+      extraMetadata: { dshDesktopUpdateEnvironment: 'production' },
+    })
+  })
+
+  it('refuses a release-unsigned build that would not reach the GitHub production feed', async () => {
+    const { createElectronBuilderConfig } = await import('../scripts/electron-builder-config.mjs')
+    const release = releaseUnsignedEnvironment()
+    expect(() => createElectronBuilderConfig({ ...release, DSH_DESKTOP_TARGET_PLATFORM: 'darwin', DSH_DESKTOP_TARGET_ARCH: 'arm64' }, 'darwin', 'arm64'))
+      .toThrow(/release-unsigned builds require Windows/u)
+    expect(() => createElectronBuilderConfig({ ...release, DSH_DESKTOP_RELEASE_UNSIGNED: 'yes' }, 'win32', 'x64'))
+      .toThrow(/DSH_DESKTOP_RELEASE_UNSIGNED must be 0 or 1/u)
+    expect(() => createElectronBuilderConfig({ ...release, DSH_DESKTOP_UNSIGNED: '1' }, 'win32', 'x64'))
+      .toThrow(/local and release unsigned modes are mutually exclusive/u)
+    expect(() => createElectronBuilderConfig({
+      ...release,
+      DSH_DESKTOP_AUTO_UPDATE_ENV: 'test',
+      DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: 'https://policy.example.com',
+      DSH_DESKTOP_MANDATORY_UPDATE_CONFIG: JSON.stringify({ allowedAuthOrigins: ['https://login.example.com'] }),
+      DOWNLOAD_TEST_ORIGIN: 'https://updates.example.com',
+      DOWNLOAD_TEST_RELEASE_ID: '0123456789abcdef0123456789abcdef',
+    }, 'win32', 'x64')).toThrow(/production GitHub update feed/u)
   })
 
   it('packages every preload entry point the shell loads', async () => {

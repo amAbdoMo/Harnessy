@@ -1,4 +1,4 @@
-/** Draft, verify, and explicitly publish one signed stable Harnessy Windows update release. */
+/** Draft, verify, and explicitly publish one stable Harnessy Windows update release. */
 import { createReadStream } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
 import { spawnSync } from 'node:child_process'
@@ -9,7 +9,6 @@ import { prerelease, valid } from 'semver'
 import { CUSTOM_HARNESS_PRODUCT } from '../../../scripts/custom-harness-product.mjs'
 import { desktopBuildRecordFilename } from './desktop-auto-update-environment.mjs'
 import { desktopTargetBuildPaths } from './desktop-build-paths.mjs'
-import { inspectWindowsRuntimeSignature } from './windows-runtime-signature.mjs'
 
 interface ReleaseAsset { readonly name?: unknown; readonly size?: unknown; readonly digest?: unknown }
 interface ReleaseView {
@@ -60,8 +59,7 @@ async function releaseInputs(): Promise<{ version: string; tag: string; assets: 
     || !('environment' in record) || record.environment !== 'production'
     || !('commit' in record) || typeof record.commit !== 'string' || !/^[a-f\d]{40}$/u.test(record.commit)
     || !('dirty' in record) || record.dirty !== false
-    || !('signerThumbprint' in record) || typeof record.signerThumbprint !== 'string'
-    || !/^[A-F\d]{40}$/u.test(record.signerThumbprint)
+    || !('signatureMode' in record) || record.signatureMode !== 'unsigned'
     || !('artifacts' in record) || !Array.isArray(record.artifacts) || record.artifacts.length !== 3) {
     throw new Error('Harnessy release: production package completion record is missing, dirty, or does not match')
   }
@@ -90,10 +88,6 @@ async function releaseInputs(): Promise<{ version: string; tag: string; assets: 
       && 'sha256' in entry && local.sha256 === entry.sha256))) {
     throw new Error('Harnessy release: packaged artifact bytes do not match the completion record')
   }
-  const signature = await inspectWindowsRuntimeSignature(assets[0]!)
-  if (signature.status !== 'Valid' || !signature.timestamped || signature.thumbprint !== record.signerThumbprint) {
-    throw new Error('Harnessy release: installer lacks the packaged signer identity and a valid timestamp')
-  }
   const metadata: unknown = load(await readFile(assets[2]!, 'utf8'))
   if (typeof metadata !== 'object' || metadata === null || !('version' in metadata) || metadata.version !== version
     || !('files' in metadata) || !Array.isArray(metadata.files) || metadata.files.length !== 1) {
@@ -106,7 +100,7 @@ async function releaseInputs(): Promise<{ version: string; tag: string; assets: 
     throw new Error('Harnessy release: latest.yml artifact identity is incomplete')
   }
   if (file.size !== assetStats[0]!.size || file.sha512 !== await hashFile(assets[0]!, 'sha512', 'base64')) {
-    throw new Error('Harnessy release: latest.yml does not match the signed installer bytes')
+    throw new Error('Harnessy release: latest.yml does not match the release installer bytes')
   }
   return { version, tag, assets }
 }
@@ -129,7 +123,7 @@ async function verifyDraft(tag: string, assetPaths: readonly string[]): Promise<
   if (view.tagName !== tag || view.isDraft !== true || view.isPrerelease !== false
     || expected.length !== assets.length || expected.some(local => local.name === undefined
       || !assets.some(remote => remote.name === local.name && remote.size === local.size && remote.digest === local.digest))) {
-    throw new Error('Harnessy release: GitHub draft is not the complete byte-identical signed stable artifact set')
+    throw new Error('Harnessy release: GitHub draft is not the complete byte-identical stable artifact set')
   }
 }
 

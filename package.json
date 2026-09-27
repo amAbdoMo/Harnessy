@@ -43,7 +43,7 @@
     "package:desktop:win:x64:dir": "pnpm --filter @deepseek-ai/dsh-desktop run package:win:x64:dir",
     "package:desktop:win:x64:local": "pnpm --filter @deepseek-ai/dsh-desktop run package:win:x64:local",
     "package:desktop:win:x64:local:dir": "pnpm --filter @deepseek-ai/dsh-desktop run package:win:x64:local:dir",
-    "release:win:x64:qualify": "vitest run apps/desktop/tests/update-coordinator.spec.ts apps/desktop/tests/update-schedule.spec.ts apps/desktop/tests/main-startup.spec.ts apps/desktop/tests/github-windows-release.spec.ts apps/desktop/tests/promote-windows-release.spec.ts apps/desktop/tests/package-target-stages.spec.ts packages/client/ui-settings-general/tests --testTimeout 15000",
+    "release:win:x64:qualify": "vitest run apps/desktop/tests/update-coordinator.spec.ts apps/desktop/tests/update-schedule.spec.ts apps/desktop/tests/main-startup.spec.ts apps/desktop/tests/github-windows-release.spec.ts apps/desktop/tests/promote-windows-release.spec.ts apps/desktop/tests/package-target.spec.ts apps/desktop/tests/package-target-stages.spec.ts apps/desktop/tests/desktop-package-environment.spec.ts packages/client/ui-settings-general/tests --testTimeout 15000 && vitest run apps/desktop/tests/installer-packaging.spec.ts -t release-unsigned --testTimeout 15000",
     "release:win:x64:approve": "tsx apps/desktop/scripts/promote-windows-release.ts",
     "release:win:x64:publish": "pnpm --dir apps/desktop run release:github:win:x64:publish",
     "upload:mac:arm64": "pnpm --filter @deepseek-ai/dsh-desktop run upload:mac:arm64",

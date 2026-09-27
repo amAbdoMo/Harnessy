@@ -1,4 +1,5 @@
 import { writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { afterEach, expect, it, vi } from 'vitest'
 import { packageTarget, parseDesktopPackageInvocation } from '../scripts/package-target.ts'
 import { withMacOSNotarizationProxy } from '../scripts/macos-notarization-proxy.ts'
@@ -6,9 +7,13 @@ import { packageMacOSArtifacts } from '../scripts/package-macos.ts'
 import { withWindowsSigningStage } from '../scripts/windows-signing-stage.mjs'
 import { prepareWindowsSignatureCacheDirectory } from '../scripts/windows-signature-cache-directory.mjs'
 
+const certificates = vi.hoisted(() => ({ constructed: vi.fn() }))
 vi.mock('node:crypto', async importOriginal => ({
   ...await importOriginal<typeof import('node:crypto')>(),
-  X509Certificate: class { readonly fingerprint = Array(20).fill('AA').join(':') },
+  X509Certificate: class {
+    readonly fingerprint = Array(20).fill('AA').join(':')
+    constructor(...args: unknown[]) { certificates.constructed(...args) }
+  },
 }))
 vi.mock('../scripts/macos-notarization-proxy.ts', () => ({
   withMacOSNotarizationProxy: vi.fn(async (_proxy: string | undefined, action: () => Promise<void>) => action()),
@@ -43,6 +48,9 @@ const environment = { DSH_DESKTOP_APP_ID: 'com.example.test', DSH_DESKTOP_AUTO_U
   DOWNLOAD_TEST_ORIGIN: 'https://updates.example.com', DOWNLOAD_TEST_RELEASE_ID: '0123456789abcdef0123456789abcdef',
   DSH_DESKTOP_WINDOWS_CER_FILE: import.meta.filename,
   DSH_DESKTOP_WINDOWS_TOKEN_PIN: 'fixture-pin', DSH_DESKTOP_WINDOWS_SIGNATURE_CACHE_CONCURRENCY: '2' }
+const productionEnvironment = { DSH_DESKTOP_APP_ID: 'com.example.test', DSH_DESKTOP_AUTO_UPDATE_ENV: 'production' }
+const releaseArtifacts = ['Harnessy-Setup-0.1.7-rc.2-win-x64.exe', 'Harnessy-Setup-0.1.7-rc.2-win-x64.exe.blockmap', 'latest.yml']
+  .map(name => ({ name, size: 8, sha256: createHash('sha256').update(Buffer.from('artifact')).digest('hex') }))
 
 function supervisor(failure?: string) {
   vi.stubEnv('npm_execpath', 'fixture-pnpm.cjs')
@@ -81,9 +89,11 @@ it('requires one signing preflight before building, then records only the comple
   expect(writeFileSync).toHaveBeenCalledOnce()
   const record = JSON.parse(vi.mocked(writeFileSync).mock.calls[0]![1] as string) as {
     publicUrl: string
+    signatureMode: string
     artifacts: { name: string; size: number; sha256: string }[]
   }
   expect(record.publicUrl).toBe('https://updates.example.com/dsh-desk/0123456789abcdef0123456789abcdef/feeds/win-x64/')
+  expect(record.signatureMode).toBe('signed')
   expect(record.artifacts.map(({ name, size }) => ({ name, size }))).toEqual([
     { name: 'Harnessy-Setup-0.1.7-rc.2-win-x64.exe', size: 8 },
     { name: 'Harnessy-Setup-0.1.7-rc.2-win-x64.exe.blockmap', size: 8 },
@@ -131,6 +141,57 @@ it.each(['--unsigned', '--prepare-only'])('keeps %s hardware-free and creates no
   for (const call of run.run.mock.calls) expect(call[3].env).not.toHaveProperty('DSH_DESKTOP_WINDOWS_TOKEN_PIN')
   expect(writeFileSync).not.toHaveBeenCalled()
   expect(stages.includes('exec tsx scripts/smoke-packaged-runtime.ts --unsigned')).toBe(mode === '--unsigned')
+})
+
+it('builds the release-unsigned installer set without a certificate or any signing hardware', async () => {
+  const { run, stages } = supervisor()
+  const signing = { DSH_DESKTOP_WINDOWS_CER_FILE: import.meta.filename, DSH_DESKTOP_WINDOWS_TOKEN_PIN: 'fixture-pin',
+    DSH_DESKTOP_WINDOWS_SIGNATURE_CACHE_CONCURRENCY: '2', CSC_LINK: 'fixture.pfx', CSC_KEY_PASSWORD: 'fixture' }
+  await packageTarget(parseDesktopPackageInvocation(['win-x64', '--release-unsigned'], 'win32', 'x64'),
+    { ...productionEnvironment, ...signing }, run)
+  expect(stages).not.toContain('preflight:windows-signing')
+  expect(stages.filter(stage => stage.startsWith('run sign:primary-runtime'))).toEqual([])
+  expect(withWindowsSigningStage).not.toHaveBeenCalled()
+  expect(prepareWindowsSignatureCacheDirectory).not.toHaveBeenCalled()
+  for (const call of run.run.mock.calls) {
+    expect(call[3].env).not.toHaveProperty('DSH_DESKTOP_WINDOWS_TOKEN_PIN')
+    expect(call[3].env).not.toHaveProperty('DSH_DESKTOP_WINDOWS_CER_FILE')
+    expect(call[3].env).not.toHaveProperty('CSC_LINK')
+  }
+  const builder = run.run.mock.calls.find(call => call[0].startsWith('exec electron-builder'))
+  expect(builder?.[3].env).toMatchObject({ DSH_DESKTOP_UNSIGNED: '0', DSH_DESKTOP_RELEASE_UNSIGNED: '1' })
+  expect(stages).toContain('exec electron-builder --config electron-builder.config.mjs --win --x64 --publish never')
+  expect(stages.at(-1)).toBe('exec tsx scripts/smoke-packaged-runtime.ts --release-unsigned')
+  expect(certificates.constructed).not.toHaveBeenCalled()
+  expect(writeFileSync).toHaveBeenCalledOnce()
+  expect(String(vi.mocked(writeFileSync).mock.calls[0]![0])).toMatch(/targets[\\/]win-x64[\\/]artifacts[\\/]win-x64-release\.json\.tmp$/u)
+  expect(JSON.parse(vi.mocked(writeFileSync).mock.calls[0]![1] as string)).toEqual({
+    schemaVersion: 1, target: 'win-x64', version: '0.1.7-rc.2', environment: 'production',
+    publicUrl: 'https://download.deepseek.com/dsh-desk/feeds/win-x64/', signatureMode: 'unsigned',
+    artifacts: releaseArtifacts,
+  })
+})
+
+it('keeps the local unsigned artifact separate from the release-unsigned record', async () => {
+  const { run, stages } = supervisor()
+  await packageTarget(parseDesktopPackageInvocation(['win-x64', '--unsigned'], 'win32', 'x64'),
+    { ...productionEnvironment, DSH_DESKTOP_WINDOWS_CER_FILE: import.meta.filename }, run)
+  expect(stages.at(-1)).toBe('exec tsx scripts/smoke-packaged-runtime.ts --unsigned')
+  for (const call of run.run.mock.calls) {
+    if (call[0].startsWith('exec electron-builder')) {
+      expect(call[3].env).toMatchObject({ DSH_DESKTOP_UNSIGNED: '1' })
+      expect(call[3].env).not.toHaveProperty('DSH_DESKTOP_RELEASE_UNSIGNED')
+    }
+  }
+  expect(writeFileSync).not.toHaveBeenCalled()
+})
+
+it('refuses a non-production dotenv for release-unsigned before any stage', async () => {
+  const { run, stages } = supervisor()
+  await expect(packageTarget(parseDesktopPackageInvocation(['win-x64', '--release-unsigned'], 'win32', 'x64'), environment, run))
+    .rejects.toThrow(/--release-unsigned requires DSH_DESKTOP_AUTO_UPDATE_ENV=production/u)
+  expect(stages).toEqual([])
+  expect(writeFileSync).not.toHaveBeenCalled()
 })
 
 it('checks the assembled macOS runtime before notarizing and recording the release', async () => {

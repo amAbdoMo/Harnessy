@@ -37,6 +37,8 @@ import { CUSTOM_HARNESS_PRODUCT } from '../../../scripts/custom-harness-product.
 
 /**
  * Create electron-builder configuration from one release environment.
+ * `DSH_DESKTOP_UNSIGNED=1` selects the local unsigned Installer, and `DSH_DESKTOP_RELEASE_UNSIGNED=1` the
+ * unsigned production release that keeps the release artifact names and the GitHub update feed.
  * @param {NodeJS.ProcessEnv} env - Packaging environment.
  * @param {NodeJS.Platform} hostPlatform - Build-host platform used when no explicit target is present.
  * @param {string} hostArch - Build-host architecture used when no explicit target is present.
@@ -60,8 +62,16 @@ export function createElectronBuilderConfig(
   if (env.DSH_DESKTOP_UNSIGNED !== undefined && !['0', '1'].includes(env.DSH_DESKTOP_UNSIGNED)) {
     throw new Error('desktop package: DSH_DESKTOP_UNSIGNED must be 0 or 1')
   }
+  if (env.DSH_DESKTOP_RELEASE_UNSIGNED !== undefined && !['0', '1'].includes(env.DSH_DESKTOP_RELEASE_UNSIGNED)) {
+    throw new Error('desktop package: DSH_DESKTOP_RELEASE_UNSIGNED must be 0 or 1')
+  }
   const unsigned = env.DSH_DESKTOP_UNSIGNED === '1'
+  const releaseUnsigned = env.DSH_DESKTOP_RELEASE_UNSIGNED === '1'
+  if (unsigned && releaseUnsigned) throw new Error('desktop package: the local and release unsigned modes are mutually exclusive')
   if (unsigned && resolvedPlatform !== 'win32') throw new Error('desktop package: unsigned builds require Windows')
+  if (releaseUnsigned && resolvedPlatform !== 'win32') throw new Error('desktop package: release-unsigned builds require Windows')
+  // Only the signed mode installs a signer; both unsigned modes ship without Authenticode.
+  const signsWindows = !unsigned && !releaseUnsigned
   const packagesMacOS = targetPlatform === 'darwin' || (targetPlatform === undefined && hostPlatform === 'darwin')
   const packagesWindows = resolvedPlatform === 'win32'
   if (resolvedPlatform === 'win32') installWindowsDirectoryInstaller()
@@ -73,7 +83,7 @@ export function createElectronBuilderConfig(
   let windowsCode = []
   const unpack = ['**/*.{node,dylib,dll,so,exe}', '**/*.so.*', '**/spawn-helper', '**/@vscode/ripgrep-*/bin/rg',
     `**/node_modules/@deepseek-ai/libreoffice-kit-${resolvedPlatform}-${resolvedArch}/**/*`]
-  const windowsSigner = packagesWindows && !unsigned
+  const windowsSigner = packagesWindows && signsWindows
     ? createWindowsTokenSigner({
         certificateFile: env.DSH_DESKTOP_WINDOWS_CER_FILE,
         signTool: env.DSH_DESKTOP_WINDOWS_SIGNTOOL,
@@ -99,6 +109,10 @@ export function createElectronBuilderConfig(
   const productVersion = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8')).version
   const buildVersion = resolveDesktopBuildVersion(env, productVersion)
   const githubUpdates = update?.environment === 'production' && resolvedPlatform === 'win32'
+  // Without the GitHub feed the installed app would look for updates at a destination this release never uses.
+  if (releaseUnsigned && !githubUpdates) {
+    throw new Error('desktop package: release-unsigned builds require the production GitHub update feed')
+  }
   const packaged = resolveDesktopBuildCommit(env)
   return {
     appId,
@@ -112,7 +126,7 @@ export function createElectronBuilderConfig(
     },
     productName: CUSTOM_HARNESS_PRODUCT.displayName,
     executableName: CUSTOM_HARNESS_PRODUCT.executableName,
-    // Unsigned builds carry their own suffix so a shared file can never pass for a release artifact.
+    // Only the local unsigned build carries a suffix, so a shared file can never pass for a release artifact.
     artifactName: `${CUSTOM_HARNESS_PRODUCT.installerName}-\${version}-\${os}-\${arch}${unsigned ? '-unsigned' : ''}.\${ext}`,
     directories: { output: unsigned ? buildPaths.unsignedArtifacts : buildPaths.artifacts },
     asar: true,
@@ -197,8 +211,8 @@ export function createElectronBuilderConfig(
       // release, and a rewritten one for installed-update qualification.
       await verifyDesktopRuntime(buildPaths.dsh,
         preparedRuntimeVersion ?? productVersion, { platform: resolvedPlatform, arch: resolvedArch })
-      // Unsigned Windows builds skip electron-builder's afterSign hook.
-      if (packagesWindows && unsigned) await verifyWindowsAsarUnpack(buildPaths.dsh, resourcesDir, windowsCode)
+      // Windows builds without a signer skip electron-builder's afterSign hook.
+      if (packagesWindows && !signsWindows) await verifyWindowsAsarUnpack(buildPaths.dsh, resourcesDir, windowsCode)
     },
     afterSign: async context => {
       if (windowsSigner !== undefined) {
@@ -228,7 +242,10 @@ export function createElectronBuilderConfig(
     win: {
       icon: fileURLToPath(new URL('../assets/harnessy.png', import.meta.url)),
       executableName: CUSTOM_HARNESS_PRODUCT.executableName,
-      forceCodeSigning: !unsigned,
+      forceCodeSigning: signsWindows,
+      // Without a publisher name the updater verifies a downloaded installer through latest.yml's
+      // SHA-512 instead of Authenticode, which an unsigned release cannot present.
+      verifyUpdateCodeSignature: signsWindows,
       signtoolOptions: {
         sign: windowsSigner,
         publisherName: windowsSigner === undefined ? undefined : resolveWindowsUpdatePublisher(env.DSH_DESKTOP_WINDOWS_CER_FILE),

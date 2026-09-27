@@ -29,9 +29,9 @@ const HISTORY = [BASE, MID, COMMIT, AHEAD]
 
 const ORIGIN = 'https://github.com/amAbdoMo/Harnessy.git'
 const VERSION_RUN = `pnpm run release:dsh ${VERSION}`
-const PACKAGE_CHECK_RUN = 'pnpm --dir apps/desktop run check:package:win:x64:production'
+const PACKAGE_CHECK_RUN = 'pnpm --dir apps/desktop run check:package:win:x64:release-unsigned'
 const QUALIFY_RUN = 'pnpm run release:win:x64:qualify'
-const PACKAGE_RUN = 'pnpm --dir apps/desktop run package:win:x64:production'
+const PACKAGE_RUN = 'pnpm --dir apps/desktop run package:win:x64:release-unsigned'
 const CHECK_RUN = 'pnpm --dir apps/desktop run release:github:win:x64:check'
 const DRAFT_RUN = 'pnpm --dir apps/desktop run release:github:win:x64:draft'
 const VERIFY_RUN = 'pnpm --dir apps/desktop run release:github:win:x64:verify'
@@ -450,7 +450,7 @@ describe('promote Windows release approval', () => {
     expect(fixture.calls).toEqual([])
   })
 
-  it('rejects a host that cannot sign the Windows x64 package', async () => {
+  it('rejects a host that cannot package the Windows x64 release', async () => {
     const fixture = await createFixture({ platform: 'darwin', arch: 'arm64' })
     await expect(fixture.run()).rejects.toThrow(/Windows x64 host/)
     expect(fixture.calls).toEqual([])
@@ -498,7 +498,7 @@ describe('promote Windows release approval', () => {
 
   it('leaves master and the remotes untouched when packaging fails', async () => {
     const fixture = await createFixture({ packageFails: true })
-    await expect(fixture.run()).rejects.toThrow(/package:win:x64:production exited with 1/)
+    await expect(fixture.run()).rejects.toThrow(/package:win:x64:release-unsigned exited with 1/)
     // The local version commit and tag are retained so the same approval can safely retry.
     expect(fixture.state.localTag).toBe(COMMIT)
     expect(fixture.state.masterHead).toBe(MID)
@@ -508,7 +508,7 @@ describe('promote Windows release approval', () => {
     expect(runIndex(fixture, DRAFT_RUN)).toBe(-1)
   })
 
-  it('reuses the signed package after draft creation fails without moving master', async () => {
+  it('reuses the byte-verified release package after draft creation fails without moving master', async () => {
     const fixture = await createFixture({ draftFails: true })
     await expect(fixture.run()).rejects.toThrow(/release:github:win:x64:draft exited with 1/)
     expect(fixture.state.masterHead).toBe(MID)

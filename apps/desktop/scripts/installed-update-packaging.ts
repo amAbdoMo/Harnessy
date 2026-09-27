@@ -47,7 +47,7 @@ export async function assertInstalledUpdateSigningClear(stateFile = join(homedir
  */
 export function installedUpdatePackagingEnvironment(environment: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return desktopElectronBuilderEnvironment(Object.fromEntries(Object.entries(environment)
-    .filter(([name]) => SIGNING_FIELDS.has(name) || !/KEY|SECRET|TOKEN|PASSWORD|^NODE_OPTIONS$|^NODE_PATH$/iu.test(name))), false)
+    .filter(([name]) => SIGNING_FIELDS.has(name) || !/KEY|SECRET|TOKEN|PASSWORD|^NODE_OPTIONS$|^NODE_PATH$/iu.test(name))), 'signed')
 }
 
 async function inputHashes(manifest: string, version: string, environment: NodeJS.ProcessEnv): Promise<object> {

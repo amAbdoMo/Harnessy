@@ -4,6 +4,7 @@ import {
   desktopElectronBuilderEnvironment,
   parseDesktopPackageInvocation,
   resolveDesktopPackageTarget,
+  withoutCertificateEnvironment,
   withoutDesktopUploadCredentials,
   withoutWindowsSigningEnvironment,
 } from '../scripts/package-target.ts'
@@ -39,7 +40,7 @@ describe('desktop package target', () => {
     expect(parseDesktopPackageInvocation([], 'darwin', 'arm64').target.name).toBe('mac-arm64')
     expect(parseDesktopPackageInvocation(['--prepare-only'], 'darwin', 'arm64').prepareOnly).toBe(true)
     expect(parseDesktopPackageInvocation(['--check'], 'darwin', 'arm64').check).toBe(true)
-    expect(parseDesktopPackageInvocation(['win-x64', '--check', '--unsigned'], 'win32', 'x64')).toMatchObject({ check: true, unsigned: true })
+    expect(parseDesktopPackageInvocation(['win-x64', '--check', '--unsigned'], 'win32', 'x64')).toMatchObject({ check: true, signatureMode: 'local-unsigned' })
     expect(() => parseDesktopPackageInvocation(['mac-arm64', 'mac-x64'], 'darwin', 'arm64'))
       .toThrow(/at most one target/u)
   })
@@ -74,15 +75,30 @@ describe('desktop package target', () => {
   })
 
   it('accepts unsigned Windows artifacts and rejects other targets or preparation-only use', () => {
-    expect(parseDesktopPackageInvocation(['win-x64', '--unsigned'], 'win32', 'x64').unsigned).toBe(true)
-    expect(parseDesktopPackageInvocation(['win-x64'], 'win32', 'x64').unsigned).toBe(false)
+    expect(parseDesktopPackageInvocation(['win-x64', '--unsigned'], 'win32', 'x64').signatureMode).toBe('local-unsigned')
+    expect(parseDesktopPackageInvocation(['win-x64'], 'win32', 'x64').signatureMode).toBe('signed')
     expect(parseDesktopPackageInvocation(['--unsigned', '--dir'], 'win32', 'x64')).toMatchObject({
-      unsigned: true, directory: true,
+      signatureMode: 'local-unsigned', directory: true,
     })
     expect(() => parseDesktopPackageInvocation(['mac-arm64', '--unsigned'], 'darwin', 'arm64'))
       .toThrow(/requires win-x64/u)
     expect(() => parseDesktopPackageInvocation(['--unsigned', '--prepare-only'], 'win32', 'x64'))
       .toThrow(/cannot use --prepare-only/u)
+  })
+
+  it('parses the release-unsigned release mode apart from the local unsigned artifact', () => {
+    expect(parseDesktopPackageInvocation(['win-x64', '--release-unsigned'], 'win32', 'x64'))
+      .toMatchObject({ signatureMode: 'release-unsigned', directory: false, prepareOnly: false })
+    expect(parseDesktopPackageInvocation(['win-x64', '--check', '--release-unsigned'], 'win32', 'x64'))
+      .toMatchObject({ signatureMode: 'release-unsigned', check: true })
+    expect(() => parseDesktopPackageInvocation(['win-x64', '--unsigned', '--release-unsigned'], 'win32', 'x64'))
+      .toThrow(/different modes; choose one/u)
+    expect(() => parseDesktopPackageInvocation(['win-x64', '--release-unsigned', '--prepare-only'], 'win32', 'x64'))
+      .toThrow(/--release-unsigned cannot use --prepare-only/u)
+    expect(() => parseDesktopPackageInvocation(['win-x64', '--release-unsigned', '--dir'], 'win32', 'x64'))
+      .toThrow(/--release-unsigned cannot use --dir/u)
+    expect(() => parseDesktopPackageInvocation(['mac-arm64', '--release-unsigned'], 'darwin', 'arm64'))
+      .toThrow(/--release-unsigned requires win-x64/u)
   })
 
   it('removes ambient certificate inputs for unsigned builds and overrides an inherited signing mode', () => {
@@ -95,22 +111,46 @@ describe('desktop package target', () => {
       CSC_IDENTITY_AUTO_DISCOVERY: 'true',
       DSH_DESKTOP_UNSIGNED: '1',
     }
-    expect(desktopElectronBuilderEnvironment(environment, true)).toEqual({
+    expect(desktopElectronBuilderEnvironment(environment, 'local-unsigned')).toEqual({
       DSH_DESKTOP_APP_ID: 'com.example.desktop',
       CSC_IDENTITY_AUTO_DISCOVERY: 'false',
       DSH_DESKTOP_UNSIGNED: '1',
     })
-    expect(desktopElectronBuilderEnvironment(environment, false)).toEqual({ ...environment, DSH_DESKTOP_UNSIGNED: '0' })
+    expect(desktopElectronBuilderEnvironment(environment, 'signed')).toEqual({ ...environment, DSH_DESKTOP_UNSIGNED: '0' })
   })
 
-  it.each([false, true])('pins the Windows archive filter for the NSIS decoder (unsigned: %s)', (unsigned) => {
-    expect(desktopElectronBuilderEnvironment({
-      DSH_DESKTOP_TARGET_PLATFORM: 'win32', ELECTRON_BUILDER_7Z_FILTER: 'ARM64',
-    }, unsigned).ELECTRON_BUILDER_7Z_FILTER).toBe('BCJ')
-    expect(desktopElectronBuilderEnvironment({
-      DSH_DESKTOP_TARGET_PLATFORM: 'darwin', ELECTRON_BUILDER_7Z_FILTER: 'ARM',
-    }, unsigned).ELECTRON_BUILDER_7Z_FILTER).toBe('ARM')
+  it('names the release unsigned mode for the builder without any certificate input', () => {
+    const environment = {
+      DSH_DESKTOP_APP_ID: 'com.example.desktop',
+      DSH_DESKTOP_TARGET_PLATFORM: 'win32',
+      DSH_DESKTOP_WINDOWS_CER_FILE: 'C:\\release\\server.cer',
+      DSH_DESKTOP_WINDOWS_TOKEN_PIN: 'token-secret',
+      CSC_LINK: 'private.pfx',
+      CSC_KEY_PASSWORD: 'secret',
+      DSH_DESKTOP_UNSIGNED: '1',
+      ELECTRON_BUILDER_7Z_FILTER: 'ARM64',
+    }
+    expect(desktopElectronBuilderEnvironment(environment, 'release-unsigned')).toEqual({
+      DSH_DESKTOP_APP_ID: 'com.example.desktop',
+      DSH_DESKTOP_TARGET_PLATFORM: 'win32',
+      ELECTRON_BUILDER_7Z_FILTER: 'BCJ',
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false',
+      DSH_DESKTOP_UNSIGNED: '0',
+      DSH_DESKTOP_RELEASE_UNSIGNED: '1',
+    })
   })
+
+  it.each(['signed', 'local-unsigned', 'release-unsigned'] as const)(
+    'pins the Windows archive filter for the NSIS decoder (mode: %s)',
+    (signatureMode) => {
+      expect(desktopElectronBuilderEnvironment({
+        DSH_DESKTOP_TARGET_PLATFORM: 'win32', ELECTRON_BUILDER_7Z_FILTER: 'ARM64',
+      }, signatureMode).ELECTRON_BUILDER_7Z_FILTER).toBe('BCJ')
+      expect(desktopElectronBuilderEnvironment({
+        DSH_DESKTOP_TARGET_PLATFORM: 'darwin', ELECTRON_BUILDER_7Z_FILTER: 'ARM',
+      }, signatureMode).ELECTRON_BUILDER_7Z_FILTER).toBe('ARM')
+    },
+  )
 
   it('keeps Windows signing fields out of build and runtime preparation subprocesses', () => {
     expect(withoutWindowsSigningEnvironment({
@@ -118,6 +158,16 @@ describe('desktop package target', () => {
       DSH_DESKTOP_WINDOWS_TOKEN_PIN: 'token-secret',
       DSH_DESKTOP_WINDOWS_KEY_CONTAINER: 'container',
       DSH_DESKTOP_WINDOWS_SIGNTOOL: 'C:\\tools\\signtool.exe',
+      DSH_DESKTOP_AUTO_UPDATE_ENV: 'production',
+    })).toEqual({ DSH_DESKTOP_AUTO_UPDATE_ENV: 'production' })
+  })
+
+  it('keeps ambient signing certificates out of a release-unsigned run', () => {
+    expect(withoutCertificateEnvironment({
+      CSC_LINK: 'private.pfx',
+      CSC_KEY_PASSWORD: 'secret',
+      CSC_IDENTITY_AUTO_DISCOVERY: 'true',
+      WIN_CSC_LINK: 'windows.pfx',
       DSH_DESKTOP_AUTO_UPDATE_ENV: 'production',
     })).toEqual({ DSH_DESKTOP_AUTO_UPDATE_ENV: 'production' })
   })

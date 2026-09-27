@@ -13,6 +13,7 @@ import {
 import { desktopTargetBuildPaths } from './desktop-build-paths.mjs'
 import { packageMacOSArtifacts, type DesktopPrepackagedArtifact } from './package-macos.ts'
 import { loadDesktopPackageEnvironment, validateDesktopPackageEnvironment } from './desktop-package-environment.mjs'
+import type { DesktopPackageSignatureMode } from './desktop-package-environment.mjs'
 import { createPackagingRun, recordPackagingEvent } from './packaging-run.mjs'
 import { withWindowsSigningStage } from './windows-signing-stage.mjs'
 import { prepareWindowsSignatureCacheDirectory, resolveWindowsSignatureCacheDirectory } from './windows-signature-cache-directory.mjs'
@@ -96,21 +97,35 @@ export function withoutWindowsSigningEnvironment(environment: NodeJS.ProcessEnv)
 }
 
 /**
+ * Remove ambient signing certificate settings from a packaging environment.
+ * @param environment - Packaging command environment.
+ * @returns A copy without Authenticode or macOS signing certificate inputs.
+ */
+export function withoutCertificateEnvironment(environment: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  return Object.fromEntries(Object.entries(environment).filter(([name]) => !/^(?:WIN_)?CSC_/iu.test(name)))
+}
+
+/**
  * Select signing and NSIS-compatible archive filters for electron-builder.
  * @param environment - Target packaging environment.
- * @param unsigned - Whether to create a local unsigned Windows artifact.
- * @returns Packaging environment without certificate inputs for unsigned builds.
+ * @param signatureMode - Named signing mode of this run.
+ * @returns Packaging environment without certificate inputs for either unsigned mode.
  */
-export function desktopElectronBuilderEnvironment(environment: NodeJS.ProcessEnv, unsigned: boolean): NodeJS.ProcessEnv {
-  const selected: NodeJS.ProcessEnv = { ...environment, DSH_DESKTOP_UNSIGNED: unsigned ? '1' : '0' }
+export function desktopElectronBuilderEnvironment(
+  environment: NodeJS.ProcessEnv,
+  signatureMode: DesktopPackageSignatureMode,
+): NodeJS.ProcessEnv {
+  const selected: NodeJS.ProcessEnv = { ...environment }
   // The bundled NSIS decoder cannot extract 7-Zip's automatic ARM64-filtered entries.
   if (environment.DSH_DESKTOP_TARGET_PLATFORM === 'win32') selected.ELECTRON_BUILDER_7Z_FILTER = 'BCJ'
-  if (!unsigned) return selected
+  if (signatureMode === 'signed') return { ...selected, DSH_DESKTOP_UNSIGNED: '0' }
+  // An unsigned release keeps the normal artifact names and the GitHub feed, so it names that mode
+  // for the builder instead of the local mode's DSH_DESKTOP_UNSIGNED and carries no certificate.
   return {
-    ...Object.fromEntries(Object.entries(withoutWindowsSigningEnvironment(selected))
-      .filter(([name]) => !/^(?:WIN_)?CSC_/iu.test(name))),
+    ...withoutWindowsSigningEnvironment(withoutCertificateEnvironment(selected)),
     CSC_IDENTITY_AUTO_DISCOVERY: 'false',
-    DSH_DESKTOP_UNSIGNED: '1',
+    DSH_DESKTOP_UNSIGNED: signatureMode === 'local-unsigned' ? '1' : '0',
+    ...signatureMode === 'release-unsigned' ? { DSH_DESKTOP_RELEASE_UNSIGNED: '1' } : {},
   }
 }
 
@@ -140,6 +155,7 @@ function writeReleaseRecord(
   target: DesktopPackageTarget,
   environment: NodeJS.ProcessEnv,
   artifactsRoot: string,
+  signatureMode: DesktopPackageSignatureMode,
 ): void {
   const desktopVersion = packageVersion(join(APP_ROOT, 'package.json'), 'desktop package')
   const dshVersion = packageVersion(join(REPOSITORY_ROOT, 'package.json'), 'dsh package')
@@ -150,9 +166,10 @@ function writeReleaseRecord(
   const packaged = resolveDesktopBuildCommit(environment)
   const update = resolveDesktopAutoUpdateConfig(environment, target.platform, target.arch)
   const recordPath = join(artifactsRoot, desktopBuildRecordFilename(target.name))
+  const releaseUnsigned = signatureMode === 'release-unsigned'
   const certificateFile = environment.DSH_DESKTOP_WINDOWS_CER_FILE
   let signerThumbprint: string | undefined
-  if (target.platform === 'win32') {
+  if (target.platform === 'win32' && !releaseUnsigned) {
     if (certificateFile === undefined) throw new Error('desktop package: Windows certificate file is required for the release record')
     signerThumbprint = new X509Certificate(readFileSync(certificateFile)).fingerprint.replaceAll(':', '').toUpperCase()
   }
@@ -171,6 +188,8 @@ function writeReleaseRecord(
     version: buildVersion,
     environment: update.environment,
     publicUrl: update.publicUrl,
+    // The updater verifies these bytes through latest.yml's SHA-512 alone, without Authenticode.
+    signatureMode: releaseUnsigned ? 'unsigned' : 'signed',
     ...signerThumbprint === undefined ? {} : { signerThumbprint },
     ...releaseArtifacts === undefined ? {} : { artifacts: releaseArtifacts },
     // Upload reads this to tag the commit a production release was packaged from.
@@ -214,7 +233,8 @@ interface DesktopPackageInvocation {
   readonly target: DesktopPackageTarget
   readonly directory: boolean
   readonly prepareOnly: boolean
-  readonly unsigned: boolean
+  /** Signing behaviour this run selects. */
+  readonly signatureMode: DesktopPackageSignatureMode
   readonly check: boolean
   /** Whether this invocation refuses a non-production update deployment. */
   readonly requireProduction: boolean
@@ -249,6 +269,7 @@ export function parseDesktopPackageInvocation(
       dir: { type: 'boolean', default: false },
       'prepare-only': { type: 'boolean', default: false },
       unsigned: { type: 'boolean', default: false },
+      'release-unsigned': { type: 'boolean', default: false },
       check: { type: 'boolean', default: false },
       'require-production': { type: 'boolean', default: false },
       'build-version': { type: 'string' },
@@ -257,7 +278,15 @@ export function parseDesktopPackageInvocation(
   if (positionals.length > 1) throw new Error('desktop package: expected at most one target')
   const name = positionals[0] ?? hostTargetName(hostPlatform, hostArch)
   if (values.unsigned && name !== 'win-x64') throw new Error('desktop package: --unsigned requires win-x64')
+  if (values['release-unsigned'] && name !== 'win-x64') throw new Error('desktop package: --release-unsigned requires win-x64')
+  if (values.unsigned && values['release-unsigned']) {
+    throw new Error('desktop package: --unsigned and --release-unsigned are different modes; choose one')
+  }
   if (values.unsigned && values['prepare-only']) throw new Error('desktop package: --unsigned cannot use --prepare-only')
+  if (values['release-unsigned'] && values['prepare-only']) {
+    throw new Error('desktop package: --release-unsigned cannot use --prepare-only')
+  }
+  if (values['release-unsigned'] && values.dir) throw new Error('desktop package: --release-unsigned cannot use --dir')
   const requestedBuildVersion = values['build-version']?.trim()
   if (values['build-version'] !== undefined && (requestedBuildVersion === undefined || requestedBuildVersion === '')) {
     throw new Error('desktop package: --build-version requires a value')
@@ -266,7 +295,7 @@ export function parseDesktopPackageInvocation(
     target: resolveDesktopPackageTarget(name, hostPlatform, hostArch),
     directory: values.dir,
     prepareOnly: values['prepare-only'],
-    unsigned: values.unsigned,
+    signatureMode: values.unsigned ? 'local-unsigned' : values['release-unsigned'] ? 'release-unsigned' : 'signed',
     check: values.check,
     requireProduction: values['require-production'],
     requestedBuildVersion,
@@ -302,6 +331,13 @@ export function desktopElectronBuilderArguments(
       '--config.directories.output', artifact.output,
     ]),
   ]
+}
+
+/** Packaged-runtime smoke flags that select one signing mode's artifact directory and signature checks. */
+const SMOKE_ARGUMENTS: Record<DesktopPackageSignatureMode, readonly string[]> = {
+  'signed': [],
+  'local-unsigned': ['--unsigned'],
+  'release-unsigned': ['--release-unsigned'],
 }
 
 function runPnpm(
@@ -347,14 +383,17 @@ async function resolveRequestedBuildVersion(
   const paths = desktopTargetBuildPaths(invocation.target.name)
   return suggestDesktopBuildVersion({
     productVersion, target: invocation.target.name, environment,
-    // Unsigned builds land beside the signed output, so numbering has to read the directory this run writes.
-    artifactsRoot: invocation.unsigned ? paths.unsignedArtifacts : paths.artifacts,
+    // The local unsigned build lands beside the signed output, so numbering has to read the directory this run writes.
+    artifactsRoot: invocation.signatureMode === 'local-unsigned' ? paths.unsignedArtifacts : paths.artifacts,
   })
 }
 
 function requireRequestedDeployment(invocation: DesktopPackageInvocation, environment: NodeJS.ProcessEnv): void {
-  if (invocation.requireProduction && resolveDesktopAutoUpdateEnvironment(environment) !== 'production') {
-    throw new Error('desktop package: --require-production requires DSH_DESKTOP_AUTO_UPDATE_ENV=production in the target dotenv file')
+  const required = invocation.requireProduction
+    ? '--require-production'
+    : invocation.signatureMode === 'release-unsigned' ? '--release-unsigned' : undefined
+  if (required !== undefined && resolveDesktopAutoUpdateEnvironment(environment) !== 'production') {
+    throw new Error(`desktop package: ${required} requires DSH_DESKTOP_AUTO_UPDATE_ENV=production in the target dotenv file`)
   }
 }
 
@@ -379,7 +418,7 @@ async function main(): Promise<void> {
   Object.assign(environment, desktopBuildCommitEnvironment(packaged))
   const secrets = Object.entries(environment).filter(([name]) => /KEY|SECRET|TOKEN|PASSWORD|APPLE_ID/iu.test(name)).map(([, value]) => value ?? '')
   const run = createPackagingRun(join(APP_ROOT, '.desktop-build', 'packaging-runs'), {
-    target: target.name, unsigned: invocation.unsigned, directory: invocation.directory, prepareOnly: invocation.prepareOnly,
+    target: target.name, signatureMode: invocation.signatureMode, directory: invocation.directory, prepareOnly: invocation.prepareOnly,
     version: buildVersion, productVersion, node: process.version,
     commit: packaged.commit,
     dirty: packaged.dirty,
@@ -414,10 +453,10 @@ async function main(): Promise<void> {
 }
 
 /**
- * Prepare one release only after its signing preflight, without publishing from the builder.
+ * Prepare one release without publishing from the builder; signed Windows runs require the hardware preflight.
  * @param invocation Validated host, target and packaging mode.
  * @param environment File-owned release configuration.
- * @param run Persistent stage supervisor; required for signed Windows packaging and enabled for all release commands.
+ * @param run Persistent stage supervisor; all release commands use it and signed Windows requires it.
  * @returns Resolves after preparation or complete packaging; any failed stage prevents a release record.
  */
 export async function packageTarget(
@@ -426,6 +465,7 @@ export async function packageTarget(
   run: ReturnType<typeof createPackagingRun> | undefined,
 ): Promise<void> {
   const { target } = invocation
+  const signed = invocation.signatureMode === 'signed'
   requireRequestedDeployment(invocation, environment)
   const execute = (args: readonly string[], env: NodeJS.ProcessEnv, cwd: string = APP_ROOT) => runPnpm(args, env, cwd, run)
   const journal = target.platform === 'darwin' ? process.env.DSH_DESKTOP_PACKAGING_RUN_DIR : undefined
@@ -434,22 +474,24 @@ export async function packageTarget(
   const packArguments = mac === undefined ? [] : ['--concurrency', String(mac.packConcurrency)]
   const buildPaths = desktopTargetBuildPaths(target.name)
   const releaseRecordPath = join(buildPaths.artifacts, desktopBuildRecordFilename(target.name))
-  if (!invocation.prepareOnly && !invocation.unsigned) {
+  if (!invocation.prepareOnly && invocation.signatureMode !== 'local-unsigned') {
     rmSync(releaseRecordPath, { force: true })
     rmSync(`${releaseRecordPath}.tmp`, { force: true })
   }
-  const buildEnv = withoutWindowsSigningEnvironment(withoutDesktopUploadCredentials(environment))
+  // A release-unsigned run carries no certificate input at all, so no stage can reach signing.
+  const runEnvironment = invocation.signatureMode === 'release-unsigned' ? withoutCertificateEnvironment(environment) : environment
+  const buildEnv = withoutWindowsSigningEnvironment(withoutDesktopUploadCredentials(runEnvironment))
   const targetEnv: NodeJS.ProcessEnv = {
     ...buildEnv,
     DSH_DESKTOP_TARGET_PLATFORM: target.platform,
     DSH_DESKTOP_TARGET_ARCH: target.arch,
   }
   const downloadEnv = macOSDownloadEnvironment(targetEnv, mac?.downloadProxy)
-  const electronBuilderEnv = desktopElectronBuilderEnvironment(downloadEnv, invocation.unsigned)
+  const electronBuilderEnv = desktopElectronBuilderEnvironment(downloadEnv, invocation.signatureMode)
   for (const name of WINDOWS_SIGNING_ENV_NAMES) {
-    if (!invocation.unsigned && environment[name] !== undefined) electronBuilderEnv[name] = environment[name]
+    if (signed && environment[name] !== undefined) electronBuilderEnv[name] = environment[name]
   }
-  const signPrimaryRuntime = target.platform === 'win32' && !invocation.unsigned && !invocation.prepareOnly
+  const signPrimaryRuntime = target.platform === 'win32' && signed && !invocation.prepareOnly
   const signedStage = async (stage: string, operation: () => Promise<void>): Promise<void> => {
     if (!signPrimaryRuntime) return operation()
     if (run === undefined) throw new Error('desktop package: signed Windows packaging requires a supervised run')
@@ -535,9 +577,11 @@ export async function packageTarget(
       () => notarizeMacOS({ appPath, ...resolveMacOSNotarizationEnvironment(environment) }), undefined, undefined, proxyEvent)
   } else {
     await signedStage('artifacts', () => execute(desktopElectronBuilderArguments(target, invocation.directory), electronBuilderEnv))
-    await execute(['exec', 'tsx', 'scripts/smoke-packaged-runtime.ts', ...(invocation.unsigned ? ['--unsigned'] : [])], targetEnv)
+    await execute(['exec', 'tsx', 'scripts/smoke-packaged-runtime.ts', ...SMOKE_ARGUMENTS[invocation.signatureMode]], targetEnv)
   }
-  if (!invocation.directory && !invocation.unsigned) writeReleaseRecord(target, electronBuilderEnv, buildPaths.artifacts)
+  if (!invocation.directory && invocation.signatureMode !== 'local-unsigned') {
+    writeReleaseRecord(target, electronBuilderEnv, buildPaths.artifacts, invocation.signatureMode)
+  }
   if (journal) recordPackagingEvent(journal, { type: 'artifacts', directory: buildPaths.artifacts })
 }
 

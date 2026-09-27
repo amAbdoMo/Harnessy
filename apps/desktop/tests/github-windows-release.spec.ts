@@ -5,6 +5,7 @@ const fixture = vi.hoisted(() => {
   return {
     commit,
     blockmapHash: 'c7c5c1d70c5dec4416ab6158afd0b223ef40c29b1dc1f97ed9428b94d4cadb1c',
+    signatureMode: 'unsigned',
     spawnSync: vi.fn((executable: string, args: readonly string[]) => {
       if (executable === 'git') return { status: 0, stdout: `${commit}\n` }
       if (executable === 'gh' && args[0] === 'release' && args[1] === 'view') {
@@ -36,7 +37,7 @@ vi.mock('node:fs/promises', () => ({
     const value = String(path)
     if (value.endsWith('win-x64-release.json')) {
       return JSON.stringify({ schemaVersion: 1, target: 'win-x64', version: '1.2.3', environment: 'production',
-        commit: fixture.commit, dirty: false, signerThumbprint: 'A'.repeat(40),
+        commit: fixture.commit, dirty: false, signatureMode: fixture.signatureMode,
         artifacts: ['Harnessy-Setup-1.2.3-win-x64.exe', 'Harnessy-Setup-1.2.3-win-x64.exe.blockmap', 'latest.yml']
           .map(name => ({ name, size: 8, sha256: name.endsWith('.blockmap') ? fixture.blockmapHash
             : 'c7c5c1d70c5dec4416ab6158afd0b223ef40c29b1dc1f97ed9428b94d4cadb1c' })) })
@@ -48,17 +49,14 @@ vi.mock('node:fs/promises', () => ({
     throw new Error(`unexpected read: ${value}`)
   }),
 }))
-vi.mock('../scripts/windows-runtime-signature.mjs', () => ({
-  inspectWindowsRuntimeSignature: vi.fn(async () => ({ status: 'Valid', timestamped: true, thumbprint: 'A'.repeat(40) })),
-}))
-
 afterEach(() => {
   fixture.blockmapHash = 'c7c5c1d70c5dec4416ab6158afd0b223ef40c29b1dc1f97ed9428b94d4cadb1c'
+  fixture.signatureMode = 'unsigned'
   vi.clearAllMocks()
   vi.resetModules()
 })
 
-it('checks signed stable release inputs without contacting GitHub', async () => {
+it('checks unsigned stable release inputs without contacting GitHub', async () => {
   const original = process.argv[2]
   process.argv[2] = 'check'
   try {
@@ -70,6 +68,19 @@ it('checks signed stable release inputs without contacting GitHub', async () => 
   }
   expect(fixture.spawnSync).toHaveBeenCalledWith('git', ['rev-parse', 'v1.2.3^{commit}'], expect.any(Object))
   expect(fixture.spawnSync.mock.calls.some(([executable]) => executable === 'gh')).toBe(false)
+})
+
+it('rejects a non-unsigned completion record before contacting GitHub', async () => {
+  const original = process.argv[2]
+  fixture.signatureMode = 'authenticode'
+  process.argv[2] = 'check'
+  try {
+    await expect(import('../scripts/github-windows-release.ts')).rejects.toThrow(/completion record/)
+  }
+  finally {
+    if (original === undefined) process.argv.splice(2, 1)
+    else process.argv[2] = original
+  }
 })
 
 it('rejects a blockmap whose bytes differ from the packaging completion record', async () => {
@@ -85,7 +96,7 @@ it('rejects a blockmap whose bytes differ from the packaging completion record',
   }
 })
 
-it('verifies a clean tagged signed stable draft without publishing it', async () => {
+it('verifies a clean tagged unsigned stable draft without publishing it', async () => {
   const original = process.argv[2]
   process.argv[2] = 'verify'
   try {
