@@ -63,6 +63,7 @@ async function releaseInputs(): Promise<{ version: string; tag: string; assets: 
     || !('artifacts' in record) || !Array.isArray(record.artifacts) || record.artifacts.length !== 3) {
     throw new Error('Harnessy release: production package completion record is missing, dirty, or does not match')
   }
+  const recordedArtifacts = record.artifacts
   const tag = `v${version}`
   if (runCommand('git', ['rev-parse', `${tag}^{commit}`], true) !== record.commit) {
     throw new Error(`Harnessy release: ${tag} does not identify the packaged commit`)
@@ -78,12 +79,12 @@ async function releaseInputs(): Promise<{ version: string; tag: string; assets: 
   const localArtifacts = await Promise.all(assets.map(async (path, index) => ({
     name: names[index], size: assetStats[index]!.size, sha256: await hashFile(path, 'sha256', 'hex'),
   })))
-  if (record.artifacts.some((entry: unknown) => typeof entry !== 'object' || entry === null
+  if (recordedArtifacts.some((entry: unknown) => typeof entry !== 'object' || entry === null
     || !('name' in entry) || typeof entry.name !== 'string'
     || !('size' in entry) || typeof entry.size !== 'number'
     || !('sha256' in entry) || typeof entry.sha256 !== 'string'
     || !localArtifacts.some(local => local.name === entry.name && local.size === entry.size && local.sha256 === entry.sha256))
-    || localArtifacts.some(local => !record.artifacts.some((entry: unknown) => typeof entry === 'object' && entry !== null
+    || localArtifacts.some(local => !recordedArtifacts.some((entry: unknown) => typeof entry === 'object' && entry !== null
       && 'name' in entry && local.name === entry.name && 'size' in entry && local.size === entry.size
       && 'sha256' in entry && local.sha256 === entry.sha256))) {
     throw new Error('Harnessy release: packaged artifact bytes do not match the completion record')

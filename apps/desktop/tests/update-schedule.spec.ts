@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { AppUpdater } from 'electron-updater'
+import type { AppUpdater, UpdateFileInfo } from 'electron-updater'
 import type { DesktopUpdateState } from '../src/ipc.ts'
 import { DesktopUpdateSchedule, resolveDesktopUpdateScheduleConfig } from '../src/update-schedule.ts'
 
@@ -8,7 +8,14 @@ vi.mock('electron', () => ({ app: { isPackaged: false } }))
 vi.mock('electron-updater', () => ({ default: { autoUpdater: {} } }))
 const { DesktopUpdateCoordinator } = await import('../src/update-coordinator.ts')
 
-const releaseFiles = [{ url: 'Harnessy-Setup-1.1.0-win-x64.exe', sha512: 'hash', size: 100 }]
+const releaseFiles: UpdateFileInfo[] = [{ url: 'Harnessy-Setup-1.1.0-win-x64.exe', sha512: 'hash', size: 100 }]
+interface UpdateCheckFixture {
+  readonly isUpdateAvailable: boolean
+  readonly updateInfo: { readonly version: string; readonly files: UpdateFileInfo[] }
+}
+function checkResult(version: string, isUpdateAvailable: boolean, files: UpdateFileInfo[] = []): UpdateCheckFixture {
+  return { isUpdateAvailable, updateInfo: { version, files } }
+}
 const cleanup: (() => void)[] = []
 beforeEach(() => { vi.useFakeTimers() })
 afterEach(() => {
@@ -18,7 +25,7 @@ afterEach(() => {
 })
 
 function fixture(jitter = 0, random = () => 0.5) {
-  const checkForUpdates = vi.fn(async () => ({ isUpdateAvailable: false, updateInfo: { version: '1.0.0', files: [] } }))
+  const checkForUpdates = vi.fn<() => Promise<UpdateCheckFixture>>(async () => checkResult('1.0.0', false))
   const events = new EventEmitter()
   const downloadUpdate = vi.fn(async () => {
     events.emit('update-downloaded', { version: '1.1.0', files: releaseFiles })
@@ -47,7 +54,7 @@ describe('ordinary update polling', () => {
       expect(f.checkForUpdates).toHaveBeenCalledTimes(calls)
     }
     expect(f.states).toEqual([])
-    f.checkForUpdates.mockResolvedValue({ isUpdateAvailable: false, updateInfo: { version: '1.0.0', files: [] } })
+    f.checkForUpdates.mockResolvedValue(checkResult('1.0.0', false))
     await f.schedule.check(true)
     await vi.advanceTimersByTimeAsync(9_999)
     expect(f.checkForUpdates).toHaveBeenCalledTimes(5)
@@ -111,7 +118,7 @@ describe('ordinary update polling', () => {
 
   it('downloads automatically and retains the prepared version during polling', async () => {
     const f = fixture()
-    f.checkForUpdates.mockResolvedValue({ isUpdateAvailable: true, updateInfo: { version: '1.1.0', files: releaseFiles } })
+    f.checkForUpdates.mockResolvedValue(checkResult('1.1.0', true, releaseFiles))
     await f.schedule.check()
     await vi.advanceTimersByTimeAsync(60_000)
     await f.schedule.check(true)
@@ -122,7 +129,7 @@ describe('ordinary update polling', () => {
 
   it('retries a failed automatic download with capped polling backoff', async () => {
     const f = fixture()
-    f.checkForUpdates.mockResolvedValue({ isUpdateAvailable: true, updateInfo: { version: '1.1.0', files: releaseFiles } })
+    f.checkForUpdates.mockResolvedValue(checkResult('1.1.0', true, releaseFiles))
     f.downloadUpdate.mockRejectedValue(new Error('disk full'))
     await f.schedule.check()
     expect(f.coordinator.state).toMatchObject({ phase: 'error', failedOperation: 'download' })
@@ -145,7 +152,7 @@ describe('ordinary update polling', () => {
       f.coordinator.dispose()
       await expect(f.schedule.check(true)).rejects.toThrow('disposed')
     } finally {
-      pending.resolve({ isUpdateAvailable: false, updateInfo: { version: '1.0.0', files: [] } })
+      pending.resolve(checkResult('1.0.0', false))
       await checking
     }
     expect(vi.getTimerCount()).toBe(0)
