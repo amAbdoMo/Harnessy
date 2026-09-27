@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-platform-probe",
   "description": "Host capability probe for tests: whether this machine can create a real symbolic link",
-  "version": "0.1.7-rc.2",
+  "version": "0.1.8",
   "publishConfig": {
     "access": "public"
   },
