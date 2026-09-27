@@ -8,6 +8,6 @@
   "arch": "x64",
   "installer": "nsis",
   "portable": false,
-  "automaticUpdates": false,
+  "automaticUpdates": true,
   "signingRequiredForDistribution": true
 }

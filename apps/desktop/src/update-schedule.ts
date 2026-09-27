@@ -74,7 +74,8 @@ export class DesktopUpdateSchedule {
       return this.updates.check(manual)
     }).then(
       (state) => {
-        this.complete(state.phase === 'error' && state.failedOperation === 'check')
+        this.complete(state.phase === 'error'
+          && (state.failedOperation === 'check' || state.failedOperation === 'download' || state.failedOperation === 'verify'))
         return state
       },
       (error: unknown) => { this.complete(true); throw error },

@@ -59,6 +59,7 @@ const harness = await vi.hoisted(async () => {
   const platformCloseAndWait = vi.fn(() => platformCloseDeferred?.promise ?? Promise.resolve())
   const updateCheck = vi.fn(async (_manual?: boolean): Promise<DesktopUpdateState> => updateState)
   const updateDownload = vi.fn(async (_version: string): Promise<DesktopUpdateState> => updateState)
+  const updateVerify = vi.fn(async (version: string): Promise<DesktopUpdateState> => ({ phase: 'ready', version }))
   const updateInstall = vi.fn(async (_version: string): Promise<DesktopUpdateState> => updateState)
   const popup = vi.fn<(options: { window: FakeWindow; x?: number; y?: number; callback?: () => void }) => void>()
   const menuBuilder = vi.fn<(template: MenuItemConstructorOptions[]) => { popup: typeof popup }>(() => ({ popup }))
@@ -188,7 +189,7 @@ const harness = await vi.hoisted(async () => {
   return {
     failWindow(error: Error) { windowFailure = error },
     windows, hosts, handlers, app, FakeWindow, FakeHost, powerMonitor, nativeTheme, trays, FakeTray, backgroundNotice, shellDialog,
-    menu, popup, socketHeaders: vi.fn(), updateCheck, updateDownload, updateInstall,
+    menu, popup, socketHeaders: vi.fn(), updateCheck, updateDownload, updateVerify, updateInstall,
     platformDispose,
     platformCloseAndWait,
 
@@ -206,6 +207,7 @@ const harness = await vi.hoisted(async () => {
     set publishUpdate(value: (state: DesktopUpdateState) => DesktopUpdateState) { publishUpdate = value },
     dialog: { showOpenDialog: vi.fn(), showErrorBox: vi.fn(), showMessageBox: vi.fn() },
     openExternal: vi.fn(async () => {}),
+    clipboardWrite: vi.fn(),
     protocolHandle: vi.fn<(scheme: string, handler: (request: Request) => Response | Promise<Response>) => void>(),
     applyRelease: vi.fn(() => { preparing.resolve(); return prepared.promise }),
     disableAllPlugins: vi.fn(async () => {
@@ -241,6 +243,7 @@ const harness = await vi.hoisted(async () => {
       updateState = { phase: 'idle' }
       updateCheck.mockReset().mockImplementation(async () => updateState)
       updateDownload.mockReset().mockImplementation(async () => updateState)
+      updateVerify.mockReset().mockImplementation(async version => ({ phase: 'ready', version }))
       updateInstall.mockReset().mockImplementation(async () => updateState)
       nativeTheme.themeSource = 'system'; nativeTheme.shouldUseDarkColors = false
       preparing = deferred(); prepared = deferred(); hostStarted = deferred()
@@ -266,6 +269,7 @@ vi.mock('electron', () => ({
   app: harness.app,
   BrowserWindow: harness.FakeWindow,
   dialog: harness.dialog,
+  clipboard: { writeText: harness.clipboardWrite },
   shell: { openExternal: harness.openExternal, writeShortcutLink: vi.fn(() => true) },
   nativeTheme: harness.nativeTheme,
   net: { fetch: vi.fn() },
@@ -295,7 +299,7 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   const original = await importOriginal<typeof import('node:fs/promises')>()
   return { ...original, readFile: vi.fn((path: Parameters<typeof original.readFile>[0], encoding?: 'utf8') => {
     if (path === join('desktop-test-app', 'package.json')) {
-      return Promise.resolve(JSON.stringify({ dshDesktopAppId: 'com.deepseek.dsh', dshMandatoryUpdatePolicy: harness.embeddedPolicy }))
+      return Promise.resolve(JSON.stringify({ dshDesktopAppId: 'com.deepseek.dsh', dshDesktopUpdateEnvironment: 'test', dshMandatoryUpdatePolicy: harness.embeddedPolicy }))
     }
     return encoding === undefined ? original.readFile(path) : original.readFile(path, encoding)
   }) }
@@ -323,13 +327,20 @@ vi.mock('../src/update-dialog.ts', () => ({ DesktopUpdateDialog: class {
   dispose() {}
 } }))
 vi.mock('../src/update-coordinator.ts', () => ({ DesktopUpdateCoordinator: class {
-  constructor(publish: (state: DesktopUpdateState) => DesktopUpdateState, beforeRestart: () => Promise<boolean>) {
-    harness.prepareUpdate = beforeRestart
+  constructor(publish: (state: DesktopUpdateState) => DesktopUpdateState, beforeRestart: (version: string) => Promise<boolean>) {
+    harness.prepareUpdate = () => beforeRestart(harness.updateState.version ?? '0.1.99')
     harness.publishUpdate = publish
   }
   get state() { return harness.updateState }
+  setStableOnly(_stableOnly: boolean) {}
+  setWaiting(waiting: boolean) {
+    const version = harness.updateState.version
+    harness.updateState = version === undefined ? { phase: 'idle' } : { phase: waiting ? 'waiting' : 'ready', version }
+    return harness.updateState
+  }
   readonly check = harness.updateCheck
   readonly download = harness.updateDownload
+  readonly verify = harness.updateVerify
   readonly install = harness.updateInstall
   readonly dispose = vi.fn()
 } }))
@@ -1296,7 +1307,7 @@ describe('desktop main startup', () => {
     await harness.quitCompleted.promise
   })
 
-  it('defers the downloaded-update confirmation until the hidden window is shown again', async () => {
+  it('keeps a background-downloaded update inert while the window is hidden or shown', async () => {
     await readyWorkspace()
     const window = harness.windows[0]!
     harness.updateState = { phase: 'available', version: '1.0.1' }
@@ -1310,7 +1321,7 @@ describe('desktop main startup', () => {
     window.visible = true
     window.emit('show')
     await opened
-    expect(harness.updateInstall).toHaveBeenCalledWith('1.0.1')
+    expect(harness.updateInstall).not.toHaveBeenCalled()
   })
 
   it('waits for Platform view storage cleanup before an ordinary quit completes', async () => {
@@ -1481,9 +1492,21 @@ describe('desktop main startup', () => {
     await readyForUpdate()
     harness.updateCheck.mockResolvedValueOnce({ phase: 'available', version: '1.0.1-nightly.1' })
     harness.updateDownload.mockRejectedValueOnce(new Error('desktop update: download confirmation is stale'))
+    harness.dialog.showMessageBox.mockResolvedValue({ response: 3 })
     await invoke(DESKTOP_IPC.updatesOpen, 'app')
     expect(harness.dialog.showMessageBox).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'error',
-      message: en.updateDownloadFailed, technicalDetails: 'desktop update: download confirmation is stale' }))
+      message: en.updateDownloadFailed, technicalDetails: 'desktop update: download confirmation is stale',
+      buttons: [en.updateRetry, en.updateCopyDetails, en.updateOpenRelease, en.updateLater] }))
+  })
+
+  it('copies update diagnostics and opens the fixed official release page', async () => {
+    await readyForUpdate()
+    harness.dialog.showMessageBox.mockResolvedValueOnce({ response: 1 })
+    harness.publishUpdate({ phase: 'error', failedOperation: 'download', message: 'signed download failed' })
+    await vi.waitFor(() => { expect(harness.clipboardWrite).toHaveBeenCalledWith('signed download failed') })
+    harness.dialog.showMessageBox.mockResolvedValueOnce({ response: 2 })
+    harness.publishUpdate({ phase: 'error', failedOperation: 'verify', message: 'release withdrawn' })
+    await vi.waitFor(() => { expect(harness.openExternal).toHaveBeenCalledWith('https://github.com/amAbdoMo/Harnessy/releases/latest') })
   })
 
   it('keeps policy failures silent while an ordinary update proceeds', async () => {
@@ -1581,9 +1604,9 @@ describe('desktop main startup', () => {
     expect(testAuth.login).not.toHaveBeenCalled()
   })
 
-  it('downloads on the first click and opens installation confirmation only after readiness', async () => {
+  it('keeps a finished download inert until a later explicit ready-state click', async () => {
     await readyForUpdate()
-    harness.updateState = { phase: 'available', version: '1.0.1-nightly.1' }
+    harness.updateState = { phase: 'available', version: '1.0.1' }
     const downloading = Promise.withResolvers<DesktopUpdateState>()
     const started = Promise.withResolvers<undefined>()
     harness.updateDownload.mockImplementationOnce(async (version) => {
@@ -1595,13 +1618,14 @@ describe('desktop main startup', () => {
     await started.promise
     const repeated = invoke(DESKTOP_IPC.updatesOpen, 'app')
     expect(harness.dialog.showMessageBox).not.toHaveBeenCalled()
-    expect(harness.updateDownload).toHaveBeenCalledExactlyOnceWith('1.0.1-nightly.1')
+    expect(harness.updateDownload).toHaveBeenCalledExactlyOnceWith('1.0.1')
     expect(harness.updateInstall).not.toHaveBeenCalled()
-    downloading.resolve({ phase: 'ready', version: '1.0.1-nightly.1' })
+    downloading.resolve({ phase: 'ready', version: '1.0.1' })
     await Promise.all([action, repeated])
-    expect(harness.updateInstall).toHaveBeenCalledExactlyOnceWith('1.0.1-nightly.1')
-    await harness.updateCheck()
-    expect(harness.updateInstall).toHaveBeenCalledOnce()
+    expect(harness.updateInstall).not.toHaveBeenCalled()
+    harness.updateState = { phase: 'ready', version: '1.0.1' }
+    await invoke(DESKTOP_IPC.updatesOpen, 'app')
+    expect(harness.updateInstall).toHaveBeenCalledExactlyOnceWith('1.0.1')
   })
 
   it('does not lock or stop tasks when restart confirmation is dismissed', async () => {
@@ -1612,13 +1636,15 @@ describe('desktop main startup', () => {
     expect(host.stop).not.toHaveBeenCalled()
   })
 
-  it('rechecks admission after approval and rejects work that started during confirmation', async () => {
+  it('honors explicit Restart now when work starts during confirmation', async () => {
     const host = await readyForUpdate()
     host.updateTasks.mockResolvedValueOnce(false).mockResolvedValueOnce(true)
     harness.dialog.showMessageBox.mockResolvedValueOnce({ response: 0 })
-    await expect(harness.prepareUpdate()).rejects.toThrow(/New tasks/u)
-    expect(host.updateTasks.mock.calls).toEqual([['inspect'], ['lock'], ['unlock']])
-    expect(host.stop).not.toHaveBeenCalled()
+    const preparing = harness.prepareUpdate()
+    await host.stopping.promise
+    host.exited.resolve()
+    await expect(preparing).resolves.toBe(true)
+    expect(host.updateTasks.mock.calls).toEqual([['inspect'], ['lock']])
   })
 
   it('warns about active tasks and waits for a graceful Host exit after approval', async () => {
@@ -1628,11 +1654,71 @@ describe('desktop main startup', () => {
     const preparing = harness.prepareUpdate()
     await host.stopping.promise
     expect(harness.dialog.showMessageBox).toHaveBeenCalledWith(expect.objectContaining({
-      message: 'Tasks are still in progress', buttons: ['Stop tasks and update', 'Update later'],
+      message: 'Tasks are still in progress', buttons: ['Restart now', 'Restart when idle', 'Update later'],
     }))
     expect(host.stop).toHaveBeenCalledWith(true)
     host.exited.resolve()
     await expect(preparing).resolves.toBe(true)
+  })
+
+  it('schedules a cancellable restart and locks admission at the next idle moment', async () => {
+    const host = await readyForUpdate()
+    host.updateTasks
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(false)
+    harness.updateState = { phase: 'ready', version: '0.1.99' }
+    harness.dialog.showMessageBox.mockResolvedValueOnce({ response: 1 })
+    const preparing = harness.prepareUpdate()
+    await vi.waitFor(() => { expect(harness.updateState.phase).toBe('waiting') })
+    await vi.advanceTimersByTimeAsync(1_000)
+    await host.stopping.promise
+    expect(host.updateTasks.mock.calls).toEqual([['inspect'], ['inspect'], ['inspect'], ['lock']])
+    host.exited.resolve()
+    await expect(preparing).resolves.toBe(true)
+  })
+
+  it('cancels a scheduled restart without stopping work', async () => {
+    const host = await readyForUpdate()
+    host.updateTasks.mockResolvedValue(true)
+    harness.updateState = { phase: 'ready', version: '0.1.99' }
+    harness.dialog.showMessageBox.mockResolvedValueOnce({ response: 1 })
+    const preparing = harness.prepareUpdate()
+    await vi.waitFor(() => { expect(harness.updateState.phase).toBe('waiting') })
+    await invoke(DESKTOP_IPC.updatesCancelRestart, 'app')
+    await expect(preparing).resolves.toBe(false)
+    expect(harness.updateState.phase).toBe('ready')
+    expect(host.stop).not.toHaveBeenCalled()
+  })
+
+  it('unlocks admission when restart cancellation wins during idle lock acquisition', async () => {
+    const host = await readyForUpdate()
+    const lock = Promise.withResolvers<boolean>()
+    host.updateTasks
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false)
+      .mockImplementationOnce(() => lock.promise)
+      .mockResolvedValueOnce(false)
+    harness.updateState = { phase: 'ready', version: '0.1.99' }
+    harness.dialog.showMessageBox.mockResolvedValueOnce({ response: 1 })
+    const preparing = harness.prepareUpdate()
+    await vi.waitFor(() => { expect(host.updateTasks).toHaveBeenCalledTimes(3) })
+    await invoke(DESKTOP_IPC.updatesCancelRestart, 'app')
+    lock.resolve(false)
+    await expect(preparing).resolves.toBe(false)
+    expect(host.updateTasks.mock.calls).toEqual([['inspect'], ['inspect'], ['lock'], ['unlock']])
+    expect(host.stop).not.toHaveBeenCalled()
+  })
+
+  it('revalidates after admission locks and releases the lock when the release changed', async () => {
+    const host = await readyForUpdate()
+    host.updateTasks.mockResolvedValue(false)
+    harness.updateVerify.mockResolvedValueOnce({ phase: 'error', version: '0.1.99', failedOperation: 'verify', message: 'withdrawn' })
+    harness.dialog.showMessageBox.mockResolvedValueOnce({ response: 0 })
+    await expect(harness.prepareUpdate()).rejects.toThrow(/final verification/u)
+    expect(host.updateTasks.mock.calls).toEqual([['inspect'], ['lock'], ['unlock']])
+    expect(host.stop).not.toHaveBeenCalled()
   })
 
   it('unlocks admission without stopping the Host when request draining fails', async () => {

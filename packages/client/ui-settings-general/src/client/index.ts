@@ -3,7 +3,9 @@
  * `sidebar.settings` occupant — panel chrome, section navigation, and the
  * onboarding stage — and registers everything on the Settings pages that
  * belongs to no single feature: the trigger/header chrome content,
- * local-document action, General section, and `settings` dictionaries.
+ * local-document action, General section, `settings` dictionaries, and the
+ * optional Desktop update surfaces (workspace-header control, collapsed-sidebar
+ * badge, General row).
  * Feature-owned rows and sections stay with their features.
  * Export discipline: packages/client/AGENTS.md.
  */
@@ -17,6 +19,9 @@ import { closeTopModal } from '@deepseek-ai/dsh-client-ui-primitives'
 // merge. Cross-plugin collaboration goes through the service, never a value
 // import (client bundle purity gate).
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
+// Type-only: pulls `sidebar.workspaces.headerActions` into this program (the
+// update control registers beside the product's notification bell).
+import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 // Type-only: pulls ctx.locale into this program.
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
@@ -27,12 +32,13 @@ import type {
 import type { ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client'
 import { createSettingsShellStore } from './shell-store.ts'
 import { SettingsRoot } from './SettingsRoot.tsx'
-import { DesktopUpdateBadge } from './DesktopUpdateIndicator.tsx'
+import { DesktopUpdateBadge } from './DesktopUpdateBadge.tsx'
+import { DesktopUpdateControl, type DesktopUpdateControlInjected } from './DesktopUpdateControl.tsx'
 import type { DesktopUpdateBridge } from '../types.ts'
 import { DesktopUpdateSource } from './desktop-update-source.ts'
 import { CloseLabel, HeaderContent, TriggerContent } from './chrome.tsx'
 import { GeneralSection } from './GeneralSection.tsx'
-import { CurrentVersionRow } from './CurrentVersionRow.tsx'
+import { UpdateRow, type UpdateRowInjected } from './UpdateRow.tsx'
 import { DeveloperToolsRow, type DeveloperToolsRowInjected } from './DeveloperToolsRow.tsx'
 import { SettingsDocumentAction } from './SettingsDocumentAction.tsx'
 import type { SettingsDocumentActionInjected } from './SettingsDocumentAction.tsx'
@@ -61,6 +67,13 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 const NS = 'settings'
 
 /**
+ * Order of the update control inside `sidebar.workspaces.headerActions`.
+ * Lower orders render first, so the product's notification bell keeps the
+ * cluster's trailing edge beside the search and view controls.
+ */
+const HEADER_ACTION_ORDER = 5
+
+/**
  * Required services (cordis fiber inject). The target slots are declared by
  * ui-settings' apply, whose activation order relative to this one is NOT
  * constrained; registrations depend on their slots through `slots.inject()`.
@@ -68,8 +81,9 @@ const NS = 'settings'
 export const inject = ['slots', 'locale', 'connection', 'remote', 'remote.settings', 'configForms', 'shortcuts']
 
 /**
- * Register the `settings` dictionaries, the chrome content, and the General
- * section, each once its slot declaration is on the ledger.
+ * Register the `settings` dictionaries, the chrome content, the Desktop update
+ * surfaces, and the General section, each once its slot declaration is on the
+ * ledger.
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
@@ -80,19 +94,32 @@ export function apply(ctx: ClientContext): void {
       setEnabled: enabled => ctx.configForms.developerTools.setEnabled(enabled),
     }),
   }, DeveloperToolsRow))
-  // Last row: every feature-registered preference row orders below 100.
-  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
-    name: 'settings.general.item', id: 'current-version', order: 100, locale: NS,
-  }, CurrentVersionRow))
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-settings-general: dictionaries')
   const connection = ctx.get('connection') as ConnectionHandle
   const carrier = (globalThis as typeof globalThis & { dshDesktop?: { protocolVersion: number; updates?: DesktopUpdateBridge } }).dshDesktop
-  const desktopUpdate = new DesktopUpdateSource(carrier?.protocolVersion === 1 ? carrier.updates : undefined)
+  const updates = carrier?.protocolVersion === 1 ? carrier.updates : undefined
+  const desktopUpdate = new DesktopUpdateSource(updates)
   ctx.effect(() => () => { desktopUpdate.dispose() }, 'ui-settings-general: desktop update carrier')
   ctx.slots.inject('sidebar.toggle.badge', () => ctx.slots.register({
     name: 'sidebar.toggle.badge', locale: NS,
     inject: () => ({ hooks: { desktopUpdate: desktopUpdate.store, connectionState: connection.state } }),
   }, DesktopUpdateBadge))
+  ctx.slots.inject('sidebar.workspaces.headerActions', () => ctx.slots.register({
+    name: 'sidebar.workspaces.headerActions', id: 'desktop-update', order: HEADER_ACTION_ORDER, locale: NS,
+    inject: (): DesktopUpdateControlInjected => ({
+      hooks: { desktopUpdate: desktopUpdate.store },
+      open: () => { void desktopUpdate.open() },
+      cancelRestart: () => { void desktopUpdate.cancelRestart() },
+    }),
+  }, DesktopUpdateControl))
+  // Last row: every feature-registered preference row orders below 100.
+  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+    name: 'settings.general.item', id: 'current-version', order: 100, locale: NS,
+    inject: (): UpdateRowInjected => ({
+      hooks: { desktopUpdate: desktopUpdate.store },
+      ...typeof updates?.check !== 'function' ? {} : { check: () => desktopUpdate.check() },
+    }),
+  }, UpdateRow))
 
   // Copy freshness is framework-owned: components read the standard `t`
   // seat, and the nav label is a thunk the owner resolves per render — no
@@ -120,7 +147,6 @@ export function apply(ctx: ClientContext): void {
   let onboardingVersion = -1
   let onboardingSteps: readonly SettingsOnboardingStep[] = []
   const shellInjected = (): SettingsRootInjected => ({
-    openDesktopUpdate: () => { desktopUpdate.open() },
     reconnect: () => { connection.reconnect() },
     hooks: {
       shortcuts: ctx.shortcuts.catalog,

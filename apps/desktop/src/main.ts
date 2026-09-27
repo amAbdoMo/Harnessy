@@ -556,14 +556,24 @@ async function main(): Promise<void> {
   })
 
   const updateErrors = new WeakMap<DesktopUpdateState, Promise<void>>()
+  function retryOrdinaryUpdate(): void { setTimeout(() => { void openUpdatePrompt(false) }, 0) }
   const showUpdateFailure = (state: DesktopUpdateState): Promise<void> => {
     if (state.phase !== 'error') return Promise.resolve()
     if (isMandatory()) { mandatoryUI?.sync(); return Promise.resolve() }
     let shown = updateErrors.get(state)
     if (shown === undefined) {
-      shown = ordinaryMessageBox({ type: 'error', title: locale.messages.updateFailedTitle,
-        message: desktopUpdateErrorSummary(state, locale.messages),
-        technicalDetails: state.technicalDetails ?? state.message ?? '' }).then(() => {})
+      shown = (async () => {
+        const details = state.technicalDetails ?? state.message ?? ''
+        const result = await ordinaryMessageBox({ type: 'error', title: locale.messages.updateFailedTitle,
+          message: desktopUpdateErrorSummary(state, locale.messages), technicalDetails: details,
+          buttons: [locale.messages.updateRetry, locale.messages.updateCopyDetails,
+            locale.messages.updateOpenRelease, locale.messages.updateLater], cancelId: 3 })
+        if (result.response === 0) retryOrdinaryUpdate()
+        else if (result.response === 1) await clipboard.writeText(details)
+        else if (result.response === 2) {
+          await shell.openExternal(`https://github.com/${CUSTOM_HARNESS_PRODUCT.updateRepository.owner}/${CUSTOM_HARNESS_PRODUCT.updateRepository.repo}/releases/latest`)
+        }
+      })().finally(() => { updateErrors.delete(state) })
       updateErrors.set(state, shown)
     }
     return shown
@@ -624,35 +634,71 @@ async function main(): Promise<void> {
     return startup
   }
 
+  let restartWait: AbortController | undefined
   const updates = new DesktopUpdateCoordinator(
     publishUpdate,
-    async () => {
+    async (admittedVersion) => {
       await workspaceRecovery
       await startup?.catch(() => undefined)
       const host = backend.host
       if (host === undefined) throw new DesktopUpdatePreparationError('tasks-unavailable', locale.messages.updateTasksUnavailable)
       const active = await host.updateTasks('inspect')
-      const ready = desktopUpdateReadyConfirmation(locale.messages, updates.state.version ?? '', process.platform)
+      const ready = desktopUpdateReadyConfirmation(locale.messages, admittedVersion, process.platform)
       const confirmation: Electron.MessageBoxOptions = {
         type: active ? 'warning' : 'info', title: locale.messages.updateTitle,
         message: active ? locale.messages.updateActiveTasks : ready.message,
         detail: active ? locale.messages.updateActiveTasksDetail : ready.detail,
-        buttons: active ? [locale.messages.updateStopTasks, locale.messages.updateLater] : [locale.messages.installAndRestart],
-        defaultId: 1, cancelId: 1,
+        buttons: active
+          ? [locale.messages.updateStopTasks, locale.messages.updateRestartWhenIdle, locale.messages.updateLater]
+          : [locale.messages.installAndRestart, locale.messages.updateLater],
+        defaultId: active ? 2 : 1, cancelId: active ? 2 : 1,
       }
+      let waitForIdle = false
       if (isMandatory()) {
-        if (!await mandatoryUI?.confirm(updates.state.version ?? '', active)) return false
+        if (!await mandatoryUI?.confirm(admittedVersion, active)) return false
       } else {
         const parent = currentDialogWindow()
         if (parent === undefined) return false
         const result = await updateDialog.show(parent, confirmation)
-        if (result.response !== 0 || isMandatory()) return false
+        if (result.response === confirmation.cancelId || isMandatory()) return false
+        waitForIdle = active && result.response === 1
       }
       if (backend.host !== host) throw new DesktopUpdatePreparationError('tasks-unavailable', locale.messages.updateTasksUnavailable)
+      let locked = false
       try {
-        const stillActive = await host.updateTasks('lock')
-        if (stillActive && !active) throw new DesktopUpdatePreparationError('tasks-changed', locale.messages.updateTasksChanged)
-        mandatoryUI?.preparingRestart(stillActive)
+        if (waitForIdle) {
+          restartWait?.abort()
+          const controller = new AbortController()
+          restartWait = controller
+          updates.setWaiting(true)
+          while (!controller.signal.aborted) {
+            const stillActive = await host.updateTasks('inspect')
+            if (!stillActive) {
+              locked = true
+              if (!await host.updateTasks('lock')) break
+              locked = false
+              await host.updateTasks('unlock')
+            }
+            await new Promise<void>((resolve) => {
+              const timer = setTimeout(resolve, 1_000)
+              controller.signal.addEventListener('abort', () => { clearTimeout(timer); resolve() }, { once: true })
+            })
+            if (backend.host !== host) throw new DesktopUpdatePreparationError('tasks-unavailable', locale.messages.updateTasksUnavailable)
+          }
+          if (controller.signal.aborted) {
+            if (locked) { await host.updateTasks('unlock'); locked = false }
+            updates.setWaiting(false)
+            return false
+          }
+        } else {
+          locked = true
+          await host.updateTasks('lock')
+        }
+        restartWait = undefined
+        if ((await updates.verify(admittedVersion)).phase !== 'ready') {
+          throw new Error('desktop update: admitted release failed final verification')
+        }
+        mandatoryUI?.preparingRestart(active)
         // The embedded Platform document holds credentials issued by the Host that is about to stop.
         await platformView.closeAndWait()
         requireCleanStop = true
@@ -665,38 +711,25 @@ async function main(): Promise<void> {
         updateJournal?.action('install-confirmed')
         shellInstallerOwnsQuit = true
       } catch (error) {
-        if (!updateStoppedHost) await host.updateTasks('unlock').catch((unlockError: unknown) => { console.error(unlockError) })
+        if (locked && !updateStoppedHost) await host.updateTasks('unlock').catch((unlockError: unknown) => { console.error(unlockError) })
         throw error
       } finally {
+        restartWait = undefined
         requireCleanStop = false
       }
       return true
     },
     undefined,
-    () => CUSTOM_HARNESS_PRODUCT.automaticUpdates,
+    () => app.isPackaged && process.platform === 'win32' && process.arch === 'x64'
+      && existsSync(join(process.resourcesPath, 'app-update.yml')),
   )
 
   const updateSchedule = new DesktopUpdateSchedule(updates, resolveDesktopUpdateScheduleConfig(process.env))
 
   const downloadUpdate = async (version: string): Promise<DesktopUpdateState> => {
     updateJournal?.action('download-requested')
-    const state = await updates.download(version)
-    if (state.phase !== 'ready' || quitting) return state
-    // Only a completed user-driven download opens this prompt; cancelling installation does not reopen it.
-    // A confirmation on a hidden window would go unseen, so it waits for the next show; the mandatory
-    // flow keeps its own taskbar and Dock attention instead.
-    if (!isMandatory()) await windowShown()
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- A quit can begin while the show is awaited.
-    if (quitting) return state
-    return updates.install(version)
+    return updates.download(version)
   }
-  const windowShown = (): Promise<void> => new Promise((resolve) => {
-    const window = currentDialogWindow()
-    if (window === undefined || window.isDestroyed() || window.isVisible()) { resolve(); return }
-    window.once('show', () => { resolve() })
-    window.once('closed', () => { resolve() })
-  })
-
   protocol.handle(SCHEME, (request) => {
     const url = new URL(request.url)
     // Shell-owned documents live in the application bundle and never pass through the Host.
@@ -821,9 +854,17 @@ async function main(): Promise<void> {
       if (width < 960) window.setSize(960, height)
     }
   })
+  ipcMain.handle(DESKTOP_IPC.updatesCheck, async (event) => {
+    assertProductSender(event)
+    await openUpdatePrompt(true)
+  })
   ipcMain.handle(DESKTOP_IPC.updatesOpen, async (event) => {
     assertProductSender(event)
     await openUpdatePrompt()
+  })
+  ipcMain.handle(DESKTOP_IPC.updatesCancelRestart, (event) => {
+    assertProductSender(event)
+    restartWait?.abort()
   })
 
   let promptOperation: Promise<void> | undefined
@@ -832,7 +873,7 @@ async function main(): Promise<void> {
     if (authenticationOperation !== undefined) {
       policyAuth?.focus(); updateDialog.focus()
     }
-    let failedOperation: 'check' | 'download' | 'install' = 'check'
+    let failedOperation: 'check' | 'download' | 'verify' | 'install' = 'check'
     promptOperation ??= Promise.resolve().then(async () => {
       if (manual) updateJournal?.action('check-requested')
       const joinedPolicyAuthentication = authenticationOperation !== undefined
@@ -859,6 +900,12 @@ async function main(): Promise<void> {
         }
         if (isMandatory()) { mandatoryUI?.focus(); return }
         if (state.phase === 'error' && state.failedOperation === 'check') { await showUpdateFailure(state); return }
+        if (state.phase === 'error' && state.failedOperation === 'verify') {
+          failedOperation = 'verify'
+          state = await updateSchedule.check(true)
+          if (state.phase === 'error') await showUpdateFailure(state)
+          return
+        }
         if (state.phase === 'idle') {
           await ordinaryMessageBox({ type: 'info', title: locale.messages.updateCheckTitle,
             message: formatDesktopMessage(locale.messages.updateCurrent, { version: app.getVersion() }) })
@@ -1280,6 +1327,7 @@ async function main(): Promise<void> {
     if (welcomeWindow !== undefined && !welcomeWindow.isDestroyed()) welcomeWindow.hide()
     if (mainWindow !== undefined && !mainWindow.isDestroyed()) mainWindow.hide()
     updateSchedule.dispose()
+    restartWait?.abort()
     updateDialog.dispose()
     mandatoryUI?.dispose()
     void Promise.all([Promise.resolve(mandatoryPolicy?.dispose()).then(() => policyAuth?.dispose()), backend.close(),
@@ -1314,6 +1362,8 @@ async function main(): Promise<void> {
   mainWindow = createMainWindow()
   const manifest: unknown = JSON.parse(await readFile(join(app.getAppPath(), 'package.json'), 'utf8'))
   if (typeof manifest !== 'object' || manifest === null) throw new Error('desktop policy: invalid application manifest')
+  const updateEnvironment = 'dshDesktopUpdateEnvironment' in manifest ? manifest.dshDesktopUpdateEnvironment : undefined
+  updates.setStableOnly(updateEnvironment !== 'test')
   const developmentPolicy = app.isPackaged ? undefined : process.env.DSH_DESKTOP_MANDATORY_UPDATE_CONFIG
   const policyInput: unknown = app.isPackaged
     ? ('dshMandatoryUpdatePolicy' in manifest ? manifest.dshMandatoryUpdatePolicy : undefined)

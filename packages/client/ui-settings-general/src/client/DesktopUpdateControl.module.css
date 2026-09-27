@@ -1,0 +1,196 @@
+/* Update control: 28px circular icon button matching the notification bell it
+ * sits beside, plus the anchored progress/staged-restart popover. */
+
+.root {
+  position: relative;
+  flex: none;
+}
+
+.control {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  corner-shape: round;
+  color: var(--dsw-alias-label-secondary);
+  background: transparent;
+  cursor: pointer;
+}
+
+.control:hover,
+.control[aria-expanded='true'] {
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+/* The action cluster clips an outer ring, so this control keeps its ring inside. */
+.control:focus-visible {
+  outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
+  outline-offset: -2px;
+}
+
+.control[aria-disabled='true'] {
+  cursor: default;
+}
+
+.error {
+  color: var(--dsw-alias-state-warn-primary);
+}
+
+.waiting {
+  color: var(--dsw-alias-state-warn-primary);
+}
+
+.accent {
+  position: absolute;
+  top: 2px;
+  inset-inline-end: 2px;
+  width: 6px;
+  height: 6px;
+  border: 1.5px solid var(--dsw-alias-bg-base);
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--dsw-alias-state-success-primary);
+}
+
+.waiting .accent {
+  background: var(--dsw-alias-state-warn-primary);
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.ring {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+}
+
+.ringArt {
+  position: absolute;
+  inset: 0;
+  width: 20px;
+  height: 20px;
+  transform: rotate(-90deg);
+}
+
+.ringTrack {
+  fill: none;
+  stroke: color-mix(in srgb, currentColor 24%, transparent);
+  stroke-width: 1.75;
+}
+
+.ringValue {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+}
+
+.popover {
+  position: fixed;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 244px;
+  max-width: calc(100vw - 24px);
+  box-sizing: border-box;
+  padding: 12px;
+  border-radius: var(--dsw-radius-lg);
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-specific-menu);
+  backdrop-filter: var(--dsw-menu-backdrop-filter);
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
+  box-shadow: var(--dsw-elevation-prominent);
+  animation: popover-in 120ms var(--ds-ease-out);
+}
+
+.popoverHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.popoverTitle {
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.popoverPercent {
+  flex: none;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.popoverBody,
+.popoverRows > span {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.popoverRows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.progress {
+  height: 4px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: color-mix(in srgb, currentColor 16%, transparent);
+}
+
+.progressFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--dsw-alias-brand-primary-new-colorprimary-new-color);
+  transition: inline-size 160ms var(--ds-ease-out);
+}
+
+.popoverFooter {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+
+@keyframes popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+
+  .popover {
+    animation: none;
+  }
+
+  .progressFill {
+    transition: none;
+  }
+}

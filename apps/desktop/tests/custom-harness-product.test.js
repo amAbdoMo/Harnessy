@@ -19,7 +19,8 @@ test('resolves stable packaged state and ignores ambient Harness homes', () => {
     '@deepseek-ai/dsh-custom-harness',
   ])
   assert.equal(CUSTOM_HARNESS_PRODUCT.nativeDeepSeekOnboarding, false)
-  assert.equal(CUSTOM_HARNESS_PRODUCT.automaticUpdates, false)
+  assert.equal(CUSTOM_HARNESS_PRODUCT.automaticUpdates, true)
+  assert.deepEqual(CUSTOM_HARNESS_PRODUCT.updateRepository, { owner: 'amAbdoMo', repo: 'Harnessy' })
 })
 
 test('allows only absolute development overrides', () => {

@@ -3,6 +3,8 @@ import type { DesktopUpdateFailureKind, DesktopUpdatePresentation, DesktopUpdate
 import type { DesktopMessages } from './locale.ts'
 
 const NETWORK_FAILURE = /\b(?:ERR_CONNECTION_CLOSED|ERR_CONNECTION_RESET|ERR_INTERNET_DISCONNECTED|ERR_NAME_NOT_RESOLVED|ETIMEDOUT)\b/u
+const DISK_FAILURE = /\b(?:ENOSPC|not enough (?:free )?space|insufficient disk space)\b/iu
+const REVOKED_FAILURE = /\b(?:release|update) (?:was )?(?:revoked|withdrawn|superseded)\b/iu
 
 /**
  * Classify one updater failure for both native and Web-localized summaries.
@@ -11,8 +13,12 @@ const NETWORK_FAILURE = /\b(?:ERR_CONNECTION_CLOSED|ERR_CONNECTION_RESET|ERR_INT
  */
 function desktopUpdateFailureKind(state: DesktopUpdateState): DesktopUpdateFailureKind {
   if (state.failedOperation === 'install' && state.preparationFailure !== undefined) return state.preparationFailure
+  const message = state.message ?? ''
+  if (DISK_FAILURE.test(message)) return 'disk'
+  if (REVOKED_FAILURE.test(message)) return 'revoked'
   const operation = state.failedOperation ?? 'install'
-  return NETWORK_FAILURE.test(state.message ?? '') ? `${operation}-network` : operation
+  if (operation === 'verify') return 'verify'
+  return NETWORK_FAILURE.test(message) ? `${operation}-network` : operation
 }
 
 /**
@@ -28,6 +34,9 @@ export function desktopUpdateErrorSummary(state: DesktopUpdateState, messages: D
     'check-network': messages.updateCheckNetworkFailed,
     download: messages.updateDownloadFailed,
     'download-network': messages.updateDownloadNetworkFailed,
+    verify: messages.updateVerifyFailed,
+    disk: messages.updateDiskFailed,
+    revoked: messages.updateRevokedFailed,
     install: messages.updateInstallFailed,
     'install-network': messages.updateInstallNetworkFailed,
     'stop-failed': messages.updateStopFailed,
@@ -46,6 +55,8 @@ export function presentDesktopUpdate(state: DesktopUpdateState): DesktopUpdatePr
     phase: state.phase,
     ...(state.version === undefined ? {} : { version: state.version }),
     ...(state.percent === undefined ? {} : { percent: Math.floor(state.percent) }),
+    ...(state.transferredBytes === undefined ? {} : { transferredBytes: state.transferredBytes }),
+    ...(state.totalBytes === undefined ? {} : { totalBytes: state.totalBytes }),
     ...(state.phase === 'error' ? { failure: desktopUpdateFailureKind(state) } : {}),
   }
 }

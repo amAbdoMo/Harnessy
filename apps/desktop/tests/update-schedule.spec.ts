@@ -8,6 +8,7 @@ vi.mock('electron', () => ({ app: { isPackaged: false } }))
 vi.mock('electron-updater', () => ({ default: { autoUpdater: {} } }))
 const { DesktopUpdateCoordinator } = await import('../src/update-coordinator.ts')
 
+const releaseFiles = [{ url: 'Harnessy-Setup-1.1.0-win-x64.exe', sha512: 'hash', size: 100 }]
 const cleanup: (() => void)[] = []
 beforeEach(() => { vi.useFakeTimers() })
 afterEach(() => {
@@ -17,16 +18,16 @@ afterEach(() => {
 })
 
 function fixture(jitter = 0, random = () => 0.5) {
-  const checkForUpdates = vi.fn(async () => ({ isUpdateAvailable: false, updateInfo: { version: '1.0.0' } }))
+  const checkForUpdates = vi.fn(async () => ({ isUpdateAvailable: false, updateInfo: { version: '1.0.0', files: [] } }))
   const events = new EventEmitter()
   const downloadUpdate = vi.fn(async () => {
-    events.emit('update-downloaded', { version: '1.1.0-nightly.1' })
+    events.emit('update-downloaded', { version: '1.1.0', files: releaseFiles })
     return ['verified']
   })
   const updater = Object.assign(events, { checkForUpdates, downloadUpdate, quitAndInstall: vi.fn() }) as unknown as AppUpdater
   const states: DesktopUpdateState[] = []
   const coordinator = new DesktopUpdateCoordinator((state) => { states.push(state); return state }, async () => true,
-    updater, () => true, () => '1.0.0')
+    updater, () => true, () => '1.0.0', async () => Number.MAX_SAFE_INTEGER)
   const schedule = new DesktopUpdateSchedule(coordinator, { intervalMs: 10_000, maxBackoffMs: 40_000, jitter }, random)
   cleanup.push(() => { schedule.dispose(); coordinator.dispose() })
   return { schedule, coordinator, states, checkForUpdates, downloadUpdate }
@@ -46,7 +47,7 @@ describe('ordinary update polling', () => {
       expect(f.checkForUpdates).toHaveBeenCalledTimes(calls)
     }
     expect(f.states).toEqual([])
-    f.checkForUpdates.mockResolvedValue({ isUpdateAvailable: false, updateInfo: { version: '1.0.0' } })
+    f.checkForUpdates.mockResolvedValue({ isUpdateAvailable: false, updateInfo: { version: '1.0.0', files: [] } })
     await f.schedule.check(true)
     await vi.advanceTimersByTimeAsync(9_999)
     expect(f.checkForUpdates).toHaveBeenCalledTimes(5)
@@ -108,30 +109,26 @@ describe('ordinary update polling', () => {
     expect(f.checkForUpdates).toHaveBeenCalledTimes(3)
   })
 
-  it('never downloads automatically or retargets a downloaded version during polling', async () => {
+  it('downloads automatically and retains the prepared version during polling', async () => {
     const f = fixture()
-    f.checkForUpdates.mockResolvedValue({ isUpdateAvailable: true, updateInfo: { version: '1.1.0-nightly.1' } })
+    f.checkForUpdates.mockResolvedValue({ isUpdateAvailable: true, updateInfo: { version: '1.1.0', files: releaseFiles } })
     await f.schedule.check()
-    await vi.advanceTimersByTimeAsync(10_000)
-    expect(f.downloadUpdate).not.toHaveBeenCalled()
-    await f.coordinator.download('1.1.0-nightly.1')
-    await vi.advanceTimersByTimeAsync(50_000)
+    await vi.advanceTimersByTimeAsync(60_000)
     await f.schedule.check(true)
-    expect(f.checkForUpdates).toHaveBeenCalledTimes(2)
-    expect(f.downloadUpdate).toHaveBeenCalledOnce()
-    expect(f.coordinator.state).toEqual({ phase: 'ready', version: '1.1.0-nightly.1' })
-  })
-
-  it('retains a failed download for user retry without automatic transfers', async () => {
-    const f = fixture()
-    f.checkForUpdates.mockResolvedValue({ isUpdateAvailable: true, updateInfo: { version: '1.1.0-nightly.1' } })
-    await f.schedule.check()
-    f.downloadUpdate.mockRejectedValue(new Error('disk full'))
-    await f.coordinator.download('1.1.0-nightly.1')
-    await vi.advanceTimersByTimeAsync(50_000)
     expect(f.checkForUpdates).toHaveBeenCalledOnce()
     expect(f.downloadUpdate).toHaveBeenCalledOnce()
+    expect(f.coordinator.state).toEqual({ phase: 'ready', version: '1.1.0' })
+  })
+
+  it('retries a failed automatic download with capped polling backoff', async () => {
+    const f = fixture()
+    f.checkForUpdates.mockResolvedValue({ isUpdateAvailable: true, updateInfo: { version: '1.1.0', files: releaseFiles } })
+    f.downloadUpdate.mockRejectedValue(new Error('disk full'))
+    await f.schedule.check()
     expect(f.coordinator.state).toMatchObject({ phase: 'error', failedOperation: 'download' })
+    await vi.advanceTimersByTimeAsync(20_000)
+    expect(f.checkForUpdates).toHaveBeenCalledTimes(2)
+    expect(f.downloadUpdate).toHaveBeenCalledTimes(2)
   })
 
   it('clears its timer and does not rearm after a pending check settles during disposal', async () => {
@@ -148,7 +145,7 @@ describe('ordinary update polling', () => {
       f.coordinator.dispose()
       await expect(f.schedule.check(true)).rejects.toThrow('disposed')
     } finally {
-      pending.resolve({ isUpdateAvailable: false, updateInfo: { version: '1.0.0' } })
+      pending.resolve({ isUpdateAvailable: false, updateInfo: { version: '1.0.0', files: [] } })
       await checking
     }
     expect(vi.getTimerCount()).toBe(0)

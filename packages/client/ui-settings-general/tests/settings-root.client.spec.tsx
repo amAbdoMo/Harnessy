@@ -44,7 +44,7 @@ function mount({
   wide = true,
   dictionary = en,
   connectionState = 'connected',
-  desktopUpdate = { failed: false, opening: false },
+  desktopUpdate = { failed: false, busy: false },
   onboardingActive = true,
   mainView = true,
   rows = [
@@ -112,7 +112,6 @@ function mount({
     useWorkspaces: unusedHook,
     wide,
     reconnect,
-    openDesktopUpdate: () => {},
     useDesktopUpdate: select => select(desktopUpdate),
     t: makeTranslate(dictionary),
     useConnectionState: (select) => {
@@ -178,15 +177,16 @@ function openPanel() {
 }
 
 describe('SettingsRoot trigger', () => {
-  it('shows installation instead of expected backend reconnection and restores connection feedback after failure', () => {
+  it('keeps installation ahead of the expected backend reconnection and restores connection feedback after failure', () => {
     const presentation = { phase: 'installing' as const, version: '1.0.1' }
     const f = mount({ dictionary: zh, connectionState: 'connecting',
-      desktopUpdate: { failed: false, opening: false, presentation } })
-    expect(screen.getByRole('button', { name: '正在准备重启…' })).toBeTruthy()
+      desktopUpdate: { failed: false, busy: false, presentation } })
+    // Update state lives in the workspace header and the collapsed rail, never
+    // in this foot row; only its connection priority is observable here.
+    expect(screen.queryByRole('button', { name: '正在准备重启…' })).toBeNull()
     expect(screen.queryByText('重新连接中')).toBeNull()
-    f.setDesktopUpdate({ failed: false, opening: false,
+    f.setDesktopUpdate({ failed: false, busy: false,
       presentation: { phase: 'error', version: presentation.version, failure: 'install' } })
-    expect(screen.queryByRole('button', { name: '重试更新' })).toBeNull()
     expect(screen.getByText('重新连接中')).toBeTruthy()
   })
   it.each([

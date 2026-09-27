@@ -91,6 +91,9 @@ describe('Windows update publisher', () => {
       }, 'win32', 'x64')
       expect(config.win.forceCodeSigning).toBe(true)
       expect(config.artifactName).toBe('Harnessy-Setup-${version}-${os}-${arch}.${ext}')
+      expect(config.publish).toEqual([{
+        provider: 'github', owner: 'amAbdoMo', repo: 'Harnessy', channel: 'latest', releaseType: 'release',
+      }])
       expect(typeof config.win.signtoolOptions.sign).toBe('function')
       const manager = new WindowsSignToolManager({ platformSpecificBuildOptions: config.win, getCscLink: () => undefined })
       expect(await manager.computedPublisherName.value).toEqual(['CN=Publisher,O=Company,C=CN'])

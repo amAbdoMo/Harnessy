@@ -37,7 +37,10 @@
     "package:win:x64:local:dir": "tsx scripts/package-target.ts win-x64 --unsigned --dir",
     "upload:mac:arm64": "tsx scripts/upload-target.ts mac-arm64",
     "upload:mac:x64": "tsx scripts/upload-target.ts mac-x64",
-    "upload:win:x64": "tsx scripts/upload-target.ts win-x64"
+    "upload:win:x64": "tsx scripts/upload-target.ts win-x64",
+    "release:github:win:x64:draft": "tsx scripts/github-windows-release.ts draft",
+    "release:github:win:x64:verify": "tsx scripts/github-windows-release.ts verify",
+    "release:github:win:x64:publish": "tsx scripts/github-windows-release.ts publish"
   },
   "dependencies": {
     "electron-updater": "^6.8.9",

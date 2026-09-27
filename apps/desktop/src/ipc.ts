@@ -24,7 +24,9 @@ export const DESKTOP_IPC = {
   localeBootstrap: 'dsh-desktop:locale-bootstrap',
   localeChanged: 'dsh-desktop:locale-changed',
   updatesStatus: 'dsh-desktop:updates-status',
+  updatesCheck: 'dsh-desktop:updates-check',
   updatesOpen: 'dsh-desktop:updates-open',
+  updatesCancelRestart: 'dsh-desktop:updates-cancel-restart',
   updatesPresentation: 'dsh-desktop:updates-presentation',
   nativeThemeSet: 'dsh-desktop:native-theme-set',
   windowFullscreen: 'dsh-desktop:window-fullscreen',
@@ -78,13 +80,15 @@ export function parseDesktopNotificationPayload(value: unknown): DesktopNotifica
 export type DesktopUpdatePreparationFailureKind = 'stop-failed' | 'tasks-changed' | 'tasks-unavailable'
 
 export interface DesktopUpdateState {
-  readonly phase: 'idle' | 'checking' | 'available' | 'downloading' | 'verifying' | 'installing' | 'ready' | 'error'
+  readonly phase: 'idle' | 'checking' | 'available' | 'downloading' | 'verifying' | 'ready' | 'waiting' | 'installing' | 'error'
   readonly version?: string
   readonly message?: string
   /** Main-owned diagnostics without subprocess output or credentials; hidden until expanded. */
   readonly technicalDetails?: string
   readonly percent?: number
-  readonly failedOperation?: 'check' | 'download' | 'install'
+  readonly transferredBytes?: number
+  readonly totalBytes?: number
+  readonly failedOperation?: 'check' | 'download' | 'verify' | 'install'
   /** Main-owned preparation cause; UI wording is selected by the active locale. */
   readonly preparationFailure?: DesktopUpdatePreparationFailureKind
 }
@@ -95,6 +99,9 @@ export type DesktopUpdateFailureKind =
   | 'check-network'
   | 'download'
   | 'download-network'
+  | 'verify'
+  | 'disk'
+  | 'revoked'
   | 'install'
   | 'install-network'
   | 'stop-failed'
@@ -106,6 +113,8 @@ export interface DesktopUpdatePresentation {
   readonly phase: DesktopUpdateState['phase']
   readonly version?: string
   readonly percent?: number
+  readonly transferredBytes?: number
+  readonly totalBytes?: number
   readonly failure?: DesktopUpdateFailureKind
 }
 
@@ -120,7 +129,9 @@ export interface DshDesktopProductApi {
   }
   readonly updates: {
     status(): Promise<DesktopUpdatePresentation>
+    check(): Promise<void>
     open(): Promise<void>
+    cancelRestart(): Promise<void>
     subscribe(listener: (state: DesktopUpdatePresentation) => void): () => void
   }
 }

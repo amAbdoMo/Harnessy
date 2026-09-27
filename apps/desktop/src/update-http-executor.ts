@@ -1,9 +1,20 @@
 /** Electron-native inactivity deadlines for updater checks, full downloads, and blockmap requests. */
 import { ElectronHttpExecutor } from 'electron-updater/out/electronHttpExecutor.js'
-import type { ClientRequest, IncomingMessage } from 'electron'
+import type { ClientRequest, ClientRequestConstructorOptions, IncomingMessage } from 'electron'
 
 /** Retains electron-updater transport and proxy handling while bounding silent connections. */
 export class DesktopUpdateHttpExecutor extends ElectronHttpExecutor {
+  override createRequest(
+    options: ClientRequestConstructorOptions,
+    callback: Parameters<ElectronHttpExecutor['createRequest']>[1],
+  ): ClientRequest {
+    if (options.headers !== undefined) {
+      options.headers = Object.fromEntries(Object.entries(options.headers)
+        .filter(([name]) => name.toLowerCase() !== 'x-user-staging-id'))
+    }
+    return super.createRequest(options, callback)
+  }
+
   /**
    * @param idleTimeoutMs - Maximum silence before headers or between response chunks, not a total download deadline.
    * @param proxyLogin - Existing updater login event forwarding.

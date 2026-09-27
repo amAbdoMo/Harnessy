@@ -17,7 +17,8 @@ export interface CustomHarnessProduct {
     '@deepseek-ai/dsh-custom-harness',
   ]
   readonly nativeDeepSeekOnboarding: boolean
-  readonly automaticUpdates: false
+  readonly automaticUpdates: true
+  readonly updateRepository: Readonly<{ owner: 'amAbdoMo'; repo: 'Harnessy' }>
   readonly productUrl: string
   readonly supportUrl: string
   readonly manifestShortName: 'Harnessy'

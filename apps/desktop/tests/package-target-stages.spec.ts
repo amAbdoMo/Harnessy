@@ -6,6 +6,10 @@ import { packageMacOSArtifacts } from '../scripts/package-macos.ts'
 import { withWindowsSigningStage } from '../scripts/windows-signing-stage.mjs'
 import { prepareWindowsSignatureCacheDirectory } from '../scripts/windows-signature-cache-directory.mjs'
 
+vi.mock('node:crypto', async importOriginal => ({
+  ...await importOriginal<typeof import('node:crypto')>(),
+  X509Certificate: class { readonly fingerprint = Array(20).fill('AA').join(':') },
+}))
 vi.mock('../scripts/macos-notarization-proxy.ts', () => ({
   withMacOSNotarizationProxy: vi.fn(async (_proxy: string | undefined, action: () => Promise<void>) => action()),
 }))
@@ -30,6 +34,7 @@ afterEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks() })
 
 const environment = { DSH_DESKTOP_APP_ID: 'com.example.test', DSH_DESKTOP_AUTO_UPDATE_ENV: 'test',
   DOWNLOAD_TEST_ORIGIN: 'https://updates.example.com', DOWNLOAD_TEST_RELEASE_ID: '0123456789abcdef0123456789abcdef',
+  DSH_DESKTOP_WINDOWS_CER_FILE: import.meta.filename,
   DSH_DESKTOP_WINDOWS_TOKEN_PIN: 'fixture-pin', DSH_DESKTOP_WINDOWS_SIGNATURE_CACHE_CONCURRENCY: '2' }
 
 function supervisor(failure?: string) {

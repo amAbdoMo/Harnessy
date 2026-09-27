@@ -115,11 +115,15 @@
   padding-left: 0;
 }
 
+/* Product-contributed controls sit left of the search pill; the cap holds two
+   28px icons (for example the notification bell and the Desktop update
+   control) and never widens the cluster beyond what its occupants use. */
 .productActions {
   flex: none;
   display: flex;
   align-items: center;
-  max-width: 28px;
+  gap: 4px;
+  max-width: 60px;
   opacity: 1;
   overflow: hidden;
   visibility: visible;

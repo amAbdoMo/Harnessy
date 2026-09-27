@@ -1,6 +1,7 @@
 /** Build one release target with matching Electron and dsh architecture. */
 
 import { spawn } from 'node:child_process'
+import { X509Certificate } from 'node:crypto'
 import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 import { join, resolve } from 'node:path'
@@ -147,6 +148,12 @@ function writeReleaseRecord(
   const packaged = resolveDesktopBuildCommit(environment)
   const update = resolveDesktopAutoUpdateConfig(environment, target.platform, target.arch)
   const recordPath = join(artifactsRoot, desktopBuildRecordFilename(target.name))
+  const certificateFile = environment.DSH_DESKTOP_WINDOWS_CER_FILE
+  let signerThumbprint: string | undefined
+  if (target.platform === 'win32') {
+    if (certificateFile === undefined) throw new Error('desktop package: Windows certificate file is required for the release record')
+    signerThumbprint = new X509Certificate(readFileSync(certificateFile)).fingerprint.replaceAll(':', '').toUpperCase()
+  }
   const temporaryPath = `${recordPath}.tmp`
   writeFileSync(temporaryPath, `${JSON.stringify({
     schemaVersion: 1,
@@ -154,6 +161,7 @@ function writeReleaseRecord(
     version: buildVersion,
     environment: update.environment,
     publicUrl: update.publicUrl,
+    ...signerThumbprint === undefined ? {} : { signerThumbprint },
     // Upload reads this to tag the commit a production release was packaged from.
     ...packaged === undefined ? {} : { commit: packaged.commit, dirty: packaged.dirty },
   }, null, 2)}\n`)

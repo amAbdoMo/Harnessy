@@ -98,7 +98,7 @@ function verifyProductIdentity(product: ProductIdentityEvidence): string[] {
   if (product.windowsAppId !== 'com.amabdmo.customharness') failures.push('Windows application id must remain isolated')
   if (product.dataDirectoryName !== 'CustomHarness') failures.push('local application data must remain isolated under CustomHarness')
   if (product.nativeDeepSeekOnboarding) failures.push('stock DeepSeek onboarding must remain disabled')
-  if (product.automaticUpdates) failures.push('stock automatic updates must remain disabled')
+  if (!product.automaticUpdates) failures.push('signed Harnessy automatic updates must remain enabled')
   if (JSON.stringify(product.desktopProfileBundles) !== JSON.stringify(EXPECTED_BUNDLES)) {
     failures.push('desktop profile must compose base, web-app, and custom-harness bundles in order')
   }

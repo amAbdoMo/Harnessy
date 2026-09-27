@@ -11,6 +11,9 @@ import { createClientTest, type TestClient, webApp } from '@deepseek-ai/dsh-clie
 import { inject } from '../src/client/index.ts'
 import type { SettingsRootInjected } from '../src/client/shell-contract.ts'
 import { SettingsRoot } from '../src/client/SettingsRoot.tsx'
+import { DesktopUpdateControl } from '../src/client/DesktopUpdateControl.tsx'
+import type { DesktopUpdateControlInjected } from '../src/client/DesktopUpdateControl.tsx'
+import type { UpdateRowInjected } from '../src/client/UpdateRow.tsx'
 import type { DesktopUpdatePresentation } from '../src/types.ts'
 
 const SELF = '@deepseek-ai/dsh-client-ui-settings-general'
@@ -22,6 +25,15 @@ const COLD_BOOT_TIMEOUT_MS = 60_000
 function injectedOf(c: TestClient): SettingsRootInjected {
   const entry = c.ctx.slots.entries('sidebar.settings')[0]!
   return (entry.inject as () => SettingsRootInjected)()
+}
+
+/**
+ * The injected face one entry declares. The registry types `inject` as a
+ * generic record factory, so the face is narrowed at the call site.
+ */
+function faceOf(entry: { inject?: (() => object) | undefined; options?: { id?: string } }): object {
+  if (entry.inject === undefined) throw new Error(`entry ${String(entry.options?.id)} declares no inject face`)
+  return entry.inject()
 }
 
 /** The shell's child declarations (chrome, actions, sections, and onboarding overlays). */
@@ -49,31 +61,63 @@ const PRODUCT_ONBOARDING: readonly { id: string; order: number }[] = [
 ]
 
 describe('ui-settings-general shell', () => {
-  it('shares one carrier subscription between both update locations and releases it on unload', async ({ start }) => {
+  it('shares one carrier subscription across every update surface and releases it on unload', async ({ start }) => {
     const initial = Promise.withResolvers<DesktopUpdatePresentation>()
     let publish: ((state: DesktopUpdatePresentation) => void) | undefined
     const off = vi.fn()
     const subscribe = vi.fn((listener: typeof publish) => { publish = listener; return off })
     const open = vi.fn(async () => {})
-    vi.stubGlobal('dshDesktop', { protocolVersion: 1, updates: { status: () => initial.promise, subscribe, open } })
+    const check = vi.fn(async () => {})
+    const cancelRestart = vi.fn(async () => {})
+    vi.stubGlobal('dshDesktop', { protocolVersion: 1, updates: { status: () => initial.promise, subscribe, open, check, cancelRestart } })
     onTestFinished(() => { vi.unstubAllGlobals(); initial.resolve({ phase: 'idle' }) })
     const c = await start()
     const row = injectedOf(c)
     const badge = (c.ctx.slots.entries('sidebar.toggle.badge')[0]!.inject as () => Pick<SettingsRootInjected, 'hooks'>)()
+    const header = faceOf(c.ctx.slots.entries('sidebar.workspaces.headerActions')[0]!) as DesktopUpdateControlInjected
     expect(badge.hooks.desktopUpdate).toBe(row.hooks.desktopUpdate)
+    expect(header.hooks.desktopUpdate).toBe(row.hooks.desktopUpdate)
     expect(subscribe).toHaveBeenCalledOnce()
     const status = { phase: 'available' as const, version: '1.0.1' }
     publish!(status)
     expect(row.hooks.desktopUpdate.getSnapshot().presentation).toEqual(status)
-    row.openDesktopUpdate()
+
+    header.open()
     await c.flush()
     expect(open).toHaveBeenCalledOnce()
+    const waiting = { phase: 'waiting' as const, version: status.version }
+    publish!(waiting)
+    header.cancelRestart()
+    await c.flush()
+    expect(cancelRestart).toHaveBeenCalledOnce()
+    const checkRow = faceOf(c.ctx.slots.entries('settings.general.item').find(entry => entry.options.id === 'current-version')!) as UpdateRowInjected
+    await checkRow.check?.()
+    expect(check).toHaveBeenCalledOnce()
+
     await c.unload(SELF)
     await c.flush()
     expect(off).toHaveBeenCalledOnce()
     expect(c.ctx.slots.entries('sidebar.toggle.badge')).toHaveLength(0)
+    expect(c.ctx.slots.entries('sidebar.workspaces.headerActions')).toHaveLength(0)
     publish!({ phase: 'error', version: status.version, failure: 'install' })
-    expect(row.hooks.desktopUpdate.getSnapshot().presentation).toEqual(status)
+    expect(row.hooks.desktopUpdate.getSnapshot().presentation).toEqual(waiting)
+  }, COLD_BOOT_TIMEOUT_MS)
+
+  it('offers only the version row in a browser without a Desktop carrier', async ({ start }) => {
+    const c = await start()
+    const row = faceOf(c.ctx.slots.entries('settings.general.item').find(entry => entry.options.id === 'current-version')!) as UpdateRowInjected
+    expect(row.check).toBeUndefined()
+    const surface = faceOf(c.ctx.slots.entries('sidebar.workspaces.headerActions')[0]!) as DesktopUpdateControlInjected
+    expect(surface.hooks.desktopUpdate.getSnapshot()).toEqual({ failed: false, busy: false })
+  }, COLD_BOOT_TIMEOUT_MS)
+
+  it('places the header control ahead of the product notification bell', async ({ start }) => {
+    const c = await start()
+    const entry = c.ctx.slots.entries('sidebar.workspaces.headerActions')[0]!
+    expect(entry.component).toBe(DesktopUpdateControl)
+    expect(entry.options.id).toBe('desktop-update')
+    // The Harnessy notification bell registers at order 10; lower orders render first.
+    expect(entry.options.order).toBeLessThan(10)
   }, COLD_BOOT_TIMEOUT_MS)
 
   it('declares its services', () => {

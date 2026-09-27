@@ -98,6 +98,7 @@ export function createElectronBuilderConfig(
   // the artifact names, the update feed, and the installed app.getVersion() the updater compares against.
   const productVersion = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8')).version
   const buildVersion = resolveDesktopBuildVersion(env, productVersion)
+  const githubUpdates = update?.environment === 'production' && resolvedPlatform === 'win32'
   const packaged = resolveDesktopBuildCommit(env)
   return {
     appId,
@@ -105,6 +106,7 @@ export function createElectronBuilderConfig(
     extraMetadata: {
       dshDesktopAppId: appId,
       dshMandatoryUpdatePolicy: policy,
+      ...update === undefined ? {} : { dshDesktopUpdateEnvironment: update.environment },
       ...buildVersion === productVersion ? {} : { version: buildVersion },
       ...packaged === undefined ? {} : { dshBuildCommit: packaged.commit, dshBuildDirty: packaged.dirty },
     },
@@ -255,6 +257,11 @@ export function createElectronBuilderConfig(
       differentialPackage: true,
     },
     detectUpdateChannel: false,
-    publish: update === undefined ? null : [{ provider: 'generic', url: update.publicUrl, channel: 'nightly' }],
+    publish: update === undefined
+      ? null
+      : githubUpdates
+        ? [{ provider: 'github', owner: CUSTOM_HARNESS_PRODUCT.updateRepository.owner,
+            repo: CUSTOM_HARNESS_PRODUCT.updateRepository.repo, channel: 'latest', releaseType: 'release' }]
+        : [{ provider: 'generic', url: update.publicUrl, channel: 'nightly' }],
   }
 }

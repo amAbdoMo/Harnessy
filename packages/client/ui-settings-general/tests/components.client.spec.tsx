@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, act } from '@testing-library/react'
 import { bindSnapshotSelector, RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
 import type { GeneralSectionComponentProps } from '../src/client/GeneralSection.tsx'
 import { GeneralSection } from '../src/client/GeneralSection.tsx'
@@ -23,8 +23,8 @@ function derivedDocumentStore(remote: object) {
   return new SettingsDocumentStore(ctx, new SettingsDescribeMirror(ctx))
 }
 import { en, zh } from '../src/client/locales.ts'
-import { CurrentVersionRow } from '../src/client/CurrentVersionRow.tsx'
-import { DesktopUpdateBadge } from '../src/client/DesktopUpdateIndicator.tsx'
+import { UpdateRow } from '../src/client/UpdateRow.tsx'
+import { DesktopUpdateBadge } from '../src/client/DesktopUpdateBadge.tsx'
 import type { DesktopUpdateView } from '../src/types.ts'
 
 afterEach(() => { cleanup(); vi.unstubAllEnvs() })
@@ -45,7 +45,7 @@ const kit = {
 
 describe('Desktop collapsed update badge', () => {
   it('shows update and retry status and yields to connection feedback', () => {
-    let state: DesktopUpdateView = { failed: false, opening: false }
+    let state: DesktopUpdateView = { failed: false, busy: false }
     let connection: 'connected' | 'connecting' | 'disconnected' = 'connected'
     const props = { ...kit, t,
       useDesktopUpdate: (select => select(state)) as Parameters<typeof DesktopUpdateBadge>[0]['useDesktopUpdate'],
@@ -60,12 +60,19 @@ describe('Desktop collapsed update badge', () => {
     state = { ...state, failed: true }
     view.rerender(<DesktopUpdateBadge {...props} />)
     expect(screen.getByRole('img', { name: en['desktop.update.retry'] })).toBeTruthy()
-    state = { failed: true, opening: false }
+    state = { failed: true, busy: false }
     view.rerender(<DesktopUpdateBadge {...props} />)
     expect(screen.getByRole('img', { name: en['desktop.update.retry'] })).toBeTruthy()
-    state = { failed: false, opening: false, presentation: { phase: 'error', failure: 'install' } }
+    state = { failed: false, busy: false, presentation: { phase: 'error', failure: 'install' } }
     view.rerender(<DesktopUpdateBadge {...props} />)
     expect(screen.getByRole('img', { name: en['desktop.update.retry'] })).toBeTruthy()
+    // The installing phase keeps the update state visible through the backend
+    // disconnect the install itself causes.
+    state = { failed: false, busy: false, presentation: { phase: 'installing', version: '1.0.1' } }
+    connection = 'connecting'
+    view.rerender(<DesktopUpdateBadge {...props} />)
+    expect(screen.getByRole('img', { name: 'Preparing to restart…' })).toBeTruthy()
+    state = { failed: false, busy: false, presentation: { phase: 'available', version: '1.0.1' } }
     for (const value of ['connecting', 'disconnected'] as const) {
       connection = value
       view.rerender(<DesktopUpdateBadge {...props} />)
@@ -250,25 +257,62 @@ it('reports a failed developer-tool write and allows retry', async () => {
   expect(screen.queryByRole('alert')).toBeNull()
 })
 
-describe('current version', () => {
+describe('update row', () => {
+  const translate = (dictionary: typeof zh | typeof en): TriggerContentProps['t'] => (key, params) => {
+    let text = (dictionary as Record<string, string>)[key] ?? key
+    for (const [name, value] of Object.entries(params ?? {})) text = text.replace(`{${name}}`, String(value))
+    return text
+  }
+
+  function mount({ view = { failed: false, busy: false } satisfies DesktopUpdateView, check }: {
+    view?: DesktopUpdateView
+    check?: () => Promise<void>
+  } = {}) {
+    return render(<UpdateRow {...kit} t={translate(en)}
+      useDesktopUpdate={select => select(view)}
+      {...check === undefined ? {} : { check }} />)
+  }
+
   it.each([
     ['Current version: 1.2.3-rc.4', en],
     ['当前版本：1.2.3-rc.4', zh],
   ])('renders the localized release label %s', (expected, dictionary) => {
     vi.stubEnv('DSH_CLIENT_VERSION', '1.2.3-rc.4')
-    const translate: TriggerContentProps['t'] = (key, params) => {
-      let text = (dictionary as Record<string, string>)[key] ?? key
-      for (const [name, value] of Object.entries(params ?? {})) text = text.replace(`{${name}}`, String(value))
-      return text
-    }
-    render(<CurrentVersionRow {...kit} t={translate} />)
+    render(<UpdateRow {...kit} t={translate(dictionary)}
+      useDesktopUpdate={select => select({ failed: false, busy: false })} />)
     expect(screen.getByText(expected)).toBeTruthy()
     expect(screen.queryByRole('button')).toBeNull()
   })
 
-  it('omits the row when a partial build has no version metadata', () => {
+  it('omits the row when a partial build has no version metadata and no carrier', () => {
     vi.stubEnv('DSH_CLIENT_VERSION', undefined)
-    const view = render(<CurrentVersionRow {...kit} t={t} />)
+    const view = mount()
     expect(view.container.textContent).toBe('')
+  })
+
+  it('requests a Desktop check, reports it in flight, and returns to rest', async () => {
+    vi.stubEnv('DSH_CLIENT_VERSION', '1.2.3-rc.4')
+    const pending = Promise.withResolvers<undefined>()
+    const check = vi.fn(() => pending.promise)
+    mount({ check })
+    const button = screen.getByRole('button', { name: 'Check for updates' })
+    fireEvent.click(button)
+    expect(check).toHaveBeenCalledOnce()
+    expect(button.hasAttribute('disabled')).toBe(true)
+    await act(async () => { pending.resolve(undefined); await pending.promise })
+    expect(screen.getByRole('button', { name: 'Check for updates' }).hasAttribute('disabled')).toBe(false)
+  })
+
+  it('reports a shell-reported check even before the request settles', () => {
+    vi.stubEnv('DSH_CLIENT_VERSION', '1.2.3-rc.4')
+    mount({ view: { failed: false, busy: false, presentation: { phase: 'checking' } }, check: vi.fn(async () => {}) })
+    expect(screen.getByRole('button', { name: 'Checking for updates…' }).hasAttribute('disabled')).toBe(true)
+  })
+
+  it('keeps the version label alone in a browser or an older carrier', () => {
+    vi.stubEnv('DSH_CLIENT_VERSION', '1.2.3-rc.4')
+    mount()
+    expect(screen.getByText('Current version: 1.2.3-rc.4')).toBeTruthy()
+    expect(screen.queryByRole('button')).toBeNull()
   })
 })

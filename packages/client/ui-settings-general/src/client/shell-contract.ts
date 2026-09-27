@@ -39,14 +39,12 @@ export interface SettingsOnboardingStep {
  * sources, while the reconnect command remains a plain callback.
  */
 export type SettingsRootInjected = {
-  /** Request the current shell-owned update action. */
-  openDesktopUpdate: () => void
   /** Request a fresh logical generation and physical WebSocket immediately. */
   reconnect: () => void
   hooks: {
     /** Effective command presentation, shared with the reference. */
     shortcuts: HostObservable<readonly ShortcutCatalogEntry[]>
-    /** Shared Electron status for both sidebar locations. */
+    /** Shared Electron status; the shell reads the installing phase for connection priority. */
     desktopUpdate: HostObservable<DesktopUpdateView>
     /** Connection-owned state for the current Host connection. */
     connectionState: HostObservable<ConnectionState | undefined>
