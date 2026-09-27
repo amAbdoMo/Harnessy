@@ -8,7 +8,7 @@ Public APIs are pre-stable; update every consumer. Follow [version/status](docs/
 
 Acknowledge [declared persistence-type changes](docs/cookbook/reviewing-persistence-type-changes.md).
 
-**Launch and sync.** Use only `dsh` profiles ([rule](docs/architecture.md#application-launch)). Isolate changes, preserve Harnessy owners, and run `pnpm run verify:harnessy-product` before merging ([procedure](HARNESSY-UPSTREAM-HANDOFF.md)).
+**Harnessy workflow.** On staging, push completed commits to origin/staging; never push master, tags, or releases without request. Follow [delivery](HARNESSY-STAGING-DELIVERY.md) and [synchronization](HARNESSY-UPSTREAM-HANDOFF.md).
 
 ## Repository layout
 
