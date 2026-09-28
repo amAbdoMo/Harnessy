@@ -37,7 +37,7 @@
 
 .trigger {
   min-height: 68px;
-  padding: 6px 8px;
+  padding: 6px 15px;
   border-radius: var(--dsw-radius-md);
   background: var(--dsw-alias-interactive-bg-hover);
 }

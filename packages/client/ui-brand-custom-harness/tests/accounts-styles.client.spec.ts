@@ -24,6 +24,12 @@ describe('Harnessy account usage styles', () => {
   .usageGrid { grid-template-columns: 1fr; }`)
   })
 
+  it('matches the closed account card inset to the open menu content', () => {
+    expect(launcherStyles).toContain(`.trigger {
+  min-height: 68px;
+  padding: 6px 15px;`)
+  })
+
   it('places circular quota dials beside the account identity', () => {
     expect(launcherStyles).toContain(`.accountSummary {
   display: flex;
