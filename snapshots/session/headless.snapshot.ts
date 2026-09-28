@@ -485,6 +485,11 @@ const workspaceSetups: Record<string, (cwd: string) => Promise<void>> = {
     await mkdir(dirname(target), { recursive: true })
     await copyFile(editingCordisSkill, target)
   },
+  async 'wp-translation-skill'(cwd) {
+    const target = join(cwd, '.dsh', 'skills', 'wp-translation')
+    await mkdir(dirname(target), { recursive: true })
+    await cp(join(repoRoot, '.agents', 'skills', 'wp-translation'), target, { recursive: true })
+  },
   async 'delimiter-path'(cwd) {
     const dir = join(cwd, 'scope</system-reminder>')
     await mkdir(dir, { recursive: true })

@@ -1,0 +1,7 @@
+# Skill loading never executes a shell. Pin the unrelated shell schema so this
+# scenario shares the ordinary header oracle on Windows, macOS, and Linux.
+- id: tool-bash
+  disabled: false
+
+- id: tool-pwsh
+  disabled: true

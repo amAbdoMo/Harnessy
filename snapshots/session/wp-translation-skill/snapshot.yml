@@ -1,0 +1,12 @@
+version: 1
+scenario: wp-translation-skill
+profile: headless
+composition: wp-translation-skill
+recording: authored
+header:
+  class: wp-translation-skill
+  pin: true
+  systemPromptSource: text-turn
+  toolSchemasSource: text-turn
+workspace:
+  setup: wp-translation-skill
