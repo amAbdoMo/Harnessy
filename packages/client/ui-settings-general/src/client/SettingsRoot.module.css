@@ -2,13 +2,26 @@
   position: relative;
   flex: none;
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: stretch;
+  flex-direction: column;
+  gap: 6px;
   width: calc(100% + 4px);
   margin: 4px -2px;
 }
 
+.connectionRow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+}
+
+.connectionRow:empty {
+  display: none;
+}
+
 .triggerRow.railRow {
+  gap: 0;
   width: 36px;
   margin: 8px 0 10px;
 }

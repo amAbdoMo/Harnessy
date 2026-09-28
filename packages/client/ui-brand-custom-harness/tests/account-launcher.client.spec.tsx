@@ -88,8 +88,8 @@ describe('Harnessy account launcher', () => {
     })
 
     expect(within(trigger).getByText('PLUS · Codex')).toBeTruthy()
-    expect(within(trigger).getByText('52%')).toBeTruthy()
-    expect(within(trigger).getByText('24%')).toBeTruthy()
+    expect(within(trigger).getByText('5h')).toBeTruthy()
+    expect(within(trigger).getByText('7d')).toBeTruthy()
   })
 
   it('updates the displayed meters when a refreshed account snapshot arrives', async () => {
@@ -99,8 +99,8 @@ describe('Harnessy account launcher', () => {
     act(() => { launcher.accountUsage.set(refreshedAccountState) })
     const trigger = await screen.findByRole('button', { name: /5h 52% used, 7d 24% used/ })
     const fills = trigger.querySelectorAll('[data-level]')
-    expect(fills[0]?.getAttribute('style')).toContain('width: 52%')
-    expect(fills[1]?.getAttribute('style')).toContain('width: 24%')
+    expect(fills[0]?.getAttribute('stroke-dasharray')).toBe('52 48')
+    expect(fills[1]?.getAttribute('stroke-dasharray')).toBe('24 76')
   })
 
   it('opens the saved-account menu and routes its account row to Accounts', async () => {

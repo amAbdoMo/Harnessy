@@ -44,11 +44,13 @@ function compactUsageWindows(account: ManagedAccountView | undefined): readonly 
 function CompactUsageMeter({ window }: { readonly window: AccountUsageWindow }) {
   const target = Math.round(window.usedPercent)
   return (
-    <span className={css.compactUsageItem}>
-      <span className={css.compactUsageLabel}><span>{window.label}</span><strong>{target}%</strong></span>
-      <span className={css.compactUsageTrack} aria-hidden="true">
-        <span className={css.compactUsageFill} data-level={accountUsageLevel(target)} style={{ width: `${String(target)}%` }} />
-      </span>
+    <span className={css.compactUsageItem} aria-hidden="true">
+      <svg className={css.compactUsageDial} viewBox="0 0 36 36">
+        <circle className={css.compactUsageTrack} cx="18" cy="18" r="15" pathLength={100} />
+        <circle className={css.compactUsageFill} data-level={accountUsageLevel(target)}
+          cx="18" cy="18" r="15" pathLength={100} strokeDasharray={`${String(target)} ${String(100 - target)}`} />
+      </svg>
+      <span className={css.compactUsageLabel}>{window.label}</span>
     </span>
   )
 }

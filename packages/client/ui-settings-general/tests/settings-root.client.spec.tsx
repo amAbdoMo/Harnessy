@@ -208,6 +208,13 @@ describe('SettingsRoot trigger', () => {
     expect(screen.getByRole('button', { name, expanded: true })).toBeTruthy()
   })
 
+  it('places connection feedback above the account or Settings launcher', () => {
+    mount({ connectionState: 'connecting' })
+    const connection = screen.getByRole('button', { name: 'Reconnecting, reconnect now' })
+    const settings = screen.getByRole('button', { name: 'Settings' })
+    expect(connection.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
+  })
+
   it('shows outage, retry progress, and a two-second recovery confirmation', () => {
     vi.useFakeTimers()
     const mounted = mount()

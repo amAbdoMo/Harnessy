@@ -226,6 +226,17 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
   return (
     <>
       <div className={clsx(css.triggerRow, !wide && css.railRow)}>
+        <div className={css.connectionRow}>
+          <ConnectionIndicator
+            state={wide && desktopUpdate.presentation?.phase !== 'installing' ? connectionIndicator : undefined}
+            disconnectedLabel={t('connection.error')}
+            connectingLabel={t('connection.connecting')}
+            recoveredLabel={t('connection.connected')}
+            reconnectActionLabel={t('connection.reconnect')}
+            restartActionLabel={t('connection.restart')}
+            onReconnect={reconnect}
+          />
+        </div>
         {renderSlot('settings.launcher', {
           wide, settingsOpen: open, openSettings: actions.open, openSection,
           ...(shortcut?.keys.length ? {
@@ -248,15 +259,6 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
             {renderSlot('settings.trigger', { wide })}
           </button>
         </Tooltip> })}
-        <ConnectionIndicator
-          state={wide && desktopUpdate.presentation?.phase !== 'installing' ? connectionIndicator : undefined}
-          disconnectedLabel={t('connection.error')}
-          connectingLabel={t('connection.connecting')}
-          recoveredLabel={t('connection.connected')}
-          reconnectActionLabel={t('connection.reconnect')}
-          restartActionLabel={t('connection.restart')}
-          onReconnect={reconnect}
-        />
       </div>
       {open && (
         <SettingsPanel

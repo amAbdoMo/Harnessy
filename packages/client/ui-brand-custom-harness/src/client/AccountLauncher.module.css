@@ -1,8 +1,12 @@
 .root,
 .railRoot {
   position: relative;
-  flex: 1;
   min-width: 0;
+}
+
+.root {
+  flex: none;
+  width: 100%;
 }
 
 .railRoot {
@@ -72,14 +76,20 @@
   color: var(--dsw-alias-label-primary);
   background: var(--dsw-alias-interactive-bg-active);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1;
 }
 
-.accountSummary,
+.accountSummary {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
 .identity {
   display: flex;
   min-width: 0;
+  flex: 1;
   flex-direction: column;
 }
 
@@ -92,7 +102,7 @@
 
 .identity > strong {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 18px;
 }
 
@@ -103,54 +113,55 @@
 }
 
 .compactUsage {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 5px;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
 }
 
 .compactUsageItem {
-  min-width: 0;
-}
-
-.compactUsageLabel {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px;
-  color: var(--dsw-alias-label-tertiary);
-  font-size: 9px;
-  line-height: 11px;
-}
-
-.compactUsageLabel strong {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
   color: var(--dsw-alias-label-secondary);
-  font-weight: 600;
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.compactUsageDial {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: none;
+  stroke-width: 3;
+  transform: rotate(-90deg);
 }
 
 .compactUsageTrack {
-  display: block;
-  height: 3px;
-  margin-top: 2px;
-  overflow: hidden;
-  border-radius: 999px;
-  corner-shape: round;
-  background: var(--dsw-alias-interactive-bg-active);
+  stroke: var(--dsw-alias-interactive-bg-active);
 }
 
 .compactUsageFill {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--dsw-alias-button-primary-fill);
+  stroke: var(--dsw-alias-button-primary-fill);
+  stroke-linecap: round;
 }
 
 .compactUsageFill[data-level='warning'] {
-  background: var(--dsw-static-amber-400);
+  stroke: var(--dsw-static-amber-400);
 }
 
 .compactUsageFill[data-level='danger'] {
-  background: var(--dsw-alias-state-error-primary);
+  stroke: var(--dsw-alias-state-error-primary);
+}
+
+.compactUsageLabel {
+  position: relative;
 }
 
 .chevron {
@@ -208,5 +219,4 @@
 
 @media (prefers-reduced-motion: reduce) {
   .menu { animation: none; }
-  .compactUsageFill { transition: none; }
 }
