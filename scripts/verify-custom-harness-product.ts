@@ -48,6 +48,7 @@ const REQUIRED_BUNDLE_PATCHES = [
   './cordis.patch.yml',
   './presets/standard.patch.yml',
   './presets/ptc.patch.yml',
+  './presets/minimal.patch.yml',
   './presets/cordis.patch.yml',
 ] as const
 
@@ -58,12 +59,14 @@ const REQUIRED_CUSTOM_DEPENDENCIES = [
   '@deepseek-ai/dsh-client-ui-workspace-brief',
   '@deepseek-ai/dsh-model-capabilities',
   '@deepseek-ai/dsh-skill-filesystem',
+  '@deepseek-ai/dsh-system-prompt',
   '@deepseek-ai/dsh-subagent-commandcode',
   '@deepseek-ai/dsh-subagent-roster',
   '@deepseek-ai/dsh-workspace-brief',
 ] as const
 
 const REQUIRED_PATCH_ROWS = [
+  'custom-harness-policy',
   'authorization',
   'workspace-brief',
   'harnessy-shared-skills',

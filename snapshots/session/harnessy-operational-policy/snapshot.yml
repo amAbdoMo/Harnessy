@@ -1,0 +1,11 @@
+version: 1
+scenario: harnessy-operational-policy
+profile: headless
+composition: harnessy-operational-policy
+recording: authored
+header:
+  class: harnessy-operational-policy
+  pin: true
+  promptChanges: 1
+replay:
+  override: true

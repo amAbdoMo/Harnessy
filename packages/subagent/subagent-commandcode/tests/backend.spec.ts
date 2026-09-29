@@ -96,9 +96,10 @@ function delegatingAgent(): Agent {
  * Boot the real Host services, the subagent registry, the Command Code plugin,
  * and the roster's tools over one role.
  * @param definition - the role every delegation resolves.
+ * @param instructionsPrefix - deployment policy for every delegated brief.
  * @returns the booted composition and its observations.
  */
-async function boot(definition: SubagentDefinition): Promise<Composition> {
+async function boot(definition: SubagentDefinition, instructionsPrefix = ''): Promise<Composition> {
   const ctx = new Context()
   await ctx.plugin(SessionStore)
   await ctx.plugin(SystemPrompt)
@@ -121,7 +122,7 @@ async function boot(definition: SubagentDefinition): Promise<Composition> {
     return handle
   }
 
-  await ctx.plugin(CommandCodeController)
+  await ctx.plugin(CommandCodeController, { instructionsPrefix })
 
   const settings = documentOf(definition)
   const limiter = new SubagentRunLimiter(
@@ -166,8 +167,8 @@ afterEach(async () => {
 })
 
 /** Boot one composition and register it for teardown. */
-async function composition(definition: SubagentDefinition): Promise<Composition> {
-  const booted = await boot(definition)
+async function composition(definition: SubagentDefinition, instructionsPrefix = ''): Promise<Composition> {
+  const booted = await boot(definition, instructionsPrefix)
   BOOTED.push(booted)
   return booted
 }
@@ -207,11 +208,11 @@ describe('the commandcode subagent backend', () => {
     expect(booted.spawned).toHaveLength(0)
   })
 
-  it('sends the persona as the standing prefix of the brief', async () => {
-    const booted = await composition(commandCodeRole({ instructions: 'Answer in one line.' }))
+  it('sends deployment policy before the role instructions and task', async () => {
+    const booted = await composition(commandCodeRole({ instructions: 'Answer in one line.' }), 'Stop when access is blocked.')
     await booted.delegate({ subagent: 'code', task: 'Report the fixture contents.' })
     const written = Buffer.concat(booted.runs()[0]?.stdin ?? []).toString('utf8')
-    expect(written).toBe('Answer in one line.\n\nReport the fixture contents.')
+    expect(written).toBe('Stop when access is blocked.\n\nAnswer in one line.\n\nReport the fixture contents.')
   })
 })
 

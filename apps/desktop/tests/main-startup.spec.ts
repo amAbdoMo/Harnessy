@@ -158,6 +158,7 @@ const harness = await vi.hoisted(async () => {
     getPath: vi.fn((name: string): string => join(tmpdir(), 'dsh-desktop-main-test', name)),
     setName: vi.fn((name: string) => { app.name = name }),
     setAppUserModelId: vi.fn(),
+    dock: { setIcon: vi.fn() },
     setPath: vi.fn(),
     setAppLogsPath: vi.fn(),
     setAboutPanelOptions: vi.fn<(options: Electron.AboutPanelOptionsOptions) => void>(),
@@ -505,6 +506,9 @@ describe('desktop main startup', () => {
       .toEqual(expected[`${platform}:${locale}`])
     expect(options.iconPath).toBe(packaged ? join('desktop-test-resources', 'icon.png')
       : join('desktop-test-app', 'assets', 'harnessy.png'))
+    expect(harness.windows[0]!.options).toMatchObject({ icon: options.iconPath })
+    expect(harness.app.dock.setIcon).toHaveBeenCalledTimes(platform === 'darwin' && !packaged ? 1 : 0)
+    if (platform === 'darwin' && !packaged) expect(harness.app.dock.setIcon).toHaveBeenCalledWith(options.iconPath)
     if (platform !== 'win32') { expect(about!.click).toBeUndefined(); return }
     // Windows reuses the dimmed update dialog because Electron's fallback is a bare message box.
     harness.dialog.showMessageBox.mockResolvedValueOnce({ response: 0 })

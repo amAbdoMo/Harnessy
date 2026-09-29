@@ -165,7 +165,10 @@ class CommandCodeSubagentProvider implements SubagentProvider {
   // delegating conversation.
   readonly inheritsParentContext = false
 
-  constructor(private readonly api: CommandCodeDelegationApi) {}
+  constructor(
+    private readonly api: CommandCodeDelegationApi,
+    private readonly instructionsPrefix: string,
+  ) {}
 
   /**
    * Run one delegation to completion of its publication boundary. The route,
@@ -179,7 +182,9 @@ class CommandCodeSubagentProvider implements SubagentProvider {
       throw new Error('commandcode: the delegating session has no working directory to run in')
     }
     const spec = backendRunSpec(request, this.api.viewFor(workspace))
-    const brief = composeCommandCodeBrief(request.persona ?? '', promptText(request.prompt))
+    const roleInstructions = request.persona ?? ''
+    const instructions = [this.instructionsPrefix.trim(), roleInstructions.trim()].filter(Boolean).join('\n\n')
+    const brief = composeCommandCodeBrief(instructions, promptText(request.prompt))
     const health = await this.api.preflight(request.signal)
     if (!health.installed || !health.authenticated) {
       // No fallback to another product, model, or executable: the user's own
@@ -204,8 +209,13 @@ class CommandCodeSubagentProvider implements SubagentProvider {
  * process and reads no CLI state: both happen per delegation.
  * @param ctx - Context carrying the subagent registry.
  * @param api - the plugin's CLI, settings, and scheduling surface.
+ * @param instructionsPrefix - deployment policy prepended before role instructions.
  * @returns the exact Cordis effect disposer.
  */
-export function registerCommandCodeBackend(ctx: Context, api: CommandCodeDelegationApi): () => void {
-  return ctx.subagents.registerProvider(new CommandCodeSubagentProvider(api))
+export function registerCommandCodeBackend(
+  ctx: Context,
+  api: CommandCodeDelegationApi,
+  instructionsPrefix = '',
+): () => void {
+  return ctx.subagents.registerProvider(new CommandCodeSubagentProvider(api, instructionsPrefix))
 }

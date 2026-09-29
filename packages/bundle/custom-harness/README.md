@@ -21,6 +21,7 @@ This package is the narrow product layer applied after `dsh-base` and `dsh-web-a
 - [Subagents](#subagents)
 - [OpenAI account login](#openai-account-login)
 - [Shared skills folder](#shared-skills-folder)
+- [Agent behavior policy](#agent-behavior-policy)
 - [Model Experience](#model-experience)
 - [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
 - [Dev Note](#dev-note)
@@ -91,14 +92,39 @@ The profile mounts a global filesystem-skill provider whose default root is `%US
 
 The global shared root composes with each preset's scoped filesystem provider. Project `.dsh\skills` and `.agents\skills` entries retain their higher priority, so a project can deliberately override a personal skill with the same name.
 
+<a id="agent-behavior-policy"></a>
+## Agent behavior policy
+
+Harnessy applies the same policy to every agent entry path: a global prompt section covers ordinary in-process agents, the complete Minimal persona includes it directly, and Command Code prepends it to each external CLI brief. Agents do not create or synthesize a new image unless the user explicitly requests that image in the current task. They may inspect supplied images, capture verification screenshots, and edit supplied assets when the task requires it.
+
+When required application or website access, permission, MCP access, authentication, or login is unavailable or broken, the agent stops after the first failed access check, reports the exact blocker and required user action, and waits. It does not keep retrying, bypass the missing access, or continue with alternatives that cannot complete the requested result. Available tools, ordinary repository inspection, and already-authorized checks remain available without an extra confirmation.
+
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through the inherited base and Web composition. OpenAI sign-in can activate the installed Codex model catalog; the mounted public-metadata row contributes reasoning-effort levels for models no local source describes, the mounted delegation rows own the tools this profile adds, this patch layer registers no prompt or tool schema of its own, and Workspace Brief remains a human-only log event.
+### Operational policy
+
+#### What the model sees
+
+Ordinary agents receive the text as a global prompt section. The complete Minimal persona contains the same text, and each Command Code brief places it before role instructions and the delegated task.
+
+##### Harnessy operational policy
+
+```markdown
+Do not create or synthesize images on your own initiative. Generate a new image only when the user explicitly asks for that image in the current task. Inspecting supplied images, capturing verification screenshots, and editing supplied assets are allowed when needed.
+
+If completing the task requires access to an application or website that is unavailable, a permission that is not granted, or MCP access, authentication, or login that is missing or broken, stop after the first failed access check. Report the exact blocker and the user action needed, then wait. Do not keep retrying, bypass the missing access, or continue with alternatives that cannot complete the requested result.
+
+Ordinary repository inspection, available tool use, and already-authorized builds or checks do not require confirmation.
+```
+
+#### Token effect
+
+Fixed prompt text on every model request. Command Code receives the same fixed prefix once per delegated CLI run.
 
 #### KV Cache effect
 
-None beyond the selected base and Web composition, apart from the stable `delegate` and `list_subagents` schemas the mounted roster row contributes.
+Prefix-stable for ordinary and Minimal agents; it does not invalidate an already reusable prefix. Command Code runs are independent model requests.
 
 ## Known Limitations and Deferred Work
 
@@ -120,4 +146,4 @@ None.
 
 **Runtime invariant:** This bundle patches only product-owned rows and leaves all shared API and package identifiers intact.
 
-No runtime invariant companion is published; this package is a static product patch layer whose inserted rows own their runtime relationships and invariant companions.
+No runtime invariant companion is published; the prompt registry solely owns the policy section, so the package has no independent runtime observations that can diverge.

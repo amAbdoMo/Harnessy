@@ -12,8 +12,8 @@
   en: 5650fd84b3f83509
   zh: a9cd5c2a2080a188
 /deepseek-ai-dsh-custom-harness/table-of-contents:
-  en: d87497a170768f00
-  zh: 0ab1668df05dfffc
+  en: 77f0eb14b1d5ed5d
+  zh: a74c8161f2efbffe
 /deepseek-ai-dsh-custom-harness/use-this-package:
   en: 6c64c13793fb77bc
   zh: 7e0dea45f5fda47e
@@ -36,17 +36,32 @@
   en: 7c2d47919f82f4a3
   zh: 5679e3ae8ab48508
 /deepseek-ai-dsh-custom-harness/shared-skills-folder:
-  en: cd07c3d8b0ca4b55
-  zh: 63550782da0a7e43
+  en: 70e5901df1e30fa1
+  zh: 3f58fdce52c383cb
+/deepseek-ai-dsh-custom-harness/agent-behavior-policy:
+  en: 4c7e6c57622c1ea7
+  zh: 0c1968c02927c90a
 /deepseek-ai-dsh-custom-harness/model-experience:
-  en: 162d7081299b9e37
-  zh: 42d7071071fed219
-/deepseek-ai-dsh-custom-harness/model-experience/kv-cache-effect:
-  en: 1628d025658dbfd1
-  zh: d7421f8730f4a6bf
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-custom-harness/model-experience/operational-policy:
+  en: 93e293ee33decde1
+  zh: 9167cdc83f1cb7e7
+/deepseek-ai-dsh-custom-harness/model-experience/operational-policy/what-the-model-sees:
+  en: 030e0cda7ba9b62e
+  zh: 2036ca2a807aa867
+/deepseek-ai-dsh-custom-harness/model-experience/operational-policy/what-the-model-sees/harnessy-operational-policy:
+  en: 8ab4fc61912246f7
+  zh: 832c0a1bb95a29b8
+/deepseek-ai-dsh-custom-harness/model-experience/operational-policy/token-effect:
+  en: de79dcf5bbec2e0d
+  zh: 2d01652e26f7aa13
+/deepseek-ai-dsh-custom-harness/model-experience/operational-policy/kv-cache-effect:
+  en: c95e0b66771d03d0
+  zh: 6aad63f6c1b26445
 /deepseek-ai-dsh-custom-harness/known-limitations-and-deferred-work:
   en: 05df650b7a241192
   zh: b29e208ff39facb8
 /deepseek-ai-dsh-custom-harness/known-limitations-and-deferred-work/dev-note:
-  en: 52413a44d083ecb6
-  zh: cc11e75e3c9dda0a
+  en: 8a4a918260fbedc8
+  zh: d458aa9ee8bb0bc6

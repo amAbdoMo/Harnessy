@@ -21,14 +21,14 @@
   en: be245cd5257b8c93
   zh: 812e17d45172ef80
 /deepseek-ai-dsh-subagent-commandcode/use-this-package/configuration:
-  en: c2e70cd67bc2adaa
-  zh: e7b06ab4d0e9c6b0
+  en: 9303c492ffcf9d3c
+  zh: f5ae2df246cb5a27
 /deepseek-ai-dsh-subagent-commandcode/use-this-package/access-levels:
   en: 5c2e3fe40c28753f
   zh: 2a75333140ba67cf
 /deepseek-ai-dsh-subagent-commandcode/use-this-package/subagent-backend:
-  en: c52fdf5aa6d7c970
-  zh: dab23a9899607574
+  en: 9bff4539637c3947
+  zh: 746d9bde0e2839b3
 /deepseek-ai-dsh-subagent-commandcode/use-this-package/workspace-overrides:
   en: 1f5df9ee6f6ffbef
   zh: 0f88fad5fc7f067d
@@ -86,6 +86,18 @@
 /deepseek-ai-dsh-subagent-commandcode/model-experience/delegation/kv-cache-effect:
   en: 81f2da1a775911c6
   zh: 42a68466c1c08fc7
+/deepseek-ai-dsh-subagent-commandcode/model-experience/delegated-brief-policy:
+  en: 2f545c63a6c1016b
+  zh: 2347d29ff8d215a8
+/deepseek-ai-dsh-subagent-commandcode/model-experience/delegated-brief-policy/what-the-model-sees:
+  en: d217106e246fdbef
+  zh: 3e712779b077b4b2
+/deepseek-ai-dsh-subagent-commandcode/model-experience/delegated-brief-policy/token-effect:
+  en: 105560aea50305c3
+  zh: fb8b351d6be0322d
+/deepseek-ai-dsh-subagent-commandcode/model-experience/delegated-brief-policy/kv-cache-effect:
+  en: 40461a76ce2601f3
+  zh: 10bd0923eada2bb6
 /deepseek-ai-dsh-subagent-commandcode/known-limitations-and-deferred-work:
   en: 1f99865bdb360776
   zh: e54a7562b5296e44

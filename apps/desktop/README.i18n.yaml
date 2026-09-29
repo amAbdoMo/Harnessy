@@ -3,8 +3,8 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write apps/desktop/README.md
 /harnessy-desktop:
-  en: 36a878b15caa59b7
-  zh: 6c160e8bf790996a
+  en: a677c81434dcba43
+  zh: c8d0e64282d0a2f0
 /harnessy-desktop/closing-the-window-and-quitting:
   en: f4f018905fa9fdd3
   zh: 863c26d199e64205

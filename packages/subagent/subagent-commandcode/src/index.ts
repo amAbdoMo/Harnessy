@@ -67,6 +67,8 @@ export interface Config {
   disposeGraceMs?: number
   /** Whether to register the pre-roster lane tools beside the backend. */
   toolsEnabled?: boolean
+  /** Deployment policy prepended to every CLI subagent brief. */
+  instructionsPrefix?: string
   /** Legacy lane concurrency retained until the unified roster imports it. */
   maxConcurrentRuns: Volatile<number>
   /** Legacy lane timeout retained until the unified roster imports it. */
@@ -83,6 +85,7 @@ export interface Config {
 export const Config = z.object({
   disposeGraceMs: z.number().default(DEFAULT_DISPOSE_GRACE_MS),
   toolsEnabled: z.boolean().default(true),
+  instructionsPrefix: z.string().default(''),
   maxConcurrentRuns: CommandCodeDelegationFields.maxConcurrentRuns.volatile(),
   timeoutMs: CommandCodeDelegationFields.timeoutMs.volatile(),
   maxTurns: CommandCodeDelegationFields.maxTurns.volatile(),
@@ -201,7 +204,7 @@ export class CommandCodeController extends TypertRemoteService {
     // two tools it already had.
     ctx.inject(['subagents'], (registryCtx) => {
       registryCtx.effect(
-        () => registerCommandCodeBackend(registryCtx, this.delegationApi()),
+        () => registerCommandCodeBackend(registryCtx, this.delegationApi(), config.instructionsPrefix ?? ''),
         'commandcode delegation: subagent backend',
       )
     })

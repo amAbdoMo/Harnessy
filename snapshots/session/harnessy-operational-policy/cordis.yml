@@ -1,0 +1,17 @@
+- id: llm-deepseek
+  config:
+    models:
+      - id: deepseek-v4-flash
+        systemPromptUpdate: in-history
+
+- id: tool-bash
+  disabled: false
+
+- id: tool-pwsh
+  disabled: true
+
+- insert:
+    - id: harnessy-operational-policy
+      name: '../../../packages/bundle/custom-harness/src/index.ts'
+    - id: prompt-update
+      name: '../../../packages/test-support/session-snapshot/tests/fixtures/in-history-prompt-update.ts'

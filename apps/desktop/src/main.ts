@@ -260,10 +260,11 @@ function platformLoginUrl(authorizeUrl: string): string {
   return url.href
 }
 
-function createWindow(preload: string, show = false, primary = false): BrowserWindow {
+function createWindow(preload: string, icon: string, show = false, primary = false): BrowserWindow {
   const window = new BrowserWindow({
     width: 1280,
     height: 820,
+    icon,
     minWidth: 520,
     minHeight: 600,
     show,
@@ -376,6 +377,9 @@ async function main(): Promise<void> {
   const resources = runtimeResources()
   const paths = currentDesktopPaths()
   const development = !app.isPackaged
+  const applicationIconPath = development ? join(app.getAppPath(), 'assets', 'harnessy.png')
+    : join(process.resourcesPath, 'icon.png')
+  if (process.platform === 'darwin' && development) app.dock?.setIcon(applicationIconPath)
   const primaryRuntime = development
     ? developmentPrimaryRuntime()
     : join(process.resourcesPath, 'runtime', 'primary-runtime')
@@ -1004,8 +1008,6 @@ async function main(): Promise<void> {
     updates.dispose()
   })
 
-  const applicationIconPath = development ? join(app.getAppPath(), 'assets', 'harnessy.png')
-    : join(process.resourcesPath, 'icon.png')
   app.setAboutPanelOptions({
     applicationName: CUSTOM_HARNESS_PRODUCT.displayName,
     applicationVersion: app.getVersion(),
@@ -1143,7 +1145,7 @@ async function main(): Promise<void> {
     }
   }
   const createMainWindow = (): BrowserWindow => {
-    const window = createWindow(appPreload, false, true)
+    const window = createWindow(appPreload, applicationIconPath, false, true)
     mainWindow = window
     browserGuests.bind(window, (guest, name) => shortcuts.attachGuest(window, guest, name))
     shortcuts.attach(window)

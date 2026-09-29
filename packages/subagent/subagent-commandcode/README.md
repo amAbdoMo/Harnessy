@@ -49,6 +49,7 @@ On Windows the npm shim is read for the JavaScript entry it launches and that en
 |---|---|---|
 | `disposeGraceMs` | `3000` | Grace between the shared managed-range owner's termination tiers |
 | `toolsEnabled` | `true` | Whether to register the pre-roster lane discovery and delegation tools; the backend, settings, health, and Remote surfaces remain available when false |
+| `instructionsPrefix` | empty | Deployment policy prepended to every CLI subagent brief before its role instructions and task |
 
 Everything a user tunes at runtime lives in the `commandcode-delegation` settings section rather than in composition configuration, so an edit applies to the next delegation from an existing Session.
 
@@ -70,7 +71,7 @@ Full access runs the CLI with `--yolo`, which lets it edit files and run command
 
 The plugin registers one provider on `ctx.subagents` under the fixed name `commandcode`, so a roster role whose `execution.backend` is `commandcode` runs through this CLI. The name is fixed because stored roles name it: the roster projects every pre-roster lane onto that backend, so a renamed provider would leave those roles without one.
 
-The backend reads the role's route from `agentOptions`: the model id reaches `--model` unchanged and the reasoning effort reaches `--effort`, so the catalog it accepts is the CLI's own rather than `ctx.llm`'s. A role naming no route passes no `--model` and the CLI applies its own configured default; an effort the CLI does not accept refuses the start. Access maps onto the same two permission modes the lanes use, and a role demanding a level the CLI cannot express — `workspace-write` — is refused at start rather than rounded to another one. The role's instructions prefix the brief, and the turn cap and wall-clock bound come from the settings section above.
+The backend reads the role's route from `agentOptions`: the model id reaches `--model` unchanged and the reasoning effort reaches `--effort`, so the catalog it accepts is the CLI's own rather than `ctx.llm`'s. A role naming no route passes no `--model` and the CLI applies its own configured default; an effort the CLI does not accept refuses the start. Access maps onto the same two permission modes the lanes use, and a role demanding a level the CLI cannot express — `workspace-write` — is refused at start rather than rounded to another one. The deployment `instructionsPrefix` precedes the role's instructions and task in the brief, and the turn cap and wall-clock bound come from the settings section above.
 
 The backend advertises `agentOptions`, `persona`, and `accessPolicy` and nothing else: a CLI child owns its tools, its delegation depth, and its structured output, so a role asking for a tool filter or a depth cap on this backend is refused at start.
 
@@ -179,6 +180,20 @@ Foreground input grows by the retained final answer or failure diagnostic, both 
 #### KV Cache effect
 
 Append-only: results follow the reusable prefix, and a background completion notice may add one turn without rewriting it.
+
+### Delegated brief policy
+
+#### What the model sees
+
+When configured, `instructionsPrefix` is trimmed and placed before the selected role's trimmed standing instructions and self-contained task in every Command Code CLI brief. It enters the external child's request only and is not copied into the parent Session.
+
+#### Token effect
+
+Zero by default. A configured value adds its fixed text once per delegated CLI run.
+
+#### KV Cache effect
+
+Independent: each Command Code run is a separate model request outside the parent agent's cache prefix.
 
 ## Known Limitations and Deferred Work
 

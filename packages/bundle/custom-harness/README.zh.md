@@ -21,6 +21,7 @@ kind: "package-bundle"
 - [子代理](#subagents)
 - [OpenAI 账户登录](#openai-account-login)
 - [共享技能文件夹](#shared-skills-folder)
+- [Agent 行为策略](#agent-behavior-policy)
 - [模型体验](#model-experience)
 - [已知限制与延期工作](#known-limitations-and-deferred-work)
 - [开发备注](#dev-note)
@@ -91,14 +92,39 @@ Windows 默认位置为 `%LOCALAPPDATA%\CustomHarness\Harness`、`%LOCALAPPDATA%
 
 全局共享根目录会与各 preset 的作用域文件系统 provider 组合。项目 `.dsh\skills` 与 `.agents\skills` 条目保留更高优先级，因此项目可以有意覆盖同名个人 skill。
 
+<a id="agent-behavior-policy"></a>
+## Agent 行为策略
+
+Harnessy 将同一策略应用于每个 Agent 入口：全局 prompt 分区覆盖普通进程内 Agent，完整的 Minimal persona 直接包含该策略，Command Code 则将其放在每个外部 CLI 简报开头。除非用户在当前任务中明确请求该图片，否则 Agent 不会创建或合成新图片。任务需要时，Agent 可以检查用户提供的图片、截取验证截图以及编辑用户提供的素材。
+
+当所需的应用或网站访问、权限、MCP 访问、身份验证或登录不可用或发生故障时，Agent 会在第一次访问检查失败后停止，报告确切阻塞项和所需的用户操作，然后等待。Agent 不会持续重试、绕过缺失的访问，也不会继续尝试无法完成所请求结果的替代方案。可用工具、普通仓库检查和已授权的检查无需额外确认即可继续使用。
+
 <a id="model-experience"></a>
 ## 模型体验
 
-间接影响来自继承的 base 与 Web 组合。OpenAI 登录可以启用已安装的 Codex model catalog；本 profile 添加的工具由所挂载的委派行拥有，此 patch 层自身不注册 prompt 或工具 schema，Workspace Brief 也保持为仅人类可用的日志事件。
+### 运行策略
+
+#### 模型所见
+
+普通 Agent 将该文本作为全局 prompt 分区接收。完整的 Minimal persona 包含相同文本，每个 Command Code 简报则将其置于角色指令和委派任务之前。
+
+##### Harnessy 运行策略
+
+```markdown
+Do not create or synthesize images on your own initiative. Generate a new image only when the user explicitly asks for that image in the current task. Inspecting supplied images, capturing verification screenshots, and editing supplied assets are allowed when needed.
+
+If completing the task requires access to an application or website that is unavailable, a permission that is not granted, or MCP access, authentication, or login that is missing or broken, stop after the first failed access check. Report the exact blocker and the user action needed, then wait. Do not keep retrying, bypass the missing access, or continue with alternatives that cannot complete the requested result.
+
+Ordinary repository inspection, available tool use, and already-authorized builds or checks do not require confirmation.
+```
+
+#### Token 影响
+
+每个模型请求都会获得固定的 prompt 文本。每次委派的 CLI 运行会接收一次相同的固定前缀。
 
 #### KV Cache 影响
 
-除所选 base 与 Web 组合外没有影响，唯一的例外是所挂载角色目录行贡献的稳定 `delegate` 与 `list_subagents` schema。
+普通 Agent 和 Minimal Agent 的前缀保持稳定；该策略不会使已可复用的前缀失效。Command Code 运行属于独立模型请求。
 
 ## 已知限制与延期工作
 
@@ -120,4 +146,4 @@ Windows 默认位置为 `%LOCALAPPDATA%\CustomHarness\Harness`、`%LOCALAPPDATA%
 
 **运行时不变式：** 本 bundle 只修补产品自有行，并保持所有共享 API 与包标识不变。
 
-不发布运行时不变式 companion；本包是静态产品 patch 层，插入行各自拥有其运行时关系与不变式 companion。
+不发布运行时不变式 companion；prompt registry 独占策略分区，因此本包没有可能发生分歧的独立运行时观察结果。

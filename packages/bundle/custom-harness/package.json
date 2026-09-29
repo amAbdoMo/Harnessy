@@ -28,6 +28,7 @@
     "cordis.patch.yml",
     "presets/standard.patch.yml",
     "presets/ptc.patch.yml",
+    "presets/minimal.patch.yml",
     "presets/cordis.patch.yml",
     "lib/types/**/*.d.ts"
   ],
@@ -38,6 +39,7 @@
         "./cordis.patch.yml",
         "./presets/standard.patch.yml",
         "./presets/ptc.patch.yml",
+        "./presets/minimal.patch.yml",
         "./presets/cordis.patch.yml"
       ]
     }
@@ -49,6 +51,7 @@
     "@deepseek-ai/dsh-client-ui-workspace-brief": "workspace:*",
     "@deepseek-ai/dsh-model-capabilities": "workspace:*",
     "@deepseek-ai/dsh-skill-filesystem": "workspace:*",
+    "@deepseek-ai/dsh-system-prompt": "workspace:*",
     "@deepseek-ai/dsh-subagent-commandcode": "workspace:*",
     "@deepseek-ai/dsh-subagent-roster": "workspace:*",
     "@deepseek-ai/dsh-workspace-brief": "workspace:*"
