@@ -13,6 +13,8 @@ export interface WindowsNotificationShortcut {
     readonly iconIndex: number
     readonly description: string
     readonly appUserModelId: string
+    /** Arguments that reopen the target application, present for unpackaged executables. */
+    readonly args?: string
   }
 }
 
@@ -24,17 +26,21 @@ export interface WindowsNotificationShortcutRequest {
   readonly executable: string
   readonly displayName: string
   readonly applicationId: string
+  /** Arguments that reopen an unpackaged executable from a toast click. */
+  readonly launchArguments?: string
 }
 
 /**
- * Resolve the packaged Windows shortcut that registers the notification application id.
- * @param request - packaged application identity and paths.
- * @returns the shortcut plan, or undefined outside packaged Windows builds.
+ * Resolve the Windows shortcut that registers the notification application id.
+ * Without this shortcut Windows brands the executable's toasts with its own
+ * fallback identity and routes toast clicks to a bare executable launch.
+ * @param request - application identity and paths.
+ * @returns the shortcut plan, or undefined outside Windows builds.
  */
 export function windowsNotificationShortcut(
   request: WindowsNotificationShortcutRequest,
 ): WindowsNotificationShortcut | undefined {
-  if (request.platform !== 'win32' || !request.packaged) return undefined
+  if (request.platform !== 'win32') return undefined
   return {
     path: join(
       request.roamingApplicationData,
@@ -50,6 +56,7 @@ export function windowsNotificationShortcut(
       iconIndex: 0,
       description: request.displayName,
       appUserModelId: request.applicationId,
+      ...(request.launchArguments === undefined ? {} : { args: request.launchArguments }),
     },
   }
 }

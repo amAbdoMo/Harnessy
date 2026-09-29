@@ -126,6 +126,12 @@ function prepareWindowsNotifications(): void {
     executable: process.execPath,
     displayName: CUSTOM_HARNESS_PRODUCT.displayName,
     applicationId: CUSTOM_HARNESS_PRODUCT.windowsAppId,
+    // An unpackaged executable has no installer shortcut, so Windows would
+    // answer toast clicks with a bare Electron launch; the arguments reopen
+    // this development application against its own user data instead.
+    ...(app.isPackaged ? {} : {
+      launchArguments: `--user-data-dir="${app.getPath('userData')}" "${app.getAppPath()}"`,
+    }),
   })
   if (shortcut === undefined) return
   try {
