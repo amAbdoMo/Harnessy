@@ -239,8 +239,17 @@ export class DesktopUpdateCoordinator {
   /** Confirm the prepared artifact remains the latest published stable release before stopping work. */
   private async revalidate(version: string): Promise<boolean> {
     this.setState({ phase: 'checking', version })
+    let result: Awaited<ReturnType<AppUpdater['checkForUpdates']>>
     try {
-      const result = await this.updater.checkForUpdates()
+      // The prepared bytes were hash-verified at download, so a feed re-check
+      // that cannot reach the network (rate limit, outage) must not block the
+      // confirmed installation; the next startup re-checks normally.
+      result = await this.updater.checkForUpdates()
+    } catch (error: unknown) {
+      console.warn('desktop update: release re-check is unreachable; installing the verified artifact', error)
+      return true
+    }
+    try {
       if (result === null) throw new Error('desktop update: no check result was returned')
       const latest = result.updateInfo.version
       if (valid(latest) === null || this.stableOnly && prerelease(latest) !== null) {

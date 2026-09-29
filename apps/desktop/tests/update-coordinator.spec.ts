@@ -235,6 +235,16 @@ describe('desktop update coordinator', () => {
     expect(f.downloadUpdate).toHaveBeenCalledTimes(2)
   })
 
+  it('installs the hash-verified artifact when the revalidation check cannot reach the feed', async () => {
+    const f = fixture()
+    await f.coordinator.check()
+    await f.coordinator.download('1.1.0')
+    f.checkForUpdates.mockRejectedValueOnce(new Error('GitHub API rate limit exceeded'))
+    expect(await f.coordinator.install('1.1.0')).toMatchObject({ phase: 'installing', version: '1.1.0' })
+    expect(f.beforeRestart).toHaveBeenCalledOnce()
+    expect(f.quitAndInstall).toHaveBeenCalledWith(true, true)
+  })
+
   it('refuses handoff after failed task preparation while retaining the prepared package', async () => {
     const f = fixture()
     f.beforeRestart.mockRejectedValueOnce(new Error('tasks could not stop'))
