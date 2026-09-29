@@ -123,6 +123,12 @@
 }
 
 .providerMark { width: 28px; height: 28px; font-size: 12px; }
+
+.providerMark svg,
+.emptyMark svg {
+  width: 62%;
+  height: 62%;
+}
 .providerCount {
   display: inline-flex;
   min-width: 20px;

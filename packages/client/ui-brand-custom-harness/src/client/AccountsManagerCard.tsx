@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import { Button, Input, Modal, Switch } from '@deepseek-ai/dsh-client-ui-primitives'
 import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
 import type {
@@ -8,6 +9,7 @@ import type {
 } from '@deepseek-ai/dsh-api-remotes/client'
 import type { createAccountsMenuStore } from './accounts-menu-store.ts'
 import { accountUsageLevel } from './account-usage-presentation.ts'
+import { ProviderMark } from './provider-marks.tsx'
 import css from './AccountsManagerCard.module.css'
 
 interface ManagedAccountGroup {
@@ -80,6 +82,10 @@ export interface AccountsManagerOperations {
 
 /** Private operations supplied to the Models-footer occupant. */
 export interface AccountsManagerInjected {
+  hooks: {
+    /** Live account snapshot shared with the sidebar meters and usage refresh lifecycle. */
+    accounts: ObservableSnapshot<AccountsState | undefined>
+  }
   operations: AccountsManagerOperations
 }
 
@@ -87,13 +93,13 @@ export interface AccountsManagerInjected {
 export type AccountsManagerCardProps = PropsRuntime<'settings.models.footer'>
   & PropsStore<ReturnType<typeof createAccountsMenuStore>>
   & PropsLocale<'customHarnessBrand'>
-  & AccountsManagerInjected
+  & InjectFace<AccountsManagerInjected>
 
 /** Render the entry card and full multi-provider account manager. */
 export function AccountsManagerCard({
-  operations, t, presentModal, useStore, actions,
+  operations, useAccounts, t, presentModal, useStore, actions,
 }: AccountsManagerCardProps) {
-  const [state, setState] = useState<AccountsState | undefined>()
+  const state = useAccounts(snapshot => snapshot)
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState<AccountProviderId>('openai-codex')
   const [failure, setFailure] = useState<string | undefined>()
@@ -115,25 +121,10 @@ export function AccountsManagerCard({
   const finishSettingsModal = useRef<(() => void) | undefined>()
   const managerRequested = useStore(snapshot => snapshot.managerRequested)
 
-  const load = useCallback(async (): Promise<AccountsState | undefined> => {
+  /** Re-read the Host snapshot so operations that publish no state still converge. */
+  const reload = useCallback(async (): Promise<void> => {
     const result = await operations.describe()
-    if (result.state !== undefined) setState(result.state)
     setFailure(result.error)
-    return result.state
-  }, [operations])
-
-  useEffect(() => {
-    let alive = true
-    void operations.describe().then((result) => {
-      if (!alive) return
-      setState(result.state)
-      setFailure(result.error)
-    })
-    return () => {
-      alive = false
-      managerOpen.current = false
-      attempt.current?.abort()
-    }
   }, [operations])
 
   const openManager = useCallback(async (): Promise<void> => {
@@ -141,8 +132,6 @@ export function AccountsManagerCard({
     finishSettingsModal.current ??= presentModal()
     setOpen(true)
     setFailure(undefined)
-    const snapshot = await load()
-    if (snapshot === undefined || !managerIsOpen(managerOpen)) return
     const controller = new AbortController()
     attempt.current = controller
     setRefreshing(true)
@@ -150,9 +139,8 @@ export function AccountsManagerCard({
     if (attempt.current !== controller) return
     attempt.current = undefined
     setRefreshing(false)
-    if (result.state !== undefined) setState(result.state)
     if (result.error !== undefined) setFailure(result.error)
-  }, [load, operations, presentModal])
+  }, [operations, presentModal])
 
   useEffect(() => {
     if (!managerRequested) return
@@ -191,7 +179,6 @@ export function AccountsManagerCard({
     if (attempt.current !== controller) return
     attempt.current = undefined
     setRefreshing(false)
-    if (result.state !== undefined) setState(result.state)
     if (result.error !== undefined) setFailure(result.error)
   }
 
@@ -207,7 +194,7 @@ export function AccountsManagerCard({
     setSigningIn(false)
     if (result.error !== undefined) setFailure(result.error)
     if (result.authorized) {
-      await load()
+      await reload()
       if (provider.usageAvailable && managerOpen.current) await refresh()
     }
   }
@@ -219,7 +206,6 @@ export function AccountsManagerCard({
     const result = await operations.addApiKey(provider.id, keyName, keyValue)
     setSigningIn(false)
     if (result.state !== undefined) {
-      setState(result.state)
       setKeyName('')
       setKeyValue('')
       setAddingKey(false)
@@ -232,7 +218,6 @@ export function AccountsManagerCard({
     setFailure(undefined)
     const result = await operations.activate(account.provider, account.id)
     setBusyAccount(undefined)
-    if (result.state !== undefined) setState(result.state)
     if (result.error !== undefined) setFailure(result.error)
   }
 
@@ -242,7 +227,6 @@ export function AccountsManagerCard({
     setFailure(undefined)
     const result = await operations.setAutoSwitch(provider.id, enabled)
     setAutoSwitching(false)
-    if (result.state !== undefined) setState(result.state)
     if (result.error !== undefined) setFailure(result.error)
   }
 
@@ -261,7 +245,6 @@ export function AccountsManagerCard({
     if (resetAttempt.current !== controller) return
     resetAttempt.current = undefined
     setConsumingReset(undefined)
-    if (result.state !== undefined) setState(result.state)
     if (result.outcome !== undefined) Reflect.deleteProperty(resetAttempts.current, account.id)
     if (result.error !== undefined) setFailure(result.error)
     else if (result.outcome !== undefined && result.outcome !== 'reset' && result.outcome !== 'already-redeemed') {
@@ -274,10 +257,7 @@ export function AccountsManagerCard({
     setBusyAccount(account.id)
     const result = await operations.rename(account.provider, account.id, editName)
     setBusyAccount(undefined)
-    if (result.state !== undefined) {
-      setState(result.state)
-      setEditing(undefined)
-    }
+    if (result.state !== undefined) setEditing(undefined)
     if (result.error !== undefined) setFailure(result.error)
   }
 
@@ -287,7 +267,6 @@ export function AccountsManagerCard({
     setFailure(undefined)
     const result = await operations.remove(account.provider, account.id)
     setBusyAccount(undefined)
-    if (result.state !== undefined) setState(result.state)
     if (result.error !== undefined) setFailure(result.error)
   }
 
@@ -422,7 +401,7 @@ function ProviderRail({ providers, selected, onSelect, t }: {
       {providers.map(provider => (
         <button key={provider.id} type="button" className={provider.id === selected ? css.providerActive : css.provider}
           onClick={() => { onSelect(provider.id) }}>
-          <span className={css.providerMark} aria-hidden="true">{provider.label.slice(0, 1)}</span>
+          <span className={css.providerMark} aria-hidden="true"><ProviderMark provider={provider.id} /></span>
           <span>{provider.label}</span>
           {provider.accountCount > 0 && <span className={css.providerCount} aria-hidden="true">{provider.accountCount}</span>}
         </button>
@@ -452,7 +431,9 @@ function EmptyAccounts({ provider, signingIn, t }: {
 }) {
   return (
     <div className={css.empty}>
-      <span className={css.emptyMark}>{provider?.label.slice(0, 1) ?? ''}</span>
+      <span className={css.emptyMark} aria-hidden="true">
+        {provider === undefined ? null : <ProviderMark provider={provider.id} />}
+      </span>
       <strong>{signingIn ? t('accountsWaitingSignIn')
         : `${t('accountsNoProviderPrefix')} ${provider?.label ?? ''} ${t('accountsNoProviderSuffix')}`}</strong>
       <span>{provider?.authMode === 'api-key' ? t('accountsAddKeyHint') : t('accountsAddBrowserHint')}</span>
@@ -653,8 +634,4 @@ function resetCreditOutcomeMessage(
   t: AccountsManagerCardProps['t'],
 ): string {
   return outcome === 'nothing-to-reset' ? t('accountsBankedResetNothingToReset') : t('accountsBankedResetNone')
-}
-
-function managerIsOpen(managerOpen: { readonly current: boolean }): boolean {
-  return managerOpen.current
 }

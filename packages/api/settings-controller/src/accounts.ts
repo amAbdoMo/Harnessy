@@ -221,12 +221,11 @@ export class AccountsController extends TypertRemoteService {
       throw unavailable(`${definition.label} sign-in completed without a stored credential`)
     }
     const account = accountFromCredential(definition, credential, this.now())
-    const previousVault = await this.readVault(credentials)
-    const providerVault = previousVault.providers[provider]
-    const existingActive = providerVault?.activeAccountId
-    const activeAccountId = existingActive ?? account.id
-    await this.writeVault(credentials, upsertAccount(previousVault, account, activeAccountId))
-    if (existingActive !== undefined && existingActive !== account.id) {
+    const committed = await this.mutateVault(credentials, (current) => {
+      const existingActive = current.providers[provider]?.activeAccountId
+      return upsertAccount(current, account, existingActive ?? account.id)
+    })
+    if (committed.providers[provider]?.activeAccountId !== account.id) {
       await restoreRecord(credentials, canonicalKey, previous)
     } else {
       await this.activateProviderRoute(provider)
@@ -248,7 +247,7 @@ export class AccountsController extends TypertRemoteService {
     const cleanKey = key.trim()
     if (cleanKey.length === 0) throw rejected(provider, 'an API key is required')
     const credentials = this.credentials()
-    const vault = await this.importCanonicalAccounts(credentials)
+    await this.importCanonicalAccounts(credentials)
     const account: StoredAccount = {
       id: `acc_${randomUUID().replaceAll('-', '').slice(0, 24)}`,
       provider,
@@ -257,10 +256,11 @@ export class AccountsController extends TypertRemoteService {
       name: boundedText(name, 80) ?? `${definition.label} account`,
       createdAt: this.now(),
     }
-    const existingActive = vault.providers[provider]?.activeAccountId
-    const next = upsertAccount(vault, account, existingActive ?? account.id)
-    await this.writeVault(credentials, next)
-    if (existingActive === undefined) {
+    const next = await this.mutateVault(credentials, (current) => {
+      const currentActive = current.providers[provider]?.activeAccountId
+      return upsertAccount(current, account, currentActive ?? account.id)
+    })
+    if (next.providers[provider]?.activeAccountId === account.id) {
       await writeRecord(credentials, providerKey(provider), account.credential)
       await this.activateProviderRoute(provider)
     }
@@ -282,8 +282,7 @@ export class AccountsController extends TypertRemoteService {
     if (account === undefined) throw notFound(provider, accountId)
     await writeRecord(credentials, providerKey(provider), account.credential)
     await this.activateProviderRoute(provider)
-    const next = setActive(vault, provider, accountId)
-    await this.writeVault(credentials, next)
+    const next = await this.mutateVault(credentials, current => setActive(current, provider, accountId))
     return this.publicState(next, true)
   }
 
@@ -297,11 +296,12 @@ export class AccountsController extends TypertRemoteService {
   async setAutoSwitch(provider: AccountProviderId, enabled: boolean): Promise<AccountsState> {
     if (provider !== 'openai-codex') throw rejected(provider, 'automatic limit switching is available only for Codex')
     const credentials = this.credentials()
-    const vault = await this.importCanonicalAccounts(credentials)
-    const current = vault.providers[provider]
-    if (current === undefined) throw rejected(provider, 'save a Codex account before enabling automatic switching')
-    const next = replaceProviderVault(vault, provider, { ...current, autoSwitchOnLimit: enabled })
-    await this.writeVault(credentials, next)
+    await this.importCanonicalAccounts(credentials)
+    const next = await this.mutateVault(credentials, (current) => {
+      const currentProvider = current.providers[provider]
+      if (currentProvider === undefined) throw rejected(provider, 'save a Codex account before enabling automatic switching')
+      return replaceProviderVault(current, provider, { ...currentProvider, autoSwitchOnLimit: enabled })
+    })
     return this.publicState(next, true)
   }
 
@@ -350,15 +350,15 @@ export class AccountsController extends TypertRemoteService {
     const cleanName = boundedText(name, 80)
     if (cleanName === undefined) throw rejected(provider, 'an account name is required')
     const credentials = this.credentials()
-    const vault = await this.readVault(credentials)
-    const providerVault = vault.providers[provider]
-    const current = providerVault?.accounts[accountId]
-    if (providerVault === undefined || current === undefined) throw notFound(provider, accountId)
-    const next = replaceProviderVault(vault, provider, {
-      ...providerVault,
-      accounts: { ...providerVault.accounts, [accountId]: { ...current, name: cleanName } },
+    const next = await this.mutateVault(credentials, (current) => {
+      const providerVault = current.providers[provider]
+      const renamed = providerVault?.accounts[accountId]
+      if (providerVault === undefined || renamed === undefined) throw notFound(provider, accountId)
+      return replaceProviderVault(current, provider, {
+        ...providerVault,
+        accounts: { ...providerVault.accounts, [accountId]: { ...renamed, name: cleanName } },
+      })
     })
-    await this.writeVault(credentials, next)
     return this.publicState(next, true)
   }
 
@@ -371,23 +371,26 @@ export class AccountsController extends TypertRemoteService {
   @Remote
   async deleteAccount(provider: AccountProviderId, accountId: string): Promise<AccountsState> {
     const credentials = this.credentials()
-    const vault = await this.readVault(credentials)
-    const providerVault = vault.providers[provider]
-    if (providerVault?.accounts[accountId] === undefined) throw notFound(provider, accountId)
-    const accounts: Record<string, StoredAccount> = {}
-    for (const [id, account] of Object.entries(providerVault.accounts)) {
-      if (id !== accountId) accounts[id] = account
-    }
-    const replacement = providerVault.activeAccountId === accountId ? Object.values(accounts)[0] : undefined
-    const activeAccountId = providerVault.activeAccountId === accountId ? replacement?.id : providerVault.activeAccountId
-    const next = replaceProviderVault(vault, provider, { accounts, ...activeAccountId === undefined ? {} : { activeAccountId } })
-    await this.writeVault(credentials, next)
-    if (providerVault.activeAccountId === accountId) {
-      if (replacement === undefined) {
+    const removal: { active: boolean; replacement: StoredAccount | undefined } = { active: false, replacement: undefined }
+    const next = await this.mutateVault(credentials, (current) => {
+      const providerVault = current.providers[provider]
+      if (providerVault?.accounts[accountId] === undefined) throw notFound(provider, accountId)
+      const accounts: Record<string, StoredAccount> = {}
+      for (const [id, account] of Object.entries(providerVault.accounts)) {
+        if (id !== accountId) accounts[id] = account
+      }
+      const replacement = providerVault.activeAccountId === accountId ? Object.values(accounts)[0] : undefined
+      const activeAccountId = providerVault.activeAccountId === accountId ? replacement?.id : providerVault.activeAccountId
+      removal.active = providerVault.activeAccountId === accountId
+      removal.replacement = replacement
+      return replaceProviderVault(current, provider, { accounts, ...activeAccountId === undefined ? {} : { activeAccountId } })
+    })
+    if (removal.active) {
+      if (removal.replacement === undefined) {
         await credentials.deleteRecord(providerKey(provider))
         await this.deactivateProviderRoute(provider)
       } else {
-        await writeRecord(credentials, providerKey(provider), replacement.credential)
+        await writeRecord(credentials, providerKey(provider), removal.replacement.credential)
       }
     }
     return this.publicState(next, true)
@@ -421,17 +424,19 @@ export class AccountsController extends TypertRemoteService {
     for (const account of Object.values(codex.accounts)) {
       assertUsageRefreshActive(signal)
       const refreshed = await this.refreshCodexAccount(account, signal)
-      const currentVault = await this.readVault(credentials)
-      const currentProvider = currentVault.providers['openai-codex']
-      if (currentProvider === undefined) continue
-      const current = currentProvider.accounts[account.id]
-      if (current === undefined || !sameRecord(current.credential, account.credential)) continue
-      vault = replaceProviderVault(currentVault, 'openai-codex', {
-        ...currentProvider,
-        accounts: { ...currentProvider.accounts, [account.id]: refreshed },
+      vault = await this.mutateVault(credentials, (current) => {
+        const currentProvider = current.providers['openai-codex']
+        const existing = currentProvider?.accounts[account.id]
+        if (currentProvider === undefined || existing === undefined
+          || !sameRecord(existing.credential, account.credential)) return undefined
+        return replaceProviderVault(current, 'openai-codex', {
+          ...currentProvider,
+          accounts: { ...currentProvider.accounts, [account.id]: refreshed },
+        })
       })
-      await this.writeVault(credentials, vault)
-      if (currentProvider.activeAccountId === account.id) {
+      const refreshedActive = vault.providers['openai-codex']?.accounts[account.id]
+      if (vault.providers['openai-codex']?.activeAccountId === account.id
+        && sameRecord(refreshedActive?.credential, refreshed.credential)) {
         await writeRecord(credentials, providerKey('openai-codex'), refreshed.credential)
       }
     }
@@ -451,8 +456,12 @@ export class AccountsController extends TypertRemoteService {
     const replacement = bestCodexReplacement(active, Object.values(provider.accounts))
     if (replacement === undefined) return vault
     await writeRecord(credentials, providerKey('openai-codex'), replacement.credential)
-    const next = setActive(vault, 'openai-codex', replacement.id)
-    await this.writeVault(credentials, next)
+    const next = await this.mutateVault(credentials, (current) => {
+      const currentProvider = current.providers['openai-codex']
+      if (currentProvider?.accounts[replacement.id] === undefined) return undefined
+      return setActive(current, 'openai-codex', replacement.id)
+    })
+    if (next.providers['openai-codex']?.activeAccountId !== replacement.id) return next
     const activeIdentity = codexIdentity(active.credential)
     const replacementIdentity = codexIdentity(replacement.credential)
     const event: AccountAutoSwitchEvent = {
@@ -522,7 +531,12 @@ export class AccountsController extends TypertRemoteService {
     if (replacement === undefined) return false
     if (replacement.id === activeBefore) return true
     await writeRecord(credentials, providerKey('openai-codex'), replacement.credential)
-    await this.writeVault(credentials, setActive(after, 'openai-codex', replacement.id))
+    const next = await this.mutateVault(credentials, (current) => {
+      const currentProvider = current.providers['openai-codex']
+      if (currentProvider?.accounts[replacement.id] === undefined) return undefined
+      return setActive(current, 'openai-codex', replacement.id)
+    })
+    if (next.providers['openai-codex']?.activeAccountId !== replacement.id) return true
     const failedIdentity = codexIdentity(refreshedFailed.credential)
     const replacementIdentity = codexIdentity(replacement.credential)
     this.ctx.emit('accounts/auto-switched', {
@@ -625,27 +639,28 @@ export class AccountsController extends TypertRemoteService {
   }
 
   private async importCanonicalAccounts(credentials: CredentialProvider): Promise<AccountVault> {
-    let vault = normalizeCodexAccountIds(await this.readVault(credentials))
-    for (const definition of PROVIDERS) {
-      const credential = await credentials.readRecord(providerKey(definition.id))
-      if (credential === undefined) continue
-      const providerVault = vault.providers[definition.id]
-      const active = providerVault?.activeAccountId
-      if (providerVault !== undefined && active !== undefined && providerVault.accounts[active] !== undefined) {
-        const current = providerVault.accounts[active]
-        if (!sameRecord(current.credential, credential)) {
-          vault = replaceProviderVault(vault, definition.id, {
-            ...providerVault,
-            accounts: { ...providerVault.accounts, [active]: { ...current, credential } },
-          })
+    return this.mutateVault(credentials, async (stored) => {
+      let vault = normalizeCodexAccountIds(stored)
+      for (const definition of PROVIDERS) {
+        const credential = await credentials.readRecord(providerKey(definition.id))
+        if (credential === undefined) continue
+        const providerVault = vault.providers[definition.id]
+        const active = providerVault?.activeAccountId
+        if (providerVault !== undefined && active !== undefined && providerVault.accounts[active] !== undefined) {
+          const current = providerVault.accounts[active]
+          if (!sameRecord(current.credential, credential)) {
+            vault = replaceProviderVault(vault, definition.id, {
+              ...providerVault,
+              accounts: { ...providerVault.accounts, [active]: { ...current, credential } },
+            })
+          }
+          continue
         }
-        continue
+        const account = accountFromCredential(definition, credential, this.now())
+        vault = upsertAccount(vault, account, account.id)
       }
-      const account = accountFromCredential(definition, credential, this.now())
-      vault = upsertAccount(vault, account, account.id)
-    }
-    await this.writeVault(credentials, vault)
-    return vault
+      return vault
+    })
   }
 
   private publicState(vault: AccountVault, writable: boolean): AccountsState {
@@ -693,11 +708,23 @@ export class AccountsController extends TypertRemoteService {
     return parseVault(await credentials.readRecord(VAULT_KEY))
   }
 
-  private async writeVault(credentials: CredentialProvider, vault: AccountVault): Promise<void> {
-    await credentials.modifyRecord(VAULT_KEY, () => Promise.resolve({
-      kind: 'grant',
-      payload: jsonImage(vault),
-    }))
+  /**
+   * Apply one vault transformation through the credential store's serialized
+   * record write, so a concurrent account operation can never lose this
+   * operation's committed change or resurrect an overwritten snapshot.
+   * @param credentials - protected credential storage owning the vault record.
+   * @param mutate - pure transformation over the vault as it stands at the write.
+   * @returns the committed vault, or the untouched vault when `mutate` declined.
+   */
+  private async mutateVault(
+    credentials: CredentialProvider,
+    mutate: (vault: AccountVault) => Promise<AccountVault | undefined> | AccountVault | undefined,
+  ): Promise<AccountVault> {
+    const committed = await credentials.modifyRecord(VAULT_KEY, async (record) => {
+      const next = await mutate(parseVault(record))
+      return next === undefined ? undefined : { kind: 'grant', payload: jsonImage(next) }
+    })
+    return parseVault(committed)
   }
 
   /** Restore model routes for active credentials after settings and credentials have loaded. */

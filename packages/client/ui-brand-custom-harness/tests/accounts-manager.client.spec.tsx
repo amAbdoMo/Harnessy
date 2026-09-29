@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useSyncExternalStore } from 'react'
+import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { AccountsState } from '@deepseek-ai/dsh-api-remotes/client'
 import {
   AccountsManagerCard, type AccountsManagerCardProps, type AccountsManagerOperations,
@@ -50,24 +51,57 @@ function operations(overrides: Partial<AccountsManagerOperations> = {}): Account
   }
 }
 
+/** Operations wrapped the way the browser plugin wires them: results publish to the shared snapshot. */
+function publishing(
+  value: AccountsManagerOperations,
+  accounts: ReturnType<typeof createSnapshotStore<AccountsState | undefined>>,
+): AccountsManagerOperations {
+  const publish = async <T extends { readonly state?: AccountsState }>(result: T): Promise<T> => {
+    if (result.state !== undefined) accounts.set(result.state)
+    return result
+  }
+  return {
+    describe: async () => publish(await value.describe()),
+    addOAuth: (provider, signal) => value.addOAuth(provider, signal),
+    addApiKey: async (provider, name, key) => publish(await value.addApiKey(provider, name, key)),
+    activate: async (provider, accountId) => publish(await value.activate(provider, accountId)),
+    setAutoSwitch: async (provider, enabled) => publish(await value.setAutoSwitch(provider, enabled)),
+    consumeResetCredit: async (accountId, idempotencyKey, signal) =>
+      publish(await value.consumeResetCredit(accountId, idempotencyKey, signal)),
+    rename: async (provider, accountId, name) => publish(await value.rename(provider, accountId, name)),
+    remove: async (provider, accountId) => publish(await value.remove(provider, accountId)),
+    refreshUsage: async signal => publish(await value.refreshUsage(signal)),
+  }
+}
+
 function renderManager(
   value: AccountsManagerOperations,
   presentModal = vi.fn(() => vi.fn()),
   translate: (key: keyof typeof en) => string = t,
 ) {
   const store = createAccountsMenuStore().create()
+  const accounts = createSnapshotStore<AccountsState | undefined>(undefined)
   const useStore = <Selected,>(selector: (state: ReturnType<typeof store.getSnapshot>) => Selected): Selected =>
     selector(useSyncExternalStore(
       listener => store.subscribe(listener),
       () => store.getSnapshot(),
     ))
+  const useAccounts = <Selected,>(selector: (snapshot: AccountsState | undefined) => Selected): Selected =>
+    selector(useSyncExternalStore(
+      listener => accounts.subscribe(listener),
+      () => accounts.getSnapshot(),
+    ))
+  // Production loads the shared snapshot at startup through the usage controller.
+  const wired = publishing(value, accounts)
+  void wired.describe()
   return {
     ...render(<AccountsManagerCard
       {...slotTestProps<AccountsManagerCardProps>({
-        operations: value, t: translate, presentModal, useStore, actions: store.actions,
+        operations: wired, t: translate, presentModal, useStore, actions: store.actions, useAccounts,
       })} />),
     presentModal,
     store,
+    accounts,
   }
 }
 
@@ -345,5 +379,35 @@ describe('Harnessy account manager', () => {
     fireEvent.click(screen.getByRole('button', { name: en.accountsSave }))
     await waitFor(() => { expect(addApiKey).toHaveBeenCalledWith('zai', 'Work GLM', 'secret-glm-key') })
     expect(screen.queryByDisplayValue('secret-glm-key')).toBeNull()
+  })
+
+  it('renders provider brand marks instead of letter badges in the rail', async () => {
+    renderManager(operations())
+    fireEvent.click(await screen.findByRole('button', { name: en.accountsManage }))
+    const rail = await screen.findByRole('navigation', { name: en.accountsProviderNavigation })
+    for (const label of ['Codex', 'GLM']) {
+      expect(within(rail).getByRole('button', { name: label }).querySelector('svg')).toBeTruthy()
+    }
+  })
+
+  it('reflects host-side account changes immediately without another fetch', async () => {
+    const api = operations()
+    const rendered = renderManager(api)
+    fireEvent.click(await screen.findByRole('button', { name: en.accountsManage }))
+    await waitFor(() => { expect(api.refreshUsage).toHaveBeenCalledTimes(1) })
+    expect(screen.queryByText('Spare')).toBeNull()
+    rendered.accounts.set({
+      ...baseState,
+      providers: [{ ...baseState.providers[0]!, accountCount: 2 }],
+      accounts: [
+        baseState.accounts[0]!,
+        {
+          ...baseState.accounts[0]!, id: 'codex-2', ownerId: 'owner-spare',
+          name: 'Spare', initials: 'SP', active: false,
+        },
+      ],
+    })
+    expect(await screen.findByText('Spare')).toBeTruthy()
+    expect(api.refreshUsage).toHaveBeenCalledTimes(1)
   })
 })

@@ -304,7 +304,10 @@ export function apply(ctx: ClientContext): void {
     publishNotification(accountSwitchNotification(event))
     void publishAccountState(accountRemoteOperations.describe())
   }), 'custom-harness: account switch notifications')
-  const account = (): AccountsManagerInjected => ({ operations: accountOperations })
+  const account = (): AccountsManagerInjected => ({
+    hooks: { accounts: accountsUsage.state },
+    operations: accountOperations,
+  })
   const launcher = (): AccountLauncherInjected => ({
     hooks: {
       accountUsage: accountsUsage.state,

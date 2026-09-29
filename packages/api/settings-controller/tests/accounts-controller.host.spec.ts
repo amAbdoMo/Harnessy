@@ -359,6 +359,44 @@ describe('the Harnessy accounts Remote namespace', () => {
     expect(requests).toBe(2)
   })
 
+  it('keeps a manual switch that lands while a usage refresh is in flight', async () => {
+    let releaseFirst!: () => void
+    const firstResponse = new Promise<void>((resolve) => { releaseFirst = resolve })
+    let requests = 0
+    const fetchUsage = vi.fn(async () => {
+      requests += 1
+      if (requests === 1) await firstResponse
+      return usageResponse(20)
+    }) as typeof fetch
+    const { ctx, controller } = await boot({ fetchUsage })
+    const key = credentialKey('llm-pi-ai', 'openai-codex')
+    const first = codexGrant('first@example.com', 'account-first')
+    const second = codexGrant('second@example.com', 'account-second')
+    await ctx.credentials.modifyRecord(key, () => Promise.resolve(first))
+    await controller.describe()
+    ctx.authorization.registerFlow({
+      key,
+      label: 'OpenAI Codex',
+      methods: [{ id: 'oauth', label: 'Browser login' }],
+      async run() { await ctx.credentials.modifyRecord(key, () => Promise.resolve(second)) },
+    })
+    await controller.addOAuth('openai-codex', new AbortController().signal)
+    const spare = (await controller.describe()).accounts
+      .find(account => account.detail?.startsWith('second@example.com'))
+    expect(spare).toBeDefined()
+
+    const refresh = controller.refreshUsage(new AbortController().signal)
+    await vi.waitFor(() => { expect(requests).toBe(1) })
+    await controller.activate('openai-codex', spare!.id)
+    releaseFirst()
+    const state = await refresh
+
+    expect(state.accounts).toHaveLength(2)
+    expect(state.accounts.find(account => account.active)?.id).toBe(spare!.id)
+    expect(state.accounts.every(account => account.usage !== undefined)).toBe(true)
+    expect(await ctx.credentials.readRecord(key)).toEqual(second)
+  })
+
   it('automatically switches to another seat in the same Workspace with capacity', async () => {
     let request = 0
     const fetchUsage = vi.fn(async () => request++ === 0 ? usageResponse(100, 40) : usageResponse(20)) as typeof fetch
