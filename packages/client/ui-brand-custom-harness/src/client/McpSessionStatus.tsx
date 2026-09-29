@@ -5,7 +5,7 @@ import type { McpServerView } from '@deepseek-ai/dsh-api-remotes/client'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import {
-  Tooltip, useAnchoredPosition, useDismissOnOutsidePointer,
+  IconPluginPinwheelOutlineRegular, Tooltip, useAnchoredPosition, useDismissOnOutsidePointer,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { mcpActivity, type McpActivityChatSnapshot, type McpActivityRecord } from './mcp-activity.ts'
 import type { McpStatusSnapshot } from './mcp-status.ts'
@@ -26,16 +26,6 @@ export type McpSessionStatusProps = PropsRuntime<'conversation.session.header.ac
   & InjectFace<McpSessionStatusInjected>
 
 type OverallStatus = 'empty' | 'disabled' | 'connected' | 'connecting' | 'error'
-
-function McpIcon() {
-  return (
-    <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
-      strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="4" cy="4" r="1.7" /><circle cx="12" cy="4" r="1.7" /><circle cx="8" cy="12" r="1.7" />
-      <path d="m5.4 5 1.7 5M10.6 5 8.9 10M5.7 4h4.6" />
-    </svg>
-  )
-}
 
 function overallStatus(servers: readonly McpServerView[]): OverallStatus {
   if (servers.length === 0) return 'empty'
@@ -217,7 +207,7 @@ export function McpSessionStatus({
         <button ref={triggerRef} type="button" className={css.trigger} data-status={status}
           aria-label={`${t('mcpSessionOpen')}: ${summaryCopy(status, servers, t)}`}
           aria-haspopup="dialog" aria-expanded={open} onClick={() => { setOpen(current => !current) }}>
-          <McpIcon />
+          <IconPluginPinwheelOutlineRegular size={15} />
           <span className={css.triggerLabel}>{t('mcpSessionShortLabel')}</span>
           {running > 0 && <span className={css.runningCount} aria-hidden="true">{running}</span>}
           <span className={css.triggerDot} aria-hidden="true" />

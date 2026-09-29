@@ -799,8 +799,12 @@ function CatalogDropdown({
                 </span>
               )}
               <span className={css.count}>
-                <span className={css.workingCount}>{t(workingCountKey, { count: runningCount })}</span>
-                <span className={css.countDivider}>/</span>
+                {runningCount > 0 && (
+                  <>
+                    <span className={css.workingCount}>{t(workingCountKey, { count: runningCount })}</span>
+                    <span className={css.countDivider}>/</span>
+                  </>
+                )}
                 <span>{t(doneCountKey, { count: completedCount })}</span>
               </span>
             </>

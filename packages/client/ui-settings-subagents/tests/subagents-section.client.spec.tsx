@@ -332,10 +332,10 @@ describe('Subagents section', () => {
       }),
     })
     // The catalog read lands after the first paint, so the model name resolves
-    // from its display name only once that read is in.
+    // from its display name only once that read is in. The model badge carries
+    // the resolved effort beside the model name.
     const code = card('Code')
-    expect(await within(code).findByText('GPT-5.6 Sol')).toBeTruthy()
-    expect(within(code).getByText('High')).toBeTruthy()
+    expect(await within(code).findByText('GPT-5.6 Sol · High')).toBeTruthy()
     expect(within(code).getByText(en.accessWorkspaceWrite)).toBeTruthy()
     expect(within(code).getByText(en.invocationAutomatic)).toBeTruthy()
     expect(within(code).getByText(en.cardWorkspaceInherited)).toBeTruthy()

@@ -60,7 +60,7 @@
   grid-template-columns: minmax(0, 2.25fr) minmax(210px, 1fr);
   min-height: 0;
   overflow: hidden;
-  border: 1px solid var(--dsw-alias-border-l1);
+  border: 0.5px solid var(--dsw-alias-border-l1);
   border-radius: var(--dsw-radius-md);
 }
 
@@ -73,7 +73,13 @@
   padding: 18px;
 }
 
-.modelsPanel { border-right: 1px solid var(--dsw-alias-border-l1); }
+.modelsPanel {
+  border-right: 0.5px solid var(--dsw-alias-border-l1);
+  /* Elevated dialog surface: the model list's scrollbar takes the l2 tokens
+     (see ui-theme styles/scrollbar.css for the rebinding contract). */
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
 
 .panelTitle {
   margin: 0 0 10px;
@@ -238,6 +244,6 @@
 @media (max-width: 700px) {
   .dialog { width: min(520px, 100%); }
   .dialogBody { grid-template-columns: minmax(0, 1fr); overflow-y: auto; }
-  .modelsPanel { border-right: 0; border-bottom: 1px solid var(--dsw-alias-border-l1); }
+  .modelsPanel { border-right: 0; border-bottom: 0.5px solid var(--dsw-alias-border-l1); }
   .modelList { max-height: 250px; }
 }

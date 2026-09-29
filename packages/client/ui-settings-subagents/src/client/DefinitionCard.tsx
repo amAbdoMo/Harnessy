@@ -291,8 +291,9 @@ export function DefinitionCard(props: DefinitionCardProps): ReactNode {
         </div>
       </header>
       <div className={css.summaryBadges} aria-label={t('cardRunTitle')}>
-        <span className={`${css.summaryBadge} ${css.badgeModel}`}>{summaryModelName}</span>
-        {effort === undefined ? null : <span className={css.summaryBadge}>{effort}</span>}
+        <span className={`${css.summaryBadge} ${css.badgeModel}`}>
+          {effort === undefined ? summaryModelName : `${summaryModelName} · ${effort}`}
+        </span>
         <span className={`${css.summaryBadge} ${accessBadge}`}>{t(ACCESS_LABEL[shown.access])}</span>
         <span className={`${css.summaryBadge} ${css.badgeInvocation}`}>{t(INVOCATION_LABEL[shown.invocation])}</span>
         {workspaceCustomized === undefined
