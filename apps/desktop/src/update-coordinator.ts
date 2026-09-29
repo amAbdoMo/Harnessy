@@ -247,6 +247,7 @@ export class DesktopUpdateCoordinator {
       result = await this.updater.checkForUpdates()
     } catch (error: unknown) {
       console.warn('desktop update: release re-check is unreachable; installing the verified artifact', error)
+      this.setState({ phase: 'ready', version })
       return true
     }
     try {
@@ -269,6 +270,7 @@ export class DesktopUpdateCoordinator {
       if (this.updateIdentity(result.updateInfo) !== this.candidateIdentity) {
         throw new Error('desktop update: release was superseded')
       }
+      this.setState({ phase: 'ready', version })
       return true
     } catch (error) {
       this.setState(this.failure(error, 'verify'))

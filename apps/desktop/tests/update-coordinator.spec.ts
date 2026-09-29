@@ -140,7 +140,7 @@ describe('desktop update coordinator', () => {
     expect(f.beforeRestart).toHaveBeenCalledOnce()
     expect(f.quitAndInstall).toHaveBeenCalledWith(true, true)
     expect(f.states.map(state => state.phase)).toEqual([
-      'available', 'downloading', 'downloading', 'verifying', 'ready', 'checking', 'installing',
+      'available', 'downloading', 'downloading', 'verifying', 'ready', 'checking', 'ready', 'installing',
     ])
     expect(f.updater).toMatchObject({
       autoDownload: false, autoInstallOnAppQuit: false,
@@ -235,10 +235,18 @@ describe('desktop update coordinator', () => {
     expect(f.downloadUpdate).toHaveBeenCalledTimes(2)
   })
 
+  it('restores ready after an identical final release check', async () => {
+    const f = fixture()
+    await f.coordinator.check()
+    expect(await f.coordinator.verify('1.1.0')).toEqual({ phase: 'ready', version: '1.1.0' })
+  })
+
   it('installs the hash-verified artifact when the revalidation check cannot reach the feed', async () => {
     const f = fixture()
     await f.coordinator.check()
     await f.coordinator.download('1.1.0')
+    f.checkForUpdates.mockRejectedValueOnce(new Error('GitHub API rate limit exceeded'))
+    expect(await f.coordinator.verify('1.1.0')).toEqual({ phase: 'ready', version: '1.1.0' })
     f.checkForUpdates.mockRejectedValueOnce(new Error('GitHub API rate limit exceeded'))
     expect(await f.coordinator.install('1.1.0')).toMatchObject({ phase: 'installing', version: '1.1.0' })
     expect(f.beforeRestart).toHaveBeenCalledOnce()
