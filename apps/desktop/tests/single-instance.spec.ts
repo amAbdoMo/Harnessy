@@ -16,6 +16,19 @@ describe('desktop single-instance ownership', () => {
     expect(on).not.toHaveBeenCalled()
   })
 
+  it('reports a lost claim before quitting', () => {
+    const order: string[] = []
+    const application = {
+      requestSingleInstanceLock: () => false,
+      quit: vi.fn(() => { order.push('quit') }),
+      on: vi.fn(),
+    } satisfies DesktopSingleInstanceApplication
+
+    expect(claimDesktopSingleInstance(application, vi.fn(), () => { order.push('report') })).toBe(false)
+    expect(order).toEqual(['report', 'quit'])
+    expect(application.on).not.toHaveBeenCalled()
+  })
+
   it('routes a later launch to the primary process', () => {
     let secondInstance: (() => void) | undefined
     const focus = vi.fn()

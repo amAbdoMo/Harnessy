@@ -1426,7 +1426,14 @@ const desktopProductState = customHarnessDesktopState()
 configureCustomHarnessProductIdentity(desktopProductState)
 // Electron stores its instance lock under userData, so the directory must exist before the claim.
 prepareCustomHarnessProductState(desktopProductState)
-const ownsDesktopInstance = claimDesktopSingleInstance(app, () => { focusPrimaryWindow() })
+const ownsDesktopInstance = claimDesktopSingleInstance(app, () => { focusPrimaryWindow() }, () => {
+  // A staging launch that loses the lock has already built for minutes; a
+  // silent exit would leave the launcher's window never appearing with no
+  // explanation. The packaged app keeps its quiet focus-the-owner behavior.
+  if (app.isPackaged) return
+  dialog.showErrorBox(CUSTOM_HARNESS_PRODUCT.displayName,
+    'Another Harnessy instance is already running with this profile. Quit it from its system tray, then start the staging app again.')
+})
 
 if (ownsDesktopInstance) void app.whenReady().then(main).catch(async (error: unknown) => {
   const message = error instanceof Error ? error.message : String(error)
