@@ -25,7 +25,6 @@ import {
 } from './notification-history.ts'
 import { notificationPresentation, shouldShowNativeNotification } from './notification-presentation.ts'
 import { SharedSkillsRow, type SharedSkillsRowInjected } from './SharedSkillsRow.tsx'
-import { SessionWorkspaceRow, type SessionWorkspaceRowInjected } from './SessionWorkspaceRow.tsx'
 import {
   McpServersSection, type McpManagerOperations, type McpServersInjected,
 } from './McpServersSection.tsx'
@@ -35,18 +34,12 @@ import {
 import { McpSessionStatus, type McpSessionStatusInjected } from './McpSessionStatus.tsx'
 import { McpStatusController } from './mcp-status.ts'
 import { createSharedSkillsRowStore } from './shared-skills-store.ts'
-import { createSessionWorkspaceRowStore } from './session-workspace-store.ts'
 import {
   CustomHarnessMark, CustomHarnessName, CustomHarnessTagline, requiredBuildValue,
 } from './Brand.tsx'
 import { en, type BrandKey } from './locales.ts'
 import { CUSTOM_HARNESS_THEME_TOKENS } from './tokens.ts'
 import { SHARED_SKILLS_SETTINGS_NAMESPACE, type SharedSkillsSettings } from '../shared-skills.ts'
-import {
-  SESSION_WORKSPACE_SETTINGS_NAMESPACE,
-  type SessionWorkspaceMode,
-  type SessionWorkspaceSettings,
-} from '../session-workspace.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -124,46 +117,6 @@ export function apply(ctx: ClientContext): void {
     locale: LOCALE_NS,
     inject: about,
   }, AboutRow))
-
-  const sessionWorkspace = ctx.configForms.get<SessionWorkspaceSettings>(SESSION_WORKSPACE_SETTINGS_NAMESPACE)
-  const saveSessionWorkspace = async (write: Promise<boolean>): Promise<void> => {
-    if (!(await write)) throw new Error(ctx.locale.bind(LOCALE_NS)('sessionWorkspaceWriteFailed'))
-  }
-  const sessionWorkspaceStore = createSessionWorkspaceRowStore()
-  let sessionWorkspaceActions: BoundActions<typeof sessionWorkspaceStore> | undefined
-  const syncSessionWorkspace = (): void => {
-    sessionWorkspaceActions?.sync(sessionWorkspace.getSnapshot())
-  }
-  ctx.effect(
-    () => sessionWorkspace.subscribe(syncSessionWorkspace),
-    'custom-harness: Session workspace settings row',
-  )
-  const sessionWorkspaceInjected = (
-    actions: BoundActions<typeof sessionWorkspaceStore>,
-  ): SessionWorkspaceRowInjected => {
-    sessionWorkspaceActions = actions
-    syncSessionWorkspace()
-    return {
-      chooseDirectory: async () => {
-        const response = await ctx.remote.directoryPicker.pick()
-        if (!response.ok) return { error: response.error.message }
-        return response.value === null ? {} : { path: response.value }
-      },
-      setMode: (mode: SessionWorkspaceMode) => saveSessionWorkspace(sessionWorkspace.set('mode', mode)),
-      useRemoteDirectory: directory => saveSessionWorkspace(sessionWorkspace.mutate([
-        { op: 'set', path: ['remoteRoot'], value: directory },
-        { op: 'set', path: ['mode'], value: 'remote-website' },
-      ])),
-    }
-  }
-  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
-    name: 'settings.general.item',
-    id: 'custom-harness-session-workspace',
-    order: 20,
-    locale: LOCALE_NS,
-    store: sessionWorkspaceStore,
-    inject: sessionWorkspaceInjected,
-  }, SessionWorkspaceRow))
 
   const sharedSkills = ctx.configForms.get<SharedSkillsSettings>(SHARED_SKILLS_SETTINGS_NAMESPACE)
   const saveSharedSkills = async (write: Promise<boolean>): Promise<void> => {

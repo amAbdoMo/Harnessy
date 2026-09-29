@@ -2391,7 +2391,6 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     occupants: [
       'client-locale LanguageRow id \'language\'',
       'client-ui-brand-custom-harness AboutRow id \'custom-harness-about\'',
-      'client-ui-brand-custom-harness SessionWorkspaceRow id \'custom-harness-session-workspace\'',
       'client-ui-brand-custom-harness SharedSkillsRow id \'custom-harness-shared-skills\'',
       'client-ui-chat LinkOpeningRow id \'link-opening\'',
       'client-ui-chat PerformanceUsageRow id \'performance-usage\'',

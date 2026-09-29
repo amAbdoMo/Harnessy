@@ -224,8 +224,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-api-session-controller`
 
 - `inject`: `agentDefaultModel` · `agents` · `attachments` · `fileUploads` · `fs` · `llm` · `sessions` · `sessionProjections` · `sessionQuery` · `typert` · `workspaceRegistry`
-- `refs`: `Volatile` (`@deepseek-ai/cordis`)
-- `source`: [`packages/api/session-controller/src/index.ts:70`](../packages/api/session-controller/src/index.ts)
+- `source`: [`packages/api/session-controller/src/index.ts:68`](../packages/api/session-controller/src/index.ts)
 
 ```ts config-catalog
 /** Optional deployment values accepted by the Session Remote owner. */
@@ -235,14 +234,7 @@ export type SessionControllerConfig = Partial<Config>
 export interface Config {
   /** Override platform desktop-opener detection. */
   readonly nativeOpen?: boolean
-  /** Location policy applied to newly created ungrouped Sessions. */
-  readonly mode: Volatile<SessionWorkspaceMode>
-  /** Parent directory for isolated remote-website work. */
-  readonly remoteRoot: Volatile<string>
 }
-
-/** Local-work location selected for newly created ungrouped Sessions. */
-export type SessionWorkspaceMode = typeof SESSION_WORKSPACE_MODES[number]
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-api-session-controller -->
 

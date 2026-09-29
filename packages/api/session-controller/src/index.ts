@@ -5,7 +5,7 @@ import { resolve } from 'node:path'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-fs'
 import type {} from '@deepseek-ai/dsh-settings'
-import { Context, type Volatile } from '@deepseek-ai/cordis'
+import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { errorChain, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import type {} from '@deepseek-ai/dsh-client-file-upload'
@@ -29,8 +29,6 @@ import { installModelSelectionProjection } from './model-selection-projection.ts
 import { SessionSkillCatalog } from './skill-catalog.ts'
 import { SessionMediaReferences } from './media-references.ts'
 import { ArchivedSessionGate } from './archived-session-gate.ts'
-import { SessionWorkspaceDirectory } from './workspace-settings.ts'
-import { DEFAULT_SESSION_WORKSPACE_MODE, SESSION_WORKSPACE_MODES, type SessionWorkspaceMode } from './types.ts'
 import type {
   ModelCatalog,
   SessionWorkspacePathApplication,
@@ -85,10 +83,6 @@ declare module '@deepseek-ai/cordis' {
 export interface Config {
   /** Override platform desktop-opener detection. */
   readonly nativeOpen?: boolean
-  /** Location policy applied to newly created ungrouped Sessions. */
-  readonly mode: Volatile<SessionWorkspaceMode>
-  /** Parent directory for isolated remote-website work. */
-  readonly remoteRoot: Volatile<string>
 }
 
 /** Host integrations replaceable by direct unit tests. */
@@ -123,8 +117,6 @@ export class SessionController extends TypertRemoteService {
 
   static Config = z.object({
     nativeOpen: z.boolean(),
-    mode: z.union([...SESSION_WORKSPACE_MODES]).default(DEFAULT_SESSION_WORKSPACE_MODE).volatile(),
-    remoteRoot: z.string().default('').volatile(),
   })
 
   private readonly agents: ApiSessionAgentController
@@ -151,15 +143,7 @@ export class SessionController extends TypertRemoteService {
     ctx.inject(['settings'], (settingsCtx) => {
       settingsCtx.effect(() => settingsCtx.settings.configure({ auto: false }, ctx.fiber))
     })
-    const workspaceDirectory = new SessionWorkspaceDirectory(
-      () => ({ mode: config.mode?.get() ?? DEFAULT_SESSION_WORKSPACE_MODE, remoteRoot: config.remoteRoot?.get() ?? '' }),
-      process.cwd(),
-    )
-    this.commands = new SessionCommandController(
-      ctx,
-      this.agents,
-      sessionId => workspaceDirectory.resolve(sessionId),
-    )
+    this.commands = new SessionCommandController(ctx, this.agents, process.cwd())
     ctx.effect(() => ctx.fileUploads.registerAgentResolver(async (sessionId) => {
       const result = await this.agents.resolveAgent(sessionId)
       if ('error' in result) throw result.error
