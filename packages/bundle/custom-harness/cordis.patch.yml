@@ -36,11 +36,8 @@
   disabled: true
 
 # The session header keeps the conversation actions only; the agent preset is
-# chosen before a session starts and visible in Settings.
-- id: ui-agent-preset
-  name: '@deepseek-ai/dsh-client-ui-agent-preset'
-  config:
-    headerLabel: false
+# chosen before a session starts and visible in Settings. The client half gates
+# its header label on the Harnessy build profile.
 
 # Harnessy delegates through the configurable role roster. The two generic
 # creation tools would bypass the selected role's model, access, instructions,

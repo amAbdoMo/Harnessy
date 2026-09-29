@@ -42,7 +42,6 @@ import { AgentPresetSeatController, type AgentPresetStage } from './seat-store.t
 import { AgentPresetSectionController } from './section-store.ts'
 import { en, type AgentPresetSettingsKey } from './locales.ts'
 import { AGENT_PRESET_SETTINGS_NS, AgentPresetSettingsController } from './settings-store.ts'
-import z from '@deepseek-ai/schemastery'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -50,17 +49,6 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     'settings.agentPreset': AgentPresetSettingsKey
   }
 }
-
-/** Deployment UI policy for the agent-preset surfaces. */
-export interface Config {
-  /** Whether the session header shows the read-only agent-preset label chip. */
-  headerLabel: boolean
-}
-
-/** Config schema the loader validates the bundle row's values against. */
-export const Config = z.object({
-  headerLabel: z.boolean().default(true),
-})
 
 export type { AgentPresetLabelInjected, AgentPresetLabelProps } from './AgentPresetLabel.tsx'
 export type { AgentPresetSeatInjected, AgentPresetSeatProps } from './AgentPresetSeat.tsx'
@@ -76,11 +64,16 @@ export const inject = [
 ]
 
 /**
+ * The Harnessy build keeps the session header to conversation actions only; the
+ * preset is chosen before a session starts and visible in Settings.
+ */
+const headerLabelEnabled = process.env.DSH_CLIENT_BUILD_PROFILE !== 'custom-harness'
+
+/**
  * Mount the roster surfaces: hero chip, session-header label, settings section.
  * @param ctx - the browser plugin context.
- * @param config - deployment UI policy; the loader supplies the schema's defaults.
  */
-export function apply(ctx: ClientContext, config: Config = { headerLabel: true }): void {
+export function apply(ctx: ClientContext): void {
   const controller = new AgentPresetSettingsController(ctx)
   const staged: AgentPresetStage = { id: undefined, introduce: false }
   const seats = new WeakMapWithValues<SessionBinding, AgentPresetSeatController>()
@@ -192,7 +185,7 @@ export function apply(ctx: ClientContext, config: Config = { headerLabel: true }
         locale: 'settings.agentPreset',
         inject: seatInjected,
       }, AgentPresetSeat)
-      const label = config.headerLabel
+      const label = headerLabelEnabled
         ? scope.slots.register({
           name: 'conversation.session.header.actions',
           id: 'agent-preset',

@@ -109,6 +109,10 @@ function interactionTransitionEvents(
 ): readonly HarnessNotificationEvent[] {
   return [...interactions].flatMap(([sessionId, interaction]) => {
     if (previousInteractions.get(sessionId) === interaction.key) return []
+    // Delegated children surface their own requests inside the subagent panel;
+    // notifications stay reserved for the main session.
+    const session = sessions.byId[sessionId]
+    if (session === undefined || session.origin === 'subagent' || session.parentId !== undefined) return []
     const kind = notificationKind(interaction.kind)
     if (kind === undefined) return []
     return [{
@@ -116,7 +120,7 @@ function interactionTransitionEvents(
       occurredAt,
       kind,
       sessionId,
-      sessionTitle: sessions.byId[sessionId]?.displayTitle ?? sessionId,
+      sessionTitle: session.displayTitle ?? sessionId,
     }]
   })
 }

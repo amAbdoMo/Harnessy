@@ -168,7 +168,6 @@ export function AccountsManagerCard({
   const provider = state?.providers.find(candidate => candidate.id === selected)
   const accounts = state?.accounts.filter(account => account.provider === selected) ?? []
   const accountGroups = groupManagedAccounts(accounts)
-  const active = accounts.find(account => account.active)
   const total = state === undefined ? 0 : new Set(state.accounts.map(account => account.ownerId)).size
 
   const refresh = async (): Promise<void> => {
@@ -324,7 +323,6 @@ export function AccountsManagerCard({
             setEditing(undefined)
           }} />
           <div className={css.accountPane}>
-            <ActiveAccount provider={provider} account={active} t={t} />
             <div className={css.accountToolbar}>
               <div>
                 <h4 className={css.sectionTitle}>{provider?.label ?? t('accountsTitle')} {t('accountsTitle')}</h4>
@@ -434,20 +432,6 @@ function ProviderRail({ providers, selected, onSelect, t }: {
         </button>
       ))}
     </nav>
-  )
-}
-
-function ActiveAccount({ provider, account, t }: {
-  readonly provider: AccountProviderView | undefined
-  readonly account: ManagedAccountView | undefined
-  readonly t: AccountsManagerCardProps['t']
-}) {
-  return (
-    <div className={css.activeHero}>
-      <span className={css.eyebrow}>{t('accountsActiveEyebrow')} {provider?.label.toLocaleUpperCase() ?? ''}</span>
-      <strong className={css.activeName}>{account?.name ?? t('accountsNoActive')}</strong>
-      <span className={css.activeDetail}>{account?.detail ?? t('accountsAddToActivate')}</span>
-    </div>
   )
 }
 

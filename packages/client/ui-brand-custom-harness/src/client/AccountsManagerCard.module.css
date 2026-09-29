@@ -58,7 +58,6 @@
 .cardDescription,
 .summary,
 .sectionDescription,
-.activeDetail,
 .accountIdentity span,
 .privacy,
 .error,
@@ -74,7 +73,6 @@
 .cardDescription,
 .summary,
 .sectionDescription,
-.activeDetail,
 .accountIdentity span,
 .privacy,
 .waiting,
@@ -178,34 +176,6 @@
   padding: 20px;
 }
 
-.activeHero {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding: 9px 18px;
-  overflow: hidden;
-  border: 0.5px solid var(--dsw-alias-border-l3);
-  border-radius: var(--dsw-radius-lg);
-  background: var(--dsw-alias-bg-layer-1);
-}
-
-.activeHero::after {
-  position: absolute;
-  right: -32px;
-  bottom: -52px;
-  width: 150px;
-  height: 100px;
-  border-radius: 50%;
-  corner-shape: round;
-  content: '';
-  background: var(--dsw-alias-button-primary-fill);
-  opacity: 0.12;
-  filter: blur(18px);
-}
-
-.eyebrow { font-size: 10px; line-height: 14px; letter-spacing: 0.08em; color: var(--dsw-alias-label-tertiary); }
-.activeName { font-size: 15px; line-height: 22px; }
 .accountToolbar { margin: 20px 0 12px; }
 .sectionDescription { margin-top: 1px; }
 .toolbarActions,
