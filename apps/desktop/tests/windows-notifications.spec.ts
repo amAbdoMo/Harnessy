@@ -8,6 +8,7 @@ describe('Windows notification shortcut', () => {
       packaged: true,
       roamingApplicationData: 'C:\\Users\\Person\\AppData\\Roaming',
       executable: 'D:\\Harnessy\\Harnessy.exe',
+      icon: 'D:\\Harnessy\\Harnessy.exe',
       displayName: 'Harnessy',
       applicationId: 'com.amabdmo.customharness',
     })).toEqual({
@@ -28,6 +29,7 @@ describe('Windows notification shortcut', () => {
       packaged: false,
       roamingApplicationData: 'C:\\Users\\Person\\AppData\\Roaming',
       executable: 'A:\\Repository\\node_modules\\electron\\dist\\electron.exe',
+      icon: 'A:\\Repository\\apps\\desktop\\resources\\tray-windows.ico',
       displayName: 'Harnessy',
       applicationId: 'com.amabdmo.customharness',
       launchArguments: '--user-data-dir="C:\\cache\\DesktopUserData" "A:\\Repository\\apps\\desktop"',
@@ -35,7 +37,7 @@ describe('Windows notification shortcut', () => {
       path: 'C:\\Users\\Person\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Harnessy.lnk',
       details: {
         target: 'A:\\Repository\\node_modules\\electron\\dist\\electron.exe',
-        icon: 'A:\\Repository\\node_modules\\electron\\dist\\electron.exe',
+        icon: 'A:\\Repository\\apps\\desktop\\resources\\tray-windows.ico',
         iconIndex: 0,
         description: 'Harnessy',
         appUserModelId: 'com.amabdmo.customharness',
@@ -53,6 +55,7 @@ describe('Windows notification shortcut', () => {
       packaged,
       roamingApplicationData: '/roaming',
       executable: '/app',
+      icon: '/app',
       displayName: 'Harnessy',
       applicationId: 'com.amabdmo.customharness',
     })).toBeUndefined()

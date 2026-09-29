@@ -24,6 +24,8 @@ export interface WindowsNotificationShortcutRequest {
   readonly packaged: boolean
   readonly roamingApplicationData: string
   readonly executable: string
+  /** Icon Windows shows for the taskbar group and toasts; an .ico for unpackaged runs. */
+  readonly icon: string
   readonly displayName: string
   readonly applicationId: string
   /** Arguments that reopen an unpackaged executable from a toast click. */
@@ -52,7 +54,7 @@ export function windowsNotificationShortcut(
     ),
     details: {
       target: request.executable,
-      icon: request.executable,
+      icon: request.icon,
       iconIndex: 0,
       description: request.displayName,
       appUserModelId: request.applicationId,

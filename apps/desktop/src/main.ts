@@ -124,6 +124,9 @@ function prepareWindowsNotifications(): void {
     packaged: app.isPackaged,
     roamingApplicationData: process.env.APPDATA ?? app.getPath('appData'),
     executable: process.execPath,
+    // A shortcut whose icon comes from electron.exe would also become the
+    // taskbar group's icon, overriding the unpackaged window's own icon.
+    icon: app.isPackaged ? process.execPath : join(app.getAppPath(), 'resources', 'tray-windows.ico'),
     displayName: CUSTOM_HARNESS_PRODUCT.displayName,
     applicationId: CUSTOM_HARNESS_PRODUCT.windowsAppId,
     // An unpackaged executable has no installer shortcut, so Windows would
