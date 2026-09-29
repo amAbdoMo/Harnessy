@@ -537,6 +537,42 @@
   align-items: center;
 }
 
+/* Reasoning capability fields inside the advanced grid: the effort rows wrap
+   as tidy checkboxes instead of spilling past their grid column. */
+.modelCapability {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 4px;
+}
+
+.modelFieldLabel {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.effortGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  padding-top: 2px;
+}
+
+.effortOption {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 20px;
+  cursor: pointer;
+}
+
+.effortOption input {
+  accent-color: var(--dsw-alias-brand-primary);
+}
+
 .modelFieldLabel {
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;

@@ -42,6 +42,7 @@ import { AgentPresetSeatController, type AgentPresetStage } from './seat-store.t
 import { AgentPresetSectionController } from './section-store.ts'
 import { en, type AgentPresetSettingsKey } from './locales.ts'
 import { AGENT_PRESET_SETTINGS_NS, AgentPresetSettingsController } from './settings-store.ts'
+import z from '@deepseek-ai/schemastery'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -49,6 +50,17 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     'settings.agentPreset': AgentPresetSettingsKey
   }
 }
+
+/** Deployment UI policy for the agent-preset surfaces. */
+export interface Config {
+  /** Whether the session header shows the read-only agent-preset label chip. */
+  headerLabel: boolean
+}
+
+/** Config schema the loader validates the bundle row's values against. */
+export const Config = z.object({
+  headerLabel: z.boolean().default(true),
+})
 
 export type { AgentPresetLabelInjected, AgentPresetLabelProps } from './AgentPresetLabel.tsx'
 export type { AgentPresetSeatInjected, AgentPresetSeatProps } from './AgentPresetSeat.tsx'
@@ -66,8 +78,9 @@ export const inject = [
 /**
  * Mount the roster surfaces: hero chip, session-header label, settings section.
  * @param ctx - the browser plugin context.
+ * @param config - deployment UI policy; the loader supplies the schema's defaults.
  */
-export function apply(ctx: ClientContext): void {
+export function apply(ctx: ClientContext, config: Config = { headerLabel: true }): void {
   const controller = new AgentPresetSettingsController(ctx)
   const staged: AgentPresetStage = { id: undefined, introduce: false }
   const seats = new WeakMapWithValues<SessionBinding, AgentPresetSeatController>()
@@ -179,18 +192,20 @@ export function apply(ctx: ClientContext): void {
         locale: 'settings.agentPreset',
         inject: seatInjected,
       }, AgentPresetSeat)
-      const label = scope.slots.register({
-        name: 'conversation.session.header.actions',
-        id: 'agent-preset',
-        // Static session context occupies the header's leading negative-order band.
-        order: -10,
-        locale: 'settings.agentPreset',
-        inject: labelInjected,
-      }, AgentPresetLabel)
+      const label = config.headerLabel
+        ? scope.slots.register({
+          name: 'conversation.session.header.actions',
+          id: 'agent-preset',
+          // Static session context occupies the header's leading negative-order band.
+          order: -10,
+          locale: 'settings.agentPreset',
+          inject: labelInjected,
+        }, AgentPresetLabel)
+        : undefined
       return () => {
         creatorDraft = undefined
         chip()
-        label()
+        label?.()
       }
     }, 'ui-agent-preset: new-session chip and header label')
   })

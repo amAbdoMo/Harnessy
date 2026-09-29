@@ -74,5 +74,7 @@
     "lib/client.js",
     "lib/types/**/*.d.ts"
   ],
-  "dependencies": {}
+  "dependencies": {
+    "@deepseek-ai/schemastery": "workspace:~"
+  }
 }

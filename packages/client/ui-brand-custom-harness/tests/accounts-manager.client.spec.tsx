@@ -342,7 +342,6 @@ describe('Harnessy account manager', () => {
     const consumeResetCredit = vi.fn()
       .mockResolvedValueOnce({ error: 'Reset temporarily unavailable.' })
       .mockResolvedValueOnce({ outcome: 'reset' as const, state: consumedState })
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     renderManager(operations({
       describe: vi.fn(async () => ({ state: resetState })),
       refreshUsage: vi.fn(async () => ({ state: resetState })),
@@ -352,13 +351,18 @@ describe('Harnessy account manager', () => {
     fireEvent.click(await screen.findByRole('button', { name: en.accountsManage }))
     expect(await screen.findByText(en.accountsBankedResetCount.replace('{count}', '1'))).toBeTruthy()
     const resetActionName = en.accountsUseBankedResetFor.replace('{account}', baseState.accounts[0]!.name)
-    fireEvent.click(screen.getByRole('button', { name: resetActionName }))
+    const confirmReset = async (): Promise<void> => {
+      fireEvent.click(screen.getByRole('button', { name: resetActionName }))
+      // The styled confirmation replaces the browser dialog and echoes the account.
+      expect(await screen.findByText(
+        en.accountsBankedResetConfirm.replace('{account}', baseState.accounts[0]!.name),
+      )).toBeTruthy()
+      fireEvent.click(await screen.findByRole('button', { name: en.accountsUseBankedReset }))
+    }
+    await confirmReset()
     expect(await screen.findByText('Reset temporarily unavailable.')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: resetActionName }))
+    await confirmReset()
     await waitFor(() => { expect(consumeResetCredit).toHaveBeenCalledTimes(2) })
-    expect(window.confirm).toHaveBeenCalledWith(
-      en.accountsBankedResetConfirm.replace('{account}', baseState.accounts[0]!.name),
-    )
     expect(consumeResetCredit.mock.calls[1]?.[1]).toBe(consumeResetCredit.mock.calls[0]?.[1])
     await waitFor(() => {
       expect(screen.queryByText(en.accountsBankedResetsCount.replace('{count}', '0'))).toBeNull()

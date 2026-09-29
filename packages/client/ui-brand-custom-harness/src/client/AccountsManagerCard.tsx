@@ -113,6 +113,7 @@ export function AccountsManagerCard({
   const [busyAccount, setBusyAccount] = useState<string | undefined>()
   const [autoSwitching, setAutoSwitching] = useState(false)
   const [consumingReset, setConsumingReset] = useState<string | undefined>()
+  const [confirmation, setConfirmation] = useState<{ readonly kind: 'reset' | 'remove'; readonly account: ManagedAccountView } | undefined>()
   const [selectedContexts, setSelectedContexts] = useState<Readonly<Record<string, string>>>({})
   const attempt = useRef<AbortController | undefined>()
   const resetAttempt = useRef<AbortController | undefined>()
@@ -231,7 +232,6 @@ export function AccountsManagerCard({
   }
 
   const consumeResetCredit = async (account: ManagedAccountView): Promise<void> => {
-    if (!window.confirm(t('accountsBankedResetConfirm').replace('{account}', account.name))) return
     attempt.current?.abort()
     attempt.current = undefined
     setRefreshing(false)
@@ -262,7 +262,6 @@ export function AccountsManagerCard({
   }
 
   const remove = async (account: ManagedAccountView): Promise<void> => {
-    if (!window.confirm(t('accountsRemoveConfirm'))) return
     setBusyAccount(account.id)
     setFailure(undefined)
     const result = await operations.remove(account.provider, account.id)
@@ -270,11 +269,23 @@ export function AccountsManagerCard({
     if (result.error !== undefined) setFailure(result.error)
   }
 
+  const runConfirmed = async (): Promise<void> => {
+    const action = confirmation
+    setConfirmation(undefined)
+    if (action === undefined) return
+    if (action.kind === 'reset') await consumeResetCredit(action.account)
+    else await remove(action.account)
+  }
+
   return (
     <section className={css.card} aria-label={t('accountsLabel')}>
       <div className={css.cardHeading}>
         <div>
-          <h3 className={css.cardTitle}>{t('accountsTitle')}</h3>
+          <h3 className={css.cardTitle}>
+            {t('accountsTitle')}
+            {state === undefined || total === 0 ? null
+              : <span className={css.countBadge} aria-label={`${String(total)} ${total === 1 ? t('accountSaved') : t('accountsSaved')}`}>{String(total)}</span>}
+          </h3>
           <p className={css.cardDescription}>{t('accountsDescription')}</p>
         </div>
         <Button variant="primary" size="sm" disabled={state === undefined || !state.writable}
@@ -282,10 +293,26 @@ export function AccountsManagerCard({
           {t('accountsManage')}
         </Button>
       </div>
-      <p className={css.summary}>{state === undefined
-        ? t('accountsLoading')
-        : total === 0 ? t('accountsNone') : `${String(total)} ${total === 1 ? t('accountSaved') : t('accountsSaved')}`}</p>
+      {state === undefined
+        ? <p className={css.summary}>{t('accountsLoading')}</p>
+        : total === 0 ? <p className={css.summary}>{t('accountsNone')}</p> : null}
       {failure === undefined || open ? null : <p className={css.error}>{failure}</p>}
+
+      <Modal open={confirmation !== undefined} onClose={() => { setConfirmation(undefined) }}
+        title={confirmation?.kind === 'reset' ? t('accountsBankedResets') : t('accountsRemove')}
+        closeLabel={t('cancel')}
+        footer={(
+          <>
+            <Button variant="outline" onClick={() => { setConfirmation(undefined) }}>{t('cancel')}</Button>
+            <Button variant="primary" onClick={() => { void runConfirmed() }}>
+              {confirmation?.kind === 'reset' ? t('accountsUseBankedReset') : t('accountsRemove')}
+            </Button>
+          </>
+        )}>
+        <p className={css.confirmText}>{confirmation?.kind === 'reset'
+          ? t('accountsBankedResetConfirm').replace('{account}', confirmation.account.name)
+          : t('accountsRemoveConfirm')}</p>
+      </Modal>
 
       <Modal open={open && !(signingIn && provider?.authMode === 'oauth')} onClose={closeManager}
         title={t('accountsTitle')} closeLabel={t('close')}
@@ -365,8 +392,8 @@ export function AccountsManagerCard({
                       }}
                       onBeginEdit={() => { setEditing(account.id); setEditName(account.name) }}
                       onCancelEdit={() => { setEditing(undefined) }} onSaveName={() => { void saveName(account) }}
-                      onConsumeReset={() => { void consumeResetCredit(account) }}
-                      onRemove={() => { void remove(account) }} t={t} />
+                      onConsumeReset={() => { setConfirmation({ kind: 'reset', account }) }}
+                      onRemove={() => { setConfirmation({ kind: 'remove', account }) }} t={t} />
                   })}
                 </div>
               )}

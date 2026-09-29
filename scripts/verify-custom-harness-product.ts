@@ -84,6 +84,7 @@ const DISABLED_STOCK_ROWS = [
   'ui-settings-subagent',
   'tool-subagent',
   'tool-subagent-fork',
+  'llm-deepseek',
 ] as const
 
 function hasPatchRow(source: string, id: string): boolean {

@@ -28,6 +28,33 @@
   line-height: 22px;
 }
 
+/* Saved-account total beside the section title, matching the small chip family. */
+.countBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  margin-left: 8px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  corner-shape: round;
+  vertical-align: 3px;
+  color: var(--dsw-alias-state-business-primary);
+  background: var(--dsw-alias-state-business-tertiary);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.confirmText {
+  margin: 0;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
 .cardDescription,
 .summary,
 .sectionDescription,
