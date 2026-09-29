@@ -182,8 +182,8 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 16px 18px;
+  gap: 1px;
+  padding: 9px 18px;
   overflow: hidden;
   border: 0.5px solid var(--dsw-alias-border-l3);
   border-radius: var(--dsw-radius-lg);
@@ -204,8 +204,8 @@
   filter: blur(18px);
 }
 
-.eyebrow { font-size: 10px; line-height: 16px; letter-spacing: 0.08em; color: var(--dsw-alias-label-tertiary); }
-.activeName { font-size: 18px; line-height: 26px; }
+.eyebrow { font-size: 10px; line-height: 14px; letter-spacing: 0.08em; color: var(--dsw-alias-label-tertiary); }
+.activeName { font-size: 15px; line-height: 22px; }
 .accountToolbar { margin: 20px 0 12px; }
 .sectionDescription { margin-top: 1px; }
 .toolbarActions,
