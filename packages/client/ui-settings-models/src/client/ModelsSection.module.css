@@ -546,6 +546,75 @@
   gap: 4px;
 }
 
+/* A sentence about the row rather than a field paired with another, so it spans
+   both advanced columns. */
+.modelCapabilityHint {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+/* Where one row's reasoning levels came from: an inset module below the
+   advanced fields, every term beside its value and every value on one column.
+   It describes the whole row rather than one of its fields, so it spans both
+   columns. */
+.capabilitySource {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: baseline;
+  gap: 2px 12px;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--dsw-radius-md);
+  background: var(--dsw-alias-bg-module-platform);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.capabilitySource dt {
+  grid-column: 1;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.capabilitySource dd {
+  grid-column: 2;
+  margin: 0;
+}
+
+/* The id-only branch states a sentence and its claims where the term/value
+   pairs would go; each spans the row rather than landing in one column of it. */
+.capabilitySource > p,
+.capabilitySource > ul {
+  grid-column: 1 / -1;
+}
+
+/* The provider term labels two stacked values — the matched entry and the tier
+   it was read from — so it holds the top of that group. */
+.capabilityTerm {
+  align-self: start;
+}
+
+/* A public claim the row's own declaration outranks: stated below the value it
+   disagrees with, in the value column it belongs to. */
+.capabilityNotApplied {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* Id-only claims, one line each, under the sentence that reports them. */
+.capabilityClaims {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  color: var(--dsw-alias-label-tertiary);
+  list-style: none;
+}
+
 .modelFieldLabel {
   color: var(--dsw-alias-label-secondary);
   font-size: 12px;
@@ -681,8 +750,16 @@
   }
 }
 
+/* The picker: a scroll region of model ids with the effort levels each source
+   states, so it is wider than the primitive's confirm-dialog card and caps its
+   own growth at the modal's padding box, as that primitive's contract asks. */
 .fetchDialog {
-  max-width: 520px;
+  width: min(560px, 100%);
+
+  /* The card's own width lives in the primitive's sheet; only a minimum
+     outranks a width, whatever order the two sheets are concatenated in. */
+  min-width: min(560px, 100%);
+  max-height: 100%;
 
   /* The candidate list scrolls inside this dialog, an elevated surface, so the
      scrollbar indirection is rebound here rather than on the scrolling child:
@@ -692,11 +769,19 @@
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
 }
 
+/* The footer stays visible in short windows while the header and model picker
+   share the dialog's remaining height. */
+.fetchContent {
+  min-height: 0;
+  overflow-y: auto;
+}
+
 .candidateToolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .candidateSearch {
@@ -704,36 +789,94 @@
   flex: 1 1 240px;
 }
 
+/* Where the rows below came from, stated before them: a route the adapter ships
+   is answered from its installed catalog and every other one over the wire, so
+   the same list means different things. */
+.candidateSource {
+  margin: 0 0 10px;
+  padding: 6px 10px;
+  border-radius: var(--dsw-radius-sm);
+  background: var(--dsw-alias-bg-module-platform);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
 .candidateList {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  max-height: 320px;
+  gap: 4px;
+  max-height: min(38vh, 320px);
   margin: 0;
+  /* Room beside the rows for the bar, and the shared geometry variables inset
+     the thumb inside that lane, so it reads as the list's own edge rather than
+     sitting flush against the dialog's corner. */
+  padding: 0 4px 0 0;
   overflow-y: auto;
-  padding: 0;
   list-style: none;
+  --dsh-scrollbar-width: 10px;
+  --dsh-scrollbar-thumb-border: 3px;
 }
 
 .candidate {
+  border: 0.5px solid var(--dsw-alias-border-l3);
   border-radius: var(--dsw-radius-md);
 }
 
+.candidate:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+/* A picked row keeps its tint, so a listing longer than the visible band still
+   shows what the add action will bring in. */
+.candidate:has(input:checked) {
+  background: var(--dsw-alias-interactive-bg-active);
+}
+
+/* One row: the checkbox, then the id, then the levels the source stated. One
+   grid per row puts every id on the same left edge and every level set against
+   the same right edge, so the listing scans as two columns. */
 .candidateLabel {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: 'check id capability';
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
+  gap: 4px 10px;
+  padding: 6px 10px;
   cursor: pointer;
 }
 
+.candidateLabel input {
+  grid-area: check;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--dsw-alias-brand-primary);
+}
+
+.candidateLabel input:focus-visible {
+  outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
+  outline-offset: 2px;
+}
+
 .candidateId {
-  flex: 1 1 auto;
+  grid-area: id;
   min-width: 0;
+  color: var(--dsw-alias-label-primary);
   font-family: var(--ds-font-family-code);
   font-size: 13px;
+  line-height: 20px;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.candidateCapability {
+  grid-area: capability;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+  text-align: right;
   white-space: nowrap;
 }
 
@@ -743,4 +886,20 @@
   font-size: 13px;
   line-height: 20px;
   text-align: center;
+}
+
+/* A narrow window has no room for two columns beside the checkbox: the levels
+   move under the id, wrapping instead of pushing it out of the row. */
+@media (max-width: 560px) {
+  .candidateLabel {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      'check id'
+      '. capability';
+  }
+
+  .candidateCapability {
+    text-align: left;
+    white-space: normal;
+  }
 }

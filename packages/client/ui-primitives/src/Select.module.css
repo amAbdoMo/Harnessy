@@ -1,7 +1,7 @@
 /* Shared select: an app-styled trigger plus a portaled listbox card. The
    trigger mirrors Input.tsx's geometry so one form row reads as one family; the
    card mirrors Menu.module.css (menu surface, hairline stroke carried by the
-   elevation shadow, l2 scrollbar rebind for its own scroller). */
+   elevation shadow, l2 scrollbar rebind for the row viewport). */
 
 .root {
   position: relative;
@@ -57,7 +57,9 @@
 }
 
 /* Portaled so a dialog's own clip cannot crop it; fixed coordinates come from
-   the anchor rect (see useAnchoredPosition). */
+   the anchor rect (see useAnchoredPosition). The card itself never scrolls:
+   MenuSurface paints the material as its own child, so a scrolling card would
+   carry that background out of view. */
 .list {
   position: fixed;
   z-index: 1100;
@@ -67,7 +69,7 @@
   min-width: 160px;
   max-width: 360px;
   max-height: 320px;
-  overflow-y: auto;
+  overflow: hidden;
   padding: 4px;
   border: 0;
   border-radius: var(--dsw-radius-md);
@@ -75,6 +77,20 @@
   box-shadow: var(--dsw-elevation-prominent);
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+  /* A 6px draggable rail carries a quiet 2px thumb, inset from the card's
+     rounded ends — the rail MenuView renders. The values inherit down to
+     .viewport, the element that actually scrolls. */
+  --dsh-scrollbar-width: 6px;
+  --dsh-scrollbar-thumb-border: 2px;
+  --dsh-scrollbar-track-margin: 12px;
+}
+
+/* The card's only scroller: rows move here, under the card's fixed material. */
+.viewport {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .group {

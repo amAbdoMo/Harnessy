@@ -58,6 +58,12 @@ describe('ModelsSection theme styles', () => {
     expect(block('.rowCard')).toContain('background: var(--dsw-alias-settings-card-fill)')
   })
 
+  it('keeps fetched-model actions visible in short windows', () => {
+    expect(block('.fetchDialog')).toContain('max-height: 100%')
+    expect(block('.fetchContent')).toContain('min-height: 0')
+    expect(block('.fetchContent')).toContain('overflow-y: auto')
+  })
+
   it('renders the shared Select instead of a native dropdown', () => {
     // The OS paints a native <select>'s popup and arrow and ignores the theme's
     // tokens, so every dropdown on this page goes through the shared control

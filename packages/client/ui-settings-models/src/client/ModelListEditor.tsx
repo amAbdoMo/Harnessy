@@ -13,6 +13,12 @@
  * with no readable listing) is not a dead end: the failure is shown next to the
  * rows the user can still fill in by hand.
  *
+ * The picker offers the listing as a scroll region, so it orders it: models the
+ * profile does not configure yet come first, each group keeping the order the
+ * source reported. A provider adds models over time and reports them in its own
+ * order, which would otherwise leave a newly available one below every row
+ * already configured.
+ *
  * A row's disclosure also carries its declared capabilities. Reasoning is the
  * one that changes what the rest of Harnessy offers, and it belongs here rather
  * than on the provider card because the models under one route disagree about
@@ -21,7 +27,7 @@
  * models reject.
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { LlmDiscoveredModel, ModelCapabilityInspectionView } from '@deepseek-ai/dsh-api-remotes/client'
 import { Button, IconPlusOutlineRegular, Modal, Select } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -220,6 +226,60 @@ function undeclared(candidate: LlmDiscoveredModel, existing: ModelDraft): ModelD
   return Object.keys(capability).length === 0 ? undefined : { ...existing, ...capability }
 }
 
+/**
+ * Order a listing the way the picker offers it: the models this list does not
+ * configure yet first, then the ones it holds. Each group keeps the order the
+ * source reported, so the answer reads the same for two listings that differ
+ * only in which models are configured.
+ * @param candidates - the listing as the source answered it.
+ * @param configured - ids the drafted rows already hold.
+ * @returns a new array; `candidates` is left untouched.
+ */
+function prioritizeUnconfigured(
+  candidates: readonly LlmDiscoveredModel[],
+  configured: ReadonlySet<string>,
+): readonly LlmDiscoveredModel[] {
+  const added: LlmDiscoveredModel[] = []
+  const held: LlmDiscoveredModel[] = []
+  for (const candidate of candidates) {
+    if (configured.has(candidate.id)) held.push(candidate)
+    else added.push(candidate)
+  }
+  return [...added, ...held]
+}
+
+/** Props of one fetched-model choice. */
+interface CandidateChoiceProps {
+  candidate: LlmDiscoveredModel
+  checked: boolean
+  t: Translate
+  onToggle: () => void
+}
+
+/** Render one fetched model with its capability text as an accessible description. */
+function CandidateChoice({ candidate, checked, t, onToggle }: CandidateChoiceProps): ReactNode {
+  const modelId = useId()
+  const capabilityId = useId()
+  const capability = candidate.reasoningEfforts === undefined
+    ? t('fetchEffortsNone')
+    : candidate.reasoningEfforts.map(level => effortLabel(level, t)).join(' · ')
+  return (
+    <label className={styles['candidateLabel']}>
+      <input
+        type="checkbox"
+        checked={checked}
+        aria-labelledby={modelId}
+        aria-describedby={capabilityId}
+        onChange={onToggle}
+      />
+      <span id={modelId} className={styles['candidateId']} title={candidate.name ?? candidate.id}>
+        {candidate.id}
+      </span>
+      <span id={capabilityId} className={styles['candidateCapability']}>{capability}</span>
+    </label>
+  )
+}
+
 /** Props of {@link CapabilityFields}. */
 interface CapabilityFieldsProps {
   /** The row being declared. */
@@ -317,6 +377,8 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set())
   const [candidateQuery, setCandidateQuery] = useState('')
   const [expanded, setExpanded] = useState<ReadonlySet<number>>(new Set())
+  /** The ids the drafted rows hold: what the picker counts as configured. */
+  const configuredIds = useMemo(() => new Set(models.map(model => textOf(model, 'id'))), [models])
   // Capacities are edited as text, so a field's keystrokes are held here rather
   // than re-derived from the parsed count on every change — that would rewrite
   // `1000` to `1K` mid-word. Unreadable text is kept past blur so the refusal
@@ -447,10 +509,9 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
       }
       // Everything already configured starts unchecked, so adopting a
       // selection never silently rewrites a capacity the user corrected.
-      const known = new Set(models.map(model => textOf(model, 'id')))
       setCandidateQuery('')
       setCandidates(found)
-      setPicked(new Set(found.filter(model => !known.has(model.id)).map(model => model.id)))
+      setPicked(new Set(found.filter(model => !configuredIds.has(model.id)).map(model => model.id)))
     } finally {
       setBusy(false)
     }
@@ -494,7 +555,10 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
     })
   }
 
-  const activeCandidates = candidates ?? []
+  const activeCandidates = useMemo(
+    () => prioritizeUnconfigured(candidates ?? [], configuredIds),
+    [candidates, configuredIds],
+  )
   const normalizedCandidateQuery = candidateQuery.trim().toLowerCase()
   const visibleCandidates = normalizedCandidateQuery.length === 0
     ? activeCandidates
@@ -653,10 +717,15 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
         closeLabel={t('close')}
         description={t('fetchDescription')}
         className={styles['fetchDialog'] as string}
+        contentClassName={styles['fetchContent'] as string}
         footer={(
           <>
             <Button variant="outline" onClick={closePicker}>{t('cancel')}</Button>
-            <Button variant="outline" onClick={adoptPicked}>{t('fetchAdopt')}</Button>
+            {/* The action states what it will add, so it stays inert while the
+                picker holds no selection rather than closing on an empty one. */}
+            <Button variant="primary" disabled={picked.size === 0} onClick={adoptPicked}>
+              {t('fetchAdopt')}
+            </Button>
           </>
         )}
       >
@@ -690,24 +759,12 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
             <ul className={styles['candidateList']}>
               {visibleCandidates.map(candidate => (
                 <li key={candidate.id} className={styles['candidate']}>
-                  <label className={styles['candidateLabel']}>
-                    <input
-                      type="checkbox"
-                      checked={picked.has(candidate.id)}
-                      onChange={() => { toggle(candidate.id) }}
-                    />
-                    <span className={styles['candidateId']} title={candidate.name ?? candidate.id}>
-                      {candidate.id}
-                    </span>
-                  </label>
-                  {/* The exact levels this candidate stated, named the way the
-                      composer will name them. A candidate that stated none says
-                      so instead of showing a default set. */}
-                  <span className={styles['candidateCapability']}>
-                    {candidate.reasoningEfforts === undefined
-                      ? t('fetchEffortsNone')
-                      : candidate.reasoningEfforts.map(level => effortLabel(level, t)).join(' · ')}
-                  </span>
+                  <CandidateChoice
+                    candidate={candidate}
+                    checked={picked.has(candidate.id)}
+                    t={t}
+                    onToggle={() => { toggle(candidate.id) }}
+                  />
                 </li>
               ))}
             </ul>

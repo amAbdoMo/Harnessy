@@ -104,13 +104,16 @@
   grid-template-columns: 190px minmax(0, 1fr);
   min-height: 590px;
   border-top: 0.5px solid var(--dsw-alias-border-l4);
+  /* First-row inset both columns start from, so the account pane's toolbar
+     begins level with the provider rail's first row. */
+  --dsh-accounts-row-inset: 18px;
 }
 
 .providerRail {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 18px 12px;
+  padding: var(--dsh-accounts-row-inset) 12px;
   border-right: 0.5px solid var(--dsw-alias-border-l4);
   background: var(--dsw-alias-bg-layer-1);
 }
@@ -173,10 +176,10 @@
 
 .accountPane {
   min-width: 0;
-  padding: 20px;
+  padding: var(--dsh-accounts-row-inset) 20px 20px;
 }
 
-.accountToolbar { margin: 20px 0 12px; }
+.accountToolbar { margin: 0 0 12px; }
 .sectionDescription { margin-top: 1px; }
 .toolbarActions,
 .formActions,

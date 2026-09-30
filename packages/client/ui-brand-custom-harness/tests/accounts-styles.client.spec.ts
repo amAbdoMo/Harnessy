@@ -3,6 +3,14 @@ import { describe, expect, it } from 'vitest'
 
 const styles = readFileSync(new URL('../src/client/AccountsManagerCard.module.css', import.meta.url), 'utf8')
 const launcherStyles = readFileSync(new URL('../src/client/AccountLauncher.module.css', import.meta.url), 'utf8')
+const declarationText = styles.replace(/\/\*[\s\S]*?\*\//g, ' ')
+
+/** Declarations of one top-level rule, comments stripped. */
+function declarations(selector: string): string {
+  const rule = new RegExp(`(?:^|\\})\\s*${selector.replace(/[.[\]():*+^$\\]/g, '\\$&')}\\s*\\{([^{}]*)\\}`).exec(declarationText)
+  if (rule === null) throw new Error(`AccountsManagerCard.module.css has no \`${selector}\` rule`)
+  return rule[1] ?? ''
+}
 
 describe('Harnessy account usage styles', () => {
   it('presents quota windows and banked resets as equal bordered panels', () => {
@@ -22,6 +30,15 @@ describe('Harnessy account usage styles', () => {
     expect(styles).toContain(`.usagePanels:has(> .bankedReset) { grid-template-columns: 1fr; }
   .usagePanels:has(> .bankedReset) > .usageGrid { grid-column: auto; }
   .usageGrid { grid-template-columns: 1fr; }`)
+  })
+
+  it('starts the account pane toolbar level with the provider rail first row', () => {
+    // One shared first-row inset: the rail pads its rows by it, and the pane's
+    // top inset uses it too, so the toolbar's first line has no extra gap.
+    expect(declarations('.managerLayout')).toContain('--dsh-accounts-row-inset: 18px')
+    expect(declarations('.providerRail')).toContain('padding: var(--dsh-accounts-row-inset) 12px')
+    expect(declarations('.accountPane')).toContain('padding: var(--dsh-accounts-row-inset) 20px 20px')
+    expect(declarations('.accountToolbar')).toContain('margin: 0 0 12px')
   })
 
   it('matches the closed account card inset to the open menu content', () => {

@@ -1025,11 +1025,12 @@ describe('endpoint interrogation', () => {
 
     fireEvent.click(screen.getByText(en.fetchModels))
     await screen.findByText(en.fetchTitle)
-    expect(screen.getByRole<HTMLInputElement>('checkbox', { name: 'fresh' }).checked).toBe(true)
-    expect(screen.queryByRole('checkbox', { name: 'Fresh' })).toBeNull()
+    expect(screen.getByRole<HTMLInputElement>('checkbox', { name: /^fresh/ }).checked).toBe(true)
+    expect(screen.queryByRole('checkbox', { name: /^Fresh/ })).toBeNull()
     // The already-configured row starts unchecked; the new one starts checked.
-    const boxes = [...document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')]
-    expect(boxes.map(box => box.checked)).toEqual([false, true])
+    // Read per candidate rather than by position: the picker offers what is not
+    // configured yet first.
+    expect(screen.getByRole<HTMLInputElement>('checkbox', { name: /^kept/ }).checked).toBe(false)
     fireEvent.click(screen.getByText(en.fetchAdopt))
 
     expect(screen.getByLabelText<HTMLInputElement>(`${en.modelId} 2`).value).toBe('fresh')

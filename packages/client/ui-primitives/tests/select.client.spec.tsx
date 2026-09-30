@@ -31,6 +31,12 @@ function renderSelect(overrides: Partial<Parameters<typeof Select>[0]> = {}) {
   return { trigger: screen.getByRole('combobox', { name: 'Backend' }), onChange }
 }
 
+/** Text of the row the trigger names as active, or undefined when it names none. */
+function activeRowText(trigger: HTMLElement): string | undefined {
+  const id = trigger.getAttribute('aria-activedescendant')
+  return id === null ? undefined : document.getElementById(id)?.textContent ?? undefined
+}
+
 describe('Select trigger', () => {
   it('shows the stored option and carries the labelling the row supplies', () => {
     renderSelect({ id: 'backend' })
@@ -134,6 +140,15 @@ describe('Select popup', () => {
     expect(trigger.getAttribute('aria-activedescendant')).toBeNull()
   })
 
+  it('groups the rows in a viewport inside the listbox card', () => {
+    const { trigger } = renderSelect()
+    fireEvent.click(trigger)
+    const listbox = screen.getByRole('listbox', { name: 'Backend' })
+    const row = screen.getByRole('option', { name: 'Alpha' })
+    expect(row.parentElement).not.toBe(listbox)
+    expect(listbox.contains(row.parentElement)).toBe(true)
+  })
+
   it('closes when the open trigger is clicked again', () => {
     const { trigger } = renderSelect()
     fireEvent.click(trigger)
@@ -143,23 +158,58 @@ describe('Select popup', () => {
   })
 })
 
+describe('Select pointer hover', () => {
+  it('parks the highlight on the row the pointer moves over', () => {
+    const { trigger } = renderSelect()
+    fireEvent.click(trigger)
+    expect(activeRowText(trigger)).toBe('Alpha')
+    fireEvent.mouseMove(screen.getByRole('option', { name: 'Gamma' }))
+    expect(activeRowText(trigger)).toBe('Gamma')
+    // Motion over the row that already holds the highlight changes nothing.
+    fireEvent.mouseMove(screen.getByRole('option', { name: 'Gamma' }))
+    expect(activeRowText(trigger)).toBe('Gamma')
+  })
+
+  it('leaves the highlight to the keys while the pointer rests on a row', () => {
+    const { trigger, onChange } = renderSelect()
+    fireEvent.click(trigger)
+    fireEvent.mouseMove(screen.getByRole('option', { name: 'Alpha' }))
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' })
+    expect(activeRowText(trigger)).toBe('Gamma')
+    // Pointer entry carries no motion: a row arriving under a stationary
+    // pointer must not pull the highlight back off the keys' row.
+    fireEvent.mouseOver(screen.getByRole('option', { name: 'Alpha' }))
+    expect(activeRowText(trigger)).toBe('Gamma')
+    fireEvent.keyDown(trigger, { key: 'Enter' })
+    expect(onChange).toHaveBeenCalledWith('gamma')
+  })
+
+  it('highlights a disabled row the pointer moves over without committing it', () => {
+    const { trigger, onChange } = renderSelect()
+    fireEvent.click(trigger)
+    fireEvent.mouseMove(screen.getByRole('option', { name: 'Beta' }))
+    expect(activeRowText(trigger)).toBe('Beta')
+    fireEvent.click(screen.getByRole('option', { name: 'Beta' }))
+    expect(onChange).not.toHaveBeenCalled()
+  })
+})
+
 describe('Select keyboard', () => {
   it('opens on the stored row and moves over enabled rows only', () => {
     const { trigger } = renderSelect()
     fireEvent.keyDown(trigger, { key: 'ArrowDown' })
     expect(screen.getByRole('listbox')).toBeDefined()
-    const active = () => document.getElementById(trigger.getAttribute('aria-activedescendant') ?? '')?.textContent
-    expect(active()).toBe('Alpha')
+    expect(activeRowText(trigger)).toBe('Alpha')
     fireEvent.keyDown(trigger, { key: 'ArrowDown' })
-    expect(active()).toBe('Gamma')
+    expect(activeRowText(trigger)).toBe('Gamma')
     fireEvent.keyDown(trigger, { key: 'ArrowDown' })
-    expect(active()).toBe('Alpha')
+    expect(activeRowText(trigger)).toBe('Alpha')
     fireEvent.keyDown(trigger, { key: 'ArrowUp' })
-    expect(active()).toBe('Gamma')
+    expect(activeRowText(trigger)).toBe('Gamma')
     fireEvent.keyDown(trigger, { key: 'Home' })
-    expect(active()).toBe('Alpha')
+    expect(activeRowText(trigger)).toBe('Alpha')
     fireEvent.keyDown(trigger, { key: 'End' })
-    expect(active()).toBe('Gamma')
+    expect(activeRowText(trigger)).toBe('Gamma')
   })
 
   it('opens on ArrowUp and on Enter or Space, and commits the active row', () => {

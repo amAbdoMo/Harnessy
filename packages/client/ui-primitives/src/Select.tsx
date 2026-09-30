@@ -204,6 +204,11 @@ export function Select<Value extends string = string>(props: SelectProps<Value>)
       role="option"
       aria-selected={row.option.value === value}
       aria-disabled={row.option.disabled === true ? true : undefined}
+      // Mousemove, not mouseenter: real pointer motion parks the highlight on
+      // the row under the pointer, so pointer and keys share one cell fill
+      // instead of competing, and rows scrolled under a resting pointer keep
+      // the highlight the keys put there.
+      onMouseMove={row.index === active ? undefined : () => { setActive(row.index) }}
       onClick={() => { commit(row) }}
     >
       <span className={css.optionLabel}>{row.option.label}</span>
@@ -235,14 +240,18 @@ export function Select<Value extends string = string>(props: SelectProps<Value>)
         ? createPortal(
           <MenuSurface compact className={css.list} role="listbox" id={listId}
             aria-label={label} ref={listRef} style={position ?? undefined}>
-            {entries.map(entry => entry.kind === 'group'
-              ? (
-                <div key={entry.label} className={css.group} role="group" aria-labelledby={entry.id}>
-                  <div className={css.groupLabel} id={entry.id}>{entry.label}</div>
-                  {entry.rows.map(renderRow)}
-                </div>
-              )
-              : renderRow(entry.row))}
+            {/* The card keeps the material layer and stays unscrolled: the rows
+                scroll in this viewport, so the background never moves with them. */}
+            <div className={css.viewport} role="presentation">
+              {entries.map(entry => entry.kind === 'group'
+                ? (
+                  <div key={entry.label} className={css.group} role="group" aria-labelledby={entry.id}>
+                    <div className={css.groupLabel} id={entry.id}>{entry.label}</div>
+                    {entry.rows.map(renderRow)}
+                  </div>
+                )
+                : renderRow(entry.row))}
+            </div>
           </MenuSurface>,
           document.body,
         )
