@@ -5,7 +5,7 @@ import type { DesktopUpdateState } from '../src/ipc.ts'
 import { DesktopUpdateSchedule, resolveDesktopUpdateScheduleConfig } from '../src/update-schedule.ts'
 
 vi.mock('electron', () => ({ app: { isPackaged: false } }))
-vi.mock('electron-updater', () => ({ default: { autoUpdater: {} } }))
+vi.mock('electron-updater', () => ({ default: { autoUpdater: {}, NsisUpdater: EventEmitter } }))
 const { DesktopUpdateCoordinator } = await import('../src/update-coordinator.ts')
 
 const releaseFiles: UpdateFileInfo[] = [{ url: 'Harnessy-Setup-1.1.0-win-x64.exe', sha512: 'hash', size: 100 }]

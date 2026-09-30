@@ -3,8 +3,7 @@ import assert from 'node:assert/strict'
 import { copyFile, mkdir, readdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { app } from 'electron'
-import updaterModule from 'electron-updater'
-import { DesktopUpdateCoordinator } from '../../lib/types/update-coordinator.js'
+import { DesktopNsisUpdater, DesktopUpdateCoordinator } from '../../lib/types/update-coordinator.js'
 import { DesktopUpdateHttpExecutor } from '../../lib/types/update-http-executor.js'
 import { resolveWindowsUpdatePublisher } from '../../scripts/windows-sign.mjs'
 import { artifactDigest, createArtifactUpdateServer } from './artifact-update-server.mjs'
@@ -12,7 +11,6 @@ import { artifactDigest, createArtifactUpdateServer } from './artifact-update-se
 const root = process.env.DSH_SIGNED_UPDATE_TEST_ROOT
 assert.ok(root, 'Launcher must supply a private test root')
 app.setPath('userData', join(root, 'runtime', 'electron'))
-const { NsisUpdater } = updaterModule
 const report = { cases: [], installerExecuted: false, passed: false }
 
 async function main() {
@@ -39,7 +37,7 @@ async function main() {
     const config = join(directory, 'app-update.yml')
     await writeFile(config, JSON.stringify({ publisherName: [expectedPublisher], updaterCacheDirName: 'cache' }))
     const forbidden = () => { throw new Error('Unexpected application quit or relaunch') }
-    const updater = new NsisUpdater(undefined, {
+    const updater = new DesktopNsisUpdater(undefined, {
       version: '1.0.0', name: 'signed-download-qualification', isPackaged: true,
       appUpdateConfigPath: config, userDataPath: directory, baseCachePath: directory,
       whenReady: async () => {}, quit: forbidden, relaunch: forbidden, onQuit: forbidden,
@@ -117,15 +115,19 @@ async function main() {
     report.cases.push('explicit-retry-signed-ready-and-separate-install-handoff')
     if (server.artifacts.old) {
       report.differential = []
-      for (const [name, multipleRanges, fault] of [
+      for (const [name, multipleRanges, fault, staleBlockmap] of [
         ['multipart-range-reconstruction', true],
         ['single-range-reconstruction', false],
+        ['stale-cached-blockmap-reconstruction', true, undefined, true],
         ['missing-old-blockmap-full-fallback', true, 'missing-old-blockmap'],
         ['rejected-range-full-fallback', true, 'reject-ranges'],
       ]) {
         const f = await fixture(publisher, true, multipleRanges)
         await mkdir(join(f.directory, 'cache'))
         await copyFile(server.artifacts.old.file, join(f.directory, 'cache', 'installer.exe'))
+        if (staleBlockmap) {
+          await copyFile(server.artifacts.signedBlockmap.file, join(f.directory, 'cache', 'current.blockmap'))
+        }
         server.select('signed', false, fault)
         const start = server.requests.length
         assert.equal((await download(f)).phase, 'ready')

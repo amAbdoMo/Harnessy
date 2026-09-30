@@ -9,7 +9,10 @@ import { zh } from '../src/locale.ts'
 
 vi.mock('electron', () => ({ app: { isPackaged: false } }))
 vi.mock('electron-updater', () => ({
-  default: { autoUpdater: { autoDownload: true, autoInstallOnAppQuit: true } },
+  default: {
+    autoUpdater: { autoDownload: true, autoInstallOnAppQuit: true },
+    NsisUpdater: EventEmitter,
+  },
 }))
 
 const { DesktopUpdateCoordinator } = await import('../src/update-coordinator.ts')

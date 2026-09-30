@@ -1,16 +1,49 @@
 /** User-authorized downloads and separate installation of one version-bound Desktop release. */
 
 import { existsSync } from 'node:fs'
-import { statfs } from 'node:fs/promises'
+import { rm, statfs } from 'node:fs/promises'
 import { join } from 'node:path'
 import { app } from 'electron'
-import electronUpdater, { type AppUpdater, type ProgressInfo, type UpdateInfo } from 'electron-updater'
+import electronUpdater, {
+  type AppUpdater,
+  type ProgressInfo,
+  type Provider,
+  type ResolvedUpdateFileInfo,
+  type UpdateInfo,
+} from 'electron-updater'
+import type { DownloadUpdateOptions } from 'electron-updater/out/AppUpdater'
 import { gt, prerelease, valid } from 'semver'
 import type { DesktopUpdateState } from './ipc.ts'
 import { DesktopUpdateHttpExecutor } from './update-http-executor.ts'
 import { DesktopUpdatePreparationError } from './update-error.ts'
 
-const { autoUpdater } = electronUpdater
+const { autoUpdater, NsisUpdater } = electronUpdater
+
+/** Windows updater that pairs the cached installer with the installed release's blockmap. */
+export class DesktopNsisUpdater extends NsisUpdater {
+  protected override async differentialDownloadInstaller(
+    fileInfo: ResolvedUpdateFileInfo,
+    downloadUpdateOptions: DownloadUpdateOptions,
+    installerPath: string,
+    provider: Provider<UpdateInfo>,
+    oldInstallerFileName: string,
+  ): Promise<boolean> {
+    const updateCache = this.downloadedUpdateHelper
+    if (updateCache === null) return true
+    try {
+      await rm(join(updateCache.cacheDir, 'current.blockmap'), { force: true })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      this.logger?.warn(`desktop update: cannot discard the cached blockmap; using the full download: ${message}`)
+      return true
+    }
+    return super.differentialDownloadInstaller(
+      fileInfo, downloadUpdateOptions, installerPath, provider, oldInstallerFileName,
+    )
+  }
+}
+
+const desktopAutoUpdater = process.platform === 'win32' ? new DesktopNsisUpdater() : autoUpdater
 
 /** Owns one updater target until its download and installation settle. */
 export class DesktopUpdateCoordinator {
@@ -60,7 +93,7 @@ export class DesktopUpdateCoordinator {
   constructor(
     private readonly publish: (state: DesktopUpdateState) => DesktopUpdateState,
     private readonly beforeRestart: (version: string) => Promise<boolean>,
-    private readonly updater: AppUpdater = autoUpdater,
+    private readonly updater: AppUpdater = desktopAutoUpdater,
     private readonly enabled: () => boolean = () => app.isPackaged && existsSync(join(process.resourcesPath, 'app-update.yml')),
     private readonly currentVersion: () => string = () => app.getVersion(),
     private readonly freeBytes: () => Promise<number> = async () => {
@@ -68,7 +101,7 @@ export class DesktopUpdateCoordinator {
       return stats.bavail * stats.bsize
     },
   ) {
-    if (updater === autoUpdater) {
+    if (updater === desktopAutoUpdater) {
       // electron-updater omits this internal transport property from its public declarations.
       // Real-Electron qualification exercises the pinned dependency integration.
       const transportOwner = updater as AppUpdater & { httpExecutor: DesktopUpdateHttpExecutor }
