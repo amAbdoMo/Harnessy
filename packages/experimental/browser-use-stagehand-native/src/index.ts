@@ -178,6 +178,7 @@ function mountTools(ctx: Context, resources: SessionResources<BrowserResource>):
     names.add(toolName)
     ctx.tools.register(createMcpToolDefinition(ctx, {
       name: toolName,
+      serverName: 'stagehand-native',
       rawName: method,
       description: descriptions[method],
       inputSchema: { ...z.record(z.string(), z.json()).parse(z.toJSONSchema(browserInputs[method])), type: 'object' },

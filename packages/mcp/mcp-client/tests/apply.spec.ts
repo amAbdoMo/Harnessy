@@ -3,7 +3,15 @@
  * Isolated file so vi.mock of the MCP SDK doesn't pollute other test suites.
  */
 import assert from 'node:assert/strict'
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import { describe, expect, it, vi, beforeEach, onTestFinished } from 'vitest'
+import Loader from '@deepseek-ai/cordis-plugin-loader'
+import Include from '@deepseek-ai/cordis-plugin-include'
+import { ToolCallId } from '@deepseek-ai/dsh-llm'
+import * as McpClientPlugin from '@deepseek-ai/dsh-mcp-client'
 import { Context } from '@deepseek-ai/cordis'
 import SystemPrompt, { renderPrompt } from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
@@ -37,7 +45,8 @@ const { mockConnect, mockClose, mockListTools, mockCallTool, mockSetNotification
   return { mockConnect, mockClose, mockListTools, mockCallTool, mockSetNotificationHandler, MockClient }
 })
 
-vi.mock('@modelcontextprotocol/client', () => ({
+vi.mock('@modelcontextprotocol/client', async importOriginal => ({
+  ...await importOriginal<typeof import('@modelcontextprotocol/client')>(),
   Client: MockClient,
   StreamableHTTPClientTransport: vi.fn(),
 }))
@@ -163,6 +172,63 @@ describe('apply (plugin lifecycle)', () => {
     })
     mockCallTool.mockResolvedValue({ content: [{ type: 'text', text: 'ok' }] })
     ctx = await mountRegistry()
+  })
+
+  it('loads MCP and cancellation guards through YAML, then removes both registrations on disposal', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-mcp-guard-loader-'))
+    onTestFinished(() => rm(root, { recursive: true, force: true }))
+    const context = new Context()
+    onTestFinished(() => context.fiber.dispose())
+    const configPath = join(root, 'cordis.yml')
+    await writeFile(configPath, await readFile(new URL('./fixtures/guard-composition.yml', import.meta.url), 'utf8'))
+    context.baseUrl = pathToFileURL(root).href + '/'
+    await context.plugin(Loader)
+    context.loader.builtins.include = Include
+    const revocation = new AbortController()
+    context.loader.builtins['fixture-guard'] = {
+      apply(owner: Context) {
+        owner.on('mcp/tool-call', (event, next) => {
+          event.addCancellation(revocation.signal)
+          return next()
+        })
+      },
+    }
+    const modules = new Map<string, unknown>([
+      ['@deepseek-ai/dsh-system-prompt', SystemPrompt],
+      ['@deepseek-ai/dsh-tools', ToolRuntime],
+      ['@deepseek-ai/dsh-mcp-client', McpClientPlugin],
+    ])
+    context.loader.internal = {
+      version: 'v2', loadCache: new Map(),
+      async import(specifier: string) {
+        if (!modules.has(specifier)) throw new Error(`Unexpected Loader import: ${specifier}`)
+        return modules.get(specifier)
+      },
+      register() { throw new Error('Unexpected module hook registration') },
+      async getOrCreateModuleJob() { throw new Error('Unexpected module job request') },
+      resolveSync() { throw new Error('Unexpected module resolution') },
+      async load() { throw new Error('Unexpected module load') },
+    }
+    await context.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
+    await context.loader.await()
+    expect(context.tools.get('mcp__composed__remote')).toBeDefined()
+    const call = () => context.tools.execute({ signal: new AbortController().signal,
+      callId: ToolCallId('loader-call'), name: 'mcp__composed__remote', arguments: {} })
+    expect(await call()).toMatchObject({ isError: false, content: [{ type: 'text', text: 'ok' }] })
+    revocation.abort()
+    const denied = await call()
+    expect(denied.isError).toBe(true)
+    expect(mockCallTool).toHaveBeenCalledOnce()
+    const guard = [...context.loader.entries()].find(entry => entry.options.name === 'cordis:fixture-guard')
+    if (guard?.fiber === undefined) throw new Error('Loader guard did not activate')
+    await guard.fiber.dispose()
+    expect(await call()).toMatchObject({ isError: false, content: [{ type: 'text', text: 'ok' }] })
+    expect(mockCallTool).toHaveBeenCalledTimes(2)
+    const mcp = [...context.loader.entries()].find(entry => entry.options.name === '@deepseek-ai/dsh-mcp-client')
+    if (mcp?.fiber === undefined) throw new Error('Loader MCP did not activate')
+    await mcp.fiber.dispose()
+    expect(context.tools.get('mcp__composed__remote')).toBeUndefined()
+    expect(mockClose).toHaveBeenCalledOnce()
   })
 
   it.each([undefined, '', ' \n\t'])(

@@ -102,6 +102,7 @@ export async function apply(ctx: Context): Promise<void> {
       names.add(publicName)
       const definition = createMcpToolDefinition(inner, {
         name: publicName,
+        serverName: 'cua-driver-native',
         rawName: tool.name,
         description: tool.description ?? '',
         inputSchema: tool.inputSchema,

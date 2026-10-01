@@ -51,6 +51,31 @@ The [native Cua Driver provider](../../packages/experimental/computer-use-cua-dr
 <a id="protocol-and-results"></a>
 ## Protocol and results
 
+The result adapter runs the Agent-scoped `mcp/tool-call` waterfall inside its executor, including direct and PTC calls. `McpToolCallEvent` supplies the configured server namespace, the original upstream tool name, and the exact execution. A guard can reject before dispatch or withhold a returned result; it delegates through `next()`. Tool identity is never reconstructed from a public tool name. Guards add revocation with `addCancellation()` before dispatch; `signal` combines it with the caller's signal without allowing replacement. Cancellation before dispatch skips the request, and cancellation before acceptance withholds the result, including image projection.
+
+```ts type-equiv
+/**
+ * Trusted identity and caller execution of one upstream MCP tool call, as seen
+ * by the `mcp/tool-call` guard.
+ */
+interface McpToolCallEvent {
+  /** Stable local namespace the definition was created under, never parsed out of `name`. */
+  readonly serverName: string
+  /** The MCP server's own tool name — the only name that reaches the wire. */
+  readonly rawName: string
+  /** Exact ToolRuntime invocation being guarded, including its Agent and cancellation signal. */
+  readonly execution: ToolExecution
+  /** Current executor-owned signal, combining caller cancellation and every guard's added signal. */
+  readonly signal: AbortSignal
+  /**
+   * Add revocation before dispatch. Signals accumulate; none can replace or
+   * weaken earlier cancellation. Registration after upstream dispatch rejects.
+   * @param signal - guard-owned cancellation, such as account takeover.
+   */
+  addCancellation(signal: AbortSignal): void
+}
+```
+
 Both stdio and Streamable HTTP use the official SDK's negotiation, discovery, protocol validation, and cancellation. Tool-list changes trigger discovery through legacy notifications or a modern subscription. A failed refresh retains the previous tool generation; connection recovery follows the [client lifecycle](../../packages/mcp/mcp-client/README.md#use-this-package).
 
 The result adapter retains canonical MCP JSON for programmatic callers and prepares ordinary tool content. Supported images use the attachment system; unsupported rich content produces explicit text diagnostics. The tool registry remains authoritative for policy failures and replaced results. The [tool contracts](tools.md) own recording and final presentation; the [client result reference](../../packages/mcp/mcp-client/README.md#use-this-package) owns MCP-specific projection details.
@@ -136,4 +161,39 @@ register(server: string, provider: McpResourceProvider): () => void
 ```
 
 Source: [`packages/mcp/mcp-resources/src/index.ts`](../../packages/mcp/mcp-resources/src/index.ts)
+
+<a id="mcp-events"></a>
+
+### `mcp/*` events
+
+<a id="mcptool-call--waterfall"></a>
+
+#### `mcp/tool-call` — waterfall
+
+Guard one upstream MCP tool call. `next()` performs the request and resolves to its raw MCP result, so a listener decides before dispatch, after awaiting `next()`, or both. Throwing — before or after `next()` — fails the call and denies the model the result; returning without calling `next()` vetoes the request, and the returned value must then already be a valid MCP result. `payload.addCancellation()` monotonically combines guard revocation with the caller's signal before dispatch. The upstream callback receives that combined signal; the executor refuses a result once it is revoked. Async guards observe `payload.signal`. Arguments to `next()` do not change cancellation. Every listener must call `next()` to delegate. Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): agent-scoped listeners receive only that agent's calls.
+
+```ts cordis-catalog
+/**
+ * Guard one upstream MCP tool call. `next()` performs the request and
+ * resolves to its raw MCP result, so a listener decides before dispatch,
+ * after awaiting `next()`, or both. Throwing — before or after `next()` —
+ * fails the call and denies the model the result; returning without calling
+ * `next()` vetoes the request, and the returned value must then already be
+ * a valid MCP result. `payload.addCancellation()` monotonically combines
+ * guard revocation with the caller's signal before dispatch. The upstream
+ * callback receives that combined signal; the executor refuses a result
+ * once it is revoked. Async guards observe `payload.signal`. Arguments to
+ * `next()` do not change cancellation. Every listener must call `next()` to delegate.
+ * Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): agent-scoped listeners receive only that agent's calls.
+ * @dshScopeScan unsupported
+ * @param payload - trusted tool identity and the exact execution being guarded.
+ * @param next - performs the upstream MCP request and returns its raw result.
+ * @mode waterfall
+ */
+'mcp/tool-call'( this: Scoped<Context>, payload: McpToolCallEvent, next: () => Promise<unknown>, ): Promise<unknown>
+```
+
+Types: [Scoped](scope.md)
+
+Source: [`packages/mcp/mcp-client/src/tools.ts`](../../packages/mcp/mcp-client/src/tools.ts)
 <!-- END GENERATED cordis-surface -->

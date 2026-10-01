@@ -51,6 +51,31 @@ MCP 服务器需要主动配置。在目标 Cordis 作用域中，为每台服�
 <a id="protocol-and-results"></a>
 ## 协议与结果
 
+结果适配器在执行器内部运行 Agent 作用域的 `mcp/tool-call` waterfall，包括直接调用和 PTC 调用。`McpToolCallEvent` 提供配置的服务器命名空间、原始上游工具名称和准确的执行对象。守卫可以在派发前拒绝，或阻止返回结果被接受；通过 `next()` 委托执行。工具身份绝不从公开工具名重建。守卫在派发前通过 `addCancellation()` 添加撤销信号；`signal` 将其与调用方信号合并，且不允许替换。派发前取消会跳过请求，接受前取消会阻止结果返回，包括图像投影。
+
+```ts type-equiv
+/**
+ * Trusted identity and caller execution of one upstream MCP tool call, as seen
+ * by the `mcp/tool-call` guard.
+ */
+interface McpToolCallEvent {
+  /** Stable local namespace the definition was created under, never parsed out of `name`. */
+  readonly serverName: string
+  /** The MCP server's own tool name — the only name that reaches the wire. */
+  readonly rawName: string
+  /** Exact ToolRuntime invocation being guarded, including its Agent and cancellation signal. */
+  readonly execution: ToolExecution
+  /** Current executor-owned signal, combining caller cancellation and every guard's added signal. */
+  readonly signal: AbortSignal
+  /**
+   * Add revocation before dispatch. Signals accumulate; none can replace or
+   * weaken earlier cancellation. Registration after upstream dispatch rejects.
+   * @param signal - guard-owned cancellation, such as account takeover.
+   */
+  addCancellation(signal: AbortSignal): void
+}
+```
+
 stdio 和 Streamable HTTP 都使用官方 SDK 的协商、发现、协议校验和取消机制。工具列表变化通过旧版通知或现代订阅触发发现。刷新失败时保留上一代工具；连接恢复遵循[客户端生命周期](../../packages/mcp/mcp-client/README.zh.md#use-this-package)。
 
 结果适配器为程序化调用方保留规范 MCP JSON，并准备普通工具内容。受支持的图像使用附件系统；不受支持的富内容产生明确的文本诊断。工具注册表仍决定策略失败和结果替换。[工具契约](tools.zh.md) 维护记录和最终呈现规则；[客户端结果参考](../../packages/mcp/mcp-client/README.zh.md#use-this-package) 维护 MCP 特有的投影细节。
@@ -136,4 +161,39 @@ register(server: string, provider: McpResourceProvider): () => void
 ```
 
 Source: [`packages/mcp/mcp-resources/src/index.ts`](../../packages/mcp/mcp-resources/src/index.ts)
+
+<a id="mcp-events"></a>
+
+### `mcp/*` events
+
+<a id="mcptool-call--waterfall"></a>
+
+#### `mcp/tool-call` — waterfall
+
+Guard one upstream MCP tool call. `next()` performs the request and resolves to its raw MCP result, so a listener decides before dispatch, after awaiting `next()`, or both. Throwing — before or after `next()` — fails the call and denies the model the result; returning without calling `next()` vetoes the request, and the returned value must then already be a valid MCP result. `payload.addCancellation()` monotonically combines guard revocation with the caller's signal before dispatch. The upstream callback receives that combined signal; the executor refuses a result once it is revoked. Async guards observe `payload.signal`. Arguments to `next()` do not change cancellation. Every listener must call `next()` to delegate. Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): agent-scoped listeners receive only that agent's calls.
+
+```ts cordis-catalog
+/**
+ * Guard one upstream MCP tool call. `next()` performs the request and
+ * resolves to its raw MCP result, so a listener decides before dispatch,
+ * after awaiting `next()`, or both. Throwing — before or after `next()` —
+ * fails the call and denies the model the result; returning without calling
+ * `next()` vetoes the request, and the returned value must then already be
+ * a valid MCP result. `payload.addCancellation()` monotonically combines
+ * guard revocation with the caller's signal before dispatch. The upstream
+ * callback receives that combined signal; the executor refuses a result
+ * once it is revoked. Async guards observe `payload.signal`. Arguments to
+ * `next()` do not change cancellation. Every listener must call `next()` to delegate.
+ * Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): agent-scoped listeners receive only that agent's calls.
+ * @dshScopeScan unsupported
+ * @param payload - trusted tool identity and the exact execution being guarded.
+ * @param next - performs the upstream MCP request and returns its raw result.
+ * @mode waterfall
+ */
+'mcp/tool-call'( this: Scoped<Context>, payload: McpToolCallEvent, next: () => Promise<unknown>, ): Promise<unknown>
+```
+
+Types: [Scoped](scope.zh.md)
+
+Source: [`packages/mcp/mcp-client/src/tools.ts`](../../packages/mcp/mcp-client/src/tools.ts)
 <!-- END GENERATED cordis-surface -->

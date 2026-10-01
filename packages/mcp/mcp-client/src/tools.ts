@@ -9,6 +9,11 @@
  * constraints. The raw name is only ever sent on the wire (`tools/call`); the
  * public name is never parsed to recover it.
  *
+ * Execution contract: the definition's own executor runs the `mcp/tool-call`
+ * guard waterfall around the upstream request, so every caller — the registry,
+ * PTC mode's nested dispatch, or a direct `execute` — is guarded and no caller
+ * can bypass it.
+ *
  * @module
  */
 
@@ -16,6 +21,8 @@ import { createHash } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
 import { specTypeSchemas, type Client, type ImageContent } from '@modelcontextprotocol/client'
 import type { Context } from '@deepseek-ai/cordis'
+import { scopeTarget } from '@deepseek-ai/dsh-scope'
+import type { Scoped } from '@deepseek-ai/dsh-scope'
 import { isImageAdmissionError } from '@deepseek-ai/dsh-attachment'
 import type { AttachmentStore, ImageAttachmentRef, ImageMediaType, SaveImageAttachment } from '@deepseek-ai/dsh-attachment'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
@@ -130,6 +137,7 @@ export async function syncTools(
     }
     definitions.set(publicName, createMcpToolDefinition(ctx, {
       name: publicName,
+      serverName: opts.serverName,
       rawName: tool.name,
       description: tool.description ?? '',
       inputSchema: tool.inputSchema,
@@ -192,10 +200,64 @@ function supportedOutputSchema(candidate: unknown): JsonSchemaNode | undefined {
   }
 }
 
+/**
+ * Trusted identity and caller execution of one upstream MCP tool call, as seen
+ * by the `mcp/tool-call` guard.
+ */
+export interface McpToolCallEvent {
+  /** Stable local namespace the definition was created under, never parsed out of `name`. */
+  readonly serverName: string
+  /** The MCP server's own tool name — the only name that reaches the wire. */
+  readonly rawName: string
+  /** Exact ToolRuntime invocation being guarded, including its Agent and cancellation signal. */
+  readonly execution: ToolExecution
+  /** Current executor-owned signal, combining caller cancellation and every guard's added signal. */
+  readonly signal: AbortSignal
+  /**
+   * Add revocation before dispatch. Signals accumulate; none can replace or
+   * weaken earlier cancellation. Registration after upstream dispatch rejects.
+   * @param signal - guard-owned cancellation, such as account takeover.
+   */
+  addCancellation(signal: AbortSignal): void
+}
+
+declare module '@deepseek-ai/cordis' {
+  interface Events {
+    /**
+     * Guard one upstream MCP tool call. `next()` performs the request and
+     * resolves to its raw MCP result, so a listener decides before dispatch,
+     * after awaiting `next()`, or both. Throwing — before or after `next()` —
+     * fails the call and denies the model the result; returning without calling
+     * `next()` vetoes the request, and the returned value must then already be
+     * a valid MCP result. `payload.addCancellation()` monotonically combines
+     * guard revocation with the caller's signal before dispatch. The upstream
+     * callback receives that combined signal; the executor refuses a result
+     * once it is revoked. Async guards observe `payload.signal`. Arguments to
+     * `next()` do not change cancellation. Every listener must call `next()` to delegate.
+     * Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): agent-scoped listeners receive only that agent's calls.
+     * @dshScopeScan unsupported
+     * @param payload - trusted tool identity and the exact execution being guarded.
+     * @param next - performs the upstream MCP request and returns its raw result.
+     * @mode waterfall
+     */
+    'mcp/tool-call'(
+      this: Scoped<Context>,
+      payload: McpToolCallEvent,
+      next: () => Promise<unknown>,
+    ): Promise<unknown>
+  }
+}
+
 /** One upstream MCP tool and the callback that obtains its raw protocol result. */
 export interface McpToolDefinitionOptions {
   /** ToolRuntime name presented to the model. */
   name: string
+  /**
+   * Stable local namespace of the MCP server that owns this tool — the trusted
+   * half of its identity. Required, and never derived from `name`, so the
+   * `mcp/tool-call` guard cannot be reached with a parsed public name.
+   */
+  serverName: string
   /** Upstream name used in result diagnostics. */
   rawName: string
   /** Upstream model-facing description. */
@@ -209,7 +271,7 @@ export interface McpToolDefinitionOptions {
   /**
    * Obtain one raw MCP result from the provider.
    * @param args - model arguments admitted by the ToolRuntime.
-   * @param execution - exact ToolRuntime invocation, including its Agent and cancellation.
+   * @param execution - original invocation fields, with the combined caller and guard cancellation signal.
    * @returns the external result object, validated before content projection.
    */
   call(args: Record<string, unknown>, execution: ToolExecution): Promise<unknown>
@@ -218,8 +280,11 @@ export interface McpToolDefinitionOptions {
 /**
  * Adapt an upstream MCP tool to canonical values and durable image content.
  * Registration, provider lifetime, deadlines, and transport belong to the caller.
+ * Every call this definition executes — through the registry, through PTC
+ * mode's nested dispatch, or directly — runs the `mcp/tool-call` waterfall
+ * around the upstream request alone.
  * @param ctx - plugin context carrying optional attachment and model services.
- * @param options - upstream tool fields and its raw-result callback.
+ * @param options - upstream tool fields, its trusted `serverName`, and its raw-result callback.
  * @returns the unregistered ToolRuntime definition.
  */
 export function createMcpToolDefinition(
@@ -284,7 +349,8 @@ function createExecutor(
     // string/number/null). Fallback to {} lets the MCP server produce a
     // specific "missing required param" error the model can learn from.
     const argsObj = (typeof args === 'object' && args !== null ? args : {}) as Record<string, unknown>
-    const parsed = specTypeSchemas.CallToolResult['~standard'].validate(await options.call(argsObj, exec))
+    const guarded = await guardUpstreamCall(ctx, options, argsObj, exec)
+    const parsed = specTypeSchemas.CallToolResult['~standard'].validate(guarded.value)
     if (parsed.issues !== undefined) {
       throw new Error(`Tool "${rawName}" returned an invalid MCP result: ${parsed.issues.map(issue => issue.message).join('; ')}`)
     }
@@ -306,10 +372,69 @@ function createExecutor(
     }
     if (containsImage(content)) {
       const fallback: ContentBlock[] = [{ type: 'text', text: extractText(content, rawName) }]
-      const projected = await prepareImageProjection(ctx, exec, content, rawName)
+      const projected = await prepareImageProjection(ctx, guarded.execution, content, rawName)
+      if (guarded.execution.signal.aborted) {
+        throw new Error(exec.signal.aborted
+          ? 'tool call aborted'
+          : 'the tool call was canceled before its MCP image result was accepted')
+      }
       projections.set(exec, { value, fallback, content: projected })
     }
     return value
+  }
+}
+
+/**
+ * Run the `mcp/tool-call` guard waterfall around the upstream request, and
+ * nowhere else: argument coercion, result validation, image admission, and
+ * error mapping stay outside it.
+ *
+ * `next` is the only path to `options.call`, so a listener that throws — or
+ * that returns without delegating — keeps the request from reaching the
+ * server, while one that awaits `next()` decides whether the upstream result is
+ * returned. Cancellation is honored on both sides of that await: a revoked
+ * signal skips the request, and an upstream result settled under a revoked
+ * signal is withheld instead of accepted as success.
+ *
+ * @param ctx - plugin context owning the definition; the dispatch base.
+ * @param options - upstream tool fields and its raw-result callback.
+ * @param args - model arguments admitted by the ToolRuntime.
+ * @param exec - exact ToolRuntime invocation, whose Agent scopes the dispatch.
+ * @returns the raw result allowed by guards and its combined cancellation for image admission.
+ */
+async function guardUpstreamCall(
+  ctx: Context,
+  options: McpToolDefinitionOptions,
+  args: Record<string, unknown>,
+  exec: ToolExecution,
+): Promise<{ value: unknown; execution: ToolExecution }> {
+  let signal = exec.signal
+  let acceptingCancellation = true
+  const payload: McpToolCallEvent = {
+    serverName: options.serverName,
+    rawName: options.rawName,
+    execution: exec,
+    get signal() { return signal },
+    addCancellation(added) {
+      if (!acceptingCancellation) throw new Error('MCP cancellation must be registered before upstream dispatch')
+      signal = AbortSignal.any([signal, added])
+    },
+  }
+  try {
+    const value = await ctx.waterfall(
+      scopeTarget(ctx, exec.agent),
+      'mcp/tool-call',
+      payload,
+      async () => {
+        acceptingCancellation = false
+        if (signal.aborted) throw new Error('the tool call was canceled before the upstream MCP request')
+        return await options.call(args, signal === exec.signal ? exec : { ...exec, signal })
+      },
+    )
+    if (signal.aborted) throw new Error('the tool call was canceled before its upstream MCP result was accepted')
+    return { value, execution: signal === exec.signal ? exec : { ...exec, signal } }
+  } finally {
+    acceptingCancellation = false
   }
 }
 

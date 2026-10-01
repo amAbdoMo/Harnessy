@@ -1,0 +1,15 @@
+- id: prompt
+  name: '@deepseek-ai/dsh-system-prompt'
+- id: tools
+  name: '@deepseek-ai/dsh-tools'
+- id: guard
+  name: cordis:fixture-guard
+- id: mcp
+  name: '@deepseek-ai/dsh-mcp-client'
+  config:
+    transport: stdio
+    serverName: composed
+    command: external-fixture
+    failOnStartupError: true
+    reconnect:
+      enabled: false

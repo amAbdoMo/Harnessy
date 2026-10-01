@@ -2299,6 +2299,11 @@
     },
     {
       "doc": "docs/subsystems/mcp.md",
+      "symbol": "McpToolCallEvent",
+      "source": "packages/mcp/mcp-client/src/tools.ts"
+    },
+    {
+      "doc": "docs/subsystems/mcp.md",
       "symbol": "McpResourceRequest",
       "source": "packages/mcp/mcp-resources/src/index.ts"
     },

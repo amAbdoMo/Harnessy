@@ -121,7 +121,7 @@ This section explains the design decisions behind the bridge and points at the c
 | [`src/transport.ts`](src/transport.ts) | Transport factory: stdio spawn with scrubbed env, Streamable HTTP |
 | — | No runtime invariant companion is published; MCP generations contribute through the tool registry, but the bridge exposes no independent server-to-tool snapshot after an asynchronous resync. |
 
-The exported `createMcpToolDefinition(ctx, options)` adapts an upstream tool schema and raw-result callback to the same canonical values, errors, and durable image projection. Each callback receives the exact `ToolExecution`, including its Agent and cancellation signal; SDK spec-type validation checks its result before projection. Callers own registration, cancellation deadlines, and provider teardown. The native Cua Driver provider uses this adapter without opening an MCP transport.
+The exported `createMcpToolDefinition(ctx, options)` requires the configured `serverName` and upstream `rawName`, and adapts a tool schema and raw-result callback to canonical values, errors, and durable image projection. Its executor runs the [Agent-scoped MCP guard](../../../docs/subsystems/mcp.md#protocol-and-results) for registry, direct, and nested PTC calls. Guards receive the exact `ToolExecution`; the upstream callback preserves its fields with caller and guard cancellation combined in its signal. SDK validation checks the result before projection, and cancellation also withholds image projections still being prepared. Callers own registration, cancellation deadlines, and provider teardown. The native Cua Driver provider uses this adapter without opening an MCP transport.
 
 ### Lifecycle and sync
 

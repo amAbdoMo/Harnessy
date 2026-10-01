@@ -633,6 +633,51 @@ describe('tool execution', () => {
     expect(rich.attachments.saved).toEqual([])
   })
 
+  it.each(['route', 'storage'] as const)('withholds images when a guard revokes during %s preparation', async (stage) => {
+    const rich = await mountRichRegistry()
+    const revoked = new AbortController()
+    const caller = new AbortController()
+    rich.ctx.on('mcp/tool-call', async (event, next) => {
+      event.addCancellation(revoked.signal)
+      return next()
+    })
+    if (stage === 'route') {
+      vi.spyOn(rich.ctx.llm, 'resolveModelInfo').mockImplementationOnce(async (provider, model) => {
+        revoked.abort(new Error('account taken over'))
+        return { provider, id: model, name: model, inputModalities: ['text', 'image'] }
+      })
+    } else {
+      const saveImages = rich.attachments.saveImages.bind(rich.attachments)
+      vi.spyOn(rich.attachments, 'saveImages').mockImplementationOnce(async (inputs) => {
+        const images = await saveImages(inputs)
+        revoked.abort(new Error('account taken over'))
+        return images
+      })
+    }
+    const client = createMockClient(
+      [{ name: 'img', inputSchema: { type: 'object' } }],
+      { content: [{ type: 'image', mimeType: 'image/png', data: 'AQ==' }] },
+    )
+    try {
+      await syncTools(client as never, rich.ctx, defaultOpts, new Map())
+      const result = await rich.ctx.tools.execute({
+        signal: caller.signal,
+        callId: ToolCallId(`revoked-image-${stage}`),
+        name: 'mcp__srv__img',
+        arguments: {},
+        agent: agentOn() as never,
+      })
+      expect(client.callTool).toHaveBeenCalledOnce()
+      expect(caller.signal.aborted).toBe(false)
+      expect(result.isError).toBe(true)
+      expect(textAt(result.content)).toContain('canceled before its MCP image result was accepted')
+      expect(result.content.some(block => block.type === 'image')).toBe(false)
+      expect(rich.attachments.saved).toHaveLength(stage === 'route' ? 0 : 1)
+    } finally {
+      await rich.ctx.fiber.dispose()
+    }
+  })
+
   it('refuses images when attachment storage rejects the admitted batch', async () => {
     const rich = await mountRichRegistry()
     vi.spyOn(rich.attachments, 'saveImages').mockRejectedValueOnce(new Error('disk full'))

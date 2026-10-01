@@ -4273,6 +4273,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'options', description: 'the full request. A LOOP-built request carries the process-local {@link markAgentLoopRequest} identity and arrives deep-frozen (mutation throws): its content is a pure function of the session log (the reconstructability Agent Note), so listeners read it, never rewrite it. Hand-built calls do not carry that marker; callers own their request inputs and must keep them unchanged until the stream settles.' }],
   },
   {
+    name: 'mcp/tool-call',
+    mode: 'waterfall',
+    signature: '\'mcp/tool-call\'( this: Scoped<Context>, payload: McpToolCallEvent, next: () => Promise<unknown>, ): Promise<unknown>',
+    summary: 'Guard one upstream MCP tool call.',
+    description: 'Guard one upstream MCP tool call. `next()` performs the request and resolves to its raw MCP result, so a listener decides before dispatch, after awaiting `next()`, or both. Throwing — before or after `next()` — fails the call and denies the model the result; returning without calling `next()` vetoes the request, and the returned value must then already be a valid MCP result. `payload.addCancellation()` monotonically combines guard revocation with the caller\'s signal before dispatch. The upstream callback receives that combined signal; the executor refuses a result once it is revoked. Async guards observe `payload.signal`. Arguments to `next()` do not change cancellation. Every listener must call `next()` to delegate. Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): agent-scoped listeners receive only that agent\'s calls.',
+    parameters: [{ name: 'payload', description: 'trusted tool identity and the exact execution being guarded.' }, { name: 'next', description: 'performs the upstream MCP request and returns its raw result.' }],
+  },
+  {
     name: 'permission-presets/catalog-changed',
     mode: 'emit',
     signature: '\'permission-presets/catalog-changed\'(): void',
@@ -5951,6 +5959,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'McpServerView',
     declaration: 'export interface McpServerView {\n    readonly id: string;\n    readonly name: string;\n    readonly serverName: string;\n    readonly transport: McpServerTransport;\n    readonly enabled: boolean;\n    readonly endpoint: string;\n    readonly headerName?: string;\n    readonly args: readonly string[];\n    readonly cwd?: string;\n    readonly status: McpServerStatus;\n    readonly tools: readonly string[];\n    readonly error?: string;\n    readonly authenticationConfigured: boolean;\n    readonly environmentKeys: readonly string[];\n    readonly updatedAt: number;\n}',
+  },
+  {
+    name: 'McpToolCallEvent',
+    declaration: 'export interface McpToolCallEvent {\n    readonly serverName: string;\n    readonly rawName: string;\n    readonly execution: ToolExecution;\n    readonly signal: AbortSignal;\n    addCancellation(signal: AbortSignal): void;\n}',
   },
   {
     name: 'Message',

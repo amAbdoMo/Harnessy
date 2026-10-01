@@ -27,7 +27,7 @@ import type {} from '@deepseek-ai/dsh-tools'
 
 export { createMcpToolDefinition } from './tools.ts'
 export { resolveReconnectPolicy } from './connection.ts'
-export type { McpResult, McpToolDefinitionOptions } from './tools.ts'
+export type { McpResult, McpToolCallEvent, McpToolDefinitionOptions } from './tools.ts'
 export type {
   ConnectionHandle, ConnectionObserver, ConnectionSnapshot, ReconnectConfig, ResolvedReconnectPolicy,
 } from './connection.ts'
