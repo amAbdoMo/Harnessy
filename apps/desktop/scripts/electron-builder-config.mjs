@@ -163,8 +163,10 @@ export function createElectronBuilderConfig(
     extraResources: [
       { from: buildPaths.runtime, to: 'runtime' },
       { from: fileURLToPath(new URL('../assets/harnessy.png', import.meta.url)), to: 'icon.png' },
-      // Keep the upstream multi-resolution tray resource as a safe Windows fallback.
-      ...(packagesWindows ? [{ from: fileURLToPath(new URL('../resources/tray-windows.ico', import.meta.url)), to: 'tray.ico' }] : []),
+      ...(packagesWindows ? [
+        { from: fileURLToPath(new URL('../resources/app-windows.ico', import.meta.url)), to: 'icon.ico' },
+        { from: fileURLToPath(new URL('../resources/tray-windows.ico', import.meta.url)), to: 'tray.ico' },
+      ] : []),
     ],
     mac: {
       icon: fileURLToPath(new URL('../assets/harnessy.png', import.meta.url)),
@@ -240,7 +242,7 @@ export function createElectronBuilderConfig(
       )
     },
     win: {
-      icon: fileURLToPath(new URL('../assets/harnessy.png', import.meta.url)),
+      icon: fileURLToPath(new URL('../resources/app-windows.ico', import.meta.url)),
       executableName: CUSTOM_HARNESS_PRODUCT.executableName,
       forceCodeSigning: signsWindows,
       // Without a publisher name the updater verifies a downloaded installer through latest.yml's

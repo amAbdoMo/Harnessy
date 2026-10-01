@@ -504,8 +504,10 @@ describe('desktop main startup', () => {
     const [about, separator] = submenu
     expect({ menu: [{ label: about!.label, role: about!.role }, separator], options: { ...options, iconPath: '<app icon>' } })
       .toEqual(expected[`${platform}:${locale}`])
-    expect(options.iconPath).toBe(packaged ? join('desktop-test-resources', 'icon.png')
-      : join('desktop-test-app', 'assets', 'harnessy.png'))
+    const expectedIcon = platform === 'win32'
+      ? packaged ? join('desktop-test-resources', 'icon.ico') : join('desktop-test-app', 'resources', 'app-windows.ico')
+      : packaged ? join('desktop-test-resources', 'icon.png') : join('desktop-test-app', 'assets', 'harnessy.png')
+    expect(options.iconPath).toBe(expectedIcon)
     expect(harness.windows[0]!.options).toMatchObject({ icon: options.iconPath })
     expect(harness.app.dock.setIcon).toHaveBeenCalledTimes(platform === 'darwin' && !packaged ? 1 : 0)
     if (platform === 'darwin' && !packaged) expect(harness.app.dock.setIcon).toHaveBeenCalledWith(options.iconPath)
@@ -1137,7 +1139,7 @@ describe('desktop main startup', () => {
     const host = await readyWorkspace()
     const window = harness.windows[0]!
     expect(harness.trays).toHaveLength(1)
-    expect(harness.trays[0]!.image).toEqual({ path: join('desktop-test-resources', 'icon.png') })
+    expect(harness.trays[0]!.image).toEqual({ path: join('desktop-test-resources', 'tray.ico') })
     expect(harness.backgroundNotice.markerPath).toBe(join(harness.app.getPath('userData'), 'background-close-confirmed'))
     window.show.mockClear()
     window.close()

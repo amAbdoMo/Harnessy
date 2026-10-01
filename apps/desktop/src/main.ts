@@ -387,8 +387,9 @@ async function main(): Promise<void> {
   const resources = runtimeResources()
   const paths = currentDesktopPaths()
   const development = !app.isPackaged
-  const applicationIconPath = development ? join(app.getAppPath(), 'assets', 'harnessy.png')
-    : join(process.resourcesPath, 'icon.png')
+  const applicationIconPath = process.platform === 'win32'
+    ? development ? join(app.getAppPath(), 'resources', 'app-windows.ico') : join(process.resourcesPath, 'icon.ico')
+    : development ? join(app.getAppPath(), 'assets', 'harnessy.png') : join(process.resourcesPath, 'icon.png')
   if (process.platform === 'darwin' && development) app.dock?.setIcon(applicationIconPath)
   const primaryRuntime = development
     ? developmentPrimaryRuntime()
@@ -1073,7 +1074,8 @@ async function main(): Promise<void> {
     tray?.relabel()
   }
   refreshApplicationMenu()
-  const trayIconPath = applicationIconPath
+  const trayIconPath = development ? join(app.getAppPath(), 'resources', 'tray-windows.ico')
+    : join(process.resourcesPath, 'tray.ico')
   if (process.platform === 'win32') {
     // The tray is the way back to a hidden window; without it, relaunching the application still focuses it.
     try {

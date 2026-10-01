@@ -3,14 +3,14 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write apps/desktop/README.md
 /harnessy-desktop:
-  en: a677c81434dcba43
-  zh: c8d0e64282d0a2f0
+  en: 6c184e7644d63a76
+  zh: 437b4180a449928f
 /harnessy-desktop/closing-the-window-and-quitting:
-  en: f4f018905fa9fdd3
-  zh: 863c26d199e64205
+  en: 473fb694490c591d
+  zh: 06db00daf313e443
 /harnessy-desktop/key-technical-decisions:
-  en: 069fdfd72d2ea26a
-  zh: 76ae549d43c99bb4
+  en: c114dd739a861751
+  zh: 1719ed6674a1c149
 /harnessy-desktop/key-technical-decisions/bundled-workspace-dependencies:
   en: 31cbb7452be8e1ad
   zh: 502ec556e2ec301e
