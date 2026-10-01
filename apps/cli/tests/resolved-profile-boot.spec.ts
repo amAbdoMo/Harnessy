@@ -34,7 +34,7 @@ afterEach(() => {
 
 describe('runProfile with an application-owned profile', () => {
   it.each(
-    ['composition', 'boot', 'watch', 'cleanup', 'tree-cleanup', 'both-cleanups'] as const,
+    ['composition', 'boot', 'prepare', 'watch', 'cleanup', 'tree-cleanup', 'both-cleanups'] as const,
   )('releases startup resources after a %s failure', async (stage) => {
     const home = mkdtempSync(join(tmpdir(), 'dsh-profile-startup-failure-'))
     homes.push(home)
@@ -55,8 +55,10 @@ describe('runProfile with an application-owned profile', () => {
       ? Promise.reject(cleanupFailure)
       : Promise.resolve())
     vi.mocked(installProxyFromEnvironment).mockResolvedValue(disposeProxy)
+    const prepare = vi.fn(() => { if (stage === 'prepare') throw failure })
     vi.mocked(boot).mockImplementation(async (_name, _root, _patches, setup) => {
       await setup?.(ctx)
+      if (stage === 'prepare') return ctx
       throw failure
     })
     if (stage === 'composition') vi.mocked(createRuntimeResolution).mockRejectedValueOnce(failure)
@@ -68,6 +70,7 @@ describe('runProfile with an application-owned profile', () => {
       const application = runProfile({
         environment: createLaunchEnvironmentSnapshot([]), profile: 'desktop', patchFiles: [], args: ['--no-open'],
         resolvedProfile: { profile, installAnchor: join(home, 'runtime/package.json') },
+        prepare,
       })
       if (stage === 'both-cleanups') {
         await expect(application).rejects.toMatchObject({ errors: [failure, { errors: [treeCleanupFailure, cleanupFailure] }] })
@@ -78,6 +81,7 @@ describe('runProfile with an application-owned profile', () => {
       } else {
         await expect(application).rejects.toBe(failure)
       }
+      expect(prepare).toHaveBeenCalledTimes(stage === 'composition' ? 0 : 1)
       expect(disposeProxy).toHaveBeenCalledOnce()
       expect(boot).toHaveBeenCalledTimes(stage === 'composition' ? 0 : 1)
       expect(dispose).toHaveBeenCalledTimes(stage === 'composition' ? 0 : 1)
@@ -134,11 +138,20 @@ describe('runProfile with an application-owned profile', () => {
     }
     const environment = createLaunchEnvironmentSnapshot([{ source: 'process', values: { HTTPS_PROXY: 'http://localhost:8080' } }])
     const runtime = { profile, installAnchor: join(home, 'runtime/package.json') }
+    const prepare = vi.fn((owner: Context) => {
+      expect(owner).toBe(ctx)
+      expect(owner.cmdlineArgs!.get()).toEqual(['--port', '0', '--no-open'])
+      expect(owner.appReady).toBeDefined()
+      const ready = vi.fn()
+      owner.appReady!.onReady(ready)
+      expect(ready).not.toHaveBeenCalled()
+    })
     try {
       const { shutdown } = await runProfile({
         environment, profile: 'desktop', resolvedProfile: runtime,
-        patchFiles: [overlay], args: ['--port', '0', '--no-open'],
+        patchFiles: [overlay], args: ['--port', '0', '--no-open'], prepare,
       })
+      expect(prepare).toHaveBeenCalledOnce()
       expect(installProxyFromEnvironment).toHaveBeenCalledWith(environment, expect.any(Function))
       const resolution = vi.mocked(createRuntimeResolution).mock.settledResults
         .find(result => result.type === 'fulfilled')?.value
