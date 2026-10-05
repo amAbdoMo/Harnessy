@@ -55,6 +55,7 @@ vi.mock('../src/crash-report.ts', async importOriginal => ({
 }))
 vi.mock('electron', () => ({
   clipboard: { writeText: state.copy },
+  shell: { openExternal: vi.fn(async () => {}), writeShortcutLink: vi.fn(() => true) },
   app: {
     isPackaged: false,
     name: 'Harness',
@@ -72,6 +73,7 @@ vi.mock('electron', () => ({
     setAppLogsPath: vi.fn(),
     getPreferredSystemLanguages: () => ['en-US'],
     on: (name: string, callback: (...args: unknown[]) => void) => { state.appListeners.set(name, callback) },
+    once: (name: string, callback: (...args: unknown[]) => void) => { state.appListeners.set(name, callback) },
     quit: state.quit,
     exit: vi.fn(),
   },
@@ -116,10 +118,16 @@ vi.mock('../src/project-manager.ts', () => ({ DesktopProjectManager: class {
   applyRelease = vi.fn(async () => {})
   canRecoverProfile = vi.fn(() => true)
 } }))
-vi.mock('../src/host-process.ts', () => ({
+vi.mock('../src/host-process.ts', async importOriginal => ({
+  ...await importOriginal<typeof import('../src/host-process.ts')>(),
   DesktopHostProcess: class {
     start = state.startHost
     stop = state.stopHost
+    onWebsitePrepared = vi.fn(() => () => {})
+    onWebsiteCheck = vi.fn(() => () => {})
+    onWebsitePageInfo = vi.fn(() => async () => {})
+    onWebsiteRevoked = vi.fn(() => () => {})
+    websiteControl = vi.fn(async () => {})
     fetch() {
       return Promise.resolve(Response.json({
         loggedIn: false, hasApiKey: state.hasApiKey, writable: true, localePreference: state.preference,
@@ -147,7 +155,12 @@ vi.mock('../src/welcome-backend.ts', () => ({
 }))
 vi.mock('node:fs/promises', async importOriginal => ({
   ...await importOriginal<typeof import('node:fs/promises')>(),
-  readFile: vi.fn(async () => '{}'),
+  readFile: vi.fn(async (path) => {
+    if (String(path).endsWith('website-profiles.json')) {
+      throw Object.assign(new Error('No paired website profiles'), { code: 'ENOENT' })
+    }
+    return '{}'
+  }),
 }))
 vi.mock('../src/update-dialog.ts', () => ({ DesktopUpdateDialog: class {
   constructor(_preload: string, locale: () => DesktopLocale) { state.dialogLocale = locale }
