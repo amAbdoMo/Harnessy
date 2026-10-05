@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-workspace-brief",
   "description": "Bounded read-only workspace brief command for the Harnessy product profile",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "publishConfig": {
     "access": "public"
   },
