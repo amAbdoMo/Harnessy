@@ -11,7 +11,7 @@ import css from './ApprovalPanel.module.css'
  */
 export function ApprovalPanel(props: ApprovalComposerProps) {
   const approval = props.matched
-  const detail = approval.callId === undefined
+  const detail = approval.detailMode === 'summary-only' || approval.callId === undefined
     ? null
     : props.renderSlot('conversation.approval.detail', { callId: approval.callId })
   const reason = approval.displayReason === undefined ? approval.reason : props.resolveReason(approval.displayReason)
@@ -52,7 +52,7 @@ function ApprovalFlow({ pending, reason, detail, t }: {
     if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return
     event.preventDefault()
     event.stopPropagation()
-    // oxlint-disable-next-line typescript/no-deprecated -- IME 229 covers engines without isComposing.
+    // oxlint-disable-next-line typescript/no-deprecated -- Some IMEs report composition only through keyCode 229.
     if (event.repeat || composing.current || compositionEnded.current || event.nativeEvent.isComposing || event.keyCode === 229) return
     answer(event.key === 'Enter' ? 'allowed-once' : 'rejected')
   }

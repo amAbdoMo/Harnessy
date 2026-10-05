@@ -11,11 +11,14 @@ import {
   SHIELD_OUTLINE_PATH,
   ICON_REGULAR_STROKE,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import type { InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import type { DesktopWebsiteProfile } from '../../types.ts'
 import type { BrowserInjected } from '../browser/BrowserController.ts'
 import { emptyBrowserFrame } from '../browser/BrowserFrame.ts'
 import { currentBrowserTarget } from '../browser/BrowserPersistence.ts'
 import type { BrowserStore } from '../browser/store.ts'
+import { BrowserProfileBar } from './BrowserProfileBar.tsx'
+import type {} from './BrowserProfilePicker.tsx'
 import css from './Browser.module.css'
 
 const EMPTY_FRAME = emptyBrowserFrame()
@@ -34,6 +37,7 @@ function SandboxPolicyIcon({ sandboxed }: { readonly sandboxed: boolean }): Reac
 /** Browser body props assembled by the tab seat. */
 export type BrowserBodyProps = PropsRuntime<'sidebar.right.pane.tab'>
   & PropsStore<BrowserStore>
+  & PropsRenderSlots<'sidebar.right.pane.tab.browser.profiles'>
   & PropsLocale<'sidebarBrowser'>
   & InjectFace<BrowserInjected>
 
@@ -45,44 +49,68 @@ function useBrowserDraft(url: string | undefined, revision: number): readonly [s
 
 /** Render provider-neutral navigation state and optional controls. */
 export function BrowserBody(props: BrowserBodyProps): ReactNode {
-  const { mount, loadUrl, restore, goBack, goForward, reload, setSandbox, useBrowserState, useStore, useTabInfo, t } = props
+  const {
+    mount, loadUrl, restore, goBack, goForward, reload, setSandbox, profiles, useBrowserState, useStore, useTabInfo,
+    setVisible, selectRequest, resumeRequest, takeoverRequest, reloadRequests, useWebsiteRequests,
+    useWebsiteProfiles, renderSlot, t,
+  } = props
   const { tab } = useTabInfo()
   useEffect(() => tab.actions.bindCommands({ refresh: () => { reload(tab.id) } }), [tab.actions, tab.id, reload])
   const saved = useStore(state => state.byTab[tab.id])
   const initial = useRef(saved)
   const initialUrl = useRef(tab.navigation.params?.url)
+  const profileId = tab.navigation.params?.profileId
   const viewportId = useId()
   const [mountEpoch, setMountEpoch] = useState(0)
   const state = useBrowserState(tab.id)
+  const requests = useWebsiteRequests(tab.id, current => current)
+  const profileState = useWebsiteProfiles(current => current)
   const frame = state?.frame ?? EMPTY_FRAME
   const restoreTarget = state === undefined ? currentBrowserTarget(initial.current) : state.restoreTarget
   const target = frame.target ?? restoreTarget
   const [draft, setDraft] = useBrowserDraft(target?.url ?? initialUrl.current, state?.addressRevision ?? 0)
+  /** A link opened from a saved-profile page stays in that account's own tab. */
+  const openUrl = (url: string): void => {
+    tab.actions.openTab('browser', {
+      params: profileId === undefined ? { url } : { url, profileId },
+      revealIfOpened: false,
+    })
+  }
 
   useLayoutEffect(() => {
     const hide = mount({
       tabId: tab.id, signal: tab.signal, viewportId, applicationOrigin: window.location.origin,
-      initial: initial.current, initialUrl: initialUrl.current,
-      openTab: (url) => { tab.actions.openTab('browser', { params: { url }, revealIfOpened: false }) },
+      initial: initial.current, initialUrl: initialUrl.current, profileId,
+      openTab: openUrl,
     })
     setMountEpoch(value => value + 1)
     return hide
-  }, [mount, tab.id, tab.signal, tab.actions, viewportId, props.actions])
+  }, [mount, tab.id, tab.signal, tab.actions, viewportId, props.actions, profileId])
+
+  useLayoutEffect(() => {
+    setVisible(tab.id, tab.visible)
+    return () => { setVisible(tab.id, false) }
+  }, [setVisible, tab.id, tab.visible, mountEpoch])
 
   const unknown = frame.address === 'unknown'
   const externalUrl = unknown ? undefined : target?.url
   const sandboxed = frame.sandboxEnabled
+  const humanAccessBlocked = profileId !== undefined
+    && (profiles === undefined || profileState.phase !== 'ready'
+      || profileState.profiles.find(profile => profile.id === profileId)?.control !== 'human'
+      || requests === undefined || requests.phase !== 'ready' || requests.granted || requests.busy !== undefined || requests.blocked
+      || requests.requests.some(request => request.status === 'granted'))
   const failure = state?.addressFailure
   const error = frame.error
-  const submit = (event: FormEvent): void => { event.preventDefault(); loadUrl(tab.id, draft) }
+  const submit = (event: FormEvent): void => { event.preventDefault(); if (!humanAccessBlocked) loadUrl(tab.id, draft) }
 
   return (
     <div className={css.root}>
       <form className={css.toolbar} onSubmit={submit}>
-        <button type="button" className={css.tool} aria-label={t('back')} title={t('back')} disabled={!frame.canGoBack} onClick={() => { goBack(tab.id) }}><IconChevronLeftOutlineRegular /></button>
-        <button type="button" className={css.tool} aria-label={t('forward')} title={t('forward')} disabled={!frame.canGoForward} onClick={() => { goForward(tab.id) }}><IconChevronRightOutlineRegular /></button>
+        <button type="button" className={css.tool} aria-label={t('back')} title={t('back')} disabled={humanAccessBlocked || !frame.canGoBack} onClick={() => { goBack(tab.id) }}><IconChevronLeftOutlineRegular /></button>
+        <button type="button" className={css.tool} aria-label={t('forward')} title={t('forward')} disabled={humanAccessBlocked || !frame.canGoForward} onClick={() => { goForward(tab.id) }}><IconChevronRightOutlineRegular /></button>
         <Tooltip label={t('reload')} shortcutKeys={tab.refreshShortcut?.keys} side="bottom" delayMs={500}>
-          <button type="button" className={css.tool} aria-label={t('reload')} aria-keyshortcuts={tab.refreshShortcut?.aria} disabled={target === undefined || mountEpoch === 0} onClick={() => { reload(tab.id) }}><IconRefreshOutlineRegular /></button>
+          <button type="button" className={css.tool} aria-label={t('reload')} aria-keyshortcuts={tab.refreshShortcut?.aria} disabled={humanAccessBlocked || target === undefined || mountEpoch === 0} onClick={() => { reload(tab.id) }}><IconRefreshOutlineRegular /></button>
         </Tooltip>
         <div className={css.addressBox}>
           <input
@@ -91,12 +119,13 @@ export function BrowserBody(props: BrowserBodyProps): ReactNode {
             aria-label={t('address.placeholder')}
             placeholder={t('address.placeholder')}
             spellCheck={false}
+            disabled={humanAccessBlocked}
             onChange={(event) => { setDraft(event.currentTarget.value) }}
           />
           {unknown && <span className={css.addressChanged}>{t('address.changed')}</span>}
-          <button type="submit" className={[css.tool, css.addressGo].join(' ')} aria-label={t('go')} title={t('go')}><IconLinkOutlineRegular /></button>
+          <button type="submit" className={[css.tool, css.addressGo].join(' ')} aria-label={t('go')} title={t('go')} disabled={humanAccessBlocked}><IconLinkOutlineRegular /></button>
         </div>
-        <button type="button" className={css.tool} aria-label={t('external')} title={t('external')} disabled={externalUrl === undefined}
+        <button type="button" className={css.tool} aria-label={t('external')} title={t('external')} disabled={humanAccessBlocked || externalUrl === undefined}
           onClick={externalUrl === undefined ? undefined : () => { window.open(externalUrl, '_blank', 'noopener,noreferrer') }}
         ><IconRightUpOutlineRegular size={14} /></button>
         {sandboxed !== undefined && <button
@@ -105,21 +134,36 @@ export function BrowserBody(props: BrowserBodyProps): ReactNode {
           aria-label={t(sandboxed ? 'sandbox.disable' : 'sandbox.enable')}
           title={t(sandboxed ? 'sandbox.disable' : 'sandbox.enable')}
           aria-pressed={!sandboxed}
+          disabled={humanAccessBlocked}
           onClick={() => { setSandbox(tab.id, !sandboxed) }}
         ><SandboxPolicyIcon sandboxed={sandboxed} /></button>}
+        {profiles !== undefined && renderSlot('sidebar.right.pane.tab.browser.profiles', {
+          profileId,
+          openProfile: (profile: DesktopWebsiteProfile) => {
+            tab.actions.openTab('browser', { params: { url: profile.url, profileId: profile.id }, revealIfOpened: false })
+          },
+        })}
       </form>
+      {profileId !== undefined && (profiles === undefined
+        // This carrier cannot reach the desktop profile registry; say so instead
+        // of showing controls that would store nothing.
+        ? <p className={css.profileNotice}>{t('profiles.desktopOnly')}</p>
+        : <BrowserProfileBar profileId={profileId} profiles={profiles} useWebsiteProfiles={useWebsiteProfiles}
+          requests={requests} selectRequest={(id) => { selectRequest(tab.id, id) }}
+          resumeRequest={() => resumeRequest(tab.id)} takeoverRequest={() => takeoverRequest(tab.id)}
+          reloadRequests={() => reloadRequests(tab.id)} t={t} />)}
       {sandboxed === false && <div className={css.sandboxWarning} role="status">{t('sandbox.warning')}</div>}
       {error !== undefined && <div className={css.failure} role="status">{error.code !== undefined && error.description !== undefined
         ? t('load.failed.detail', { code: String(error.code), description: error.description })
         : t('load.failed')}</div>}
       {failure !== undefined && <div className={css.failure} role="alert">{t(`error.${failure}`)}</div>}
       <div className={css.content} aria-busy={frame.loading}>
-        <div id={viewportId} className={css.viewport} aria-label={t('type.label')} />
+        <div id={viewportId} className={css.viewport} aria-label={t('type.label')} ref={(element) => { element?.toggleAttribute('inert', humanAccessBlocked) }} />
         {restoreTarget !== undefined && <section className={css.restore} aria-label={t('restore.previous')}>
           <p className={css.restoreLabel}>{t('restore.previous')}</p>
           <p className={css.restoreTitle}>{restoreTarget.title}</p>
           <p className={css.restoreUrl}>{restoreTarget.url}</p>
-          <Button variant="primary" size="sm" disabled={mountEpoch === 0} onClick={() => { restore(tab.id) }}>
+          <Button variant="primary" size="sm" disabled={humanAccessBlocked || mountEpoch === 0} onClick={() => { restore(tab.id) }}>
             {t('restore.action')}
           </Button>
         </section>}

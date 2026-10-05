@@ -9,7 +9,66 @@ const runId = '55555555-5555-4555-8555-555555555555'
 const otherId = '66666666-6666-4666-8666-666666666666'
 const proseUuid = '77777777-7777-4777-8777-777777777777'
 
+function preparationReceipt(requestId: string): string {
+  return `${JSON.stringify({ requestId, profileId: 'saved-account', mcpServerName: 'paired-mcp', status: 'pending' })}\nWaiting for the human to Resume this request. No page access is granted.`
+}
+
+function preparationRecords(text: string, name = 'website_prepare', isError = false): Record<string, unknown>[] {
+  return [
+    { type: 'tool/call', data: { name, callId: 'prepare-call', arguments: { profileId: 'saved-account' } } },
+    { type: 'tool/result', data: { message: { role: 'tool', source: { kind: 'tool', callId: 'prepare-call' },
+      toolCallId: 'prepare-call', isError, content: [{ type: 'text', text }] } } },
+  ]
+}
+
+function jsonl(records: Record<string, unknown>[]): string {
+  return `${records.map(record => JSON.stringify(record)).join('\n')}\n`
+}
+
 describe('session snapshot identity redaction', () => {
+  it('links preparation JSON text to request-scoped tool names and approvals across logs', () => {
+    const nextRequestId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+    const pageTool = `website_page_info_${otherId}`
+    const parent = jsonl([
+      { type: 'session', id: parentId },
+      ...preparationRecords(preparationReceipt(otherId)),
+      { type: 'request/header', data: { header: { tools: [{ name: pageTool, parameters: {} }] } } },
+      { type: 'assistant/message', data: { message: { role: 'assistant', content: [
+        { type: 'tool-call', id: 'page-call', name: pageTool, arguments: {} },
+        { type: 'text', text: `Unrelated UUID ${proseUuid}` },
+      ], source: {}, id: messageId } } },
+      { type: 'tool/call', data: { callId: 'page-call', name: pageTool, arguments: {} } },
+      { type: 'approval/asked', data: { id: approvalId, description: pageTool } },
+      { type: 'approval/decided', data: { id: approvalId, decision: 'allow' } },
+      ...preparationRecords(preparationReceipt(nextRequestId)),
+    ])
+    const child = jsonl([{ type: 'session', id: childId },
+      { type: 'example', data: { requestId: otherId, tool: pageTool } }])
+    const redacted = redactSessionSnapshotIds([parent, child])
+    expect(redacted[0]).toContain(preparationReceipt('{{id:1}}').split('\n')[0]!.replaceAll('"', '\\"'))
+    expect(redacted[0]?.match(/website_page_info_\{\{id:1\}\}/g)).toHaveLength(4)
+    expect(redacted[0]).toContain('{{id:2}}')
+    expect(redacted[0]).toContain(proseUuid)
+    expect(redacted[1]).toContain('"requestId":"{{id:1}}"')
+    expect(redacted[1]).toContain('website_page_info_{{id:1}}')
+    expect(redacted.join('\n')).not.toContain(otherId)
+    expect(redactSessionSnapshotIds(redacted)).toEqual(redacted)
+  })
+
+  it.each<[string, Record<string, unknown>[]]>([
+    ['unrelated tool', preparationRecords(preparationReceipt(proseUuid), 'another_tool')],
+    ['failed preparation', preparationRecords(preparationReceipt(proseUuid), 'website_prepare', true)],
+    ['uncorrelated result', preparationRecords(preparationReceipt(proseUuid)).slice(1)],
+    ['malformed JSON', preparationRecords(`{\"requestId\":\"${proseUuid}\"\nWaiting for the human to Resume this request. No page access is granted.`)],
+    ['missing receipt fields', preparationRecords(`{\"requestId\":\"${proseUuid}\"}\nWaiting for the human to Resume this request. No page access is granted.`)],
+    ['UUID prose', preparationRecords(`Request ${proseUuid}`)],
+    ['JSON without checkpoint text', preparationRecords(JSON.stringify({ requestId: proseUuid, profileId: 'saved-account', mcpServerName: 'paired-mcp', status: 'pending' }))],
+    ['wrong pending status', preparationRecords(preparationReceipt(proseUuid).replace('pending', 'granted'))],
+  ])('leaves %s identifiers unclaimed', (_scenario, records) => {
+    const source = jsonl(records)
+    expect(redactSessionSnapshotIds([source])).toEqual([source])
+  })
+
   it('preserves feedback versions and target relationships without redacting unrelated prose', () => {
     const source = [
       { type: 'session', id: parentId },

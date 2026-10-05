@@ -8,12 +8,17 @@ import type { BrowserPageFactory, BrowserPageOptions } from '../src/client/brows
 import { browserAddressCheckpoint } from '../src/client/browser/BrowserPersistence.ts'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { emptyBrowserFrame, type BrowserFrameState } from '../src/client/browser/BrowserFrame.ts'
+import type { Branded } from '@deepseek-ai/dsh-brand'
+import type { DesktopBrowserLeaseId, DesktopWebsiteProfileId, DesktopWebsiteRequestId, DesktopWebsiteVisibilityId } from '../src/types.ts'
+import { WebsiteRequestSession } from '../src/client/browser/WebsiteRequestSession.ts'
+import { requestStubs } from './website-request-stubs.client.ts'
 
 const TAB = 'tab' as TabId
 const APP = 'https://dsh.example'
 const lifetimes = new Set<AbortController>()
 const disposables: { dispose(): Promise<void> }[] = []
 const hosts: HTMLElement[] = []
+const releaseDrainages = new Set<() => void>()
 let sequence = 0
 
 function lifetime(): AbortController {
@@ -32,9 +37,9 @@ function harness() {
   host.id = id
   hosts.push(host)
   document.body.append(host)
-  const mount = (signal: AbortSignal): (() => void) => face.mount({
+  const mount = (signal: AbortSignal, profileId?: DesktopWebsiteProfileId): (() => void) => face.mount({
     tabId: TAB, signal, viewportId: id, applicationOrigin: APP,
-    initial: store.getSnapshot().byTab[TAB], initialUrl: undefined, openTab: vi.fn(),
+    initial: store.getSnapshot().byTab[TAB], initialUrl: undefined, profileId, openTab: vi.fn(),
   })
   const iframe = (): HTMLIFrameElement => {
     const element = host.querySelector('iframe')
@@ -45,15 +50,142 @@ function harness() {
 }
 
 afterEach(async () => {
-  await Promise.all(disposables.splice(0).map(value => value.dispose()))
+  for (const release of releaseDrainages) release()
+  releaseDrainages.clear()
+  const results = await Promise.allSettled(disposables.splice(0).map(value => value.dispose()))
   for (const controller of lifetimes) controller.abort()
   lifetimes.clear()
   for (const host of hosts.splice(0)) host.remove()
   localStorage.clear()
   vi.restoreAllMocks()
+  const failures = results.filter(result => result.status === 'rejected').map((result): unknown => result.reason)
+  if (failures.length !== 0) throw new AggregateError(failures, 'Browser controller fixtures failed to drain')
 })
 
 describe('BrowserController', () => {
+  it.each(['closed', 'replaced'] as const)('retains a %s page failure and joins other pages before Session teardown rejects', async (retirement) => {
+    const profile = 'profile' as DesktopWebsiteProfileId
+    const sessionId = 'session' as Branded<'SessionId'>
+    const firstId = 'first-request' as DesktopWebsiteRequestId
+    const secondId = 'second-request' as DesktopWebsiteRequestId
+    const bridge = requestStubs()
+    vi.mocked(bridge.list).mockResolvedValue([firstId, secondId].map(id => ({ id, profile, sessionId, epoch: 1, status: 'pending' })))
+    vi.mocked(bridge.prepare).mockImplementation(async input => ({ requestId: input.requestId, lease: input.lease,
+      epoch: 2, visibility: 'visible' as DesktopWebsiteVisibilityId }))
+    vi.mocked(bridge.resume).mockImplementation(async receipt => receipt)
+    const diagnostic = new Error('private retired-page diagnostic')
+    const held = Promise.withResolvers<undefined>()
+    const entered = Promise.withResolvers<undefined>()
+    releaseDrainages.add(() => { held.resolve(undefined) })
+    vi.mocked(bridge.takeover).mockImplementation(async (id) => {
+      if (id === firstId) throw diagnostic
+      entered.resolve(undefined)
+      await held.promise
+    })
+    const session = new WebsiteRequestSession(sessionId, bridge, vi.fn())
+    const pages: ReturnType<WebsiteRequestSession['createPage']>[] = []
+    const store = createBrowserStore().create(`retirement-${retirement}`)
+    const face = createBrowserControllers(store.actions, (options) => {
+      const requests = session.createPage(profile)
+      requests.bind({ lease: `lease-${pages.length}` as DesktopBrowserLeaseId, signal: lifetime().signal })
+      pages.push(requests)
+      return { ...createIframePage(options), requests }
+    }, () => false, () => ({ phase: 'ready', profiles: [{ id: profile, name: 'Account', accountLabel: '',
+      url: 'https://work.example/', mcpServerName: 'website', control: 'human' }], busy: undefined, creating: false, notice: null }))
+    disposables.push({ dispose: async () => { await expect(face.dispose()).rejects.toMatchObject({
+      errors: [{ errors: [{ errors: [diagnostic] }] }],
+    }) } })
+    disposables.push({ dispose: async () => { await expect(session.dispose()).rejects.toMatchObject({
+      errors: [{ errors: [diagnostic] }],
+    }) } })
+    const host = document.createElement('div')
+    host.id = `retirement-host-${retirement}`
+    hosts.push(host)
+    document.body.append(host)
+    const mount = (signal: AbortSignal) => face.mount({ tabId: TAB, signal, viewportId: host.id, applicationOrigin: APP,
+      initial: undefined, initialUrl: undefined, profileId: profile, openTab: vi.fn() })
+    const firstLifetime = lifetime()
+    mount(firstLifetime.signal)
+    await session.reload()
+    face.setVisible(TAB, true)
+    face.selectRequest(TAB, firstId)
+    await face.resumeRequest(TAB)
+    if (retirement === 'closed') firstLifetime.abort()
+    mount(lifetime().signal)
+    await expect(pages[0]!.dispose()).rejects.toMatchObject({ errors: [diagnostic] })
+    face.setVisible(TAB, true)
+    face.selectRequest(TAB, secondId)
+    await face.resumeRequest(TAB)
+    let settled = false
+    const disposal = face.dispose()
+    const joined = disposal.then(() => { settled = true }, () => { settled = true })
+    expect(face.dispose()).toBe(disposal)
+    await entered.promise
+    await new Promise<void>((resolve) => { setImmediate(resolve) })
+    expect(settled).toBe(false)
+    held.resolve(undefined)
+    await joined
+    await expect(disposal).rejects.toMatchObject({ errors: [{ errors: [{ errors: [diagnostic] }] }] })
+    mount(lifetime().signal)
+    expect(pages).toHaveLength(2)
+    expect(face.keyedHooks.browserState(TAB)).toBeUndefined()
+    const competitor = session.createPage(profile)
+    competitor.select(firstId)
+    expect(competitor.getSnapshot().selected).toBeUndefined()
+  })
+
+  it('observes failed tab-close drainage without releasing its claim or exposing transport details', async () => {
+    const profile = 'profile' as DesktopWebsiteProfileId
+    const id = 'request' as DesktopWebsiteRequestId
+    const sessionId = 'session' as Branded<'SessionId'>
+    const lease = 'lease' as DesktopBrowserLeaseId
+    const bridge = requestStubs()
+    vi.mocked(bridge.list).mockResolvedValue([{ id, profile, sessionId, epoch: 1, status: 'pending' }])
+    vi.mocked(bridge.prepare).mockResolvedValue({ requestId: id, epoch: 2, lease, visibility: 'visible' as DesktopWebsiteVisibilityId })
+    vi.mocked(bridge.resume).mockImplementation(async receipt => receipt)
+    const report = vi.fn()
+    const session = new WebsiteRequestSession(sessionId, bridge, report)
+    const requests = session.createPage(profile)
+    const store = createBrowserStore().create('failed-close')
+    const tabLifetime = lifetime()
+    const controller = new BrowserController({
+      tabId: TAB, signal: tabLifetime.signal, applicationOrigin: APP,
+      initial: undefined, profileId: profile, actions: store.actions, openTab: vi.fn(),
+      createPage: options => ({ ...createIframePage(options), requests }),
+    })
+    disposables.push(controller, session)
+    requests.bind({ lease, signal: lifetime().signal })
+    requests.setVisible(true)
+    await session.reload()
+    requests.select(id)
+    await requests.resume()
+    expect(requests.getSnapshot().granted).toBe(true)
+    const diagnostic = new Error('private transport diagnostic')
+    vi.mocked(bridge.takeover).mockRejectedValue(diagnostic)
+    const pageFailure = { errors: [diagnostic] }
+    const failedOwner = { errors: [pageFailure] }
+    disposables.splice(disposables.indexOf(controller), 1, { dispose: async () => {
+      await expect(controller.dispose()).rejects.toMatchObject(failedOwner)
+    } })
+    disposables.splice(disposables.indexOf(session), 1, { dispose: async () => {
+      await expect(session.dispose()).rejects.toMatchObject(failedOwner)
+    } })
+    const consoleError = vi.spyOn(console, 'error')
+    const consoleWarn = vi.spyOn(console, 'warn')
+    tabLifetime.abort()
+    expect(bridge.takeover).toHaveBeenCalledWith(id)
+    await expect(requests.dispose()).rejects.toMatchObject(pageFailure)
+    // Cross one event-loop turn before joining controller disposal, so an unobserved close failure fails the runner.
+    await new Promise<void>((resolve) => { setImmediate(resolve) })
+    expect(consoleError).not.toHaveBeenCalled()
+    expect(consoleWarn).not.toHaveBeenCalled()
+    expect(report).toHaveBeenLastCalledWith(profile, 'requestFailed')
+    const competing = session.createPage(profile)
+    competing.select(id)
+    expect(competing.getSnapshot().selected).toBeUndefined()
+    await expect(controller.dispose()).rejects.toMatchObject(failedOwner)
+  })
+
   it('restores only on request and redirects saved checkpoints to a replacement binding', () => {
     const h = harness()
     const saved = browserAddressCheckpoint({ kind: 'https', url: 'https://saved.example/', title: 'Saved page' }, 2)
@@ -92,11 +224,35 @@ describe('BrowserController', () => {
     document.body.append(secondHost)
     hosts.push(secondHost)
     h.face.mount({ tabId: TAB, signal: tabLifetime.signal, viewportId: secondHost.id,
-      applicationOrigin: APP, initial: undefined, initialUrl: undefined, openTab: vi.fn() })
+      applicationOrigin: APP, initial: undefined, initialUrl: undefined, profileId: undefined, openTab: vi.fn() })
     oldMount()
     expect(secondHost.querySelector('iframe')?.src).toBe('https://saved.example/')
     expect(() => h.face.mount({ tabId: TAB, signal: tabLifetime.signal, viewportId: 'missing-browser-host',
-      applicationOrigin: APP, initial: undefined, initialUrl: undefined, openTab: vi.fn() })).toThrow('not mounted')
+      applicationOrigin: APP, initial: undefined, initialUrl: undefined, profileId: undefined, openTab: vi.fn() })).toThrow('not mounted')
+  })
+
+  it('never offers a saved checkpoint to a profile page and never stores its navigation', () => {
+    const checkpoints: (BrowserPageOptions['initial'])[] = []
+    const pageFactory: BrowserPageFactory = (options) => {
+      checkpoints.push(options.initial)
+      options.persist(browserAddressCheckpoint({ kind: 'https', url: 'https://example.test/login?otp=123456', title: 'Sign in' }, 1))
+      return {
+        frame: { getSnapshot: () => emptyBrowserFrame(), subscribe: () => () => {},
+          loadUrl: vi.fn(), goBack: vi.fn(), goForward: vi.fn(), reload: vi.fn(), dispose: async () => {} },
+        presentation: { mount: () => () => {} },
+      }
+    }
+    const store = createBrowserStore().create('profile-checkpoint')
+    const replace = vi.spyOn(store.actions, 'replace')
+    const saved = browserAddressCheckpoint({ kind: 'https', url: 'https://example.test/earlier?otp=1', title: 'Earlier' }, 1)
+    const controller = new BrowserController({ tabId: TAB, signal: lifetime().signal, applicationOrigin: APP,
+      actions: store.actions, initial: saved, profileId: 'profile-1' as DesktopWebsiteProfileId,
+      createPage: pageFactory, openTab: vi.fn() })
+    disposables.push(controller)
+    expect(controller.getSnapshot().restoreTarget).toBeUndefined()
+    expect(checkpoints).toEqual([undefined])
+    expect(replace).not.toHaveBeenCalled()
+    expect(store.getSnapshot().byTab[TAB]).toBeUndefined()
   })
 
   it('validates provider open requests and ignores late provider callbacks after disposal', async () => {
@@ -117,7 +273,7 @@ describe('BrowserController', () => {
     const store = createBrowserStore().create('provider-callbacks')
     const openTab = vi.fn()
     const controller = new BrowserController({ tabId: TAB, signal: lifetime().signal, applicationOrigin: APP,
-      actions: store.actions, initial: saved, createPage: pageFactory, openTab })
+      actions: store.actions, initial: saved, profileId: undefined, createPage: pageFactory, openTab })
     disposables.push(controller)
     const provider = callbacks[0]!
     provider.openRequested('file:/secret')
@@ -144,7 +300,7 @@ describe('BrowserController', () => {
     const tabLifetime = lifetime()
     const controller = new BrowserController({
       tabId: TAB, signal: tabLifetime.signal, applicationOrigin: APP, actions: store.actions,
-      initial: undefined, createPage: createIframePage, openTab: vi.fn(),
+      initial: undefined, profileId: undefined, createPage: createIframePage, openTab: vi.fn(),
     })
     disposables.push(controller)
     tabLifetime.abort()

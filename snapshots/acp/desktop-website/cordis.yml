@@ -1,0 +1,18 @@
+- id: session-persistence-jsonl
+  config:
+    root: !!js process.env.DSH_SNAPSHOT_SESSIONS_ROOT
+    compression: none
+- id: permission
+  config:
+    presets:
+      website-test:
+        sandbox: danger-full-access
+        approval: ask
+    defaultPreset: website-test
+- id: acp
+  config:
+    provider: snapshot-website
+    model: website-model
+- insert:
+    - id: snapshot-website-scenario
+      name: ../../../packages/test-support/session-snapshot/tests/fixtures/website-scenario.ts

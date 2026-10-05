@@ -67,6 +67,8 @@ interface McpToolCallEvent {
   readonly execution: ToolExecution
   /** Current executor-owned signal, combining caller cancellation and every guard's added signal. */
   readonly signal: AbortSignal
+  /** Exact invocation's upstream entry/resolution across body retries, not server settlement. */
+  readonly dispatchStatus: 'pending' | 'dispatched' | 'responded'
   /**
    * Add revocation before dispatch. Signals accumulate; none can replace or
    * weaken earlier cancellation. Registration after upstream dispatch rejects.
@@ -170,7 +172,7 @@ Source: [`packages/mcp/mcp-resources/src/index.ts`](../../packages/mcp/mcp-resou
 
 #### `mcp/tool-call` — waterfall
 
-Guard one upstream MCP tool call. `next()` performs the request and resolves to its raw MCP result, so a listener decides before dispatch, after awaiting `next()`, or both. Throwing — before or after `next()` — fails the call and denies the model the result; returning without calling `next()` vetoes the request, and the returned value must then already be a valid MCP result. `payload.addCancellation()` monotonically combines guard revocation with the caller's signal before dispatch. The upstream callback receives that combined signal; the executor refuses a result once it is revoked. Async guards observe `payload.signal`. Arguments to `next()` do not change cancellation. Every listener must call `next()` to delegate. Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): agent-scoped listeners receive only that agent's calls.
+Guard one upstream MCP tool call. `next()` performs the request and resolves to its raw MCP result, so a listener decides before dispatch, after awaiting `next()`, or both. Throwing — before or after `next()` — fails the call and denies the model the result; returning without calling `next()` vetoes the request, and the returned value must then already be a valid MCP result. `payload.addCancellation()` monotonically combines guard revocation with the caller's signal before dispatch. The upstream callback receives that combined signal; the executor refuses a result once it is revoked. Async guards observe `payload.signal` and `payload.dispatchStatus`; rejected upstream calls remain `dispatched`, including timeouts without cancellation. Each exact execution permits one upstream entry per application, across tool rediscovery and module reloads. Rejection or timeout does not restore that allowance; a pre-entry veto leaves it available. Arguments to `next()` do not change cancellation. Every listener must call `next()` to delegate. Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): agent-scoped listeners receive only that agent's calls.
 
 ```ts cordis-catalog
 /**
@@ -182,8 +184,13 @@ Guard one upstream MCP tool call. `next()` performs the request and resolves to 
  * a valid MCP result. `payload.addCancellation()` monotonically combines
  * guard revocation with the caller's signal before dispatch. The upstream
  * callback receives that combined signal; the executor refuses a result
- * once it is revoked. Async guards observe `payload.signal`. Arguments to
- * `next()` do not change cancellation. Every listener must call `next()` to delegate.
+ * once it is revoked. Async guards observe `payload.signal` and
+ * `payload.dispatchStatus`; rejected upstream calls remain `dispatched`,
+ * including timeouts without cancellation. Each exact execution permits
+ * one upstream entry per application, across tool rediscovery and module
+ * reloads. Rejection or timeout does not restore that allowance; a pre-entry
+ * veto leaves it available. Arguments to `next()` do not change cancellation.
+ * Every listener must call `next()` to delegate.
  * Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): agent-scoped listeners receive only that agent's calls.
  * @dshScopeScan unsupported
  * @param payload - trusted tool identity and the exact execution being guarded.

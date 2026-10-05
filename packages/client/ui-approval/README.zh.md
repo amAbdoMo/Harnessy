@@ -8,7 +8,7 @@ kind: "package-reference"
 
 ## 概述
 
-基于 Agent-scoped Remote Event waterfall 的浏览器审批界面。插件通过 `ctx.uiSession` 发布每个待处理请求、接管 Conversation composer、按需渲染关联的 Tool 详情，并将用户决定返回给等待中的 Host 请求。当浏览器必须为等待中的 Host 操作收集批准时，请使用它。
+基于 Agent-scoped Remote Event waterfall 的浏览器审批界面。插件通过 `ctx.uiSession` 发布待处理请求、接管 Conversation composer、渲染允许展示的关联 Tool 详情，并将用户决定返回给等待中的 Host 请求。它还根据记录的审批事件呈现只读权限检查点。当浏览器必须为等待中的 Host 操作收集批准时，请使用它。
 
 ## 目录
 
@@ -19,6 +19,8 @@ kind: "package-reference"
 -----
 
 聚焦审批详情区域后，Enter 批准，Esc 拒绝。插件挂载期间，这两个按键不能分配给可编辑快捷键。聚焦“拒绝”按钮后，Enter 保留按钮原生拒绝操作。输入控件与输入法候选保留各自的按键。键盘和指针操作共用同一待处理请求锁；已撤销或替换的请求不能再次作答，较早请求的失败也不会解锁替代请求。
+
+`summary-only` 请求仅呈现请求方提供的本地化摘要，不调用可选详情插槽，也不查看关联命令参数。普通请求通过工具调用索引查找，仅在该关联调用运行时显示命令详情。记录的 `approval/asked` 与 `approval/decided` 事件按请求 id 组成一个检查点；“已授予一次权限”表示权限，不表示执行成功。回放不显示决定按钮，也不授予权限。
 
 <a id="model-experience"></a>
 ## 模型体验
@@ -33,7 +35,7 @@ kind: "package-reference"
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **面板只提供临时决定**——它支持仅本次允许和拒绝；持久权限策略仍由 Host 侧审批包拥有。请求方提供的本地化展示文案跟随界面语言，不改写审计原因，也不翻译模型生成的文本。
+- 实时面板支持仅本次允许和拒绝；持久权限策略仍由 Host 侧审批包拥有。历史检查点记录决定，而非持久权限。请求方提供的本地化展示文案跟随界面语言，不改写审计原因，也不翻译模型生成的文本。
 
 
 <a id="dev-note"></a>

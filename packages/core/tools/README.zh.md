@@ -82,9 +82,11 @@ ctx.tools.register(defineTool({
 
 ### 对调用实施策略
 
-`ctx.tools.guard(guard)` 在可扩展的 `tools/pre-execute` waterfall（瀑布式事件）之后注册单调同步守卫：返回的理由会拒绝调用，后续监听器无法把该拒绝重新变为允许。流水线事件给插件更多控制——`tools/pre-execute` 决定允许／拒绝／询问，`tools/execute` 为超时或重试包装分发，`tools/post-execute` 检查或替换结果，`tools/result` 观测冻结的最终结果。
+`ctx.tools.guard(guard)` 在可扩展的 `tools/pre-execute` waterfall（瀑布式事件）之后注册单调同步守卫：返回的理由会拒绝调用，后续监听器无法把该拒绝重新变为允许。流水线事件给插件更多控制——`tools/pre-execute` 决定允许／拒绝／询问，`tools/execute` 为超时或重试包装分发，`tools/post-execute` 检查或替换结果，`tools/result` 观测冻结的最终结果。重试包装器不能绕过执行器的单次派发规则；[MCP 调用](../../mcp/mcp-client/README.zh.md#understand-the-implementation)对同一个调用对象仅允许一次上游进入。
 
 工具的 `projectContent` 在执行后策略之前安装执行期间准备的图文内容。策略仍可替换或阻止这些内容；`finalizeContent` 保留为策略之后的最终内容处理。
+
+使用 `ctx.tools.guardResult(execution, check)` 在发布前重新断言权限。检查同步返回 `undefined` 或抛出异常，在注册表创建的同一个存活调用对象上累积且没有 disposer。对象副本、其他注册表的调用、已完成调用，以及最终接受阶段内的注册都会抛出异常。检查对成功和失败结果均执行，时机为执行后策略、定义拥有的最终处理及无损实例化之后，紧接同步 `tools/result` 通知之前。检查抛出异常时，整个结果被新建且已实例化的错误替换，丢弃值、此前内容、metadata、额外上下文与结束轮次状态，不会再次运行最终处理器。后续检查仍针对替换后的错误执行，因此较早的内容校验失败不会跳过较后的权限检查。在工具主体中捕获的信号会保留调用方和包装器的取消传播直到发布；随后调用移除其转发监听器。
 
 ### Host 展示描述
 
@@ -102,7 +104,7 @@ ctx.tools.register(defineTool({
 
 ### 设计理念
 
-注册表在作用域层中持有类型化 `ToolDefinition`，并在请求时把它们投影为面向模型的 `ToolSchema` 集合——`output`、`execute`、`finalizeContent`、`timeoutMs` 与呈现回调绝不会泄漏到协议上。每次调用都运行一条固定流水线：`tools/pre-execute`（可扩展的允许／拒绝／询问）→ 已注册单调守卫 → `tools/execute`（环绕分发包装层）→ `tools/post-execute`（检查／替换、附加上下文）→ 由定义持有的 `finalizeContent` → 仅观测的 `tools/result` 事件。只有 `tools/execute` 视图可以替换必填信号，注册表会在调用主体前重新融合调用方信号。
+注册表在作用域层中持有类型化 `ToolDefinition`，并在请求时把它们投影为面向模型的 `ToolSchema` 集合——`output`、`execute`、`finalizeContent`、`timeoutMs` 与呈现回调绝不会泄漏到协议上。每次调用都运行一条固定流水线：`tools/pre-execute`（可扩展的允许／拒绝／询问）→ 已注册单调守卫 → `tools/execute`（环绕分发包装层）→ `tools/post-execute`（检查／替换、附加上下文）→ 由定义持有的 `finalizeContent` → 最终实例化与调用拥有的 `guardResult` 断言 → 仅观测的 `tools/result` 事件。只有 `tools/execute` 视图可以替换必填信号，注册表会在调用主体前重新融合调用方信号。
 
 ### 源码地图
 

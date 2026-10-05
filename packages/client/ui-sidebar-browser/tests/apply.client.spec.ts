@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 /** Browser type, Slot, locale, and HMR disposal through the real registries. */
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { requestStubs } from './website-request-stubs.client.ts'
 import { ShortcutRegistry } from '@deepseek-ai/dsh-client-shortcuts/src/client/registry.ts'
 import type { ShortcutCommand, ShortcutPlatform } from '@deepseek-ai/dsh-client-shortcuts/client'
 import { Context } from '@deepseek-ai/cordis'
@@ -8,13 +9,17 @@ import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { SidebarRightTabRegistry } from '@deepseek-ai/dsh-client-ui-sidebar-right/src/client/tab-registry.ts'
 import { BrowserBody } from '../src/client/view/BrowserBody.tsx'
 import { BrowserTitle } from '../src/client/view/BrowserTitle.tsx'
+import { BrowserProfileNotice } from '../src/client/view/BrowserProfileNotice.tsx'
 import type { BrowserInjected } from '../src/client/browser/BrowserController.ts'
 import { BROWSER_ID, BROWSER_KIND } from '../src/client/definition.tsx'
 import { apply, inject } from '../src/client/index.ts'
 import { en, zh } from '../src/client/locales.ts'
 import { createBrowserStore } from '../src/client/browser/store.ts'
 import type { TabId } from '@deepseek-ai/dsh-client-ui-dockkit'
-import type { DesktopBrowserBridge, DesktopBrowserLeaseId } from '../src/types.ts'
+import type {
+  DesktopBrowserBridge, DesktopBrowserLeaseId, DesktopWebsiteProfile, DesktopWebsiteProfileId,
+  DesktopWebsiteProfileInput, DesktopWebsiteProfilesBridge,
+} from '../src/types.ts'
 
 const contexts: Context[] = []
 
@@ -23,8 +28,23 @@ afterEach(async () => {
   vi.unstubAllGlobals()
 })
 
+/** @returns the desktop profile bridge as preload exposes it; each test drives what it asserts. */
+function profileStubs() {
+  return {
+    list: vi.fn<DesktopWebsiteProfilesBridge['list']>(async () => []),
+    create: vi.fn(async (input: DesktopWebsiteProfileInput): Promise<DesktopWebsiteProfile> =>
+      ({ ...input, id: 'created-profile' as DesktopWebsiteProfileId, control: 'human' })),
+    acquire: vi.fn(async () => ({ lease: 'profile-lease' as DesktopBrowserLeaseId, partition: 'persist:dsh-website-created-profile' })),
+    setControl: vi.fn(async () => {}),
+    signOut: vi.fn(async () => {}),
+    forget: vi.fn(async () => {}),
+    onChanged: vi.fn(() => () => {}),
+  }
+}
+
 interface Recorded {
   name: string
+  id?: string
   key: string
   locale?: string
   store?: unknown
@@ -72,19 +92,19 @@ async function boot(platform: ShortcutPlatform = 'macos', runtime: 'desktop' | '
 describe('ui-sidebar-browser apply', () => {
   it.each([0, 1])('binds and rebinds session controllers under desktop protocol %s', async (protocolVersion) => {
     const acquire = vi.fn(async () => ({ lease: 'test-lease' as DesktopBrowserLeaseId, partition: 'test-partition' }))
-    const bridge: DesktopBrowserBridge = {
-      acquire,
-      release: vi.fn(async () => {}),
-      onOpenRequested: vi.fn(() => () => {}),
-    }
+    const bridge: DesktopBrowserBridge = { profiles: profileStubs(), requests: requestStubs(), acquire, command: vi.fn(async () => {}),
+      release: vi.fn(async () => {}), onOpenRequested: vi.fn(() => () => {}) }
     vi.stubGlobal('dshDesktop', { protocolVersion, browser: bridge })
     const h = await boot()
     expect(h.tabs.get(BROWSER_KIND)?.keepMounted).toBe(protocolVersion === 1)
+    expect(h.registered.some(entry => entry.id === 'browser.profile-notice')).toBe(protocolVersion === 1)
     const injectFace = h.registered.find(entry => entry.name === 'sidebar.right.pane.tab')!.inject as
       (sessionId: string, actions: Parameters<BrowserInjected['rebind']>[0]) => BrowserInjected
     const firstStore = createBrowserStore().create(`apply-first-${protocolVersion}`)
     const replacementStore = createBrowserStore().create(`apply-replacement-${protocolVersion}`)
     const controller = injectFace('session', firstStore.actions)
+    expect(controller.profiles === undefined).toBe(protocolVersion === 0)
+    await vi.waitFor(() => { expect(controller.hooks.websiteProfiles.getSnapshot().phase).toBe('ready') })
     expect(injectFace('session', replacementStore.actions)).toBe(controller)
     const host = document.createElement('div')
     host.id = `browser-apply-${protocolVersion}`
@@ -93,7 +113,7 @@ describe('ui-sidebar-browser apply', () => {
     const tabId = 'apply-tab' as TabId
     try {
       controller.mount({ tabId, signal: signal.signal, viewportId: host.id, applicationOrigin: 'https://dsh.example',
-        initial: undefined, initialUrl: 'https://example.test/', openTab: vi.fn() })
+        initial: undefined, initialUrl: 'https://example.test/', profileId: undefined, openTab: vi.fn() })
       expect(replacementStore.getSnapshot().byTab[tabId]).toBeDefined()
       expect(firstStore.getSnapshot().byTab[tabId]).toBeUndefined()
       if (protocolVersion === 1) await vi.waitFor(() => { expect(acquire).toHaveBeenCalledWith('session:session') })
@@ -103,13 +123,13 @@ describe('ui-sidebar-browser apply', () => {
       expect(replacementStore.getSnapshot().byTab[tabId]).toBeUndefined()
       const reopened = new AbortController()
       controller.mount({ tabId, signal: reopened.signal, viewportId: host.id, applicationOrigin: 'https://dsh.example',
-        initial: undefined, initialUrl: 'https://retained.example/', openTab: vi.fn() })
+        initial: undefined, initialUrl: 'https://retained.example/', profileId: undefined, openTab: vi.fn() })
       h.openTabs.set([{ sessionId: 'session', tabId }])
       reopened.abort()
       expect(replacementStore.getSnapshot().byTab[tabId]).toBeDefined()
       const active = new AbortController()
       controller.mount({ tabId, signal: active.signal, viewportId: host.id, applicationOrigin: 'https://dsh.example',
-        initial: undefined, initialUrl: undefined, openTab: vi.fn() })
+        initial: undefined, initialUrl: undefined, profileId: undefined, openTab: vi.fn() })
       await h.fiber.dispose()
       expect(controller.keyedHooks.browserState(tabId)).toBeUndefined()
     } finally {
@@ -140,6 +160,40 @@ describe('ui-sidebar-browser apply', () => {
     const browser = injectFace('session', { replace: vi.fn(), forget: vi.fn() }) as BrowserInjected
     expect(browser.keyedHooks.browserState('missing')).toBeUndefined()
     expect(typeof browser.mount).toBe('function')
+    // No desktop bridge: the tab keeps its chrome and publishes no profile commands.
+    expect(browser.profiles).toBeUndefined()
+    expect(browser.hooks.websiteProfiles.getSnapshot()).toMatchObject({ phase: 'ready', profiles: [] })
+  })
+
+  it('offers saved-profile commands and one notice overlay on the desktop bridge', async () => {
+    const profiles = profileStubs()
+    const unsubscribe = vi.fn()
+    profiles.onChanged.mockReturnValue(unsubscribe)
+    const id = 'profile-1' as DesktopWebsiteProfileId
+    profiles.list.mockResolvedValue([{ id, name: 'Work', accountLabel: '', url: 'https://work.example/', mcpServerName: 'website', control: 'human' }])
+    vi.stubGlobal('dshDesktop', {
+      protocolVersion: 1,
+      browser: { profiles, acquire: vi.fn(), command: vi.fn(async () => {}), release: vi.fn(), onOpenRequested: vi.fn(() => () => {}) },
+    })
+    const h = await boot()
+    const notice = h.registered.find(entry => entry.id === 'browser.profile-notice')
+    expect([notice?.name, notice?.locale, notice?.component]).toEqual(['shell.overlay', 'sidebarBrowser', BrowserProfileNotice])
+    const bodyFace = h.registered.find(entry => entry.name === 'sidebar.right.pane.tab')!.inject as
+      (sessionId: string, actions: unknown) => BrowserInjected
+    const browser = bodyFace('session', { replace: vi.fn(), forget: vi.fn() })
+    expect(browser.profiles).toBeDefined()
+    await vi.waitFor(() => { expect(browser.hooks.websiteProfiles.getSnapshot().profiles).toHaveLength(1) })
+    await browser.profiles!.signOut(id)
+    expect(profiles.signOut).toHaveBeenCalledWith(id)
+    expect(profiles.setControl).not.toHaveBeenCalled()
+    expect(browser.hooks.websiteProfiles.getSnapshot().notice).toMatchObject({ kind: 'signedOut', name: 'Work' })
+    const overlay = notice!.inject as () => { dismissWebsiteProfileNotice: () => void; hooks: BrowserInjected['hooks'] }
+    const face = overlay()
+    expect(face.hooks.websiteProfiles).toBe(browser.hooks.websiteProfiles)
+    face.dismissWebsiteProfileNotice()
+    expect(browser.hooks.websiteProfiles.getSnapshot().notice).toBeNull()
+    await h.fiber.dispose()
+    expect(unsubscribe).toHaveBeenCalledOnce()
   })
 
   it.each(['macos', 'windows'] as const)('opens the resolved Browser target with the %s default and releases the shortcut', async (platform) => {

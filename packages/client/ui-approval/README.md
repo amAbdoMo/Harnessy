@@ -8,7 +8,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Browser approval presentation over the Agent-scoped Remote Event waterfall. The plugin publishes each pending request through `ctx.uiSession`, takes over the Conversation composer, optionally renders correlated Tool detail, and returns the user's decision to the waiting Host request. Use it when a browser must collect approval for a waiting Host operation.
+Browser approval presentation over the Agent-scoped Remote Event waterfall. The plugin publishes pending requests through `ctx.uiSession`, takes over the Conversation composer, renders permitted correlated Tool detail, and returns the user's decision to the waiting Host request. It also renders read-only permission checkpoints from recorded approval events. Use it when a browser must collect approval for a waiting Host operation.
 
 ## Table of Contents
 
@@ -19,6 +19,8 @@ Browser approval presentation over the Agent-scoped Remote Event waterfall. The 
 -----
 
 Focus the approval detail region to approve with Enter or reject with Escape. The mounted plugin reserves both keys against editable shortcuts. Enter on the focused Reject button retains its native reject action. Input controls and IME candidates keep their own keys. Keyboard and pointer actions share one pending-request lock; a withdrawn or replaced request cannot accept another answer, and an earlier failed answer cannot unlock its replacement.
+
+A `summary-only` request renders requester-supplied localized summary copy without invoking the optional detail slot or inspecting correlated command arguments. Ordinary requests use an indexed tool-call lookup and show command detail only while that exact call is running. Recorded `approval/asked` and `approval/decided` events form one checkpoint per request id; “Permission granted once” records permission, not successful execution. Replay never exposes decision buttons or grants authority.
 
 <a id="model-experience"></a>
 ## Model Experience
@@ -33,7 +35,7 @@ None; approval request and response rendering does not alter a model request.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **The panel exposes transient decisions only** — it supports allow-once and reject; persistent permission policy remains owned by Host-side approval packages. Requester-supplied localized presentation copy follows the UI language without changing the audit reason or translating model-generated text.
+- The live panel supports allow-once and reject; persistent permission policy remains owned by Host-side approval packages. Historical checkpoints record decisions, not persistent permissions. Requester-supplied localized presentation copy follows the UI language without changing the audit reason or translating model-generated text.
 
 
 <a id="dev-note"></a>

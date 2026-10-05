@@ -3448,6 +3448,11 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the exact disposer that unregisters the guard.',
       },
       {
+        signature: 'guardResult(execution: ToolExecution, check: (result: Readonly<ToolExecutionResult>) => undefined): void',
+        description: 'Add a monotonic synchronous assertion to one live invocation. Assertions accumulate without a disposer and run on success and failure after post-execute, definition-owned finalization, and lossless result materialization, immediately before synchronous `tools/result` notification. A thrown assertion replaces the whole outcome with a fresh materialized error, discarding value, prior content, metadata, additional contexts, and concluding state without rerunning the finalizer. Later assertions still run against the replacement error if an earlier assertion threw. Body-captured signals retain caller and wrapper cancellation through publication; the invocation then removes its forwarding listeners.',
+        parameters: [{ name: 'execution', description: 'the exact execution minted by this registry; copies, foreign executions, settled executions, and registrations during final acceptance throw.' }, { name: 'check', description: 'synchronous assertion receiving the complete frozen, materialized outcome; return `undefined` to accept or throw to replace the whole outcome.' }],
+      },
+      {
         signature: 'get(name: string, scope?: ScopeKey): ToolDefinition | undefined',
         description: 'Look up a tool as one scope sees it (scoped shadows global; a restricted-away global reads as absent). Presenters pass the calling agent so the rendered card matches the definition that actually executed.',
         parameters: [{ name: 'name', description: 'the tool name as registered.' }, { name: 'scope', description: 'the viewing scope (the agent); omitted = the global view.' }],
@@ -4277,7 +4282,7 @@ export const EVENT_API: readonly EventApiEntry[] = [
     mode: 'waterfall',
     signature: '\'mcp/tool-call\'( this: Scoped<Context>, payload: McpToolCallEvent, next: () => Promise<unknown>, ): Promise<unknown>',
     summary: 'Guard one upstream MCP tool call.',
-    description: 'Guard one upstream MCP tool call. `next()` performs the request and resolves to its raw MCP result, so a listener decides before dispatch, after awaiting `next()`, or both. Throwing — before or after `next()` — fails the call and denies the model the result; returning without calling `next()` vetoes the request, and the returned value must then already be a valid MCP result. `payload.addCancellation()` monotonically combines guard revocation with the caller\'s signal before dispatch. The upstream callback receives that combined signal; the executor refuses a result once it is revoked. Async guards observe `payload.signal`. Arguments to `next()` do not change cancellation. Every listener must call `next()` to delegate. Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): agent-scoped listeners receive only that agent\'s calls.',
+    description: 'Guard one upstream MCP tool call. `next()` performs the request and resolves to its raw MCP result, so a listener decides before dispatch, after awaiting `next()`, or both. Throwing — before or after `next()` — fails the call and denies the model the result; returning without calling `next()` vetoes the request, and the returned value must then already be a valid MCP result. `payload.addCancellation()` monotonically combines guard revocation with the caller\'s signal before dispatch. The upstream callback receives that combined signal; the executor refuses a result once it is revoked. Async guards observe `payload.signal` and `payload.dispatchStatus`; rejected upstream calls remain `dispatched`, including timeouts without cancellation. Each exact execution permits one upstream entry per application, across tool rediscovery and module reloads. Rejection or timeout does not restore that allowance; a pre-entry veto leaves it available. Arguments to `next()` do not change cancellation. Every listener must call `next()` to delegate. Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): agent-scoped listeners receive only that agent\'s calls.',
     parameters: [{ name: 'payload', description: 'trusted tool identity and the exact execution being guarded.' }, { name: 'next', description: 'performs the upstream MCP request and returns its raw result.' }],
   },
   {
@@ -4437,7 +4442,7 @@ export const EVENT_API: readonly EventApiEntry[] = [
     mode: 'waterfall',
     signature: '\'tools/execute\'(this: Scoped<ToolRuntime>, exec: ToolDispatchExecution, next: () => Promise<ToolExecutionResult>): Promise<ToolExecutionResult>',
     summary: 'Around-dispatch waterfall for timeout, retry, or metrics.',
-    description: 'Around-dispatch waterfall for timeout, retry, or metrics. `next()` returns a normalized result; wrappers may change only `exec.signal`, while call identity remains immutable. The registry re-fuses the original caller signal before the body, so replacement cannot detach caller cancellation; wrappers must still restore their signal and reach quiescence. Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): agent-scoped listeners receive only that agent\'s calls.',
+    description: 'Around-dispatch waterfall for timeout, retry, or metrics. `next()` returns a normalized result; wrappers may change only `exec.signal`, while call identity remains immutable. The registry re-fuses the original caller signal before the body, so replacement cannot detach caller cancellation; wrappers must still restore their signal and reach quiescence. Retries do not override executor-specific single-dispatch rules. Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): agent-scoped listeners receive only that agent\'s calls.',
     parameters: [{ name: 'exec', description: 'the allowed call about to dispatch (name, parsed arguments, caller agent, signal).' }],
   },
   {
@@ -4742,7 +4747,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ApprovalRequestEvent',
-    declaration: 'export interface ApprovalRequestEvent {\n    readonly agent: Agent;\n    readonly toolName: string;\n    readonly callId?: ToolCallId;\n    readonly reason?: string;\n    readonly displayReason?: {\n        readonly en: string;\n        readonly [locale: string]: string;\n    };\n    readonly signal?: AbortSignal;\n}',
+    declaration: 'export interface ApprovalRequestEvent {\n    readonly agent: Agent;\n    readonly toolName: string;\n    readonly callId?: ToolCallId;\n    readonly reason?: string;\n    readonly detailMode?: \'summary-only\';\n    readonly displayReason?: {\n        readonly en: string;\n        readonly [locale: string]: string;\n    };\n    readonly signal?: AbortSignal;\n}',
   },
   {
     name: 'ArchiveSessionOptions',
@@ -5962,7 +5967,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'McpToolCallEvent',
-    declaration: 'export interface McpToolCallEvent {\n    readonly serverName: string;\n    readonly rawName: string;\n    readonly execution: ToolExecution;\n    readonly signal: AbortSignal;\n    addCancellation(signal: AbortSignal): void;\n}',
+    declaration: 'export interface McpToolCallEvent {\n    readonly serverName: string;\n    readonly rawName: string;\n    readonly execution: ToolExecution;\n    readonly signal: AbortSignal;\n    readonly dispatchStatus: \'pending\' | \'dispatched\' | \'responded\';\n    addCancellation(signal: AbortSignal): void;\n}',
   },
   {
     name: 'Message',
@@ -7998,7 +8003,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ToolRuntime',
-    declaration: 'export class ToolRuntime extends Service {\n    static inject;\n    static Config: z<Config>;\n    readonly [TOOL_RUNTIME_SCHEDULER]: ToolRuntimeScheduler;\n    constructor(ctx: Context, config: Config = {});\n    presentAs(mode: ToolPresentationMode): () => void;\n    register(definition: ToolDefinition): () => void;\n    restrict(filter: ToolRestriction): () => void;\n    guard(guard: ToolGuard): () => void;\n    get(name: string, scope?: ScopeKey): ToolDefinition | undefined;\n    schemas(scope?: ScopeKey): ToolSchema[];\n    executionMode(exec: ToolExecutionInput): ToolExecutionMode;\n    async execute(exec: ToolExecutionInput): Promise<ToolExecutionResult>;\n}',
+    declaration: 'export class ToolRuntime extends Service {\n    static inject;\n    static Config: z<Config>;\n    readonly [TOOL_RUNTIME_SCHEDULER]: ToolRuntimeScheduler;\n    constructor(ctx: Context, config: Config = {});\n    presentAs(mode: ToolPresentationMode): () => void;\n    register(definition: ToolDefinition): () => void;\n    restrict(filter: ToolRestriction): () => void;\n    guard(guard: ToolGuard): () => void;\n    guardResult(execution: ToolExecution, check: (result: Readonly<ToolExecutionResult>) => undefined): void;\n    get(name: string, scope?: ScopeKey): ToolDefinition | undefined;\n    schemas(scope?: ScopeKey): ToolSchema[];\n    executionMode(exec: ToolExecutionInput): ToolExecutionMode;\n    async execute(exec: ToolExecutionInput): Promise<ToolExecutionResult>;\n}',
   },
   {
     name: 'ToolRuntimeScheduler',

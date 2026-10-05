@@ -34,6 +34,37 @@ function messageId(value: unknown): string | undefined {
   return value.id
 }
 
+function websitePreparationRequestId(text: string): string | undefined {
+  const suffix = '\nWaiting for the human to Resume this request. No page access is granted.'
+  if (!text.endsWith(suffix)) return undefined
+  let value: unknown
+  try { value = JSON.parse(text.slice(0, -suffix.length)) }
+  catch (_error) { // Non-JSON tool text is not a preparation receipt.
+    return undefined
+  }
+  if (!isRecord(value) || Object.keys(value).length !== 4
+    || typeof value.requestId !== 'string' || typeof value.profileId !== 'string'
+    || typeof value.mcpServerName !== 'string' || value.status !== 'pending') return undefined
+  if (UUID_FRAGMENT_RE.exec(value.requestId)?.[0] !== value.requestId
+    && !CANONICAL_TOKEN_RE.test(value.requestId)) return undefined
+  return value.requestId
+}
+
+function websitePreparationIds(record: Record<string, unknown>, callIds: ReadonlySet<string>): string[] {
+  if (record.type !== 'tool/result' || !isRecord(record.data)
+    || !isRecord(record.data.message)) return []
+  const message = record.data.message
+  if (!Array.isArray(message.content) || message.role !== 'tool' || message.isError !== false
+    || typeof message.toolCallId !== 'string' || !callIds.has(message.toolCallId)) return []
+  const ids: string[] = []
+  for (const part of message.content) {
+    if (!isRecord(part) || part.type !== 'text' || typeof part.text !== 'string') continue
+    const id = websitePreparationRequestId(part.text)
+    if (id !== undefined) ids.push(id)
+  }
+  return ids
+}
+
 function redactedCandidate(value: string): boolean {
   return UUID_FRAGMENT_RE.test(value) || LEGACY_TOKEN_RE.test(value) || CANONICAL_TOKEN_RE.test(value)
 }
@@ -101,7 +132,15 @@ export function redactSessionSnapshotIds(logs: readonly string[]): string[] {
     }
   }
   for (const log of parsed) {
+    const preparationCallIds = new Set<string>()
     for (const record of log.records) {
+      if (record.type === 'tool/call' && isRecord(record.data)
+        && record.data.name === 'website_prepare' && typeof record.data.callId === 'string') {
+        preparationCallIds.add(record.data.callId)
+      }
+    }
+    for (const record of log.records) {
+      for (const id of websitePreparationIds(record, preparationCallIds)) claim(id, 'id')
       if (record.type === 'feedback/message-put' && isRecord(record.data) && isRecord(record.data.item)) {
         claim(record.data.item.version, 'id')
       }

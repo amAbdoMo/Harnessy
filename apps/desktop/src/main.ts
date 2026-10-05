@@ -58,6 +58,9 @@ import { DesktopPolicyTestAuth } from './policy-test-auth.ts'
 import { DesktopUpdateDialog, type UpdateDialogOptions } from './update-dialog.ts'
 import { readDesktopRuntime } from './runtime-tree.ts'
 import { DesktopBrowserGuests } from './browser-guests.ts'
+import { DesktopWebsiteAuthority } from './website-authority.ts'
+import { parseWebsiteProfileId } from './website-profiles.ts'
+import { installWebsiteRequestIpc } from './website-request-ipc.ts'
 import { installDesktopShortcuts } from './keyboard.ts'
 import { DesktopUpdateOverlays } from './update-overlay.ts'
 import { DesktopQuitConfirmation } from './quit-confirmation.ts'
@@ -451,7 +454,45 @@ async function main(): Promise<void> {
   const applicationUrl = `${SCHEME}://app/`
   let hostUrl: string | undefined
   let hostCookie: string | undefined
-  const browserGuests = new DesktopBrowserGuests(() => hostUrl)
+  const browserGuests = new DesktopBrowserGuests(() => hostUrl,
+    (owner, lease, address): boolean => websiteAuthority.allowsNativeNavigation(owner, lease, address))
+  const websiteProfiles = browserGuests.createProfiles(join(app.getPath('userData'), 'website-profiles.json'), {
+    inspect: async (serverName) => {
+      const host = backend.host
+      if (host === undefined) throw new Error('Website MCP registry is unavailable while the Host is restarting')
+      const binding = await host.inspectWebsiteMcp(serverName)
+      if (backend.host !== host) throw new Error('Website MCP Host changed during pairing')
+      return binding
+    },
+    enroll: async (profiles) => {
+      const host = websiteHost
+      const backendHost = backend.host
+      if (host === undefined || backendHost === undefined) throw new Error('Website MCP Host is unavailable for enrollment')
+      await host.websiteControl({ action: 'sync', profiles })
+      if (websiteHost !== host || backend.host !== backendHost) throw new Error('Website MCP Host changed during enrollment')
+    },
+    confirm: async (input, binding) => {
+      const result = await ordinaryMessageBox({ type: 'question', title: locale.messages.websitePairingTitle,
+        message: locale.messages.websitePairingMessage,
+        detail: formatDesktopMessage(locale.messages.websitePairingDetail,
+          { server: input.mcpServerName, endpoint: binding.endpoint, website: input.url,
+            account: input.accountLabel || locale.messages.websitePairingUnnamedAccount }),
+        buttons: [locale.messages.websitePairingConfirm, locale.messages.cancel], defaultId: 1, cancelId: 1 })
+      if (result.response !== 0) throw new Error('Website pairing was cancelled')
+    },
+  }, account => websiteAuthority.requests.revokeAccount(account))
+  let websiteHost: DesktopHostProcess | undefined
+  const websiteAuthority = new DesktopWebsiteAuthority({
+    currentHost: () => backend.host === undefined ? undefined : websiteHost,
+    window: () => mainWindow, applicationUrl, profiles: websiteProfiles, guests: browserGuests,
+  })
+  websiteProfiles.subscribe(() => {
+    websiteAuthority.profilesChanged()
+    if (websiteHost !== undefined && backend.host !== undefined) {
+      void websiteAuthority.synchronize(websiteHost).catch((error: unknown) => { console.error('Website pairing synchronization failed', error) })
+    }
+    if (mainWindow !== undefined && !mainWindow.isDestroyed()) mainWindow.webContents.send(DESKTOP_IPC.websiteProfilesChanged)
+  })
   let injections: readonly unknown[] = []
   let welcomeBackend: DesktopWelcomeBackend | undefined
   let stopAccount: (() => void) | undefined
@@ -468,6 +509,14 @@ async function main(): Promise<void> {
       throw new Error('dsh desktop: rejected IPC from an unowned renderer')
     }
   }
+  const detachWebsiteRequestIpc = installWebsiteRequestIpc(ipcMain, assertProductSender, websiteAuthority)
+  const detachWebsiteRequestChanges = websiteAuthority.subscribe(() => {
+    if (mainWindow !== undefined && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send(DESKTOP_IPC.websiteRequestsChanged)
+      mainWindow.webContents.send(DESKTOP_IPC.websiteProfilesChanged)
+    }
+  })
+  app.once('will-quit', () => { detachWebsiteRequestIpc(); detachWebsiteRequestChanges() })
   ipcMain.handle(DESKTOP_IPC.notificationsShow, (event, payload: unknown): boolean => {
     assertProductSender(event)
     const copy = parseDesktopNotificationPayload(payload)
@@ -504,12 +553,18 @@ async function main(): Promise<void> {
   const backend = new DesktopBackendController((onFailure) => {
     const hostInspectPort = developmentHostInspectPort(development)
     const host = new DesktopHostProcess(resources.node, resources.dsh, activeProject,
-      hostInspectPort, process.env, onFailure,
+      hostInspectPort, process.env, (error) => {
+        void websiteAuthority.requests.revokeHost(host).catch((_failure: unknown) => { /* Captured failed transactions stay locked. */ })
+        onFailure(error)
+      },
       primaryRuntime,
       resources, (next) => { platformView.setSession(next) })
+    websiteHost = host
+    const detachWebsiteHost = websiteAuthority.attachHost(host)
     return {
       start: async () => {
         const ready = await host.start()
+        await websiteAuthority.synchronize(host)
         hostCookie = await authenticateWebHost(ready.url)
         hostUrl = ready.url
         if (ready.injections === undefined) throw new Error('Desktop Host did not provide boot injections')
@@ -555,6 +610,9 @@ async function main(): Promise<void> {
         })
       },
       stop: async () => {
+        const draining = detachWebsiteHost()
+        if (websiteHost === host) websiteHost = undefined
+        await draining.catch((error: unknown) => { console.error('Website authority could not confirm settlement before Host shutdown', error) })
         try { await host.stop(requireCleanStop) }
         catch (error) {
           if (!requireCleanStop || !(error instanceof DesktopHostUncleanExitError)) throw error
@@ -564,6 +622,7 @@ async function main(): Promise<void> {
       },
       updateTasks: (action: 'inspect' | 'lock' | 'unlock') => host.updateTasks(action),
       inspectQuit: () => host.inspectQuit(),
+      inspectWebsiteMcp: (serverName: string) => host.inspectWebsiteMcp(serverName),
     }
   }, (state) => {
     if (state.phase === 'error') reportFatal(state.failure, 'host')
@@ -791,6 +850,39 @@ async function main(): Promise<void> {
   ipcMain.handle(DESKTOP_IPC.browserRelease, (event, lease: unknown) => {
     assertProductSender(event)
     return browserGuests.release(event.sender, lease)
+  })
+  ipcMain.handle(DESKTOP_IPC.browserCommand, (event, lease: unknown, command: unknown) => {
+    assertProductSender(event)
+    return browserGuests.command(event.sender, lease, command)
+  })
+  ipcMain.handle(DESKTOP_IPC.websiteProfilesList, async (event) => {
+    assertProductSender(event)
+    return websiteAuthority.projectProfiles(await websiteProfiles.list())
+  })
+  ipcMain.handle(DESKTOP_IPC.websiteProfilesCreate, (event, input: unknown) => {
+    assertProductSender(event)
+    return websiteProfiles.create(input)
+  })
+  ipcMain.handle(DESKTOP_IPC.websiteProfilesAcquire, async (event, id: unknown) => {
+    assertProductSender(event)
+    const profile = await websiteProfiles.acquire(id)
+    assertProductSender(event)
+    websiteProfiles.assertAvailable(profile.id)
+    return browserGuests.acquireProfile(event.sender, profile.id)
+  })
+  ipcMain.handle(DESKTOP_IPC.websiteProfilesControl, (event, id: unknown, control: unknown) => {
+    assertProductSender(event)
+    if (control !== 'human') throw new Error('Resume requires an acknowledged website request, not profile-wide permission')
+    const draining = websiteAuthority.takeover(parseWebsiteProfileId(id))
+    return websiteProfiles.setControl(id, 'human').then(() => draining)
+  })
+  ipcMain.handle(DESKTOP_IPC.websiteProfilesSignOut, (event, id: unknown) => {
+    assertProductSender(event)
+    return websiteProfiles.signOut(id)
+  })
+  ipcMain.handle(DESKTOP_IPC.websiteProfilesForget, (event, id: unknown) => {
+    assertProductSender(event)
+    return websiteProfiles.forget(id)
   })
 
   session.defaultSession.webRequest.onBeforeSendHeaders({ urls: ['ws://127.0.0.1/*'] }, (details, callback) => {
@@ -1148,6 +1240,8 @@ async function main(): Promise<void> {
   }
 
   const hideMainWindow = (window: BrowserWindow): void => {
+    void websiteAuthority.requests.revokeOwner(window.webContents)
+      .catch((_error: unknown) => { /* Hidden guests remain unauthorized after failed settlement. */ })
     if (process.platform === 'darwin' && window.isFullScreen()) {
       // Hiding a fullscreen window leaves an empty black space; leave fullscreen first.
       window.once('leave-full-screen', () => { if (!window.isDestroyed()) window.hide() })
@@ -1162,6 +1256,15 @@ async function main(): Promise<void> {
     browserGuests.bind(window, (guest, name) => shortcuts.attachGuest(window, guest, name))
     shortcuts.attach(window)
     window.on('focus', automaticCheck)
+    const revokeWebsiteOwner = (): void => {
+      void websiteAuthority.requests.revokeOwner(window.webContents)
+        .catch((_error: unknown) => { /* Native privacy changes retain failed drainage. */ })
+    }
+    window.on('hide', revokeWebsiteOwner)
+    window.on('minimize', revokeWebsiteOwner)
+    window.on('close', revokeWebsiteOwner)
+    window.webContents.on('render-process-gone', revokeWebsiteOwner)
+    window.webContents.once('destroyed', revokeWebsiteOwner)
     // Closing hides: the page and the Host keep running, and the next show resumes the same document.
     window.on('close', (event) => {
       if (quitting || shellInstallerOwnsQuit || sessionEnding) return

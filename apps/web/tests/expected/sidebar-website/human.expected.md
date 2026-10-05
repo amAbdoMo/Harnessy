@@ -1,0 +1,6 @@
+- text: Fixture site Test account Human control
+- paragraph: Sign in to this site in the page above. Your password is typed only in the page and is not stored by DeepSeek Harness; the site may keep its own cookies on this computer
+- button "Choose a request"
+- button "Resume" [disabled]
+- button "Sign out"
+- button "Forget"

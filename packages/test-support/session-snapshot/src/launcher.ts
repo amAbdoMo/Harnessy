@@ -75,6 +75,8 @@ export interface AcpTestLaunchOptions {
   env?: NodeJS.ProcessEnv
   /** Permission handler; omitted requests fail closed as `cancelled`. */
   requestPermission?: (params: RequestPermissionRequest) => Promise<RequestPermissionResponse>
+  /** Opt-in private scenario IPC; never shares ACP stdout or model-facing tools. */
+  privateMessage?: (message: unknown, send: (message: object) => Promise<void>) => void | Promise<void>
 }
 
 /** Stable ACP methods used by the subprocess test harness. */
@@ -104,6 +106,8 @@ export interface LaunchedAcpTestAgent {
   rawStdout(): string
   /** Decode all stderr chunks captured so far. */
   stderr(): string
+  /** @param message - test-only private control packet. @returns OS delivery acknowledgement; rejects without opt-in IPC. */
+  sendPrivateMessage(message: object): Promise<void>
   /** Resolve when a future session update matches the predicate. */
   waitForUpdate(match: (update: SessionNotification['update']) => boolean): Promise<SessionNotification['update']>
   /** Close the process and drain its streams and callbacks; rejects promptly if fallback termination is refused. */
@@ -133,15 +137,18 @@ export function launchAcpTestAgent(options: AcpTestLaunchOptions): LaunchedAcpTe
       DSH_AGENTS_HOME: join(cwd, '.agents'),
     },
   })
+  const stdio: ['pipe', 'pipe', 'pipe', ...'ipc'[]] = options.privateMessage === undefined
+    ? ['pipe', 'pipe', 'pipe'] : ['pipe', 'pipe', 'pipe', 'ipc']
+  // Node's types omit the piped-stream overload when a fourth IPC descriptor is present.
   const child = spawn(
     launch.command,
     launch.args,
     {
       cwd,
       env: { ...process.env, ...launch.env },
-      stdio: ['pipe', 'pipe', 'pipe'],
+      stdio,
     },
-  )
+  ) as ChildProcessWithoutNullStreams
   // A spawn-level failure is an asynchronous `error` event. Observe it in the
   // same tick as spawn so a missing cwd or OS rejection cannot crash the test
   // runner, then make startup and shutdown surface the original error.
@@ -194,6 +201,25 @@ export function launchAcpTestAgent(options: AcpTestLaunchOptions): LaunchedAcpTe
     const untrack = (): void => { inFlightClientCallbacks.delete(pending) }
     void pending.then(untrack, untrack)
     return pending
+  }
+  let privateFailure: Error | undefined
+  const sendPrivateMessage = (message: object): Promise<void> => new Promise((resolve, reject) => {
+    if (options.privateMessage === undefined || !child.connected) {
+      reject(new Error('ACP test private IPC is unavailable'))
+      return
+    }
+    child.send(message, (error) => {
+      if (error === null) resolve()
+      else reject(error)
+    })
+  })
+  if (options.privateMessage !== undefined) {
+    const receive = options.privateMessage
+    child.on('message', (message: unknown) => {
+      void trackClientCallback(() => receive(message, sendPrivateMessage)).catch((error: unknown) => {
+        privateFailure = error instanceof Error ? error : new Error('Private scenario IPC failed', { cause: error })
+      })
+    })
   }
   const requestPermission = options.requestPermission
     ?? (() => Promise.resolve({ outcome: { outcome: 'cancelled' as const } }))
@@ -252,7 +278,10 @@ export function launchAcpTestAgent(options: AcpTestLaunchOptions): LaunchedAcpTe
     while (inFlightClientCallbacks.size > 0) {
       await Promise.allSettled([...inFlightClientCallbacks])
     }
+    if (privateFailure !== undefined) throw privateFailure
   })
+  // close() reports private callback failures after joining process teardown.
+  void drained.catch(() => undefined)
   // A caller may await a pending update without calling close(). Make natural
   // stream exhaustion terminal for those waiters too, but only after the
   // parser has dispatched every buffered frame.
@@ -265,6 +294,7 @@ export function launchAcpTestAgent(options: AcpTestLaunchOptions): LaunchedAcpTe
     updates,
     rawStdout: () => Buffer.concat(rawBuffers).toString('utf8'),
     stderr: () => stderrChunks.join(''),
+    sendPrivateMessage,
     waitForUpdate(match): Promise<SessionNotification['update']> {
       if (updateStreamFailure !== undefined) return Promise.reject(updateStreamFailure)
       return new Promise((resolve, reject) => updateWaiters.push({ match, resolve, reject }))

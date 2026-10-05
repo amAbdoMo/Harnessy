@@ -4,6 +4,12 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { join } from 'node:path'
 import type { PlatformSession } from '@deepseek-ai/dsh-deepseek-account'
 import { desktopNodeEnvironment } from './node-environment.ts'
+import type { DesktopWebsiteMcpBinding } from './website-profiles.ts'
+import type {
+  DesktopWebsiteHostCommand, DesktopWebsiteHostSnapshot, DesktopWebsiteOperationCommand, DesktopWebsitePageInfo,
+  DesktopWebsiteBrowserOperation, DesktopWebsiteBrowserResult,
+} from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
+import { DesktopWebsiteOperations, isWebsiteOperationCommand } from './website-operations.ts'
 
 interface ReadyEvent {
   readonly type: 'ready'
@@ -23,7 +29,7 @@ interface PlatformSessionEvent {
   readonly session: PlatformSession | null
 }
 
-type DesktopHostEvent = ReadyEvent | FatalEvent | PlatformSessionEvent | { readonly type: 'shutdown-complete' } | {
+type DesktopHostEvent = DesktopWebsiteOperationCommand | ReadyEvent | FatalEvent | PlatformSessionEvent | { readonly type: 'shutdown-complete' } | {
   readonly type: 'update-tasks'
   readonly requestId: number
   readonly active: boolean
@@ -34,10 +40,30 @@ type DesktopHostEvent = ReadyEvent | FatalEvent | PlatformSessionEvent | { reado
   readonly activeTasks: boolean
   readonly scheduledTasks: boolean
   readonly error?: string
+} | {
+  readonly type: 'website-mcp'
+  readonly requestId: number
+  readonly binding?: DesktopWebsiteMcpBinding
+  readonly error?: string
+} | {
+  readonly type: 'website-control'
+  readonly requestId: number
+  readonly snapshot?: DesktopWebsiteHostSnapshot
+  readonly error?: string
+} | {
+  readonly type: 'website-revoked'
+  readonly snapshot: DesktopWebsiteHostSnapshot
+} | {
+  readonly type: 'website-prepared'
+  readonly snapshot: DesktopWebsiteHostSnapshot
+} | {
+  readonly type: 'website-check'
+  readonly requestId: number
+  readonly snapshot: DesktopWebsiteHostSnapshot
 }
 
 /** Correlated answer to one shell control request. */
-type DesktopHostControlResponse = Extract<DesktopHostEvent, { readonly requestId: number }>
+type DesktopHostControlResponse = Exclude<Extract<DesktopHostEvent, { readonly requestId: number }>, { readonly type: 'website-check' }>
 
 /** What quitting now would affect, as reported by the Host. */
 export interface DesktopQuitInspection {
@@ -49,11 +75,27 @@ export interface DesktopQuitInspection {
 export const QUIT_INSPECTION_DEADLINE_MS = 2_000
 
 const MAX_HOST_DIAGNOSTIC_CHARS = 64 * 1024
+const WEBSITE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+
+function isWebsiteSnapshot(value: unknown): value is DesktopWebsiteHostSnapshot {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
+  const snapshot = value as Record<string, unknown>
+  return typeof snapshot.id === 'string' && WEBSITE_UUID.test(snapshot.id)
+    && typeof snapshot.profile === 'string' && WEBSITE_UUID.test(snapshot.profile)
+    && typeof snapshot.sessionId === 'string' && snapshot.sessionId.length > 0 && snapshot.sessionId.length <= 4096
+    && !/[\x00-\x1f\x7f]/.test(snapshot.sessionId)
+    && typeof snapshot.epoch === 'number' && Number.isSafeInteger(snapshot.epoch) && snapshot.epoch > 0
+    && ['pending', 'granted', 'revoked'].includes(String(snapshot.status))
+    && (snapshot.terminal === undefined || (snapshot.terminal === true && snapshot.status === 'revoked'))
+}
 
 function isDesktopHostEvent(message: unknown): message is DesktopHostEvent {
   if (typeof message !== 'object' || message === null || !('type' in message)) return false
   const candidate = message as Record<string, unknown>
   switch (candidate.type) {
+    case 'website-operation':
+    case 'website-operation-cancel':
+      return isWebsiteOperationCommand(message)
     case 'shutdown-complete':
       return true
     case 'ready':
@@ -82,6 +124,26 @@ function isDesktopHostEvent(message: unknown): message is DesktopHostEvent {
     case 'update-tasks':
       return Number.isSafeInteger(candidate.requestId) && typeof candidate.active === 'boolean'
         && (candidate.error === undefined || typeof candidate.error === 'string')
+    case 'website-mcp': {
+      if (!Number.isSafeInteger(candidate.requestId)) return false
+      if (typeof candidate.error === 'string') return candidate.error.length <= 2048 && candidate.binding === undefined
+      const binding = candidate.binding
+      return candidate.error === undefined && typeof binding === 'object' && binding !== null
+        && 'identity' in binding && typeof binding.identity === 'string' && /^[0-9a-f]{64}$/.test(binding.identity)
+        && 'endpoint' in binding && typeof binding.endpoint === 'string' && binding.endpoint.length > 0
+        && binding.endpoint.length <= 2048 && !/[\x00-\x1f\x7f]/.test(binding.endpoint)
+    }
+    case 'website-check':
+      return Number.isSafeInteger(candidate.requestId) && typeof candidate.requestId === 'number' && candidate.requestId > 0
+        && isWebsiteSnapshot(candidate.snapshot) && candidate.snapshot.status === 'granted'
+    case 'website-prepared':
+      return isWebsiteSnapshot(candidate.snapshot) && candidate.snapshot.status === 'pending'
+    case 'website-revoked':
+      return isWebsiteSnapshot(candidate.snapshot) && candidate.snapshot.status === 'revoked'
+    case 'website-control':
+      return Number.isSafeInteger(candidate.requestId)
+        && (candidate.error === undefined || (typeof candidate.error === 'string' && candidate.error.length <= 2048))
+        && (candidate.snapshot === undefined || (candidate.error === undefined && isWebsiteSnapshot(candidate.snapshot)))
     case 'quit-inspection':
       return Number.isSafeInteger(candidate.requestId) && typeof candidate.activeTasks === 'boolean'
         && typeof candidate.scheduledTasks === 'boolean' && (candidate.error === undefined || typeof candidate.error === 'string')
@@ -149,7 +211,18 @@ export class DesktopHostProcess {
   private stopping = false
   private shutdownCompleted = false
   private nextControlId = 1
+  private readonly websiteRevocations = new Set<(snapshot: DesktopWebsiteHostSnapshot) => void>()
+  private readonly websitePreparations = new Set<(snapshot: DesktopWebsiteHostSnapshot) => void>()
+  private readonly websiteChecks = new Set<(snapshot: DesktopWebsiteHostSnapshot) => void>()
+  private websitePageInfo: {
+    readonly run: (snapshot: DesktopWebsiteHostSnapshot, signal: AbortSignal) => Promise<DesktopWebsitePageInfo>
+    readonly check: (snapshot: DesktopWebsiteHostSnapshot) => void
+    readonly browser?: (snapshot: DesktopWebsiteHostSnapshot, signal: AbortSignal,
+      operation: DesktopWebsiteBrowserOperation) => Promise<DesktopWebsiteBrowserResult>
+  } | undefined
+  private websiteOperations: DesktopWebsiteOperations | undefined
   private readonly controlRequests = new Map<number, {
+    type: DesktopHostControlResponse['type']
     resolve: (response: DesktopHostControlResponse) => void
     reject: (error: Error) => void
   }>()
@@ -164,7 +237,8 @@ export class DesktopHostProcess {
    * @param primaryRuntime - Optional bundled dependency payload; when supplied, missing sibling
    *   `office-skills` resources fail Host startup.
    * @param packageManager - Bundled pnpm entry and Node launcher directory, scoped to package operations.
-   * @param onPlatformSession - Private credential updates for embedded Platform views.
+   * @param onPlatformSession - Private credential updates for embedded Platform views; exceptions are logged
+   *   without interrupting child teardown.
    */
   constructor(
     private readonly node: string,
@@ -200,17 +274,64 @@ export class DesktopHostProcess {
       stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
     })
     this.child = child
+    const owner = this.websitePageInfo
+    const assertOwner = () => {
+      if (owner === undefined || this.websitePageInfo !== owner || this.child !== child || this.stopping) {
+        throw new Error('Website native observation owner is unavailable')
+      }
+      return owner
+    }
+    const operations = new DesktopWebsiteOperations(
+      (snapshot, signal) => assertOwner().run(snapshot, signal),
+      (response) => {
+        if (this.child !== child || !child.connected || (this.stopping && response.outcome === 'success')) return
+        try { child.send(response, (error) => { if (error !== null && this.child === child) this.fail(error) }) }
+        catch (error: unknown) { this.fail(error instanceof Error ? error : new Error('Website operation transport failed')) }
+      },
+      (snapshot) => { assertOwner().check(snapshot) },
+      (snapshot, signal, operation) => {
+        const browser = assertOwner().browser
+        if (browser === undefined) throw new Error('Website browser operations are unavailable')
+        return browser(snapshot, signal, operation)
+      })
+    this.websiteOperations = operations
     child.stderr?.setEncoding('utf8')
     child.stderr?.on('data', (chunk: string) => { this.stderr = (this.stderr + chunk).slice(-MAX_HOST_DIAGNOSTIC_CHARS) })
     child.stdout?.pipe(process.stdout)
     child.on('message', (message: unknown) => {
+      if (this.child !== child) return
       if (!isDesktopHostEvent(message)) {
         this.fail(new Error('dsh desktop host sent an invalid IPC event'))
         child.kill('SIGTERM')
         return
       }
-      if (message.type === 'ready') this.readyResolve({ url: message.url, injections: message.injections })
-      else if (message.type === 'platform-session') this.onPlatformSession?.(message.session)
+      if (message.type === 'website-operation' || message.type === 'website-operation-cancel') operations.receive(message)
+      else if (message.type === 'ready') this.readyResolve({ url: message.url, injections: message.injections })
+      else if (message.type === 'platform-session') this.publishPlatformSession(message.session)
+      else if (message.type === 'website-check') {
+        let error: string | undefined
+        try {
+          if (this.websiteChecks.size !== 1) throw new Error('Website native admission owner is unavailable')
+          for (const listener of this.websiteChecks) listener(message.snapshot)
+        } catch (failure) { error = (failure instanceof Error ? failure.message : String(failure)).slice(0, 2048) }
+        child.send({ type: 'website-check-result', requestId: message.requestId, accepted: error === undefined,
+          ...(error === undefined ? {} : { error }) }, (failure) => { if (failure !== null) this.fail(failure) })
+      }
+      else if (message.type === 'website-prepared') {
+        let error: string | undefined
+        try {
+          if (this.websitePreparations.size !== 1) throw new Error('Website native request owner is unavailable')
+          for (const listener of this.websitePreparations) listener(message.snapshot)
+        } catch (failure) { error = (failure instanceof Error ? failure.message : String(failure)).slice(0, 2048) }
+        child.send({ type: 'website-prepared-ack', id: message.snapshot.id, ...(error === undefined ? {} : { error }) },
+          (failure) => { if (failure !== null) this.fail(failure) })
+      }
+      else if (message.type === 'website-revoked') {
+        for (const listener of this.websiteRevocations) {
+          try { listener(message.snapshot) }
+          catch (failure) { this.fail(failure instanceof Error ? failure : new Error(String(failure))) }
+        }
+      }
       else if (message.type === 'shutdown-complete') {
         if (this.stopping) this.shutdownCompleted = true
         else this.fail(new Error('dsh desktop host acknowledged an unrequested shutdown'))
@@ -218,16 +339,31 @@ export class DesktopHostProcess {
       else if (message.type === 'fatal') this.fail(new DesktopHostFatalError(message.message, message.diagnostic))
       else {
         const request = this.controlRequests.get(message.requestId)
-        if (message.error === undefined) request?.resolve(message)
+        if (request !== undefined && request.type !== message.type) {
+          request.reject(new Error('desktop Host answered with a different control response'))
+        } else if (message.error === undefined) request?.resolve(message)
         else request?.reject(new Error(message.error))
       }
     })
-    child.once('error', (error) => { this.fail(error) })
+    child.once('error', (error) => {
+      void operations.close()
+      if (this.child === child) this.fail(error)
+    })
+    child.once('disconnect', () => {
+      void operations.close()
+      if (this.child === child) {
+        const suffix = this.stderr.trim() === '' ? '' : `: ${this.stderr.trim()}`
+        this.fail(new Error(`dsh desktop host disconnected${suffix}`))
+      }
+    })
     this.exitPromise = new Promise<void>((resolve) => {
       child.once('close', (code) => {
-        const suffix = this.stderr.trim() === '' ? '' : `: ${this.stderr.trim()}`
-        if (code !== 0 && code !== null) this.fail(new Error(`dsh desktop host exited with ${String(code)}${suffix}`))
-        else this.fail(new Error(`dsh desktop host stopped${suffix}`))
+        void operations.close()
+        if (this.child === child) {
+          const suffix = this.stderr.trim() === '' ? '' : `: ${this.stderr.trim()}`
+          if (code !== 0 && code !== null) this.fail(new Error(`dsh desktop host exited with ${String(code)}${suffix}`))
+          else this.fail(new Error(`dsh desktop host stopped${suffix}`))
+        }
         resolve()
       })
     })
@@ -257,19 +393,101 @@ export class DesktopHostProcess {
     return { activeTasks: response.activeTasks, scheduledTasks: response.scheduledTasks }
   }
 
+  /** @param serverName - human-selected configured namespace. @returns the current non-secret endpoint binding. */
+  async inspectWebsiteMcp(serverName: string): Promise<DesktopWebsiteMcpBinding> {
+    const response = await this.control({ type: 'website-mcp', serverName }, 10_000, 'Website MCP registry inspection timed out')
+    if (response.type !== 'website-mcp' || response.binding === undefined) throw new Error('Website MCP registry returned no endpoint binding')
+    return response.binding
+  }
+
+  /**
+   * Install the sole native observation owner before child startup.
+   * @param listener - observe through captured native authority; resolve only after physical settlement.
+   * @param check - synchronously recheck authority immediately before publishing success.
+   * @param browser - optional captured same-guest browser executor; absence fails closed.
+   * @returns disposer that stops admission/success before aborting, then awaits settlement and rejection replies to the captured child.
+   */
+  onWebsitePageInfo(listener: (snapshot: DesktopWebsiteHostSnapshot, signal: AbortSignal) => Promise<DesktopWebsitePageInfo>,
+    check: (snapshot: DesktopWebsiteHostSnapshot) => void,
+    browser?: (snapshot: DesktopWebsiteHostSnapshot, signal: AbortSignal,
+      operation: DesktopWebsiteBrowserOperation) => Promise<DesktopWebsiteBrowserResult>): () => Promise<void> {
+    if (this.websitePageInfo !== undefined) throw new Error('Website native observation owner is already registered')
+    if (this.child !== undefined) throw new Error('Website native observation owner must register before child startup')
+    const owner = { run: listener, check, ...browser === undefined ? {} : { browser } }
+    this.websitePageInfo = owner
+    let disposal: Promise<void> | undefined
+    return () => {
+      if (disposal !== undefined) return disposal
+      const settlement: PromiseWithResolvers<void> = Promise.withResolvers()
+      disposal = settlement.promise
+      this.websitePageInfo = undefined
+      const quiescence = this.websiteOperations?.close() ?? Promise.resolve()
+      void quiescence.then(settlement.resolve, settlement.reject)
+      return disposal
+    }
+  }
+
+  /**
+   * @param listener - synchronously validate the exact current native grant before a Host operation; throwing refuses admission.
+   * @returns listener disposer.
+   */
+  onWebsiteCheck(listener: (snapshot: DesktopWebsiteHostSnapshot) => void): () => void {
+    this.websiteChecks.add(listener)
+    return () => { this.websiteChecks.delete(listener) }
+  }
+
+  /**
+   * @param listener - capture one exact pending Host request before its UI handoff; throwing refuses acknowledgement.
+   * @returns listener disposer.
+   */
+  onWebsitePrepared(listener: (snapshot: DesktopWebsiteHostSnapshot) => void): () => void {
+    this.websitePreparations.add(listener)
+    return () => { this.websitePreparations.delete(listener) }
+  }
+
+  /** @param listener - synchronous native authority revocation from this exact captured Host. @returns listener disposer. */
+  onWebsiteRevoked(listener: (snapshot: DesktopWebsiteHostSnapshot) => void): () => void {
+    this.websiteRevocations.add(listener)
+    return () => { this.websiteRevocations.delete(listener) }
+  }
+
+  /**
+   * @param command - private inventory, exact-generation validation/admission, or teardown.
+   * @returns matching request snapshot, when supplied.
+   */
+  async websiteControl(command: DesktopWebsiteHostCommand): Promise<DesktopWebsiteHostSnapshot | undefined> {
+    const response = await this.control({ type: 'website-control', command }, 10_000, 'Website request control timed out')
+    if (response.type !== 'website-control') throw new Error('Website Host answered with a different control response')
+    if (command.action === 'sync' || command.action === 'drain' || command.action === 'remove') {
+      if (response.snapshot !== undefined) throw new Error('Website Host returned an unexpected request snapshot')
+      return undefined
+    }
+    const snapshot = response.snapshot
+    if (snapshot === undefined || snapshot.id !== command.id
+      || (command.action !== 'revoke' && snapshot.epoch !== command.epoch)
+      || snapshot.status !== (command.action === 'commit' ? 'granted' : command.action === 'validate' ? 'pending' : 'revoked')) {
+      throw new Error('Website Host answered for a different request or generation')
+    }
+    return snapshot
+  }
+
   private async control(
-    request: { readonly type: 'update-tasks'; readonly action: 'inspect' | 'lock' | 'unlock' } | { readonly type: 'quit-inspection' },
+    request: { readonly type: 'update-tasks'; readonly action: 'inspect' | 'lock' | 'unlock' } | { readonly type: 'quit-inspection' }
+      | { readonly type: 'website-mcp'; readonly serverName: string }
+      | { readonly type: 'website-control'; readonly command: DesktopWebsiteHostCommand },
     deadlineMs: number, deadlineMessage: string,
   ): Promise<DesktopHostControlResponse> {
     const child = this.child
     if (child === undefined || !child.connected || this.failureReported || this.stopping) {
-      throw new Error(`${request.type === 'update-tasks' ? 'desktop update' : 'desktop quit'}: Host is unavailable`)
+      const operation = request.type === 'website-mcp' ? 'Website MCP registry'
+        : request.type === 'website-control' ? 'Website request' : request.type === 'update-tasks' ? 'desktop update' : 'desktop quit'
+      throw new Error(`${operation}: Host is unavailable`)
     }
     const requestId = this.nextControlId++
     let timer: ReturnType<typeof setTimeout> | undefined
     try {
       return await new Promise<DesktopHostControlResponse>((resolve, reject) => {
-        this.controlRequests.set(requestId, { resolve, reject })
+        this.controlRequests.set(requestId, { type: request.type, resolve, reject })
         timer = setTimeout(() => { reject(new Error(deadlineMessage)) }, deadlineMs)
         child.send({ ...request, requestId }, (error) => { if (error !== null) reject(error) })
       })
@@ -282,33 +500,49 @@ export class DesktopHostProcess {
   /**
    * Request teardown and await child exit, escalating termination when needed.
    * @param requireGraceful - Reject update handoff after forced termination or unsuccessful child exit.
-   * @returns Completion of owned process teardown. DesktopHostUncleanExitError confirms exit but refuses installation;
+   * @returns Completion of owned process teardown and physical native-operation settlement.
+   * DesktopHostUncleanExitError confirms exit but refuses installation;
    * other failures do not confirm exit.
    */
   async stop(requireGraceful = false): Promise<void> {
     const child = this.child
     if (child === undefined) return
     this.stopping = true
-    this.onPlatformSession?.(null)
-    if (child.connected) child.send({ type: 'shutdown' }, (error) => { if (error !== null) this.fail(error) })
-    const exited = this.exitPromise ?? Promise.resolve()
-    const graceful = await exitsWithin(exited, 10_000)
-    if (!graceful) child.kill('SIGTERM')
-    if (!await exitsWithin(exited, 5_000)) {
-      child.kill('SIGKILL')
-      if (!await exitsWithin(exited, 5_000)) {
-        throw new Error('dsh desktop host did not exit after SIGKILL')
+    const operationsSettled = this.websiteOperations?.close() ?? Promise.resolve()
+    this.publishPlatformSession(null)
+    let graceful = false
+    try {
+      if (child.connected) {
+        try { child.send({ type: 'shutdown' }, (error) => { if (error !== null && this.child === child) this.fail(error) }) }
+        catch (error: unknown) { this.fail(error instanceof Error ? error : new Error('Desktop shutdown transport failed')) }
       }
+      const exited = this.exitPromise ?? Promise.resolve()
+      graceful = await exitsWithin(exited, 10_000)
+      if (!graceful) child.kill('SIGTERM')
+      if (!await exitsWithin(exited, 5_000)) {
+        child.kill('SIGKILL')
+        if (!await exitsWithin(exited, 5_000)) {
+          throw new Error('dsh desktop host did not exit after SIGKILL')
+        }
+      }
+    } finally {
+      await operationsSettled
     }
-    this.child = undefined
+    if (this.child === child) this.child = undefined
     if (requireGraceful && (!graceful || child.exitCode !== 0 || !this.shutdownCompleted)) {
       // This diagnostic reaches expandable UI; arbitrary plugin stderr can contain credentials.
       throw new DesktopHostUncleanExitError(`desktop update: Host did not complete graceful task teardown (exit ${String(child.exitCode)}, signal ${String(child.signalCode)}, shutdown acknowledged ${String(this.shutdownCompleted)}, graceful deadline exceeded ${String(!graceful)})`)
     }
   }
 
+  private publishPlatformSession(session: PlatformSession | null): void {
+    try { this.onPlatformSession?.(session) }
+    catch (error: unknown) { console.error('desktop host platform session listener failed', error) }
+  }
+
   private fail(error: Error): void {
-    this.onPlatformSession?.(null)
+    void this.websiteOperations?.close()
+    this.publishPlatformSession(null)
     this.readyReject(error)
     for (const request of this.controlRequests.values()) request.reject(error)
     this.controlRequests.clear()

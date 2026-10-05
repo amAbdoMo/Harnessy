@@ -1,0 +1,7 @@
+- text: Fixture site Test account Agent control
+- paragraph: The agent can observe and use this signed-in page
+- button "Request website-fixture-request"
+- button "Resume" [disabled]
+- button "Take control"
+- button "Sign out"
+- button "Forget"

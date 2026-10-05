@@ -76,9 +76,6 @@
       "path": "../store"
     },
     {
-      "path": "../ui-approval"
-    },
-    {
       "path": "../ui-conversation/tsconfig.client.json"
     },
     {

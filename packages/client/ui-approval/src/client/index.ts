@@ -8,7 +8,10 @@ import type { PendingInteractionPublisher } from '@deepseek-ai/dsh-client-ui-ses
 import type { TypertClientEventListener } from '@deepseek-ai/dsh-typert-protocol'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type { ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client'
+import { ApprovalCommand, type ApprovalCommandInjected } from './ApprovalCommand.tsx'
 import { ApprovalPanel } from './ApprovalPanel.tsx'
+import { ApprovalCheckpoint } from './ApprovalCheckpoint.tsx'
+import { approvalDefinition } from './approval-definition.ts'
 import { PendingApproval } from './contract/slots.ts'
 import { en, zh } from './locales.ts'
 
@@ -22,7 +25,7 @@ export type {
 export type { ApprovalKey } from './locales.ts'
 
 /** Required services: Agent scopes, Remote Events, Session UI, Slot registry, and copy. */
-export const inject = ['sessions', 'remote', 'uiSession', 'slots', 'locale']
+export const inject = ['sessions', 'remote', 'uiSession', 'slots', 'locale', 'uiConversation']
 
 const NS = 'approval'
 
@@ -48,6 +51,7 @@ async function answerApproval(
       ? {}
       : { callId: request.callId }),
     ...(request.reason === undefined ? {} : { reason: request.reason }),
+    ...(request.detailMode === undefined ? {} : { detailMode: request.detailMode }),
     ...(request.displayReason === undefined ? {} : { displayReason: request.displayReason }),
     ...(request.signal === undefined ? {} : { signal: request.signal }),
   })
@@ -76,6 +80,12 @@ async function answerApproval(
  */
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-approval: dictionaries')
+  ctx.uiConversation.events.register(approvalDefinition)
+  ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({
+    name: 'conversation.chat.node',
+    key: 'approval-checkpoint',
+    locale: NS,
+  }, ApprovalCheckpoint))
   ctx.inject(['shortcuts'], (scope) => {
     const t = ctx.locale.bind(NS)
     scope.effect(() => scope.shortcuts.registerFixed({
@@ -101,6 +111,12 @@ export function apply(ctx: ClientContext): void {
       'conversation.approval.detail': { kind: 'single', scope: 'session' },
     },
   }, ApprovalPanel))
+  ctx.slots.inject('conversation.approval.detail', () => ctx.slots.register({
+    name: 'conversation.approval.detail',
+    inject: (): ApprovalCommandInjected => ({
+      nodeKey: callId => ctx.uiConversation.contextKey('tool-call', callId),
+    }),
+  }, ApprovalCommand))
   ctx.remote.$on('approval/request', function (request, next) {
     return answerApproval(ctx, this, request, next, registerPendingInteraction)
   })

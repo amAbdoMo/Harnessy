@@ -44,7 +44,7 @@ Client 插件可以调用 `ctx.sidebarRight.openTab('browser', { params: { url }
 
 命令 `browser.new` 在焦点停靠分栏打开独立浏览器页，替换开始页并保留已有内容页。从聊天区或浮动内容页触发时，使用活动停靠分栏。桌面默认键在 macOS 上为 Cmd+T，在 Windows 上为 Ctrl+T；Windows 和 macOS Web 使用[快捷键服务的平台默认值](../shortcuts/README.zh.md)；Linux Web 默认不绑定此命令。开始页按钮使用蓝色地球图标，并在按钮内显示有效快捷键，不额外弹出重复提示。
 
-工具栏提供后退、前进、刷新、前往和在系统浏览器中打开。Web 还提供逐 tab sandbox 开关；关闭它是临时选择，并会显示警告。Desktop 显示观察到的页面标题。重启后，Browser 展示保存的标题和 URL；只有点击恢复或刷新才打开该地址。
+工具栏提供后退、前进、刷新、前往和在系统浏览器中打开。Web 还提供带警告的临时逐 tab sandbox 开关。普通 Desktop tab 显示观察到的标题并保留标题/URL 检查点；重启后通过恢复或刷新显式打开。已保存账户 tab 只保留配置的起始 URL，不保留观察到的标题或导航。Desktop 的 Browser guide 可以创建或选择记住的站点/账户/MCP 配对。请手动登录；选择 Session 请求并点击 Resume，将当前可见 guest 交给该请求，或点击 Takeover 立即撤销。Main 在原生派发前即时授权用户导航命令，包括延迟加载；账号别名持续被阻止，直到已准入工作实际结束。占用状态不授予页面权限；账号接管保留登录与配对，本地恢复不可用时也不能绕过等待工作停稳的失败。已保存账号的原生失败不会暴露页面诊断。Sign out 清除认证；Forget 仅在清理成功后删除配对。
 
 -----
 
@@ -66,9 +66,9 @@ Web 记录 toolbar 提交和 typed tab 打开。导航状态机把每个受控 r
 
 ### Controller
 
-每个 tab 的 `BrowserController` 负责地址校验、命令和显式恢复。`BrowserFrame` 提供与载体无关的导航状态；`IframeImpl` 使用 `BrowserNavigation`，`ElectronWebViewImpl` 观察 Chromium history。`BrowserPresentation` 负责 DOM 的物理挂载。Slot injection 提供 `useBrowserState` 和普通 callback，React body 不接收 provider 对象或 observable。
+每个 tab 的 `BrowserController` 负责地址校验、命令和显式恢复。`BrowserFrame` 提供与载体无关的导航状态；`IframeImpl` 使用 `BrowserNavigation`，`ElectronWebViewImpl` 仅为普通 tab 观察 Chromium history。`BrowserPresentation` 负责 DOM 的物理挂载。Session 所有的 `WebsiteRequestSession` 维护有界请求列表与精确 claim；每个已保存账户页面负责自身的准入、撤销和清理等待。销毁会同步停止请求列表观察，并在不等待原生清理完成的情况下撤下控件。它会等待准入和 guest 释放，包括迟到的获取结果；失败的清理仍可等待，并阻止复用。框架绑定的 Browser、profile 和 request hook 提供快照；组件只接收普通 callback，不接收 provider 或 observable 对象。
 
-Desktop 主进程批准 guest 租约，并执行挂载、导航和权限策略。preload 只暴露限定范围的 Browser 操作。共享声明通过标准 `/types` 出口配合 `import type` 引入；Host 与 Client 使用独立 tsconfig 编译。Desktop Browser tab 声明 `keepMounted`，Sidebar 因而在切 tab、切 Session、收起与浮动期间保留其 DOM。
+Desktop 主进程批准 guest 租约，并执行挂载、导航和权限策略。preload 暴露限定范围的 Browser、profile 和 request 操作。共享声明通过 `/types` 配合 `import type` 引入；Host 与 Client 使用独立 tsconfig 编译。Desktop tab 声明 `keepMounted`，在切 tab、切 Session、收起与浮动期间保留 DOM，而非保留权限。逻辑或物理隐藏会撤销已保存账户的交接；重新显示 guest 后需要再次显式 Resume。Takeover 独立于待完成的准备或确认立即发起撤销，然后等待它们结束。反馈异常不能中断清理；UI notice 不包含传输诊断。
 
 页面刷新快捷键调用工具栏使用的同一重载操作。其 Tooltip 和 ARIA 组合随有效绑定更新。Desktop 通过所属窗口路由已批准 guest 中的有效快捷键；获焦 webview 必须仍持有该 guest 的租约。Web 保留浏览器专用组合。
 
@@ -89,11 +89,11 @@ Desktop 主进程批准 guest 租约，并执行挂载、导航和权限策略�
 <a id="model-experience"></a>
 ## 模型体验
 
-无。Browser tab 是用户侧呈现状态，不注册工具、prompt section 或 Session event。
+无，因为本 Client 插件仅提供 Browser 呈现，不注册工具、prompt 或 Session event，也不向模型暴露访问的页面内容。
 
 #### KV Cache 影响
 
-无；浏览内容不进入模型请求。
+无；浏览内容与人工请求控件不进入模型请求，`website_profiles` 和 `website_prepare` 则由独立的 Desktop Host 注册。
 
 ## 已知限制与延期工作
 
@@ -105,9 +105,10 @@ Desktop 主进程批准 guest 租约，并执行挂载、导航和权限策略�
 - 在 Web 中，逃逸出 sandbox 的 popup 会保留 opener，并可以通过该链导航顶层应用。Desktop 会单独处理 popup 创建。
 - 后续 iframe load 能表明发生了导航，但无法给出新的跨域 URL。History API 与 fragment 变化可能仍不可见；状态变成 unknown 后，Web 的后退与前进不可用。
 - 出于安全原因，浏览器会隐藏很多 iframe 失败：DNS、TLS、mixed-content、CSP 与 `X-Frame-Options` 失败可能触发 `load`，也可能不提供可操作 event，而不是触发 `error`。加载失败 notice 只能作为 best-effort 提示。
-- 只要 tab 仍在 Sidebar 布局中，保存的标题和 URL 就会跨刷新与插件卸载保留。关闭 tab 会删除其检查点。重启恢复不恢复页面内存、未保存的表单或 Chromium history 栈。
+- 普通 tab 只要仍在 Sidebar 布局中，就会跨刷新与插件卸载保留标题/URL 检查点；已保存账户 tab 改为保留 profile id 与配置的起始 URL。关闭 tab 会删除其检查点。重启恢复不恢复页面内存、未保存的表单、Chromium history 或请求授权。
 - 本地文件会被拒绝，并继续由 Document Preview 负责。
-- Desktop 按规范化的工作区 CWD 共享进程内存储分区；没有解析到 Workspace 的 Session 单独隔离。Cookie 与 Web storage 不跨应用重启保留。guest 权限、下载与原生 popup 均被拒绝；通过检查的 HTTP(S) popup 请求会打开 Sidebar tab。Host 地址过滤不是通用私网或 DNS-rebinding 防火墙。
+- 普通 Desktop tab 按规范化的工作区 CWD 共享进程内存储分区；未解析的 Workspace 按 Session 隔离。已保存账户 tab 使用独立持久分区，认证一直保留到成功退出或遗忘。清理会撤销权限，等待每个 guest 释放，即使同批其他释放失败，然后清除 storage、cache、认证和连接。任何清理等待失败都会保留存储并阻止使用该 profile；中断的清理在重启后仍保持阻止状态。持久化不防止同一 OS 用户读取 Cookie。guest 权限、下载与原生 popup 均被拒绝；通过检查的 HTTP(S) popup 请求会打开 Sidebar tab。Host 地址过滤不是通用私网或 DNS-rebinding 防火墙。
+- 独立的 Desktop Host 提供限定于请求的浏览器操作，要求每次单独批准并说明优先使用 MCP 后仍需回退的原因。任意 JavaScript 不可用；脚本创建的 worker 可能在用户接管后继续运行，重载不能保证终止它们。DOM 过滤不能保证移除所有认证秘密。未知 MCP 结果继续保留账号锁；自动重启核对不可用。
 
 <a id="dev-note"></a>
 ### 开发备注

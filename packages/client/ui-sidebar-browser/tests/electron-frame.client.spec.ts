@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest'
+import { requestStubs } from './website-request-stubs.client.ts'
 import { ElectronWebViewImpl } from '../src/client/electron/ElectronWebViewImpl.ts'
 import { ElectronWebviewPresentation, type WebviewElement } from '../src/client/electron/ElectronWebviewPresentation.ts'
-import type { DesktopBrowserBridge, DesktopBrowserLeaseId } from '../src/types.ts'
+import type { DesktopBrowserBridge, DesktopBrowserHumanCommand, DesktopBrowserLeaseId, DesktopWebsiteProfileId } from '../src/types.ts'
 
 it('clears a failed load when the main page retries without a toolbar command', async () => {
   let url = 'about:blank'
@@ -12,12 +13,23 @@ it('clears a failed load when the main page retries without a toolbar command', 
     canGoBack: () => false, canGoForward: () => false, clearHistory: vi.fn(),
     goBack: vi.fn(), goForward: vi.fn(), reload: vi.fn(), isLoading: () => loading,
   })
+  const reservation = { lease: 'lease' as DesktopBrowserLeaseId, partition: 'partition' }
   const bridge: DesktopBrowserBridge = {
-    acquire: vi.fn(async () => ({ lease: 'lease' as DesktopBrowserLeaseId, partition: 'partition' })),
+    requests: requestStubs(),
+    profiles: {
+      list: async () => [],
+      create: async input => ({ ...input, id: 'created' as DesktopWebsiteProfileId, control: 'human' }),
+      acquire: async () => reservation,
+      setControl: async () => {}, signOut: async () => {}, forget: async () => {}, onChanged: () => () => {},
+    },
+    acquire: vi.fn(async () => reservation),
+    command: vi.fn(async (_lease: DesktopBrowserLeaseId, command: DesktopBrowserHumanCommand) => {
+      if (command.kind === 'navigate') await element.loadURL(command.url)
+    }),
     release: vi.fn(async () => {}), onOpenRequested: () => () => {},
   }
   const presentation = new ElectronWebviewPresentation({ mounted: () =>{  frame.attach() }, unmounted: () =>{  frame.detach() } })
-  const frame = new ElectronWebViewImpl({ initial: undefined, persist: vi.fn(), openRequested: vi.fn() },
+  const frame = new ElectronWebViewImpl({ initial: undefined, profileId: undefined, persist: vi.fn(), openRequested: vi.fn() },
     bridge, async () => 'cwd:/workspace', presentation)
   const createElement = vi.spyOn(presentation, 'createElement').mockReturnValue(element)
   const host = document.createElement('div')

@@ -156,7 +156,8 @@ declare module '@deepseek-ai/cordis' {
      * a normalized result; wrappers may change only `exec.signal`, while call
      * identity remains immutable. The registry re-fuses the original caller
      * signal before the body, so replacement cannot detach caller cancellation;
-     * wrappers must still restore their signal and reach quiescence.
+     * wrappers must still restore their signal and reach quiescence. Retries do
+     * not override executor-specific single-dispatch rules.
      * Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): agent-scoped listeners receive only that agent's calls.
      * @param exec - the allowed call about to dispatch (name, parsed arguments, caller agent, signal).
      * @mode waterfall
@@ -771,10 +772,11 @@ interface ToolAskResolution {
 /** Caller cancellation and dispatch state kept outside the around-wrapper view. */
 interface ToolCancellationState {
   readonly callerSignal: AbortSignal
+  readonly fusedSignals: FusedToolSignal[]
   bodyInvoked: boolean
 }
 
-/** One dispatch-scoped fused signal plus listener cleanup after the body settles. */
+/** One body signal whose relay remains live through invocation publication. */
 interface FusedToolSignal {
   readonly signal: AbortSignal
   dispose(): void
@@ -815,6 +817,8 @@ export class ToolRuntime extends Service {
   private concludingExecutions = new WeakSet<ToolExecution>()
   /** Original caller cancellation, kept outside the wrapper-mutable execution object. */
   private cancellationStates = new WeakMap<ToolRunContext, ToolCancellationState>()
+  /** Monotonic assertions owned by each exact live invocation, removed when final acceptance starts. */
+  private resultGuards = new WeakMap<ToolExecution, ((result: Readonly<ToolExecutionResult>) => undefined)[]>()
   /** Definition-owned final content transform snapshotted before policy begins. */
   private contentFinalizers = new WeakMap<ToolRunContext, ToolDefinition['finalizeContent']>()
   /** Execution-prepared content installed before post-execute policy. */
@@ -1130,6 +1134,29 @@ export class ToolRuntime extends Service {
     )
   }
 
+  /**
+   * Add a monotonic synchronous assertion to one live invocation. Assertions
+   * accumulate without a disposer and run on success and failure after post-execute,
+   * definition-owned finalization, and lossless result materialization, immediately
+   * before synchronous `tools/result` notification. A thrown assertion replaces the
+   * whole outcome with a fresh materialized error, discarding value, prior content,
+   * metadata, additional contexts, and concluding state without rerunning the finalizer.
+   * Later assertions still run against the replacement error if an earlier assertion threw.
+   * Body-captured signals retain caller and wrapper cancellation through publication;
+   * the invocation then removes its forwarding listeners.
+   * @param execution - the exact execution minted by this registry; copies, foreign
+   *   executions, settled executions, and registrations during final acceptance throw.
+   * @param check - synchronous assertion receiving the complete frozen, materialized outcome;
+   *   return `undefined` to accept or throw to replace the whole outcome.
+   */
+  guardResult(execution: ToolExecution, check: (result: Readonly<ToolExecutionResult>) => undefined): void {
+    const checks = this.resultGuards.get(execution)
+    if (checks === undefined) {
+      throw new Error('tools.guardResult() requires an exact live execution before final acceptance')
+    }
+    checks.push(check)
+  }
+
   /** First monotonic denial from the global then the scope chain's guard layers, farthest first. */
   private guardReason(exec: ToolExecution): string | undefined {
     const globalReason = this.layers.global.guardReason(exec)
@@ -1432,11 +1459,13 @@ export class ToolRuntime extends Service {
         throw new TypeError('tool execution arguments must be losslessly JSON-serializable')
       }
       const execution: MutableToolRunContext = { ...base, arguments: deepFreeze(detached) }
+      this.resultGuards.set(execution, [])
       this.deferredContexts.set(execution, deferredContexts)
       this.contentFinalizers.set(execution, finalizerFor())
       if (!collapsed) this.contentProjectors.set(execution, capturedProjector)
       this.cancellationStates.set(execution, {
         callerSignal: signal,
+        fusedSignals: [],
         bodyInvoked: false,
       })
       if (collapsed) {
@@ -1464,6 +1493,7 @@ export class ToolRuntime extends Service {
       return { kind: 'ready', exec: execution }
     } catch (error: unknown) {
       const execution: MutableToolRunContext = { ...base, arguments: undefined }
+      this.resultGuards.set(execution, [])
       this.contentFinalizers.set(execution, finalizerFor())
       return { kind: 'final-result', exec: execution, result: toolErrorResult(error) }
     }
@@ -1562,6 +1592,7 @@ export class ToolRuntime extends Service {
       fused.dispose()
       return toolAbortedBeforeDispatchResult()
     }
+    state.fusedSignals.push(fused)
     exec.signal = signal
     try {
       const tool = this.resolveExecution(exec.name, exec.agent, exec.parent !== undefined)
@@ -1575,7 +1606,6 @@ export class ToolRuntime extends Service {
     } catch (error: unknown) {
       return toolErrorResult(error)
     } finally {
-      fused.dispose()
       exec.signal = wrapperSignal
     }
   }
@@ -1649,27 +1679,42 @@ export class ToolRuntime extends Service {
 
   /**
    * Materialize the candidate, apply definition-owned content finalization,
-   * then materialize and notify the authoritative result.
+   * then materialize, check invocation assertions, and notify the authoritative result.
    * @param exec - the prepared execution.
    * @param result - final result.
    * @returns the materialized final result.
    * @internal
    */
   private finishScheduledExecution(exec: ToolRunContext, result: ToolExecutionResult): ToolExecutionResult {
-    let materializedResult: ToolExecutionResult
+    const checks = this.resultGuards.get(exec) ?? []
+    this.resultGuards.delete(exec)
+    const cancellation = this.cancellationStates.get(exec)
     try {
-      materializedResult = this.materializeFinalResult(result)
-    } catch (error: unknown) {
-      materializedResult = this.materializeFinalResult(toolErrorResult(error))
+      let materializedResult: ToolExecutionResult
+      try {
+        materializedResult = this.materializeFinalResult(result)
+      } catch (error: unknown) {
+        materializedResult = this.materializeFinalResult(toolErrorResult(error))
+      }
+      let finalResult: ToolExecutionResult
+      try {
+        finalResult = this.materializeFinalResult(this.applyFinalContent(exec, materializedResult))
+      } catch (error: unknown) {
+        finalResult = this.materializeFinalResult(toolErrorResult(error))
+      }
+      for (const check of checks) {
+        try {
+          check(finalResult)
+        } catch (error: unknown) {
+          finalResult = this.materializeFinalResult(toolErrorResult(error))
+        }
+      }
+      this.notifyResult(exec, finalResult)
+      return finalResult
+    } finally {
+      for (const fused of cancellation?.fusedSignals ?? []) fused.dispose()
+      this.cancellationStates.delete(exec)
     }
-    let finalResult: ToolExecutionResult
-    try {
-      finalResult = this.materializeFinalResult(this.applyFinalContent(exec, materializedResult))
-    } catch (error: unknown) {
-      finalResult = this.materializeFinalResult(toolErrorResult(error))
-    }
-    this.notifyResult(exec, finalResult)
-    return finalResult
   }
 
   /** Apply the snapshotted tool-owned content transform without exposing other result fields. */
@@ -1912,7 +1957,7 @@ function isAborted(signal: AbortSignal): boolean {
 
 /**
  * Fuse caller and wrapper cancellation without nesting `AbortSignal.any`.
- * Keeping the relay dispatch-scoped also removes listeners when work settles.
+ * Invocation publication owns disposal so captured body signals remain live for final checks.
  */
 function fuseToolSignals(caller: AbortSignal, wrapper: AbortSignal): FusedToolSignal {
   if (caller === wrapper) return { signal: caller, dispose() {} }

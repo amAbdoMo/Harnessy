@@ -3,7 +3,7 @@
 
 # Tool Execution Pipeline
 
-This graph shows where policy, hooks, sandboxing, filesystem guards, result rewriting, final-outcome observation, and UI rendering run without changing the loop. The `tools/pre-execute` waterfall runs first, monotonic guards run next, and the `tools/execute` and `tools/post-execute` waterfalls follow; the three waterfalls may transform a call. Definition-owned `projectContent` installs prepared content before post-execute; `finalizeContent` and `tools/result` run afterward.
+This graph shows where policy, hooks, sandboxing, filesystem guards, result rewriting, final-outcome observation, and UI rendering run without changing the loop. The `tools/pre-execute` waterfall runs first, monotonic guards run next, and the `tools/execute` and `tools/post-execute` waterfalls follow; the three waterfalls may transform a call. Definition-owned `projectContent` installs prepared content before post-execute; `finalizeContent`, invocation-owned `guardResult` checks, and `tools/result` run afterward.
 
 ```mermaid
 flowchart TD
@@ -22,6 +22,7 @@ flowchart TD
   post["<code>tools/post-execute</code> waterfall<br/>accept, block, replace, add context"]
   normalized["Registry outer normalization<br/>pipeline/result snapshot throws become isError"]
   finalize["ToolDefinition.finalizeContent<br/>last content-only invariant"]
+  accept["Final materialization + invocation-owned guards<br/>guardResult can replace the entire outcome"]
   final["<code>tools/result</code> synchronous notification<br/>frozen authoritative outcome"]
   context["Active-batch additionalContexts FIFO<br/>injected user/message after recorded tool results"]
   toolResult["Session event: <code>tool/result</code><br/>single model-facing outcome"]
@@ -53,13 +54,14 @@ flowchart TD
   post -.->|throw| normalized
   post --> finalize
   normalized --> finalize
-  finalize --> final
+  finalize --> accept
+  accept --> final
   final --> toolResult
   toolResult --> presentResult
   toolResult --> allResults
   allResults --> context
 ```
 
-Filesystem read-before-edit checks stay below `tool-fs` on `fs/*` events. Generic pre/post waterfalls host hooks and approval policy; `ctx.approval` resolves asks before monotonic guards, and owner policy that must not be reordered remains a registered guard. Around-dispatch concerns such as timeouts wrap `tools/execute`. The registry losslessly snapshots the candidate result and normalizes a snapshot failure before the visible definition's snapshotted `finalizeContent` callback enforces its synchronous content-only invariant. `tools/result` then observes the immutable, lossless-JSON outcome. This lets hooks span tool families without coupling the tools to one policy service. PTC mode sends both the reserved `run_code` transport and its serialized sub-calls through the pipeline; sub-calls carry the parent token, log `tool/ptc-dispatch`, return denials as binding rejections, and omit `additionalContexts` to preserve call/result adjacency.
+Filesystem read-before-edit checks stay below `tool-fs` on `fs/*` events. Generic pre/post waterfalls host hooks and approval policy; `ctx.approval` resolves asks before monotonic guards, and owner policy that must not be reordered remains a registered guard. Around-dispatch concerns such as timeouts wrap `tools/execute`; retry wrappers cannot override executor-specific single-dispatch rules. The registry losslessly snapshots the candidate result and normalizes a snapshot failure before the visible definition's snapshotted `finalizeContent` callback enforces its synchronous content-only invariant. After final materialization, invocation-owned `guardResult` checks may replace the entire outcome before `tools/result` observes the immutable, lossless-JSON outcome. Cancellation relays remain active through publication and are released afterward. This lets hooks span tool families without coupling the tools to one policy service. PTC mode sends both the reserved `run_code` transport and its serialized sub-calls through the pipeline; sub-calls carry the parent token, log `tool/ptc-dispatch`, return denials as binding rejections, and omit `additionalContexts` to preserve call/result adjacency.
 
 Maintenance mode: curated Mermaid flow; exact tool schemas and event signatures live in generated catalogs.

@@ -14,6 +14,11 @@ import { installDesktopUpdateTaskControl } from './update-tasks.ts'
 import { installDesktopQuitInspection } from './quit-inspection.ts'
 import { installPlatformSessionPublisher } from './platform-session.ts'
 import { installOfficeEngineResolution } from './office-engine.ts'
+import { installWebsiteMcpInspector } from './website-mcp.ts'
+import { installWebsiteRequests } from './website-requests.ts'
+import { installWebsiteControlReceiver, websiteHostSnapshot } from './website-control.ts'
+import { installWebsiteParentChannel } from './website-parent.ts'
+import { installWebsiteRequestTools, installWebsiteTools } from './website-tools.ts'
 
 async function main(): Promise<void> {
   const runtimeDir = process.argv[2] as string
@@ -22,12 +27,35 @@ async function main(): Promise<void> {
   const installAnchor = join(runtimeDir, 'node_modules', '@deepseek-ai', 'dsh', 'package.json')
   const profile = loadProfileDirectory('dsh', projectDir, installAnchor)
   reportSkippedBundles('dsh', profile)
+  let stopping: Promise<void> | undefined
+  const control: {
+    updateTasks?: ReturnType<typeof installDesktopUpdateTaskControl>
+    quitInspection?: ReturnType<typeof installDesktopQuitInspection>
+    websiteMcp?: ReturnType<typeof installWebsiteMcpInspector>
+    websiteRequests?: ReturnType<typeof installWebsiteRequests>
+    websiteParent?: ReturnType<typeof installWebsiteParentChannel>
+    websiteTools?: ReturnType<typeof installWebsiteTools>
+  } = {}
+  const send = (message: object): Promise<void> => new Promise((resolve, reject) => {
+    if (!process.connected || process.send === undefined) { reject(new Error('Desktop parent channel is unavailable')); return }
+    process.send(message, (error) => { if (error === null) resolve(); else reject(error) })
+  })
   const application = runProfile({
     environment: loadLayeredEnv('dsh'),
     profile: 'desktop',
     resolvedProfile: { profile, installAnchor },
     patchFiles: [],
     args: ['--no-open', '--port', '19387'],
+    prepare(ctx) {
+      control.websiteMcp = installWebsiteMcpInspector(ctx, projectDir)
+      const parent = control.websiteParent = installWebsiteParentChannel(ctx, send)
+      control.websiteRequests = installWebsiteRequests(ctx, control.websiteMcp, (request) => {
+        if (!process.connected || process.send === undefined) throw new Error('Website request parent disconnected before revocation')
+        return send({ type: 'website-revoked', snapshot: websiteHostSnapshot(request) })
+      }, (request, signal) => parent.check(websiteHostSnapshot(request), signal),
+      scope => installWebsiteRequestTools(scope, parent))
+      control.websiteTools = installWebsiteTools(ctx, control.websiteRequests, parent)
+    },
     ...(process.argv[5] === undefined ? {} : {
       packageManager: {
         command: process.execPath,
@@ -40,15 +68,8 @@ async function main(): Promise<void> {
       },
     }),
   })
-  let stopping: Promise<void> | undefined
-  const control: {
-    updateTasks?: ReturnType<typeof installDesktopUpdateTaskControl>
-    quitInspection?: ReturnType<typeof installDesktopQuitInspection>
-  } = {}
-  const send = (message: object): Promise<void> => new Promise((resolve, reject) => {
-    if (!process.connected || process.send === undefined) { resolve(); return }
-    process.send(message, (error) => { if (error === null) resolve(); else reject(error) })
-  })
+  const websiteControl = installWebsiteControlReceiver(
+    () => stopping === undefined ? control.websiteRequests : undefined, send)
   const stop = (): Promise<void> => stopping ??= (async () => {
     // Startup failure is reported by main; shutdown only owns a tree that booted.
     const running = await application.catch(() => undefined)
@@ -59,6 +80,22 @@ async function main(): Promise<void> {
   process.on('message', (message: unknown) => {
     if (typeof message !== 'object' || message === null || !('type' in message)) return
     if (message.type === 'shutdown') { void stop(); return }
+    if (control.websiteParent?.receive(message) === true || websiteControl(message)) return
+    if (message.type === 'website-mcp') {
+      if (!('requestId' in message) || !Number.isSafeInteger(message.requestId)
+        || !('serverName' in message) || typeof message.serverName !== 'string'
+        || !/^[A-Za-z0-9_-]{1,32}$/.test(message.serverName)) return
+      const { requestId, serverName } = message
+      void (async () => {
+        try {
+          if (stopping !== undefined || control.websiteMcp === undefined) throw new Error('Website MCP registry is unavailable')
+          await send({ type: 'website-mcp', requestId, binding: await control.websiteMcp(serverName) })
+        } catch (error) {
+          await send({ type: 'website-mcp', requestId, error: (error instanceof Error ? error.message : String(error)).slice(0, 2048) })
+        }
+      })().catch((error: unknown) => { console.error(error) })
+      return
+    }
     if (message.type === 'quit-inspection') {
       if (!('requestId' in message) || !Number.isSafeInteger(message.requestId)) return
       const requestId = message.requestId
@@ -88,8 +125,15 @@ async function main(): Promise<void> {
       }
     })().catch((error: unknown) => { console.error(error) })
   })
-  process.once('disconnect', () => { void stop() })
+  process.once('disconnect', () => {
+    control.websiteParent?.close()
+    void stop()
+  })
   const { ctx } = await application
+  try {
+    if (control.websiteTools === undefined) throw new Error('Desktop website tools were not initialized')
+    await control.websiteTools.await()
+  } catch (error) { await ctx.fiber.dispose(); throw error }
   control.updateTasks = installDesktopUpdateTaskControl(ctx)
   control.quitInspection = installDesktopQuitInspection(ctx)
   await ctx.plugin(desktopOffice, {

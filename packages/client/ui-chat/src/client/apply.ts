@@ -26,7 +26,6 @@ import type {
 } from './contract/slots.ts'
 import type { ChatSnapshot } from './contract/snapshot.ts'
 import { EMPTY_CHAT_SNAPSHOT } from './contract/snapshot.ts'
-import { ApprovalCommand } from './chat/ApprovalCommand.tsx'
 import { ChatView } from './chat/ChatView.tsx'
 import { registerChatNodeRenderers } from './chat/register-node-renderers.ts'
 import { StatsPills } from './chat/StatsPills.tsx'
@@ -301,8 +300,5 @@ export function apply(ctx: Context): void {
       name: 'conversation.composer.dock', id: 'stats', order: 0, locale: NS,
       inject: () => ({ hooks: { performanceUsage } }),
     }, StatsPills))
-
-  ctx.slots.inject('conversation.approval.detail', () =>
-    ctx.slots.register({ name: 'conversation.approval.detail' }, ApprovalCommand))
 
 }

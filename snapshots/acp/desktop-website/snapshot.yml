@@ -1,0 +1,10 @@
+version: 1
+scenario: desktop-website
+profile: acp
+composition: desktop-website
+recording: authored
+header:
+  class: desktop-website
+  pin: true
+  changes: 2
+permission: read-only

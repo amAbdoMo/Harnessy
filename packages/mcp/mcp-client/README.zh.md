@@ -121,7 +121,9 @@ kind: "package-reference"
 | [`src/transport.ts`](src/transport.ts) | 传输工厂：带清洗环境的 stdio spawn、Streamable HTTP |
 | — | 不发布运行时不变式伴生入口；MCP 世代会通过工具注册表发挥作用，但桥接在异步重新同步后不提供独立的服务器工具映射快照。 |
 
-导出的 `createMcpToolDefinition(ctx, options)` 要求提供配置的 `serverName` 与上游 `rawName`，并将工具 schema 和原始结果回调适配到规范值、错误和持久化图像投影。其执行器对注册表调用、直接调用和嵌套 PTC 调用均运行 [Agent 作用域的 MCP 守卫](../../../docs/subsystems/mcp.zh.md#protocol-and-results)。守卫收到准确的 `ToolExecution`；上游回调保留其字段，并将调用方和守卫的取消合并到信号中。SDK 校验在投影前检查结果，取消也会阻止仍在准备中的图像投影返回。调用方负责注册、取消截止时间和提供方卸载。原生 Cua Driver 提供方使用此适配函数，无需打开 MCP 传输。
+导出的 `createMcpToolDefinition(ctx, options)` 要求提供配置的 `serverName` 与上游 `rawName`，并将工具 schema 和原始结果回调适配到规范值、错误和持久化图像投影。其执行器对注册表调用、直接调用和嵌套 PTC 调用均运行 [Agent 作用域的 MCP 守卫](../../../docs/subsystems/mcp.zh.md#protocol-and-results)。守卫收到准确的 `ToolExecution`；上游回调保留其字段，并将调用方和守卫的取消合并到信号中。
+
+只读 `dispatchStatus` 记录同一个调用对象的上游进入与返回：`pending` 表示尚未进入，`dispatched` 包括服务器结果未知的被拒绝调用，`responded` 表示原始回调已返回，即使后续校验或授权拒绝了结果。取消或 SDK 超时不能确认服务器操作已结束。在同一个应用中，每个准确的 `ToolExecution` 对象仅允许一次上游进入，即使工具重新发现或模块重载也不例外。拒绝或超时不会恢复该额度；进入前的否决不消耗它。SDK 校验在投影前检查结果，取消也会阻止仍在准备中的图像投影返回。调用方负责注册、取消截止时间和提供方卸载。原生 Cua Driver 提供方使用此适配函数，无需打开 MCP 传输。
 
 ### 生命周期与同步
 

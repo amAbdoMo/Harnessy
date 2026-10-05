@@ -145,6 +145,11 @@ export const en = {
   mandatoryCopyFailed: 'Copy failed. Select and copy the address below manually.',
   mandatoryAddress: 'Download address',
   mandatoryNotification: 'Return to the application to confirm installation and restart.',
+  websitePairingTitle: 'Pair website account',
+  websitePairingMessage: 'Confirm this MCP server, website and account belong together.',
+  websitePairingDetail: 'MCP server: {server}\nConfigured endpoint: {endpoint}\nWebsite: {website}\nAccount label: {account}\n\nSign in yourself. The agent cannot observe login until you explicitly resume.',
+  websitePairingUnnamedAccount: 'No label',
+  websitePairingConfirm: 'Confirm pairing',
 } as const
 
 /** Desktop message keys and values. */
@@ -295,6 +300,11 @@ export const zh = {
   mandatoryCopyFailed: '复制失败，请手动选择下方地址复制。',
   mandatoryAddress: '下载地址',
   mandatoryNotification: '返回应用确认安装并重启。',
+  websitePairingTitle: '关联网站账号',
+  websitePairingMessage: '请确认此 MCP 服务器、网站和账号属于同一关联。',
+  websitePairingDetail: 'MCP 服务器：{server}\n已配置的端点：{endpoint}\n网站：{website}\n账号标签：{account}\n\n请自行登录。在您明确恢复控制之前，智能体无法观察登录页面。',
+  websitePairingUnnamedAccount: '无标签',
+  websitePairingConfirm: '确认关联',
 } as const satisfies DesktopMessages
 
 /** Locale payload exposed to the Desktop-owned renderer. */

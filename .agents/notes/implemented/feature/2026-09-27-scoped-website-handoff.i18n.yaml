@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-09-27-scoped-website-handoff.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-27-scoped-website-handoff.md
+/agent-note-scoped-website-handoff:
+  en: 06e72f9ca150a831
+  zh: cb40b07ebe9e0e1f
+/agent-note-scoped-website-handoff/problem:
+  en: 49994f0439ea2412
+  zh: bd2c2e3247622307
+/agent-note-scoped-website-handoff/decision:
+  en: 1ffd259b1cfde4fc
+  zh: 4fea0cd0ed4e7c28
+/agent-note-scoped-website-handoff/alternatives-considered:
+  en: 6367d42cf3a3d4f6
+  zh: 0685d048efed14e2
+/agent-note-scoped-website-handoff/consequences:
+  en: 0392f79beb868301
+  zh: 96e36f67965546c0

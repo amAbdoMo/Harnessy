@@ -13,6 +13,7 @@ import type {
   ConversationPublication, ConversationViewSnapshotMap,
   ConversationViewSnapshotStore,
 } from '../contract/conversation.ts'
+import { conversationContextKey } from '../contract/conversation.ts'
 import type { ConversationSnapshot } from '../contract/snapshot.ts'
 import type {
   ConversationPromptSnapshot, RequestPromptInspection, SystemPromptNode,
@@ -226,6 +227,16 @@ export class UiConversation extends Service {
         for (const record of [...this.bindings.values]) this.drop(record, true)
       }
     }, 'ui-conversation assembly')
+  }
+
+  /**
+   * Resolve the stable key used by a Definition's published Nodes.
+   * @param kind - registered Definition kind.
+   * @param id - Definition-owned business identity.
+   * @returns the key for indexed target-node lookup.
+   */
+  contextKey(kind: string, id: string): string {
+    return conversationContextKey(kind, id)
   }
 
   /**

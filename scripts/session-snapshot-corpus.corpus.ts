@@ -28,6 +28,7 @@ const snapshotAdapters = [
   'apps/web/tests/minimal-preset.snapshot.ts',
   'apps/web/tests/preset-migration.snapshot.ts',
   'snapshots/acp/acp.snapshot.ts',
+  'snapshots/acp/desktop-website/website.snapshot.ts',
   'snapshots/sdk/sdk.snapshot.ts',
   'snapshots/session/headless.snapshot.ts',
 ] as const
@@ -146,8 +147,9 @@ it('keeps every recorded session owned, pinned, redacted, and header-scrubbed', 
       expect(existsSync(join(expectedRoot, EMPTY_WORKSPACE_MARKER)), `${key}: empty workspace marker`)
         .toBe(expectedWorkspace.length === 0)
     }
-    expect(existsSync(join(dir, 'input.json')), `${key}: executable input metadata is ACP-only`)
-      .toBe(scenario.profile === 'acp')
+    if (existsSync(join(dir, 'input.json'))) {
+      expect(scenario.profile, `${key}: executable input metadata is ACP-only`).toBe('acp')
+    }
     if (scenario.profile !== 'acp') {
       expect(existsSync(join(dir, 'stdout.expected.jsonl')), `${key}: ACP transcript outside ACP`).toBe(false)
     }

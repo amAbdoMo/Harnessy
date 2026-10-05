@@ -82,9 +82,11 @@ The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-a
 
 ### Enforce policy on calls
 
-`ctx.tools.guard(guard)` registers a monotonic synchronous guard after the extensible `tools/pre-execute` waterfall: a returned reason denies the call, and no later listener can turn that denial back into permission. The pipeline's events give plugins more control — `tools/pre-execute` decides allow/deny/ask, `tools/execute` wraps dispatch for timeout or retry, `tools/post-execute` inspects or replaces the result, and `tools/result` observes the frozen final outcome.
+`ctx.tools.guard(guard)` registers a monotonic synchronous guard after the extensible `tools/pre-execute` waterfall: a returned reason denies the call, and no later listener can turn that denial back into permission. The pipeline's events give plugins more control — `tools/pre-execute` decides allow/deny/ask, `tools/execute` wraps dispatch for timeout or retry, `tools/post-execute` inspects or replaces the result, and `tools/result` observes the frozen final outcome. Retry wrappers do not override an executor's single-dispatch rules; [MCP calls](../../mcp/mcp-client/README.md#understand-the-implementation) permit one upstream entry per exact invocation.
 
 A tool’s `projectContent` installs execution-prepared content before post-execute policies. Policies may still replace or block it; `finalizeContent` remains the final content transform after those policies.
+
+Use `ctx.tools.guardResult(execution, check)` to reassert authority immediately before publication. Checks return `undefined` or throw synchronously; they accumulate without disposers on the exact live registry-minted invocation. Copies, foreign or settled executions, and registrations during final acceptance throw. Checks run on success and failure after post-execute, definition-owned finalization, and lossless materialization, immediately before synchronous `tools/result` notification. A thrown check replaces the whole result with a fresh materialized error, discarding value, prior content, metadata, additional contexts, and concluding state without rerunning the finalizer. Later checks still run against that replacement error, so an earlier content failure cannot skip a later authority check. A signal captured in the body retains caller and wrapper cancellation through publication; the invocation then removes its forwarding listeners.
 
 ### Host presentation descriptors
 
@@ -102,7 +104,7 @@ This section explains how the package realizes the behavior above; the observabl
 
 ### Design concept
 
-The registry holds typed `ToolDefinition`s in scoped layers and projects them onto the model-facing `ToolSchema` set at request time — `output`, `execute`, `finalizeContent`, `timeoutMs`, and presentation callbacks never leak onto the wire. Every call runs a fixed pipeline: `tools/pre-execute` (extensible allow/deny/ask) → registered monotonic guards → `tools/execute` (around-dispatch wrappers) → `tools/post-execute` (inspect/replace, attach context) → definition-owned `finalizeContent` → the observe-only `tools/result` event. Only the `tools/execute` view may replace the required signal, and the registry re-fuses the caller signal before the body.
+The registry holds typed `ToolDefinition`s in scoped layers and projects them onto the model-facing `ToolSchema` set at request time — `output`, `execute`, `finalizeContent`, `timeoutMs`, and presentation callbacks never leak onto the wire. Every call runs a fixed pipeline: `tools/pre-execute` (extensible allow/deny/ask) → registered monotonic guards → `tools/execute` (around-dispatch wrappers) → `tools/post-execute` (inspect/replace, attach context) → definition-owned `finalizeContent` → final materialization and invocation-owned `guardResult` assertions → the observe-only `tools/result` event. Only the `tools/execute` view may replace the required signal, and the registry re-fuses the caller signal before the body.
 
 ### Source map
 

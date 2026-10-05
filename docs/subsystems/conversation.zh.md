@@ -21,6 +21,8 @@ Session Controller 拥有连续的已加载逻辑 event window。每个 `Session
 
 Chat 与 Trajectory 可以识别同一个持久 event family，但各自保留自己的 Definition State 与最终 node payload。共享的 target-neutral 机制只包括 identity routing、有序 replay、Location data、predecessor dependency 与 publication cadence。
 
+`UiConversation.contextKey(kind, id)` 返回用于按索引查找目标节点的稳定键。Definition 拥有 `kind` 与业务标识；使用方调用此方法，不重复实现键序列化，也不扫描节点。
+
 ## Target 激活
 
 每个 Session 都保留单调增长的 active target 集合。创建或读取 target source 不会激活它。shell 会显式激活持久化选择或新选择的 View，其他消费者则通过 target source 的首个订阅激活 target。首次激活会创建该 target 的 builder，并从当前按 target 索引的 Context 调用一次 `replace()`。后续 flush 对每个 active target 调用 `apply()`，取消订阅不会移除 target。

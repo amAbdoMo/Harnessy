@@ -223,6 +223,180 @@ describe('guard decisions', () => {
   })
 })
 
+describe('upstream dispatch outcome', () => {
+  it.each(['response', 'protocol error', 'invalid response', 'timeout', 'disconnect', 'pre-dispatch denial',
+    'pre-dispatch cancellation', 'post-response denial'] as const)(
+    'reports %s independently of acceptance and cancellation', async (outcome) => {
+      const ctx = await mountRegistry()
+      const controller = new AbortController()
+      const upstream = vi.fn(async (): Promise<unknown> => {
+        expect(controller.signal.aborted).toBe(false)
+        if (outcome === 'timeout' || outcome === 'disconnect') throw new Error(outcome)
+        if (outcome === 'invalid response') return []
+        return { content: [{ type: 'text', text: 'upstream' }], isError: outcome === 'protocol error' }
+      })
+      ctx.tools.register(createMcpToolDefinition(ctx, {
+        name: 'outcome', serverName: 'srv', rawName: 'echo', description: 'Outcome fixture.',
+        inputSchema: { type: 'object' }, call: upstream,
+      }))
+      const events: McpToolCallEvent[] = []
+      ctx.on('mcp/tool-call', async (event, next) => {
+        events.push(event)
+        expect(event.dispatchStatus).toBe('pending')
+        if (outcome === 'pre-dispatch denial') throw new Error('denied')
+        if (outcome === 'pre-dispatch cancellation') controller.abort()
+        const result = await next()
+        expect(event.dispatchStatus).toBe('responded')
+        if (outcome === 'post-response denial') throw new Error('withheld')
+        return result
+      })
+      const result = await ctx.tools.execute({ signal: controller.signal, callId: ToolCallId('outcome'),
+        name: 'outcome', arguments: {} })
+      const expected = outcome.startsWith('pre-dispatch') ? 'pending'
+        : outcome === 'timeout' || outcome === 'disconnect' ? 'dispatched' : 'responded'
+      expect(events[0]?.dispatchStatus).toBe(expected)
+      expect(upstream).toHaveBeenCalledTimes(expected === 'pending' ? 0 : 1)
+      expect(result.isError).toBe(outcome !== 'response')
+      expect(controller.signal.aborted).toBe(outcome === 'pre-dispatch cancellation')
+    },
+  )
+
+  it.each([
+    'sequential', 'concurrent', 'rejected upstream', 'rediscovered definition', 'reloaded module', 'pre-dispatch denial',
+  ] as const)(
+    'allows one upstream entry per exact registry invocation after %s body delegation', async (mode) => {
+      const ctx = await mountRegistry()
+      const upstream = vi.fn(async () => ({ content: [{ type: 'text', text: 'upstream' }] }))
+      if (mode === 'rejected upstream') upstream.mockRejectedValueOnce(new Error('unknown upstream outcome'))
+      let factory = createMcpToolDefinition
+      const define = () => factory(ctx, {
+        name: 'mcp__srv__thing', serverName: 'srv', rawName: 'thing', description: 'Direct fixture.',
+        inputSchema: { type: 'object' }, call: upstream,
+      })
+      let dispose = ctx.tools.register(define())
+      const events: McpToolCallEvent[] = []
+      let veto = mode === 'pre-dispatch denial'
+      ctx.on('mcp/tool-call', (event, next) => {
+        events.push(event)
+        if (veto) { veto = false; throw new Error('pre-dispatch guard denial') }
+        if (event.dispatchStatus !== 'pending') {
+          expect(() => { event.addCancellation(new AbortController().signal) })
+            .toThrow('MCP cancellation must be registered before upstream dispatch')
+        }
+        return next()
+      })
+      ctx.on('tools/execute', async (_exec, next) => {
+        if (mode === 'concurrent') {
+          const [, second] = await Promise.all([next(), next()])
+          return second
+        }
+        await next()
+        if (mode === 'rediscovered definition' || mode === 'reloaded module') {
+          dispose()
+          if (mode === 'reloaded module') {
+            vi.resetModules()
+            factory = (await import('@deepseek-ai/dsh-mcp-client/src/tools.ts')).createMcpToolDefinition
+            expect(factory).not.toBe(createMcpToolDefinition)
+          }
+          dispose = ctx.tools.register(define())
+        }
+        return next()
+      })
+      const result = await call(ctx, 'mcp__srv__thing')
+      expect(upstream).toHaveBeenCalledOnce()
+      expect(result.isError).toBe(mode !== 'pre-dispatch denial')
+      if (result.isError) expect(result.error.message).toContain('only one upstream request')
+      expect(events.map(event => event.dispatchStatus)).toEqual(mode === 'rejected upstream'
+        ? ['dispatched', 'dispatched'] : ['responded', 'responded'])
+      expect(events[0]?.execution).toBe(events[1]?.execution)
+      await call(ctx, 'mcp__srv__thing')
+      expect(upstream).toHaveBeenCalledTimes(2)
+    },
+  )
+
+  it('retains the spent upstream allowance across owning-fiber replacement', async () => {
+    const ctx = await mountRegistry()
+    const upstream = vi.fn(async () => ({ content: [{ type: 'text', text: 'upstream' }] }))
+    const mount = () => ctx.plugin({
+      name: 'mcp-upstream-owner-fixture', inject: ['tools'],
+      apply: (owner: Context) => {
+        owner.tools.register(createMcpToolDefinition(owner, {
+          name: 'owned', serverName: 'srv', rawName: 'echo', description: 'Owned fixture.',
+          inputSchema: { type: 'object' }, call: upstream,
+        }))
+      },
+    })
+    let fiber = mount()
+    await fiber
+    ctx.on('tools/execute', async (_exec, next) => {
+      await next()
+      await fiber.dispose()
+      expect(ctx.tools.get('owned')).toBeUndefined()
+      fiber = mount()
+      await fiber
+      return next()
+    })
+    const result = await call(ctx, 'owned')
+    expect(upstream).toHaveBeenCalledOnce()
+    expect(result.isError).toBe(true)
+    if (result.isError) expect(result.error.message).toContain('only one upstream request')
+    await call(ctx, 'owned')
+    expect(upstream).toHaveBeenCalledTimes(2)
+  })
+
+  it('rejects saved delegation after a local veto without consuming a fresh body entry', async () => {
+    const ctx = await mountRegistry()
+    const upstream = vi.fn(async () => ({ content: [{ type: 'text', text: 'upstream' }] }))
+    ctx.tools.register(createMcpToolDefinition(ctx, {
+      name: 'deferred', serverName: 'srv', rawName: 'echo', description: 'Deferred fixture.',
+      inputSchema: { type: 'object' }, call: upstream,
+    }))
+    const events: McpToolCallEvent[] = []
+    let retained: (() => Promise<unknown>) | undefined
+    ctx.on('mcp/tool-call', async (event, next) => {
+      events.push(event)
+      if (retained === undefined) {
+        retained = next
+        return { content: [{ type: 'text', text: 'guard-owned local result' }] }
+      }
+      return next()
+    })
+    ctx.on('tools/execute', async (_exec, next) => {
+      const local = await next()
+      expect(local.isError).toBe(false)
+      if (retained === undefined) throw new Error('guard did not retain delegation')
+      await expect(retained()).rejects.toThrow('only one upstream request')
+      expect(upstream).not.toHaveBeenCalled()
+      expect(events[0]?.dispatchStatus).toBe('pending')
+      return next()
+    })
+    expect((await call(ctx, 'deferred')).isError).toBe(false)
+    expect(upstream).toHaveBeenCalledOnce()
+    expect(events.map(event => event.dispatchStatus)).toEqual(['responded', 'responded'])
+    expect(events[0]?.execution).toBe(events[1]?.execution)
+  })
+
+  it('retains dispatched uncertainty when a guard attempts a second upstream request after rejection', async () => {
+    const ctx = await mountRegistry()
+    const upstream = vi.fn(async () => { throw new Error('transport lost') })
+    ctx.tools.register(createMcpToolDefinition(ctx, {
+      name: 'once', serverName: 'srv', rawName: 'echo', description: 'Single dispatch fixture.',
+      inputSchema: { type: 'object' }, call: upstream,
+    }))
+    const events: McpToolCallEvent[] = []
+    ctx.on('mcp/tool-call', async (event, next) => {
+      events.push(event)
+      await expect(next()).rejects.toThrow('transport lost')
+      return next()
+    })
+    const result = await call(ctx, 'once')
+    expect(upstream).toHaveBeenCalledTimes(1)
+    expect(events[0]?.dispatchStatus).toBe('dispatched')
+    expect(result.isError).toBe(true)
+    if (result.isError) expect(result.error.message).toContain('only one upstream request')
+  })
+})
+
 describe('guard cancellation', () => {
   it('skips the upstream request a guard revokes the signal for', async () => {
     const ctx = await mountRegistry()
@@ -308,7 +482,7 @@ describe('guard-owned revocation', () => {
     const ctx = await mountRegistry()
     const entered: PromiseWithResolvers<void> = Promise.withResolvers()
     const settled: PromiseWithResolvers<void> = Promise.withResolvers()
-    onTestFinished(() => settled.resolve())
+    onTestFinished(() => { settled.resolve() })
     const caller = new AbortController()
     const revocation = new AbortController()
     let holding = false
@@ -342,7 +516,7 @@ describe('guard-owned revocation', () => {
       ...parent, signal: caller.signal, deferContext: () => {}, concludeTurn: () => {},
     }
     const executing = pathway === 'direct'
-      ? definition.execute({}, direct).then(value => ({ value }), (error: Error) => ({ error }))
+      ? definition.execute({}, direct).then(value => ({ value }), (error: unknown) => ({ error }))
       : ctx.tools.execute({
         signal: caller.signal, callId: ToolCallId('revoked'), name: definition.name, arguments: {},
         ...(pathway === 'nested' ? { parent: parent.token, rootCallId: parent.rootCallId } : {}),
@@ -376,8 +550,8 @@ describe('guard-owned revocation', () => {
 
     const result = await call(ctx, 'mcp__srv__echo')
 
-    expect(client.callTool).toHaveBeenCalledWith(expect.anything(),
-      expect.objectContaining({ signal: expect.objectContaining({ aborted: true }) }))
+    expect(client.callTool).toHaveBeenCalledTimes(1)
+    expect(client.callTool.mock.calls[0]?.[1]).toHaveProperty('signal.aborted', true)
     expect(result.isError).toBe(true)
   })
 

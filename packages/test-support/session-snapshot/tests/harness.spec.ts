@@ -177,6 +177,31 @@ describe('runScenario', () => {
     expect(exited).toBe(true)
   })
 
+  it('keeps private scenario IPC outside ACP stdout and reports callback failures after teardown', async () => {
+    const { dir } = await scenario({})
+    const failure = new Error('private adapter rejected packet')
+    let received: unknown
+    let acknowledge: (() => void) | undefined
+    const acknowledged = new Promise<void>((resolve) => { acknowledge = resolve })
+    const launched = launchAcpTestAgent({ agent: AGENT, cwd: dir,
+      privateMessage(message) { received = message; acknowledge?.(); throw failure },
+    })
+    try {
+      await launched.client.initialize({ protocolVersion: PROTOCOL_VERSION, clientCapabilities: {} })
+      await launched.sendPrivateMessage({ action: 'human-resume' })
+      await acknowledged
+      expect(received).toEqual({ type: 'private-echo', message: { action: 'human-resume' } })
+      expect(launched.rawStdout()).not.toContain('human-resume')
+      await expect(launched.close()).rejects.toBe(failure)
+      expect(launched.child.exitCode).toBe(0)
+    } finally {
+      await launched.close().catch((error: unknown) => { expect(error).toBe(failure) })
+    }
+    const ordinary = launchAcpTestAgent({ agent: AGENT, cwd: dir })
+    try { await expect(ordinary.sendPrivateMessage({ action: 'human-resume' })).rejects.toThrow('IPC is unavailable') }
+    finally { await ordinary.close() }
+  })
+
   it('builds dsh profile argv and rebases relative modules in live and replay patches', async () => {
     const { dir, fixtureFile } = await scenario({})
     const patchDir = join(dir, 'patches')

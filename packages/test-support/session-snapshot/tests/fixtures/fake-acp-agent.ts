@@ -275,6 +275,10 @@ function flushLogsAndExit(): void {
   process.exit(0)
 }
 
+if (process.send !== undefined) {
+  process.on('message', (message: unknown) => { process.send?.({ type: 'private-echo', message }) })
+}
+
 const rl = createInterface({ input: process.stdin })
 rl.on('line', (line) => {
   if (line.trim().length === 0) return

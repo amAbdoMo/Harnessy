@@ -5,15 +5,18 @@
 /harnessy-desktop:
   en: 6c184e7644d63a76
   zh: 437b4180a449928f
+/harnessy-desktop/website-account-isolation:
+  en: 64c44f11ad196cd3
+  zh: 204ba74524e5ef76
 /harnessy-desktop/closing-the-window-and-quitting:
   en: 473fb694490c591d
   zh: 06db00daf313e443
 /harnessy-desktop/key-technical-decisions:
   en: c114dd739a861751
-  zh: 1719ed6674a1c149
+  zh: 215d1d713be7bef9
 /harnessy-desktop/key-technical-decisions/bundled-workspace-dependencies:
   en: 31cbb7452be8e1ad
-  zh: 502ec556e2ec301e
+  zh: f15213791e64d889
 /harnessy-desktop/installation-ownership:
   en: 3df66c66e6928d12
   zh: 79cdbc3d9fb9c0da

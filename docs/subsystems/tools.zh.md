@@ -551,6 +551,23 @@ restrict(filter: ToolRestriction): () => void
 guard(guard: ToolGuard): () => void
 
 /**
+ * Add a monotonic synchronous assertion to one live invocation. Assertions
+ * accumulate without a disposer and run on success and failure after post-execute,
+ * definition-owned finalization, and lossless result materialization, immediately
+ * before synchronous `tools/result` notification. A thrown assertion replaces the
+ * whole outcome with a fresh materialized error, discarding value, prior content,
+ * metadata, additional contexts, and concluding state without rerunning the finalizer.
+ * Later assertions still run against the replacement error if an earlier assertion threw.
+ * Body-captured signals retain caller and wrapper cancellation through publication;
+ * the invocation then removes its forwarding listeners.
+ * @param execution - the exact execution minted by this registry; copies, foreign
+ *   executions, settled executions, and registrations during final acceptance throw.
+ * @param check - synchronous assertion receiving the complete frozen, materialized outcome;
+ *   return `undefined` to accept or throw to replace the whole outcome.
+ */
+guardResult(execution: ToolExecution, check: (result: Readonly<ToolExecutionResult>) => undefined): void
+
+/**
  * Look up a tool as one scope sees it (scoped
  * shadows global; a restricted-away global reads as absent). Presenters pass
  * the calling agent so the rendered card matches the definition that
@@ -628,7 +645,7 @@ Source: [`packages/core/tools/src/index.ts`](../../packages/core/tools/src/index
 
 #### `tools/execute` — waterfall
 
-Around-dispatch waterfall for timeout, retry, or metrics. `next()` returns a normalized result; wrappers may change only `exec.signal`, while call identity remains immutable. The registry re-fuses the original caller signal before the body, so replacement cannot detach caller cancellation; wrappers must still restore their signal and reach quiescence. Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): agent-scoped listeners receive only that agent's calls.
+Around-dispatch waterfall for timeout, retry, or metrics. `next()` returns a normalized result; wrappers may change only `exec.signal`, while call identity remains immutable. The registry re-fuses the original caller signal before the body, so replacement cannot detach caller cancellation; wrappers must still restore their signal and reach quiescence. Retries do not override executor-specific single-dispatch rules. Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): agent-scoped listeners receive only that agent's calls.
 
 ```ts cordis-catalog
 /**
@@ -636,7 +653,8 @@ Around-dispatch waterfall for timeout, retry, or metrics. `next()` returns a nor
  * a normalized result; wrappers may change only `exec.signal`, while call
  * identity remains immutable. The registry re-fuses the original caller
  * signal before the body, so replacement cannot detach caller cancellation;
- * wrappers must still restore their signal and reach quiescence.
+ * wrappers must still restore their signal and reach quiescence. Retries do
+ * not override executor-specific single-dispatch rules.
  * Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): agent-scoped listeners receive only that agent's calls.
  * @param exec - the allowed call about to dispatch (name, parsed arguments, caller agent, signal).
  * @mode waterfall

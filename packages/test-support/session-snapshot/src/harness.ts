@@ -208,6 +208,13 @@ export interface RunOptions {
    * in `cordis.yml` so the launcher can select the replay sibling.
    */
   configPath?: string
+  /** Optional private external adapter and Human-control script, fresh for each run. */
+  privateDriver?: {
+    /** @param message - child packet. @param send - private reply sender. */
+    receive(this: void, message: unknown, send: (message: object) => Promise<void>): void | Promise<void>
+    /** @param step - completed public protocol input. @param send - private control sender. */
+    afterStep(step: InputStep, send: (message: object) => Promise<void>): void | Promise<void>
+  }
 }
 
 /**
@@ -295,6 +302,7 @@ export async function runScenario(input: InputScript, opts: RunOptions): Promise
       cwd,
       ...opts.configPath !== undefined ? { configPath: opts.configPath } : {},
       env,
+      ...opts.privateDriver === undefined ? {} : { privateMessage: opts.privateDriver.receive },
       requestPermission(params: RequestPermissionRequest): Promise<RequestPermissionResponse> {
         const answer = permissionQueue.shift()
         if (answer === undefined) return Promise.resolve({ outcome: { outcome: 'cancelled' } })
@@ -337,6 +345,7 @@ export async function runScenario(input: InputScript, opts: RunOptions): Promise
       // fail the run HERE, as a harness error, rather than hoping the agent's
       // reaction to the answer perturbs the transcript.
       if (scriptError !== undefined) throw scriptError
+      await opts.privateDriver?.afterStep(step, message => active.sendPrivateMessage(message))
     }
     // Done driving: close stdin so the server disposes gracefully (flushing
     // persistence) and exits. Then await exit so the harvested log is complete.

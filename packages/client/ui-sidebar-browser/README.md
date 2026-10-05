@@ -44,7 +44,7 @@ Client plugins can open a tab through `ctx.sidebarRight.openTab('browser', { par
 
 The `browser.new` command opens a separate Browser page in the focused dock pane, replacing a guide and retaining existing content pages. From the conversation or a floating content page, it uses the active dock pane. Desktop defaults to Cmd+T on macOS and Ctrl+T on Windows; Windows and macOS Web use the [shortcut service’s platform defaults](../shortcuts/README.md); Linux Web leaves the command unbound. The guide button uses a blue globe and displays the effective shortcut inline without a duplicate tooltip.
 
-The toolbar provides Back, Forward, Reload, Go, and Open in system browser. Web also offers a per-tab sandbox toggle; disabling it is temporary and displays a warning. Desktop shows the observed page title. After a restart, Browser shows the saved title and URL; Restore or Reload opens that address only when requested.
+The toolbar provides Back, Forward, Reload, Go, and Open in system browser. Web also offers a temporary per-tab sandbox toggle with a warning. Ordinary Desktop tabs show observed titles and retain title/URL checkpoints; Restore or Reload opens them explicitly after restart. Saved-account tabs retain only the configured landing URL, not observed titles or navigation. Desktop's Browser guide can create or select a remembered site/account/MCP pairing. Log in manually; choose a Session request and click Resume to hand over that visible guest, or Takeover to revoke immediately. Main authorizes Human navigation commands, including deferred loads, immediately before native dispatch; account aliases remain blocked until admitted work physically settles. Reserved status grants no page permission; account Takeover retains sign-in and pairing, and unavailable local recovery cannot bypass failed drainage. Saved-account native failures expose no page diagnostics. Sign out clears authentication; Forget removes the pairing only after cleanup succeeds.
 
 -----
 
@@ -66,9 +66,9 @@ Web records toolbar submissions and typed tab opens. A navigation state machine 
 
 ### Controller
 
-Each tab's `BrowserController` owns address validation, commands and explicit restoration. `BrowserFrame` supplies carrier-neutral navigation state; `IframeImpl` uses `BrowserNavigation`, while `ElectronWebViewImpl` observes Chromium history. `BrowserPresentation` owns physical DOM attachment. Slot injection supplies `useBrowserState` and plain callbacks, keeping provider objects and observables out of the React body.
+Each tab's `BrowserController` owns address validation, commands, and explicit restoration. `BrowserFrame` supplies carrier-neutral navigation state; `IframeImpl` uses `BrowserNavigation`, while `ElectronWebViewImpl` observes Chromium history only for ordinary tabs. `BrowserPresentation` owns physical DOM attachment. A Session-owned `WebsiteRequestSession` maintains the bounded request roster and exact claims; each saved-account page owns its admission, revocation, and drainage. Disposal stops roster observation synchronously and withdraws controls without waiting for native drainage. It joins admission and guest releases, including late acquisitions; failed drainage remains joinable and blocks reuse. Framework-bound Browser, profile, and request hooks supply snapshots; components receive plain callbacks, never providers or observable objects.
 
-Desktop's main process approves guest leases and enforces attachment, navigation and permission policy. Preload exposes only scoped Browser operations. Shared declarations use the standard `/types` export with `import type`; the Host and Client compile through separate tsconfig files. Desktop Browser tabs declare `keepMounted`, so Sidebar preserves their DOM across tab changes, Session switches, collapse and floating.
+Desktop's main process approves guest leases and enforces attachment, navigation, and permission policy. Preload exposes scoped Browser, profile, and request operations. Shared declarations use `/types` with `import type`; Host and Client compile through separate tsconfig files. Desktop tabs declare `keepMounted` to retain DOM across tab changes, Session switches, collapse, and floating, not to retain authority. Logical or physical hiding revokes a saved-account handoff; showing the guest requires a fresh explicit Resume. Takeover dispatches revocation independently of pending preparation or acknowledgement, then joins their settlement. Feedback exceptions cannot interrupt cleanup; UI notices omit transport diagnostics.
 
 The page refresh shortcut calls the same reload operation as the toolbar. Its tooltip and ARIA key combination follow the effective binding. Desktop routes accepted shortcuts from an approved guest through its owning window; the focused webview must still carry that guest’s lease. Web leaves browser-reserved combinations unchanged.
 
@@ -89,11 +89,11 @@ The page refresh shortcut calls the same reload operation as the toolbar. Its to
 <a id="model-experience"></a>
 ## Model Experience
 
-None, as Browser tabs are user-facing presentation state and register no tool, prompt section, or Session event.
+None, as this Client plugin adds only Browser presentation, registers no tools, prompts, or Session events, and exposes no visited content to the model.
 
 #### KV Cache effect
 
-None; browsing does not enter a model request.
+None; browsing and human request controls do not enter a model request, while `website_profiles` and `website_prepare` are registered by the separate Desktop Host.
 
 ## Known Limitations and Deferred Work
 
@@ -105,9 +105,10 @@ The isolation policy deliberately gives up some browser compatibility:
 - In Web, a popup that escapes the sandbox retains its opener and can use that chain to navigate the top-level application. Desktop handles popup creation separately.
 - A later iframe load reveals that navigation occurred but not the new cross-origin URL. History API and fragment changes may remain invisible; Web Back and Forward are unavailable after the state becomes unknown.
 - Browsers conceal many iframe failures for security: DNS, TLS, mixed-content, CSP, and `X-Frame-Options` failures may emit `load` or no actionable event instead of `error`. The load-failure notice is best-effort.
-- Saved title and URL survive reloads and plugin unload while the tab remains in Sidebar's layout. Closing the tab removes its checkpoint. Restart restoration does not recover page memory, unsaved forms or Chromium's history stack.
+- Ordinary tabs retain title/URL checkpoints across reloads and plugin unload while present in Sidebar's layout; saved-account tabs retain the profile id and configured landing URL instead. Closing a tab removes its checkpoint. Restart restoration recovers neither page memory, unsaved forms, Chromium history, nor request grants.
 - Local files are rejected and remain owned by Document Preview.
-- Desktop shares process-local storage partitions by canonical workspace CWD; Sessions without a resolved Workspace are isolated separately. Cookies and Web storage do not survive application restart. Guest permissions, downloads and native popups are denied; approved HTTP(S) popup requests open Sidebar tabs. Host-address filtering is not a general private-network or DNS-rebinding firewall.
+- Ordinary Desktop tabs share process-local storage partitions by canonical workspace CWD; unresolved Workspaces are isolated per Session. Saved-account tabs use separate persistent partitions, retaining authentication until successful sign-out or forgetting. Cleanup revokes authority, joins every guest release even after a sibling fails, then clears storage, cache, authentication, and connections. Any drainage failure preserves storage and blocks the profile; interrupted cleanup stays blocked after restart. Persistence does not protect cookies from the same OS user. Guest permissions, downloads, and native popups are denied; approved HTTP(S) popup requests open Sidebar tabs. Host-address filtering is not a general private-network or DNS-rebinding firewall.
+- The separate Desktop Host supplies request-scoped browser operations with fresh one-call consent and MCP-first fallback reasons. Arbitrary JavaScript is unavailable; script-created workers can outlive takeover and reload does not guarantee their termination. DOM filtering cannot guarantee removal of all authentication secrets. Unknown MCP outcomes retain account locks; automated restart reconciliation is unavailable.
 
 <a id="dev-note"></a>
 ### Dev Note

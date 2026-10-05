@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { EventEmitter } from 'node:events'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { setImmediate } from 'node:timers/promises'
 import { afterEach, expect, it, onTestFinished, vi } from 'vitest'
 import type { BrowserWindow, WebContents, WebFrameMain } from 'electron'
 import type { DesktopShortcutInput, ShortcutBinding, ShortcutCommandId, ShortcutConfigSnapshot,
@@ -10,10 +11,14 @@ import type { DesktopShortcutInput, ShortcutBinding, ShortcutCommandId, Shortcut
 import { ShortcutRegistry } from '@deepseek-ai/dsh-client-shortcuts/src/client/registry.ts'
 import { installKeyboard } from '@deepseek-ai/dsh-client-shortcuts/src/client/dom.ts'
 import { installNativeKeyboard } from '@deepseek-ai/dsh-client-shortcuts/src/client/native.ts'
-import type { DesktopBrowserLeaseId, DesktopBrowserReservation } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
+import type { DesktopBrowserLeaseId, DesktopBrowserReservation, DesktopWebsiteProfileId } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
+import type { DesktopWebsiteProfiles } from '../src/website-profiles.ts'
 import { DESKTOP_IPC } from '../src/ipc.ts'
 
 const ipc = vi.hoisted(() => ({ handle: vi.fn(), removeHandler: vi.fn() }))
+const storage = vi.hoisted(() => ({ clearStorageData: vi.fn(async () => {}), clearCache: vi.fn(async () => {}),
+  clearAuthCache: vi.fn(async () => {}), closeAllConnections: vi.fn(async () => {}) }))
+const storageOverrides = vi.hoisted(() => new Map<typeof nativeCleanupMethods[number], () => Promise<void>>())
 const overlays = await vi.hoisted(async () => {
   const { EventEmitter } = await import('node:events')
   class Window extends EventEmitter {
@@ -26,12 +31,22 @@ const overlays = await vi.hoisted(async () => {
     isDestroyed() { return this.destroyed }
     destroy() { this.destroyed = true; this.emit('closed') }
   }
-  return { Window }
+  return { Window, application: Object.assign(new EventEmitter(), { isPackaged: true }) }
 })
-vi.mock('electron', () => ({ ipcMain: ipc, BrowserWindow: overlays.Window, app: { isPackaged: true }, session: { fromPartition: () => ({
-  setPermissionRequestHandler: vi.fn(), setPermissionCheckHandler: vi.fn(), setDevicePermissionHandler: vi.fn(),
-  setDisplayMediaRequestHandler: vi.fn(), on: vi.fn(), webRequest: { onBeforeRequest: vi.fn() },
-}) } }))
+const nativeSessions = vi.hoisted(() => new Map<string, ReturnType<typeof createNativeSession>>())
+function createNativeSession() {
+  return { ...storage, setPermissionRequestHandler: vi.fn(), setPermissionCheckHandler: vi.fn(), setDevicePermissionHandler: vi.fn(),
+    setDisplayMediaRequestHandler: vi.fn(), on: vi.fn(), webRequest: { onBeforeRequest: vi.fn() } }
+}
+function nativeSession(partition: string) {
+  let value = nativeSessions.get(partition)
+  if (value === undefined) { value = createNativeSession(); nativeSessions.set(partition, value) }
+  Object.assign(value, storage, Object.fromEntries(storageOverrides))
+  return value
+}
+const nativeContents = vi.hoisted(() => new Set<object>())
+vi.mock('electron', () => ({ ipcMain: ipc, BrowserWindow: overlays.Window, app: overlays.application,
+  webContents: { getAllWebContents: () => [...nativeContents] }, session: { fromPartition: nativeSession } }))
 const { installDesktopShortcuts } = await import('../src/keyboard.ts')
 const { DesktopBrowserGuests } = await import('../src/browser-guests.ts')
 const { DesktopUpdateOverlays } = await import('../src/update-overlay.ts')
@@ -58,8 +73,16 @@ const installFixture = installDesktopShortcuts as (
   overlayInput: (window: WindowFixture) => { readonly revision: number; readonly blocked: boolean },
 ) => KeyboardFixture
 type GuestsFixture = {
+  createProfiles(...args: Parameters<InstanceType<typeof DesktopBrowserGuests>['createProfiles']>): DesktopWebsiteProfiles
+  acquireProfile(owner: ContentsFixture, profile: DesktopWebsiteProfileId): DesktopBrowserReservation
   acquire(owner: ContentsFixture, workspace: unknown): DesktopBrowserReservation
   release(owner: ContentsFixture, id: unknown): Promise<void>
+  inspectWebsite(owner: ContentsFixture, id: DesktopBrowserLeaseId): {
+    owner: ContentsFixture
+    guest: ContentsFixture
+    profile: DesktopWebsiteProfileId
+  } | undefined
+  onInvalidated(listener: (owner: ContentsFixture, lease: DesktopBrowserLeaseId) => void | Promise<void>): () => void
   bind(window: WindowFixture, attachInput: (guest: ContentsFixture, name: DesktopBrowserLeaseId) => () => void): void
 }
 
@@ -67,12 +90,16 @@ function desktopDefaults(binding: ShortcutBinding): ShortcutDefinition['defaults
   return { 'desktop:macos': binding, 'desktop:windows': binding, 'desktop:linux': binding }
 }
 
-function browserGuest(reservation: DesktopBrowserReservation) {
+function browserGuest(reservation: DesktopBrowserReservation, owner: ContentsFixture) {
   const frame: FrameFixture = { url: `about:blank#${reservation.lease}`, name: '', parent: null }
+  let destroyed = false
   const guest = Object.assign(new EventEmitter(), { mainFrame: frame, focusedFrame: frame,
-    getURL: () => frame.url, isDestroyed: () => false, isFocused: vi.fn(() => true),
+    hostWebContents: owner, session: nativeSession(reservation.partition), getURL: () => frame.url, getType: () => 'webview',
+    isDestroyed: () => destroyed, isFocused: vi.fn(() => true),
     setWindowOpenHandler: vi.fn(), setIgnoreMenuShortcuts: vi.fn(), send: vi.fn(), close: vi.fn(),
     focus: vi.fn(), sendInputEvent: vi.fn() })
+  nativeContents.add(guest)
+  guest.once('destroyed', () => { destroyed = true; nativeContents.delete(guest) })
   onTestFinished(() => { guest.emit('destroyed') })
   return { frame, guest }
 }
@@ -81,9 +108,12 @@ async function fixture(platform: 'macos' | 'windows' | 'linux' = 'macos') {
   const root = await mkdtemp(join(tmpdir(), 'dsh-keyboard-'))
   onTestFinished(async () => { await rm(root, { recursive: true, force: true }) })
   const frame: FrameFixture = { url: 'dsh-app://app/', name: '', parent: null }
+  let destroyed = false
   const contents = Object.assign(new EventEmitter(), { mainFrame: frame, focusedFrame: frame,
-    isDestroyed: () => false, isFocused: () => true, send: vi.fn(),
+    isDestroyed: () => destroyed, isFocused: () => true, send: vi.fn(),
     setIgnoreMenuShortcuts: vi.fn(), focus: vi.fn(), sendInputEvent: vi.fn() })
+  contents.once('destroyed', () => { destroyed = true })
+  onTestFinished(async () => { contents.emit('destroyed'); await setImmediate() })
   const window = Object.assign(new EventEmitter(), { webContents: contents, isDestroyed: vi.fn(() => false),
     isFocused: vi.fn(() => true), isEnabled: vi.fn(() => true), close: vi.fn() })
   let current: WindowFixture | undefined = window
@@ -101,6 +131,72 @@ async function fixture(platform: 'macos' | 'windows' | 'linux' = 'macos') {
   ]
   return { keyboard, window, updateOverlays, contents, frame, event, handlers, call, definitions, updateMenu,
     detach: () => { current = undefined } }
+}
+
+const nativeCleanupMethods = ['clearStorageData', 'clearCache', 'clearAuthCache', 'closeAllConnections'] as const
+
+async function websiteCleanupFixture() {
+  const f = await fixture()
+  const root = await mkdtemp(join(tmpdir(), 'dsh-website-native-cache-'))
+  const filename = join(root, 'profiles.json')
+  const pending: Promise<unknown>[] = []
+  const releaseOnFinish: (() => void)[] = []
+  const native: Array<typeof nativeCleanupMethods[number]> = []
+  onTestFinished(async () => {
+    for (const release of releaseOnFinish) release()
+    await Promise.allSettled(pending)
+    for (const method of nativeCleanupMethods) storage[method].mockReset().mockImplementation(async () => {})
+    await rm(root, { recursive: true, force: true })
+  })
+  for (const method of nativeCleanupMethods) storage[method].mockImplementation(async () => { native.push(method) })
+  const guests = new DesktopBrowserGuests(() => undefined) as GuestsFixture
+  const profiles = guests.createProfiles(filename, {
+    inspect: async () => ({ identity: 'a'.repeat(64), endpoint: 'https://portal.example.test/mcp' }),
+    confirm: async () => {}, enroll: async () => {},
+  }, async () => {})
+  const profile = await profiles.create({ name: 'Portal', accountLabel: 'operator',
+    url: 'https://portal.example.test/', mcpServerName: 'portal' })
+  const alias = await profiles.create({ name: 'Portal alias', accountLabel: 'operator',
+    url: 'https://portal.example.test/alias', mcpServerName: 'portal' })
+  await profiles.setControl(profile.id, 'agent')
+  const attach = vi.fn(() => () => {})
+  guests.bind(f.window, attach)
+  const reservation = guests.acquireProfile(f.contents, profile.id)
+  const { frame, guest } = browserGuest(reservation, f.contents)
+  let attached = false
+  const attachGuest = () => { attached = true; f.contents.emit('did-attach-webview', {}, guest) }
+  releaseOnFinish.push(() => {
+    guest.close.mockImplementation(() => { guest.emit('destroyed') })
+    if (!attached) attachGuest()
+    guest.emit('destroyed')
+  })
+  const saved = async () => {
+    const document = JSON.parse(await readFile(filename, 'utf8')) as {
+      profiles: Array<{ id: string; cleanupPending: boolean; loginConfirmed: boolean }>
+    }
+    return document.profiles.find(candidate => candidate.id === profile.id)
+  }
+  const assertFenced = async () => {
+    for (const id of [profile.id, alias.id]) {
+      expect(() => profiles.assertAvailable(id)).toThrow('must be cleared successfully')
+      await expect(profiles.acquire(id)).rejects.toThrow('must be cleared successfully')
+    }
+  }
+  const assertFinished = async (operation: 'signOut' | 'forget') => {
+    expect(profiles.assertAvailable(alias.id).control).toBe('human')
+    await expect(profiles.acquire(alias.id)).resolves.toMatchObject({ id: alias.id })
+    if (operation === 'forget') {
+      expect(await saved()).toBeUndefined()
+      expect(() => profiles.assertAvailable(profile.id)).toThrow('unavailable')
+      await expect(profiles.acquire(profile.id)).rejects.toThrow('unavailable')
+    } else {
+      expect(await saved()).toMatchObject({ cleanupPending: false, loginConfirmed: false })
+      expect(profiles.assertAvailable(profile.id).control).toBe('human')
+      await expect(profiles.acquire(profile.id)).resolves.toMatchObject({ id: profile.id })
+    }
+  }
+  return { ...f, guests, profiles, profile, reservation, frame, guest, attach, attachGuest, pending, releaseOnFinish,
+    native, saved, assertFenced, assertFinished }
 }
 
 function updateOverlayFixture(f: Awaited<ReturnType<typeof fixture>>) {
@@ -201,7 +297,7 @@ it.each([false, true])('blocks approved browser guest input across update overla
   const guests = new DesktopBrowserGuests(() => undefined) as GuestsFixture
   guests.bind(f.window, (guest, name) => f.keyboard.attachGuest(f.window, guest, name))
   const reservation = guests.acquire(f.contents, 'session:test')
-  const { frame, guest } = browserGuest(reservation)
+  const { frame, guest } = browserGuest(reservation, f.contents)
   const attach = () => {
     const event = { preventDefault: vi.fn() }
     f.contents.emit('will-attach-webview', event, {}, { src: frame.url, partition: reservation.partition })
@@ -707,19 +803,280 @@ it.each(['macos', 'windows'] as const)('requires fresh %s chord presses when Ele
   }
 })
 
+async function bootstrapFixture() {
+  const f = await fixture()
+  const guests = new DesktopBrowserGuests(() => undefined) as GuestsFixture
+  const disposeInput = vi.fn()
+  const attachInput = vi.fn(() => disposeInput)
+  guests.bind(f.window, attachInput)
+  const reservation = guests.acquire(f.contents, 'bootstrap:test')
+  const approve = (value = reservation): void => {
+    const event = { preventDefault: vi.fn() }
+    f.contents.emit('will-attach-webview', event, {}, { src: `about:blank#${value.lease}`, partition: value.partition })
+    expect(event.preventDefault).not.toHaveBeenCalled()
+  }
+  approve()
+  return { ...f, guests, reservation, approve, attachInput, disposeInput }
+}
+
+it.each(['start', 'commit', 'fragment'] as const)('binds a delayed exact native bootstrap through main-frame %s, not a subframe', async (event) => {
+  const f = await bootstrapFixture()
+  const { guest, frame } = browserGuest(f.reservation, f.contents)
+  frame.url = 'about:blank'
+  f.contents.emit('did-attach-webview', {}, guest)
+  const marker = `about:blank#${f.reservation.lease}`
+  guest.emit('did-start-navigation', { isMainFrame: false, url: marker })
+  guest.emit('did-navigate-in-page', {}, marker, false)
+  expect(f.attachInput).not.toHaveBeenCalled()
+  if (event === 'start') guest.emit('did-start-navigation', { isMainFrame: true, url: marker })
+  else if (event === 'commit') guest.emit('did-navigate', {}, marker, 200, 'OK')
+  else guest.emit('did-navigate-in-page', {}, marker, true)
+  expect(f.attachInput).toHaveBeenCalledExactlyOnceWith(guest, f.reservation.lease)
+  expect(guest.close).not.toHaveBeenCalled()
+  for (const name of ['did-start-navigation', 'did-navigate', 'did-navigate-in-page']) expect(guest.listenerCount(name)).toBe(0)
+  guest.emit('did-navigate', {}, 'https://portal.example.test/', 200, 'OK')
+  expect(guest.close).not.toHaveBeenCalled()
+})
+
+it('correlates out-of-order guests by exact approved marker when native Sessions are shared', async () => {
+  const f = await bootstrapFixture()
+  const second = f.guests.acquire(f.contents, 'bootstrap:test')
+  f.approve(second)
+  const firstGuest = browserGuest(f.reservation, f.contents).guest
+  const secondGuest = browserGuest(second, f.contents).guest
+  expect(firstGuest.session).toBe(secondGuest.session)
+  f.contents.emit('did-attach-webview', {}, secondGuest)
+  f.contents.emit('did-attach-webview', {}, firstGuest)
+  expect(f.attachInput.mock.calls).toEqual([[secondGuest, second.lease], [firstGuest, f.reservation.lease]])
+})
+
+it.each(['unapproved', 'owner', 'session', 'duplicate'] as const)('closes a native guest with %s identity without attaching input', async (reason) => {
+  const f = await bootstrapFixture()
+  const { guest } = browserGuest(f.reservation, f.contents)
+  if (reason === 'unapproved') guest.getURL = () => 'about:blank#unknown'
+  if (reason === 'owner') guest.hostWebContents = (await fixture()).contents
+  if (reason === 'session') guest.session = nativeSession('wrong-native-partition')
+  if (reason === 'duplicate') {
+    const first = browserGuest(f.reservation, f.contents).guest
+    f.contents.emit('did-attach-webview', {}, first)
+    f.attachInput.mockClear()
+  }
+  f.contents.emit('did-attach-webview', {}, guest)
+  expect(f.attachInput).not.toHaveBeenCalled()
+  expect(guest.close).toHaveBeenCalledOnce()
+  for (const name of ['did-start-navigation', 'did-navigate', 'did-navigate-in-page']) expect(guest.listenerCount(name)).toBe(0)
+})
+
+it.each(['release', 'destroy', 'throw'] as const)('never publishes an input disposer after reentrant attachment %s', async (operation) => {
+  const f = await bootstrapFixture()
+  const { guest } = browserGuest(f.reservation, f.contents)
+  const pending: Promise<void>[] = []
+  onTestFinished(async () => { guest.emit('destroyed'); await Promise.allSettled(pending) })
+  f.attachInput.mockImplementation(() => {
+    if (operation === 'release') pending.push(f.guests.release(f.contents, f.reservation.lease))
+    else if (operation === 'destroy') guest.emit('destroyed')
+    else throw new Error('Native input binding failed')
+    return f.disposeInput
+  })
+  expect(() => f.contents.emit('did-attach-webview', {}, guest)).not.toThrow()
+  if (operation === 'throw') expect(guest.close).toHaveBeenCalledOnce()
+  else expect(f.disposeInput).toHaveBeenCalledOnce()
+  guest.emit('destroyed')
+  await Promise.all(pending)
+  expect(f.disposeInput).toHaveBeenCalledTimes(operation === 'throw' ? 0 : 1)
+})
+
+it('releases a pending exact guest without restoring input and waits for physical destruction', async () => {
+  const f = await bootstrapFixture()
+  const { guest, frame } = browserGuest(f.reservation, f.contents)
+  frame.url = ''
+  f.contents.emit('did-attach-webview', {}, guest)
+  let settled = false
+  const released = f.guests.release(f.contents, f.reservation.lease).then(() => { settled = true })
+  onTestFinished(async () => { guest.emit('destroyed'); await released })
+  guest.emit('did-navigate-in-page', {}, `about:blank#${f.reservation.lease}`, true)
+  await setImmediate()
+  expect(f.attachInput).not.toHaveBeenCalled()
+  expect(guest.close).toHaveBeenCalledOnce()
+  expect(settled).toBe(false)
+  guest.emit('destroyed')
+  await released
+  expect(settled).toBe(true)
+})
+
+it.each(['deadline', 'crash'] as const)('keeps owner release waiting for an unidentified native guest after %s', async (failure) => {
+  const f = await bootstrapFixture()
+  const { guest, frame } = browserGuest(f.reservation, f.contents)
+  frame.url = 'about:blank'
+  if (failure === 'deadline') {
+    vi.useFakeTimers()
+    onTestFinished(() => { vi.useRealTimers() })
+  }
+  f.contents.emit('did-attach-webview', {}, guest)
+  if (failure === 'deadline') await vi.advanceTimersByTimeAsync(5_000)
+  else guest.emit('render-process-gone', {}, { reason: 'crashed' })
+  expect(guest.close).toHaveBeenCalledOnce()
+  f.contents.emit('destroyed')
+  let settled = false
+  const released = f.guests.release(f.contents, f.reservation.lease).then(() => { settled = true })
+  onTestFinished(async () => { guest.emit('destroyed'); await released })
+  guest.emit('did-navigate', {}, `about:blank#${f.reservation.lease}`, 200, 'OK')
+  await Promise.resolve()
+  await Promise.resolve()
+  expect(f.attachInput).not.toHaveBeenCalled()
+  expect(settled).toBe(false)
+  guest.emit('destroyed')
+  await released
+  expect(settled).toBe(true)
+  for (const name of ['did-start-navigation', 'did-navigate', 'did-navigate-in-page']) expect(guest.listenerCount(name)).toBe(0)
+})
+
+it.each(['reload', 'crash', 'destroy'] as const)('joins early native creation across owner %s and ignores late attachment delivery', async (operation) => {
+  const f = await bootstrapFixture()
+  const { guest, frame } = browserGuest(f.reservation, f.contents)
+  const marker = frame.url
+  frame.url = ''
+  overlays.application.emit('web-contents-created', {}, guest)
+  expect(f.attachInput).not.toHaveBeenCalled()
+  if (operation === 'reload') f.contents.emit('did-start-navigation', {}, 'dsh-app://app/', false, true)
+  else f.contents.emit(operation === 'crash' ? 'render-process-gone' : 'destroyed')
+  let settled = false
+  const release = f.guests.release(f.contents, f.reservation.lease).then(() => { settled = true })
+  onTestFinished(async () => { guest.emit('destroyed'); await release })
+  await setImmediate()
+  expect(guest.close).toHaveBeenCalledOnce()
+  expect(settled).toBe(false)
+  frame.url = marker
+  f.contents.emit('did-attach-webview', {}, guest)
+  expect(f.attachInput).not.toHaveBeenCalled()
+  expect(guest.listenerCount('did-navigate-in-page')).toBe(0)
+  guest.emit('destroyed')
+  await release
+  expect(settled).toBe(true)
+  f.contents.emit('did-attach-webview', {}, guest)
+  expect(f.attachInput).not.toHaveBeenCalled()
+  if (operation !== 'destroy') {
+    const next = f.guests.acquire(f.contents, 'replacement-document')
+    const replacement = browserGuest(next, f.contents)
+    const denied = vi.fn()
+    f.contents.emit('will-attach-webview', { preventDefault: denied }, {}, { src: replacement.frame.url, partition: next.partition })
+    expect(denied).not.toHaveBeenCalled()
+    overlays.application.emit('web-contents-created', {}, replacement.guest)
+    f.contents.emit('did-attach-webview', {}, replacement.guest)
+    expect(f.attachInput).toHaveBeenCalledOnce()
+  }
+})
+
+it.each(['release', 'crash', 'reentrant'] as const)('contains a throwing native input disposer during %s and still closes the guest', async (operation) => {
+  const f = await bootstrapFixture()
+  const { guest } = browserGuest(f.reservation, f.contents)
+  const pending: Promise<void>[] = []
+  f.disposeInput.mockImplementation(() => { throw new Error('Native input disposal failed') })
+  onTestFinished(async () => { guest.emit('destroyed'); await Promise.allSettled(pending) })
+  if (operation === 'reentrant') f.attachInput.mockImplementation(() => {
+    pending.push(f.guests.release(f.contents, f.reservation.lease))
+    return f.disposeInput
+  })
+  expect(() => f.contents.emit('did-attach-webview', {}, guest)).not.toThrow()
+  if (operation === 'release') pending.push(f.guests.release(f.contents, f.reservation.lease))
+  if (operation === 'crash') expect(() => guest.emit('render-process-gone')).not.toThrow()
+  await setImmediate()
+  expect(guest.close).toHaveBeenCalledOnce()
+  expect(f.disposeInput).toHaveBeenCalledOnce()
+  guest.emit('destroyed')
+  await Promise.all(pending)
+})
+
+it.each([false, true])('profile cleanup waits for destruction of an unidentified duplicate in the actual native Session (close throws: %s)', async (throws) => {
+  const f = await websiteCleanupFixture()
+  f.contents.emit('will-attach-webview', { preventDefault: vi.fn() }, {}, { src: f.frame.url, partition: f.reservation.partition })
+  f.attachGuest()
+  const duplicate = browserGuest(f.reservation, f.contents).guest
+  f.releaseOnFinish.push(() => { duplicate.emit('destroyed') })
+  if (throws) duplicate.close.mockImplementation(() => { throw new Error('Native duplicate close failed') })
+  f.contents.emit('did-attach-webview', {}, duplicate)
+  expect(duplicate.close).toHaveBeenCalledOnce()
+  expect(f.attach).toHaveBeenCalledOnce()
+  const originalClosed = Promise.withResolvers<undefined>()
+  f.guest.close.mockImplementation(() => { f.guest.emit('destroyed'); originalClosed.resolve(undefined) })
+  let finished = false
+  const cleanup = f.profiles.signOut(f.profile.id).then(() => { finished = true })
+  f.pending.push(cleanup)
+  await originalClosed.promise
+  expect(f.guest.isDestroyed()).toBe(true)
+  expect(f.native).toEqual([])
+  expect(finished).toBe(false)
+  await f.assertFenced()
+  duplicate.emit('destroyed')
+  await cleanup
+  expect(finished).toBe(true)
+  expect(f.native).toContain('clearStorageData')
+  await f.assertFinished('signOut')
+})
+
+it('retries an unidentified native closure after physical drainage times out without clearing authentication early', async () => {
+  const f = await websiteCleanupFixture()
+  f.contents.emit('will-attach-webview', { preventDefault: vi.fn() }, {}, { src: f.frame.url, partition: f.reservation.partition })
+  f.attachGuest()
+  f.guest.close.mockImplementation(() => { f.guest.emit('destroyed') })
+  const duplicate = browserGuest(f.reservation, f.contents).guest
+  f.releaseOnFinish.push(() => { duplicate.emit('destroyed') })
+  f.contents.emit('did-attach-webview', {}, duplicate)
+  expect(duplicate.close).toHaveBeenCalledOnce()
+  const draining = Promise.withResolvers<undefined>()
+  duplicate.close.mockImplementation(() => { draining.resolve(undefined) })
+  vi.useFakeTimers()
+  onTestFinished(() => { vi.useRealTimers() })
+  try {
+    const failed = f.profiles.signOut(f.profile.id)
+    f.pending.push(failed)
+    const failure = expect(failed).rejects.toThrow('Desktop website native guest drainage did not finish')
+    await draining.promise
+    await vi.advanceTimersByTimeAsync(5_000)
+    await failure
+    expect(duplicate.close).toHaveBeenCalledTimes(2)
+    expect(duplicate.isDestroyed()).toBe(false)
+    expect(f.native).toEqual([])
+    await f.assertFenced()
+    duplicate.close.mockImplementation(() => { duplicate.emit('destroyed') })
+    await f.profiles.signOut(f.profile.id)
+    expect(duplicate.close).toHaveBeenCalledTimes(3)
+    expect(duplicate.isDestroyed()).toBe(true)
+    expect(f.native).toContain('clearStorageData')
+    await f.assertFinished('signOut')
+  } finally { vi.useRealTimers() }
+})
+
+it('closes unbound guests that attempt external navigation before native identification', async () => {
+  const f = await bootstrapFixture()
+  const { guest, frame } = browserGuest(f.reservation, f.contents)
+  frame.url = 'about:blank'
+  f.contents.emit('did-attach-webview', {}, guest)
+  const event = { isMainFrame: true, url: 'https://portal.example.test/', preventDefault: vi.fn() }
+  guest.emit('will-frame-navigate', event)
+  expect(event.preventDefault).toHaveBeenCalledOnce()
+  expect(guest.close).toHaveBeenCalledOnce()
+  expect(f.attachInput).not.toHaveBeenCalled()
+})
+
 it.each(['macos', 'windows', 'linux'] as const)('routes approved %s browser guest input to its owner and stops delivery before guest destruction', async (platform) => {
   const f = await fixture(platform)
   const snapshot = await f.call<ShortcutConfigSnapshot>(DESKTOP_IPC.shortcutsGet,
     [{ id: 'browser.new', defaults: desktopDefaults({ code: 'KeyT', modifiers: ['primary'] }) }])
   const guests = new DesktopBrowserGuests(() => undefined) as GuestsFixture
-  const attach = vi.fn((guest: ContentsFixture, name: DesktopBrowserLeaseId) => f.keyboard.attachGuest(f.window, guest, name))
+  const detach = vi.fn<() => void>()
+  const attach = vi.fn((guest: ContentsFixture, name: DesktopBrowserLeaseId) => {
+    detach.mockImplementation(f.keyboard.attachGuest(f.window, guest, name))
+    return detach
+  })
   guests.bind(f.window, attach)
   const reservation = guests.acquire(f.contents, 'session:test')
-  const { frame, guest } = browserGuest(reservation)
+  const { frame, guest } = browserGuest(reservation, f.contents)
   const rejected = { preventDefault: vi.fn() }
   f.contents.emit('will-attach-webview', rejected, {}, { src: 'about:blank#unknown', partition: reservation.partition })
   expect(rejected.preventDefault).toHaveBeenCalledOnce()
-  const invalid = Object.assign(new EventEmitter(), { getURL: () => 'about:blank#unknown', setWindowOpenHandler: vi.fn(), close: vi.fn() })
+  const invalid = browserGuest(reservation, f.contents).guest
+  invalid.getURL = () => 'about:blank#unknown'
   f.contents.emit('did-attach-webview', {}, invalid)
   invalid.emit('dom-ready')
   expect(invalid.close).toHaveBeenCalledExactlyOnceWith({ waitForBeforeUnload: false })
@@ -747,12 +1104,372 @@ it.each(['macos', 'windows', 'linux'] as const)('routes approved %s browser gues
   expect(f.contents.send).toHaveBeenCalledOnce()
   guest.isFocused.mockReturnValue(true)
   const release = guests.release(f.contents, reservation.lease)
+  expect(detach).toHaveBeenCalledOnce()
+  await Promise.resolve()
   expect(guest.close).toHaveBeenCalledExactlyOnceWith({ waitForBeforeUnload: false })
-  expect(guest.listenerCount('before-input-event')).toBe(0)
   guest.emit('before-input-event', { preventDefault }, input)
   expect(f.contents.send).toHaveBeenCalledOnce()
   guest.emit('destroyed')
   await release
+})
+
+it.each(['release', 'destruction', 'crash'] as const)('invalidates exact website guest authority synchronously on %s', async (cause) => {
+  const f = await fixture()
+  const guests = new DesktopBrowserGuests(() => undefined) as GuestsFixture
+  guests.bind(f.window, () => () => {})
+  const profile = 'cd1b6493-c881-4967-a544-b0a49f2d847f' as DesktopWebsiteProfileId
+  const reservation = guests.acquireProfile(f.contents, profile)
+  const ordinary = guests.acquire(f.contents, 'ordinary')
+  expect(guests.inspectWebsite(f.contents, ordinary.lease)).toBeUndefined()
+  expect(guests.inspectWebsite(f.contents, reservation.lease)).toBeUndefined()
+  const { frame, guest } = browserGuest(reservation, f.contents)
+  f.contents.emit('will-attach-webview', { preventDefault: vi.fn() }, {}, { src: frame.url, partition: reservation.partition })
+  f.contents.emit('did-attach-webview', {}, guest)
+  expect(guests.inspectWebsite(f.contents, reservation.lease)).toEqual({ owner: f.contents, guest, profile })
+  const other = await fixture()
+  expect(guests.inspectWebsite(other.contents, reservation.lease)).toBeUndefined()
+  const removed = vi.fn()
+  const unsubscribe = guests.onInvalidated(removed)
+  unsubscribe()
+  const revoked = vi.fn((owner: ContentsFixture, lease: DesktopBrowserLeaseId) => {
+    expect(owner).toBe(f.contents)
+    expect(lease).toBe(reservation.lease)
+    expect(guests.inspectWebsite(owner, lease)).toBeUndefined()
+    expect(guest.close).not.toHaveBeenCalled()
+  })
+  const dispose = guests.onInvalidated(revoked)
+  onTestFinished(dispose)
+  if (cause === 'release') {
+    const release = guests.release(f.contents, reservation.lease)
+    expect(revoked).toHaveBeenCalledOnce()
+    const repeated = guests.release(f.contents, reservation.lease)
+    await Promise.resolve()
+    guest.emit('destroyed')
+    await Promise.all([release, repeated])
+  } else guest.emit(cause === 'crash' ? 'render-process-gone' : 'destroyed')
+  expect(revoked).toHaveBeenCalledOnce()
+  expect(removed).not.toHaveBeenCalled()
+  expect(guests.inspectWebsite(f.contents, reservation.lease)).toBeUndefined()
+})
+
+it.each([
+  { operation: 'signOut', last: 'destruction' },
+  { operation: 'forget', last: 'authority' },
+] as const)('native website cleanup $operation waits for in-flight attachment, destruction and authority (last: $last)', async ({ operation, last }) => {
+  const f = await websiteCleanupFixture()
+  const { guests, profiles, profile, reservation, frame, guest } = f
+  const drainage = Promise.withResolvers<undefined>()
+  f.releaseOnFinish.push(() => { drainage.resolve(undefined) })
+  onTestFinished(guests.onInvalidated(() => drainage.promise))
+  const event = { preventDefault: vi.fn() }
+  const preferences: Electron.WebPreferences = {}
+  f.contents.emit('will-attach-webview', event, preferences, { src: frame.url, partition: reservation.partition })
+  expect(event.preventDefault).not.toHaveBeenCalled()
+  expect(preferences.additionalArguments).toBeUndefined()
+
+  const closing = Promise.withResolvers<undefined>()
+  guest.close.mockImplementation(() => { closing.resolve(undefined) })
+  const released = guests.release(f.contents, reservation.lease)
+  const cleanup = profiles[operation](profile.id)
+  f.pending.push(released, cleanup)
+  await f.assertFenced()
+  expect(f.native).toEqual([])
+  f.attachGuest()
+  await closing.promise
+  await vi.waitFor(async () => { expect(await f.saved()).toMatchObject({ cleanupPending: true, loginConfirmed: false }) })
+  expect(f.attach).not.toHaveBeenCalled()
+  expect(f.native).toEqual([])
+  if (last === 'destruction') drainage.resolve(undefined)
+  else guest.emit('destroyed')
+  await setImmediate()
+  expect(f.native).toEqual([])
+  await f.assertFenced()
+  expect((await profiles.list())[0]?.control).toBe('clearing')
+  if (last === 'destruction') guest.emit('destroyed')
+  else drainage.resolve(undefined)
+  await Promise.all([released, cleanup])
+  expect(f.native).toEqual(nativeCleanupMethods)
+  await f.assertFinished(operation)
+})
+
+const heldNativeCleanupCases = [
+  { operation: 'signOut', method: 'clearCache' },
+  { operation: 'forget', method: 'closeAllConnections' },
+] as const
+
+it.each(heldNativeCleanupCases)('native website cleanup $operation keeps profile aliases fenced while $method is held', async ({ operation, method }) => {
+  const f = await websiteCleanupFixture()
+  const { profiles, profile, reservation, frame, guest } = f
+  f.contents.emit('will-attach-webview', { preventDefault: vi.fn() }, {}, { src: frame.url, partition: reservation.partition })
+  f.attachGuest()
+  guest.close.mockImplementation(() => { guest.emit('destroyed') })
+  const joined = Promise.withResolvers<undefined>()
+  const held = Promise.withResolvers<undefined>()
+  // A Promise subclass exposes subscription to the held Electron result. Caller completion
+  // includes the real atomic save, so this race detects early release regardless of I/O latency.
+  class NativeCleanup extends Promise<undefined> {
+    override then<TResult1 = undefined, TResult2 = never>(
+      onfulfilled?: ((value: undefined) => TResult1 | PromiseLike<TResult1>) | null,
+      onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
+    ): Promise<TResult1 | TResult2> {
+      joined.resolve(undefined)
+      return super.then(onfulfilled, onrejected)
+    }
+  }
+  const nativeResult = new NativeCleanup((resolve) => { void held.promise.then(resolve) })
+  f.releaseOnFinish.push(() => { held.resolve(undefined); storageOverrides.delete(method) })
+  f.pending.push(nativeResult)
+  // vi.fn subscribes to returned Promises for settled-result tracking; keep this Session
+  // response outside that instrumentation so only the caller can join it before teardown.
+  storageOverrides.set(method, () => { f.native.push(method); return nativeResult })
+  const cleanup = profiles[operation](profile.id)
+  f.pending.push(cleanup)
+  let settled = false
+  const completed = cleanup.then(() => { settled = true; return 'completed' as const },
+    () => { settled = true; return 'rejected' as const })
+  f.pending.push(completed)
+  expect(await Promise.race([joined.promise.then(() => 'joined' as const), completed])).toBe('joined')
+  await f.assertFenced()
+  expect(settled).toBe(false)
+  expect((await profiles.list())[0]?.control).toBe('clearing')
+  expect(await f.saved()).toMatchObject({ cleanupPending: true, loginConfirmed: false })
+  expect(f.native).toEqual(nativeCleanupMethods.slice(0, nativeCleanupMethods.indexOf(method) + 1))
+  held.resolve(undefined)
+  await cleanup
+  expect(f.native).toEqual(nativeCleanupMethods)
+  await f.assertFinished(operation)
+})
+
+it.each(heldNativeCleanupCases)('native website cleanup $operation retains failed cleanup and account fence after $method rejects, then retries', async ({ operation, method }) => {
+  const f = await websiteCleanupFixture()
+  const { guests, profiles, profile, reservation, frame, guest } = f
+  f.contents.emit('will-attach-webview', { preventDefault: vi.fn() }, {}, { src: frame.url, partition: reservation.partition })
+  f.attachGuest()
+  guest.close.mockImplementation(() => { guest.emit('destroyed') })
+  const failure = new Error(`Native ${method} failed`)
+  storage[method].mockImplementationOnce(async () => { f.native.push(method); throw failure })
+  const cleanup = profiles[operation](profile.id)
+  const observed = expect(cleanup).rejects.toBe(failure)
+  f.pending.push(cleanup, observed)
+  await observed
+  expect((await profiles.list())[0]?.control).toBe('cleanup-failed')
+  await f.assertFenced()
+  expect(await f.saved()).toMatchObject({ cleanupPending: true, loginConfirmed: false })
+  expect(f.native).toEqual(nativeCleanupMethods.slice(0, nativeCleanupMethods.indexOf(method) + 1))
+  expect(guests.inspectWebsite(f.contents, reservation.lease)).toBeUndefined()
+  await guests.release(f.contents, reservation.lease)
+  expect(guest.close).toHaveBeenCalledOnce()
+  const retry = profiles[operation](profile.id)
+  f.pending.push(retry)
+  await retry
+  expect(guest.close).toHaveBeenCalledOnce()
+  expect(f.native).toEqual([...nativeCleanupMethods.slice(0, nativeCleanupMethods.indexOf(method) + 1), ...nativeCleanupMethods])
+  await f.assertFinished(operation)
+})
+
+it.each(['settled', 'failed'] as const)('retains website authentication until invalidated authority is %s', async (outcome) => {
+  const f = await fixture()
+  const root = await mkdtemp(join(tmpdir(), 'dsh-guest-drain-'))
+  const drainage = Promise.withResolvers<undefined>()
+  const pending: Promise<unknown>[] = []
+  onTestFinished(async () => {
+    drainage.resolve(undefined)
+    await Promise.allSettled(pending)
+    await rm(root, { recursive: true, force: true })
+  })
+  const guests = new DesktopBrowserGuests(() => undefined) as GuestsFixture
+  const profiles = guests.createProfiles(join(root, 'profiles.json'), {
+    inspect: async () => ({ identity: 'a'.repeat(64), endpoint: 'https://portal.example.test/mcp' }), confirm: async () => {}, enroll: async () => {},
+  }, async () => {})
+  const profile = await profiles.create({ name: 'Portal', accountLabel: '', url: 'https://portal.example.test/', mcpServerName: 'portal' })
+  guests.bind(f.window, () => () => {})
+  const reservation = guests.acquireProfile(f.contents, profile.id)
+  const { frame, guest } = browserGuest(reservation, f.contents)
+  f.contents.emit('will-attach-webview', { preventDefault: vi.fn() }, {}, { src: frame.url, partition: reservation.partition })
+  f.contents.emit('did-attach-webview', {}, guest)
+  const disposed = guests.onInvalidated(() => drainage.promise)
+  onTestFinished(disposed)
+  const closing = Promise.withResolvers<undefined>()
+  guest.close.mockImplementation(() => { guest.emit('destroyed'); closing.resolve(undefined) })
+  const cleanup = profiles.signOut(profile.id)
+  const checked = outcome === 'failed' ? expect(cleanup).rejects.toThrow('authority drainage failed') : expect(cleanup).resolves.toBeUndefined()
+  pending.push(cleanup, checked)
+  await closing.promise
+  expect(storage.clearAuthCache).not.toHaveBeenCalled()
+  expect(guests.inspectWebsite(f.contents, reservation.lease)).toBeUndefined()
+  if (outcome === 'failed') drainage.reject(new Error('Upstream outcome unknown'))
+  else drainage.resolve(undefined)
+  await checked
+  if (outcome === 'failed') {
+    expect(storage.clearAuthCache).not.toHaveBeenCalled()
+    await expect(profiles.signOut(profile.id)).rejects.toThrow('authority drainage failed')
+    expect((await profiles.list())[0]?.control).toBe('cleanup-failed')
+  } else expect(storage.clearAuthCache).toHaveBeenCalledOnce()
+})
+
+it('contains private invalidation diagnostics during native owner teardown and retains failed cleanup', async () => {
+  const f = await fixture()
+  const root = await mkdtemp(join(tmpdir(), 'dsh-guest-owner-teardown-'))
+  onTestFinished(() => rm(root, { recursive: true, force: true }))
+  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+  onTestFinished(() => { consoleError.mockRestore() })
+  const guests = new DesktopBrowserGuests(() => undefined) as GuestsFixture
+  const profiles = guests.createProfiles(join(root, 'profiles.json'), {
+    inspect: async () => ({ identity: 'a'.repeat(64), endpoint: 'https://portal.example.test/mcp' }), confirm: async () => {}, enroll: async () => {},
+  }, async () => {})
+  const profile = await profiles.create({ name: 'Portal', accountLabel: '', url: 'https://portal.example.test/', mcpServerName: 'portal' })
+  guests.bind(f.window, () => () => {})
+  const reservation = guests.acquireProfile(f.contents, profile.id)
+  const { frame, guest } = browserGuest(reservation, f.contents)
+  f.contents.emit('will-attach-webview', { preventDefault: vi.fn() }, {}, { src: frame.url, partition: reservation.partition })
+  f.contents.emit('did-attach-webview', {}, guest)
+  const diagnostic = new Error('private native account token')
+  onTestFinished(guests.onInvalidated(() => { throw diagnostic }))
+  guest.close.mockImplementation(() => { guest.emit('destroyed') })
+  f.contents.emit('render-process-gone')
+  expect(guests.inspectWebsite(f.contents, reservation.lease)).toBeUndefined()
+  await expect(guests.release(f.contents, reservation.lease)).rejects.toMatchObject({
+    errors: [{ errors: [diagnostic] }],
+  })
+  await expect(profiles.signOut(profile.id)).rejects.toThrow('authority drainage failed')
+  expect((await profiles.list())[0]?.control).toBe('cleanup-failed')
+  expect(storage.clearStorageData).not.toHaveBeenCalled()
+  expect(consoleError).not.toHaveBeenCalled()
+})
+
+it.each(['settled', 'failed'] as const)('joins held authority drainage after native guest close throws (drainage: %s)', async (outcome) => {
+  const f = await fixture()
+  const root = await mkdtemp(join(tmpdir(), 'dsh-guest-close-drain-'))
+  const drainage = Promise.withResolvers<undefined>()
+  const pending: Promise<unknown>[] = []
+  onTestFinished(async () => {
+    drainage.resolve(undefined)
+    await Promise.allSettled(pending)
+    await rm(root, { recursive: true, force: true })
+  })
+  const guests = new DesktopBrowserGuests(() => undefined) as GuestsFixture
+  const profiles = guests.createProfiles(join(root, 'profiles.json'), {
+    inspect: async () => ({ identity: 'a'.repeat(64), endpoint: 'https://portal.example.test/mcp' }), confirm: async () => {}, enroll: async () => {},
+  }, async () => {})
+  const profile = await profiles.create({ name: 'Portal', accountLabel: '', url: 'https://portal.example.test/', mcpServerName: 'portal' })
+  guests.bind(f.window, () => () => {})
+  const reservation = guests.acquireProfile(f.contents, profile.id)
+  const { frame, guest } = browserGuest(reservation, f.contents)
+  f.contents.emit('will-attach-webview', { preventDefault: vi.fn() }, {}, { src: frame.url, partition: reservation.partition })
+  f.contents.emit('did-attach-webview', {}, guest)
+  onTestFinished(guests.onInvalidated(() => drainage.promise))
+  const closing = Promise.withResolvers<undefined>()
+  const nativeFailure = new Error('Native guest close failed')
+  guest.close.mockImplementation(() => { closing.resolve(undefined); throw nativeFailure })
+  const cleanup = profiles.signOut(profile.id)
+  const observed = cleanup.then(() => undefined, (error: unknown) => error)
+  pending.push(observed)
+  await closing.promise
+  await setImmediate()
+  expect(guests.inspectWebsite(f.contents, reservation.lease)).toBeUndefined()
+  expect((await profiles.list())[0]?.control).toBe('clearing')
+  expect(storage.clearStorageData).not.toHaveBeenCalled()
+  if (outcome === 'failed') drainage.reject(new Error('Remote request outcome unknown'))
+  else drainage.resolve(undefined)
+  const error = await observed
+  if (outcome === 'failed') {
+    expect(error).toMatchObject({ errors: [nativeFailure, expect.any(AggregateError)] })
+    await expect(profiles.signOut(profile.id)).rejects.toThrow('failed to drain')
+  } else {
+    expect(error).toBe(nativeFailure)
+    expect((await profiles.list())[0]?.control).toBe('cleanup-failed')
+    expect(storage.clearAuthCache).not.toHaveBeenCalled()
+    guest.close.mockImplementation(() => { guest.emit('destroyed') })
+    await profiles.signOut(profile.id)
+    expect(storage.clearAuthCache).toHaveBeenCalledOnce()
+  }
+})
+
+it.each(['settled', 'failed'] as const)('joins every website guest after a sibling release fails (last guest: %s)', async (outcome) => {
+  const f = await fixture()
+  const root = await mkdtemp(join(tmpdir(), 'dsh-guest-sibling-drain-'))
+  const first = Promise.withResolvers<undefined>()
+  const last = Promise.withResolvers<undefined>()
+  const pending: Promise<unknown>[] = []
+  onTestFinished(async () => {
+    first.resolve(undefined)
+    last.resolve(undefined)
+    await Promise.allSettled(pending)
+    await rm(root, { recursive: true, force: true })
+  })
+  const guests = new DesktopBrowserGuests(() => undefined) as GuestsFixture
+  const profiles = guests.createProfiles(join(root, 'profiles.json'), {
+    inspect: async () => ({ identity: 'a'.repeat(64), endpoint: 'https://portal.example.test/mcp' }), confirm: async () => {}, enroll: async () => {},
+  }, async () => {})
+  const profile = await profiles.create({ name: 'Portal', accountLabel: '', url: 'https://portal.example.test/', mcpServerName: 'portal' })
+  guests.bind(f.window, () => () => {})
+  const firstReservation = guests.acquireProfile(f.contents, profile.id)
+  const reservations = [firstReservation, guests.acquireProfile(f.contents, profile.id)]
+  const closing = reservations.map((reservation) => {
+    const { frame, guest } = browserGuest(reservation, f.contents)
+    f.contents.emit('will-attach-webview', { preventDefault: vi.fn() }, {}, { src: frame.url, partition: reservation.partition })
+    f.contents.emit('did-attach-webview', {}, guest)
+    const entered = Promise.withResolvers<undefined>()
+    guest.close.mockImplementation(() => { guest.emit('destroyed'); entered.resolve(undefined) })
+    return entered.promise
+  })
+  const dispose = guests.onInvalidated((_owner, lease) => lease === firstReservation.lease ? first.promise : last.promise)
+  onTestFinished(dispose)
+  const cleanup = profiles.signOut(profile.id)
+  const observed = cleanup.then(() => undefined, (error: unknown) => error)
+  pending.push(observed)
+  await Promise.all(closing)
+  first.reject(new Error('First request outcome unknown'))
+  await expect(guests.release(f.contents, firstReservation.lease)).rejects.toThrow('authority drainage failed')
+  expect((await profiles.list())[0]?.control).toBe('clearing')
+  expect(storage.clearStorageData).not.toHaveBeenCalled()
+  expect(storage.clearAuthCache).not.toHaveBeenCalled()
+  for (const reservation of reservations) expect(guests.inspectWebsite(f.contents, reservation.lease)).toBeUndefined()
+  if (outcome === 'failed') last.reject(new Error('Last request outcome unknown'))
+  else last.resolve(undefined)
+  const error = await observed
+  expect(error).toBeInstanceOf(AggregateError)
+  if (outcome === 'failed') expect(error).toMatchObject({ errors: [expect.any(AggregateError), expect.any(AggregateError)] })
+  expect((await profiles.list())[0]?.control).toBe('cleanup-failed')
+  expect(storage.clearStorageData).not.toHaveBeenCalled()
+  expect(storage.clearAuthCache).not.toHaveBeenCalled()
+})
+
+it('bounds stalled guest destruction, retains authentication, and permits cleanup retry', async () => {
+  const f = await fixture()
+  const root = await mkdtemp(join(tmpdir(), 'dsh-website-guest-timeout-'))
+  onTestFinished(async () => { vi.useRealTimers(); await rm(root, { recursive: true, force: true }) })
+  const guests = new DesktopBrowserGuests(() => undefined) as GuestsFixture
+  const profiles = guests.createProfiles(join(root, 'profiles.json'), {
+    inspect: async () => ({ identity: 'a'.repeat(64), endpoint: 'https://portal.example.test/mcp' }), confirm: async () => {}, enroll: async () => {},
+  }, async () => {})
+  const profile = await profiles.create({ name: 'Portal', accountLabel: '', url: 'https://portal.example.test/', mcpServerName: 'portal' })
+  guests.bind(f.window, () => () => {})
+  const reservation = guests.acquireProfile(f.contents, profile.id)
+  const { frame, guest } = browserGuest(reservation, f.contents)
+  f.contents.emit('will-attach-webview', { preventDefault: vi.fn() }, {}, { src: frame.url, partition: reservation.partition })
+  f.contents.emit('did-attach-webview', {}, guest)
+  const listeners = guest.listenerCount('destroyed')
+  const closing = new Promise<void>((resolve) => { guest.close.mockImplementation(() => { resolve() }) })
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  const cleanup = profiles.signOut(profile.id)
+  const rejected = expect(cleanup).rejects.toThrow('guest destruction did not finish')
+  await closing
+  await vi.advanceTimersByTimeAsync(5_000)
+  await rejected
+  expect(storage.clearStorageData).not.toHaveBeenCalled()
+  expect(storage.clearAuthCache).not.toHaveBeenCalled()
+  expect(guest.listenerCount('destroyed')).toBe(listeners)
+  expect((await profiles.list())[0]?.control).toBe('cleanup-failed')
+  expect(guests.inspectWebsite(f.contents, reservation.lease)).toBeUndefined()
+  const rejectedAttachment = { preventDefault: vi.fn() }
+  f.contents.emit('will-attach-webview', rejectedAttachment, {}, { src: frame.url, partition: reservation.partition })
+  expect(rejectedAttachment.preventDefault).toHaveBeenCalledOnce()
+  vi.useRealTimers()
+  guest.close.mockImplementation(() => { guest.emit('destroyed') })
+  await profiles.signOut(profile.id)
+  expect(storage.clearAuthCache).toHaveBeenCalledOnce()
+  expect((await profiles.list())[0]?.control).toBe('human')
 })
 
 it('keeps browser guest chord state local and leaves accepted bindings active through guest navigation', async () => {

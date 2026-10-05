@@ -213,6 +213,8 @@ export interface McpToolCallEvent {
   readonly execution: ToolExecution
   /** Current executor-owned signal, combining caller cancellation and every guard's added signal. */
   readonly signal: AbortSignal
+  /** Exact invocation's upstream entry/resolution across body retries, not server settlement. */
+  readonly dispatchStatus: 'pending' | 'dispatched' | 'responded'
   /**
    * Add revocation before dispatch. Signals accumulate; none can replace or
    * weaken earlier cancellation. Registration after upstream dispatch rejects.
@@ -232,8 +234,13 @@ declare module '@deepseek-ai/cordis' {
      * a valid MCP result. `payload.addCancellation()` monotonically combines
      * guard revocation with the caller's signal before dispatch. The upstream
      * callback receives that combined signal; the executor refuses a result
-     * once it is revoked. Async guards observe `payload.signal`. Arguments to
-     * `next()` do not change cancellation. Every listener must call `next()` to delegate.
+     * once it is revoked. Async guards observe `payload.signal` and
+     * `payload.dispatchStatus`; rejected upstream calls remain `dispatched`,
+     * including timeouts without cancellation. Each exact execution permits
+     * one upstream entry per application, across tool rediscovery and module
+     * reloads. Rejection or timeout does not restore that allowance; a pre-entry
+     * veto leaves it available. Arguments to `next()` do not change cancellation.
+     * Every listener must call `next()` to delegate.
      * Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): agent-scoped listeners receive only that agent's calls.
      * @dshScopeScan unsupported
      * @param payload - trusted tool identity and the exact execution being guarded.
@@ -384,6 +391,31 @@ function createExecutor(
   }
 }
 
+/** Root-owned weak invocation state survives tool and module replacement without retaining executions. */
+const MCP_INVOCATIONS: unique symbol = Symbol.for('dsh.mcp-client.upstream-invocations')
+
+interface UpstreamInvocation {
+  status: McpToolCallEvent['dispatchStatus']
+}
+
+type McpDispatchRoot = Context & { [MCP_INVOCATIONS]?: WeakMap<ToolExecution, UpstreamInvocation> }
+
+/** One application retains the upstream allowance and outcome for each exact execution. */
+function upstreamInvocation(ctx: Context, exec: ToolExecution): UpstreamInvocation {
+  const root = ctx.root as McpDispatchRoot
+  let invocations = root[MCP_INVOCATIONS]
+  if (invocations === undefined) {
+    invocations = new WeakMap<ToolExecution, UpstreamInvocation>()
+    root[MCP_INVOCATIONS] = invocations
+  }
+  let invocation = invocations.get(exec)
+  if (invocation === undefined) {
+    invocation = { status: 'pending' }
+    invocations.set(exec, invocation)
+  }
+  return invocation
+}
+
 /**
  * Run the `mcp/tool-call` guard waterfall around the upstream request, and
  * nowhere else: argument coercion, result validation, image admission, and
@@ -410,13 +442,17 @@ async function guardUpstreamCall(
 ): Promise<{ value: unknown; execution: ToolExecution }> {
   let signal = exec.signal
   let acceptingCancellation = true
+  const invocation = upstreamInvocation(ctx, exec)
   const payload: McpToolCallEvent = {
     serverName: options.serverName,
     rawName: options.rawName,
     execution: exec,
     get signal() { return signal },
+    get dispatchStatus() { return invocation.status },
     addCancellation(added) {
-      if (!acceptingCancellation) throw new Error('MCP cancellation must be registered before upstream dispatch')
+      if (!acceptingCancellation || invocation.status !== 'pending') {
+        throw new Error('MCP cancellation must be registered before upstream dispatch')
+      }
       signal = AbortSignal.any([signal, added])
     },
   }
@@ -426,9 +462,15 @@ async function guardUpstreamCall(
       'mcp/tool-call',
       payload,
       async () => {
+        if (!acceptingCancellation || invocation.status !== 'pending') {
+          throw new Error('An MCP invocation can dispatch only one upstream request')
+        }
         acceptingCancellation = false
         if (signal.aborted) throw new Error('the tool call was canceled before the upstream MCP request')
-        return await options.call(args, signal === exec.signal ? exec : { ...exec, signal })
+        invocation.status = 'dispatched'
+        const value = await options.call(args, signal === exec.signal ? exec : { ...exec, signal })
+        invocation.status = 'responded'
+        return value
       },
     )
     if (signal.aborted) throw new Error('the tool call was canceled before its upstream MCP result was accepted')

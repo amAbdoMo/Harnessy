@@ -1,9 +1,10 @@
 /** Electron navigation and guest lifetime, independent from DOM placement. */
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
-import type { DesktopBrowserBridge, DesktopBrowserLeaseId } from '../../types.ts'
+import type { DesktopBrowserBridge, DesktopBrowserLeaseId, DesktopBrowserReservation } from '../../types.ts'
 import type { ElectronWebviewPresentation, WebviewElement } from './ElectronWebviewPresentation.ts'
 import { emptyBrowserFrame, type BrowserFrame, type BrowserFrameState, type BrowserLoadError } from '../browser/BrowserFrame.ts'
 import type { BrowserPageOptions } from '../browser/BrowserPage.ts'
+import type { WebsiteRequestPage } from '../browser/WebsiteRequestPage.ts'
 import { browserAddressCheckpoint, currentBrowserTarget } from '../browser/BrowserPersistence.ts'
 import { parseBrowserAddress, type BrowserTarget } from '../browser/url.ts'
 
@@ -36,11 +37,15 @@ export class ElectronWebViewImpl implements BrowserFrame {
    * @param bridge - main-process guest operations.
    * @param workspace - resolves the storage account once for this frame lifetime.
    * @param presentation - tag and Sidebar placement adapter.
+   * @param requests - page-local admission control for its actual native guest.
    */
   constructor(private readonly options: BrowserPageOptions, private readonly bridge: DesktopBrowserBridge,
     private readonly workspace: (signal: AbortSignal) => Promise<string>,
-    private readonly presentation: ElectronWebviewPresentation) {
-    this.checkpoint = currentBrowserTarget(options.initial)
+    private readonly presentation: ElectronWebviewPresentation,
+    private readonly requests?: WebsiteRequestPage) {
+    // A saved-profile page has no restorable address: a signed-in address can
+    // carry a one-time token, so its navigation is never written.
+    this.checkpoint = options.profileId === undefined ? currentBrowserTarget(options.initial) : undefined
     this.store = createSnapshotStore(emptyBrowserFrame())
   }
 
@@ -87,12 +92,12 @@ export class ElectronWebViewImpl implements BrowserFrame {
 
   /** Move backward through Chromium history. */
   goBack(): void {
-    if (this.store.getSnapshot().canGoBack) this.navigate('goBack')
+    if (this.store.getSnapshot().canGoBack) this.navigate('back')
   }
 
   /** Move forward through Chromium history. */
   goForward(): void {
-    if (this.store.getSnapshot().canGoForward) this.navigate('goForward')
+    if (this.store.getSnapshot().canGoForward) this.navigate('forward')
   }
 
   /** Reload the actual current page, or retry failed guest creation. */
@@ -108,24 +113,30 @@ export class ElectronWebViewImpl implements BrowserFrame {
     } else this.navigate('reload')
   }
 
-  /** @returns after pending initialization and the owned guest have been released. */
+  /** @returns after initialization and every guest release settle; rejects if any release failed. */
   dispose(): Promise<void> {
     if (this.disposal !== undefined) return this.disposal
     this.lifetime.abort()
     this.pending = undefined
-    this.disposal = Promise.all([this.dropGuest(), this.initializing])
-      .then(() => Promise.all(this.releases)).then(() => {})
+    this.disposal = Promise.allSettled([this.dropGuest(), this.initializing]).then(async () => {
+      const results = await Promise.allSettled(this.releases)
+      const failures = results.filter(result => result.status === 'rejected').map((result): unknown => result.reason)
+      if (failures.length !== 0) throw new AggregateError(failures, 'Desktop browser guests failed to drain')
+    })
     this.presentation.dispose()
     return this.disposal
   }
 
-  private navigate(command: 'goBack' | 'goForward' | 'reload'): void {
-    if (this.lifetime.signal.aborted || !this.ready || this.element === undefined) return
-    this.revision++
+  private navigate(kind: 'back' | 'forward' | 'reload'): void {
+    const element = this.element
+    const lease = this.lease
+    if (this.lifetime.signal.aborted || !this.ready || element === undefined || lease === undefined) return
+    const revision = ++this.revision
     this.pending = undefined
     this.store.set({ ...this.store.getSnapshot(), loading: true, error: undefined })
-    try { this.element[command]() }
-    catch (error) { this.commandFailed(error) }
+    void this.bridge.command(lease, { kind }).catch((error: unknown) => {
+      if (this.element === element && !this.lifetime.signal.aborted && this.revision === revision) this.commandFailed(error)
+    })
   }
 
   private initialize(): void {
@@ -133,7 +144,8 @@ export class ElectronWebViewImpl implements BrowserFrame {
     if (attachment === undefined || this.initializing !== undefined || this.element !== undefined || this.lifetime.signal.aborted) return
     const signal = AbortSignal.any([this.lifetime.signal, attachment.signal])
     this.initializing = this.createGuest(signal).catch(async (error: unknown) => {
-      await this.dropGuest()
+      // Release failures stay in the owned inventory for terminal disposal.
+      await Promise.allSettled([this.dropGuest()])
       if (!signal.aborted) this.commandFailed(error)
     }).finally(() => {
       this.initializing = undefined
@@ -142,10 +154,8 @@ export class ElectronWebViewImpl implements BrowserFrame {
   }
 
   private async createGuest(attachmentSignal: AbortSignal): Promise<void> {
-    this.workspaceKey ??= await this.workspace(attachmentSignal)
-    if (attachmentSignal.aborted) return
-    const reservation = await this.bridge.acquire(this.workspaceKey)
-    // oxlint-disable-next-line typescript/no-unnecessary-condition -- The signal can abort while acquire is pending.
+    const reservation = await this.reserve(attachmentSignal)
+    if (reservation === undefined) return
     if (attachmentSignal.aborted) { await this.release(reservation.lease); return }
     this.lease = reservation.lease
     this.guestLifetime = new AbortController()
@@ -156,7 +166,9 @@ export class ElectronWebViewImpl implements BrowserFrame {
       if (this.element === element && !signal.aborted) this.options.openRequested(url)
     })
     signal.addEventListener('abort', unsubscribeOpen, { once: true })
+    const binding = { lease: reservation.lease, signal }
     element.addEventListener('dom-ready', () => {
+      this.requests?.bind(binding)
       this.ready = true
       this.observe(this.store.getSnapshot().address !== 'requested')
       this.loadPending()
@@ -187,13 +199,29 @@ export class ElectronWebViewImpl implements BrowserFrame {
     this.presentation.present(element)
   }
 
+  /**
+   * Reserve the guest this frame loads into.
+   * @param attachmentSignal - current physical attachment lifetime.
+   * @returns the approved reservation, or undefined when the lifetime ended first.
+   */
+  private async reserve(attachmentSignal: AbortSignal): Promise<DesktopBrowserReservation | undefined> {
+    const profile = this.options.profileId
+    // A saved-profile page uses that account's persistent partition instead of
+    // the Workspace-keyed one, so its sign-in survives until the user clears it.
+    if (profile !== undefined) return this.bridge.profiles.acquire(profile)
+    this.workspaceKey ??= await this.workspace(attachmentSignal)
+    if (attachmentSignal.aborted) return undefined
+    return this.bridge.acquire(this.workspaceKey)
+  }
+
   private loadPending(): void {
     const target = this.pending
     const element = this.element
-    if (!this.ready || target === undefined || element === undefined) return
+    const lease = this.lease
+    if (!this.ready || target === undefined || element === undefined || lease === undefined) return
     const revision = this.revision
     this.pending = undefined
-    void element.loadURL(target.url).catch((error: unknown) => {
+    void this.bridge.command(lease, { kind: 'navigate', url: target.url }).catch((error: unknown) => {
       if (this.element !== element || this.lifetime.signal.aborted || this.revision !== revision) return
       if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ERR_ABORTED') return
       if (this.store.getSnapshot().error === undefined) this.commandFailed(error)
@@ -232,6 +260,10 @@ export class ElectronWebViewImpl implements BrowserFrame {
   }
 
   private persist(target: BrowserTarget): void {
+    // Observed and signed-in addresses, with their queries and titles, stay out
+    // of storage for a saved-profile page; only the ephemeral workspace page
+    // reports where it went.
+    if (this.options.profileId !== undefined) return
     if (target.url === this.checkpoint?.url && target.title === this.checkpoint.title) return
     this.checkpoint = target
     this.options.persist(browserAddressCheckpoint(target, this.revision))
@@ -245,7 +277,7 @@ export class ElectronWebViewImpl implements BrowserFrame {
   }
 
   private commandFailed(error: unknown): void {
-    console.error('Desktop browser operation failed', error)
+    if (this.options.profileId === undefined) console.error('Desktop browser operation failed', error)
     this.failed()
   }
 
@@ -263,9 +295,11 @@ export class ElectronWebViewImpl implements BrowserFrame {
 
   private release(lease: DesktopBrowserLeaseId): Promise<void> {
     const released = this.bridge.release(lease)
-      .catch((error: unknown) => { console.error('Desktop browser guest release failed', error) })
-      .finally(() => { this.releases.delete(released) })
     this.releases.add(released)
+    void released.then(() => { this.releases.delete(released) }, (error: unknown) => {
+      // Failed releases remain joinable; private guest diagnostics are not published.
+      void error
+    })
     return released
   }
 }

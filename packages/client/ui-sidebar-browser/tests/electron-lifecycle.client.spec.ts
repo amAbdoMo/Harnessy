@@ -1,18 +1,23 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest'
-import type { DesktopBrowserReservation } from '../src/types.ts'
+import type { DesktopBrowserReservation, DesktopWebsiteProfileId } from '../src/types.ts'
 import { electronFixture } from './electron-harness.client.ts'
 
 const target = { kind: 'https' as const, url: 'https://example.test/', title: 'Example' }
 const fixtures: ReturnType<typeof electronFixture>[] = []
-function fixture() {
-  const h = electronFixture()
+const releases = new Set<() => void>()
+function fixture(profile?: DesktopWebsiteProfileId) {
+  const h = electronFixture(undefined, profile)
   fixtures.push(h)
   return h
 }
 afterEach(async () => {
-  for (const h of fixtures.splice(0)) await h.dispose()
+  for (const release of releases) release()
+  releases.clear()
+  const results = await Promise.allSettled(fixtures.splice(0).map(h => h.dispose()))
   vi.restoreAllMocks()
+  const failures = results.filter(result => result.status === 'rejected').map((result): unknown => result.reason)
+  if (failures.length !== 0) throw new AggregateError(failures, 'Electron lifecycle fixtures failed to drain')
 })
 
 it('waits for a mounted container and observes native history, titles and new-tab requests', async () => {
@@ -131,9 +136,9 @@ it('recreates the guest after physical remount or crash without resolving Worksp
   expect(h.frame.getSnapshot().error).toBeDefined()
 })
 
-it('contains acquisition, native command and release failures and keeps retry available', async () => {
+it('contains acquisition and native command failures and keeps retry available', async () => {
   const h = fixture()
-  const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+  vi.spyOn(console, 'error').mockImplementation(() => {})
   h.bridge.acquire.mockRejectedValueOnce(new Error('acquire failed'))
   h.mount()
   h.frame.loadUrl(target)
@@ -145,15 +150,84 @@ it('contains acquisition, native command and release failures and keeps retry av
   guest.emit('did-navigate')
   guest.reload.mockImplementationOnce(() => { throw new Error('command failed') })
   h.frame.reload()
-  expect(h.frame.getSnapshot().error).toBeDefined()
+  await vi.waitFor(() => { expect(h.frame.getSnapshot().error).toBeDefined() })
   h.frame.reload()
   expect(h.frame.getSnapshot().error).toBeUndefined()
   guest.getURL.mockImplementationOnce(() => { throw new Error('observation failed') })
   guest.emit('did-navigate')
   expect(h.frame.getSnapshot().error).toBeDefined()
-  h.bridge.release.mockRejectedValueOnce(new Error('release failed'))
-  await h.frame.dispose()
-  expect(error.mock.calls.some(call => call[0] === 'Desktop browser guest release failed')).toBe(true)
+})
+
+it('does not retry a rejected deferred Human load or publish saved-account diagnostics', async () => {
+  const h = fixture('cd1b6493-c881-4967-a544-b0a49f2d847f' as DesktopWebsiteProfileId)
+  const diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {})
+  h.mount()
+  h.frame.loadUrl(target)
+  const guest = await h.guest()
+  h.bridge.command.mockRejectedValueOnce(new Error('private saved-account native diagnostics'))
+  guest.emit('dom-ready')
+  await vi.waitFor(() => { expect(h.frame.getSnapshot().error).toBeDefined() })
+  guest.emit('dom-ready')
+  guest.emit('did-stop-loading')
+  expect(h.bridge.command).toHaveBeenCalledExactlyOnceWith(h.reservation.lease, { kind: 'navigate', url: target.url })
+  expect(guest.loadURL).not.toHaveBeenCalled()
+  expect(diagnostic).not.toHaveBeenCalled()
+  h.frame.reload()
+  expect(guest.loadURL).toHaveBeenCalledExactlyOnceWith(target.url)
+})
+
+it.each(['detach', 'crash'] as const)('joins failed %s releases and late acquisitions before rejecting disposal', async (retirement) => {
+  const h = fixture()
+  const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+  const diagnostic = new Error('private guest release diagnostic')
+  const secondRelease = Promise.withResolvers<undefined>()
+  const lateAcquisition = Promise.withResolvers<DesktopBrowserReservation>()
+  const lateRelease = Promise.withResolvers<undefined>()
+  releases.add(() => {
+    secondRelease.resolve(undefined)
+    lateAcquisition.resolve(h.reservation)
+    lateRelease.resolve(undefined)
+  })
+  h.bridge.release.mockRejectedValueOnce(diagnostic)
+    .mockReturnValueOnce(secondRelease.promise)
+    .mockReturnValueOnce(lateRelease.promise)
+  try {
+    const unmount = h.mount()
+    h.frame.loadUrl(target)
+    const first = await h.guest()
+    if (retirement === 'detach') unmount()
+    else first.emit('render-process-gone')
+    await Promise.resolve()
+    const remount = retirement === 'detach' ? h.mount() : unmount
+    if (retirement === 'crash') h.frame.reload()
+    await h.guest()
+    remount()
+    h.bridge.acquire.mockReturnValueOnce(lateAcquisition.promise)
+    h.mount()
+    await vi.waitFor(() => { expect(h.bridge.acquire).toHaveBeenCalledTimes(3) })
+    const disposed = h.frame.dispose()
+    expect(h.frame.dispose()).toBe(disposed)
+    let settled = false
+    void disposed.then(() => { settled = true }, () => { settled = true })
+    lateAcquisition.resolve(h.reservation)
+    await vi.waitFor(() => { expect(h.bridge.release).toHaveBeenCalledTimes(3) })
+    expect(settled).toBe(false)
+    lateRelease.resolve(undefined)
+    await lateRelease.promise
+    expect(settled).toBe(false)
+    secondRelease.resolve(undefined)
+    await expect(disposed).rejects.toMatchObject({ errors: [diagnostic] })
+    expect(h.guests).toHaveLength(2)
+    expect(error).not.toHaveBeenCalled()
+    h.mount()
+    expect(h.bridge.acquire).toHaveBeenCalledTimes(3)
+    await expect(h.dispose()).rejects.toMatchObject({ errors: [{ errors: [diagnostic] }] })
+    fixtures.splice(fixtures.indexOf(h), 1)
+  } finally {
+    secondRelease.resolve(undefined)
+    lateAcquisition.resolve(h.reservation)
+    lateRelease.resolve(undefined)
+  }
 })
 
 it('ignores superseded and aborted load promises, but publishes an active navigation rejection', async () => {

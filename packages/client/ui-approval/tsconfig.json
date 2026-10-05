@@ -30,6 +30,12 @@
       "path": "../ui-conversation/tsconfig.client.json"
     },
     {
+      "path": "../ui-chat/tsconfig.client.json"
+    },
+    {
+      "path": "../../interaction/user-approval"
+    },
+    {
       "path": "../ui-primitives"
     },
     {

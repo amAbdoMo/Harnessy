@@ -1,4 +1,6 @@
 import type { AccountView } from '@deepseek-ai/dsh-deepseek-account/types'
+import type { DesktopBrowserReservation, DesktopWebsiteHostCommand, DesktopWebsiteHostSnapshot, DesktopWebsiteProfile, DesktopWebsiteRequestReceipt } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
+import { EventEmitter } from 'node:events'
 import { WINDOWS_TITLEBAR_HEIGHT } from '../src/windows-layout.ts'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import type { IpcMainInvokeEvent } from 'electron'
@@ -8,10 +10,24 @@ import { tmpdir } from 'node:os'
 import type { MenuItemConstructorOptions, MessageBoxOptions } from 'electron'
 import { DESKTOP_IPC, type DesktopUpdateState } from '../src/ipc.ts'
 import { MANDATORY_IPC } from '../src/mandatory-update-ipc.ts'
-import { DesktopHostFatalError, DesktopHostUncleanExitError } from '../src/host-process.ts'
+import { DesktopHostFatalError, DesktopHostUncleanExitError, type DesktopHostProcess } from '../src/host-process.ts'
 import { en } from '../src/locale.ts'
 import { DesktopUpdatePreparationError } from '../src/update-error.ts'
 import { writeCrashReport } from '../src/crash-report.ts'
+
+const websiteStorage = vi.hoisted(() => ({
+  setPermissionCheckHandler: vi.fn(), setPermissionRequestHandler: vi.fn(), setDevicePermissionHandler: vi.fn(),
+  setDisplayMediaRequestHandler: vi.fn(), on: vi.fn(), webRequest: { onBeforeRequest: vi.fn() },
+  clearStorageData: vi.fn(async () => {}), clearCache: vi.fn(async () => {}),
+  clearAuthCache: vi.fn(async () => {}), closeAllConnections: vi.fn(async () => {}),
+}))
+
+const websiteSessions = vi.hoisted(() => new Map<string, typeof websiteStorage>())
+function websiteSession(partition: string) {
+  let value = websiteSessions.get(partition)
+  if (value === undefined) { value = { ...websiteStorage }; websiteSessions.set(partition, value) }
+  return value
+}
 
 type InvokeEvent = { sender?: unknown; senderFrame: { url: string } }
 type InvokeHandler = (event: InvokeEvent, ...args: unknown[]) => unknown
@@ -129,6 +145,18 @@ const harness = await vi.hoisted(async () => {
   class FakeHost {
     readonly updateTasks = vi.fn(async (_action: 'inspect' | 'lock' | 'unlock') => false)
     readonly inspectQuit = vi.fn(async () => ({ activeTasks: false, scheduledTasks: false }))
+    websitePrepared: ((snapshot: DesktopWebsiteHostSnapshot) => void) | undefined
+    readonly onWebsitePrepared = vi.fn((listener: (snapshot: DesktopWebsiteHostSnapshot) => void) => {
+      this.websitePrepared = listener
+      return () => { this.websitePrepared = undefined }
+    })
+    readonly onWebsiteRevoked = vi.fn((_listener: (snapshot: DesktopWebsiteHostSnapshot) => void) => () => undefined)
+    readonly onWebsiteCheck = vi.fn((_listener: (snapshot: DesktopWebsiteHostSnapshot) => void) => () => undefined)
+    readonly onWebsitePageInfo = vi.fn<DesktopHostProcess['onWebsitePageInfo']>(() => async () => {})
+    readonly websiteControl = vi.fn(
+      async (_command: DesktopWebsiteHostCommand): Promise<DesktopWebsiteHostSnapshot | undefined> => undefined,
+    )
+    readonly inspectWebsiteMcp = vi.fn(async (_server: string) => ({ identity: 'a'.repeat(64), endpoint: 'https://portal.example.test/mcp' }))
     url = 'http://127.0.0.1:3080/?token=test'
     fetch = vi.fn(async () => Response.json({ hasApiKey: true, writable: true, localePreference: null }))
     readonly ready = deferred()
@@ -273,6 +301,7 @@ vi.mock('electron', () => ({
   clipboard: { writeText: harness.clipboardWrite },
   shell: { openExternal: harness.openExternal, writeShortcutLink: vi.fn(() => true) },
   nativeTheme: harness.nativeTheme,
+  webContents: { getAllWebContents: () => [] },
   net: { fetch: vi.fn() },
   ipcMain: {
     on: harness.ipcOn,
@@ -283,7 +312,7 @@ vi.mock('electron', () => ({
     removeHandler: (channel: string) => { harness.handlers.delete(channel) },
   },
   Menu: { setApplicationMenu: harness.menu.setApplicationMenu, buildFromTemplate: harness.menu },
-  session: { defaultSession: {
+  session: { fromPartition: vi.fn(websiteSession), defaultSession: {
     setPermissionCheckHandler: vi.fn(), setPermissionRequestHandler: vi.fn(), webRequest: { onBeforeSendHeaders: harness.socketHeaders },
   } },
   protocol: { registerSchemesAsPrivileged: vi.fn(), handle: harness.protocolHandle },
@@ -650,7 +679,7 @@ describe('desktop main startup', () => {
     const directory = mkdtempSync(join(tmpdir(), 'dsh-main-update-journal-'))
     try {
       vi.stubEnv('DSH_DESKTOP_UPDATE_JOURNAL_DIR', directory)
-      await readyForUpdate()
+      await readyWorkspace()
       harness.publishUpdate({ phase: 'error', failedOperation: 'download', version: '1.2.3', message: 'ENOSPC secret-url' })
       const checkUpdates = applicationMenuItems().find(item => item.label === en.checkUpdatesMenu)!.click as () => void
       checkUpdates()
@@ -1237,6 +1266,95 @@ describe('desktop main startup', () => {
     await vi.advanceTimersByTimeAsync(0)
     expect(harness.dialog.showMessageBox).not.toHaveBeenCalled()
     await host.stopping.promise
+    host.exited.resolve()
+    await harness.quitCompleted.promise
+  })
+
+  it.each([DESKTOP_IPC.websiteProfilesSignOut, DESKTOP_IPC.websiteProfilesForget])(
+    '%s joins the active account through an unprepared saved alias without awaiting Host removal', async (channel) => {
+      const host = await readyWorkspace()
+      harness.dialog.showMessageBox.mockResolvedValue({ response: 0 })
+      const fields = { name: 'Portal', accountLabel: 'operator', url: 'https://portal.example.test/', mcpServerName: 'portal' }
+      const active = await invoke(DESKTOP_IPC.websiteProfilesCreate, 'app', fields) as DesktopWebsiteProfile
+      const alias = await invoke(DESKTOP_IPC.websiteProfilesCreate, 'app', { ...fields, name: 'Alias' }) as DesktopWebsiteProfile
+      const reservation = await invoke(DESKTOP_IPC.websiteProfilesAcquire, 'app', active.id) as DesktopBrowserReservation
+      const owner = harness.windows[0]!.webContents
+      const attaching = { preventDefault: vi.fn() }
+      owner.emit('will-attach-webview', attaching, {}, { src: `about:blank#${reservation.lease}`, partition: reservation.partition })
+      expect(attaching.preventDefault).not.toHaveBeenCalled()
+      let destroyed = false
+      const guest = Object.assign(new EventEmitter(), {
+        isDestroyed: () => destroyed,
+        hostWebContents: owner, session: websiteSession(reservation.partition),
+        getURL: () => `about:blank#${reservation.lease}`,
+        setWindowOpenHandler: vi.fn(), setIgnoreMenuShortcuts: vi.fn(),
+        close: vi.fn(() => { destroyed = true; guest.emit('destroyed') }),
+      })
+      owner.emit('did-attach-webview', {}, guest)
+      const request: DesktopWebsiteHostSnapshot = {
+        id: '38ac2aa4-f8ce-4b37-951c-80a4c0c117ce' as DesktopWebsiteHostSnapshot['id'], profile: active.id,
+        sessionId: 'website-session' as DesktopWebsiteHostSnapshot['sessionId'], epoch: 1, status: 'pending',
+      }
+      host.websitePrepared!(request)
+      let snapshot = request
+      const entered: PromiseWithResolvers<void> = Promise.withResolvers()
+      const settled: PromiseWithResolvers<void> = Promise.withResolvers()
+      host.websiteControl.mockImplementation(async (command) => {
+        if (command.action === 'sync' || command.action === 'remove') return undefined
+        if (command.action === 'drain') { entered.resolve(); await settled.promise; return undefined }
+        snapshot = { ...snapshot, epoch: command.action === 'revoke' ? snapshot.epoch + 1 : command.epoch,
+          status: command.action === 'commit' ? 'granted' : command.action === 'validate' ? 'pending' : 'revoked' }
+        return snapshot
+      })
+      const receipt = invoke(DESKTOP_IPC.websiteRequestsPrepare, 'app', {
+        requestId: request.id, sessionId: request.sessionId, lease: reservation.lease,
+      }) as DesktopWebsiteRequestReceipt
+      await invoke(DESKTOP_IPC.websiteRequestsResume, 'app', receipt)
+      const cleanup = Promise.resolve(invoke(channel, 'app', alias.id))
+      try {
+        // The selected alias has no guest or native request; Main still revokes the active alias synchronously.
+        expect(host.websiteControl).toHaveBeenCalledWith({ action: 'revoke', id: request.id })
+        await entered.promise
+        await expect(Promise.resolve(invoke(DESKTOP_IPC.websiteProfilesAcquire, 'app', active.id)))
+          .rejects.toThrow('Website profile data must be cleared successfully before it can be used')
+        expect(websiteStorage.clearStorageData).not.toHaveBeenCalled()
+        expect(host.websiteControl).not.toHaveBeenCalledWith({ action: 'remove', id: request.id })
+      } finally { settled.resolve(); await cleanup }
+      expect(websiteStorage.clearStorageData).toHaveBeenCalledOnce()
+      expect(websiteStorage.clearCache).toHaveBeenCalledOnce()
+      expect(websiteStorage.clearAuthCache).toHaveBeenCalledOnce()
+      expect(websiteStorage.closeAllConnections).toHaveBeenCalledOnce()
+      expect(host.websiteControl).not.toHaveBeenCalledWith({ action: 'remove', id: request.id })
+      await invoke(DESKTOP_IPC.browserRelease, 'app', reservation.lease)
+    },
+  )
+
+  it('settles and removes captured website requests before stopping the private Host channel', async () => {
+    const host = await readyWorkspace()
+    harness.dialog.showMessageBox.mockResolvedValue({ response: 0 })
+    const profile = await invoke(DESKTOP_IPC.websiteProfilesCreate, 'app', {
+      name: 'Portal', accountLabel: 'operator', url: 'https://portal.example.test/', mcpServerName: 'portal',
+    }) as DesktopWebsiteProfile
+    const request: DesktopWebsiteHostSnapshot = {
+      id: '38ac2aa4-f8ce-4b37-951c-80a4c0c117ce' as DesktopWebsiteHostSnapshot['id'], profile: profile.id,
+      sessionId: 'website-session' as DesktopWebsiteHostSnapshot['sessionId'], epoch: 1, status: 'pending',
+    }
+    host.websitePrepared!(request)
+    const entered: PromiseWithResolvers<void> = Promise.withResolvers()
+    const settled: PromiseWithResolvers<void> = Promise.withResolvers()
+    host.websiteControl.mockImplementation(async (command) => {
+      if (command.action === 'revoke') return { ...request, epoch: request.epoch + 1, status: 'revoked' }
+      if (command.action === 'drain') { entered.resolve(); await settled.promise }
+      return undefined
+    })
+    harness.app.quit()
+    try {
+      await entered.promise
+      expect(host.stop).not.toHaveBeenCalled()
+      expect(host.websiteControl).not.toHaveBeenCalledWith({ action: 'remove', id: request.id })
+    } finally { settled.resolve() }
+    await host.stopping.promise
+    expect(host.websiteControl).toHaveBeenCalledWith({ action: 'remove', id: request.id })
     host.exited.resolve()
     await harness.quitCompleted.promise
   })
