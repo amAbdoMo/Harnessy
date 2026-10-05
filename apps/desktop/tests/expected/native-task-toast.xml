@@ -1,0 +1,1 @@
+<toast launch="harnessy://session/private%2Fsession%3FID" activationType="protocol"><visual><binding template="ToastGeneric"><text>Title &lt;&amp;&gt; &quot;quoted&quot;</text><text>Body &apos;text&apos; &amp; &lt;tag&gt;</text><image placement="appLogoOverride" src="{{bundled-logo}}"/></binding></visual></toast>

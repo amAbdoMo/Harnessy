@@ -3,7 +3,7 @@
 import { WINDOWS_TITLEBAR_HEIGHT } from './windows-layout.ts'
 import { existsSync, mkdirSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { dirname, join, win32 } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   app,
@@ -69,7 +69,12 @@ import { DesktopUpdateOverlays } from './update-overlay.ts'
 import { DesktopQuitConfirmation } from './quit-confirmation.ts'
 import { DesktopTray } from './tray.ts'
 import { DesktopBackgroundNotice } from './background-notice.ts'
-import { windowsNotificationShortcut } from './windows-notifications.ts'
+import { windowsNotificationApplicationId, windowsNotificationShortcut } from './windows-notifications.ts'
+import { registerWindowsToastIdentity, type LegacyWindowsToastShortcut } from './windows-notification-registration.ts'
+import { DesktopNotificationActivation, NOTIFICATION_ACTIVATION_SCHEME, parseNotificationActivationArguments, parseNotificationActivationUri, windowsNotificationToastXml } from './notification-activation.ts'
+
+const protocolNotifications = process.platform === 'win32' && app.isPackaged
+const notificationActivation = new DesktopNotificationActivation()
 
 let focusPrimaryWindow = (): void => {}
 let stopForRecovery = async (): Promise<void> => {}
@@ -109,7 +114,7 @@ function configureCustomHarnessProductIdentity(state: CustomHarnessDesktopState)
   process.env.CUSTOM_HARNESS_LOG_DIR = state.logs
   process.env.CUSTOM_HARNESS_CACHE_DIR = state.cache
   app.setName(CUSTOM_HARNESS_PRODUCT.displayName)
-  app.setAppUserModelId(CUSTOM_HARNESS_PRODUCT.windowsAppId)
+  app.setAppUserModelId(windowsNotificationApplicationId(CUSTOM_HARNESS_PRODUCT.windowsAppId, app.isPackaged))
   app.setPath('userData', state.userData)
 }
 
@@ -124,7 +129,7 @@ function prepareCustomHarnessProductState(state: CustomHarnessDesktopState): voi
   app.setAppLogsPath(state.logs)
 }
 
-function prepareWindowsNotifications(): void {
+async function prepareWindowsNotifications(): Promise<boolean> {
   const shortcut = windowsNotificationShortcut({
     platform: process.platform,
     packaged: app.isPackaged,
@@ -133,7 +138,7 @@ function prepareWindowsNotifications(): void {
     // A shortcut whose icon comes from electron.exe would also become the
     // taskbar group's icon, overriding the unpackaged window's own icon; the
     // multi-size app icon keeps the real Harnessy logo at every scale.
-    icon: app.isPackaged ? process.execPath : join(app.getAppPath(), 'resources', 'app-windows.ico'),
+    icon: app.isPackaged ? join(process.resourcesPath, 'icon.ico') : join(app.getAppPath(), 'resources', 'app-windows.ico'),
     displayName: CUSTOM_HARNESS_PRODUCT.displayName,
     applicationId: CUSTOM_HARNESS_PRODUCT.windowsAppId,
     // An unpackaged executable has no installer shortcut, so Windows would
@@ -143,15 +148,43 @@ function prepareWindowsNotifications(): void {
       launchArguments: `--user-data-dir="${app.getPath('userData')}" "${app.getAppPath()}"`,
     }),
   })
-  if (shortcut === undefined) return
+  if (shortcut === undefined) return true
   try {
     mkdirSync(dirname(shortcut.path), { recursive: true })
     const operation = existsSync(shortcut.path) ? 'update' : 'create'
     if (!shell.writeShortcutLink(shortcut.path, operation, shortcut.details)) {
-      console.warn('Harnessy could not register its Windows notification shortcut.')
+      throw new Error('Windows rejected the Harnessy notification shortcut')
     }
+    const registered = shell.readShortcutLink(shortcut.path)
+    if (registered.appUserModelId !== shortcut.details.appUserModelId
+      || win32.resolve(registered.target).toLowerCase() !== win32.resolve(shortcut.details.target).toLowerCase()
+      || (registered.args ?? '') !== shortcut.details.args) {
+      throw new Error('Windows retained an unexpected Harnessy notification shortcut identity')
+    }
+    let legacy: LegacyWindowsToastShortcut | undefined
+    const legacyPath = join(dirname(shortcut.path), 'Electron.lnk')
+    if (app.isPackaged && existsSync(legacyPath)) {
+      let details: Electron.ShortcutDetails | undefined
+      try { details = shell.readShortcutLink(legacyPath) } catch (error) {
+        console.warn('Harnessy could not inspect a legacy notification shortcut.', error)
+      }
+      if (details !== undefined && details.appUserModelId === CUSTOM_HARNESS_PRODUCT.windowsAppId
+        && win32.basename(details.target).toLowerCase() === 'electron.exe'
+        && (details.args === undefined || details.args.trim() === '')) {
+        legacy = { path: legacyPath, target: details.target, appUserModelId: details.appUserModelId,
+          ...details.toastActivatorClsid === undefined ? {} : { toastActivatorClsid: details.toastActivatorClsid } }
+      }
+    }
+    const repaired = await registerWindowsToastIdentity({ applicationId: shortcut.details.appUserModelId,
+      displayName: shortcut.details.description, icon: shortcut.details.icon, executable: process.execPath,
+      ...legacy === undefined ? {} : { legacy } })
+    if (legacy !== undefined && !repaired) throw new Error('A conflicting Electron notification activator could not be verified')
+    // Unpackaged Electron COM activation cannot restore the development launcher's runtime environment.
+    // Its isolated identity is registered, but activity stays in the in-app notification center.
+    return app.isPackaged
   } catch (error) {
-    console.warn('Harnessy could not register its Windows notification shortcut.', error)
+    console.warn('Harnessy could not register its Windows notification identity.', error)
+    return false
   }
 }
 
@@ -388,7 +421,9 @@ function createWindow(preload: string, icon: string, show = false, primary = fal
 
 async function main(): Promise<void> {
   void pruneCrashReports(app.getPath('logs'))
-  prepareWindowsNotifications()
+  const notificationProtocolReady = !protocolNotifications || app.setAsDefaultProtocolClient(NOTIFICATION_ACTIVATION_SCHEME)
+  if (!notificationProtocolReady) console.warn('Harnessy could not register its notification activation protocol.')
+  const nativeNotificationsReady = await prepareWindowsNotifications() && notificationProtocolReady
   const journalDirectory = process.env.DSH_DESKTOP_UPDATE_JOURNAL_DIR
   const updateJournal = journalDirectory === undefined ? undefined : new DesktopUpdateJournal(journalDirectory, app.getVersion())
   const resources = runtimeResources()
@@ -545,11 +580,17 @@ async function main(): Promise<void> {
   ipcMain.handle(DESKTOP_IPC.notificationsShow, (event, payload: unknown): boolean => {
     assertProductSender(event)
     const copy = parseDesktopNotificationPayload(payload)
-    if (!ElectronNotification.isSupported()) return false
-    const notification = new ElectronNotification(copy)
+    if (!nativeNotificationsReady || !ElectronNotification.isSupported()) return false
+    const notification = new ElectronNotification(protocolNotifications
+      ? { title: copy.title, body: copy.body, toastXml: windowsNotificationToastXml(copy, join(process.resourcesPath, 'icon.png')) }
+      : { title: copy.title, body: copy.body, icon: applicationIconPath })
     const release = (): void => { nativeNotifications.delete(notification) }
     nativeNotifications.add(notification)
-    notification.once('click', () => { release(); focusPrimaryWindow() })
+    notification.once('click', () => {
+      release()
+      // Protocol toasts select only through OS argv/open-url, even if Electron also emits click.
+      if (!protocolNotifications) notificationActivation.activate(copy)
+    })
     notification.once('close', release)
     notification.once('failed', (_event, error) => {
       release()
@@ -1288,6 +1329,7 @@ async function main(): Promise<void> {
   const createMainWindow = (): BrowserWindow => {
     const window = createWindow(appPreload, applicationIconPath, false, true)
     mainWindow = window
+    window.webContents.on('did-finish-load', () => { notificationActivation.flush() })
     browserGuests.bind(window, (guest, name) => shortcuts.attachGuest(window, guest, name))
     shortcuts.attach(window)
     window.on('focus', automaticCheck)
@@ -1355,6 +1397,7 @@ async function main(): Promise<void> {
       window.webContents.send(DESKTOP_IPC.enterWorkspace)
     }
     welcomeWindow = undefined
+    notificationActivation.flush()
     if (raiseAfterUpdate) {
       raiseAfterUpdate = false
       window.moveTop()
@@ -1542,6 +1585,7 @@ async function main(): Promise<void> {
       mandatoryUI?.sync()
       if (state.blocking && !wasBlocking) void updateSchedule.check(false, true).catch((error: unknown) => { console.error(error) })
       wasBlocking = state.blocking
+      if (!state.blocking) notificationActivation.flush()
     }, policyAuth?.request, () => desktopClientMetadata(locale.id))
     const policy = mandatoryPolicy
     mandatoryUI = new DesktopMandatoryUpdateWindow({
@@ -1556,6 +1600,21 @@ async function main(): Promise<void> {
       if (app.isPackaged && state.error === 'authentication-required' && !isQuitting()) queuePolicyAuthentication()
     }).catch((error: unknown) => { console.error(error) })
   }
+  notificationActivation.connect({
+    focus: () => { focusPrimaryWindow() },
+    selectSession: (sessionId) => {
+      const window = mainWindow
+      if (quitting || recovery.active || isMandatory() || backend.state.phase !== 'ready' || !enteredWorkspace || welcomeWindow !== undefined
+        || window === undefined || window.isDestroyed() || window.webContents.isDestroyed()
+        || window.webContents.isLoadingMainFrame()) return false
+      const currentUrl = window.webContents.getURL()
+      if (currentUrl === '') return false
+      const url = new URL(currentUrl)
+      if (url.protocol !== `${SCHEME}:` || url.host !== 'app' || url.username !== '' || url.password !== '') return false
+      window.webContents.send(DESKTOP_IPC.notificationActivated, sessionId)
+      return true
+    },
+  })
   automaticCheck()
   await reconcileBackend().catch(() => undefined)
   // Window lifecycle callbacks run while backend startup is pending.
@@ -1571,7 +1630,11 @@ const desktopProductState = customHarnessDesktopState()
 configureCustomHarnessProductIdentity(desktopProductState)
 // Electron stores its instance lock under userData, so the directory must exist before the claim.
 prepareCustomHarnessProductState(desktopProductState)
-const ownsDesktopInstance = claimDesktopSingleInstance(app, () => { focusPrimaryWindow() }, () => {
+const ownsDesktopInstance = claimDesktopSingleInstance(app, (argv) => {
+  const action = protocolNotifications && argv !== undefined ? parseNotificationActivationArguments(argv) : undefined
+  if (action !== undefined) notificationActivation.activate(action)
+  else focusPrimaryWindow()
+}, () => {
   // A staging launch that loses the lock has already built for minutes; a
   // silent exit would leave the launcher's window never appearing with no
   // explanation. The packaged app keeps its quiet focus-the-owner behavior.
@@ -1579,6 +1642,18 @@ const ownsDesktopInstance = claimDesktopSingleInstance(app, () => { focusPrimary
   dialog.showErrorBox(CUSTOM_HARNESS_PRODUCT.displayName,
     'Another Harnessy instance is already running with this profile. Quit it from its system tray, then start the staging app again.')
 })
+
+if (ownsDesktopInstance && protocolNotifications) {
+  const action = parseNotificationActivationArguments(process.argv)
+  if (action !== undefined) notificationActivation.activate(action)
+  // Install before ready so cold open-url delivery cannot precede the activation listener.
+  app.on('open-url', (event, uri) => {
+    const action = parseNotificationActivationUri(uri)
+    if (action === undefined) return
+    event.preventDefault()
+    notificationActivation.activate(action)
+  })
+}
 
 if (ownsDesktopInstance) void app.whenReady().then(main).catch(async (error: unknown) => {
   const message = error instanceof Error ? error.message : String(error)

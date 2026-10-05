@@ -1,6 +1,8 @@
 import type { AccountView } from '@deepseek-ai/dsh-deepseek-account/types'
 import type { DesktopBrowserReservation, DesktopWebsiteHostCommand, DesktopWebsiteHostSnapshot, DesktopWebsiteProfile, DesktopWebsiteRequestReceipt } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
 import { EventEmitter } from 'node:events'
+import { SessionId } from '@deepseek-ai/dsh-session/types'
+import { registerWindowsToastIdentity } from '../src/windows-notification-registration.ts'
 import { WINDOWS_TITLEBAR_HEIGHT } from '../src/windows-layout.ts'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import type { IpcMainInvokeEvent } from 'electron'
@@ -32,6 +34,7 @@ function websiteSession(partition: string) {
 type InvokeEvent = { sender?: unknown; senderFrame: { url: string } }
 type InvokeHandler = (event: InvokeEvent, ...args: unknown[]) => unknown
 
+vi.mock('../src/windows-notification-registration.ts', () => ({ registerWindowsToastIdentity: vi.fn(async () => false) }))
 vi.mock('../src/web-document.ts', () => ({ authenticateWebHost: async () => 'test-cookie', serveWebDocument: vi.fn(), forwardWebRequest: vi.fn() }))
 // Report persistence has its own unit tests; here it resolves within microtasks so the fatal
 // dialog never outlives the test that triggered it.
@@ -94,14 +97,15 @@ const harness = await vi.hoisted(async () => {
       removeInsertedCSS: vi.fn(async () => {}),
       openDevTools: vi.fn(),
       getURL: () => this.urls.at(-1) ?? '',
+      isLoadingMainFrame: vi.fn(() => false),
       mainFrame: { url: '' },
       getZoomFactor: () => 1,
       isDestroyed: () => this.destroyed,
       setIgnoreMenuShortcuts: vi.fn(),
       focus: vi.fn(),
       sendInputEvent: vi.fn(),
-      send: vi.fn((channel: string, state: { policy?: { blocking: boolean } }) => {
-        if (channel === 'dsh-desktop:mandatory-state' && state.policy?.blocking) policyBlocked.resolve()
+      send: vi.fn((channel: string, state: { policy?: { blocking: boolean } } | string) => {
+        if (channel === 'dsh-desktop:mandatory-state' && typeof state !== 'string' && state.policy?.blocking) policyBlocked.resolve()
       }),
     })
     readonly shown = deferred()
@@ -195,7 +199,7 @@ const harness = await vi.hoisted(async () => {
     setAppLogsPath: vi.fn(),
     setAboutPanelOptions: vi.fn<(options: Electron.AboutPanelOptionsOptions) => void>(),
     requestSingleInstanceLock: () => true,
-    setAsDefaultProtocolClient: vi.fn(),
+    setAsDefaultProtocolClient: vi.fn(() => true),
     exit: vi.fn(),
     relaunch: vi.fn(),
     focus: vi.fn(),
@@ -220,12 +224,28 @@ const harness = await vi.hoisted(async () => {
     readonly destroy = vi.fn()
     constructor(readonly image: unknown) { super(); trays.push(this) }
   }
+  const notifications: FakeNotification[] = []
+  class FakeNotification extends EventEmitter {
+    static readonly isSupported = vi.fn(() => true)
+    readonly show = vi.fn()
+    readonly close = vi.fn(() => { this.emit('close') })
+    constructor(readonly options: Electron.NotificationConstructorOptions) { super(); notifications.push(this) }
+  }
+  const shortcutDetails = new Map<string, Electron.ShortcutDetails>()
+  const writeShortcutLink = vi.fn((path: string, _operation: string, details: Electron.ShortcutDetails) => {
+    shortcutDetails.set(path, details); return true
+  })
+  const readShortcutLink = vi.fn((path: string): Electron.ShortcutDetails => {
+    const value = shortcutDetails.get(path)
+    if (value === undefined) throw new Error('shortcut does not exist')
+    return value
+  })
   const backgroundNotice = { close: vi.fn((hide: () => void) => { hide() }), dispose: vi.fn(), markerPath: undefined as string | undefined }
   const shellDialog = { isOpen: false, focus: vi.fn() }
   return {
     failWindow(error: Error) { windowFailure = error },
     windows, hosts, handlers, app, FakeWindow, FakeHost, powerMonitor, nativeTheme, analytics, loginShell, readLoginShell,
-    trays, FakeTray, backgroundNotice, shellDialog,
+    trays, FakeTray, backgroundNotice, shellDialog, notifications, FakeNotification, writeShortcutLink, readShortcutLink,
     menu, popup, socketHeaders: vi.fn(), updateCheck, updateDownload, updateVerify, updateInstall,
     platformDispose,
     platformCloseAndWait,
@@ -274,6 +294,8 @@ const harness = await vi.hoisted(async () => {
       accountListener = undefined
       windows.length = 0; hosts.length = 0; handlers.clear(); app.removeAllListeners()
       trays.length = 0
+      notifications.length = 0
+      shortcutDetails.clear()
       backgroundNotice.markerPath = undefined
       shellDialog.isOpen = false
       powerMonitor.removeAllListeners()
@@ -314,7 +336,8 @@ vi.mock('electron', () => ({
   BrowserWindow: harness.FakeWindow,
   dialog: harness.dialog,
   clipboard: { writeText: harness.clipboardWrite },
-  shell: { openExternal: harness.openExternal, writeShortcutLink: vi.fn(() => true) },
+  shell: { openExternal: harness.openExternal, writeShortcutLink: harness.writeShortcutLink, readShortcutLink: harness.readShortcutLink },
+  Notification: harness.FakeNotification,
   nativeTheme: harness.nativeTheme,
   webContents: { getAllWebContents: () => [] },
   net: { fetch: vi.fn() },
@@ -444,7 +467,9 @@ beforeEach(() => {
   harness.reset()
   const userData = mkdtempSync(join(tmpdir(), 'dsh-main-user-data-'))
   onTestFinished(() => { rmSync(userData, { recursive: true, force: true }) })
-  harness.app.getPath.mockImplementation(name => name === 'userData' ? userData : `desktop-test-${name}`)
+  harness.app.getPath.mockImplementation(name => name === 'userData' || name === 'appData' ? userData : `desktop-test-${name}`)
+  vi.stubEnv('APPDATA', userData)
+  vi.mocked(registerWindowsToastIdentity).mockReset().mockResolvedValue(false)
   harness.dialog.showMessageBox.mockImplementation((options: { title?: string }) => {
     if (options.title !== en.startupFailed) return Promise.resolve({ response: 1 })
     harness.dialogShown.resolve()
@@ -1170,6 +1195,98 @@ describe('desktop main startup', () => {
     await Promise.resolve(invoke(DESKTOP_IPC.boot))
     return host
   }
+
+  it('brands task toasts and selects their Session only through product protocol activation without reloading', async () => {
+    await readyWorkspace()
+    const window = harness.windows[0]!
+    window.minimized = true
+    window.show.mockClear()
+    window.focus.mockClear()
+    window.webContents.send.mockClear()
+    const urls = [...window.urls]
+    expect(invoke(DESKTOP_IPC.notificationsShow, 'app', { title: 'Task finished', body: 'Review the result.', sessionId: 's1' })).toBe(true)
+    const notification = harness.notifications.at(-1)!
+    expect(notification.options.toastXml).toContain('launch="harnessy://session/s1" activationType="protocol"')
+    expect(notification.options.toastXml).toContain('placement="appLogoOverride"')
+    expect(notification.options.toastXml).toContain('icon.png')
+    expect(notification.show).toHaveBeenCalledOnce()
+    notification.emit('click')
+    expect(window.webContents.send).not.toHaveBeenCalledWith(DESKTOP_IPC.notificationActivated, expect.anything())
+    harness.app.emit('second-instance', {}, ['Harnessy.exe', 'harnessy://session/s1'], 'C:\\')
+    expect(window.restore).toHaveBeenCalledOnce()
+    expect(window.show).toHaveBeenCalledOnce()
+    expect(window.focus).toHaveBeenCalledOnce()
+    expect(window.webContents.send).toHaveBeenCalledWith(DESKTOP_IPC.notificationActivated, SessionId('s1'))
+    expect(window.urls).toEqual(urls)
+    expect(harness.app.setAsDefaultProtocolClient).toHaveBeenCalledWith('harnessy')
+    expect(harness.app.setAppUserModelId).toHaveBeenCalledWith('com.amabdmo.customharness')
+    expect(harness.writeShortcutLink).toHaveBeenCalledWith(expect.stringContaining('Harnessy.lnk'), 'create', expect.objectContaining({
+      target: process.execPath, args: '', icon: join('desktop-test-resources', 'icon.ico'), appUserModelId: 'com.amabdmo.customharness',
+    }))
+    expect(() => invoke(DESKTOP_IPC.notificationsShow, 'shell', { title: 'Foreign', body: 'Untrusted' })).toThrow()
+  })
+
+  it('queues a cold Session activation until workspace boot and later renderer loads finish', async () => {
+    vi.stubGlobal('process', { ...process, argv: ['Harnessy.exe', 'harnessy://session/cold-session'] })
+    await readyForUpdate()
+    const window = harness.windows[0]!
+    expect(window.webContents.send).not.toHaveBeenCalledWith(DESKTOP_IPC.notificationActivated, expect.anything())
+    await Promise.resolve(invoke(DESKTOP_IPC.boot))
+    expect(window.webContents.send).toHaveBeenCalledWith(DESKTOP_IPC.notificationActivated, SessionId('cold-session'))
+    window.webContents.send.mockClear()
+    window.webContents.isLoadingMainFrame.mockReturnValue(true)
+    harness.app.emit('second-instance', {}, ['Harnessy.exe', 'harnessy://session/older'])
+    harness.app.emit('second-instance', {}, ['Harnessy.exe', 'harnessy://session/latest'])
+    expect(window.webContents.send).not.toHaveBeenCalled()
+    window.webContents.isLoadingMainFrame.mockReturnValue(false)
+    window.webContents.emit('did-finish-load')
+    const selections = () => window.webContents.send.mock.calls.filter(([channel]) => channel === DESKTOP_IPC.notificationActivated)
+    expect(selections()).toEqual([[DESKTOP_IPC.notificationActivated, SessionId('latest')]])
+    window.webContents.emit('did-finish-load')
+    expect(selections()).toHaveLength(1)
+    const event = { preventDefault: vi.fn() }
+    harness.app.emit('open-url', event, 'harnessy://session/from-open-url')
+    expect(window.webContents.send).toHaveBeenLastCalledWith(DESKTOP_IPC.notificationActivated, SessionId('from-open-url'))
+    expect(event.preventDefault).toHaveBeenCalled()
+  })
+
+  it.each(['harnessy://session/s1?execute=tool', 'harnessy://session/%0A', 'dsh://session/s1', 'https://other.invalid/'])
+  ('ignores foreign or malformed notification activation %s', async (uri) => {
+    await readyWorkspace()
+    const window = harness.windows[0]!
+    window.webContents.send.mockClear()
+    harness.app.emit('second-instance', {}, ['Harnessy.exe', uri])
+    expect(window.webContents.send).not.toHaveBeenCalledWith(DESKTOP_IPC.notificationActivated, expect.anything())
+  })
+
+  it('opens the app for global notification activation without selecting a Session', async () => {
+    await readyWorkspace()
+    const window = harness.windows[0]!
+    window.show.mockClear()
+    window.webContents.send.mockClear()
+    expect(invoke(DESKTOP_IPC.notificationsShow, 'app', { title: 'MCP restored', body: 'The server is ready.' })).toBe(true)
+    expect(harness.notifications.at(-1)!.options.toastXml).toContain('launch="harnessy://open"')
+    harness.app.emit('second-instance', {}, ['Harnessy.exe', 'harnessy://open'])
+    expect(window.show).toHaveBeenCalledOnce()
+    expect(window.webContents.send).not.toHaveBeenCalled()
+  })
+
+  it.each(['registration-failed', 'protocol-failed', 'unpackaged'] as const)
+  ('keeps activity in-app when safe native activation is unavailable: %s', async (failure) => {
+    if (failure === 'registration-failed') vi.mocked(registerWindowsToastIdentity).mockRejectedValueOnce(new Error('registration denied'))
+    if (failure === 'protocol-failed') harness.app.setAsDefaultProtocolClient.mockReturnValueOnce(false)
+    if (failure === 'unpackaged') harness.app.isPackaged = false
+    await readyWorkspace()
+    expect(invoke(DESKTOP_IPC.notificationsShow, 'app', { title: 'Task finished', body: 'Review the result.', sessionId: 's1' })).toBe(false)
+    expect(harness.notifications).toEqual([])
+    if (failure === 'unpackaged') {
+      expect(harness.app.setAppUserModelId).toHaveBeenCalledWith('com.amabdmo.customharness.development')
+      expect(harness.writeShortcutLink).toHaveBeenCalledWith(expect.stringContaining('Harnessy Development.lnk'), 'create', expect.objectContaining({
+        appUserModelId: 'com.amabdmo.customharness.development',
+        args: `--user-data-dir="${harness.app.getPath('userData')}" "desktop-test-app"`,
+      }))
+    }
+  })
 
   it('hides the workspace before intentional Host shutdown can look like reconnection', async () => {
     const host = await readyWorkspace()

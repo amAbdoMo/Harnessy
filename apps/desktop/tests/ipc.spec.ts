@@ -12,6 +12,17 @@ describe('desktop notification IPC', () => {
     })
   })
 
+  it('retains the opaque Session target but drops arbitrary activation and icon fields', () => {
+    expect(parseDesktopNotificationPayload({ title: 'Task finished', body: 'Review the result.', sessionId: 's1',
+      url: 'https://untrusted.invalid', icon: 'C:\\untrusted.png', args: '--inspect' })).toEqual({
+      title: 'Task finished', body: 'Review the result.', sessionId: 's1',
+    })
+  })
+
+  it.each([null, 7, '', 'x'.repeat(201), ' session', 'session\nother'])('rejects invalid Session targets %s', (sessionId) => {
+    expect(() => parseDesktopNotificationPayload({ title: 'Task finished', body: 'Review the result.', sessionId })).toThrow(/session id/)
+  })
+
   it.each([
     undefined,
     { title: '', body: 'message' },

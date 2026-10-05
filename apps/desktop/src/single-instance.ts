@@ -4,19 +4,19 @@
 export interface DesktopSingleInstanceApplication {
   requestSingleInstanceLock(): boolean
   quit(): void
-  on(event: 'second-instance', listener: () => void): unknown
+  on(event: 'second-instance', listener: (event?: unknown, argv?: readonly string[]) => void): unknown
 }
 
 /**
  * Claim the process-lifetime Desktop lock and route later launches to the owner.
  * @param application - Electron application singleton.
- * @param focusOwner - focus or recreate the primary window after a later launch.
+ * @param focusOwner - route later argv to the owner, or focus its primary window for generic launches.
  * @param onLostClaim - runs when another process owns the lock, before quitting.
  * @returns true only in the process that may access the Desktop profile.
  */
 export function claimDesktopSingleInstance(
   application: DesktopSingleInstanceApplication,
-  focusOwner: () => void,
+  focusOwner: (argv?: readonly string[]) => void,
   onLostClaim?: () => void,
 ): boolean {
   if (!application.requestSingleInstanceLock()) {
@@ -24,6 +24,6 @@ export function claimDesktopSingleInstance(
     application.quit()
     return false
   }
-  application.on('second-instance', focusOwner)
+  application.on('second-instance', (_event, argv) => { focusOwner(argv) })
   return true
 }

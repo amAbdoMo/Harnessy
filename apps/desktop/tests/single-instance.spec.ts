@@ -29,6 +29,23 @@ describe('desktop single-instance ownership', () => {
     expect(application.on).not.toHaveBeenCalled()
   })
 
+  it('forwards later OS argv without interpreting URI or other launch arguments', () => {
+    let secondInstance: ((event?: unknown, argv?: readonly string[]) => void) | undefined
+    const launches: (readonly string[] | undefined)[] = []
+    const application = {
+      requestSingleInstanceLock: () => true,
+      quit: vi.fn(),
+      on: vi.fn((_event: 'second-instance', listener: (event?: unknown, argv?: readonly string[]) => void) => { secondInstance = listener }),
+    } satisfies DesktopSingleInstanceApplication
+
+    expect(claimDesktopSingleInstance(application, (argv) => { launches.push(argv) })).toBe(true)
+    const argv = ['Harnessy.exe', 'harnessy://session/opaque%2Fid', '--updated']
+    secondInstance?.({}, argv)
+    secondInstance?.({}, ['Harnessy.exe'])
+    expect(launches).toEqual([argv, ['Harnessy.exe']])
+    expect(application.quit).not.toHaveBeenCalled()
+  })
+
   it('routes a later launch to the primary process', () => {
     let secondInstance: (() => void) | undefined
     const focus = vi.fn()

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { installMandatoryUpdateOverlay } from '../src/preload-mandatory-overlay.ts'
 import { syncWindowsAppearance } from '../src/preload-windows.ts'
 import { DESKTOP_IPC, type DshDesktopProductApi } from '../src/ipc.ts'
+import { SessionId } from '@deepseek-ai/dsh-session/types'
 
 const electron = vi.hoisted(() => ({
   contextBridge: { exposeInMainWorld: vi.fn() },
@@ -61,11 +62,38 @@ it('exposes update controls and native notifications only to the product documen
   expect(electron.ipcRenderer.off).toHaveBeenCalledWith(DESKTOP_IPC.updatesPresentation, handler)
 })
 
+it('buffers the latest native selection until subscription and disposes listeners without replaying consumed clicks', async () => {
+  vi.stubGlobal('location', new URL('dsh-app://app/'))
+  await import('../src/preload-app.ts')
+  const api = electron.contextBridge.exposeInMainWorld.mock.calls.find(([name]) => name === 'dshDesktop')?.[1] as DshDesktopProductApi
+  const activate = electron.ipcRenderer.on.mock.calls.find(([channel]) => channel === DESKTOP_IPC.notificationActivated)?.[1] as
+    (event: unknown, sessionId: SessionId) => void
+  activate({}, SessionId('old'))
+  activate({}, SessionId('latest'))
+  const first = vi.fn<(sessionId: SessionId) => void>()
+  const dispose = api.notifications.subscribe(first)
+  expect(first.mock.calls).toEqual([[SessionId('latest')]])
+  activate({}, SessionId('live'))
+  expect(first).toHaveBeenLastCalledWith(SessionId('live'))
+  dispose()
+  activate({}, SessionId('after-disposal'))
+  expect(first).toHaveBeenCalledTimes(2)
+  const second = vi.fn<(sessionId: SessionId) => void>()
+  const stopSecond = api.notifications.subscribe(second)
+  expect(second.mock.calls).toEqual([[SessionId('after-disposal')]])
+  const third = vi.fn<(sessionId: SessionId) => void>()
+  const stopThird = api.notifications.subscribe(third)
+  expect(third).not.toHaveBeenCalled()
+  stopSecond()
+  stopThird()
+})
+
 it.each(['dsh-app://shell/plugin-manager.html', 'dsh-app://other/index.html', 'https://shell/startup.html', 'http://example.com/'])('exposes only the carrier marker to %s', async (url) => {
   vi.stubGlobal('location', new URL(url))
   await import('../src/preload-app.ts')
   expect(electron.contextBridge.exposeInMainWorld).toHaveBeenCalledWith('dshDesktop', { protocolVersion: 1 })
   expect(electron.ipcRenderer.on.mock.calls.some(([channel]) => channel === DESKTOP_IPC.browserOpenRequested)).toBe(false)
+  expect(electron.ipcRenderer.on.mock.calls.some(([channel]) => channel === DESKTOP_IPC.notificationActivated)).toBe(false)
 })
 
 it('reads the local machine description only from the application main frame', async () => {

@@ -2,7 +2,7 @@
 
 import type { DesktopShortcutInput, ShortcutConfigSnapshot, ShortcutSaveResult } from '@deepseek-ai/dsh-client-shortcuts/protocol'
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import { DESKTOP_IPC, SCHEME, type DshDesktopProductApi, type DesktopUpdatePresentation } from './ipc.ts'
+import { DESKTOP_IPC, SCHEME, type DesktopNotificationPayload, type DshDesktopProductApi, type DesktopUpdatePresentation } from './ipc.ts'
 import { PLATFORM_IPC } from './platform-ipc.ts'
 import { markDocumentPlatform, syncWindowFullscreen } from './preload-platform.ts'
 import { syncNativeTheme } from './preload-theme.ts'
@@ -10,7 +10,18 @@ import { syncWindowsAppearance } from './preload-windows.ts'
 import { installMandatoryUpdateOverlay } from './preload-mandatory-overlay.ts'
 import { createDesktopBrowserBridge } from './preload-browser.ts'
 
+type NotificationSessionId = NonNullable<DesktopNotificationPayload['sessionId']>
+
 function createProductApi(): DshDesktopProductApi {
+  const notificationListeners = new Set<(sessionId: NotificationSessionId) => void>()
+  let pendingNotification: NotificationSessionId | undefined
+  const activateNotification = (listener: (sessionId: NotificationSessionId) => void, sessionId: NotificationSessionId): void => {
+    try { listener(sessionId) } catch (error) { console.warn('Harnessy notification activation failed.', error) }
+  }
+  ipcRenderer.on(DESKTOP_IPC.notificationActivated, (_event: Electron.IpcRendererEvent, sessionId: NotificationSessionId) => {
+    if (notificationListeners.size === 0) { pendingNotification = sessionId; return }
+    for (const listener of notificationListeners) activateNotification(listener, sessionId)
+  })
   return {
     protocolVersion: 1,
     browser: createDesktopBrowserBridge(),
@@ -48,6 +59,15 @@ function createProductApi(): DshDesktopProductApi {
     },
     notifications: {
       show: payload => ipcRenderer.invoke(DESKTOP_IPC.notificationsShow, payload) as Promise<boolean>,
+      subscribe(listener) {
+        notificationListeners.add(listener)
+        if (pendingNotification !== undefined) {
+          const sessionId = pendingNotification
+          pendingNotification = undefined
+          activateNotification(listener, sessionId)
+        }
+        return () => { notificationListeners.delete(listener) }
+      },
     },
     updates: {
       status: () => ipcRenderer.invoke(DESKTOP_IPC.updatesStatus) as Promise<DesktopUpdatePresentation>,

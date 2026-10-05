@@ -31,6 +31,8 @@ kind: "package-reference"
 
 MCP Servers 区域为每个已保存服务器显示紧凑卡片，整张卡片以较暖的成功、等待或错误边框表达状态，并列出连接状态、endpoint、transport、是否已保存认证以及已发现工具名称。其页头操作只打开专用 MCP JSON 文档，而全局设置文档操作在本页隐藏。单一 staged editor 支持远程 HTTPS 与本地 stdio profile。本地编辑器可以填入可编辑的 WordPress MCP Adapter 模板，其中包含当前 endpoint 格式、命令、参数与受保护环境变量名；成对文本框保持等高，占位文字使用易读的次要文本色，连接失败则使用高对比度警告。JSON 导入接受常见的 `mcp`、`mcpServers` 与 `servers` 根节点或直接服务器映射，包括本地命令数组、命令加参数记录和远程 HTTP endpoint。保存前会显示脱敏预览、派生唯一工具命名空间、保留启用状态，并明确报告不受支持的 SSE transport、额外 header、逐服务器 timeout 与格式错误条目，而不会静默改变它们。导入的环境变量、授权 header、URL、命令与参数只保留在暂存导入记录中，不会显示在预览里。保存后的 secret 不会重新渲染到表单；secret 字段留空会保留受保护值，显式控制可清除它。测试、启用、编辑、导入与移除操作只通过注入的 Host callback 执行。每个 Session 页头都有一个带文字的紧凑 MCP 操作，即使尚未配置服务器也保持可见；其圆点按全局连接状态着色，显示实时调用数，把当前活动和失败服务器排在前面，并把服务器状态与从该 Session 最新投影派生的最多 100 条无 secret 工具调用记录组合展示。失败行可重新连接或定位到对应对话事件。最终连接失败及后续恢复会进入通知中心与原生 Desktop 通知；成功调用只保留在 MCP 活动列表中，不产生通知噪音。应用打开期间会共用一次三秒刷新，窗口回到前台时立即刷新。
 
+原生任务或需要用户操作的通知通过工作区导航选择仍然存在的 Session，不重新加载应用文档。选择操作会等待初始 Session 目录；Session 已移除时保留当前视图。账户与 MCP 通知只打开应用，不指定 Session。[Desktop 通知注册](../../../apps/desktop/README.zh.md#native-activity-notifications)负责 Windows 品牌、协议激活和开发版本限制。
+
 <a id="model-experience"></a>
 ## 模型体验
 

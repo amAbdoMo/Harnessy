@@ -11,6 +11,7 @@ describe('Windows notification shortcut', () => {
       icon: 'D:\\Harnessy\\Harnessy.exe',
       displayName: 'Harnessy',
       applicationId: 'com.amabdmo.customharness',
+      launchArguments: '--user-data-dir="C:\\stale-cache" "A:\\stale-staging\\apps\\desktop"',
     })).toEqual({
       path: 'C:\\Users\\Person\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Harnessy.lnk',
       details: {
@@ -19,6 +20,8 @@ describe('Windows notification shortcut', () => {
         iconIndex: 0,
         description: 'Harnessy',
         appUserModelId: 'com.amabdmo.customharness',
+        args: '',
+        cwd: 'D:\\Harnessy',
       },
     })
   })
@@ -34,16 +37,23 @@ describe('Windows notification shortcut', () => {
       applicationId: 'com.amabdmo.customharness',
       launchArguments: '--user-data-dir="C:\\cache\\DesktopUserData" "A:\\Repository\\apps\\desktop"',
     })).toEqual({
-      path: 'C:\\Users\\Person\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Harnessy.lnk',
+      path: 'C:\\Users\\Person\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Harnessy Development.lnk',
       details: {
         target: 'A:\\Repository\\node_modules\\electron\\dist\\electron.exe',
         icon: 'A:\\Repository\\apps\\desktop\\resources\\app-windows.ico',
         iconIndex: 0,
-        description: 'Harnessy',
-        appUserModelId: 'com.amabdmo.customharness',
+        description: 'Harnessy Development',
+        appUserModelId: 'com.amabdmo.customharness.development',
         args: '--user-data-dir="C:\\cache\\DesktopUserData" "A:\\Repository\\apps\\desktop"',
+        cwd: 'A:\\Repository\\node_modules\\electron\\dist',
       },
     })
+  })
+
+  it('rejects an unpackaged shortcut that would launch bare Electron', () => {
+    expect(() => windowsNotificationShortcut({ platform: 'win32', packaged: false,
+      roamingApplicationData: 'C:\\Roaming', executable: 'C:\\electron.exe', icon: 'C:\\icon.ico',
+      displayName: 'Harnessy', applicationId: 'com.amabdmo.customharness' })).toThrow(/launch arguments/)
   })
 
   it.each([

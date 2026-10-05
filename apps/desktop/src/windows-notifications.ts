@@ -1,6 +1,16 @@
 /** Windows Start-menu identity needed for reliable native toast delivery. */
 
-import { join } from 'node:path'
+import { win32 } from 'node:path'
+
+/**
+ * Separate unpackaged notifications from the installed application's Windows identity.
+ * @param applicationId - installed product identifier.
+ * @param packaged - whether the executable contains the installed application.
+ * @returns the application id used by the process and its notification shortcut.
+ */
+export function windowsNotificationApplicationId(applicationId: string, packaged: boolean): string {
+  return packaged ? applicationId : `${applicationId}.development`
+}
 
 /** Shortcut values written through Electron's shell API. */
 export interface WindowsNotificationShortcut {
@@ -13,8 +23,9 @@ export interface WindowsNotificationShortcut {
     readonly iconIndex: number
     readonly description: string
     readonly appUserModelId: string
-    /** Arguments that reopen the target application, present for unpackaged executables. */
-    readonly args?: string
+    /** Empty for installed executables, explicitly clearing any development arguments. */
+    readonly args: string
+    readonly cwd: string
   }
 }
 
@@ -43,22 +54,28 @@ export function windowsNotificationShortcut(
   request: WindowsNotificationShortcutRequest,
 ): WindowsNotificationShortcut | undefined {
   if (request.platform !== 'win32') return undefined
+  const args = request.packaged ? '' : request.launchArguments
+  if (args === undefined || (!request.packaged && args.trim() === '')) {
+    throw new Error('Harnessy development notifications require application launch arguments')
+  }
+  const displayName = request.packaged ? request.displayName : `${request.displayName} Development`
   return {
-    path: join(
+    path: win32.join(
       request.roamingApplicationData,
       'Microsoft',
       'Windows',
       'Start Menu',
       'Programs',
-      `${request.displayName}.lnk`,
+      `${displayName}.lnk`,
     ),
     details: {
       target: request.executable,
       icon: request.icon,
       iconIndex: 0,
-      description: request.displayName,
-      appUserModelId: request.applicationId,
-      ...(request.launchArguments === undefined ? {} : { args: request.launchArguments }),
+      description: displayName,
+      appUserModelId: windowsNotificationApplicationId(request.applicationId, request.packaged),
+      args,
+      cwd: win32.dirname(request.executable),
     },
   }
 }

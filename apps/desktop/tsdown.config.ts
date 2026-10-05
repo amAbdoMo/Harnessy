@@ -94,7 +94,7 @@ export default defineConfig([
     alias: {
       '../../../scripts/custom-harness-product.mjs': productRuntime,
     },
-    deps: { neverBundle: ['electron'] },
+    deps: { neverBundle: ['electron'], alwaysBundle: ['@deepseek-ai/dsh-session/types', '@deepseek-ai/dsh-brand'] },
   },
   ...(['preload-app', 'preload-welcome', 'preload-platform-account', 'preload-mandatory', 'preload-update-dialog'] as const).map(name => ({
     // Sandboxed Electron preloads run as CommonJS even though the application package is ESM.
@@ -111,6 +111,6 @@ export default defineConfig([
     outputOptions: { codeSplitting: false },
     dts: false,
     clean: false,
-    deps: { neverBundle: ['electron'] },
+    deps: { neverBundle: ['electron'], alwaysBundle: ['@deepseek-ai/dsh-session/types', '@deepseek-ai/dsh-brand'] },
   })),
 ])

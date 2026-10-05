@@ -2,6 +2,7 @@
 
 import type { DesktopKeyboardApi, DesktopShortcutsApi } from '@deepseek-ai/dsh-client-shortcuts/protocol'
 import type { IpcMainInvokeEvent } from 'electron'
+import { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { DesktopBrowserBridge } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
 
 /** IPC channel names kept private to the desktop application bundle. */
@@ -49,6 +50,7 @@ export const DESKTOP_IPC = {
   windowsAppearance: 'dsh-desktop:windows-appearance',
   windowsMenu: 'dsh-desktop:windows-menu',
   notificationsShow: 'dsh-desktop:notifications-show',
+  notificationActivated: 'dsh-desktop:notification-activated',
 } as const
 
 /** Native menu groups opened from the integrated Windows title bar. */
@@ -62,6 +64,8 @@ export interface DshDesktopAppApi {
   }
   readonly notifications: {
     show(payload: DesktopNotificationPayload): Promise<boolean>
+    /** Subscribe to Session selection requested by a native notification click. */
+    subscribe(listener: (sessionId: SessionId) => void): () => void
   }
 }
 
@@ -69,6 +73,8 @@ export interface DshDesktopAppApi {
 export interface DesktopNotificationPayload {
   readonly title: string
   readonly body: string
+  /** Opaque Session address delivered to the product renderer, never rendered in the operating-system toast. */
+  readonly sessionId?: SessionId
 }
 
 /**
@@ -89,7 +95,12 @@ export function parseDesktopNotificationPayload(value: unknown): DesktopNotifica
   if (title.length === 0 || title.length > 120 || body.length === 0 || body.length > 500) {
     throw new Error('dsh desktop: notification title or body has an invalid length')
   }
-  return { title, body }
+  const sessionId = candidate.sessionId
+  if (sessionId !== undefined && (typeof sessionId !== 'string' || sessionId.length === 0 || sessionId.length > 200
+    || /\s|[\x00-\x1f\x7f-\x9f]/u.test(sessionId))) {
+    throw new Error('dsh desktop: notification session id is invalid')
+  }
+  return { title, body, ...sessionId === undefined ? {} : { sessionId: SessionId(sessionId) } }
 }
 
 /** Desktop release update state rendered by desktop-owned UI. */
@@ -142,6 +153,8 @@ export interface DshDesktopProductApi {
   readonly shortcuts: DesktopShortcutsApi
   readonly notifications: {
     show(payload: DesktopNotificationPayload): Promise<boolean>
+    /** Subscribe to Session selection requested by a native notification click. */
+    subscribe(listener: (sessionId: SessionId) => void): () => void
   }
   /**
    * Local machine description for the feedback questionnaire.

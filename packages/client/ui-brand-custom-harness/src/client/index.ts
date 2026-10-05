@@ -24,6 +24,7 @@ import {
   NotificationHistoryController,
 } from './notification-history.ts'
 import { notificationPresentation, shouldShowNativeNotification } from './notification-presentation.ts'
+import { showNativeNotification, subscribeNativeNotificationActivation, type NativeNotifications } from './native-notifications.ts'
 import { SharedSkillsRow, type SharedSkillsRowInjected } from './SharedSkillsRow.tsx'
 import {
   McpServersSection, type McpManagerOperations, type McpServersInjected,
@@ -51,32 +52,10 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 const BUILD_PROFILE = 'custom-harness'
 const LOCALE_NS = 'customHarnessBrand'
 
-interface DesktopNotificationBridge {
-  readonly notifications?: {
-    show(payload: { readonly title: string; readonly body: string }): Promise<boolean>
-  }
-}
-
-function shortenNotificationCopy(copy: string, limit: number): string {
-  return copy.length <= limit ? copy : `${copy.slice(0, limit - 1).trimEnd()}…`
-}
-
-function showNativeNotification(title: string, body: string): void {
-  const bridge = (globalThis as typeof globalThis & { dshDesktop?: DesktopNotificationBridge }).dshDesktop
-  const notifications = bridge?.notifications
-  if (notifications === undefined) return
-  void notifications.show({
-    title: shortenNotificationCopy(title, 120),
-    body: shortenNotificationCopy(body, 500),
-  }).catch((reason: unknown) => {
-    console.warn('Harnessy native notification failed:', reason)
-  })
-}
-
 /** Required services: slots, locale, and theme token composition. */
 export const inject = [
   'slots', 'locale', 'theme', 'remote', 'remote.accounts', 'remote.directoryPicker',
-  'remote.mcpManager', 'configForms',
+  'remote.mcpManager', 'configForms', 'sessions', 'uiWorkspace',
 ]
 
 /**
@@ -150,13 +129,19 @@ export function apply(ctx: ClientContext): void {
   }, SharedSkillsRow))
 
   const notifications = new NotificationHistoryController()
+  const desktop = (globalThis as typeof globalThis & { dshDesktop?: { notifications?: NativeNotifications } }).dshDesktop
+  const nativeNotifications = desktop?.notifications
+  ctx.effect(() => subscribeNativeNotificationActivation(nativeNotifications, ctx.sessions.list,
+    (sessionId) => { ctx.uiWorkspace.openSession(sessionId) }), 'custom-harness: native notification navigation')
   const notificationText = ctx.locale.bind(LOCALE_NS)
   const publishNotification = (event: HarnessNotificationEvent): void => {
     notifications.add(event)
     const pageIsForeground = document.visibilityState === 'visible' && document.hasFocus()
     if (!shouldShowNativeNotification(event, pageIsForeground)) return
     const presentation = notificationPresentation(event, notificationText)
-    showNativeNotification(presentation.title, presentation.message)
+    const sessionId = 'sessionId' in event
+      ? ctx.sessions.list.getSnapshot().ids.find(id => id === event.sessionId) : undefined
+    showNativeNotification(nativeNotifications, presentation, sessionId)
   }
   ctx.effect(() => () => { notifications.dispose() }, 'custom-harness: notification history lifecycle')
 
