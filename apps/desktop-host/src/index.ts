@@ -45,7 +45,7 @@ async function main(): Promise<void> {
     profile: 'desktop',
     resolvedProfile: { profile, installAnchor },
     patchFiles: [],
-    args: ['--no-open', '--port', '19387'],
+    args: ['--no-open', '--port', '0'],
     prepare(ctx) {
       control.websiteMcp = installWebsiteMcpInspector(ctx, projectDir)
       const parent = control.websiteParent = installWebsiteParentChannel(ctx, send)

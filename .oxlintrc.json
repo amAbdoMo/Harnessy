@@ -24,6 +24,7 @@
     "packages/llm/model-capabilities/src/snapshot/public-model-capabilities.ts", // Generator-emitted data module: its literal is machine-written, and the snapshot freshness check is the gate that owns it.
     "website/.generated/**",
     "vendor/**", // Vendored source keeps upstream style and idioms.
+    "packages/experimental/claude-code-mods/examples/*/{hooks,tests,types}/**", // Claude Code's published example mods and their tests keep the upstream style; see the headers.
     "native/**", // The imported landlock-run subtree has its own gates; see native/README.md.
     "**/*.js",
     "**/*.mjs",

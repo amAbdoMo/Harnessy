@@ -90,6 +90,6 @@ Two limits are deliberate. The `Select` has no type-ahead: arrow/Home/End walkin
 
 ## Related
 
-- [Shared client control primitives](../../implemented/architecture/2026-09-05-shared-client-control-primitives.md) — why a second consumer sends a control here.
+- [Client UI primitives](../../../../packages/client/ui-primitives/README.md) — shared controls and their use.
 - [Harnessy edits the unified subagent roster from one Settings page](../../implemented/feature/2026-09-16-subagents-settings-page.md) — the page this polish pass re-lays out.
 - [Retire the Delegation Settings page into the Subagents page](../../implemented/feature/2026-09-16-retire-delegation-settings-page.md) — the page set the Subagents page replaced at retirement.

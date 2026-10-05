@@ -56,5 +56,5 @@ Harnessy 获得了一个委派后端，且没有新增接缝、没有新增进�
 
 ## 相关
 
-- [两个具名产品 subagent 提供方](../../implemented/feature/2026-08-04-claude-code-and-codex-subagent-backends.zh.md) —— 同类产品后端，以及本实现刻意不采用的形态。
+- [两个具名产品 subagent 提供方](../../archived/feature/2026-08-04-claude-code-and-codex-subagent-backends.md) —— 同类产品后端，以及本实现刻意不采用的形态。
 - [声明式 Agent 预设](../architecture/2026-09-18-declarative-agent-presets.zh.md) —— 预设组合如何让 host 注册在每个已配置 Agent 内可见。

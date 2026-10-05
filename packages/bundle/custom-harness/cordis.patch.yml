@@ -29,6 +29,15 @@
 - id: session-telemetry-otel
   disabled: true
 
+- id: desktop-product-telemetry
+  disabled: true
+
+- id: product-analytics
+  disabled: true
+
+- id: ui-settings-session-log
+  disabled: true
+
 # The official DeepSeek API adapter is not a Harnessy provider: the product's
 # models come through the configurable pi-ai and Command Code routes, and the
 # adapter's card would otherwise sit unconfigured on the Models page.

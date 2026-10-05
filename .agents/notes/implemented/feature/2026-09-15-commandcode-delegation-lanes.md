@@ -56,5 +56,5 @@ The settings page pays for that policy with a write path of its own. Every edit 
 
 ## Related
 
-- [Two named product subagent providers](../../implemented/feature/2026-08-04-claude-code-and-codex-subagent-backends.md) — the sibling product backends and the shape this one deliberately does not take.
+- [Two named product subagent providers](../../archived/feature/2026-08-04-claude-code-and-codex-subagent-backends.md) — the sibling product backends and the shape this one deliberately does not take.
 - [Declarative agent presets](../architecture/2026-09-18-declarative-agent-presets.md) — how preset composition makes a host registration visible inside every configured agent.

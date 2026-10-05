@@ -17,6 +17,12 @@ it('projects only safe account fields and refuses non-browser authorization sche
   expect(() => accountView({ ...state, attempt: { ...state.attempt, errorCode: 'raw-server-message' } })).toThrow()
 })
 
+it('accepts a no-response login failure without discarding the account projection', () => {
+  const state = { status: 'signed-out', attempt: { id: 'test', phase: 'failed', errorCode: 'no-response' },
+    links: { usageUrl: 'https://platform.deepseek.com/usage', topUpUrl: 'https://platform.deepseek.com/top_up' } }
+  expect(accountView(state)).toEqual(state)
+})
+
 it('uses account Remote commands without returning additional wire fields', async () => {
   const requests: unknown[] = []
   const backend = desktopAccountBackend('http://127.0.0.1:1234', (request) => {
@@ -53,10 +59,12 @@ it('receives live expiry separately from account snapshots', async () => {
     links: { usageUrl: 'https://platform.deepseek.com/usage', topUpUrl: 'https://platform.deepseek.com/top_up' } }
   const received = Promise.withResolvers<undefined>()
   const backend = desktopAccountBackend(`http://127.0.0.1:${address.port}`, () => Promise.resolve(snapshot), () => Promise.resolve(''))
-  const stop = backend.watch((value) => { expect(value).toEqual(snapshot); received.resolve(undefined) }, vi.fn(), expired)
+  const stop = backend.watch(
+    (value) => { expect(value).toEqual(snapshot); received.resolve(undefined) }, vi.fn(), expired,
+  )
   onTestFinished(stop)
   await connected
-  // Both logical streams share the socket; observe their opening frames before sending data.
+  // Logical streams share the socket; observe their opening frames before sending data.
   const streams = new Map<string, string>()
   const opened = Promise.withResolvers<undefined>()
   const socket = [...server.clients][0]!
@@ -69,6 +77,7 @@ it('receives live expiry separately from account snapshots', async () => {
   await opened.promise
   socket.send(JSON.stringify({ type: 'item', streamId: streams.get('account/watch'), value: snapshot }))
   await received.promise
+  expect([...streams.keys()].sort()).toEqual(['account/watch', 'account/watchExpiry'])
   expect(expired).not.toHaveBeenCalled()
   socket.send(JSON.stringify({ type: 'item', streamId: streams.get('account/watchExpiry'), value: 'session-expired' }))
   await vi.waitFor(() => { expect(expired).toHaveBeenCalledOnce() })

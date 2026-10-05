@@ -14,6 +14,18 @@ describe('Harnessy product contract', () => {
     expect(customHarnessProductViolations(readCustomHarnessProductEvidence(root))).toEqual([])
   })
 
+  it.each([
+    'session-log-deepseek', 'session-telemetry-otel', 'desktop-product-telemetry',
+    'product-analytics', 'ui-settings-session-log',
+  ])('rejects an enabled upstream data-sharing row %s', (id) => {
+    const current = readCustomHarnessProductEvidence(root)
+    const failures = customHarnessProductViolations({
+      ...current,
+      bundlePatch: current.bundlePatch.replace(`- id: ${id}\n  disabled: true`, `- id: ${id}\n  disabled: false`),
+    })
+    expect(failures).toContain(`custom-harness patch must disable stock row ${id}`)
+  })
+
   it('rejects a stock Desktop launcher and missing custom owners', () => {
     const current = readCustomHarnessProductEvidence(root)
     const regressed = {

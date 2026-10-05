@@ -40,7 +40,7 @@ Windows 默认位置为 `%LOCALAPPDATA%\CustomHarness\Harness`、`%LOCALAPPDATA%
 
 逐消息反馈没有模型工具，因此工具列表不需要兼容别名或墓碑。现有会话日志仍可打开，因为评分与备注存放在独立 sidecar 中，而非会话事件流。此 profile 不迁移或删除该 sidecar。
 
-会话级 `/feedback` 命令仍然可用。遥测反馈门控、身份验证、审批、权限预设、沙箱和文件系统策略也保持不变；它们属于独立的运行、隐私和安全控制。
+会话级 `/feedback` 命令仍然可用。此 profile 禁用会话日志上传、Desktop 产品分析和会话日志共享设置行，不会将这些记录发送给 DeepSeek 收集端。身份验证、审批、权限预设、沙箱和文件系统策略仍属于独立控制。
 
 <a id="workspace-brief"></a>
 ## Workspace Brief

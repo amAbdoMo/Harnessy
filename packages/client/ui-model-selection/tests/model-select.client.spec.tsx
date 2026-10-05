@@ -111,6 +111,23 @@ describe('ModelSelect dialog', () => {
     expect(screen.getByText(zh['empty.search'])).toBeTruthy()
   })
 
+  it('ranks fuzzy model names while keeping provider groups and staged selection', () => {
+    const { select } = mount({ directory: createSnapshotStore(state({
+      groups: [{ id: 'openrouter', name: 'OpenRouter', models: [
+        { id: 'claude-opus', name: 'Claude Opus' },
+        { id: 'claude-sonnet', name: 'Claude Sonnet' },
+      ] }],
+    })) })
+    fireEvent.click(screen.getByRole('button', { name: /选择模型/ }))
+    fireEvent.change(screen.getByRole('textbox', { name: zh['dialog.searchAria'] }), {
+      target: { value: 'clsn' },
+    })
+    expect(screen.queryByRole('radio', { name: /Claude Opus/ })).toBeNull()
+    expect(screen.getByRole('radio', { name: /Claude Sonnet/ })).toBeTruthy()
+    expect(screen.getByText('OpenRouter')).toBeTruthy()
+    expect(select).not.toHaveBeenCalled()
+  })
+
   it('stages a model, then applies the model and thinking level together and closes', async () => {
     const groups = [{
       id: 'deepseek-official',

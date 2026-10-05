@@ -3,29 +3,38 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write apps/desktop/README.md
 /harnessy-desktop:
-  en: 6c184e7644d63a76
-  zh: 437b4180a449928f
+  en: 66bc8b533ab002f4
+  zh: c988d8984b748ade
 /harnessy-desktop/website-account-isolation:
   en: 64c44f11ad196cd3
   zh: 204ba74524e5ef76
+/harnessy-desktop/terminal-command:
+  en: f1c71d27c80fc354
+  zh: 261ac4c06ab4d700
 /harnessy-desktop/closing-the-window-and-quitting:
-  en: 473fb694490c591d
-  zh: 06db00daf313e443
+  en: 7696dbac2ff6c536
+  zh: f8c2ebea9df38786
 /harnessy-desktop/key-technical-decisions:
-  en: c114dd739a861751
-  zh: 215d1d713be7bef9
+  en: 35737e658ae2bd26
+  zh: 65eb190e60d71c30
 /harnessy-desktop/key-technical-decisions/bundled-workspace-dependencies:
-  en: 31cbb7452be8e1ad
-  zh: f15213791e64d889
+  en: 0f9b6c1d6761d108
+  zh: 4536355c369f8f94
+/harnessy-desktop/bundled-command-runtime:
+  en: 91cd2bc05919dafe
+  zh: 4110708038d3c5db
 /harnessy-desktop/installation-ownership:
-  en: 3df66c66e6928d12
-  zh: 79cdbc3d9fb9c0da
+  en: 52391504db6dbeff
+  zh: 7f41f6d1f40cf0db
 /harnessy-desktop/installation-ownership/runtime-and-plugin-activation:
-  en: 677c450933f39ca1
-  zh: 61d820591d579b6d
+  en: 7639f1c02edb2c0c
+  zh: cd4c8759ca70e8f8
+/harnessy-desktop/installation-ownership/host-environment:
+  en: 626c446a18745e2e
+  zh: 4c44ece97982c3e9
 /harnessy-desktop/develop:
-  en: e3551198a4d119ae
-  zh: c952246535023ed8
+  en: 81a9cce2ebfe6b1e
+  zh: 763a7cf3bf36d86d
 /harnessy-desktop/develop/startup-onboarding:
   en: e0a47c84103be739
   zh: 18a8aa8cf1603e39
@@ -36,20 +45,20 @@
   en: 4cd8a8da6977928d
   zh: 9f624855a2edac37
 /harnessy-desktop/package/release-versions:
-  en: d7d5d0e76df3b86f
-  zh: ad9c6b4d510713c7
+  en: 2934001dcbfb366a
+  zh: ccebf1b7dfd7290f
 /harnessy-desktop/package/runtime-file-selection:
   en: aa39a522f087d930
   zh: 950bdb9ef2d9381c
 /harnessy-desktop/package/upload-updates:
-  en: 453e2ae5f0169192
-  zh: fb3094008313b282
+  en: 5bb679cff01ea407
+  zh: 1edcfa613774c0e8
 /harnessy-desktop/package/unsigned-windows-test-installer:
   en: cfd5780dd26a8e46
   zh: f7a16b1ede793b7b
 /harnessy-desktop/package/windows-installer-interface:
-  en: f176a8b1c7de3064
-  zh: 6ea2dbe6bb808c34
+  en: 94ddb11f514d8dea
+  zh: 15021ae8e3bc8a9c
 /harnessy-desktop/package/windows-ev-signing:
   en: 8efe3498dbe8686d
   zh: a88c16f20a9430f3
@@ -57,8 +66,8 @@
   en: d0df867b69cbffa4
   zh: eeb47b79b86fe5ee
 /harnessy-desktop/updates/mandatory-update-policy:
-  en: 2f789a4949fafb12
-  zh: d8b28c01cfee11b7
+  en: c00a0e7d32056ba9
+  zh: a76dae44cb513d6f
 /harnessy-desktop/updates/local-updater-qualification:
   en: bc50fd8a4d96c227
   zh: fb0a6ce80c31cda6

@@ -40,7 +40,7 @@ The profile disables both the `message-feedback` Host row and the `ui-message-fe
 
 Per-message feedback has no model tool, so the tool roster needs no compatibility alias or tombstone. Existing session logs continue to open because ratings and notes live in a separate sidecar rather than the session event stream. The profile does not migrate or delete that sidecar.
 
-The session-level `/feedback` command remains available. Telemetry feedback gating, authentication, approvals, permission presets, sandboxing, and filesystem policy are also unchanged; they are separate operational, privacy, and safety controls.
+The session-level `/feedback` command remains available. The profile disables Session-log uploads, Desktop product analytics, and the Session-log sharing settings row; it does not send those records to DeepSeek collectors. Authentication, approvals, permission presets, sandboxing, and filesystem policy remain independent controls.
 
 <a id="workspace-brief"></a>
 ## Workspace Brief

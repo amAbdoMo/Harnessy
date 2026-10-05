@@ -3,6 +3,7 @@ import { mkdtemp, rm, readFile, writeFile, mkdir, realpath, symlink, unlink } fr
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { LocalFileSystem } from '@deepseek-ai/dsh-fs-local'
+import { symlinksUsable } from '@deepseek-ai/dsh-platform-probe'
 import { WorkspaceFiles } from '@deepseek-ai/dsh-api-workspace-files'
 import { Context } from '@deepseek-ai/cordis'
 import { HostConnectionService } from '@deepseek-ai/dsh-client-connection'
@@ -129,7 +130,7 @@ describe('Presented workspace file native open route', () => {
     expect(opener).not.toHaveBeenCalled()
   })
 
-  it('opens external regular files through absolute and relative paths but refuses final symlinks', async () => {
+  it.skipIf(!symlinksUsable())('refuses a final symlink without launching its target', async () => {
     const { root, cwd, file, open, opener } = await fixture()
     const outside = join(root, 'outside.txt')
     await writeFile(outside, 'outside')
@@ -138,6 +139,12 @@ describe('Presented workspace file native open route', () => {
     await symlink(outside, source)
     expect((await open()).status).toBe(404)
     expect(opener).not.toHaveBeenCalled()
+  })
+
+  it('opens external regular files through absolute and relative paths', async () => {
+    const { root, file, open, opener } = await fixture()
+    const outside = join(root, 'outside.txt')
+    await writeFile(outside, 'outside')
     for (const path of ['../outside.txt', outside]) {
       file.path = path
       expect((await open()).status).toBe(204)

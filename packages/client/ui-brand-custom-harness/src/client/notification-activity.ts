@@ -120,7 +120,7 @@ function interactionTransitionEvents(
       occurredAt,
       kind,
       sessionId,
-      sessionTitle: session.displayTitle ?? sessionId,
+      sessionTitle: session.displayTitle,
     }]
   })
 }

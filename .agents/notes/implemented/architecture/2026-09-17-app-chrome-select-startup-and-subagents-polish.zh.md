@@ -90,6 +90,6 @@ Windows 包不再携带应用无法选择的 Chromium 翻译。剩余的大体�
 
 ## Related
 
-- [共享客户端控件原语](../../implemented/architecture/2026-09-05-shared-client-control-primitives.zh.md) —— 为什么第二个消费者会把控件送到这里。
+- [客户端 UI 原语](../../../../packages/client/ui-primitives/README.zh.md) —— 共享控件及其使用方式。
 - [Harnessy 在一个设置页里编辑统一子代理名册](../../implemented/feature/2026-09-16-subagents-settings-page.zh.md) —— 本次打磨重新排布的那个页面。
 - [把委派设置页并入子代理页](../../implemented/feature/2026-09-16-retire-delegation-settings-page.zh.md) —— 子代理页在退役时取代的那个页面。

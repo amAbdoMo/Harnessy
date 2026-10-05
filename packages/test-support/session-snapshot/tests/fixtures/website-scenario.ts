@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import type { Context } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/dsh-skill'
 import { LlmAdapter, ToolCallId, type GenerateOptions, type StreamChunk } from '@deepseek-ai/dsh-llm'
 import { deriveReplayScript, parseSessionLog, type ReplayEntry } from '@deepseek-ai/dsh-llm-replay'
 import { installWebsiteControlReceiver } from '../../../../../apps/desktop-host/src/website-control.ts'
@@ -10,10 +11,18 @@ import { installWebsiteRequests } from '../../../../../apps/desktop-host/src/web
 import { installWebsiteRequestTools, installWebsiteTools } from '../../../../../apps/desktop-host/src/website-tools.ts'
 
 export const name = 'snapshot-website-scenario'
-export const inject = ['agents', 'tools', 'llm', 'approval']
+export const inject = ['agents', 'tools', 'llm', 'approval', 'skills']
 
 /** @param ctx - actual shipped ACP composition. */
 export function apply(ctx: Context): void {
+  // This danger-full-access scenario exercises website consent, not platform ACL diagnosis.
+  // Hide the unrelated bundled skill through the registry rather than discarding logged context.
+  ctx.effect(() => ctx.skills.register({
+    name: 'diagnose-windows-sandbox-acl',
+    description: 'Platform ACL diagnosis is outside this website consent scenario.',
+    content: '', source: 'custom',
+    invocation: { modelInvocable: false, userInvocable: false },
+  }))
   assert.ok(process.send !== undefined, 'Website scenario requires the opt-in private IPC driver')
   const send = (message: object): Promise<void> => new Promise((resolve, reject) => {
     assert.ok(process.send !== undefined)

@@ -7,6 +7,8 @@ kind: "package-reference"
 
 English | [中文](README.zh.md)
 
+Desktop product events use the optional [product analytics service](../product-analytics/README.md); ordinary Web interactions are excluded.
+
 ## Summary
 
 The Web GUI lets users switch an existing session's model and reasoning effort through the `/model` popup or composer control. The searchable two-column dialog applies a model and effort together, while a double-click applies only one and closes the dialog. Both surfaces show the same provider-grouped choices; the selected model determines the available efforts and default. A complete selection applies to the next request, while a running step keeps its starting route. The composer remains disabled when no adapter can serve the session.
@@ -35,7 +37,7 @@ The dialog initially focuses its search field, traps Tab navigation, closes on E
 
 ### Model and effort
 
-Models stay grouped by provider, with DeepSeek Account first and DeepSeek second; third-party providers retain their catalog order. Search matches provider names and identifiers plus model names, identifiers, and descriptions. The `/model` popup shows provider names and catalog descriptions; it localizes the two built-in DeepSeek descriptions and leaves external provider descriptions verbatim. Selecting a model applies its default effort, and the dialog offers every effort advertised for the selected model. An adapter without reasoning metadata shows an unavailable explanation instead of an arbitrary effort input.
+Models stay grouped by provider, with DeepSeek Account first and DeepSeek second; third-party providers retain their catalog order. Search ranks case-insensitive ordered-subsequence matches of model names within each provider group, while retaining substring matches of provider names and identifiers plus model identifiers and descriptions. The `/model` popup shows provider names and catalog descriptions; it localizes the two built-in DeepSeek descriptions and leaves external provider descriptions verbatim. Selecting a model applies its default effort, and the dialog offers every effort advertised for the selected model. An adapter without reasoning metadata shows an unavailable explanation instead of an arbitrary effort input.
 
 The composer replaces the model and effort text with the Models icon when the expanded controls cannot share one line, and restores the text when space permits. The full selection remains available in the trigger's accessible name, tooltip, and menu.
 
@@ -56,6 +58,8 @@ The picker uses the shared `Modal` and `Input` primitives, including focus owner
 
 <details>
 <summary>Implementation internals — click to expand</summary>
+
+The composer `ModelSelect` and `/model` option builder share [provider ordering](src/client/provider-order.ts), while both searches use `rankByName` within each provider. The command supplies optional groups and `searchMode: 'fuzzy-label'` through the [popupSelect API](../ui-commands/README.md#use-this-package); both entries use `MenuGroup` and rebuild its sticky observer when the rendered groups change. The command popup fills the composer overlay, while the button retains its compact menu.
 
 Two entries over ONE per-session directory owned by `ModelDirectoryResolver` (`ctx.modelDirectories`): the `/model` popupSelect contribution (registered through `ctx.commandUi`) and the composer's named `conversation.input.model` seat both load the session's available directory through `session.models` and submit through `session.selectModel` via the same `ModelDirectory` instance, so a switch made in either entry is what the other shows next. Directory loads and selections share a generation counter so an older response never overwrites a newer one. The directory publishes the latest submitted selection as `pending` until it settles or a connection reset invalidates it; a connection reset drops every resident projection and repulls the Host-restored selection before display. Directories are per-session, resolved lazily, and disposed with the session scope; addressed subagent sessions expose neither entry. Every resident directory refetches directly on forwarded `llm/adapters-updated`, `settings/document-updated`, and credential update events.
 
@@ -103,5 +107,3 @@ These limits define the current model surface. They are current package constrai
 None.
 
 </details>
-
-**Runtime invariant:** No companion is published. The plugin registers a single command contribution, and the HMR-safety spec proves that the registration is disposed correctly. The plugin emits no Cordis events and owns no cross-plugin mutable state.

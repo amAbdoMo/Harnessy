@@ -40,7 +40,7 @@ Harnessy scans `%USERPROFILE%\.agents\skills` by default so the same personal sk
 
 Open **Settings > MCP Servers** to add a remote HTTPS MCP service or a local stdio command. Harnessy saves authentication in its protected local credential store, shows live connection state and discovered tool names, and makes enabled servers available to every session automatically. Use **Test connection** after editing a server; disable or remove it to unregister its tools.
 
-Harnessy does not currently check for or install updates automatically. Install a newer version from GitHub Releases when one is published.
+Packaged Harnessy checks its own GitHub Releases for signed updates and verifies the downloaded installer before offering a restart. You can also install a newer version directly from GitHub Releases.
 
 ## Version and backup flow
 
@@ -82,7 +82,7 @@ The product verification fails when an upstream integration replaces Harnessy's 
 - Future upstream reviews should follow the [Harnessy upstream-review handoff](HARNESSY-UPSTREAM-HANDOFF.md). It limits each audit to new upstream commits, protects the custom product surfaces, and provides a reusable recommendation and verification report.
 - Submit feedback or bug reports through [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions).
 - Add the [`dsh-plugin`](https://github.com/topics/dsh-plugin) topic to your plugin repository for discoverability.
-- Join <a href="https://discord.gg/Ycq5dCaS4">DeepSeek Harness Discord community</a>.
+- Join <a href="https://discord.gg/4MrtZUhpxg">DeepSeek Harness Discord community</a>.
 
 ## Contributing
 

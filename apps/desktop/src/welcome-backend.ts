@@ -44,11 +44,14 @@ export async function connectDesktopWelcome(
   const authenticated = await send(authenticatedUrl, { credentials: 'include' })
   await authenticated.body?.cancel()
   if (!authenticated.ok) throw new Error('desktop welcome: Web authentication failed')
-  const invoke = async (request: { namespace: string; method: string; args: Record<string, unknown> }): Promise<unknown> => {
+  const invoke = async (
+    request: { namespace: string; method: string; args: Record<string, unknown> },
+    signal?: AbortSignal,
+  ): Promise<unknown> => {
     const rpcId = randomUUID()
     const method = `${request.namespace}/${request.method}`
     const response = await send(new URL(`/api/${method}`, origin).href, {
-      method: 'POST', credentials: 'include', redirect: 'error',
+      method: 'POST', credentials: 'include', redirect: 'error', ...(signal === undefined ? {} : { signal }),
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ type: 'client-request', rpcId, method, payload: { args: request.args } }),
     })

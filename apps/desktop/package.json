@@ -9,7 +9,7 @@
   "scripts": {
     "test:installer": "node scripts/test-windows-installer.mjs",
     "build": "tsc -b && pnpm run bundle",
-    "bundle": "tsdown",
+    "bundle": "tsdown --config-loader native",
     "dev": "tsx scripts/dev.ts",
     "start": "tsx scripts/dev.ts --skip-build",
     "test:updates:local": "pnpm run build && node scripts/test-local-updater.mjs",
@@ -46,7 +46,10 @@
     "release:github:win:x64:check": "tsx scripts/github-windows-release.ts check",
     "release:github:win:x64:draft": "tsx scripts/github-windows-release.ts draft",
     "release:github:win:x64:verify": "tsx scripts/github-windows-release.ts verify",
-    "release:github:win:x64:publish": "tsx scripts/github-windows-release.ts publish"
+    "release:github:win:x64:publish": "tsx scripts/github-windows-release.ts publish",
+    "upload:latest:mac:arm64": "tsx scripts/upload-target.ts mac-arm64 --latest",
+    "upload:latest:mac:x64": "tsx scripts/upload-target.ts mac-x64 --latest",
+    "upload:latest:win:x64": "tsx scripts/upload-target.ts win-x64 --latest"
   },
   "dependencies": {
     "electron-updater": "^6.8.9",
@@ -72,7 +75,7 @@
     "electron-builder": "^26.15.3",
     "extract-zip": "^2.0.1",
     "js-yaml": "^4.2.0",
-    "koffi": "^3.1.0",
+    "koffi": "3.1.1",
     "pnpm": "11.7.0",
     "sharp": "^0.35.3",
     "typescript": "^6.0.3",
@@ -87,6 +90,7 @@
     "@deepseek-ai/dsh-client-ui-theme": "workspace:*",
     "@deepseek-ai/dsh-client-shortcuts": "workspace:*",
     "@deepseek-ai/dsh-atomic-write": "workspace:*",
-    "@deepseek-ai/dsh-session-persistence-jsonl": "workspace:*"
+    "@deepseek-ai/dsh-session-persistence-jsonl": "workspace:*",
+    "@deepseek-ai/dsh-client-product-analytics": "workspace:*"
   }
 }

@@ -51,8 +51,7 @@ export function mcpActivity(
 function flattenCall(call: ToolCallBlock, servers: readonly McpServerView[]): McpActivityRecord[] {
   const nested = call.subCalls.flatMap(child => flattenCall(child, servers))
   const settled = 'kind' in call
-  const technicalName = settled ? call.call?.name : call.name
-  if (technicalName === undefined) return nested
+  const technicalName = call.name
   const server = serverForTool(technicalName, servers)
   if (server === undefined) return nested
   const rawName = technicalName.slice(`mcp__${server.serverName}__`.length)

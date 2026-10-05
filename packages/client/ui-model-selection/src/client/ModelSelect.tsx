@@ -10,11 +10,12 @@ import clsx from 'clsx'
 import type { ModelReasoningEffort, ModelSelection } from '@deepseek-ai/dsh-api-remotes/client'
 import {
   IconCheckOutlineRegular, IconChevronDownOutlineRegular, IconDataOutlineRegular,
-  IconSearchOutlineRegular, IconWarningOutlineRegular, Input, Modal, StateDot, Toast,
+  IconSearchOutlineRegular, IconWarningOutlineRegular, Input, Modal, rankByName, StateDot, Toast,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ModelSelectInjected } from './slots.ts'
 import css from './ModelSelect.module.css'
+import { orderModelProviders } from './provider-order.ts'
 
 /** One dynamic reasoning row; undefined preserves the provider default. */
 interface EffortChoice {
@@ -47,9 +48,7 @@ export function ModelSelect(
   const rootRef = useRef<HTMLDivElement | null>(null)
   const id = useId()
 
-  const groups = useMemo(() => state.groups.toSorted((left, right) =>
-    (left.id === 'deepseek-account' ? 0 : left.id === 'deepseek-official' ? 1 : 2)
-      - (right.id === 'deepseek-account' ? 0 : right.id === 'deepseek-official' ? 1 : 2)), [state.groups])
+  const groups = useMemo(() => orderModelProviders(state.groups), [state.groups])
   const choices = useMemo(() => groups.flatMap(group =>
     group.models.map(model => ({
       group,
@@ -93,12 +92,13 @@ export function ModelSelect(
       })),
     ], [pickerReasoning, t])
   const normalizedQuery = query.trim().toLocaleLowerCase()
-  const filteredGroups = useMemo(() => groups.map(group => ({
-    ...group,
-    models: group.models.filter(model => normalizedQuery === '' || [
-      group.id, group.name, model.id, model.name, model.description ?? '',
-    ].some(value => value.toLocaleLowerCase().includes(normalizedQuery))),
-  })).filter(group => group.models.length > 0), [groups, normalizedQuery])
+  const filteredGroups = useMemo(() => groups.map((group) => {
+    const ranked = rankByName(group.models, normalizedQuery)
+    const metadataMatches = group.models.filter(model => !ranked.includes(model) && [
+      group.id, group.name, model.id, model.description ?? '',
+    ].some(value => value.toLocaleLowerCase().includes(normalizedQuery)))
+    return { ...group, models: [...ranked, ...metadataMatches] }
+  }).filter(group => group.models.length > 0), [groups, normalizedQuery])
   const { pending } = state
   const busy = pending !== null
 

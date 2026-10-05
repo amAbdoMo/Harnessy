@@ -51,7 +51,6 @@
   ],
   "dependencies": {
     "@deepseek-ai/dsh-deque": "workspace:*",
-    "@deepseek-ai/dsh-session": "workspace:*",
     "@deepseek-ai/dsh-util-values": "workspace:*"
   },
   "peerDependencies": {
@@ -97,6 +96,7 @@
     "@deepseek-ai/dsh-deepseek-account": "workspace:*",
     "@deepseek-ai/dsh-model-capabilities": "workspace:*",
     "@deepseek-ai/dsh-subagent-commandcode": "workspace:*",
-    "@deepseek-ai/dsh-subagent-roster": "workspace:*"
+    "@deepseek-ai/dsh-subagent-roster": "workspace:*",
+    "@deepseek-ai/dsh-client-product-analytics": "workspace:*"
   }
 }

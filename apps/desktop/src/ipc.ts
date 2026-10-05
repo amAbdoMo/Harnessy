@@ -36,6 +36,7 @@ export const DESKTOP_IPC = {
   websiteRequestsTakeover: 'dsh-desktop:website-requests-takeover',
   websiteRequestsChanged: 'dsh-desktop:website-requests-changed',
   directoryPick: 'dsh-desktop:directory-pick',
+  deviceInfo: 'dsh-desktop:device-info',
   localeBootstrap: 'dsh-desktop:locale-bootstrap',
   localeChanged: 'dsh-desktop:locale-changed',
   updatesStatus: 'dsh-desktop:updates-status',
@@ -142,6 +143,11 @@ export interface DshDesktopProductApi {
   readonly notifications: {
     show(payload: DesktopNotificationPayload): Promise<boolean>
   }
+  /**
+   * Local machine description for the feedback questionnaire.
+   * @returns `name=value` fields separated by `; `, with no hostname, user name, or serial number.
+   */
+  deviceInfo(): Promise<string>
   readonly updates: {
     status(): Promise<DesktopUpdatePresentation>
     check(): Promise<void>

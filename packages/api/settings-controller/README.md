@@ -76,7 +76,3 @@ No direct effect; reading or writing these configuration values does not alter m
 None.
 
 </details>
-
-**Runtime invariant:** No secret, API key, OAuth grant, MCP authorization value, or stdio environment value crosses a response. Provider authorization flows remain the OAuth grant writers; protected managers project redacted state onto the wire. MCP credentials also appear in the owner-local `mcp-servers.json` direct-edit document when that surface is materialized.
-
-No runtime invariant companion is published; each settings, account, and MCP mutation commits through its single Host owner before a redacted response or event is published, and the package tests exercise those lifecycle paths directly.

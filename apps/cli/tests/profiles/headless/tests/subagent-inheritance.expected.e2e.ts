@@ -24,8 +24,10 @@ const replayOverride = join(fixtureDir, 'replay.override.json')
 // The released V3 child fixture replays through the V3-to-V4 migration, so its
 // tool results lift and its plugin sources move onto producer kinds.
 const childReplay = join(fixtureDir, 'child.replay.v3.jsonl')
-const parentExpected = join(fixtureDir, 'parent.expected.jsonl')
-const childExpected = join(fixtureDir, 'child.expected.jsonl')
+// Windows exposes PowerShell and its bundled ACL diagnostic skill in the full transcript.
+const platformSuffix = process.platform === 'win32' ? '.win32' : ''
+const parentExpected = join(fixtureDir, `parent${platformSuffix}.expected.jsonl`)
+const childExpected = join(fixtureDir, `child${platformSuffix}.expected.jsonl`)
 const configPath = fileURLToPath(new URL('../subagent-inheritance-snapshot.patch.yml', import.meta.url))
 const binScript = fileURLToPath(new URL('../../../../../../packages/test-support/loader-smoke/tests/fixtures/headless-driver.ts', import.meta.url))
 const tsconfigPath = fileURLToPath(new URL('../../../../../../tsconfig.json', import.meta.url))
