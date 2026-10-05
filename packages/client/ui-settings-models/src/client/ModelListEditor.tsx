@@ -198,7 +198,7 @@ function capacitySpelling(value: number | undefined): string {
 }
 
 /** Adopt a candidate, preserving disclosed capacities, inputs, and capabilities. */
-function adopt(candidate: LlmDiscoveredModel): ModelDraft {
+function adopt(candidate: LlmDiscoveredModel, acceptedEfforts: readonly string[]): ModelDraft {
   return {
     id: candidate.id,
     ...candidate.name === undefined ? {} : { name: candidate.name },
@@ -207,7 +207,7 @@ function adopt(candidate: LlmDiscoveredModel): ModelDraft {
     ...candidate.inputModalities === undefined ? {} : { input: [...candidate.inputModalities] },
     // Only a source that states a level set creates a declaration. A silent
     // candidate remains inherited, matching what the source reported.
-    ...declaredCapability(candidate.reasoningEfforts, candidate.defaultReasoningEffort),
+    ...declaredCapability(candidate.reasoningEfforts, candidate.defaultReasoningEffort, acceptedEfforts),
   }
 }
 
@@ -218,11 +218,16 @@ function adopt(candidate: LlmDiscoveredModel): ModelDraft {
  * left alone.
  * @param candidate - the adopted candidate, as the answering source stated it.
  * @param existing - the row already configured under that id.
+ * @param acceptedEfforts - level ids the owning adapter's settings accept.
  * @returns the replacement row, or undefined when the existing row stands.
  */
-function undeclared(candidate: LlmDiscoveredModel, existing: ModelDraft): ModelDraft | undefined {
+function undeclared(
+  candidate: LlmDiscoveredModel,
+  existing: ModelDraft,
+  acceptedEfforts: readonly string[],
+): ModelDraft | undefined {
   if (modelReasoningMode(existing) !== 'inherit') return undefined
-  const capability = declaredCapability(candidate.reasoningEfforts, candidate.defaultReasoningEffort)
+  const capability = declaredCapability(candidate.reasoningEfforts, candidate.defaultReasoningEffort, acceptedEfforts)
   return Object.keys(capability).length === 0 ? undefined : { ...existing, ...capability }
 }
 
@@ -540,8 +545,8 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
       // reasoning declaration the user made or refused — still wins.
       const existing = byId.get(candidate.id)
       byId.set(candidate.id, existing === undefined
-        ? adopt(candidate)
-        : undeclared(candidate, existing) ?? existing)
+        ? adopt(candidate, efforts)
+        : undeclared(candidate, existing, efforts) ?? existing)
     }
     onChange([...byId.values()])
     closePicker()

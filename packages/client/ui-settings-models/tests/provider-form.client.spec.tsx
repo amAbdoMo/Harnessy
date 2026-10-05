@@ -553,12 +553,19 @@ describe('capability conversion', () => {
     // `off` is the one level whose wire form is the parameter's absence.
     expect(reasoningEffortsMap(['off', 'high'])).toEqual({ off: null, high: 'high' })
     // A source that stated no usable level leaves the row undeclared.
-    expect(declaredCapability(undefined, 'high')).toEqual({})
-    expect(declaredCapability([], 'high')).toEqual({})
+    expect(declaredCapability(undefined, 'high', EFFORT_LEVELS)).toEqual({})
+    expect(declaredCapability([], 'high', EFFORT_LEVELS)).toEqual({})
     // A default outside the stated set names no level dispatch could send.
-    expect(declaredCapability(['low'], 'max')).toEqual({ reasoningEfforts: { low: 'low' } })
-    expect(declaredCapability(['low'], 'low'))
+    expect(declaredCapability(['low'], 'max', EFFORT_LEVELS)).toEqual({ reasoningEfforts: { low: 'low' } })
+    expect(declaredCapability(['low'], 'low', EFFORT_LEVELS))
       .toEqual({ reasoningEfforts: { low: 'low' }, defaultReasoningEffort: 'low' })
+  })
+
+  it.each([
+    { accepted: [], expected: {} },
+    { accepted: ['ultra'], expected: { reasoningEfforts: { ultra: 'ultra' }, defaultReasoningEffort: 'ultra' } },
+  ])('uses the owning adapter effort ids: $accepted', ({ accepted, expected }) => {
+    expect(declaredCapability(['ultra'], 'ultra', accepted)).toEqual(expected)
   })
 })
 
@@ -767,6 +774,50 @@ describe('model capabilities', () => {
     ])
   })
 
+  it.each([
+    {
+      label: 'supported default',
+      levels: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+      defaultLevel: 'high',
+      capability: {
+        reasoningEfforts: { low: 'low', medium: 'medium', high: 'high', xhigh: 'xhigh', max: 'max' },
+        defaultReasoningEffort: 'high',
+      },
+    },
+    {
+      label: 'unsupported default',
+      levels: ['off', 'high', 'ultra'],
+      defaultLevel: 'ultra',
+      capability: { reasoningEfforts: { off: null, high: 'high' } },
+    },
+    { label: 'unsupported only', levels: ['ultra'], defaultLevel: 'ultra', capability: {} },
+    { label: 'off only after filtering', levels: ['off', 'ultra'], defaultLevel: 'off', capability: {} },
+  ])('saves fetched ultra metadata without invalid settings: $label', async ({ levels, defaultLevel, capability }) => {
+    const metadata = { reasoningEfforts: levels, defaultReasoningEffort: defaultLevel, contextWindow: 8_192 }
+    const discover = vi.fn(() => Promise.resolve(ok([
+      { id: 'new', name: 'New model', inputModalities: ['text', 'image'], ...metadata },
+      { id: 'inherited', ...metadata },
+    ])))
+    const { mutate } = await mountSection({
+      discover,
+      providers: { 'openai-codex': { models: [{ id: 'inherited', contextWindow: 111 }] } },
+    })
+    openEditor('openai-codex')
+    fireEvent.click(screen.getByText(en.fetchModels))
+    await screen.findByText(en.fetchTitle)
+    fireEvent.click(screen.getByText('inherited'))
+    fireEvent.click(screen.getByText(en.fetchAdopt))
+    fireEvent.click(screen.getByText(en.apply))
+
+    await waitFor(() => { expect(mutate).toHaveBeenCalled() })
+    const saved = firstMutate(mutate).ops.find(op => op.path.at(-1) === 'models')?.value
+    expect(saved).toEqual([
+      { id: 'inherited', contextWindow: 111, ...capability },
+      { id: 'new', name: 'New model', contextWindow: 8_192, input: ['text', 'image'], ...capability },
+    ])
+    expect(() => Schema.resolve({ providers: { 'openai-codex': { models: saved } } }, PiAiConfig, {})).not.toThrow()
+  })
+
   it('keeps an undeclared row undeclared when the source states no levels for it', async () => {
     const discover = vi.fn(() => Promise.resolve(ok([{ id: 'quiet', contextWindow: 4_096 }])))
     const { mutate } = await mountSection({
@@ -818,7 +869,7 @@ describe('model capabilities', () => {
           models: [
             // Capacity already tuned: an import must not rewrite what the user set.
             { id: 'undeclared', contextWindow: 111 },
-            { id: 'declared', reasoningEfforts: { off: null, high: 'high' }, defaultReasoningEffort: 'high' },
+            { id: 'declared', reasoningEfforts: { off: null, high: 'high', max: 'ultra' }, defaultReasoningEffort: 'high' },
             { id: 'refused', reasoningEfforts: false },
           ],
         },
@@ -842,7 +893,7 @@ describe('model capabilities', () => {
     expect(firstMutate(mutate).ops[0]?.value).toEqual([
       // The absence is what the import fills; the tuned capacity stays.
       { id: 'undeclared', contextWindow: 111, reasoningEfforts: { low: 'low', high: 'high', max: 'max' } },
-      { id: 'declared', reasoningEfforts: { off: null, high: 'high' }, defaultReasoningEffort: 'high' },
+      { id: 'declared', reasoningEfforts: { off: null, high: 'high', max: 'ultra' }, defaultReasoningEffort: 'high' },
       { id: 'refused', reasoningEfforts: false },
     ])
   })

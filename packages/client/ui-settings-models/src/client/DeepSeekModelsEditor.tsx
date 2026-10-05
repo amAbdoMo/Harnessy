@@ -144,21 +144,24 @@ export function reasoningEffortsMap(levels: readonly string[]): Record<string, s
 
 /**
  * Convert reasoning-effort ids a source disclosed into the profile fields one
- * row stores. The default is kept only when it names one of the levels, and an
- * empty list yields nothing at all — a source that stated no level set must
- * leave the row undeclared rather than store an empty claim.
+ * row stores, retaining only ids accepted by the owning settings schema. The
+ * default must name a retained level. If no thinking level survives, leave the
+ * row undeclared: an empty or off-only map cannot declare reasoning support.
  * @param efforts - level ids the source stated, in dispatch order.
  * @param defaultEffort - the default the same source stated, when it stated one.
+ * @param acceptedEfforts - level ids the owning adapter's settings accept.
  * @returns the two profile fields to spread into a row, or nothing.
  */
 export function declaredCapability(
   efforts: readonly string[] | undefined,
   defaultEffort: string | undefined,
+  acceptedEfforts: readonly string[],
 ): Record<string, unknown> {
-  if (efforts === undefined || efforts.length === 0) return {}
+  const retained = efforts?.filter(level => acceptedEfforts.includes(level)) ?? []
+  if (!retained.some(level => level !== 'off')) return {}
   return {
-    reasoningEfforts: reasoningEffortsMap(efforts),
-    ...defaultEffort === undefined || !efforts.includes(defaultEffort)
+    reasoningEfforts: reasoningEffortsMap(retained),
+    ...defaultEffort === undefined || !retained.includes(defaultEffort)
       ? {}
       : { defaultReasoningEffort: defaultEffort },
   }
