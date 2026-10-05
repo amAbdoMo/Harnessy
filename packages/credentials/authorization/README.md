@@ -47,13 +47,14 @@ const key = credentialKey('llm-pi-ai', 'openai-codex') // <scope>/<id> — your 
 
 const dispose = ctx.authorization.registerFlow({
   key,
+  supportsDestination: true,
   label: 'ChatGPT (Codex)',
   methods: [{ id: 'oauth', label: 'Sign in with ChatGPT' }, { id: 'api-key', label: 'Paste a key' }],
   async run(session: AuthorizationSession) {
     session.notify({ message: 'Continue in your browser', url: 'https://auth.example/start' })
     const code = await session.prompt({ kind: 'text', message: 'Paste the code' })
     const { token } = await exchangeCode(code, session.signal)
-    await ctx.credentials.modifyRecord(key, () => Promise.resolve({ kind: 'grant', payload: { token } }))
+    await session.commit({ kind: 'grant', payload: { token } })
   },
 })
 
@@ -67,6 +68,8 @@ A flow declares the credential record it writes, a user-facing label, and the si
 ### Running an attempt
 
 A surface runs one attempt per credential at a time. The interaction travels with the request rather than living in a registry, so prompts reach exactly the page that asked; a headless caller supplies an interaction that declines. `begin()` reports `{ status: 'authorized' }` when the record was committed and observed during the attempt, and `{ status: 'cancelled' }` when the human declined or the caller withdrew. `cancel(key)` withdraws the running attempt from a second call, for the request/response transport that answers a Cancel button without holding the first call's signal.
+
+Callers may provide `destination` to stage a grant without replacing the active record. The flow must declare `supportsDestination: true` and route every write through `session.commit`; otherwise an alternate destination is refused with `UNSUPPORTED_DESTINATION` before the flow runs. The caller owns adoption and deletion of staged records; the flow key still owns attempt exclusion and settlement events.
 
 ### What can go wrong
 
@@ -103,7 +106,7 @@ This section explains the design decisions behind the seam and points at the cod
 
 ### Lifecycle
 
-One attempt per key at a time. `begin()` validates the key and method, refuses a second attempt for a busy key, and runs the flow with an `AuthorizationSession` that carries the chosen method, a cancellation signal, and the `notify`/`prompt` callbacks routed to the request's interaction. A withdrawn attempt settles immediately even when the flow never reacts to its signal — the orphaned run is left to finish on its own, and a record it still manages to commit is a record the human did authorize. The key is released before `authorization/settled` fires, so a listener that reacts by starting the next attempt is not refused; listener failures are contained on the credentials seam's terms.
+One attempt per key at a time. `begin()` validates the key and method, refuses a second attempt for a busy key, and runs the flow with an `AuthorizationSession` that carries the chosen method, a cancellation signal, and the `notify`/`prompt` callbacks routed to the request's interaction. Cancellation refuses subsequent `session.commit` calls and waits for an already admitted commit before settlement; a flow that ignores its signal may finish later, but cannot commit through the cancelled session. The key is released before `authorization/settled` fires, so a listener that reacts by starting the next attempt is not refused; listener failures are contained on the credentials seam's terms.
 
 ### The interaction vocabulary
 
@@ -111,7 +114,7 @@ A notice is one-way and never carries a secret: a message, optionally the page t
 
 ### Commit confirmation
 
-During the attempt the seam watches `credentials/record-updated` for the flow's key, then after `run()` resolves it re-reads `describeRecord` — confirming the commit happened now, because on a re-auth the record already exists and presence alone would let a stale credential pass as freshly authorized. A flow that resolves without committing, or that deleted its record instead of committing one, throws `NOT_COMMITTED`.
+During the attempt the seam watches `credentials/record-updated` for the attempt's destination (the flow key by default), then after `run()` resolves it re-reads `describeRecord` — confirming the commit happened now, because on a re-auth the record already exists and presence alone would let a stale credential pass as freshly authorized. A flow that resolves without committing, or that deleted its record instead of committing one, throws `NOT_COMMITTED`.
 
 </details>
 

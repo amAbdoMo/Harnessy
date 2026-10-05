@@ -1,30 +1,9 @@
 /**
- * Answering "which models can this provider serve?" for the configuration
- * surface's "fetch available models" action.
- *
- * A route the installed pi-ai catalog ships is answered **from that catalog**,
- * with no network call at all: pi-ai's registry is the authoritative list for
- * its own providers, and it carries the capacities a listing endpoint would
- * not disclose. Only a route the catalog does not describe — a gateway, a
- * self-hosted server — is interrogated over the wire.
- *
- * Neither path is a catalog refresh. Nothing here is stored: the request
- * carries a draft the user is still editing, and the reply is candidate
- * metadata the surface offers for adoption. `cordis.patch.yml` remains the only
- * thing that decides what a route serves.
- *
- * OpenAI-compatible and Anthropic Messages protocols are interrogated through
- * their native model-listing endpoints. The parser accepts the standard
- * `data` array and the enriched `models` map some compatible gateways expose.
- * Every other protocol reports that it cannot be interrogated so the surface
- * falls back to hand-entry rather than guessing its response fields.
- *
- * A listing entry that states the model's reasoning-effort levels has them
- * read here, so a surface adopting that model starts from the provider's own
- * answer instead of asking the user to restate it. Nothing is completed from
- * anything else: an entry that states no levels yields none, which keeps the
- * adopted profile exactly as truthful as the endpoint was.
- *
+ * Fresh, authenticated candidate model listings for configuration drafts.
+ * Network replies determine membership; exact installed ids supply missing
+ * metadata only. Unsupported builtin protocols explicitly remain catalog-only.
+ * Failures never fall back to the installed list. Discovery changes no runtime
+ * models or configuration: candidates require explicit adoption and saving.
  * @module dsh-llm-pi-ai/discovery
  */
 
@@ -33,27 +12,28 @@ import type { Api, Model } from '@earendil-works/pi-ai'
 import { INVALID_CREDENTIAL_CODE, LlmError, normalizeApiKey } from '@deepseek-ai/dsh-llm'
 import type { LlmDiscoveredModel, LlmModelDiscoveryOperation } from '@deepseek-ai/dsh-llm'
 import { attributionHeaders } from '@deepseek-ai/dsh-llm'
-import { catalogModels } from './catalog.ts'
+import { catalogModels, catalogProvider } from './catalog.ts'
+import type { ModelDiscoveryAuth } from './discovery-auth.ts'
 
-/**
- * Protocols whose model listing this module can read. OpenAI protocols use
- * bearer auth at `GET {baseURL}/models`; Anthropic Messages uses `x-api-key`
- * and `anthropic-version` at its native `GET /v1/models`. Azure is absent
- * despite its OpenAI lineage — it authenticates with an `api-key` header and
- * requires an `api-version` query — and Codex authenticates through OAuth;
- * guessing at either would report an authentication failure as a provider
- * with no models. pi-ai's remaining protocols are absent for the same reason.
- */
+/** Protocols with an implemented native or compatible model-listing endpoint. */
 const LISTABLE_PROTOCOLS: ReadonlySet<string> = new Set([
   'anthropic-messages',
   'openai-completions',
   'openai-responses',
+  'openai-codex-responses',
 ])
+
+/** Upstream Codex release whose native catalog protocol this implementation follows. */
+const CODEX_CLIENT_VERSION = '0.160.0' // https://github.com/openai/codex/releases/tag/rust-v0.160.0
+
+/** Security bounds over one complete listing, including every pagination request. */
+const MAX_LISTING_PAGES = 10
+const DISCOVERY_TIMEOUT_MS = 15_000
 
 /** Stable API version required by Anthropic's model-listing endpoint. */
 const ANTHROPIC_VERSION = '2023-06-01'
 
-/** Largest model-list page accepted by Anthropic's public endpoint; discovery reads one page and does not follow `has_more`. */
+/** Largest model-list page accepted by Anthropic's public endpoint. */
 const ANTHROPIC_MODEL_LIMIT = 1000
 
 /**
@@ -79,6 +59,11 @@ interface ListingTopProvider {
 /** One entry of a supported `GET /models` reply. */
 interface ListingEntry {
   id?: unknown
+  /** Native Codex catalog fields. */
+  slug?: unknown
+  input_modalities?: unknown
+  default_reasoning_level?: unknown
+  supported_reasoning_levels?: unknown
   /** Common gateway extensions; absent from the official listings. */
   name?: unknown
   display_name?: unknown
@@ -157,6 +142,12 @@ function statedReasoning(entry: ListingEntry | null): Pick<
  */
 function listingUrl(baseURL: string, api: string): string {
   const base = baseURL.replace(/\/+$/, '')
+  if (api === 'openai-codex-responses') {
+    // pi-ai accepts a backend root, /codex, or /codex/responses for inference.
+    const root = base.endsWith('/codex/responses') ? base.slice(0, -10)
+      : base.endsWith('/codex') ? base : `${base}/codex`
+    return `${root}/models?client_version=${CODEX_CLIENT_VERSION}`
+  }
   if (api !== 'anthropic-messages') return `${base}/models`
   const root = base.endsWith('/v1') ? base.slice(0, -3) : base
   return `${root}/v1/models?limit=${String(ANTHROPIC_MODEL_LIMIT)}`
@@ -168,16 +159,16 @@ function listingUrl(baseURL: string, api: string): string {
  * anything; the accumulated total is what actually enforces the bound, because
  * a server that under-declares (or streams) tells us nothing up front.
  */
-async function readBounded(response: Response, url: string): Promise<string> {
+async function readBounded(response: Response, url: string, remaining: number): Promise<{ text: string; bytes: number }> {
   const oversized = (): LlmError =>
     new LlmError(`${url} answered with more than ${MAX_RESPONSE_BYTES} bytes`, 'DISCOVERY_FAILED')
   const declared = Number(response.headers.get('content-length') ?? Number.NaN)
-  if (Number.isFinite(declared) && declared > MAX_RESPONSE_BYTES) {
+  if (Number.isFinite(declared) && declared > remaining) {
     await response.body?.cancel()
     throw oversized()
   }
   /* v8 ignore next -- fetch always exposes a body stream on a 2xx Response; the null guard is defensive. */
-  if (response.body === null) return ''
+  if (response.body === null) return { text: '', bytes: 0 }
   const reader = response.body.getReader()
   const chunks: Uint8Array[] = []
   let total = 0
@@ -186,7 +177,7 @@ async function readBounded(response: Response, url: string): Promise<string> {
       const { done, value } = await reader.read()
       if (done) break
       total += value.byteLength
-      if (total > MAX_RESPONSE_BYTES) throw oversized()
+      if (total > remaining) throw oversized()
       chunks.push(value)
     }
   } finally {
@@ -202,7 +193,7 @@ async function readBounded(response: Response, url: string): Promise<string> {
     body.set(chunk, offset)
     offset += chunk.byteLength
   }
-  return new TextDecoder().decode(body)
+  return { text: new TextDecoder().decode(body), bytes: total }
 }
 
 /**
@@ -219,11 +210,17 @@ async function readBounded(response: Response, url: string): Promise<string> {
  * a working endpoint's catalog. Missing names fall back to the adopted id so
  * the Web form receives a complete human-readable row.
  */
-function readListing(body: unknown): LlmDiscoveredModel[] {
+function readListing(body: unknown, api: string): LlmDiscoveredModel[] {
   const listing = body as { data?: unknown; models?: unknown } | null
   const data = listing?.data
   let listed: { readonly key?: string; readonly raw: unknown }[]
-  if (Array.isArray(data)) {
+  const codex = api === 'openai-codex-responses'
+  if (codex) {
+    if (!Array.isArray(listing?.models)) {
+      throw new LlmError('Codex model listing has no "models" array', 'DISCOVERY_FAILED')
+    }
+    listed = (listing.models as readonly unknown[]).map(raw => ({ raw }))
+  } else if (Array.isArray(data)) {
     const rows = data as readonly unknown[]
     listed = rows.map(raw => ({ raw }))
   } else {
@@ -241,34 +238,56 @@ function readListing(body: unknown): LlmDiscoveredModel[] {
   }
   const models: LlmDiscoveredModel[] = []
   for (const { key, raw } of listed) {
-    const entry = raw as ListingEntry | null
-    const id = label(key, entry?.id)
+    if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) continue
+    const entry = raw as ListingEntry
+    const id = codex ? label(entry.slug) : label(key, entry.id)
     if (id === undefined) continue
-    const name = label(entry?.name, entry?.display_name, entry?.displayName) ?? id
+    const name = label(entry.name, entry.display_name, entry.displayName)
     const contextWindow = capacity(
-      entry?.contextWindow,
-      entry?.context_window,
-      entry?.context_length,
-      entry?.max_input_tokens,
-      entry?.limit?.context,
+      entry.contextWindow,
+      entry.context_window,
+      entry.context_length,
+      entry.max_input_tokens,
+      entry.limit?.context,
     )
     const maxTokens = capacity(
-      entry?.maxOutputTokens,
-      entry?.max_output_tokens,
-      entry?.maxTokens,
-      entry?.max_tokens,
-      entry?.limit?.output,
-      entry?.top_provider?.max_completion_tokens,
+      entry.maxOutputTokens,
+      entry.max_output_tokens,
+      entry.maxTokens,
+      entry.max_tokens,
+      entry.limit?.output,
+      entry.top_provider?.max_completion_tokens,
     )
     models.push({
       id,
-      name,
+      ...name === undefined ? {} : { name },
       ...contextWindow === undefined ? {} : { contextWindow },
       ...maxTokens === undefined ? {} : { maxTokens },
-      ...statedReasoning(entry),
+      ...codex ? nativeCodexMetadata(entry) : statedReasoning(entry),
     })
   }
   return models
+}
+
+/** Native Codex metadata is authoritative when present, including previously unknown model ids. */
+function nativeCodexMetadata(entry: ListingEntry): Partial<LlmDiscoveredModel> {
+  const inputModalities = Array.isArray(entry.input_modalities)
+    ? entry.input_modalities.filter((value): value is 'text' | 'image' => value === 'text' || value === 'image')
+    : undefined
+  const levels = Array.isArray(entry.supported_reasoning_levels)
+    ? entry.supported_reasoning_levels.map((raw: unknown) => {
+      if (raw === null || typeof raw !== 'object') return undefined
+      return label((raw as { effort?: unknown }).effort)
+    }).filter((value): value is string => value !== undefined)
+    : []
+  const defaultLevel = label(entry.default_reasoning_level)
+  return {
+    ...inputModalities === undefined ? {} : { inputModalities },
+    ...levels.length === 0 ? {} : {
+      reasoningEfforts: levels,
+      ...defaultLevel === undefined ? {} : { defaultReasoningEffort: defaultLevel },
+    },
+  }
 }
 
 /**
@@ -306,79 +325,115 @@ function usableProbeKey(raw: string): string {
   )
 }
 
-/** Host-owned profile inputs that a configuration draft deliberately omits. */
+/** Host-owned inputs omitted from a configuration draft, including dormant builtin routes. */
 export interface StoredModelDiscoveryProfile {
   /** Deployment headers configured on the named route. */
   readonly headers: Readonly<Record<string, string>> | undefined
-  /** Resolve the named route's credential only when the draft carries none. */
+  /** Configured endpoint and protocol; explicit draft fields take precedence. */
+  readonly baseURL?: string
+  readonly api?: string
+  /** Resolve a configured credential reference only when the draft carries none. */
   readonly resolveApiKey: () => Promise<string | undefined>
+  /** Resolve native auth once, capturing its identity and a stale-result check. */
+  readonly resolveAuth?: (signal?: AbortSignal) => Promise<ModelDiscoveryAuth>
+}
+
+/** Metadata from one exact installed id; it never supplies listing membership. */
+function installedMetadata(model: Model<Api>): LlmDiscoveredModel {
+  return {
+    id: model.id,
+    name: model.name,
+    contextWindow: model.contextWindow,
+    maxTokens: model.maxTokens,
+    inputModalities: [...model.input],
+    ...installedReasoning(model),
+  }
+}
+
+/** Codex inference derives the account header from the access-token claim, not a second credential lookup. */
+function codexAccountId(token: string): string {
+  try {
+    const payload: unknown = JSON.parse(Buffer.from(token.split('.')[1] ?? '', 'base64url').toString('utf8'))
+    const claims = (payload as Record<string, unknown>)['https://api.openai.com/auth']
+    const id = (claims as { chatgpt_account_id?: unknown } | undefined)?.chatgpt_account_id
+    if (typeof id === 'string' && id.length > 0) return id
+  } catch (error: unknown) {
+    throw new LlmError('Codex model discovery requires a valid ChatGPT access token', INVALID_CREDENTIAL_CODE, { cause: error })
+  }
+  throw new LlmError('Codex access token has no ChatGPT account id', INVALID_CREDENTIAL_CODE)
+}
+
+/** Fetch one page under the complete listing's remaining byte budget. */
+async function fetchPage(url: string, headers: Headers, signal: AbortSignal, remaining: number): Promise<{ body: unknown; bytes: number }> {
+  let response: Response
+  try {
+    response = await fetch(url, { method: 'GET', headers, signal })
+  } catch (error: unknown) {
+    throw new LlmError(`could not reach ${url}`, 'DISCOVERY_FAILED', { cause: error })
+  }
+  if (!response.ok) {
+    await response.body?.cancel()
+    throw new LlmError(
+      `${url} answered ${response.status}${response.status === 401 || response.status === 403 ? '; check the API key or sign-in' : ''}`,
+      'DISCOVERY_FAILED',
+    )
+  }
+  const { text, bytes } = await readBounded(response, url, remaining)
+  try {
+    return { body: JSON.parse(text), bytes }
+  } catch (error: unknown) {
+    throw new LlmError(`${url} did not answer with JSON`, 'DISCOVERY_FAILED', { cause: error })
+  }
 }
 
 /**
- * Interrogate one draft provider endpoint for the models it advertises.
- * @param request - the endpoint, protocol, and one-shot credential to use.
- * @param storedProfile - Host-owned headers and lazy credential resolution for
- *   the named route. It is read only on the path that reaches the network; the
- *   credential is resolved only when the draft carries none.
- * @returns the advertised models in endpoint order.
- * @throws LlmError when the protocol has no readable listing, the endpoint
- *   refuses or fails the request, or the reply is not a model listing.
+ * Fetch fresh candidate models without changing configured or runtime models.
+ * @param request - draft endpoint, protocol, optional one-shot key and cancellation.
+ * @param storedProfile - host-owned defaults and auth, also available before a builtin route is configured.
+ * @returns endpoint membership enriched only from exact installed ids; unsupported builtins return catalog-only candidates.
+ * @throws LlmError for failed auth/fetch, stale credentials, malformed replies, or incomplete pagination.
  */
 export async function discoverModels(
   request: LlmModelDiscoveryOperation,
   storedProfile?: () => StoredModelDiscoveryProfile | undefined,
 ): Promise<readonly LlmDiscoveredModel[]> {
-  // A catalog route already has its answer, and a better one: the installed
-  // entries carry context windows and output caps no listing endpoint reports,
-  // and the level set pi-ai records for each exact model. That set is reported
-  // as the model's own metadata — the same source resolution reads — so a
-  // surface adopting a catalog model sees what Harnessy already knows instead
-  // of being asked to restate it.
-  if (request.provider !== undefined) {
-    const installed = catalogModels(request.provider)
-    if (installed.size > 0) {
-      return [...installed.values()].map(model => ({
-        id: model.id,
-        name: model.name,
-        contextWindow: model.contextWindow,
-        maxTokens: model.maxTokens,
-        inputModalities: [...model.input],
-        ...installedReasoning(model),
-      }))
-    }
-  }
-  if (request.baseURL === undefined || request.baseURL.length === 0) {
-    throw new LlmError(
-      `pi-ai ships no catalog for provider "${request.provider ?? ''}", so its models can only come from its`
-      + " endpoint; set a baseURL, or enter this provider's models by hand",
-      'DISCOVERY_FAILED',
-    )
-  }
-  // A draft that has not chosen a protocol yet is asked as OpenAI Chat
-  // Completions: it is the shape a gateway is overwhelmingly likely to speak,
-  // and the alternative — refusing until the field is filled — would withhold
-  // the action from the case it exists for. The cost is a misdirected message
-  // when the endpoint speaks something else (an Anthropic gateway answers 401,
-  // which reads as a credential problem), and hand-entry remains the way out.
-  const api = request.api ?? 'openai-completions'
-  if (!LISTABLE_PROTOCOLS.has(api)) {
-    throw new LlmError(
-      `pi-ai protocol "${api}" has no model listing this build can read; enter this provider's models by hand`,
-      'DISCOVERY_UNSUPPORTED',
-    )
-  }
-  const url = listingUrl(request.baseURL, api)
-  // A key typed into the form wins: it may replace the stored key that is
-  // failing. The stored profile is asked past the catalog and protocol checks,
-  // and its credential resolver remains lazy so a typed key cannot fail over a
-  // stored credential it supersedes. A route may still authenticate through a
-  // deployment-owned Authorization header when neither key exists.
-  const stored = storedProfile?.()
-  const supplied = request.apiKey ?? await stored?.resolveApiKey()
-  const apiKey = supplied === undefined ? undefined : usableProbeKey(supplied)
-  let response: Response
+  const signal = AbortSignal.any([
+    ...request.signal === undefined ? [] : [request.signal],
+    AbortSignal.timeout(DISCOVERY_TIMEOUT_MS),
+  ])
   try {
+    signal.throwIfAborted()
+    const installed = request.provider === undefined ? new Map<string, Model<Api>>() : catalogModels(request.provider)
+    const builtin = request.provider === undefined ? undefined : catalogProvider(request.provider)
+    const stored = storedProfile?.()
+    const api = request.api ?? stored?.api ?? installed.values().next().value?.api ?? 'openai-completions'
+    if (!LISTABLE_PROTOCOLS.has(api)) {
+      if (installed.size > 0 && request.baseURL === undefined && request.api === undefined) {
+        return [...installed.values()].map(installedMetadata)
+      }
+      throw new LlmError(`pi-ai protocol "${api}" has no model listing this build can read; enter this provider's models by hand`, 'DISCOVERY_UNSUPPORTED')
+    }
+    const configuredBase = request.baseURL ?? stored?.baseURL ?? builtin?.baseUrl
+    if (configuredBase === undefined || configuredBase.length === 0) {
+      throw new LlmError(
+        `pi-ai ships no catalog for provider "${request.provider ?? ''}", so its models can only come from its`
+        + " endpoint; set a baseURL, or enter this provider's models by hand",
+        'DISCOVERY_FAILED',
+      )
+    }
+    let auth: ModelDiscoveryAuth | undefined
+    let supplied = request.apiKey
+    if (supplied === undefined) {
+      supplied = await stored?.resolveApiKey()
+      if (supplied === undefined) auth = await stored?.resolveAuth?.(signal)
+    }
+    const apiKey = supplied === undefined ? auth?.apiKey : usableProbeKey(supplied)
+    const baseURL = request.baseURL ?? stored?.baseURL ?? auth?.baseUrl ?? configuredBase
     const headers = new Headers(stored?.headers === undefined ? undefined : Object.entries(stored.headers))
+    for (const [name, value] of Object.entries(auth?.headers ?? {})) {
+      if (value === null) headers.delete(name)
+      else headers.set(name, value)
+    }
     headers.set('accept', 'application/json')
     if (api === 'anthropic-messages') {
       headers.set('anthropic-version', ANTHROPIC_VERSION)
@@ -386,41 +441,47 @@ export async function discoverModels(
     } else if (apiKey !== undefined) {
       headers.set('authorization', `Bearer ${apiKey}`)
     }
+    if (api === 'openai-codex-responses') {
+      if (apiKey === undefined) throw new LlmError('sign in to ChatGPT before fetching Codex models', 'MISSING_CREDENTIAL')
+      headers.set('chatgpt-account-id', codexAccountId(apiKey))
+      headers.set('originator', 'pi')
+    }
     for (const [name, value] of Object.entries(attributionHeaders())) headers.set(name, value)
-    response = await fetch(url, {
-      method: 'GET',
-      headers,
-      ...request.signal === undefined ? {} : { signal: request.signal },
-    })
-  } catch (error: unknown) {
-    if (request.signal?.aborted) {
-      throw new LlmError('model discovery aborted by caller', 'ABORTED', { cause: error })
+    const initialUrl = listingUrl(baseURL, api)
+    let url = initialUrl
+    let bytes = 0
+    const models: LlmDiscoveredModel[] = []
+    const cursors = new Set<string>()
+    await auth?.assertCurrent()
+    for (let page = 0; page < MAX_LISTING_PAGES; page++) {
+      const result = await fetchPage(url, headers, signal, MAX_RESPONSE_BYTES - bytes)
+      bytes += result.bytes
+      models.push(...readListing(result.body, api))
+      const pagination = result.body as { has_more?: unknown; last_id?: unknown } | null
+      if (api !== 'anthropic-messages' || pagination?.has_more !== true) {
+        signal.throwIfAborted()
+        await auth?.assertCurrent()
+        if (request.apiKey === undefined && supplied !== undefined && await stored?.resolveApiKey() !== supplied) {
+          throw new LlmError('model discovery credentials changed; fetch models again', 'DISCOVERY_STALE')
+        }
+        return models.map((model) => {
+          const metadata = installed.get(model.id)
+          return metadata === undefined ? { ...model, name: model.name ?? model.id } : { ...installedMetadata(metadata), ...model }
+        })
+      }
+      const cursor = label(pagination.last_id)
+      if (cursor === undefined || cursors.has(cursor) || page + 1 === MAX_LISTING_PAGES) {
+        throw new LlmError('Anthropic model listing is incomplete: pagination truncated or cursor did not advance', 'DISCOVERY_TRUNCATED')
+      }
+      cursors.add(cursor)
+      const next = new URL(initialUrl)
+      next.searchParams.set('after_id', cursor)
+      url = next.href
     }
-    throw new LlmError(`could not reach ${url}`, 'DISCOVERY_FAILED', { cause: error })
-  }
-  if (!response.ok) {
-    throw new LlmError(
-      `${url} answered ${response.status}${response.status === 401 || response.status === 403 ? '; check the API key' : ''}`,
-      'DISCOVERY_FAILED',
-    )
-  }
-  let text: string
-  try {
-    text = await readBounded(response, url)
+    throw new LlmError('model listing is incomplete', 'DISCOVERY_TRUNCATED')
   } catch (error: unknown) {
-    // Cancellation during the body read rejects with the abort reason, which
-    // may be any value; the caller gets the same coded failure it would have
-    // for a cancellation before the request went out.
-    if (request.signal?.aborted) {
-      throw new LlmError('model discovery aborted by caller', 'ABORTED', { cause: error })
-    }
+    if (request.signal?.aborted) throw new LlmError('model discovery aborted by caller', 'ABORTED', { cause: error })
+    if (signal.aborted) throw new LlmError('model discovery timed out', 'DISCOVERY_FAILED', { cause: error })
     throw error
   }
-  let body: unknown
-  try {
-    body = JSON.parse(text)
-  } catch (error: unknown) {
-    throw new LlmError(`${url} did not answer with JSON`, 'DISCOVERY_FAILED', { cause: error })
-  }
-  return readListing(body)
 }

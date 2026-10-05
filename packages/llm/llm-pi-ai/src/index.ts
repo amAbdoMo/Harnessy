@@ -70,7 +70,8 @@ import type {} from '@deepseek-ai/dsh-fs'
 import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
 import { PiAiAdapter } from './adapter.ts'
 import { authContextFrom, credentialStoreFrom } from './auth.ts'
-import { catalogProviderIds } from './catalog.ts'
+import { catalogProvider, catalogProviderIds } from './catalog.ts'
+import { resolveBuiltinDiscoveryAuth } from './discovery-auth.ts'
 import { assertServiceable, Config, resolveProfiles } from './config.ts'
 import type { ResolvedPiAiProviderProfile } from './config.ts'
 import { discoverModels } from './discovery.ts'
@@ -258,16 +259,22 @@ export function apply(ctx: Context, config: Config): void {
     directoryFacts = entries
   }
   ensureDirectory()
-  /** Host-owned request inputs for discovery of one configured route. */
+  /** Host-owned defaults and auth for configured routes and dormant builtins. */
   const storedDiscoveryProfile = (
     provider: string | undefined,
   ): StoredModelDiscoveryProfile | undefined => {
     if (provider === undefined) return undefined
     const profile = profiles().get(provider)
-    if (profile === undefined) return undefined
+    const builtin = catalogProvider(provider)
+    if (profile === undefined && builtin === undefined) return undefined
     return {
-      headers: profile.headers,
-      resolveApiKey: () => resolveApiKey(provider, profile),
+      headers: profile?.headers,
+      ...profile?.baseURL === undefined ? {} : { baseURL: profile.baseURL },
+      ...profile?.api === undefined ? {} : { api: profile.api },
+      resolveApiKey: () => profile === undefined ? Promise.resolve(undefined) : resolveApiKey(provider, profile),
+      ...builtin === undefined ? {} : {
+        resolveAuth: (signal?: AbortSignal) => resolveBuiltinDiscoveryAuth(provider, auth, signal),
+      },
     }
   }
   // Interrogating an endpoint is a configuration-time action over a draft, so

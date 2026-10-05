@@ -47,13 +47,14 @@ const key = credentialKey('llm-pi-ai', 'openai-codex') // <scope>/<id> — your 
 
 const dispose = ctx.authorization.registerFlow({
   key,
+  supportsDestination: true,
   label: 'ChatGPT (Codex)',
   methods: [{ id: 'oauth', label: 'Sign in with ChatGPT' }, { id: 'api-key', label: 'Paste a key' }],
   async run(session: AuthorizationSession) {
     session.notify({ message: 'Continue in your browser', url: 'https://auth.example/start' })
     const code = await session.prompt({ kind: 'text', message: 'Paste the code' })
     const { token } = await exchangeCode(code, session.signal)
-    await ctx.credentials.modifyRecord(key, () => Promise.resolve({ kind: 'grant', payload: { token } }))
+    await session.commit({ kind: 'grant', payload: { token } })
   },
 })
 
@@ -67,6 +68,8 @@ flow 声明它写入的凭据记录、面向用户的标签以及它提供的登
 ### 发起一次尝试
 
 每个凭据同时只允许一次尝试。交互随请求传入而非存放在注册表中，因此提问恰好抵达发问的那个页面；无头调用方传入一个直接拒绝的交互实现。当记录在尝试期间被提交并被观察到时，`begin()` 报告 `{ status: 'authorized' }`；当人拒绝或调用方撤销时，报告 `{ status: 'cancelled' }`。`cancel(key)` 从第二次调用撤销正在运行的尝试，服务于那种用第二次调用来响应「取消」按钮、却不持有第一次调用 signal 的请求/响应式传输。
+
+调用方可提供 `destination` 暂存授权，而不替换当前记录。flow 必须声明 `supportsDestination: true`，且所有写入均通过 `session.commit`；否则在 flow 运行前以 `UNSUPPORTED_DESTINATION` 拒绝不同的目标键。调用方负责采用与删除暂存记录；尝试互斥与结算事件仍由 flow 键标识。
 
 ### 可能出错的地方
 
@@ -103,7 +106,7 @@ flow 声明它写入的凭据记录、面向用户的标签以及它提供的登
 
 ### 生命周期
 
-每个键同时只允许一次尝试。`begin()` 校验键与方法、拒绝繁忙键的第二次尝试，并用一个 `AuthorizationSession` 运行 flow——它携带所选方法、取消 signal 以及路由到请求交互的 `notify`/`prompt` 回调。被撤销的尝试会立即结算，即使 flow 从未响应它的 signal——被遗弃的运行任其自行结束，而它若仍设法提交了一条记录，那也是一条人确实授权过的记录。键在 `authorization/settled` 触发之前释放，因此以启动下一次尝试来响应的监听器不会被拒绝；监听器失败按凭据 seam 的规则就地遏制。
+每个键同时只允许一次尝试。`begin()` 校验键与方法、拒绝繁忙键的第二次尝试，并用一个 `AuthorizationSession` 运行 flow——它携带所选方法、取消 signal 以及路由到请求交互的 `notify`/`prompt` 回调。取消会拒绝后续 `session.commit` 调用，并等待已获准的提交完成后再结算；忽略 signal 的 flow 可在之后结束，但无法通过已取消的会话提交。键在 `authorization/settled` 触发之前释放，因此以启动下一次尝试来响应的监听器不会被拒绝；监听器失败按凭据 seam 的规则就地遏制。
 
 ### 交互词汇
 
@@ -111,7 +114,7 @@ notice 是单向的，且从不携带机密：一条消息，以及可选的「�
 
 ### 提交确认
 
-尝试期间，seam 监听该 flow 键上的 `credentials/record-updated`，`run()` 返回后再重读 `describeRecord`——确认提交确实发生在当下，因为在重新授权时记录早已存在，只看存在与否会让陈旧凭据冒充新鲜授权。未提交就返回的 flow，或删除记录而非提交的 flow，会抛出 `NOT_COMMITTED`。
+尝试期间，seam 监听尝试目标键（默认是 flow 键）上的 `credentials/record-updated`，`run()` 返回后再重读 `describeRecord`——确认提交确实发生在当下，因为在重新授权时记录早已存在，只看存在与否会让陈旧凭据冒充新鲜授权。未提交就返回的 flow，或删除记录而非提交的 flow，会抛出 `NOT_COMMITTED`。
 
 </details>
 

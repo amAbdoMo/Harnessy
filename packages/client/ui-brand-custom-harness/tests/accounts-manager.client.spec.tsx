@@ -114,6 +114,7 @@ describe('Harnessy account manager', () => {
     fireEvent.click(await screen.findByRole('button', { name: en.accountsManage }))
     expect(presentModal).toHaveBeenCalledOnce()
     expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    expect(screen.queryByText('Credentials stay in Harnessy’s protected local storage.')).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: en.close }))
     expect(finish).toHaveBeenCalledOnce()

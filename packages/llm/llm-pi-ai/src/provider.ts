@@ -11,15 +11,15 @@
  * catalog route pointed at a different protocol — is built by `createProvider`
  * over the protocol table below.
  *
- * Credentials never reach this module's storage: the harness resolves a route's
- * key through `ctx.credentials` before the request enters pi-ai and hands it
- * over as a stream option, which `Models` presents to `resolve()` as the
- * credential key.
+ * Explicit keys arrive as request options; OAuth resolves through the collection's
+ * Harness credential bridge. Codex connection reuse is partitioned by the resolved
+ * request credential, endpoint, and Session, without retaining the credential here.
  *
  * @module dsh-llm-pi-ai/provider
  */
 
-import type { Api, ApiKeyAuth, Model, Provider, ProviderStreams } from '@earendil-works/pi-ai'
+import { createHash } from 'node:crypto'
+import type { Api, ApiKeyAuth, Model, Provider, ProviderStreams, StreamOptions } from '@earendil-works/pi-ai'
 import { anthropicMessagesApi } from '@earendil-works/pi-ai/api/anthropic-messages.lazy'
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy'
 import { openAIResponsesApi } from '@earendil-works/pi-ai/api/openai-responses.lazy'
@@ -121,9 +121,8 @@ export interface ProviderSpec {
  * honouring the override), so an OAuth-only provider — `openai-codex` is the
  * one the installed catalog ships — would refuse a profile's explicit key with
  * `Provider is not configured` before any request went out. Adding the harness
- * method beside the provider's own restores that route. A keyless profile adds
- * nothing and still reports the honest refusal, because this adapter resolves
- * credentials through its own seam and holds no OAuth store to fall back on.
+ * method beside the provider's own restores that route. A keyless profile keeps
+ * native OAuth resolution through the collection's Harness credential bridge.
  * @param spec - the resolved route facts.
  * @param catalog - the installed catalog provider, when pi-ai ships one.
  * @returns the auth to construct this route's provider with.
@@ -132,6 +131,15 @@ function routeAuth(spec: ProviderSpec, catalog: Provider | undefined): Provider[
   if (catalog === undefined) return { apiKey: harnessApiKeyAuth(spec.displayName) }
   if (catalog.auth.apiKey !== undefined || !spec.namesCredential) return catalog.auth
   return { ...catalog.auth, apiKey: harnessApiKeyAuth(spec.displayName) }
+}
+
+/** Codex sockets authenticate at connection time; shared-workspace users must not reuse each other's socket. */
+function requestSessionOptions<T extends StreamOptions>(model: Model<Api>, options: T | undefined): T | undefined {
+  if (model.api !== 'openai-codex-responses' || options?.sessionId === undefined || options.apiKey === undefined) return options
+  const sessionId = createHash('sha256')
+    .update(JSON.stringify([options.sessionId, model.baseUrl, options.apiKey]))
+    .digest('hex')
+  return { ...options, sessionId }
 }
 
 /**
@@ -153,8 +161,8 @@ function reuseCatalogProvider(base: Provider, spec: ProviderSpec): Provider {
     getModels: () => spec.models,
     // Delegated rather than copied: the catalog provider stays the receiver, so
     // an implementation holding state on itself keeps working.
-    stream: (model, context, options) => base.stream(model, context, options),
-    streamSimple: (model, context, options) => base.streamSimple(model, context, options),
+    stream: (model, context, options) => base.stream(model, context, requestSessionOptions(model, options)),
+    streamSimple: (model, context, options) => base.streamSimple(model, context, requestSessionOptions(model, options)),
   }
 }
 

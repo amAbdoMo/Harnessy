@@ -32,12 +32,14 @@ describe('Harnessy account usage styles', () => {
   .usageGrid { grid-template-columns: 1fr; }`)
   })
 
-  it('starts the account pane toolbar level with the provider rail first row', () => {
-    // One shared first-row inset: the rail pads its rows by it, and the pane's
-    // top inset uses it too, so the toolbar's first line has no extra gap.
-    expect(declarations('.managerLayout')).toContain('--dsh-accounts-row-inset: 18px')
-    expect(declarations('.providerRail')).toContain('padding: var(--dsh-accounts-row-inset) 12px')
-    expect(declarations('.accountPane')).toContain('padding: var(--dsh-accounts-row-inset) 20px 20px')
+  it('uses equal compact insets without a forced tall empty account pane', () => {
+    expect(declarations('.managerLayout')).toContain('--dsh-accounts-row-inset: 16px')
+    expect(declarations('.managerLayout')).not.toContain('min-height:')
+    for (const selector of ['.providerRail', '.accountPane']) {
+      expect(declarations(selector)).toContain('padding: var(--dsh-accounts-row-inset);')
+    }
+    expect(declarations('.managerContent > div:first-child')).toContain('padding: 16px')
+    expect(declarations('.managerContent > div:last-child')).toContain('margin-top: 0')
     expect(declarations('.accountToolbar')).toContain('margin: 0 0 12px')
   })
 

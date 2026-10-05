@@ -94,7 +94,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: '@Remote async addOAuth(provider: AccountProviderId, signal: AbortSignal): Promise<AccountSignInResult>',
-        description: 'Add an OAuth-backed identity through the provider\'s installed browser flow. A later account is saved without replacing the currently active identity.',
+        description: 'Authorize an identity through a staged browser flow without replacing the active account. Only the first saved identity becomes active automatically.',
         parameters: [{ name: 'provider', description: 'installed OAuth-capable provider to authorize.' }, { name: 'signal', description: 'cancellation for browser opening, prompts, and provider authorization.' }],
         returns: 'whether authorization completed or the user cancelled it.',
       },
@@ -597,9 +597,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       {
         signature: 'async begin(request: AuthorizationRequest): Promise<AuthorizationOutcome>',
         description: 'Run one attempt to authorize a key, and report how it ended.\n\nOne attempt per key at a time. A second caller is refused rather than joined: the two would be prompting different humans through the same flow, and the second would answer questions the first was asked.',
-        parameters: [{ name: 'request', description: 'the key, the method, the surface, and the cancel signal.' }],
+        parameters: [{ name: 'request', description: 'flow key, method, interaction, cancel signal, and optional staging destination.' }],
         returns: '`authorized` once the flow\'s record is committed during this attempt and observed, or `cancelled` when the human declined or the caller withdrew.',
-        throws: ['{AuthorizationError} code `NO_FLOW` when nothing claims the key, `UNKNOWN_METHOD` when the named method is not one the flow offers, `ALREADY_IN_FLIGHT` when an attempt is already running for the key, or `NOT_COMMITTED` when the flow resolved without committing a record during the attempt.'],
+        throws: ['{AuthorizationError} code `NO_FLOW` when nothing claims the key, `UNSUPPORTED_DESTINATION` when an alternate destination is not supported, `UNKNOWN_METHOD` when the named method is not one the flow offers, `ALREADY_IN_FLIGHT` when an attempt is already running for the key, or `NOT_COMMITTED` when the flow resolved without committing a record during the attempt.'],
       },
     ],
   },
@@ -871,6 +871,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         signature: 'abstract unset(ref: CredentialRef): Promise<void>',
         description: 'Remove one reference from the provider-managed writable source; removing an absent reference is a no-op. Rejects while a read-only source shadows the reference, like set.',
         parameters: [{ name: 'ref', description: 'the reference to remove.' }],
+      },
+      {
+        signature: 'async withRecords<T>(run: () => Promise<T>): Promise<T>',
+        description: 'Serialize cooperating record operations on this provider instance, including network refresh and multi-record commits. Raw record methods do not acquire this exclusion; callbacks may call them but must not nest `withRecords` or nest a record mutation inside another record mutation.',
+        parameters: [{ name: 'run', description: 'operation admitted after the previous cooperating operation settles.' }],
+        returns: 'the operation\'s result; failures release admission for the next operation.',
       },
       {
         signature: 'abstract readRecord(key: CredentialKey): Promise<CredentialRecord | undefined>',
@@ -4839,7 +4845,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AuthorizationFlow',
-    declaration: 'export interface AuthorizationFlow {\n    readonly key: CredentialKey;\n    readonly label: string;\n    readonly methods: readonly [\n        AuthorizationMethod,\n        ...AuthorizationMethod[]\n    ];\n    run(session: AuthorizationSession): Promise<void>;\n}',
+    declaration: 'export interface AuthorizationFlow {\n    readonly key: CredentialKey;\n    readonly supportsDestination?: boolean;\n    readonly label: string;\n    readonly methods: readonly [\n        AuthorizationMethod,\n        ...AuthorizationMethod[]\n    ];\n    run(session: AuthorizationSession): Promise<void>;\n}',
   },
   {
     name: 'AuthorizationInteraction',
@@ -4867,7 +4873,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AuthorizationRequest',
-    declaration: 'export interface AuthorizationRequest {\n    key: CredentialKey;\n    method?: string;\n    interaction: AuthorizationInteraction;\n    signal?: AbortSignal;\n}',
+    declaration: 'export interface AuthorizationRequest {\n    key: CredentialKey;\n    method?: string;\n    interaction: AuthorizationInteraction;\n    signal?: AbortSignal;\n    destination?: CredentialKey;\n}',
   },
   {
     name: 'AuthorizationSession',

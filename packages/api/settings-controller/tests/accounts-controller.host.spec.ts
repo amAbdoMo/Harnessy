@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from 'vitest'
+import { setImmediate } from 'node:timers/promises'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { agentEvents, type Agent } from '@deepseek-ai/dsh-agent'
 import AuthorizationService from '@deepseek-ai/dsh-authorization'
@@ -8,18 +9,81 @@ import AccountsController from '../src/accounts.ts'
 import type { AccountAutoSwitchEvent } from '../src/types.ts'
 import { MemoryCredentials } from '../../../credentials/credentials/tests/memory.ts'
 import { MemorySettings } from './memory-settings.ts'
+import { credentialStoreFrom } from '@deepseek-ai/dsh-llm-pi-ai/src/auth.ts'
+
+const { oauthRefresh } = vi.hoisted(() => ({ oauthRefresh: vi.fn() }))
+vi.mock('@earendil-works/pi-ai/providers/openai-codex', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@earendil-works/pi-ai/providers/openai-codex')>()
+  return { ...original, openaiCodexProvider: () => {
+    const provider = original.openaiCodexProvider()
+    if (provider.auth.oauth !== undefined) provider.auth.oauth.refresh = oauthRefresh
+    return provider
+  } }
+})
+
+const contexts: Context[] = []
+afterEach(async () => {
+  for (const ctx of contexts.splice(0).reverse()) await ctx.fiber.dispose()
+  vi.restoreAllMocks()
+  oauthRefresh.mockReset()
+})
+
+function context(): Context {
+  const ctx = new Context()
+  contexts.push(ctx)
+  return ctx
+}
+
+async function seedOAuth(ctx: Context, credential: ReturnType<typeof codexGrant>): Promise<void> {
+  const fixture = context()
+  await fixture.plugin(MemoryCredentials)
+  await fixture.plugin(AccountsController)
+  await fixture.credentials.modifyRecord(credentialKey('llm-pi-ai', 'openai-codex'), () => Promise.resolve(credential))
+  await fixture.accountsController.describe()
+  const key = credentialKey('account-manager', 'accounts')
+  const seed = await fixture.credentials.readRecord(key)
+  if (seed?.kind !== 'grant') throw new Error('fixture did not import its grant')
+  type FixtureVault = {
+    version: 1
+    providers: Record<string, {
+      accounts: Record<string, object>
+      activeAccountId?: string
+      autoSwitchOnLimit?: boolean
+    }>
+  }
+  const imported = seed.payload as FixtureVault
+  await ctx.credentials.modifyRecord(key, (record) => {
+    const vault = record?.kind === 'grant' ? record.payload as FixtureVault : { version: 1 as const, providers: {} }
+    const provider = vault.providers['openai-codex'] ?? imported.providers['openai-codex']!
+    return Promise.resolve({ kind: 'grant', payload: {
+      ...vault,
+      providers: { ...vault.providers, 'openai-codex': {
+        ...provider, accounts: { ...provider.accounts, ...imported.providers['openai-codex']!.accounts },
+      } },
+    } })
+  })
+}
 
 async function boot(
   internals: ConstructorParameters<typeof AccountsController>[1] = {},
   beforeAccounts?: (ctx: Context) => void,
 ) {
-  const ctx = new Context()
+  const ctx = context()
   await ctx.plugin(MemoryCredentials)
   await ctx.plugin(MemorySettings)
   await ctx.plugin(AuthorizationService)
   beforeAccounts?.(ctx)
   await ctx.plugin(AccountsController, internals)
   return { ctx, controller: ctx.accountsController }
+}
+
+async function bounded<T>(operation: Promise<T>): Promise<T> {
+  let timer!: ReturnType<typeof setTimeout>
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() =>{  reject(new Error('fixture interleaving did not settle')) }, 2000)
+  })
+  try { return await Promise.race([operation, timeout]) }
+  finally { clearTimeout(timer) }
 }
 
 function jwt(payload: Record<string, unknown>): string {
@@ -33,7 +97,7 @@ function codexGrant(email: string, accountId: string, options: {
   return {
     kind: 'grant' as const,
     payload: {
-      type: 'oauth',
+      type: 'oauth' as const,
       access: jwt({
         'https://api.openai.com/profile': { email, name: 'Abdo Mohamed' },
         'https://api.openai.com/auth': {
@@ -62,7 +126,7 @@ function usageResponse(primaryUsedPercent: number, secondaryUsedPercent = primar
 
 describe('the Harnessy accounts Remote namespace', () => {
   it('owns the account-management methods and reports unavailable composition safely', async () => {
-    const empty = new Context()
+    const empty = context()
     await empty.plugin(AccountsController)
     expect(await empty.accountsController.describe()).toMatchObject({ writable: false, accounts: [] })
     const { controller } = await boot()
@@ -85,7 +149,7 @@ describe('the Harnessy accounts Remote namespace', () => {
   })
 
   it('restores the model route for an active account when the Host starts', async () => {
-    const ctx = new Context()
+    const ctx = context()
     await ctx.plugin(MemoryCredentials)
     await ctx.plugin(MemorySettings)
     await ctx.credentials.modifyRecord(credentialKey('llm-pi-ai', 'openai-codex'), () =>
@@ -153,7 +217,7 @@ describe('the Harnessy accounts Remote namespace', () => {
       .toEqual({ providers: { zai: {} } })
   })
 
-  it('adds a browser OAuth account and preserves a previously active identity', async () => {
+  it('refuses unstaged OAuth adding before a flow can overwrite the active request credential', async () => {
     const openUrl = vi.fn(async () => {})
     const { ctx, controller } = await boot({ openUrl })
     const key = credentialKey('llm-pi-ai', 'openai-codex')
@@ -170,10 +234,56 @@ describe('the Harnessy accounts Remote namespace', () => {
       },
     })
     await expect(controller.addOAuth('openai-codex', new AbortController().signal))
-      .resolves.toEqual({ status: 'authorized' })
-    expect(openUrl).toHaveBeenCalledOnce()
-    expect((await controller.describe()).accounts).toHaveLength(2)
+      .rejects.toMatchObject({ code: 'UNSUPPORTED_DESTINATION' })
+    expect(openUrl).not.toHaveBeenCalled()
+    expect((await controller.describe()).accounts).toHaveLength(1)
     expect(await ctx.credentials.readRecord(key)).toEqual(first)
+  })
+
+  it('adds a staged OAuth identity while manual selection remains usable and authoritative', async () => {
+    const { ctx, controller } = await boot({ openUrl: async () => {} })
+    const key = credentialKey('llm-pi-ai', 'openai-codex')
+    const personal = codexGrant('first@example.com', 'personal')
+    const work = codexGrant('first@example.com', 'work', { plan: 'business' })
+    const extra = codexGrant('second@example.com', 'shared-work', { plan: 'business' })
+    await ctx.credentials.modifyRecord(key, () => Promise.resolve(personal))
+    await controller.describe()
+    await seedOAuth(ctx, work)
+    const target = (await controller.describe()).accounts.find(account => account.usageScope === 'workspace')!
+    let release!: () => void
+    let entered!: () => void
+    const pending = new Promise<void>((resolve) => { release = resolve })
+    const started = new Promise<void>((resolve) => { entered = resolve })
+    ctx.authorization.registerFlow({
+      key, label: 'Codex', methods: [{ id: 'oauth', label: 'Sign in' }], supportsDestination: true,
+      async run(session) {
+        entered()
+        await pending
+        await session.commit(extra)
+      },
+    })
+    const adding = controller.addOAuth('openai-codex', new AbortController().signal)
+    let switching: ReturnType<AccountsController['activate']> | undefined
+    try {
+      await Promise.race([started, adding.then(() => { throw new Error('login settled before the staged flow ran') })])
+      switching = controller.activate('openai-codex', target.id)
+      let selected = false
+      void switching.then(() => { selected = true }, () => {})
+      await vi.waitFor(() =>{  expect(selected).toBe(true) })
+      await switching
+      expect(await ctx.credentials.readRecord(key)).toEqual(work)
+      release()
+      await expect(adding).resolves.toEqual({ status: 'authorized' })
+      expect(await ctx.credentials.readRecord(key)).toEqual(work)
+      const state = await controller.describe()
+      expect(state.accounts).toHaveLength(3)
+      expect(state.accounts.find(account => account.id === target.id)?.active).toBe(true)
+      expect(state.accounts.find(account => account.detail?.includes('second@example.com'))?.active).toBe(false)
+      expect((await ctx.credentials.listRecords()).some(record => record.key.startsWith('account-manager/login-'))).toBe(false)
+    } finally {
+      release()
+      await Promise.allSettled([adding, ...switching === undefined ? [] : [switching]])
+    }
   })
 
   it('keeps two user seats in the same ChatGPT workspace as separate accounts', async () => {
@@ -182,19 +292,9 @@ describe('the Harnessy accounts Remote namespace', () => {
     await ctx.credentials.modifyRecord(key, () =>
       Promise.resolve(codexGrant('first@example.com', 'shared-workspace', { userId: 'user-first', plan: 'business' })))
     await controller.describe()
-    ctx.authorization.registerFlow({
-      key,
-      label: 'OpenAI Codex',
-      methods: [{ id: 'oauth', label: 'Browser login' }],
-      async run() {
-        await ctx.credentials.modifyRecord(key, () =>
-          Promise.resolve(codexGrant('second@example.com', 'shared-workspace', {
-            userId: 'user-second', plan: 'business',
-          })))
-      },
-    })
-
-    await controller.addOAuth('openai-codex', new AbortController().signal)
+    await seedOAuth(ctx, codexGrant('second@example.com', 'shared-workspace', {
+      userId: 'user-second', plan: 'business',
+    }))
     const state = await controller.describe()
     expect(state.providers.find(provider => provider.id === 'openai-codex')?.accountCount).toBe(2)
     expect(state.accounts.map(account => account.id)).toHaveLength(2)
@@ -208,19 +308,9 @@ describe('the Harnessy accounts Remote namespace', () => {
     await ctx.credentials.modifyRecord(key, () =>
       Promise.resolve(codexGrant('abdo@example.com', 'personal-context', { userId: 'user-abdo' })))
     await controller.describe()
-    ctx.authorization.registerFlow({
-      key,
-      label: 'OpenAI Codex',
-      methods: [{ id: 'oauth', label: 'Browser login' }],
-      async run() {
-        await ctx.credentials.modifyRecord(key, () =>
-          Promise.resolve(codexGrant('abdo@example.com', 'workspace-context', {
-            userId: 'user-abdo', plan: 'business',
-          })))
-      },
-    })
-
-    await controller.addOAuth('openai-codex', new AbortController().signal)
+    await seedOAuth(ctx, codexGrant('abdo@example.com', 'workspace-context', {
+      userId: 'user-abdo', plan: 'business',
+    }))
     const state = await controller.describe()
     expect(state.providers.find(provider => provider.id === 'openai-codex')?.accountCount).toBe(1)
     expect(state.accounts).toHaveLength(2)
@@ -228,25 +318,22 @@ describe('the Harnessy accounts Remote namespace', () => {
     expect(state.accounts.map(account => account.usageScope).sort()).toEqual(['personal', 'workspace'])
   })
 
-  it('restores the active identity when a browser OAuth flow fails after writing', async () => {
+  it('removes a first-login credential when its browser OAuth flow fails after writing', async () => {
     const { ctx, controller } = await boot({ openUrl: async () => {} })
     const key = credentialKey('llm-pi-ai', 'openai-codex')
-    const first = codexGrant('first@example.com', 'account-first')
-    await ctx.credentials.modifyRecord(key, () => Promise.resolve(first))
-    await controller.describe()
     ctx.authorization.registerFlow({
       key,
       label: 'OpenAI Codex',
       methods: [{ id: 'oauth', label: 'Browser login' }],
-      async run() {
-        await ctx.credentials.modifyRecord(key, () =>
-          Promise.resolve(codexGrant('failed@example.com', 'account-failed')))
+      supportsDestination: true,
+      async run(session) {
+        await session.commit(codexGrant('failed@example.com', 'account-failed'))
         throw new Error('provider rejected the sign-in')
       },
     })
     await expect(controller.addOAuth('openai-codex', new AbortController().signal))
       .rejects.toThrow('provider rejected the sign-in')
-    expect(await ctx.credentials.readRecord(key)).toEqual(first)
+    expect(await ctx.credentials.readRecord(key)).toBeUndefined()
   })
 
   it('refreshes Codex usage into browser-safe windows', async () => {
@@ -352,7 +439,7 @@ describe('the Harnessy accounts Remote namespace', () => {
     const first = controller.refreshUsage(new AbortController().signal)
     await vi.waitFor(() => { expect(requests).toBe(1) })
     const second = controller.refreshUsage(new AbortController().signal)
-    await Promise.resolve()
+    await Promise.resolve(undefined)
     expect(requests).toBe(1)
     releaseFirst()
     await Promise.all([first, second])
@@ -374,13 +461,7 @@ describe('the Harnessy accounts Remote namespace', () => {
     const second = codexGrant('second@example.com', 'account-second')
     await ctx.credentials.modifyRecord(key, () => Promise.resolve(first))
     await controller.describe()
-    ctx.authorization.registerFlow({
-      key,
-      label: 'OpenAI Codex',
-      methods: [{ id: 'oauth', label: 'Browser login' }],
-      async run() { await ctx.credentials.modifyRecord(key, () => Promise.resolve(second)) },
-    })
-    await controller.addOAuth('openai-codex', new AbortController().signal)
+    await seedOAuth(ctx, second)
     const spare = (await controller.describe()).accounts
       .find(account => account.detail?.startsWith('second@example.com'))
     expect(spare).toBeDefined()
@@ -411,13 +492,7 @@ describe('the Harnessy accounts Remote namespace', () => {
     await ctx.credentials.modifyRecord(key, () => Promise.resolve(first))
     await controller.describe()
     await controller.setAutoSwitch('openai-codex', true)
-    ctx.authorization.registerFlow({
-      key,
-      label: 'OpenAI Codex',
-      methods: [{ id: 'oauth', label: 'Browser login' }],
-      async run() { await ctx.credentials.modifyRecord(key, () => Promise.resolve(second)) },
-    })
-    await controller.addOAuth('openai-codex', new AbortController().signal)
+    await seedOAuth(ctx, second)
 
     const preference = await controller.describe()
     expect(preference.providers.find(provider => provider.id === 'openai-codex')?.autoSwitchOnLimit).toBe(true)
@@ -448,13 +523,7 @@ describe('the Harnessy accounts Remote namespace', () => {
     await ctx.credentials.modifyRecord(key, () => Promise.resolve(first))
     await controller.describe()
     await controller.setAutoSwitch('openai-codex', true)
-    ctx.authorization.registerFlow({
-      key,
-      label: 'OpenAI Codex',
-      methods: [{ id: 'oauth', label: 'Browser login' }],
-      async run() { await ctx.credentials.modifyRecord(key, () => Promise.resolve(second)) },
-    })
-    await controller.addOAuth('openai-codex', new AbortController().signal)
+    await seedOAuth(ctx, second)
 
     const config = { provider: 'openai-codex', model: 'gpt-5' }
     const agent = {} as Agent
@@ -481,13 +550,7 @@ describe('the Harnessy accounts Remote namespace', () => {
     await ctx.credentials.modifyRecord(key, () => Promise.resolve(first))
     await controller.describe()
     await controller.setAutoSwitch('openai-codex', true)
-    ctx.authorization.registerFlow({
-      key,
-      label: 'OpenAI Codex',
-      methods: [{ id: 'oauth', label: 'Browser login' }],
-      async run() { await ctx.credentials.modifyRecord(key, () => Promise.resolve(second)) },
-    })
-    await controller.addOAuth('openai-codex', new AbortController().signal)
+    await seedOAuth(ctx, second)
 
     const config = { provider: 'openai-codex', model: 'gpt-5' }
     const agent = {} as Agent
@@ -514,13 +577,7 @@ describe('the Harnessy accounts Remote namespace', () => {
     await ctx.credentials.modifyRecord(key, () => Promise.resolve(first))
     await controller.describe()
     await controller.setAutoSwitch('openai-codex', true)
-    ctx.authorization.registerFlow({
-      key,
-      label: 'OpenAI Codex',
-      methods: [{ id: 'oauth', label: 'Browser login' }],
-      async run() { await ctx.credentials.modifyRecord(key, () => Promise.resolve(second)) },
-    })
-    await controller.addOAuth('openai-codex', new AbortController().signal)
+    await seedOAuth(ctx, second)
     const switches: AccountAutoSwitchEvent[] = []
     ctx.on('accounts/auto-switched', (event) => { switches.push(event) })
 
@@ -545,14 +602,14 @@ describe('the Harnessy accounts Remote namespace', () => {
     )
 
     expect(action).toEqual({ kind: 'retry' })
-    expect(secondAction).toBeUndefined()
+    expect(secondAction).toEqual({ kind: 'retry' })
     expect(await ctx.credentials.readRecord(key)).toEqual(second)
     expect(switches).toEqual([expect.objectContaining({ reason: 'quota' })])
   })
 
-  it('retries with the original Codex account when its refreshed quota has reset', async () => {
+  it('never recovers quota by retrying the failed account even when its usage looks reset', async () => {
     let request = 0
-    const fetchUsage = vi.fn(async () => request++ === 0 ? usageResponse(10, 20) : usageResponse(20)) as typeof fetch
+    const fetchUsage = vi.fn(async () => request++ === 0 ? usageResponse(10, 20) : usageResponse(100)) as typeof fetch
     const { ctx, controller } = await boot({ fetchUsage, openUrl: async () => {} })
     const key = credentialKey('llm-pi-ai', 'openai-codex')
     const first = codexGrant('first@example.com', 'shared-workspace', {
@@ -564,13 +621,7 @@ describe('the Harnessy accounts Remote namespace', () => {
     await ctx.credentials.modifyRecord(key, () => Promise.resolve(first))
     await controller.describe()
     await controller.setAutoSwitch('openai-codex', true)
-    ctx.authorization.registerFlow({
-      key,
-      label: 'OpenAI Codex',
-      methods: [{ id: 'oauth', label: 'Browser login' }],
-      async run() { await ctx.credentials.modifyRecord(key, () => Promise.resolve(second)) },
-    })
-    await controller.addOAuth('openai-codex', new AbortController().signal)
+    await seedOAuth(ctx, second)
     const firstAccount = (await controller.describe()).accounts
       .find(account => account.detail?.startsWith('first@example.com'))
     expect(firstAccount).toBeDefined()
@@ -589,11 +640,11 @@ describe('the Harnessy accounts Remote namespace', () => {
       () => Promise.resolve(undefined),
     )
 
-    expect(action).toEqual({ kind: 'retry' })
+    expect(action).toBeUndefined()
     expect(await ctx.credentials.readRecord(key)).toEqual(first)
   })
 
-  it('stops quota recovery before an earlier generic retry listener when every account is exhausted', async () => {
+  it('delegates quota failures to remaining retry listeners when every account is exhausted', async () => {
     const fetchUsage = vi.fn(async () => usageResponse(100, 100)) as typeof fetch
     const genericRetry = vi.fn()
     const { ctx, controller } = await boot({ fetchUsage, openUrl: async () => {} }, (context) => {
@@ -613,13 +664,7 @@ describe('the Harnessy accounts Remote namespace', () => {
     await ctx.credentials.modifyRecord(key, () => Promise.resolve(first))
     await controller.describe()
     await controller.setAutoSwitch('openai-codex', true)
-    ctx.authorization.registerFlow({
-      key,
-      label: 'OpenAI Codex',
-      methods: [{ id: 'oauth', label: 'Browser login' }],
-      async run() { await ctx.credentials.modifyRecord(key, () => Promise.resolve(second)) },
-    })
-    await controller.addOAuth('openai-codex', new AbortController().signal)
+    await seedOAuth(ctx, second)
     const finalRecovery = vi.fn(async () => ({ kind: 'retry' as const }))
 
     const action = await agentEvents(ctx, {} as Agent).waterfall(
@@ -635,9 +680,9 @@ describe('the Harnessy accounts Remote namespace', () => {
       finalRecovery,
     )
 
-    expect(action).toBeUndefined()
-    expect(genericRetry).not.toHaveBeenCalled()
-    expect(finalRecovery).not.toHaveBeenCalled()
+    expect(action).toEqual({ kind: 'retry' })
+    expect(genericRetry).toHaveBeenCalledOnce()
+    expect(finalRecovery).toHaveBeenCalledOnce()
   })
 
   it('returns to an earlier Personal account when it regains the most capacity', async () => {
@@ -654,13 +699,7 @@ describe('the Harnessy accounts Remote namespace', () => {
     const second = codexGrant('second@example.com', 'personal-second', { userId: 'user-second' })
     await ctx.credentials.modifyRecord(key, () => Promise.resolve(first))
     await controller.describe()
-    ctx.authorization.registerFlow({
-      key,
-      label: 'OpenAI Codex',
-      methods: [{ id: 'oauth', label: 'Browser login' }],
-      async run() { await ctx.credentials.modifyRecord(key, () => Promise.resolve(second)) },
-    })
-    await controller.addOAuth('openai-codex', new AbortController().signal)
+    await seedOAuth(ctx, second)
     const firstAccount = (await controller.describe()).accounts
       .find(account => account.detail?.startsWith('first@example.com'))
     expect(firstAccount).toBeDefined()
@@ -687,18 +726,382 @@ describe('the Harnessy accounts Remote namespace', () => {
     })
     await ctx.credentials.modifyRecord(key, () => Promise.resolve(personal))
     await controller.describe()
-    ctx.authorization.registerFlow({
-      key,
-      label: 'OpenAI Codex',
-      methods: [{ id: 'oauth', label: 'Browser login' }],
-      async run() { await ctx.credentials.modifyRecord(key, () => Promise.resolve(workspace)) },
-    })
-    await controller.addOAuth('openai-codex', new AbortController().signal)
+    await seedOAuth(ctx, workspace)
     await controller.setAutoSwitch('openai-codex', true)
 
     const state = await controller.refreshUsage(new AbortController().signal)
     expect(state.accounts.find(account => account.usageScope === 'workspace')?.active).toBe(true)
     expect(await ctx.credentials.readRecord(key)).toEqual(workspace)
+  })
+
+  it('authorizes a first OAuth account and publishes only redacted account output', async () => {
+    const openUrl = vi.fn(async () => {})
+    const { ctx, controller } = await boot({ openUrl })
+    const key = credentialKey('llm-pi-ai', 'openai-codex')
+    const grant = codexGrant('first@example.com', 'personal-first')
+    ctx.authorization.registerFlow({
+      key, label: 'Codex', methods: [{ id: 'oauth', label: 'Browser login' }], supportsDestination: true,
+      async run(session) {
+        session.notify({ message: 'Open browser', url: 'https://auth.openai.com/login' })
+        await session.commit(grant)
+      },
+    })
+    await expect(controller.addOAuth('openai-codex', new AbortController().signal)).resolves.toEqual({ status: 'authorized' })
+    expect(openUrl).toHaveBeenCalledOnce()
+    expect((await controller.describe()).accounts.map(({ name, detail, active, usageScope }) => ({ name, detail, active, usageScope })))
+      .toMatchInlineSnapshot(`
+        [
+          {
+            "active": true,
+            "detail": "first@example.com · PLUS",
+            "name": "Abdo Mohamed",
+            "usageScope": "personal",
+          },
+        ]
+      `)
+    expect(await ctx.credentials.readRecord(key)).toEqual(grant)
+  })
+
+  it('preserves configured provider route options during activation and active-account removal', async () => {
+    const { ctx, controller } = await boot()
+    const first = (await controller.addApiKey('zai', 'First', 'fixture-one')).accounts[0]!
+    const second = (await controller.addApiKey('zai', 'Second', 'fixture-two')).accounts.find(account => account.id !== first.id)!
+    const route = { baseUrl: 'https://example.invalid/api', models: ['glm-test'], options: { temperature: 0.2 } }
+    await ctx.settings.mutate('llm-pi-ai', [{ op: 'set', path: ['providers', 'zai'], value: route }])
+    await controller.activate('zai', second.id)
+    await controller.deleteAccount('zai', second.id)
+    expect(ctx.settings.describe().find(entry => entry.ns === 'llm-pi-ai')?.value).toEqual({ providers: { zai: route } })
+    expect(await ctx.credentials.readRecord(credentialKey('llm-pi-ai', 'zai'))).toEqual({ kind: 'api-key', key: 'fixture-one' })
+  })
+
+  it.each(['canonical', 'vault', 'route'] as const)('rolls back the selection when the %s write fails', async (failure) => {
+    const { ctx, controller } = await boot()
+    const first = (await controller.addApiKey('zai', 'First', 'fixture-one')).accounts[0]!
+    const second = (await controller.addApiKey('zai', 'Second', 'fixture-two')).accounts.find(account => account.id !== first.id)!
+    const vaultKey = credentialKey('account-manager', 'accounts')
+    const canonicalKey = credentialKey('llm-pi-ai', 'zai')
+    const beforeVault = await ctx.credentials.readRecord(vaultKey)
+    await ctx.settings.mutate('llm-pi-ai', [{ op: 'unset', path: ['providers', 'zai'] }])
+    const original = ctx.credentials.modifyRecord.bind(ctx.credentials)
+    let failed = false
+    vi.spyOn(ctx.credentials, 'modifyRecord').mockImplementation(async (key, mutate) => {
+      if (!failed && key === (failure === 'canonical' ? canonicalKey : failure === 'vault' ? vaultKey : undefined)) {
+        failed = true
+        throw new Error(`fixture ${failure} failure`)
+      }
+      return original(key, mutate)
+    })
+    if (failure === 'route') vi.spyOn(ctx.settings, 'mutate').mockRejectedValueOnce(new Error('fixture route failure'))
+    await expect(controller.activate('zai', second.id)).rejects.toThrow(`fixture ${failure} failure`)
+    expect(await ctx.credentials.readRecord(canonicalKey)).toEqual({ kind: 'api-key', key: 'fixture-one' })
+    expect(await ctx.credentials.readRecord(vaultKey)).toEqual(beforeVault)
+    expect(ctx.settings.describe().find(entry => entry.ns === 'llm-pi-ai')?.value).toEqual({ providers: {} })
+  })
+
+  it.each(['manual', 'delete-replacement', 'delete-active', 'disable', 'disable-enable'] as const)(
+    'revalidates threshold switching after %s during a usage request', async (action) => {
+      let release!: () => void
+      let entered!: () => void
+      const held = new Promise<void>((resolve) => { release = resolve })
+      const started = new Promise<void>((resolve) => { entered = resolve })
+      let requests = 0
+      const fetchUsage: typeof fetch = async (_input, init) => {
+        if (requests++ === 0) { entered(); await held }
+        return usageResponse(new Headers(init?.headers).get('chatgpt-account-id') === 'workspace-b' ? 20 : 100)
+      }
+      const { ctx, controller } = await boot({ fetchUsage })
+      const key = credentialKey('llm-pi-ai', 'openai-codex')
+      const first = codexGrant('owner@example.com', 'personal-a', { userId: 'owner' })
+      const second = codexGrant('owner@example.com', 'workspace-b', { userId: 'owner', plan: 'business' })
+      await ctx.credentials.modifyRecord(key, () => Promise.resolve(first))
+      await controller.describe()
+      await seedOAuth(ctx, second)
+      await controller.setAutoSwitch('openai-codex', true)
+      const accounts = (await controller.describe()).accounts
+      const active = accounts.find(account => account.active)!
+      const spare = accounts.find(account => !account.active)!
+      const switches = vi.fn()
+      ctx.on('accounts/auto-switched', switches)
+      const pending = controller.refreshUsage(new AbortController().signal)
+      await started
+      try {
+        if (action === 'manual') await controller.activate('openai-codex', active.id)
+        else if (action === 'delete-replacement') await controller.deleteAccount('openai-codex', spare.id)
+        else if (action === 'delete-active') await controller.deleteAccount('openai-codex', active.id)
+        else {
+          await controller.setAutoSwitch('openai-codex', false)
+          if (action === 'disable-enable') await controller.setAutoSwitch('openai-codex', true)
+        }
+      } finally { release() }
+      const state = await pending
+      expect(state.accounts.find(account => account.active)?.id).toBe(action === 'delete-active' ? spare.id : active.id)
+      expect(await ctx.credentials.readRecord(key)).toEqual(action === 'delete-active' ? second : first)
+      expect(state.accounts).toHaveLength(action.startsWith('delete') ? 1 : 2)
+      expect(switches).not.toHaveBeenCalled()
+    },
+  )
+
+  it('imports a late canonical refresh into its matching person and membership, not the active account', async () => {
+    const { ctx, controller } = await boot()
+    const key = credentialKey('llm-pi-ai', 'openai-codex')
+    const personal = codexGrant('owner@example.com', 'personal', { userId: 'owner' })
+    const workspace = codexGrant('owner@example.com', 'workspace', { userId: 'owner', plan: 'business' })
+    await ctx.credentials.modifyRecord(key, () => Promise.resolve(personal))
+    await controller.describe()
+    await seedOAuth(ctx, workspace)
+    const before = (await controller.describe()).accounts
+    const active = before.find(account => account.active)!
+    await ctx.credentials.modifyRecord(key, () => Promise.resolve(workspace))
+    const after = (await controller.describe()).accounts
+    expect(after).toEqual(before)
+    const vault = await ctx.credentials.readRecord(credentialKey('account-manager', 'accounts'))
+    expect(JSON.stringify(vault)).toContain(personal.payload.access)
+    expect(after.find(account => account.active)?.id).toBe(active.id)
+    await ctx.credentials.modifyRecord(key, () => Promise.resolve(codexGrant('stranger@example.com', 'workspace', { userId: 'stranger' })))
+    expect((await controller.describe()).accounts).toEqual(before)
+  })
+
+  it('persists a rotated OAuth grant before a later usage request fails, including shared refresh-token aliases', async () => {
+    const now = Date.now()
+    const personal = codexGrant('owner@example.com', 'personal', { userId: 'owner' })
+    personal.payload.expires = now - 1
+    const workspace = codexGrant('owner@example.com', 'workspace', { userId: 'owner', plan: 'business' })
+    workspace.payload.refresh = personal.payload.refresh
+    const rotated = { ...personal.payload, refresh: 'fixture-rotated-token', expires: now + 3_600_000 }
+    oauthRefresh.mockResolvedValueOnce(rotated)
+    const { ctx, controller } = await boot({ now: () => now, fetchUsage: async () => { throw new Error('fixture usage failure') } })
+    const key = credentialKey('llm-pi-ai', 'openai-codex')
+    await ctx.credentials.modifyRecord(key, () => Promise.resolve(personal))
+    await controller.describe()
+    await seedOAuth(ctx, workspace)
+    const state = await controller.refreshUsage(new AbortController().signal)
+    expect(oauthRefresh).toHaveBeenCalledOnce()
+    expect(await ctx.credentials.readRecord(key)).toEqual({ kind: 'grant', payload: rotated })
+    expect(JSON.stringify(await ctx.credentials.readRecord(credentialKey('account-manager', 'accounts'))))
+      .not.toContain(personal.payload.refresh)
+    expect(state.accounts.map(account => account.usageError)).toEqual(['Usage is temporarily unavailable.', 'Usage is temporarily unavailable.'])
+  })
+
+  it('rejects a refreshed Codex grant belonging to a different owner without persisting it', async () => {
+    const original = codexGrant('owner@example.com', 'personal', { userId: 'owner' })
+    original.payload.expires = Date.now() - 1
+    const stranger = codexGrant('stranger@example.com', 'workspace', { userId: 'stranger', plan: 'business' })
+    oauthRefresh.mockResolvedValueOnce(stranger.payload)
+    const fetchUsage = vi.fn(async () => usageResponse(10))
+    const { ctx, controller } = await boot({ fetchUsage })
+    const key = credentialKey('llm-pi-ai', 'openai-codex')
+    await ctx.credentials.modifyRecord(key, () => Promise.resolve(original))
+    const state = await controller.refreshUsage(new AbortController().signal)
+    expect(oauthRefresh).toHaveBeenCalledOnce()
+    expect(fetchUsage).not.toHaveBeenCalled()
+    expect(await ctx.credentials.readRecord(key)).toEqual(original)
+    expect(state.accounts[0]?.usageError).toBe('Usage is temporarily unavailable.')
+    expect(JSON.stringify(await ctx.credentials.readRecord(credentialKey('account-manager', 'accounts'))))
+      .not.toContain('stranger')
+  })
+
+  it('waits for SDK refresh before selecting a stale saved grant and imports its shared token rotation', async () => {
+    const { ctx, controller } = await boot()
+    const key = credentialKey('llm-pi-ai', 'openai-codex')
+    const personal = codexGrant('owner@example.com', 'personal', { userId: 'owner' })
+    const workspace = codexGrant('owner@example.com', 'workspace', { userId: 'owner', plan: 'business' })
+    const stranger = codexGrant('stranger@example.com', 'workspace', { userId: 'stranger', plan: 'business' })
+    workspace.payload.refresh = stranger.payload.refresh = personal.payload.refresh
+    await ctx.credentials.modifyRecord(key, () => Promise.resolve(personal))
+    const active = (await controller.describe()).accounts[0]!
+    await seedOAuth(ctx, workspace)
+    await seedOAuth(ctx, stranger)
+    await controller.rename('openai-codex', active.id, 'My identity')
+    const entered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const rotated = { ...personal.payload, refresh: 'sdk-rotated-refresh', expires: Date.now() + 3_600_000 }
+    const sdk = credentialStoreFrom(ctx).modify('openai-codex', async () => {
+      entered.resolve(undefined)
+      await release.promise
+      return rotated
+    })
+    let selection: Promise<unknown> | undefined
+    try {
+      await bounded(entered.promise)
+      let selected = false
+      selection = controller.activate('openai-codex', active.id).then((state) => { selected = true; return state })
+      await setImmediate()
+      expect(selected).toBe(false)
+      release.resolve(undefined)
+      await bounded(Promise.all([sdk, selection]))
+      expect(await ctx.credentials.readRecord(key)).toEqual({ kind: 'grant', payload: rotated })
+      const state = await controller.describe()
+      expect(state.accounts.find(account => account.active)?.name).toBe('My identity')
+      const member = state.accounts.find(account => account.detail?.startsWith('owner@example.com') && account.usageScope === 'workspace')!
+      const other = state.accounts.find(account => account.detail?.startsWith('stranger@example.com'))!
+      const vault = await ctx.credentials.readRecord(credentialKey('account-manager', 'accounts'))
+      expect(vault).toMatchObject({ kind: 'grant', payload: { providers: { 'openai-codex': { accounts: {
+        [active.id]: { credential: { payload: rotated } },
+        [member.id]: { credential: { payload: { ...workspace.payload, refresh: rotated.refresh } } },
+        [other.id]: { credential: stranger },
+      } } } } })
+    } finally {
+      release.resolve(undefined)
+      await Promise.allSettled([sdk, ...selection === undefined ? [] : [selection]])
+    }
+  })
+
+  it('rechecks canonical credentials when SDK refresh lands after the initial vault import', async () => {
+    const personal = codexGrant('owner@example.com', 'personal', { userId: 'owner' })
+    personal.payload.expires = Date.now() - 1
+    const rotated = { ...personal.payload, refresh: 'sdk-between-imports', expires: Date.now() + 3_600_000 }
+    const requests: string[] = []
+    const { ctx, controller } = await boot({ fetchUsage: async (_input, init) => {
+      requests.push(new Headers(init?.headers).get('authorization') ?? '')
+      return usageResponse(10)
+    } })
+    const key = credentialKey('llm-pi-ai', 'openai-codex')
+    await ctx.credentials.modifyRecord(key, () => Promise.resolve(personal))
+    await controller.describe()
+    let sdk: Promise<unknown> | undefined
+    const dispose = ctx.on('credentials/record-updated', (recordKey) => {
+      if (recordKey === credentialKey('account-manager', 'accounts') && sdk === undefined) {
+        sdk = credentialStoreFrom(ctx).modify('openai-codex', () => Promise.resolve(rotated))
+      }
+    })
+    const usage = controller.refreshUsage(new AbortController().signal)
+    try {
+      await bounded(usage)
+      expect(sdk).toBeDefined()
+      await bounded(sdk!)
+      expect(oauthRefresh).not.toHaveBeenCalled()
+      expect(requests).toEqual([`Bearer ${rotated.access}`])
+      expect(await ctx.credentials.readRecord(key)).toEqual({ kind: 'grant', payload: rotated })
+      expect(JSON.stringify(await ctx.credentials.readRecord(credentialKey('account-manager', 'accounts'))))
+        .toContain('sdk-between-imports')
+    } finally {
+      dispose()
+      await Promise.allSettled([usage, ...sdk === undefined ? [] : [sdk]])
+    }
+  })
+
+  it('merges SDK rotation before committing metadata from an earlier usage request', async () => {
+    const entered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const { ctx, controller } = await boot({ fetchUsage: async () => {
+      entered.resolve(undefined)
+      await release.promise
+      return usageResponse(10)
+    } })
+    const key = credentialKey('llm-pi-ai', 'openai-codex')
+    const grant = codexGrant('owner@example.com', 'personal', { userId: 'owner' })
+    await ctx.credentials.modifyRecord(key, () => Promise.resolve(grant))
+    await controller.describe()
+    const usage = controller.refreshUsage(new AbortController().signal)
+    let sdk: Promise<unknown> | undefined
+    const rotated = { ...grant.payload, refresh: 'sdk-during-usage', expires: Date.now() + 3_600_000 }
+    try {
+      await bounded(entered.promise)
+      sdk = credentialStoreFrom(ctx).modify('openai-codex', () => Promise.resolve(rotated))
+      await bounded(sdk)
+      release.resolve(undefined)
+      await bounded(usage)
+      expect(await ctx.credentials.readRecord(key)).toEqual({ kind: 'grant', payload: rotated })
+      expect(JSON.stringify(await ctx.credentials.readRecord(credentialKey('account-manager', 'accounts'))))
+        .toContain('sdk-during-usage')
+    } finally {
+      release.resolve(undefined)
+      await Promise.allSettled([usage, ...sdk === undefined ? [] : [sdk]])
+    }
+  })
+
+  it('excludes SDK and reset-credit access during controller refresh and persists before failed usage', async () => {
+    const now = Date.now()
+    const personal = codexGrant('owner@example.com', 'personal', { userId: 'owner' })
+    personal.payload.expires = now - 1
+    const entered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const rotated = { ...personal.payload, refresh: 'controller-rotated-refresh', expires: now + 3_600_000 }
+    oauthRefresh.mockImplementationOnce(async () => {
+      entered.resolve(undefined)
+      await release.promise
+      return rotated
+    })
+    const { ctx, controller } = await boot({ now: () => now, fetchUsage: async (_input, init) => {
+      if (init?.method === 'POST') return new Response(JSON.stringify({ code: 'reset' }), { status: 200 })
+      throw new Error('fixture usage failure')
+    } })
+    const key = credentialKey('llm-pi-ai', 'openai-codex')
+    await ctx.credentials.modifyRecord(key, () => Promise.resolve(personal))
+    const account = (await controller.describe()).accounts[0]!
+    const usage = controller.refreshUsage(new AbortController().signal)
+    let sdk: Promise<unknown> | undefined
+    let reset: Promise<unknown> | undefined
+    let sdkObserved: unknown
+    try {
+      await bounded(entered.promise)
+      sdk = credentialStoreFrom(ctx).modify('openai-codex', async (current) => {
+        sdkObserved = current
+        return undefined
+      })
+      reset = controller.consumeResetCredit(account.id, 'fixture-reset', new AbortController().signal)
+      await setImmediate()
+      expect(sdkObserved).toBeUndefined()
+      release.resolve(undefined)
+      await bounded(Promise.all([usage, sdk, reset]))
+      expect(sdkObserved).toEqual(rotated)
+      expect(oauthRefresh).toHaveBeenCalledOnce()
+      expect(await ctx.credentials.readRecord(key)).toEqual({ kind: 'grant', payload: rotated })
+      expect((await controller.describe()).accounts[0]?.usageError).toBe('Usage is temporarily unavailable.')
+    } finally {
+      release.resolve(undefined)
+      await Promise.allSettled([usage, ...sdk === undefined ? [] : [sdk], ...reset === undefined ? [] : [reset]])
+    }
+  })
+
+  it('rolls back a failed selection before SDK refresh can rotate its provisional canonical grant', async () => {
+    const { ctx, controller } = await boot()
+    const key = credentialKey('llm-pi-ai', 'openai-codex')
+    const first = codexGrant('first@example.com', 'personal-first', { userId: 'first' })
+    const second = codexGrant('second@example.com', 'personal-second', { userId: 'second' })
+    await ctx.credentials.modifyRecord(key, () => Promise.resolve(first))
+    const active = (await controller.describe()).accounts[0]!
+    await seedOAuth(ctx, second)
+    const spare = (await controller.describe()).accounts.find(account => account.id !== active.id)!
+    const vaultKey = credentialKey('account-manager', 'accounts')
+    const before = await ctx.credentials.readRecord(vaultKey)
+    const entered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const modify = ctx.credentials.modifyRecord.bind(ctx.credentials)
+    let fail = true
+    vi.spyOn(ctx.credentials, 'modifyRecord').mockImplementation(async (recordKey, mutate) => {
+      if (recordKey === vaultKey && fail) {
+        fail = false
+        entered.resolve(undefined)
+        await release.promise
+        throw new Error('fixture vault failure')
+      }
+      return modify(recordKey, mutate)
+    })
+    const selection = controller.activate('openai-codex', spare.id)
+    const failure = expect(selection).rejects.toThrow('fixture vault failure')
+    let sdk: Promise<unknown> | undefined
+    let sdkObserved: unknown
+    const rotated = { ...first.payload, refresh: 'sdk-after-rollback', expires: Date.now() + 3_600_000 }
+    try {
+      await bounded(entered.promise)
+      expect(await ctx.credentials.readRecord(key)).toEqual(second)
+      sdk = credentialStoreFrom(ctx).modify('openai-codex', async (current) => {
+        sdkObserved = current
+        return rotated
+      })
+      await setImmediate()
+      expect(sdkObserved).toBeUndefined()
+      release.resolve(undefined)
+      await bounded(Promise.all([failure, sdk]))
+      expect(sdkObserved).toEqual(first.payload)
+      expect(await ctx.credentials.readRecord(vaultKey)).toEqual(before)
+      expect(await ctx.credentials.readRecord(key)).toEqual({ kind: 'grant', payload: rotated })
+      expect((await controller.describe()).accounts.find(account => account.active)?.id).toBe(active.id)
+    } finally {
+      release.resolve(undefined)
+      await Promise.allSettled([selection, failure, ...sdk === undefined ? [] : [sdk]])
+    }
   })
 
   it('does not automatically cross between unrelated Workspaces', async () => {
@@ -716,13 +1119,7 @@ describe('the Harnessy accounts Remote namespace', () => {
     })
     await ctx.credentials.modifyRecord(key, () => Promise.resolve(first))
     await controller.describe()
-    ctx.authorization.registerFlow({
-      key,
-      label: 'OpenAI Codex',
-      methods: [{ id: 'oauth', label: 'Browser login' }],
-      async run() { await ctx.credentials.modifyRecord(key, () => Promise.resolve(unrelated)) },
-    })
-    await controller.addOAuth('openai-codex', new AbortController().signal)
+    await seedOAuth(ctx, unrelated)
     await controller.setAutoSwitch('openai-codex', true)
 
     const state = await controller.refreshUsage(new AbortController().signal)

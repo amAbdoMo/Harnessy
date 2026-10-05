@@ -80,6 +80,8 @@ await ctx.credentials.deleteRecord(key)                  // no-op when absent
 
 `modifyRecord` 是唯一写路径：它让你的变更函数看到写入取得独占那一刻的记录，返回 `undefined` 则保持原状。记录没有空值规则——一条既无 key 也无环境值的记录，陈述的是其拥有者确认了 ambient 认证——配置界面还可以枚举每条记录，显示你获得了哪些授权，并找出已卸载插件留下的记录。
 
+`withRecords(run)` 在此服务实例上串行协调多个记录的操作，例如账户选择与 OAuth 刷新。回调内使用普通记录读写；不可嵌套 `withRecords`，也不可在 `modifyRecord` 变更函数中获取此互斥。此进程内互斥独立于 provider 的跨进程写锁，不会让其他记录调用自动具备事务性。
+
 ### 在配置中使用密钥
 
 settings 分节或 `cordis.yml` 条目按名引用密钥，而不是包含密钥本身——例如 LLM（大语言模型）适配器接受 `apiKeyEnv`：

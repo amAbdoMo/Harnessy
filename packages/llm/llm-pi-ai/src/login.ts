@@ -12,7 +12,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { AuthorizationMethod, AuthorizationPrompt, AuthorizationSession } from '@deepseek-ai/dsh-authorization'
 import { isCredentialKeySegment } from '@deepseek-ai/dsh-credentials'
 import { catalogProvider, catalogProviderIds } from './catalog.ts'
-import { recordKeyFor } from './auth.ts'
+import { recordKeyFor, toRecord } from './auth.ts'
 import type { PiAiAuthInjection } from './adapter.ts'
 import { createModels } from './models.ts'
 
@@ -137,19 +137,27 @@ export function registerPiAiFlows(ctx: Context, auth: PiAiAuthInjection): void {
     }
     ctx.authorization.registerFlow({
       key: recordKeyFor(providerId),
+      supportsDestination: true,
       label: provider.name,
       methods: [first, ...rest],
       async run(session) {
-        // A collection of its own, holding only the provider being signed
-        // into: login is not serving requests, and the credential it produces
-        // lands in the shared store either way.
-        const models = createModels(auth)
+        // Login commits through the authorization attempt, never directly into the active request credential.
+        const models = createModels({
+          ...auth,
+          credentials: {
+            ...auth.credentials,
+            async modify(_providerId, mutate) {
+              const credential = await mutate(undefined)
+              if (credential !== undefined) await session.commit(toRecord(credential))
+              return credential
+            },
+          },
+        })
         models.setProvider(provider)
         // Total over the two ids declared above, and the seam only ever hands
         // back one a flow declared.
         const type: AuthType = session.method === 'oauth' ? 'oauth' : 'api_key'
-        // pi-ai persists what the login returns through that same store, which
-        // is what makes it the single writer of this record.
+        // The attempt selects the destination; additional identities can be staged without switching running requests.
         await models.login(providerId, type, {
           signal: session.signal,
           notify: (event) => { relay(event, session) },

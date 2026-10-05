@@ -108,7 +108,14 @@ export class AccountsController extends TypertRemoteService {
   private readonly fetchUsage: typeof fetch
   private readonly now: () => number
   private usageRefreshTail: Promise<void> = Promise.resolve()
+  private readonly selectionRevisions = new Map<AccountProviderId, number>()
   private readonly quotaRecoveryAttempts = new WeakMap<object, { readonly turn: number; readonly step: number }>()
+  private readonly requestSelections = new WeakMap<object, {
+    readonly turn: number
+    readonly step: number
+    readonly id?: string
+    readonly revision: number
+  }>()
 
   /** @param ctx - Host context carrying authorization, credentials, and settings. */
   constructor(ctx: Context, internals: AccountsControllerInternals = {}) {
@@ -123,17 +130,28 @@ export class AccountsController extends TypertRemoteService {
         if (active) await this.reconcileProviderRoutes(providerContext.credentials, providerContext.settings)
       }).catch((error: unknown) => { ctx.logger.error(error) })
     })
-    ctx.on('agent/request', async ({ signal }, next) => {
+    ctx.on('agent/request', async ({ agent, turn, step, signal }, next) => {
       const config = await next()
-      if (config.provider === 'openai-codex') await this.prepareCodexAccount(signal)
+      if (config.provider === 'openai-codex') {
+        await this.prepareCodexAccount(signal)
+        const credentials = this.ctx.get('credentials')
+        if (credentials !== undefined) {
+          const provider = (await this.readVault(credentials)).providers['openai-codex']
+          this.requestSelections.set(agent, {
+            turn, step, revision: this.selectionRevisions.get('openai-codex') ?? 0,
+            ...provider?.activeAccountId === undefined ? {} : { id: provider.activeAccountId },
+          })
+        }
+      }
       return config
     })
     ctx.on('agent/request-error', async ({ agent, turn, step, provider, failure, signal }, next) => {
       if (provider !== 'openai-codex' || failure.code !== QUOTA_EXCEEDED_CODE) return next()
       if (!await this.codexAutoSwitchEnabled()) return next()
       const previous = this.quotaRecoveryAttempts.get(agent)
-      if (previous?.turn === turn && previous.step === step) return undefined
-      if (!await this.recoverCodexQuota(signal)) return undefined
+      if (previous?.turn === turn && previous.step === step) return next()
+      const request = this.requestSelections.get(agent)
+      if (!await this.recoverCodexQuota(signal, request?.turn === turn && request.step === step ? request : undefined)) return next()
       this.quotaRecoveryAttempts.set(agent, { turn, step })
       return { kind: 'retry' }
     }, { prepend: true })
@@ -153,8 +171,8 @@ export class AccountsController extends TypertRemoteService {
   }
 
   /**
-   * Add an OAuth-backed identity through the provider's installed browser flow.
-   * A later account is saved without replacing the currently active identity.
+   * Authorize an identity through a staged browser flow without replacing the active account.
+   * Only the first saved identity becomes active automatically.
    * @param provider - installed OAuth-capable provider to authorize.
    * @param signal - cancellation for browser opening, prompts, and provider authorization.
    * @returns whether authorization completed or the user cancelled it.
@@ -171,11 +189,13 @@ export class AccountsController extends TypertRemoteService {
       throw unavailable(`${definition.label} browser sign-in is not installed`)
     }
 
-    const previous = await credentials.readRecord(canonicalKey)
+    await this.importCanonicalAccounts(credentials)
+    const destination = credentialKey('account-manager', `login-${randomUUID()}`)
     let opening = Promise.resolve()
     let openFailure: unknown
     const authorize = async () => authorization.begin({
       key: canonicalKey,
+      destination,
       method: 'oauth',
       signal,
       interaction: {
@@ -197,40 +217,23 @@ export class AccountsController extends TypertRemoteService {
         prompt: prompt => answerDesktopPrompt(prompt, signal),
       },
     })
-    let outcome: Awaited<ReturnType<typeof authorize>>
     try {
-      outcome = await authorize()
+      const outcome = await authorize()
       await opening
-    } catch (error: unknown) {
+      if (openFailure !== undefined) throw unavailable(`could not open the ${definition.label} sign-in page`)
+      if (outcome.status === 'cancelled') return { status: 'cancelled' }
+      const credential = await credentials.readRecord(destination)
+      if (credential === undefined) throw unavailable(`${definition.label} sign-in completed without a stored credential`)
+      const account = accountFromCredential(definition, credential, this.now())
+      await this.commitSelection(credentials, provider, (current) => {
+        const active = current.providers[provider]?.activeAccountId
+        return upsertAccount(current, account, active ?? account.id)
+      })
+      return { status: 'authorized' }
+    } finally {
       await opening
-      await restoreRecord(credentials, canonicalKey, previous)
-      throw error
+      await credentials.deleteRecord(destination)
     }
-    if (openFailure !== undefined) {
-      await restoreRecord(credentials, canonicalKey, previous)
-      throw unavailable(`could not open the ${definition.label} sign-in page`)
-    }
-    if (outcome.status === 'cancelled') {
-      await restoreRecord(credentials, canonicalKey, previous)
-      return { status: 'cancelled' }
-    }
-
-    const credential = await credentials.readRecord(canonicalKey)
-    if (credential === undefined) {
-      await restoreRecord(credentials, canonicalKey, previous)
-      throw unavailable(`${definition.label} sign-in completed without a stored credential`)
-    }
-    const account = accountFromCredential(definition, credential, this.now())
-    const committed = await this.mutateVault(credentials, (current) => {
-      const existingActive = current.providers[provider]?.activeAccountId
-      return upsertAccount(current, account, existingActive ?? account.id)
-    })
-    if (committed.providers[provider]?.activeAccountId !== account.id) {
-      await restoreRecord(credentials, canonicalKey, previous)
-    } else {
-      await this.activateProviderRoute(provider)
-    }
-    return { status: 'authorized' }
   }
 
   /**
@@ -256,14 +259,10 @@ export class AccountsController extends TypertRemoteService {
       name: boundedText(name, 80) ?? `${definition.label} account`,
       createdAt: this.now(),
     }
-    const next = await this.mutateVault(credentials, (current) => {
+    const next = await this.commitSelection(credentials, provider, (current) => {
       const currentActive = current.providers[provider]?.activeAccountId
       return upsertAccount(current, account, currentActive ?? account.id)
     })
-    if (next.providers[provider]?.activeAccountId === account.id) {
-      await writeRecord(credentials, providerKey(provider), account.credential)
-      await this.activateProviderRoute(provider)
-    }
     return this.publicState(next, true)
   }
 
@@ -276,13 +275,12 @@ export class AccountsController extends TypertRemoteService {
   @Remote
   async activate(provider: AccountProviderId, accountId: string): Promise<AccountsState> {
     providerDefinition(provider)
+    this.invalidateSelection(provider)
     const credentials = this.credentials()
-    const vault = await this.readVault(credentials)
-    const account = vault.providers[provider]?.accounts[accountId]
-    if (account === undefined) throw notFound(provider, accountId)
-    await writeRecord(credentials, providerKey(provider), account.credential)
-    await this.activateProviderRoute(provider)
-    const next = await this.mutateVault(credentials, current => setActive(current, provider, accountId))
+    const next = await this.commitSelection(credentials, provider, (current) => {
+      if (current.providers[provider]?.accounts[accountId] === undefined) throw notFound(provider, accountId)
+      return setActive(current, provider, accountId)
+    })
     return this.publicState(next, true)
   }
 
@@ -295,6 +293,7 @@ export class AccountsController extends TypertRemoteService {
   @Remote
   async setAutoSwitch(provider: AccountProviderId, enabled: boolean): Promise<AccountsState> {
     if (provider !== 'openai-codex') throw rejected(provider, 'automatic limit switching is available only for Codex')
+    this.invalidateSelection(provider)
     const credentials = this.credentials()
     await this.importCanonicalAccounts(credentials)
     const next = await this.mutateVault(credentials, (current) => {
@@ -325,7 +324,6 @@ export class AccountsController extends TypertRemoteService {
     const account = vault.providers['openai-codex']?.accounts[accountId]
     if (account === undefined) throw notFound('openai-codex', accountId)
     const access = await this.codexAccess(account, signal)
-    await this.persistCodexCredential(credentials, account, access.credential)
     const response = await this.fetchUsage(CONSUME_RESET_CREDIT_URL, {
       method: 'POST',
       headers: { ...codexUsageHeaders(access.oauth.access, access.accountId), 'Content-Type': 'application/json' },
@@ -370,9 +368,9 @@ export class AccountsController extends TypertRemoteService {
    */
   @Remote
   async deleteAccount(provider: AccountProviderId, accountId: string): Promise<AccountsState> {
+    this.invalidateSelection(provider)
     const credentials = this.credentials()
-    const removal: { active: boolean; replacement: StoredAccount | undefined } = { active: false, replacement: undefined }
-    const next = await this.mutateVault(credentials, (current) => {
+    const next = await this.commitSelection(credentials, provider, (current) => {
       const providerVault = current.providers[provider]
       if (providerVault?.accounts[accountId] === undefined) throw notFound(provider, accountId)
       const accounts: Record<string, StoredAccount> = {}
@@ -381,18 +379,13 @@ export class AccountsController extends TypertRemoteService {
       }
       const replacement = providerVault.activeAccountId === accountId ? Object.values(accounts)[0] : undefined
       const activeAccountId = providerVault.activeAccountId === accountId ? replacement?.id : providerVault.activeAccountId
-      removal.active = providerVault.activeAccountId === accountId
-      removal.replacement = replacement
-      return replaceProviderVault(current, provider, { accounts, ...activeAccountId === undefined ? {} : { activeAccountId } })
+      const { activeAccountId: _previousActive, ...preferences } = providerVault
+      return replaceProviderVault(current, provider, {
+        ...preferences,
+        accounts,
+        ...activeAccountId === undefined ? {} : { activeAccountId },
+      })
     })
-    if (removal.active) {
-      if (removal.replacement === undefined) {
-        await credentials.deleteRecord(providerKey(provider))
-        await this.deactivateProviderRoute(provider)
-      } else {
-        await writeRecord(credentials, providerKey(provider), removal.replacement.credential)
-      }
-    }
     return this.publicState(next, true)
   }
 
@@ -403,6 +396,10 @@ export class AccountsController extends TypertRemoteService {
    */
   @Remote
   async refreshUsage(signal: AbortSignal): Promise<AccountsState> {
+    return this.refreshUsageRun(signal, true)
+  }
+
+  private async refreshUsageRun(signal: AbortSignal, automatic: boolean): Promise<AccountsState> {
     assertUsageRefreshActive(signal)
     const predecessor = this.usageRefreshTail
     let release!: () => void
@@ -410,76 +407,75 @@ export class AccountsController extends TypertRemoteService {
     await predecessor
     try {
       assertUsageRefreshActive(signal)
-      return await this.refreshUsageOnce(signal)
+      return await this.refreshUsageOnce(signal, automatic)
     } finally {
       release()
     }
   }
 
-  private async refreshUsageOnce(signal: AbortSignal): Promise<AccountsState> {
+  private async refreshUsageOnce(signal: AbortSignal, automatic: boolean): Promise<AccountsState> {
+    const revision = this.selectionRevisions.get('openai-codex') ?? 0
     const credentials = this.credentials()
     let vault = await this.importCanonicalAccounts(credentials)
     const codex = vault.providers['openai-codex']
     if (codex === undefined) return this.publicState(vault, true)
-    for (const account of Object.values(codex.accounts)) {
+    for (const saved of Object.values(codex.accounts)) {
       assertUsageRefreshActive(signal)
+      const account = (await this.readVault(credentials)).providers['openai-codex']?.accounts[saved.id]
+      if (account === undefined) continue
       const refreshed = await this.refreshCodexAccount(account, signal)
-      vault = await this.mutateVault(credentials, (current) => {
+      assertUsageRefreshActive(signal)
+      vault = await this.commitSelection(credentials, 'openai-codex', (current) => {
         const currentProvider = current.providers['openai-codex']
         const existing = currentProvider?.accounts[account.id]
         if (currentProvider === undefined || existing === undefined
-          || !sameRecord(existing.credential, account.credential)) return undefined
+          || !sameRecord(existing.credential, refreshed.credential)) return undefined
         return replaceProviderVault(current, 'openai-codex', {
           ...currentProvider,
-          accounts: { ...currentProvider.accounts, [account.id]: refreshed },
+          accounts: { ...currentProvider.accounts, [account.id]: { ...refreshed, name: existing.name } },
         })
       })
-      const refreshedActive = vault.providers['openai-codex']?.accounts[account.id]
-      if (vault.providers['openai-codex']?.activeAccountId === account.id
-        && sameRecord(refreshedActive?.credential, refreshed.credential)) {
-        await writeRecord(credentials, providerKey('openai-codex'), refreshed.credential)
-      }
     }
-    vault = await this.autoSwitchCodexAtLimit(credentials, vault)
+    if (automatic && !signal.aborted) vault = await this.autoSwitchCodexAtLimit(credentials, revision)
     return this.publicState(vault, true)
   }
 
   private async autoSwitchCodexAtLimit(
     credentials: CredentialProvider,
-    vault: AccountVault,
+    revision: number,
+    failedId?: string,
   ): Promise<AccountVault> {
-    const provider = vault.providers['openai-codex']
-    if (provider?.autoSwitchOnLimit !== true || provider.activeAccountId === undefined) return vault
-    const active = provider.accounts[provider.activeAccountId]
-    const limit = active === undefined ? undefined : switchableStandardLimit(active)
-    if (active === undefined || limit === undefined) return vault
-    const replacement = bestCodexReplacement(active, Object.values(provider.accounts))
-    if (replacement === undefined) return vault
-    await writeRecord(credentials, providerKey('openai-codex'), replacement.credential)
-    const next = await this.mutateVault(credentials, (current) => {
-      const currentProvider = current.providers['openai-codex']
-      if (currentProvider?.accounts[replacement.id] === undefined) return undefined
+    let event: AccountAutoSwitchEvent | undefined
+    const next = await this.commitSelection(credentials, 'openai-codex', (current) => {
+      if ((this.selectionRevisions.get('openai-codex') ?? 0) !== revision) return undefined
+      const provider = current.providers['openai-codex']
+      if (provider?.autoSwitchOnLimit !== true || provider.activeAccountId === undefined) return undefined
+      if (failedId !== undefined && provider.activeAccountId !== failedId) return undefined
+      const active = provider.accounts[provider.activeAccountId]
+      const limit = active === undefined ? undefined : switchableStandardLimit(active)
+      if (active === undefined || (failedId === undefined && limit === undefined)) return undefined
+      const replacement = bestCodexReplacement(active, Object.values(provider.accounts))
+      if (replacement === undefined) return undefined
+      const activeIdentity = codexIdentity(active.credential)
+      const replacementIdentity = codexIdentity(replacement.credential)
+      event = {
+        id: randomUUID(),
+        occurredAt: this.now(),
+        provider: 'openai-codex',
+        reason: failedId === undefined ? 'threshold' : 'quota',
+        ...failedId === undefined && limit !== undefined ? { limit } : {},
+        from: {
+          name: active.name,
+          ...activeIdentity.usageScope === undefined ? {} : { usageScope: activeIdentity.usageScope },
+        },
+        to: {
+          name: replacement.name,
+          ...replacementIdentity.usageScope === undefined ? {} : { usageScope: replacementIdentity.usageScope },
+        },
+      }
       return setActive(current, 'openai-codex', replacement.id)
     })
-    if (next.providers['openai-codex']?.activeAccountId !== replacement.id) return next
-    const activeIdentity = codexIdentity(active.credential)
-    const replacementIdentity = codexIdentity(replacement.credential)
-    const event: AccountAutoSwitchEvent = {
-      id: randomUUID(),
-      occurredAt: this.now(),
-      provider: 'openai-codex',
-      reason: 'threshold',
-      limit,
-      from: {
-        name: active.name,
-        ...activeIdentity.usageScope === undefined ? {} : { usageScope: activeIdentity.usageScope },
-      },
-      to: {
-        name: replacement.name,
-        ...replacementIdentity.usageScope === undefined ? {} : { usageScope: replacementIdentity.usageScope },
-      },
-    }
-    this.ctx.emit('accounts/auto-switched', event)
+    if (event !== undefined) this.ctx.emit('accounts/auto-switched', event)
     return next
   }
 
@@ -505,55 +501,32 @@ export class AccountsController extends TypertRemoteService {
   }
 
   /** Select a refreshed account after a provider-confirmed quota failure so the open turn can retry once. */
-  private async recoverCodexQuota(signal: AbortSignal): Promise<boolean> {
+  private async recoverCodexQuota(
+    signal: AbortSignal,
+    request?: { readonly id?: string; readonly revision: number },
+  ): Promise<boolean> {
     const credentials = this.ctx.get('credentials')
     if (credentials === undefined) return false
     const before = await this.readVault(credentials)
     const providerBefore = before.providers['openai-codex']
     if (providerBefore?.autoSwitchOnLimit !== true || providerBefore.activeAccountId === undefined) return false
     const activeBefore = providerBefore.activeAccountId
+    const revision = this.selectionRevisions.get('openai-codex') ?? 0
+    if (request !== undefined && (request.id !== activeBefore || request.revision !== revision)) return false
     const failed = providerBefore.accounts[activeBefore]
     if (failed === undefined) return false
     try {
-      await this.refreshUsage(signal)
+      await this.refreshUsageRun(signal, false)
     } catch (error: unknown) {
       if (signal.aborted) throw error
       this.ctx.logger.warn(`accounts: Codex quota recovery refresh failed: ${messageOf(error)}`)
       return false
     }
-    const after = await this.readVault(credentials)
-    const providerAfter = after.providers['openai-codex']
-    if (providerAfter === undefined) return false
-    if (providerAfter.activeAccountId !== activeBefore) return true
-    const refreshedFailed = providerAfter.accounts[activeBefore]
-    if (refreshedFailed === undefined) return false
-    const replacement = bestCodexRecovery(refreshedFailed, Object.values(providerAfter.accounts))
-    if (replacement === undefined) return false
-    if (replacement.id === activeBefore) return true
-    await writeRecord(credentials, providerKey('openai-codex'), replacement.credential)
-    const next = await this.mutateVault(credentials, (current) => {
-      const currentProvider = current.providers['openai-codex']
-      if (currentProvider?.accounts[replacement.id] === undefined) return undefined
-      return setActive(current, 'openai-codex', replacement.id)
-    })
-    if (next.providers['openai-codex']?.activeAccountId !== replacement.id) return true
-    const failedIdentity = codexIdentity(refreshedFailed.credential)
-    const replacementIdentity = codexIdentity(replacement.credential)
-    this.ctx.emit('accounts/auto-switched', {
-      id: randomUUID(),
-      occurredAt: this.now(),
-      provider: 'openai-codex',
-      reason: 'quota',
-      from: {
-        name: refreshedFailed.name,
-        ...failedIdentity.usageScope === undefined ? {} : { usageScope: failedIdentity.usageScope },
-      },
-      to: {
-        name: replacement.name,
-        ...replacementIdentity.usageScope === undefined ? {} : { usageScope: replacementIdentity.usageScope },
-      },
-    })
-    return true
+    assertUsageRefreshActive(signal)
+    const next = await this.autoSwitchCodexAtLimit(credentials, revision, activeBefore)
+    return (this.selectionRevisions.get('openai-codex') ?? 0) === revision + 1
+      && next.providers['openai-codex']?.activeAccountId !== undefined
+      && next.providers['openai-codex'].activeAccountId !== activeBefore
   }
 
   private async refreshCodexAccount(account: StoredAccount, signal: AbortSignal): Promise<StoredAccount> {
@@ -587,37 +560,23 @@ export class AccountsController extends TypertRemoteService {
     }
   }
 
-  private async persistCodexCredential(
+  private async persistCodexCredentialUnlocked(
     credentials: CredentialProvider,
     account: StoredAccount,
     credential: CredentialRecord,
   ): Promise<void> {
     if (sameRecord(credential, account.credential)) return
-    const updated = await credentials.modifyRecord(VAULT_KEY, (record) => {
-      const currentVault = parseVault(record)
-      const providerVault = currentVault.providers['openai-codex']
-      const current = providerVault?.accounts[account.id]
-      if (providerVault === undefined || current === undefined
-        || !sameRecord(current.credential, account.credential)) return Promise.resolve(undefined)
-      return Promise.resolve({
-        kind: 'grant',
-        payload: jsonImage(replaceProviderVault(currentVault, 'openai-codex', {
-          ...providerVault,
-          accounts: { ...providerVault.accounts, [account.id]: { ...current, credential } },
-        })),
-      })
+    const updated = await this.commitSelectionUnlocked(credentials, 'openai-codex', (currentVault) => {
+      const provider = currentVault.providers['openai-codex']
+      const current = provider?.accounts[account.id]
+      if (provider === undefined || current === undefined) return undefined
+      if (sameRecord(current.credential, credential)) return currentVault
+      if (!sameRecord(current.credential, account.credential)) return undefined
+      return updateAccountCredential(currentVault, provider, current, credential)
     })
-    const updatedVault = parseVault(updated)
-    if (!sameRecord(updatedVault.providers['openai-codex']?.accounts[account.id]?.credential, credential)) {
+    if (!sameRecord(updated.providers['openai-codex']?.accounts[account.id]?.credential, credential)) {
       throw unavailable('the saved account changed before its credentials could be refreshed')
     }
-    const latest = await this.readVault(credentials)
-    const latestProvider = latest.providers['openai-codex']
-    if (latestProvider?.activeAccountId !== account.id
-      || !sameRecord(latestProvider.accounts[account.id]?.credential, credential)) return
-    await credentials.modifyRecord(providerKey('openai-codex'), current => Promise.resolve(
-      sameRecord(current, account.credential) || sameRecord(current, credential) ? credential : undefined,
-    ))
   }
 
   private async codexAccess(account: StoredAccount, signal: AbortSignal): Promise<{
@@ -625,42 +584,66 @@ export class AccountsController extends TypertRemoteService {
     readonly oauth: OAuthCredential
     readonly accountId?: string
   }> {
-    let credential = account.credential
-    let oauth = oauthCredential(credential)
-    if (oauth === undefined) throw new Error('the saved account is not an OAuth account')
-    if (oauth.expires <= this.now() + 60_000) {
-      const refresh = openaiCodexProvider().auth.oauth
-      if (refresh === undefined) throw new Error('the Codex OAuth refresher is unavailable')
-      oauth = await refresh.refresh(oauth, combinedSignal(signal))
-      credential = { kind: 'grant', payload: jsonImage(oauth) }
-    }
-    const accountId = codexIdentity(credential).accountId
-    return { credential, oauth, ...accountId === undefined ? {} : { accountId } }
+    const credentials = this.credentials()
+    return this.withCommit(credentials, async () => {
+      assertUsageRefreshActive(signal)
+      const vault = await this.importCanonicalAccountsUnlocked(credentials)
+      const latest = vault.providers['openai-codex']?.accounts[account.id]
+      if (latest === undefined) throw notFound('openai-codex', account.id)
+      let credential = latest.credential
+      let oauth = oauthCredential(credential)
+      if (oauth === undefined) throw new Error('the saved account is not an OAuth account')
+      const identity = codexIdentity(credential)
+      if (oauth.expires <= this.now() + 60_000) {
+        const refresh = openaiCodexProvider().auth.oauth
+        if (refresh === undefined) throw new Error('the Codex OAuth refresher is unavailable')
+        const refreshed = await refresh.refresh(oauth, combinedSignal(signal))
+        if (codexIdentity({ kind: 'grant', payload: refreshed }).ownerId !== identity.ownerId) {
+          throw unavailable('refreshed Codex account owner changed')
+        }
+        credential = { kind: 'grant', payload: jsonImage({
+          ...refreshed, ...identity.accountId === undefined ? {} : { accountId: identity.accountId },
+        }) }
+        await this.persistCodexCredentialUnlocked(credentials, latest, credential)
+        assertUsageRefreshActive(signal)
+        oauth = oauthCredential(credential)
+        if (oauth === undefined) throw new Error('the refreshed account is not an OAuth account')
+      }
+      return { credential, oauth, ...identity.accountId === undefined ? {} : { accountId: identity.accountId } }
+    })
   }
 
   private async importCanonicalAccounts(credentials: CredentialProvider): Promise<AccountVault> {
-    return this.mutateVault(credentials, async (stored) => {
-      let vault = normalizeCodexAccountIds(stored)
-      for (const definition of PROVIDERS) {
-        const credential = await credentials.readRecord(providerKey(definition.id))
-        if (credential === undefined) continue
-        const providerVault = vault.providers[definition.id]
-        const active = providerVault?.activeAccountId
-        if (providerVault !== undefined && active !== undefined && providerVault.accounts[active] !== undefined) {
-          const current = providerVault.accounts[active]
-          if (!sameRecord(current.credential, credential)) {
-            vault = replaceProviderVault(vault, definition.id, {
-              ...providerVault,
-              accounts: { ...providerVault.accounts, [active]: { ...current, credential } },
-            })
-          }
-          continue
-        }
-        const account = accountFromCredential(definition, credential, this.now())
-        vault = upsertAccount(vault, account, account.id)
-      }
-      return vault
-    })
+    return this.withCommit(credentials, () => this.importCanonicalAccountsUnlocked(credentials))
+  }
+
+  private async importCanonicalAccountsUnlocked(credentials: CredentialProvider): Promise<AccountVault> {
+    const beforeRecord = await credentials.readRecord(VAULT_KEY)
+    let vault = normalizeCodexAccountIds(parseVault(beforeRecord))
+    for (const definition of PROVIDERS) {
+      const canonical = await credentials.readRecord(providerKey(definition.id))
+      vault = this.mergeCanonicalAccount(vault, definition, canonical)
+    }
+    await replaceRecord(credentials, VAULT_KEY, beforeRecord, { kind: 'grant', payload: jsonImage(vault) })
+    return vault
+  }
+
+  private mergeCanonicalAccount(
+    vault: AccountVault,
+    definition: ProviderDefinition,
+    credential: CredentialRecord | undefined,
+  ): AccountVault {
+    if (credential === undefined) return vault
+    const providerVault = vault.providers[definition.id]
+    const active = providerVault?.activeAccountId
+    if (providerVault !== undefined && active !== undefined && providerVault.accounts[active] !== undefined) {
+      const matchingId = definition.id === 'openai-codex' ? codexIdentity(credential).id : active
+      const current = providerVault.accounts[matchingId]
+      return current === undefined || sameRecord(current.credential, credential)
+        ? vault : updateAccountCredential(vault, providerVault, current, credential)
+    }
+    const account = accountFromCredential(definition, credential, this.now())
+    return upsertAccount(vault, account, account.id)
   }
 
   private publicState(vault: AccountVault, writable: boolean): AccountsState {
@@ -705,7 +688,78 @@ export class AccountsController extends TypertRemoteService {
   }
 
   private async readVault(credentials: CredentialProvider): Promise<AccountVault> {
-    return parseVault(await credentials.readRecord(VAULT_KEY))
+    return this.withCommit(credentials, () => credentials.readRecord(VAULT_KEY).then(parseVault))
+  }
+
+  private invalidateSelection(provider: AccountProviderId): void {
+    this.selectionRevisions.set(provider, (this.selectionRevisions.get(provider) ?? 0) + 1)
+  }
+
+  /** Exclude SDK refresh while a controller credential operation commits or rolls back. */
+  private withCommit<T>(credentials: CredentialProvider, run: () => Promise<T>): Promise<T> {
+    return credentials.withRecords(run)
+  }
+
+  /** Commit the selected grant and vault together; failed writes restore the previous selection. */
+  private async commitSelection(
+    credentials: CredentialProvider,
+    provider: AccountProviderId,
+    mutate: (vault: AccountVault) => AccountVault | undefined,
+  ): Promise<AccountVault> {
+    return this.withCommit(credentials, () => this.commitSelectionUnlocked(credentials, provider, mutate))
+  }
+
+  private async commitSelectionUnlocked(
+    credentials: CredentialProvider,
+    provider: AccountProviderId,
+    mutate: (vault: AccountVault) => AccountVault | undefined,
+  ): Promise<AccountVault> {
+    const beforeRecord = await credentials.readRecord(VAULT_KEY)
+    const key = providerKey(provider)
+    const canonical = await credentials.readRecord(key)
+    const stored = parseVault(beforeRecord)
+    const before = this.mergeCanonicalAccount(normalizeCodexAccountIds(stored), providerDefinition(provider), canonical)
+    const next = mutate(before)
+    if (next === undefined) {
+      if (before !== stored) await replaceRecord(credentials, VAULT_KEY, beforeRecord, { kind: 'grant', payload: jsonImage(before) })
+      return before
+    }
+    const selected = next.providers[provider]
+    const desired = selected?.activeAccountId === undefined
+      ? undefined : selected.accounts[selected.activeAccountId]?.credential
+    const previousSelected = before.providers[provider]?.activeAccountId
+    const settings = this.settings()
+    const route = propertyOf(propertyOf(settings.describe().find(entry => entry.ns === PI_AI_SETTINGS)?.value,
+      'providers'), provider)
+    const nextRecord: CredentialRecord = { kind: 'grant', payload: jsonImage(next) }
+    try {
+      if (!sameRecord(canonical, desired)) await replaceRecord(credentials, key, canonical, desired)
+      if (desired !== undefined) await this.activateProviderRoute(provider)
+      else if (previousSelected !== undefined) await this.deactivateProviderRoute(provider)
+      await replaceRecord(credentials, VAULT_KEY, beforeRecord, nextRecord)
+    } catch (error: unknown) {
+      const failures: unknown[] = [error]
+      try {
+        if (sameRecord(await credentials.readRecord(key), desired)) await replaceRecord(credentials, key, desired, canonical)
+      } catch (rollbackError: unknown) { failures.push(rollbackError) }
+      try {
+        if (sameRecord(await credentials.readRecord(VAULT_KEY), nextRecord)) {
+          await replaceRecord(credentials, VAULT_KEY, nextRecord, beforeRecord)
+        }
+      } catch (rollbackError: unknown) { failures.push(rollbackError) }
+      try {
+        const currentRoute = propertyOf(propertyOf(settings.describe().find(entry => entry.ns === PI_AI_SETTINGS)?.value,
+          'providers'), provider)
+        if (route === undefined && JSON.stringify(currentRoute) === '{}') await this.deactivateProviderRoute(provider)
+        else if (route !== undefined && currentRoute === undefined) {
+          await settings.mutate(PI_AI_SETTINGS, [{ op: 'set', path: ['providers', provider], value: route }])
+        }
+      } catch (rollbackError: unknown) { failures.push(rollbackError) }
+      if (failures.length > 1) throw new AggregateError(failures, 'account selection and rollback failed')
+      throw error
+    }
+    if (previousSelected !== selected?.activeAccountId) this.invalidateSelection(provider)
+    return next
   }
 
   /**
@@ -720,28 +774,35 @@ export class AccountsController extends TypertRemoteService {
     credentials: CredentialProvider,
     mutate: (vault: AccountVault) => Promise<AccountVault | undefined> | AccountVault | undefined,
   ): Promise<AccountVault> {
-    const committed = await credentials.modifyRecord(VAULT_KEY, async (record) => {
-      const next = await mutate(parseVault(record))
-      return next === undefined ? undefined : { kind: 'grant', payload: jsonImage(next) }
+    return this.withCommit(credentials, async () => {
+      const committed = await credentials.modifyRecord(VAULT_KEY, async (record) => {
+        const next = await mutate(parseVault(record))
+        return next === undefined ? undefined : { kind: 'grant', payload: jsonImage(next) }
+      })
+      return parseVault(committed)
     })
-    return parseVault(committed)
   }
 
   /** Restore model routes for active credentials after settings and credentials have loaded. */
   private async reconcileProviderRoutes(credentials: CredentialProvider, settings: SettingsForms): Promise<void> {
-    const descriptor = settings.describe().find(candidate => candidate.ns === PI_AI_SETTINGS)
-    const providers = descriptor === undefined ? undefined : propertyOf(descriptor.value, 'providers')
-    const operations = []
-    for (const definition of PROVIDERS) {
-      if (await credentials.readRecord(providerKey(definition.id)) === undefined) continue
-      if (isRecord(providers) && Object.hasOwn(providers, definition.id)) continue
-      operations.push({ op: 'set' as const, path: ['providers', definition.id], value: {} })
-    }
-    if (operations.length > 0) await settings.mutate(PI_AI_SETTINGS, operations)
+    await this.withCommit(credentials, async () => {
+      const configured: AccountProviderId[] = []
+      for (const definition of PROVIDERS) {
+        if (await credentials.readRecord(providerKey(definition.id)) !== undefined) configured.push(definition.id)
+      }
+      const providers = propertyOf(settings.describe().find(entry => entry.ns === PI_AI_SETTINGS)?.value, 'providers')
+      const operations = configured
+        .filter(provider => !isRecord(providers) || !Object.hasOwn(providers, provider))
+        .map(provider => ({ op: 'set' as const, path: ['providers', provider], value: {} }))
+      if (operations.length > 0) await settings.mutate(PI_AI_SETTINGS, operations)
+    })
   }
 
   private async activateProviderRoute(provider: AccountProviderId): Promise<void> {
-    await this.settings().mutate(PI_AI_SETTINGS, [{ op: 'set', path: ['providers', provider], value: {} }])
+    const settings = this.settings()
+    const providers = propertyOf(settings.describe().find(entry => entry.ns === PI_AI_SETTINGS)?.value, 'providers')
+    if (isRecord(providers) && Object.hasOwn(providers, provider)) return
+    await settings.mutate(PI_AI_SETTINGS, [{ op: 'set', path: ['providers', provider], value: {} }])
   }
 
   private async deactivateProviderRoute(provider: AccountProviderId): Promise<void> {
@@ -904,6 +965,32 @@ function upsertAccount(vault: AccountVault, account: StoredAccount, activeAccoun
   })
 }
 
+function updateAccountCredential(
+  vault: AccountVault,
+  provider: ProviderVault,
+  account: StoredAccount,
+  credential: CredentialRecord,
+): AccountVault {
+  const accounts = { ...provider.accounts, [account.id]: { ...account, credential } }
+  if (account.provider === 'openai-codex') {
+    const oldOAuth = oauthCredential(account.credential)
+    const newOAuth = oauthCredential(credential)
+    const owner = codexIdentity(account.credential).ownerId
+    if (oldOAuth !== undefined && newOAuth !== undefined && codexIdentity(credential).ownerId === owner) {
+      for (const alias of Object.values(provider.accounts)) {
+        if (alias.id === account.id) continue
+        const oauth = oauthCredential(alias.credential)
+        if (oauth?.refresh !== oldOAuth.refresh || codexIdentity(alias.credential).ownerId !== owner) continue
+        accounts[alias.id] = {
+          ...alias,
+          credential: { kind: 'grant', payload: jsonImage({ ...oauth, refresh: newOAuth.refresh }) },
+        }
+      }
+    }
+  }
+  return replaceProviderVault(vault, account.provider, { ...provider, accounts })
+}
+
 function setActive(vault: AccountVault, provider: AccountProviderId, accountId: string): AccountVault {
   const current = vault.providers[provider]
   if (current === undefined) return vault
@@ -934,23 +1021,6 @@ function bestCodexReplacement(
   return accounts
     .filter(candidate => candidate.id !== active.id && accountHasStandardCapacity(candidate))
     .map(candidate => ({ candidate, rank: codexReplacementRank(activeIdentity, codexIdentity(candidate.credential)) }))
-    .filter((entry): entry is { readonly candidate: StoredAccount; readonly rank: number } => entry.rank !== undefined)
-    .sort((left, right) => standardUsagePressure(left.candidate) - standardUsagePressure(right.candidate)
-      || left.rank - right.rank
-      || left.candidate.createdAt - right.candidate.createdAt)[0]?.candidate
-}
-
-function bestCodexRecovery(
-  failed: StoredAccount,
-  accounts: readonly StoredAccount[],
-): StoredAccount | undefined {
-  const failedIdentity = codexIdentity(failed.credential)
-  return accounts
-    .filter(accountHasStandardCapacity)
-    .map(candidate => ({
-      candidate,
-      rank: candidate.id === failed.id ? 0 : codexReplacementRank(failedIdentity, codexIdentity(candidate.credential)),
-    }))
     .filter((entry): entry is { readonly candidate: StoredAccount; readonly rank: number } => entry.rank !== undefined)
     .sort((left, right) => standardUsagePressure(left.candidate) - standardUsagePressure(right.candidate)
       || left.rank - right.rank
@@ -1223,17 +1293,21 @@ function sameRecord(left: CredentialRecord | undefined, right: CredentialRecord 
   return JSON.stringify(left) === JSON.stringify(right)
 }
 
-async function writeRecord(credentials: CredentialProvider, key: CredentialKey, record: CredentialRecord): Promise<void> {
-  await credentials.modifyRecord(key, () => Promise.resolve(record))
-}
-
-async function restoreRecord(
+async function replaceRecord(
   credentials: CredentialProvider,
   key: CredentialKey,
-  record: CredentialRecord | undefined,
+  expected: CredentialRecord | undefined,
+  next: CredentialRecord | undefined,
 ): Promise<void> {
-  if (record === undefined) await credentials.deleteRecord(key)
-  else await writeRecord(credentials, key, record)
+  if (next === undefined) {
+    if (!sameRecord(await credentials.readRecord(key), expected)) throw unavailable('account credential changed during selection')
+    await credentials.deleteRecord(key)
+    return
+  }
+  await credentials.modifyRecord(key, (current) => {
+    if (!sameRecord(current, expected)) throw unavailable('account credential changed during selection')
+    return Promise.resolve(next)
+  })
 }
 
 function answerDesktopPrompt(prompt: AuthorizationPrompt, requestSignal: AbortSignal): Promise<string> {

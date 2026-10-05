@@ -115,11 +115,12 @@ cancel(key: CredentialKey): void
  * joined: the two would be prompting different humans through the same flow,
  * and the second would answer questions the first was asked.
  *
- * @param request - the key, the method, the surface, and the cancel signal.
+ * @param request - flow key, method, interaction, cancel signal, and optional staging destination.
  * @returns `authorized` once the flow's record is committed during this
  *   attempt and observed, or `cancelled` when the human declined or the
  *   caller withdrew.
  * @throws {AuthorizationError} code `NO_FLOW` when nothing claims the key,
+ *   `UNSUPPORTED_DESTINATION` when an alternate destination is not supported,
  *   `UNKNOWN_METHOD` when the named method is not one the flow offers,
  *   `ALREADY_IN_FLIGHT` when an attempt is already running for the key, or
  *   `NOT_COMMITTED` when the flow resolved without committing a record
@@ -176,6 +177,16 @@ abstract set(ref: CredentialRef, value: string): Promise<void>
  * @param ref - the reference to remove.
  */
 abstract unset(ref: CredentialRef): Promise<void>
+
+/**
+ * Serialize cooperating record operations on this provider instance, including
+ * network refresh and multi-record commits. Raw record methods do not acquire
+ * this exclusion; callbacks may call them but must not nest `withRecords` or
+ * nest a record mutation inside another record mutation.
+ * @param run - operation admitted after the previous cooperating operation settles.
+ * @returns the operation's result; failures release admission for the next operation.
+ */
+async withRecords<T>(run: () => Promise<T>): Promise<T>
 
 /**
  * Read one stored record. The value is returned as its owner wrote it; a

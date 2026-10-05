@@ -36,8 +36,8 @@ Manage several local identities per provider while keeping one canonical active 
 @Remote async describe(): Promise<AccountsState>
 
 /**
- * Add an OAuth-backed identity through the provider's installed browser flow.
- * A later account is saved without replacing the currently active identity.
+ * Authorize an identity through a staged browser flow without replacing the active account.
+ * Only the first saved identity becomes active automatically.
  * @param provider - installed OAuth-capable provider to authorize.
  * @param signal - cancellation for browser opening, prompts, and provider authorization.
  * @returns whether authorization completed or the user cancelled it.

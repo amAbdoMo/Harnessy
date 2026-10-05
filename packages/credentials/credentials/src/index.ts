@@ -168,6 +168,8 @@ declare module '@deepseek-ai/cordis' {
  * one lock).
  */
 export abstract class CredentialProvider extends Service {
+  private recordsTail: Promise<void> = Promise.resolve()
+
   constructor(ctx: Context) {
     super(ctx, 'credentials')
   }
@@ -207,6 +209,26 @@ export abstract class CredentialProvider extends Service {
    * @param ref - the reference to remove.
    */
   abstract unset(ref: CredentialRef): Promise<void>
+
+  /**
+   * Serialize cooperating record operations on this provider instance, including
+   * network refresh and multi-record commits. Raw record methods do not acquire
+   * this exclusion; callbacks may call them but must not nest `withRecords` or
+   * nest a record mutation inside another record mutation.
+   * @param run - operation admitted after the previous cooperating operation settles.
+   * @returns the operation's result; failures release admission for the next operation.
+   */
+  async withRecords<T>(run: () => Promise<T>): Promise<T> {
+    const previous = this.recordsTail
+    let release!: () => void
+    this.recordsTail = new Promise<void>((resolve) => { release = resolve })
+    await previous
+    try {
+      return await run()
+    } finally {
+      release()
+    }
+  }
 
   /**
    * Read one stored record. The value is returned as its owner wrote it; a

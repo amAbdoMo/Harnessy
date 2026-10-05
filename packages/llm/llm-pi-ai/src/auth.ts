@@ -88,7 +88,7 @@ function toPiCredential(record: CredentialRecord | undefined): Credential | unde
  * @param credential - what a login or refresh produced.
  * @returns the record to commit, in the union the credential seam stores.
  */
-function toRecord(credential: Credential): CredentialRecord {
+export function toRecord(credential: Credential): CredentialRecord {
   if (credential.type === 'api_key') {
     return {
       kind: 'api-key',
@@ -169,10 +169,11 @@ export function credentialStoreFrom(ctx: Context): CredentialStore {
           'UNSTORABLE_PROVIDER_ID',
         )
       }
-      const stored = await writableStore(ctx).modifyRecord(recordKeyFor(providerId), async (current) => {
+      const credentials = writableStore(ctx)
+      const stored = await credentials.withRecords(() => credentials.modifyRecord(recordKeyFor(providerId), async (current) => {
         const next = await mutate(toPiCredential(current))
         return next === undefined ? undefined : toRecord(next)
-      })
+      }))
       return toPiCredential(stored)
     },
     // `async` so a missing service reaches the caller as a rejection: pi-ai's

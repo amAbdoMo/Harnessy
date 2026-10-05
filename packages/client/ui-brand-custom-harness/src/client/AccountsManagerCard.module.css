@@ -59,7 +59,6 @@
 .summary,
 .sectionDescription,
 .accountIdentity span,
-.privacy,
 .error,
 .waiting,
 .usageUnavailable,
@@ -74,7 +73,6 @@
 .summary,
 .sectionDescription,
 .accountIdentity span,
-.privacy,
 .waiting,
 .usageUnavailable,
 .resetTime,
@@ -87,7 +85,7 @@
 
 .managerDialog {
   width: min(940px, calc(100vw - 40px));
-  max-height: calc(100vh - 40px);
+  max-height: 100%;
   padding-bottom: 0;
 }
 
@@ -97,23 +95,23 @@
   min-height: 0;
   overflow: auto;
 }
+.managerContent > div:first-child { padding: 16px; }
 .managerContent > div:last-child { margin-top: 0; padding: 0; }
 
 .managerLayout {
   display: grid;
   grid-template-columns: 190px minmax(0, 1fr);
-  min-height: 590px;
   border-top: 0.5px solid var(--dsw-alias-border-l4);
   /* First-row inset both columns start from, so the account pane's toolbar
      begins level with the provider rail's first row. */
-  --dsh-accounts-row-inset: 18px;
+  --dsh-accounts-row-inset: 16px;
 }
 
 .providerRail {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: var(--dsh-accounts-row-inset) 12px;
+  padding: var(--dsh-accounts-row-inset);
   border-right: 0.5px solid var(--dsw-alias-border-l4);
   background: var(--dsw-alias-bg-layer-1);
 }
@@ -176,7 +174,7 @@
 
 .accountPane {
   min-width: 0;
-  padding: var(--dsh-accounts-row-inset) 20px 20px;
+  padding: var(--dsh-accounts-row-inset);
 }
 
 .accountToolbar { margin: 0 0 12px; }
@@ -317,7 +315,6 @@
 .resetTime { display: block; margin-top: 4px; font-size: 10px; line-height: 15px; }
 .usageUnavailable { margin-top: 12px; padding-top: 10px; border-top: 0.5px solid var(--dsw-alias-border-l4); }
 .usageGrid > .usageUnavailable { grid-column: 1 / -1; margin-top: 0; padding-top: 0; border-top: 0; }
-.privacy { margin-top: 14px; text-align: center; }
 
 .empty {
   display: flex;

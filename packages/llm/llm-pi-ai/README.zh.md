@@ -92,7 +92,7 @@ kind: "package-reference"
 
 ### 登录提供方
 
-pi-ai 提供登录的提供方可以通过 harness 授权 seam 登录：流程提供 OAuth 或交互式密钥提示（密钥键入 pi-ai 自己的登录提示，而非设置表单），得到的凭据存储在 harness 凭据存储的 `llm-pi-ai/<provider id>` 记录中。存储的登录在其路由的 `apiKeyEnv` 覆盖之下完成认证，并在存储的跨进程锁下自行刷新；退出登录即删除存储记录。落在记录文法之外——小写连字符标识符——的手工声明路由键无法登录，因为对它的记录写入会以 `LlmError('UNSTORABLE_PROVIDER_ID')` 拒绝；这类路由改用 `apiKeyEnv` 或提供方 ambient 设置认证。
+pi-ai 提供登录的提供方可以通过 harness 授权 seam 登录：流程提供 OAuth 或交互式密钥提示（密钥键入 pi-ai 自己的登录提示，而非设置表单），得到的凭据存储在 harness 凭据存储的 `llm-pi-ai/<provider id>` 记录中。登录通过 `AuthorizationSession.commit` 写入，也支持调用方为额外账户选定的暂存目标。Codex catalog stream 在 dispatch 时按 Session、端点与已解析请求凭据的哈希区分原生 WebSocket 复用；切换只影响后续调用，不中断正在运行的 stream。旧 socket 按 pi-ai 原生过期规则清理，不在选择账户时关闭。存储的登录在其路由的 `apiKeyEnv` 覆盖之下完成认证，并在存储的跨进程锁下自行刷新；退出登录即删除存储记录。落在记录文法之外——小写连字符标识符——的手工声明路由键无法登录，因为对它的记录写入会以 `LlmError('UNSTORABLE_PROVIDER_ID')` 拒绝；这类路由改用 `apiKeyEnv` 或提供方 ambient 设置认证。
 
 ### 解析模型目录
 
@@ -110,7 +110,7 @@ profile 的 `models` 列表会替换而非扩展路由的已安装目录；每�
 
 ### 从端点发现模型
 
-插件会回答「该提供方可以提供哪些模型？」，供配置界面正在编辑或起草的路由使用。已安装目录提供的路由直接由目录回答，不发网络请求，并将其 `input` 数组保留为发现结果的 `inputModalities`；只有目录未描述的路由才会经网络询问。`openai-completions` 与 `openai-responses` 使用带 bearer 鉴权的 `GET {baseURL}/models`，`anthropic-messages` 则以 `x-api-key` 和 `anthropic-version` 使用原生 `GET /v1/models?limit=1000` 语义；其列表 URL 接受带或不带末尾 `/v1` 的 API 根地址，因为网关文档两种写法都会发布，且只有该列表 URL 会归一化这一段，模型请求收到的仍是配置原样的 `baseURL`。已配置且具名的路由会在 Host 内部提供已存凭据与 profile `headers`，因此通过 `cordis.patch.yml` 或 Cordis 配置设置的部署标头可以到达模型发现请求，但不会成为发现请求或 Models 页面的字段；表单中新键入的密钥仍优先于已存凭据。解析器接受标准 `data` 数组或富信息 `models` 对象，并归一化每个候选的 id、显示名、上下文窗口与最大输出 token 数；Anthropic 的 `max_input_tokens` 与 `max_tokens` 会进入相同容量字段，即使对象条目点名了另一个规范 id，对象键仍是请求 id，原始类型的对象属性会被忽略，缺失的显示名则回退到该请求 id。回答是界面可以提供给用户采纳的候选元数据——不存储任何内容，`cordis.patch.yml` 仍然是决定路由服务内容的唯一事实。
+发现操作获取端点当前的模型成员，包括比已安装目录更新的模型。只有完全相同的已安装 id 才会补齐缺失的容量、输入模态和推理级别，不会添加端点未返回的模型。内置路由使用原生端点，并通过与模型请求相同的凭据桥调用 pi-ai `Models.getAuth`，包括加锁的 OAuth 刷新；尚未配置路由时也可使用。草稿显式提供的 `baseURL`、`api` 和 `apiKey` 优先于已存默认值，已配置 profile 的 `headers` 仍由 Host 提供。OpenAI 兼容协议使用 bearer 鉴权的 `GET {baseURL}/models`；Anthropic 使用 `GET /v1/models?limit=1000`、`x-api-key` 和 `anthropic-version`，接受带或不带 `/v1` 的根地址，并以 `after_id` 遍历 `has_more`。Codex 使用[上游 0.160.0 发行版](https://github.com/openai/codex/releases/tag/rust-v0.160.0)的原生后端 `/codex/models?client_version=0.160.0` 协议、已解析的 OAuth bearer token、其中的 `chatgpt-account-id` 声明以及 pi-ai 的 `originator: pi`。原生 `models` 数组条目保留 `slug`、显示名、容量、模态和明确声明的推理级别；兼容的 `data` 数组及富信息 `models` 对象仍受支持。发现期间凭据发生变化会以 `DISCOVERY_STALE` 拒绝结果；鉴权、网络及解析失败绝不会静默返回静态目录。尚未实现列表端点的内置协议明确仅提供目录结果；显式指定不支持的草稿协议或端点则以 `DISCOVERY_UNSUPPORTED` 失败。候选模型需显式采纳并保存：发现操作既不更改运行时模型，也不更改路由配置。
 
 ### 失败与恢复
 
@@ -221,7 +221,7 @@ pi-ai 事件变成 harness 的推理、文本、工具调用、用量与 finish 
 - **完整替换 Config 可以移除继承的字典条目**——字段重置则恢复其继承值。
 - **`headers` 可以携带 redactor 永远看不到的凭据**——profile 解析会拒绝 Fetch 无法表示的名称与值，但该字典仍是纯字符串；以 `apiKeyEnv` 引用存储凭据。
 - **发现操作不更改已配置模型**——需显式将发现结果采纳到路由配置中。
-- **Anthropic 模型发现最多读取 1,000 个模型**——请求使用 API 的最大页大小，但不会遍历 `has_more`；第一页之外的条目需要手工添加。
+- **发现操作限制完整结果的资源用量**——全部分页须在 15 秒内完成，合计不超过 4 MiB；Anthropic 最多遍历 10 页，每页 1,000 个模型。游标缺失或重复，或者达到页数上限仍有后续页，均以 `DISCOVERY_TRUNCATED` 拒绝，而不是返回不完整的列表。
 - **每条路由一种协议格式**——混合协议目录路由无法承载另一协议格式的模型；把提供方拆到两个路由键是变通办法。
 - **模态声明不受校验**——声明 `image` 而其网关不支持的模型会在提示词准入后被提供方拒绝。持久图片仍留在历史中，同一误声明模型可能再次失败；切换到纯文本模型仍然可行，因为共享 LLM 运行时会针对该请求把图片引用投影为稳定文本。
 - **未认证路由取决于其协议**——不点名凭据的路由解析为已配置但无密钥，但 pi-ai 的 OpenAI 兼容实现仍要求 API 密钥或 `Authorization` 标头，因此无密钥本地服务器需要由 `apiKeyEnv` 引用或 `headers` 中的 `Authorization` 条目提供的占位凭据。

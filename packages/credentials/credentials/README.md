@@ -80,6 +80,8 @@ await ctx.credentials.deleteRecord(key)                  // no-op when absent
 
 `modifyRecord` is the only write path: it hands your mutation the record as it stands at the moment the write is exclusive, and returning `undefined` leaves the entry untouched. Records have no empty-value rule — a record carrying neither a key nor environment values states that its owner confirmed ambient authentication — and a configuration UI can enumerate every record to show what you are authorized for and find records a removed plugin left behind.
 
+`withRecords(run)` serializes cooperative operations on this service instance, such as account selection and OAuth refresh that coordinate multiple records. Inside it, use ordinary record reads and writes; never nest `withRecords` or acquire it from a `modifyRecord` mutation. This in-process exclusion is separate from the provider's cross-process per-write locking and does not make unrelated record callers transactional.
+
 ### Using a key in configuration
 
 A settings section or `cordis.yml` entry names a key instead of containing it — an LLM adapter, for example, takes `apiKeyEnv`:

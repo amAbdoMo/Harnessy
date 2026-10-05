@@ -395,7 +395,6 @@ export function AccountsManagerCard({
                   })}
                 </div>
               )}
-            <p className={css.privacy}>{t('accountsPrivacy')}</p>
           </div>
         </div>
       </Modal>

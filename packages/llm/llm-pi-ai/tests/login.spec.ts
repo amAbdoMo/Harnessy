@@ -6,17 +6,19 @@ import { Context } from '@deepseek-ai/cordis'
 import AuthorizationService from '@deepseek-ai/dsh-authorization'
 import type { AuthorizationInteraction, AuthorizationNotice, AuthorizationPrompt } from '@deepseek-ai/dsh-authorization'
 import LocalCredentialProvider from '@deepseek-ai/dsh-credentials-local'
-import type { CredentialKey } from '@deepseek-ai/dsh-credentials'
-import type { AuthEvent, AuthInteraction, AuthPrompt, AuthType, Credential } from '@earendil-works/pi-ai'
+import { credentialKey, type CredentialKey } from '@deepseek-ai/dsh-credentials'
+import type { AuthEvent, AuthInteraction, AuthPrompt, AuthType, Credential, CredentialStore } from '@earendil-works/pi-ai'
 
-const login = vi.hoisted(() => vi.fn())
+const { login, loginStores } = vi.hoisted(() => ({ login: vi.fn(), loginStores: new Map<string, CredentialStore>() }))
 
 // The whole of what this module does with pi-ai is run one provider's login
 // against a collection built with the harness store, so the collection is the
 // boundary worth observing; a real login would open a browser.
 vi.mock('../src/models.ts', async importOriginal => ({
   ...await importOriginal<typeof import('../src/models.ts')>(),
-  createModels: () => ({ setProvider: () => {}, login }),
+  createModels: (options: { credentials: CredentialStore }) => ({
+    setProvider: (provider: { id: string }) => { loginStores.set(provider.id, options.credentials) }, login,
+  }),
 }))
 
 const { credentialStoreFrom, authContextFrom, recordKeyFor } = await import('../src/auth.ts')
@@ -24,12 +26,14 @@ const { registerPiAiFlows } = await import('../src/login.ts')
 
 const CODEX = recordKeyFor('openai-codex')
 const dirs: string[] = []
+const contexts: Context[] = []
 
 /** A context with the record store, the seam, and every pi-ai login flow. */
 async function harness(): Promise<Context> {
   const dir = await mkdtemp(join(tmpdir(), 'dsh-pi-login-'))
   dirs.push(dir)
   const ctx = new Context()
+  contexts.push(ctx)
   await ctx.plugin(LocalCredentialProvider, { path: join(dir, '.credentials.yaml'), watch: false })
   await ctx.plugin(AuthorizationService)
   registerPiAiFlows(ctx, { credentials: credentialStoreFrom(ctx), authContext: authContextFrom(ctx) })
@@ -58,25 +62,28 @@ function surface(answer = 'typed'): AuthorizationInteraction & {
 async function attempt(
   ctx: Context,
   converse: (interaction: AuthInteraction) => Promise<void>,
-  request: { key?: CredentialKey; method?: string } = {},
+  request: { key?: CredentialKey; method?: string; destination?: CredentialKey } = {},
 ): Promise<ReturnType<typeof surface>> {
   const ui = surface()
   login.mockImplementation(async (providerId: string, _type: AuthType, interaction: AuthInteraction) => {
     await converse(interaction)
     const granted: Credential = { type: 'oauth', access: 'at', refresh: 'rt', expires: 1 }
-    await credentialStoreFrom(ctx).modify(providerId, () => Promise.resolve(granted))
+    await loginStores.get(providerId)!.modify(providerId, () => Promise.resolve(granted))
     return granted
   })
   await expect(ctx.authorization.begin({
     key: request.key ?? CODEX,
     interaction: ui,
     ...request.method === undefined ? {} : { method: request.method },
+    ...request.destination === undefined ? {} : { destination: request.destination },
   })).resolves.toEqual({ status: 'authorized' })
   return ui
 }
 
 afterEach(async () => {
   login.mockReset()
+  loginStores.clear()
+  for (const ctx of contexts.splice(0).reverse()) await ctx.fiber.dispose()
   await Promise.all(dirs.splice(0).map(dir => rm(dir, { recursive: true, force: true })))
 })
 
@@ -116,6 +123,18 @@ describe('pi-ai login flows', () => {
     await expect(ctx.credentials.readRecord(CODEX)).resolves.toEqual({
       kind: 'grant',
       payload: { type: 'oauth', access: 'at', refresh: 'rt', expires: 1 },
+    })
+  })
+
+  it('commits additional login through the selected destination without replacing active auth', async () => {
+    const ctx = await harness()
+    const destination = credentialKey('account-manager', 'pending-login')
+    const active = { kind: 'grant', payload: { type: 'oauth', access: 'active', refresh: 'active-refresh', expires: 1 } } as const
+    await ctx.credentials.modifyRecord(CODEX, () => Promise.resolve(active))
+    await attempt(ctx, () => Promise.resolve(), { destination })
+    expect(await ctx.credentials.readRecord(CODEX)).toEqual(active)
+    expect(await ctx.credentials.readRecord(destination)).toEqual({
+      kind: 'grant', payload: { type: 'oauth', access: 'at', refresh: 'rt', expires: 1 },
     })
   })
 

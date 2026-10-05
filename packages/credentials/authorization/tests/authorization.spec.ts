@@ -119,6 +119,40 @@ describe('AuthorizationService.begin', () => {
     expect(settled).toHaveBeenCalledWith(KEY, 'authorized')
   })
 
+  it('stages a new credential without replacing the active record', async () => {
+    const ctx = await harness()
+    const destination = credentialKey('accounts', 'pending-login')
+    const active = { kind: 'grant', payload: { token: 'active' } } as const
+    await ctx.credentials.modifyRecord(KEY, () => Promise.resolve(active))
+    ctx.authorization.registerFlow({
+      key: KEY, label: 'ChatGPT', methods: [{ id: 'oauth', label: 'Sign in' }], supportsDestination: true,
+      run: session => session.commit({ kind: 'grant', payload: { token: 'new-person' } }),
+    })
+    try {
+      await expect(ctx.authorization.begin({ key: KEY, destination, interaction: surface() }))
+        .resolves.toEqual({ status: 'authorized' })
+      expect(await ctx.credentials.readRecord(KEY)).toEqual(active)
+      expect(await ctx.credentials.readRecord(destination)).toEqual({ kind: 'grant', payload: { token: 'new-person' } })
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
+
+  it('refuses alternate destinations before running a flow that writes its own store', async () => {
+    const ctx = await harness()
+    const flow = committingFlow(ctx)
+    const run = vi.fn((session: AuthorizationSession) => flow.run(session))
+    ctx.authorization.registerFlow({ ...flow, run })
+    try {
+      await expect(ctx.authorization.begin({ key: KEY, destination: OTHER, interaction: surface() }))
+        .rejects.toMatchObject({ code: 'UNSUPPORTED_DESTINATION' })
+      expect(run).not.toHaveBeenCalled()
+      expect(await ctx.credentials.readRecord(KEY)).toBeUndefined()
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('runs the flow first method when the caller names none, and the named one when it does', async () => {
     const ctx = await harness()
     const seen: string[] = []
