@@ -21,7 +21,7 @@ import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import { profileComposition } from '../../../settings/settings/tests/profile-composition.ts'
 import AccountsController from '../src/accounts.ts'
-import type { AccountAutoSwitchEvent } from '../src/types.ts'
+import type { AccountAutoSwitchEvent, AccountsState } from '../src/types.ts'
 
 const NOW = 1_800_000_000_000
 const KEY = credentialKey('llm-pi-ai', 'zai')
@@ -44,6 +44,7 @@ class ProviderWire {
   }[] = []
   readonly usageRequests: string[] = []
   readonly usage = new Map<string, number>([['personal', 10], ['workspace', 20]])
+  failFirstCodexQuota = false
 
   readonly fetch: typeof fetch = async (input, init) => {
     const request = new Request(input, init)
@@ -72,6 +73,10 @@ class ProviderWire {
         request.signal.addEventListener('abort', abort, { once: true })
         void this.release.promise.then(() => { request.signal.removeEventListener('abort', abort) })
       })])
+    }
+    if (this.failFirstCodexQuota && ordinal === 0 && url.hostname === 'chatgpt.com') {
+      this.usage.set('personal', 100)
+      return Response.json({ error: { message: 'You have hit your ChatGPT usage limit.', type: 'usage_limit_reached' } }, { status: 429 })
     }
     return sse(url.hostname === 'accounts.invalid'
       ? completionsEvents(ordinal === 0 ? 'first answer' : 'second answer')
@@ -316,6 +321,60 @@ describe('accounts across real Loader turns', () => {
     expect(agent.session).toBe(session)
   })
 
+  it('pushes fresh usage after a real Codex request with automatic switching disabled', { timeout: 60_000 }, async () => {
+    const { ctx, http } = await loadComposition()
+    await ctx.settings.mutate('llm-pi-ai', [{ op: 'set', path: ['providers', 'openai-codex'], value: {
+      transport: 'sse', reasoning: 'off',
+    } }])
+    await seedCodex(ctx, 'personal')
+    await ctx.accountsController.setAutoSwitch('openai-codex', false)
+    const changes: AccountsState[] = []
+    ctx.on('accounts/changed', (state) => { changes.push(state) })
+    const [model] = await ctx.llm.discoverModels('llm-pi-ai', { provider: 'openai-codex' })
+    if (model === undefined) throw new Error('installed Codex catalog is empty')
+    const agent = await ctx.agentLoop.create(SessionId('codex-live-usage'), { provider: 'openai-codex', model: model.id })
+    followup(agent, 'first question')
+    await awaitRequest(agent, http)
+    expect(http.usageRequests).toEqual([])
+    http.usage.set('personal', 79)
+    http.release.resolve(undefined)
+    await agent.whenIdle()
+    await vi.waitFor(() => {
+      expect(changes.at(-1)?.accounts.find(account => account.active)?.usage?.windows[0]?.usedPercent).toBe(79)
+    })
+    expect(await ctx.credentials.readRecord(CODEX)).toEqual(codexGrant('personal'))
+    expect(transcript(agent)).toEqual([
+      { role: 'system', text: 'You are an AI agent powered by DeepSeek Harness.' },
+      { role: 'user', text: 'first question' },
+      { role: 'assistant', text: 'first answer' },
+    ])
+  })
+
+  it('recovers a real Codex quota failure without racing post-stream usage against promotion', { timeout: 60_000 }, async () => {
+    const { ctx, http } = await loadComposition()
+    await ctx.settings.mutate('llm-pi-ai', [{ op: 'set', path: ['providers', 'openai-codex'], value: {
+      transport: 'sse', reasoning: 'off',
+    } }])
+    await seedCodex(ctx, 'personal')
+    http.failFirstCodexQuota = true
+    const switches: AccountAutoSwitchEvent[] = []
+    ctx.on('accounts/auto-switched', (event) => { switches.push(event) })
+    const [model] = await ctx.llm.discoverModels('llm-pi-ai', { provider: 'openai-codex' })
+    if (model === undefined) throw new Error('installed Codex catalog is empty')
+    const agent = await ctx.agentLoop.create(SessionId('codex-quota-recovery'), { provider: 'openai-codex', model: model.id })
+    followup(agent, 'first question')
+    await awaitRequest(agent, http)
+    http.release.resolve(undefined)
+    await agent.whenIdle()
+    expect(http.requests.map(request => request.membership)).toEqual(['personal', 'workspace'])
+    expect(switches.map(event => event.reason)).toEqual(['quota'])
+    expect(transcript(agent)).toEqual([
+      { role: 'system', text: 'You are an AI agent powered by DeepSeek Harness.' },
+      { role: 'user', text: 'first question' },
+      { role: 'assistant', text: 'second answer' },
+    ])
+  })
+
   it.each(['personal', 'workspace'] as const)('automatically fails over from %s while a Codex request is in flight', { timeout: 60_000 }, async (active) => {
     const { ctx, patchPath, http } = await loadComposition()
     await ctx.settings.mutate('llm-pi-ai', [{ op: 'set', path: ['providers', 'openai-codex'], value: {
@@ -364,7 +423,8 @@ describe('accounts across real Loader turns', () => {
       `Bearer ${codexGrant(active).payload.access}`,
       `Bearer ${codexGrant(replacement).payload.access}`,
     ])
-    expect(http.usageRequests).toEqual(['personal', 'workspace', 'personal', 'workspace', 'personal', 'workspace'])
+    expect(http.usageRequests.slice(0, 4)).toEqual([active, replacement, active, replacement])
+    expect(http.usageRequests.slice(4, 6)).toEqual([replacement, active])
     expect(session.snapshotEvents().slice(0, firstTurn.length)).toEqual(firstTurn)
     expect(transcript(agent)).toEqual([
       { role: 'system', text: 'You are an AI agent powered by DeepSeek Harness.' },

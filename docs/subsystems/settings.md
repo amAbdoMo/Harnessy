@@ -96,7 +96,7 @@ Manage several local identities per provider while keeping one canonical active 
 @Remote async deleteAccount(provider: AccountProviderId, accountId: string): Promise<AccountsState>
 
 /**
- * Refresh every supported usage snapshot for account-management and status surfaces.
+ * Refresh supported usage snapshots, active account first, and push each committed update.
  * @param signal - cancellation checked between accounts and forwarded to usage requests.
  * @returns the updated public account state with refreshed usage when available.
  */
@@ -315,6 +315,23 @@ Report one committed automatic Codex account promotion.
  * @mode emit
  */
 'accounts/auto-switched'(event: AccountAutoSwitchEvent): void
+```
+
+Source: [`packages/api/settings-controller/src/types.ts`](../../packages/api/settings-controller/src/types.ts)
+
+<a id="accountschanged--emit"></a>
+
+#### `accounts/changed` — emit
+
+Publish the redacted account snapshot after a committed vault change.
+
+```ts cordis-catalog
+/**
+ * Publish the redacted account snapshot after a committed vault change.
+ * @param state - current account identities, selection, and provider-reported usage.
+ * @mode emit
+ */
+'accounts/changed'(state: AccountsState): void
 ```
 
 Source: [`packages/api/settings-controller/src/types.ts`](../../packages/api/settings-controller/src/types.ts)

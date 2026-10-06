@@ -11,6 +11,7 @@
 | Event | Mode | Declared in | Dispatchers | Listeners |
 | --- | --- | --- | --- | --- |
 | `accounts/auto-switched` | `emit` | [`packages/api/settings-controller/src/types.ts:195`](../packages/api/settings-controller/src/types.ts) | `settings-controller` (`emit`) | `remotes` |
+| `accounts/changed` | `emit` | [`packages/api/settings-controller/src/types.ts:201`](../packages/api/settings-controller/src/types.ts) | `settings-controller` (`parallel`) | `remotes` |
 | `agent-loop/config-start-failed` | `emit` | [`packages/core/agent-loop/src/index.ts:238`](../packages/core/agent-loop/src/index.ts) | [`agent-loop`](../packages/core/agent-loop) (`events.dispatch`) | - |
 | `agent-preset/selected` | `emit` | [`packages/preset/agent-preset-registry/src/types.ts:69`](../packages/preset/agent-preset-registry/src/types.ts) | [`agent-preset-registry`](../packages/preset/agent-preset-registry) (`emit`) | `remotes` |
 | `agent/assistant-stream` | `emit` | [`packages/core/agent/src/runtime-types.ts:363`](../packages/core/agent/src/runtime-types.ts) | [`agent-loop`](../packages/core/agent-loop) (`emit`) | [`headless`](../packages/bundle/headless), `session-controller` |
@@ -57,7 +58,7 @@
 | `hmr/change` | `emit` | [`packages/boot/hmr/src/index.ts:32`](../packages/boot/hmr/src/index.ts) | [`hmr`](../packages/boot/hmr) (`emit`) | - |
 | `hmr/reload` | `emit` | [`packages/boot/hmr/src/index.ts:37`](../packages/boot/hmr/src/index.ts) | [`hmr`](../packages/boot/hmr) (`emit`) | - |
 | `llm/adapters-updated` | `emit` | [`packages/llm/llm/src/types.ts:23`](../packages/llm/llm/src/types.ts) | [`llm`](../packages/llm/llm) (`events.dispatch`) | [`acp`](../packages/acp/acp), `remotes` |
-| `llm/stream` | `waterfall` | [`packages/llm/llm/src/index.ts:77`](../packages/llm/llm/src/index.ts) | [`llm`](../packages/llm/llm) (`waterfall`) | [`llm-replay`](../packages/test-support/llm-replay), [`session-checkpoint-policy`](../packages/session/session-checkpoint-policy), [`session-title`](../packages/session/session-title) |
+| `llm/stream` | `waterfall` | [`packages/llm/llm/src/index.ts:77`](../packages/llm/llm/src/index.ts) | [`llm`](../packages/llm/llm) (`waterfall`) | [`llm-replay`](../packages/test-support/llm-replay), [`session-checkpoint-policy`](../packages/session/session-checkpoint-policy), [`session-title`](../packages/session/session-title), `settings-controller` |
 | `mcp/tool-call` | `waterfall` | [`packages/mcp/mcp-client/src/tools.ts:250`](../packages/mcp/mcp-client/src/tools.ts) | [`mcp-client`](../packages/mcp/mcp-client) (`waterfall`) | - |
 | `permission-presets/catalog-changed` | `emit` | [`packages/interaction/permission-presets/src/types.ts:48`](../packages/interaction/permission-presets/src/types.ts) | [`permission-presets`](../packages/interaction/permission-presets) (`events.dispatch`) | `remotes` |
 | `plugin-manager/changed` | `emit` | [`packages/boot/plugin-manager/src/types.ts:250`](../packages/boot/plugin-manager/src/types.ts) | [`plugin-manager`](../packages/boot/plugin-manager) (`emit`) | `remotes` |

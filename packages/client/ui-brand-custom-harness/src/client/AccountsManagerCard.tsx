@@ -103,7 +103,6 @@ export function AccountsManagerCard({
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState<AccountProviderId>('openai-codex')
   const [failure, setFailure] = useState<string | undefined>()
-  const [refreshing, setRefreshing] = useState(false)
   const [signingIn, setSigningIn] = useState(false)
   const [addingKey, setAddingKey] = useState(false)
   const [keyName, setKeyName] = useState('')
@@ -135,11 +134,9 @@ export function AccountsManagerCard({
     setFailure(undefined)
     const controller = new AbortController()
     attempt.current = controller
-    setRefreshing(true)
     const result = await operations.refreshUsage(controller.signal)
     if (attempt.current !== controller) return
     attempt.current = undefined
-    setRefreshing(false)
     if (result.error !== undefined) setFailure(result.error)
   }, [operations, presentModal])
 
@@ -155,7 +152,6 @@ export function AccountsManagerCard({
     attempt.current = undefined
     resetAttempt.current?.abort()
     resetAttempt.current = undefined
-    setRefreshing(false)
     setSigningIn(false)
     setConsumingReset(undefined)
     setAddingKey(false)
@@ -174,11 +170,9 @@ export function AccountsManagerCard({
     const controller = new AbortController()
     attempt.current = controller
     setFailure(undefined)
-    setRefreshing(true)
     const result = await operations.refreshUsage(controller.signal)
     if (attempt.current !== controller) return
     attempt.current = undefined
-    setRefreshing(false)
     if (result.error !== undefined) setFailure(result.error)
   }
 
@@ -233,7 +227,6 @@ export function AccountsManagerCard({
   const consumeResetCredit = async (account: ManagedAccountView): Promise<void> => {
     attempt.current?.abort()
     attempt.current = undefined
-    setRefreshing(false)
     const controller = new AbortController()
     const idempotencyKey = resetAttempts.current[account.id] ?? randomUUID()
     resetAttempts.current[account.id] = idempotencyKey
@@ -329,11 +322,6 @@ export function AccountsManagerCard({
                 <p className={css.sectionDescription}>{t('accountsSwitchDescription')}</p>
               </div>
               <div className={css.toolbarActions}>
-                <Button variant="outline" size="sm"
-                  disabled={refreshing || consumingReset !== undefined || provider?.usageAvailable !== true || accounts.length === 0}
-                  onClick={() => { void refresh() }}>
-                  {refreshing ? t('accountsRefreshing') : t('accountsRefresh')}
-                </Button>
                 <Button variant="primary" size="sm"
                   disabled={provider === undefined || !provider.available || signingIn || consumingReset !== undefined}
                   onClick={() => {

@@ -42,6 +42,16 @@ jobs:
         shell: pwsh
         run: pnpm exec tsc -b tsconfig.host.json --pretty false
 
+      - name: Build the Harnessy client
+        shell: pwsh
+        run: pnpm run build:custom-harness
+
+      - name: Test live account surfaces
+        shell: pwsh
+        env:
+          DSH_SNAPSHOT: replay
+        run: pnpm exec vitest run --config vitest.web.config.ts apps/web/tests/accounts-live-usage.expected.e2e.ts
+
       - name: Test Windows packaging policy
         shell: pwsh
         run: pnpm exec vitest run scripts/ci-workflow.spec.ts apps/desktop/tests/package-target.spec.ts apps/desktop/tests/macos-signature.spec.ts

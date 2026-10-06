@@ -1,7 +1,6 @@
 /** Harnessy occupants for brand slots, product tokens, and the About row. */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import { createSnapshotStore, type BoundActions } from '@deepseek-ai/dsh-client-store'
-import type { AccountsState } from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
@@ -248,27 +247,17 @@ export function apply(ctx: ClientContext): void {
     },
   }
   const accountsUsage = new AccountsUsageController(accountRemoteOperations)
-  const publishAccountState = async (
-    request: Promise<{ readonly state?: AccountsState; readonly error?: string }>,
-  ): Promise<{ readonly state?: AccountsState; readonly error?: string }> => {
-    const response = await request
-    accountsUsage.publish(response.state)
-    return response
-  }
   const accountOperations: AccountsManagerOperations = {
-    describe: () => publishAccountState(accountRemoteOperations.describe()),
+    describe: () => accountsUsage.request(() => accountRemoteOperations.describe()),
     addOAuth: (provider, signal) => accountRemoteOperations.addOAuth(provider, signal),
-    addApiKey: (provider, name, key) => publishAccountState(accountRemoteOperations.addApiKey(provider, name, key)),
-    activate: (provider, accountId) => publishAccountState(accountRemoteOperations.activate(provider, accountId)),
-    setAutoSwitch: (provider, enabled) => publishAccountState(accountRemoteOperations.setAutoSwitch(provider, enabled)),
-    consumeResetCredit: async (accountId, idempotencyKey, signal) => {
-      const response = await accountRemoteOperations.consumeResetCredit(accountId, idempotencyKey, signal)
-      accountsUsage.publish(response.state)
-      return response
-    },
-    rename: (provider, accountId, name) => publishAccountState(accountRemoteOperations.rename(provider, accountId, name)),
-    remove: (provider, accountId) => publishAccountState(accountRemoteOperations.remove(provider, accountId)),
-    refreshUsage: signal => publishAccountState(accountRemoteOperations.refreshUsage(signal)),
+    addApiKey: (provider, name, key) => accountsUsage.request(() => accountRemoteOperations.addApiKey(provider, name, key)),
+    activate: (provider, accountId) => accountsUsage.request(() => accountRemoteOperations.activate(provider, accountId)),
+    setAutoSwitch: (provider, enabled) => accountsUsage.request(() => accountRemoteOperations.setAutoSwitch(provider, enabled)),
+    consumeResetCredit: (accountId, idempotencyKey, signal) =>
+      accountsUsage.request(() => accountRemoteOperations.consumeResetCredit(accountId, idempotencyKey, signal)),
+    rename: (provider, accountId, name) => accountsUsage.request(() => accountRemoteOperations.rename(provider, accountId, name)),
+    remove: (provider, accountId) => accountsUsage.request(() => accountRemoteOperations.remove(provider, accountId)),
+    refreshUsage: () => accountsUsage.refresh(true),
   }
   const accountsMenuStore = createAccountsMenuStore()
   const settingsSectionRequest = createSnapshotStore<string | undefined>(undefined)
@@ -284,10 +273,12 @@ export function apply(ctx: ClientContext): void {
       manage: () => { settingsSectionRequest.set('custom-harness-mcp') },
     }),
   }, McpSessionStatus))
+  ctx.effect(() => ctx.remote.$on('accounts/changed', (state) => {
+    accountsUsage.publish(state)
+  }), 'custom-harness: live account snapshots')
   ctx.effect(() => accountsUsage.start(), 'custom-harness: automatic account usage refresh')
   ctx.effect(() => ctx.remote.$on('accounts/auto-switched', (event) => {
     publishNotification(accountSwitchNotification(event))
-    void publishAccountState(accountRemoteOperations.describe())
   }), 'custom-harness: account switch notifications')
   const account = (): AccountsManagerInjected => ({
     hooks: { accounts: accountsUsage.state },

@@ -126,6 +126,7 @@ describe('Harnessy account manager', () => {
     renderManager(api)
     fireEvent.click(await screen.findByRole('button', { name: en.accountsManage }))
     await waitFor(() => { expect(api.refreshUsage).toHaveBeenCalledTimes(1) })
+    expect(screen.queryByRole('button', { name: /refresh/i })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: en.close }))
     fireEvent.click(screen.getByRole('button', { name: en.accountsManage }))
     await waitFor(() => { expect(api.refreshUsage).toHaveBeenCalledTimes(2) })

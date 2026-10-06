@@ -2,11 +2,12 @@ import { setImmediate } from 'node:timers/promises'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { agentEvents, type Agent } from '@deepseek-ai/dsh-agent'
+import LlmRuntime, { LlmAdapter, type GenerateOptions, type StreamChunk } from '@deepseek-ai/dsh-llm'
 import AuthorizationService from '@deepseek-ai/dsh-authorization'
 import { credentialKey } from '@deepseek-ai/dsh-credentials'
 import { remoteMethods } from '@deepseek-ai/dsh-typert-protocol'
 import AccountsController from '../src/accounts.ts'
-import type { AccountAutoSwitchEvent } from '../src/types.ts'
+import type { AccountAutoSwitchEvent, AccountsState } from '../src/types.ts'
 import { MemoryCredentials } from '../../../credentials/credentials/tests/memory.ts'
 import { MemorySettings } from './memory-settings.ts'
 import { credentialStoreFrom } from '@deepseek-ai/dsh-llm-pi-ai/src/auth.ts'
@@ -124,7 +125,96 @@ function usageResponse(primaryUsedPercent: number, secondaryUsedPercent = primar
   }), { status: 200 })
 }
 
+class UsageStreamAdapter extends LlmAdapter {
+  constructor(private readonly outcome: 'success' | 'error' = 'success') { super() }
+
+  async *stream(_options: GenerateOptions): AsyncIterable<StreamChunk> {
+    yield { type: 'block-start', index: 0, blockType: 'text' }
+    if (this.outcome === 'error') throw new Error('fixture provider failure')
+    yield { type: 'block-end', index: 0, block: { type: 'text', text: '' } }
+    yield { type: 'finish', reason: { kind: 'stop' } }
+  }
+}
+
+async function drainUsageStream(ctx: Context, provider = 'openai-codex'): Promise<void> {
+  for await (const _chunk of ctx.llm.stream({ provider, model: 'fixture', messages: [] })) { /* drain provider */ }
+}
+
 describe('the Harnessy accounts Remote namespace', () => {
+  it.each(['success', 'error', 'early-close'] as const)('refreshes Codex usage after %s without delaying stream settlement', async (outcome) => {
+    const pending = Promise.withResolvers<Response>()
+    const fetchUsage = vi.fn(() => pending.promise)
+    const { ctx, controller } = await boot({ fetchUsage })
+    await ctx.plugin(LlmRuntime)
+    ctx.llm.registerAdapter(['openai-codex', 'other'], new UsageStreamAdapter(outcome === 'error' ? 'error' : 'success'))
+    await ctx.credentials.modifyRecord(credentialKey('llm-pi-ai', 'openai-codex'), () =>
+      Promise.resolve(codexGrant('abdo@example.com', 'account-a')))
+    await controller.describe()
+    const changes: AccountsState[] = []
+    ctx.on('accounts/changed', (state) => { changes.push(state) })
+    try {
+      await drainUsageStream(ctx, 'other')
+      expect(fetchUsage).not.toHaveBeenCalled()
+      if (outcome === 'early-close') {
+        for await (const _chunk of ctx.llm.stream({ provider: 'openai-codex', model: 'fixture', messages: [] })) break
+      } else {
+        await drainUsageStream(ctx)
+      }
+      await vi.waitFor(() => { expect(fetchUsage).toHaveBeenCalledOnce() })
+      expect(changes).toEqual([])
+      pending.resolve(usageResponse(79))
+      await vi.waitFor(() => { expect(changes.at(-1)?.accounts[0]?.usage?.windows[0]?.usedPercent).toBe(79) })
+    } finally {
+      pending.resolve(usageResponse(79))
+    }
+  })
+
+  it('coalesces stream completions into one follow-up and aborts background usage on disposal', async () => {
+    const first = Promise.withResolvers<Response>()
+    const fetchUsage = vi.fn<typeof fetch>()
+      .mockImplementationOnce(() => first.promise)
+      .mockImplementation(async (_input, init) => new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => { reject(new Error('fixture usage aborted')) }, { once: true })
+      }))
+    const { ctx, controller } = await boot({ fetchUsage })
+    await ctx.plugin(LlmRuntime)
+    ctx.llm.registerAdapter(['openai-codex'], new UsageStreamAdapter())
+    await ctx.credentials.modifyRecord(credentialKey('llm-pi-ai', 'openai-codex'), () =>
+      Promise.resolve(codexGrant('abdo@example.com', 'account-a')))
+    await controller.describe()
+    try {
+      await drainUsageStream(ctx)
+      await vi.waitFor(() => { expect(fetchUsage).toHaveBeenCalledOnce() })
+      await Promise.all([drainUsageStream(ctx), drainUsageStream(ctx), drainUsageStream(ctx)])
+      expect(fetchUsage).toHaveBeenCalledOnce()
+      first.resolve(usageResponse(20))
+      await vi.waitFor(() => { expect(fetchUsage).toHaveBeenCalledTimes(2) })
+      const signal = fetchUsage.mock.calls[1]?.[1]?.signal
+      await ctx.fiber.dispose()
+      expect(signal?.aborted).toBe(true)
+      expect(fetchUsage).toHaveBeenCalledTimes(2)
+    } finally {
+      first.resolve(usageResponse(20))
+    }
+  })
+
+  it('contains failed snapshot observers after a committed selection and still notifies other observers', async () => {
+    const { ctx, controller } = await boot()
+    await controller.addApiKey('zai', 'First', 'fixture-one')
+    const second = (await controller.addApiKey('zai', 'Second', 'fixture-two')).accounts.find(account => !account.active)!
+    const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => {})
+    ctx.on('accounts/changed', () => { throw new Error('fixture synchronous observer failure') })
+    // oxlint-disable-next-line typescript/no-misused-promises -- Async emit rejection is deliberately tested.
+    ctx.on('accounts/changed', async () => { throw new Error('fixture asynchronous observer failure') })
+    const observed = vi.fn()
+    ctx.on('accounts/changed', observed)
+    const state = await controller.activate('zai', second.id)
+    expect(state.accounts.find(account => account.active)?.id).toBe(second.id)
+    expect(await ctx.credentials.readRecord(credentialKey('llm-pi-ai', 'zai'))).toEqual({ kind: 'api-key', key: 'fixture-two' })
+    expect(observed).toHaveBeenCalledWith(state)
+    await vi.waitFor(() => { expect(warn).toHaveBeenCalledOnce() })
+  })
+
   it('owns the account-management methods and reports unavailable composition safely', async () => {
     const empty = context()
     await empty.plugin(AccountsController)
@@ -140,12 +230,17 @@ describe('the Harnessy accounts Remote namespace', () => {
     const { ctx, controller } = await boot()
     await ctx.credentials.modifyRecord(credentialKey('llm-pi-ai', 'openai-codex'), () =>
       Promise.resolve(codexGrant('abdo@example.com', 'account-a')))
+    const changes: AccountsState[] = []
+    ctx.on('accounts/changed', (state) => { changes.push(state) })
     const state = await controller.describe()
     expect(state.accounts).toEqual([expect.objectContaining({
       provider: 'openai-codex', name: 'Abdo Mohamed', detail: 'abdo@example.com · PLUS', active: true,
     })])
-    expect(JSON.stringify(state)).not.toContain('refresh-account-a')
-    expect(JSON.stringify(state)).not.toContain('signature')
+    expect(changes).toEqual([state])
+    expect(JSON.stringify(changes)).not.toContain('refresh-account-a')
+    expect(JSON.stringify(changes)).not.toContain('signature')
+    await controller.describe()
+    expect(changes).toHaveLength(1)
   })
 
   it('restores the model route for an active account when the Host starts', async () => {
@@ -421,6 +516,43 @@ describe('the Harnessy accounts Remote namespace', () => {
     const result = await controller.consumeResetCredit(account.id, `attempt-${code}`, new AbortController().signal)
 
     expect(result.outcome).toBe(outcome)
+  })
+
+  it('pushes active-account usage before a slower inactive account finishes', async () => {
+    const inactive = Promise.withResolvers<undefined>()
+    const fetchUsage: typeof fetch = async (_input, init) => {
+      const account = new Headers(init?.headers).get('chatgpt-account-id')
+      if (account === 'account-first') await inactive.promise
+      return usageResponse(account === 'account-second' ? 40 : 20)
+    }
+    const { ctx, controller } = await boot({ fetchUsage })
+    await ctx.credentials.modifyRecord(credentialKey('llm-pi-ai', 'openai-codex'), () =>
+      Promise.resolve(codexGrant('first@example.com', 'account-first')))
+    await controller.describe()
+    await seedOAuth(ctx, codexGrant('second@example.com', 'account-second'))
+    const spare = (await controller.describe()).accounts.find(account => account.detail?.startsWith('second@'))!
+    await controller.activate('openai-codex', spare.id)
+    const changes: AccountsState[] = []
+    ctx.on('accounts/changed', (state) => { changes.push(state) })
+    let complete = false
+    const refresh = controller.refreshUsage(new AbortController().signal).then((state) => {
+      complete = true
+      return state
+    })
+    try {
+      await vi.waitFor(() => {
+        expect(changes.at(-1)?.accounts.find(account => account.active)?.usage?.windows[0]?.usedPercent).toBe(40)
+      })
+      expect(complete).toBe(false)
+      expect(changes.at(-1)?.accounts.find(account => !account.active)?.usage).toBeUndefined()
+      inactive.resolve(undefined)
+      const state = await refresh
+      expect(changes.at(-1)).toEqual(state)
+      expect(state.accounts.find(account => !account.active)?.usage?.windows[0]?.usedPercent).toBe(20)
+    } finally {
+      inactive.resolve(undefined)
+      await refresh
+    }
   })
 
   it('serializes overlapping Host usage refreshes', async () => {
@@ -792,9 +924,12 @@ describe('the Harnessy accounts Remote namespace', () => {
       return original(key, mutate)
     })
     if (failure === 'route') vi.spyOn(ctx.settings, 'mutate').mockRejectedValueOnce(new Error('fixture route failure'))
+    const changes = vi.fn()
+    ctx.on('accounts/changed', changes)
     await expect(controller.activate('zai', second.id)).rejects.toThrow(`fixture ${failure} failure`)
     expect(await ctx.credentials.readRecord(canonicalKey)).toEqual({ kind: 'api-key', key: 'fixture-one' })
     expect(await ctx.credentials.readRecord(vaultKey)).toEqual(beforeVault)
+    expect(changes).not.toHaveBeenCalled()
     expect(ctx.settings.describe().find(entry => entry.ns === 'llm-pi-ai')?.value).toEqual({ providers: {} })
   })
 

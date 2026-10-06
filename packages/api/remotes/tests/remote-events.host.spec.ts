@@ -1,5 +1,6 @@
 import { Context } from '@deepseek-ai/cordis'
 import type { Fiber } from '@deepseek-ai/cordis'
+import type { AccountsState } from '@deepseek-ai/dsh-api-settings-controller/types'
 import type {
   RemoteEventHostInfo,
   TypertRemoteEventInvocation,
@@ -117,6 +118,21 @@ describe('Remote event Host source', () => {
     await expect(second.next()).resolves.toEqual({
       done: false,
       value: { event: 'accounts/auto-switched', args: [accountSwitch] },
+    })
+
+    const accounts: AccountsState = {
+      writable: true, providers: [],
+      accounts: [{
+        id: 'codex-1', ownerId: 'owner-1', provider: 'openai-codex', name: 'Personal', initials: 'P',
+        active: true, authMode: 'oauth', usage: { windows: [{ id: 'primary', label: '5h', usedPercent: 79 }] },
+      }],
+    }
+    ctx.emit('accounts/changed', accounts)
+    await expect(first.next()).resolves.toEqual({
+      done: false, value: { event: 'accounts/changed', args: [accounts] },
+    })
+    await expect(second.next()).resolves.toEqual({
+      done: false, value: { event: 'accounts/changed', args: [accounts] },
     })
 
     emitRaw(ctx, 'goal/activation-changed', [{

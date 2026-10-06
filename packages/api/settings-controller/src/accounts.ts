@@ -7,6 +7,7 @@
  */
 
 import { createHash, randomUUID } from 'node:crypto'
+import { isDeepStrictEqual } from 'node:util'
 import { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-agent'
 import { QUOTA_EXCEEDED_CODE } from '@deepseek-ai/dsh-llm'
@@ -108,6 +109,9 @@ export class AccountsController extends TypertRemoteService {
   private readonly fetchUsage: typeof fetch
   private readonly now: () => number
   private usageRefreshTail: Promise<void> = Promise.resolve()
+  private readonly usageLifecycle = new AbortController()
+  private backgroundUsage: Promise<void> | undefined
+  private usageRequested = false
   private readonly selectionRevisions = new Map<AccountProviderId, number>()
   private readonly quotaRecoveryAttempts = new WeakMap<object, { readonly turn: number; readonly step: number }>()
   private readonly requestSelections = new WeakMap<object, {
@@ -123,6 +127,22 @@ export class AccountsController extends TypertRemoteService {
     this.openUrl = internals.openUrl ?? openNativeUrl
     this.fetchUsage = internals.fetchUsage ?? fetch
     this.now = internals.now ?? Date.now
+    ctx.effect(() => async () => {
+      this.usageLifecycle.abort()
+      await this.backgroundUsage
+    }, 'accounts: post-request usage lifecycle')
+    ctx.on('llm/stream', (options, next) => {
+      const stream = next()
+      if (options.provider !== 'openai-codex') return stream
+      const refreshAfterRequest = () => { this.refreshAfterRequest() }
+      return (async function* () {
+        try {
+          yield* stream
+        } finally {
+          refreshAfterRequest()
+        }
+      })()
+    })
     ctx.inject(['credentials', 'settings'], (providerContext) => {
       let active = true
       providerContext.effect(() => () => { active = false }, 'accounts.reconcileProviderRoutes()')
@@ -390,13 +410,38 @@ export class AccountsController extends TypertRemoteService {
   }
 
   /**
-   * Refresh every supported usage snapshot for account-management and status surfaces.
+   * Refresh supported usage snapshots, active account first, and push each committed update.
    * @param signal - cancellation checked between accounts and forwarded to usage requests.
    * @returns the updated public account state with refreshed usage when available.
    */
   @Remote
   async refreshUsage(signal: AbortSignal): Promise<AccountsState> {
     return this.refreshUsageRun(signal, true)
+  }
+
+  /** Coalesce stream completions, retaining one follow-up for completions during a read. */
+  private refreshAfterRequest(): void {
+    if (this.usageLifecycle.signal.aborted) return
+    this.usageRequested = true
+    if (this.backgroundUsage !== undefined) return
+    this.backgroundUsage = (async () => {
+      while (this.usageRequested && !this.usageLifecycle.signal.aborted) {
+        this.usageRequested = false
+        try {
+          await this.refreshUsageRun(this.usageLifecycle.signal, false)
+        } catch (error: unknown) {
+          this.reportUsageError(error)
+        }
+      }
+    })().finally(() => {
+      this.backgroundUsage = undefined
+      if (this.usageRequested) this.refreshAfterRequest()
+    })
+  }
+
+  /** Report background failures only while the usage lifecycle is active. */
+  private reportUsageError(error: unknown): void {
+    if (!this.usageLifecycle.signal.aborted) this.ctx.logger.warn(`accounts: usage refresh failed: ${messageOf(error)}`)
   }
 
   private async refreshUsageRun(signal: AbortSignal, automatic: boolean): Promise<AccountsState> {
@@ -419,7 +464,9 @@ export class AccountsController extends TypertRemoteService {
     let vault = await this.importCanonicalAccounts(credentials)
     const codex = vault.providers['openai-codex']
     if (codex === undefined) return this.publicState(vault, true)
-    for (const saved of Object.values(codex.accounts)) {
+    const accounts = Object.values(codex.accounts).sort((left, right) =>
+      Number(right.id === codex.activeAccountId) - Number(left.id === codex.activeAccountId))
+    for (const saved of accounts) {
       assertUsageRefreshActive(signal)
       const account = (await this.readVault(credentials)).providers['openai-codex']?.accounts[saved.id]
       if (account === undefined) continue
@@ -624,7 +671,9 @@ export class AccountsController extends TypertRemoteService {
       const canonical = await credentials.readRecord(providerKey(definition.id))
       vault = this.mergeCanonicalAccount(vault, definition, canonical)
     }
-    await replaceRecord(credentials, VAULT_KEY, beforeRecord, { kind: 'grant', payload: jsonImage(vault) })
+    const nextRecord: CredentialRecord = { kind: 'grant', payload: jsonImage(vault) }
+    await replaceRecord(credentials, VAULT_KEY, beforeRecord, nextRecord)
+    if (!isDeepStrictEqual(beforeRecord, nextRecord)) this.publishState(vault)
     return vault
   }
 
@@ -644,6 +693,13 @@ export class AccountsController extends TypertRemoteService {
     }
     const account = accountFromCredential(definition, credential, this.now())
     return upsertAccount(vault, account, account.id)
+  }
+
+  /** Notify every snapshot observer without letting failures reject a committed write. */
+  private publishState(vault: AccountVault): void {
+    void this.ctx.parallel('accounts/changed', this.publicState(vault, true)).catch((error: unknown) => {
+      this.ctx.logger.warn(`accounts: snapshot observer failed: ${messageOf(error)}`)
+    })
   }
 
   private publicState(vault: AccountVault, writable: boolean): AccountsState {
@@ -721,7 +777,10 @@ export class AccountsController extends TypertRemoteService {
     const before = this.mergeCanonicalAccount(normalizeCodexAccountIds(stored), providerDefinition(provider), canonical)
     const next = mutate(before)
     if (next === undefined) {
-      if (before !== stored) await replaceRecord(credentials, VAULT_KEY, beforeRecord, { kind: 'grant', payload: jsonImage(before) })
+      if (before !== stored) {
+        await replaceRecord(credentials, VAULT_KEY, beforeRecord, { kind: 'grant', payload: jsonImage(before) })
+        this.publishState(before)
+      }
       return before
     }
     const selected = next.providers[provider]
@@ -759,6 +818,7 @@ export class AccountsController extends TypertRemoteService {
       throw error
     }
     if (previousSelected !== selected?.activeAccountId) this.invalidateSelection(provider)
+    if (!isDeepStrictEqual(beforeRecord, nextRecord)) this.publishState(next)
     return next
   }
 
@@ -775,11 +835,17 @@ export class AccountsController extends TypertRemoteService {
     mutate: (vault: AccountVault) => Promise<AccountVault | undefined> | AccountVault | undefined,
   ): Promise<AccountVault> {
     return this.withCommit(credentials, async () => {
+      const publication = { changed: false }
       const committed = await credentials.modifyRecord(VAULT_KEY, async (record) => {
         const next = await mutate(parseVault(record))
-        return next === undefined ? undefined : { kind: 'grant', payload: jsonImage(next) }
+        if (next === undefined) return undefined
+        const nextRecord: CredentialRecord = { kind: 'grant', payload: jsonImage(next) }
+        publication.changed = !isDeepStrictEqual(record, nextRecord)
+        return nextRecord
       })
-      return parseVault(committed)
+      const vault = parseVault(committed)
+      if (publication.changed) this.publishState(vault)
+      return vault
     })
   }
 

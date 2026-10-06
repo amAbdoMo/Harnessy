@@ -193,6 +193,12 @@ declare module '@deepseek-ai/cordis' {
      * @mode emit
      */
     'accounts/auto-switched'(event: AccountAutoSwitchEvent): void
+    /**
+     * Publish the redacted account snapshot after a committed vault change.
+     * @param state - current account identities, selection, and provider-reported usage.
+     * @mode emit
+     */
+    'accounts/changed'(state: AccountsState): void
   }
 }
 

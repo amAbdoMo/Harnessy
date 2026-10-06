@@ -31,6 +31,8 @@ interface AssembledBootOptions {
   readonly exclude?: readonly string[]
   /** Remote answers owned by this assembled case. */
   readonly remote?: AssembledRemoteOptions
+  /** Apply the shipped Harnessy product layer over the base Web composition. */
+  readonly profile?: 'custom-harness'
 }
 
 interface ClientPackageManifest {
@@ -91,8 +93,14 @@ const comboReference = (ids: readonly string[], rev: string): string =>
   `plugins/??${ids.map(id => `${id}/client.js`).join(',')}&rev=${rev}`
 
 /** Derive the assembled browser graph from the bundle profile recorded for the built client. */
-function loadAssembledPlugins(): readonly AssembledPlugin[] {
-  const entries = appBoot.composeEntries(BUNDLE_LAYERS.map((layer) => {
+function loadAssembledPlugins(profile?: 'custom-harness'): readonly AssembledPlugin[] {
+  const layers = profile === 'custom-harness'
+    ? [...BUNDLE_LAYERS, {
+      dir: join(REPO_ROOT, 'packages/bundle/custom-harness'),
+      manifest: join(REPO_ROOT, 'packages/bundle/custom-harness/package.json'),
+    }]
+    : BUNDLE_LAYERS
+  const entries = appBoot.composeEntries(layers.map((layer) => {
     const declared = (JSON.parse(readFileSync(layer.manifest, 'utf8')) as { dsh: { bundle: { patch: string | string[] } } }).dsh.bundle
     return appBoot.bundlePatchPaths(layer.dir, declared).flatMap(patch => appBoot.loadOverlayPatches('assembled boot', patch))
   }))
@@ -277,7 +285,8 @@ export function installAssembledBootEnv(): void {
  */
 export function mountAssembledApp(options: AssembledBootOptions = {}): AssembledRemote {
   const excluded = new Set(options.exclude)
-  const plugins = PLUGINS.filter(plugin => !excluded.has(plugin.id))
+  const plugins = (options.profile === undefined ? PLUGINS : loadAssembledPlugins(options.profile))
+    .filter(plugin => !excluded.has(plugin.id))
   const remote = createAssembledRemote(options.remote)
   mountedRemote = remote.mock
   win.__DSH_TRANSPORT__ = { rpc: remote.mock.rpc }

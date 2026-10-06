@@ -136,7 +136,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: '@Remote async refreshUsage(signal: AbortSignal): Promise<AccountsState>',
-        description: 'Refresh every supported usage snapshot for account-management and status surfaces.',
+        description: 'Refresh supported usage snapshots, active account first, and push each committed update.',
         parameters: [{ name: 'signal', description: 'cancellation checked between accounts and forwarded to usage requests.' }],
         returns: 'the updated public account state with refreshed usage when available.',
       },
@@ -4001,6 +4001,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     summary: 'Report one committed automatic Codex account promotion.',
     description: 'Report one committed automatic Codex account promotion.',
     parameters: [{ name: 'event', description: 'secret-free source, destination, quota, and timestamp facts.' }],
+  },
+  {
+    name: 'accounts/changed',
+    mode: 'emit',
+    signature: '\'accounts/changed\'(state: AccountsState): void',
+    summary: 'Publish the redacted account snapshot after a committed vault change.',
+    description: 'Publish the redacted account snapshot after a committed vault change.',
+    parameters: [{ name: 'state', description: 'current account identities, selection, and provider-reported usage.' }],
   },
   {
     name: 'agent-loop/config-start-failed',
