@@ -64,8 +64,9 @@ async function expectFeedbackDisabled(scaffold: WebScaffold): Promise<void> {
     // Session-level /feedback is a separate retained command; the product
     // disables only per-message ratings and notes.
     expect(scaffold.ctx.commands.list(handle.agent)).toContainEqual({
+      definitionId: '@deepseek-ai/dsh-command-feedback',
       name: 'feedback',
-      description: 'record feedback about this session',
+      description: 'Record feedback about this session',
       input: { hint: '<text>' },
     })
   } finally {
@@ -133,12 +134,18 @@ describe('Harnessy disables per-message feedback', () => {
     expect(bootIds).not.toContain('@deepseek-ai/dsh-client-ui-message-feedback')
   })
 
-  it('renders the OpenAI account sign-in action from the assembled product profile', async () => {
-    await page.getByRole('button', { name: 'Settings' }).click()
+  it('renders the Codex browser sign-in entry from the assembled product profile', async () => {
+    await page.getByRole('button', { name: /No accounts saved/ }).click()
+    await page.getByRole('menuitem', { name: 'Settings', exact: true }).click()
     await page.getByText('Models', { exact: true }).click()
-    await page.getByRole('region', { name: 'OpenAI account connection' }).waitFor()
-    await page.getByRole('button', { name: 'Sign in with OpenAI' }).waitFor()
-    await page.getByRole('button', { name: 'Close' }).click()
+    await page.getByRole('region', { name: 'AI account manager' }).waitFor()
+    await page.getByRole('button', { name: 'Manage Accounts', exact: true }).click()
+    const accounts = page.getByRole('dialog', { name: 'Accounts', exact: true })
+    await accounts.getByRole('navigation', { name: 'Account providers' }).getByRole('button', { name: 'Codex', exact: true }).click()
+    expect(await accounts.getByRole('button', { name: 'Add account', exact: true }).isEnabled()).toBe(true)
+    await accounts.getByText('Add an account and finish sign-in in your browser.', { exact: true }).waitFor()
+    await accounts.getByRole('button', { name: 'Close', exact: true }).click()
+    await expect.poll(() => accounts.isVisible()).toBe(false)
   })
 
   it('opens old sessions without feedback controls while retaining message actions', async () => {
