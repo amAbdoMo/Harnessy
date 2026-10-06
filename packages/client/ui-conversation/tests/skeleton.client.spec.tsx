@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 import type { GlobalStandardProps, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createContext, useContext, type ReactNode } from 'react'
-import { act, cleanup, fireEvent, render } from '@testing-library/react'
+import { createContext, useContext, useState, type ReactNode } from 'react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { Menu, MenuItemButton, MenuSurface } from '@deepseek-ai/dsh-client-ui-primitives'
+import { createPortal } from 'react-dom'
 import type { Context } from '@deepseek-ai/cordis'
 import type { SessionListState, SessionSnapshot } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { WorkspaceSnapshot, WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/client'
@@ -93,6 +95,29 @@ beforeEach(() => {
   vi.stubGlobal('ResizeObserver', ResizeObserverStub)
 })
 
+function UtilityFixture() {
+  const [open, setOpen] = useState(false)
+  const [picks, setPicks] = useState(0)
+  return <Menu portal open={open} autoFocus onClose={() => { setOpen(false) }}
+    anchor={<button aria-expanded={open} onClick={() => { setOpen(current => !current) }}>Fixture utility</button>}>
+    <MenuItemButton onSelect={() => { setPicks(current => current + 1) }}>Picked {picks}</MenuItemButton>
+  </Menu>
+}
+
+function ScopedUtilityFixture() {
+  const [open, setOpen] = useState(false)
+  return <div onKeyDown={(event) => {
+    if (event.key !== 'Escape' || !open) return
+    event.preventDefault()
+    setOpen(false)
+  }}>
+    <button aria-expanded={open} onClick={() => { setOpen(current => !current) }}>Scoped utility</button>
+    {open && createPortal(<MenuSurface role="menu" aria-label="Scoped utility menu">
+      <button>Portaled utility action</button>
+    </MenuSurface>, document.body)}
+  </div>
+}
+
 const t: ConversationContentProps['t'] = makeTranslate(zh, commonZh)
 
 const sid = (id: string) => id as SessionId
@@ -140,6 +165,8 @@ function mount(
     composerBlock?: { reason: string }
     /** Mutable view ledger used by registration-order regressions. */
     viewTabs?: ViewTab[]
+    /** A utility slot contribution with its own state and portaled menu. */
+    utilities?: ReactNode
   } = {},
 ) {
   const sessionId = 'sessionId' in options ? options.sessionId : SID
@@ -199,6 +226,7 @@ function mount(
       seatOwners.push({ key, owner })
     }
     if (key === 'conversation.hero.workspace') { pickerOwner = owner; return null }
+    if (key === 'conversation.session.header.utilities' && options.utilities !== undefined) return options.utilities
     if (key === 'conversation.session.header.lineage') {
       lineageOwners.push(owner as ConversationHeaderLineageOwnerProps)
       return opts?.fallback ?? null
@@ -375,7 +403,7 @@ function mount(
   const props: ConversationSlotProps = { ...runtimeProps, renderSlot, renderFactorySlot }
   const view = render(<ConversationMainPanel {...props} />)
   return {
-    view, store, wiring, sink, retargetWorkspace, session, conversation, slotCalls, lineageOwners, seatOwners, open,
+    view, store, wiring, sink, retargetWorkspace, session, sessions, conversation, slotCalls, lineageOwners, seatOwners, open,
     pickerOwner: () => pickerOwner,
     rerender: () => { view.rerender(<ConversationMainPanel {...props} />) },
   }
@@ -522,6 +550,102 @@ describe('ConversationRoot resident composer', () => {
     expect(b.slotCalls).toContain('conversation.session.header.actions')
     expect(b.slotCalls).toContain('conversation.session.header.utilities')
     expect(b.slotCalls).toContain('conversation.session.header.corner')
+  })
+
+  it('keeps utility state across compact layout and gives nested portals first dismissal', async () => {
+    const b = mount(sessionSnapshotOf(), undefined, undefined, { utilities: <UtilityFixture /> })
+    const more = b.view.getByRole('button', { name: '更多会话控件' })
+    const utility = b.view.getByRole('button', { name: 'Fixture utility' })
+    const row = b.view.getByRole('navigation', { name: '会话层级' }).parentElement!.parentElement!
+    fireEvent.click(more)
+    expect(document.activeElement).toBe(utility)
+    fireEvent.click(utility)
+    const item = screen.getByRole('menuitem', { name: 'Picked 0' })
+    fireEvent.pointerDown(item)
+    fireEvent.click(item)
+    expect(more.getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByRole('menuitem', { name: 'Picked 1' })).toBeTruthy()
+
+    more.style.display = 'none'
+    act(() => { fireResize(row) })
+    expect(b.view.getByRole('button', { name: 'Fixture utility' })).toBe(utility)
+    more.style.display = 'inline-flex'
+    act(() => { fireResize(row) })
+    expect(more.getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByRole('menuitem', { name: 'Picked 1' })).toBeTruthy()
+
+    await act(async () => { fireEvent.keyDown(item, { key: 'Escape' }) })
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(more.getAttribute('aria-expanded')).toBe('true')
+    await act(async () => { fireEvent.keyDown(more, { key: 'Escape' }) })
+    expect(more.getAttribute('aria-expanded')).toBe('false')
+    expect(document.activeElement).toBe(more)
+    fireEvent.click(more)
+    fireEvent.pointerDown(document.body)
+    expect(more.getAttribute('aria-expanded')).toBe('false')
+    b.view.unmount()
+    expect(resizeObservers.every(observer => observer.targets.length === 0)).toBe(true)
+  })
+
+  it('dismisses a portaled utility after focus leaves it and when its overflow trigger closes', async () => {
+    const b = mount(sessionSnapshotOf(), undefined, undefined, { utilities: <ScopedUtilityFixture /> })
+    const more = b.view.getByRole('button', { name: '更多会话控件' })
+    const utility = b.view.getByRole('button', { name: 'Scoped utility' })
+    fireEvent.click(more)
+    fireEvent.click(utility)
+    expect(screen.getByRole('menu', { name: 'Scoped utility menu' })).toBeTruthy()
+    const outside = render(<button>Outside utility</button>).getByRole('button', { name: 'Outside utility' })
+    outside.focus()
+    await act(async () => { fireEvent.keyDown(outside, { key: 'Escape' }) })
+    expect(screen.queryByRole('menu', { name: 'Scoped utility menu' })).toBeNull()
+    expect(more.getAttribute('aria-expanded')).toBe('true')
+    expect(document.activeElement).toBe(utility)
+    fireEvent.click(utility)
+    expect(screen.getByRole('menu', { name: 'Scoped utility menu' })).toBeTruthy()
+    fireEvent.click(more)
+    expect(screen.queryByRole('menu', { name: 'Scoped utility menu' })).toBeNull()
+    expect(more.getAttribute('aria-expanded')).toBe('false')
+  })
+
+  it('leaves utilities and input focus alone for composing, closing and repeated Escape keys', async () => {
+    const b = mount(sessionSnapshotOf(), undefined, undefined, { utilities: <ScopedUtilityFixture /> })
+    const more = b.view.getByRole('button', { name: '更多会话控件' })
+    fireEvent.click(more)
+    const input = render(<input aria-label="Outside utility input" />).getByRole('textbox', { name: 'Outside utility input' })
+    input.focus()
+    await act(async () => { fireEvent.keyDown(input, { key: 'Escape', isComposing: true }) })
+    expect(document.activeElement).toBe(input)
+    expect(more.getAttribute('aria-expanded')).toBe('true')
+    fireEvent.compositionStart(input)
+    await act(async () => { fireEvent.keyDown(input, { key: 'Escape' }) })
+    expect(document.activeElement).toBe(input)
+    fireEvent.compositionEnd(input)
+    await act(async () => { fireEvent.keyDown(input, { key: 'Escape' }) })
+    expect(more.getAttribute('aria-expanded')).toBe('true')
+    expect(document.activeElement).toBe(input)
+    fireEvent.keyUp(input, { key: 'Escape' })
+    await act(async () => { fireEvent.keyDown(input, { key: 'Escape', repeat: true }) })
+    expect(more.getAttribute('aria-expanded')).toBe('true')
+    expect(document.activeElement).toBe(input)
+    await act(async () => { fireEvent.keyDown(input, { key: 'Escape' }) })
+    expect(more.getAttribute('aria-expanded')).toBe('false')
+    expect(document.activeElement).toBe(more)
+  })
+
+  it('closes utility overflow while the selected session returns to blank chrome', () => {
+    const b = mount(sessionSnapshotOf(), undefined, undefined, { utilities: <UtilityFixture /> })
+    fireEvent.click(b.view.getByRole('button', { name: '更多会话控件' }))
+    const setBlank = (blank: boolean): void => {
+      const sessionList = b.sessions.getSnapshot()
+      b.sessions.set({
+        ...sessionList, byId: { ...sessionList.byId, [SID]: { ...sessionList.byId[SID]!, blank } },
+      })
+      b.session.set({ ...b.session.getSnapshot(), blank })
+    }
+    act(() => { setBlank(true) })
+    expect(b.view.queryByRole('button', { name: '更多会话控件' })).toBeNull()
+    act(() => { setBlank(false) })
+    expect(b.view.getByRole('button', { name: '更多会话控件' }).getAttribute('aria-expanded')).toBe('false')
   })
 
   it('sticky composer seat wraps the whole overlay chain, not only the fallback stack', () => {

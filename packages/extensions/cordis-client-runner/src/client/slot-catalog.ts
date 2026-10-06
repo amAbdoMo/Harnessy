@@ -1399,7 +1399,6 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       'client-ui-brand-custom-harness McpSessionStatus id \'custom-harness-mcp-status\'',
       'client-ui-jobs JobListAction id \'job-list\'',
       'client-ui-subagent SubagentCatalogAction id \'subagent-catalog\'',
-      'client-ui-workspace-brief WorkspaceBriefAction id \'workspace-brief\'',
       'experimental-client-ui-agent-team TeamAction id \'agent-team\'',
     ],
     replaceRisk: 'none',

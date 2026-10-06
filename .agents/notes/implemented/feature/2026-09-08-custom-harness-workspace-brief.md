@@ -15,7 +15,7 @@ Workspace Brief is a human command with separate host and browser plugins, enabl
 - `dsh-workspace-brief` registers `/workspace-brief [--git]`. It accepts no path, resolves the exact session cwd through `ctx.workspaceRegistry`, and rejects missing, unregistered, unavailable, or non-Git workspaces before producing a result.
 - The runner observes the top-level inventory and a regular, non-linked `package.json` through `ctx.fs`. It runs one constant Git command through `ctx.shell` with the current read-only sandbox policy. Independent limits cover elapsed time, manifest bytes, Git bytes, inventory rows, status rows, field length, and final Markdown length.
 - Manifest failure is partial because repository identity and Git facts remain valid; workspace, permission, Git, cancellation, and timeout failures settle separately. Explicit retries repeat only read operations and create another ordinary command lifecycle.
-- `dsh-client-ui-workspace-brief` contributes one open-session header action and one keyed command card. The action prevents concurrent duplicate dispatch, while the card folds `command/run` and `command/done` so reload and reconnect display recorded output without rerunning inspection.
+- `dsh-client-ui-workspace-brief` contributes one keyed command card; users invoke `/workspace-brief` through ordinary command input. The card folds `command/run` and `command/done` so reload and reconnect display recorded output without rerunning inspection.
 - The command events are log-only and never enter model history. The feature adds no database, file, network request, model tool, or model invocation.
 
 ## Alternatives considered
@@ -28,4 +28,4 @@ Workspace Brief is a human command with separate host and browser plugins, enabl
 
 ## Consequences
 
-The feature crosses real product UI, Remote command dispatch, host policy, filesystem and shell capabilities, and durable session presentation while remaining removable as two plugin rows. Users receive a stable point-in-time summary and explicit partial-data labels; retries cannot change workspace contents. The fixed bounds omit deep project structure, full diffs, and large status sets, and the header action intentionally produces the default no-status form. Focused tests pin success, validation, failure classification, cancellation, replay, idempotency, and plugin disable/re-enable behavior.
+The feature crosses real product UI, Remote command dispatch, host policy, filesystem and shell capabilities, and durable session presentation while remaining removable as two plugin rows. Users receive a stable point-in-time summary and explicit partial-data labels; retries cannot change workspace contents. The fixed bounds omit deep project structure, full diffs, and large status sets; `/workspace-brief --git` requests bounded status instead of the default no-status form. Focused tests pin success, validation, failure classification, cancellation, replay, and plugin disable/re-enable behavior.

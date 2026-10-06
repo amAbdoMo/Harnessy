@@ -1,6 +1,8 @@
 /** Strict per-session header/body content inserted into the resident conversation layout. */
 
 import clsx from 'clsx'
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { IconEllipsisOutlineRegular, MenuSurface, observeComposition, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SessionListState, SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {
@@ -50,8 +52,13 @@ function equalBreadcrumbs(left: readonly Breadcrumb[], right: readonly Breadcrum
     })
 }
 
+function expandedUtilityButton(controls: HTMLElement | null): HTMLButtonElement | null {
+  return controls?.querySelector<HTMLButtonElement>('button[aria-expanded="true"]') ?? null
+}
+
 /**
  * Renders Session header chrome above the resident conversation scrollport.
+ * Secondary utilities remain mounted across inline/overflow width changes.
  * @param props - Strict Session store, view ledger, navigation, render, and locale shares.
  * @returns Session navigation controls, with title and tabs after conversation starts.
  */
@@ -64,9 +71,80 @@ export function ConversationSessionHeader({
   const active = resolveActiveView(tabs, selectedId)
   const ancestry = useSessions(s => deriveAncestry(s, sessionId), equalBreadcrumbs)
   const showTabs = !hideChrome && tabs.length > 1
+  const rowRef = useRef<HTMLDivElement>(null)
+  const utilitiesRef = useRef<HTMLDivElement>(null)
+  const controlsRef = useRef<HTMLDivElement>(null)
+  const moreRef = useRef<HTMLButtonElement>(null)
+  const insidePointer = useRef<Event | null>(null)
+  const focusUtilities = useRef(false)
+  const utilitiesId = useId()
+  const [compactUtilities, setCompactUtilities] = useState(false)
+  const [utilitiesOpen, setUtilitiesOpen] = useState(false)
+
+  useLayoutEffect(() => {
+    if (hideChrome) {
+      setUtilitiesOpen(false)
+      return
+    }
+    const measure = (): void => {
+      const trigger = moreRef.current
+      if (trigger === null) return
+      const compact = getComputedStyle(trigger).display !== 'none'
+      setCompactUtilities(compact)
+      setUtilitiesOpen(current => compact && (current
+        || controlsRef.current?.contains(document.activeElement) === true
+        || expandedUtilityButton(controlsRef.current) !== null))
+    }
+    const observer = new ResizeObserver(measure)
+    if (rowRef.current !== null) observer.observe(rowRef.current)
+    measure()
+    return () => { observer.disconnect() }
+  }, [hideChrome])
+
+  useEffect(() => {
+    if (!utilitiesOpen) return
+    if (focusUtilities.current) {
+      controlsRef.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus()
+      focusUtilities.current = false
+    }
+    const composition = observeComposition(document)
+    const outside = (event: PointerEvent): void => {
+      if (insidePointer.current !== event && event.target instanceof Node
+        && utilitiesRef.current?.contains(event.target) !== true) setUtilitiesOpen(false)
+    }
+    const escape = (event: KeyboardEvent): void => {
+      if (composition.guards(event) || event.repeat || event.key !== 'Escape') return
+      // Nested menus get the first chance to consume Escape, including portals.
+      queueMicrotask(() => {
+        if (event.defaultPrevented) return
+        const nested = expandedUtilityButton(controlsRef.current)
+        if (nested !== null) {
+          nested.focus()
+          nested.click()
+          return
+        }
+        setUtilitiesOpen(false)
+        moreRef.current?.focus()
+      })
+    }
+    document.addEventListener('pointerdown', outside)
+    document.addEventListener('keydown', escape)
+    return () => {
+      document.removeEventListener('pointerdown', outside)
+      document.removeEventListener('keydown', escape)
+      composition.dispose()
+    }
+  }, [utilitiesOpen])
+
+  const openUtilities = (): void => {
+    if (utilitiesOpen) expandedUtilityButton(controlsRef.current)?.click()
+    focusUtilities.current = !utilitiesOpen
+    setUtilitiesOpen(current => !current)
+  }
+
   return (
     <>
-      <div className={css.titleRow}>
+      <div ref={rowRef} className={css.titleRow}>
         {!hideChrome && (
           <>
             <div className={css.titleCluster}>
@@ -130,10 +208,22 @@ export function ConversationSessionHeader({
                 })}
               </div>
             </div>
-            <div className={css.headerUtilities}>
-              {renderSlot('conversation.session.header.utilities', {
-                openConversationEvent: (callId) => { openView('chat', `call:${callId}`) },
-              })}
+            <div ref={utilitiesRef} className={css.headerUtilities}
+              onPointerDownCapture={(event) => { insidePointer.current = event.nativeEvent }}>
+              <Tooltip label={t('header.moreControls')} side="bottom" portal disabled={utilitiesOpen}>
+                <button ref={moreRef} type="button" className={css.utilitiesMore}
+                  aria-label={t('header.moreControls')} aria-expanded={utilitiesOpen}
+                  aria-controls={utilitiesId} onClick={openUtilities}>
+                  <IconEllipsisOutlineRegular size={16} />
+                </button>
+              </Tooltip>
+              <div ref={controlsRef} id={utilitiesId} className={css.headerUtilitiesControls}
+                role="group" aria-label={t('header.controls')} data-open={utilitiesOpen}>
+                {compactUtilities && utilitiesOpen && <MenuSurface compact aria-hidden="true" className={css.utilitiesMaterial} />}
+                {renderSlot('conversation.session.header.utilities', {
+                  openConversationEvent: (callId) => { openView('chat', `call:${callId}`) },
+                })}
+              </div>
             </div>
           </>
         )}

@@ -2,7 +2,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEve
 import type { JobsSnapshot, JobView, ObservedJob } from '@deepseek-ai/dsh-api-job-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import {
-  IconChevronDownOutlineRegular, IconStopFillRegular, StateDot, TerminalBlock, useDismissOnOutsidePointer,
+  IconChevronDownOutlineRegular, IconClockOutlineRegular, IconStopFillRegular, StateDot, TerminalBlock,
+  Tooltip, useDismissOnOutsidePointer,
   type StateDotState, type TerminalBlockLabels,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
@@ -506,25 +507,28 @@ export function JobListAction({ sessionId, useJobs, watchRows, observe, killJob,
 
   return (
     <div ref={rootRef} className={css.root} onKeyDown={onKeyDown}>
-      <button
-        ref={triggerRef}
-        type="button"
-        className={css.trigger}
-        aria-expanded={open}
-        aria-label={countLabel}
-        onClick={() => {
-          // Sample the clock in the same commit that opens the list: the
-          // mount-time value predates every job, so the first painted frame
-          // would otherwise clamp a long-running row to zero until the
-          // open effect corrects it a frame later.
-          setNow(Date.now())
-          setOpen(current => !current)
-        }}
-      >
-        {liveRows.length > 0 ? <StateDot state="ongoing" className={css.triggerDot} /> : null}
-        <span className={css.count}>{countLabel}</span>
-        <IconChevronDownOutlineRegular size={12} className={open ? css.triggerOpen : undefined} />
-      </button>
+      <Tooltip label={countLabel} side="bottom" portal disabled={open}>
+        <button
+          ref={triggerRef}
+          type="button"
+          className={css.trigger}
+          aria-expanded={open}
+          aria-label={countLabel}
+          onClick={() => {
+            // Sample the clock in the same commit that opens the list: the
+            // mount-time value predates every job, so the first painted frame
+            // would otherwise clamp a long-running row to zero until the
+            // open effect corrects it a frame later.
+            setNow(Date.now())
+            setOpen(current => !current)
+          }}
+        >
+          <IconClockOutlineRegular size={14} />
+          {liveRows.length > 0 ? <StateDot state="ongoing" className={css.triggerDot} /> : null}
+          <span className={css.count} aria-hidden="true">{liveRows.length > 0 ? liveRows.length : visibleCount}</span>
+          <IconChevronDownOutlineRegular size={12} className={open ? css.triggerOpen : undefined} />
+        </button>
+      </Tooltip>
       {open
         ? (
           <ul ref={menuRef} className={css.menu} style={{ left: menuShift }} aria-label={t('list.aria')}>

@@ -73,14 +73,18 @@ describe('JobListAction visibility', () => {
       outputJob(),
       job({ id: 'subagent-1' as JobView['id'], kind: 'subagent', label: 'explore' }),
     ])} />)
-    expect(screen.getByRole('button', { name: '2 个后台任务运行中' })).toBeDefined()
+    const trigger = screen.getByRole('button', { name: '2 个后台任务运行中' })
+    expect(trigger.textContent).toBe('2')
+    expect(trigger.querySelector('svg')).not.toBeNull()
+    fireEvent.focus(trigger)
+    expect(screen.getByRole('tooltip').textContent).toBe('2 个后台任务运行中')
   })
 
   it('falls back to the total when nothing is live', () => {
     render(<JobListAction {...props([
       job({ status: 'completed', finishedAt: 1_700_000_003_000 }),
     ])} />)
-    expect(screen.getByRole('button', { name: '1 个后台任务' })).toBeDefined()
+    expect(screen.getByRole('button', { name: '1 个后台任务' }).textContent).toBe('1')
   })
 })
 

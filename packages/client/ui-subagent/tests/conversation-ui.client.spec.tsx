@@ -229,6 +229,7 @@ describe('SubagentHeaderLineage', () => {
     })} />)
     const inactiveTrigger = screen.getByRole('button', { name: '0 个运行中，2 个已完成' })
     expect(inactiveTrigger.querySelector('[data-state="ongoing"]')).toBeNull()
+    expect(within(inactiveTrigger).getByText('2 个已完成')).toBeTruthy()
   })
 
   it('does not count Sessions outside projected membership', () => {
@@ -305,12 +306,9 @@ describe('SubagentHeaderLineage', () => {
         ...summary(CHILD, Date.now()), parentId: PARENT, origin: 'subagent', running: true,
       },
     })
-    const translate = vi.fn(base.t)
-    render(<HeaderCatalog {...base} t={translate} />)
-
-    expect(translate).toHaveBeenCalledWith('count.summary', { working: '1', done: '0' })
-    expect(translate).toHaveBeenCalledWith('count.working.one', { count: 1 })
-    expect(translate).toHaveBeenCalledWith('count.done.other', { count: 0 })
+    render(<HeaderCatalog {...base} />)
+    const trigger = screen.getByRole('button', { name: '1 个运行中，0 个已完成' })
+    expect(within(trigger).getByText('1 个运行中')).toBeTruthy()
   })
 
   it('removes the disclosure column from branchless catalog levels', () => {
@@ -368,7 +366,7 @@ describe('SubagentHeaderLineage', () => {
     const view = render(<HeaderCatalog {...props(catalog())} />)
     const trigger = countTrigger()
     const triggerRect = vi.spyOn(trigger, 'getBoundingClientRect')
-      .mockReturnValue({ bottom: 40, left: 50 } as DOMRect)
+      .mockReturnValue(new DOMRect(50, 0, 100, 40))
 
     fireEvent.mouseEnter(trigger)
     await advance(149)
@@ -377,7 +375,7 @@ describe('SubagentHeaderLineage', () => {
     const menu = screen.getByRole('tree').parentElement!
     expect(menu.style.top).toBe('45px')
     expect(menu.style.left).toBe('50px')
-    triggerRect.mockReturnValue({ bottom: 60, left: 70 } as DOMRect)
+    triggerRect.mockReturnValue(new DOMRect(70, 20, 100, 40))
     fireEvent.resize(window)
     expect(menu.style.top).toBe('65px')
     expect(menu.style.left).toBe('70px')
@@ -466,18 +464,18 @@ describe('SubagentHeaderLineage', () => {
     const view = render(<HeaderCatalog {...props(catalog())} />)
     const trigger = countTrigger()
     const bounds = vi.spyOn(trigger, 'getBoundingClientRect')
-    bounds.mockReturnValue({ bottom: 20, left: 30 } as DOMRect)
+    bounds.mockReturnValue(new DOMRect(30, 0, 100, 20))
     hoverCatalog(trigger)
     const menu = screen.getByRole('tree').parentElement!
     expect(menu.style.top).toBe('25px')
     expect(menu.style.left).toBe('30px')
 
-    bounds.mockReturnValue({ bottom: 70, left: 80 } as DOMRect)
+    bounds.mockReturnValue(new DOMRect(80, 50, 100, 20))
     act(() => { window.dispatchEvent(new Event('resize')) })
     expect(menu.style.top).toBe('75px')
     expect(menu.style.left).toBe('80px')
 
-    bounds.mockReturnValue({ bottom: 90, left: 100 } as DOMRect)
+    bounds.mockReturnValue(new DOMRect(100, 70, 100, 20))
     act(() => { document.dispatchEvent(new Event('scroll')) })
     expect(menu.style.top).toBe('95px')
     expect(menu.style.left).toBe('100px')
@@ -617,7 +615,7 @@ describe('SubagentHeaderLineage', () => {
     render(<HeaderCatalog {...input} />)
     const trigger = countTrigger()
     expect(within(trigger).getByText('1 个运行中')).toBeTruthy()
-    expect(within(trigger).getByText('8 个已完成')).toBeTruthy()
+    expect(trigger.getAttribute('aria-label')).toBe('1 个运行中，8 个已完成')
     hoverCatalog(trigger)
 
     const runningRow = screen.getByRole('treeitem', { name: /running.*4\.6K tok · 1分10秒/ })
@@ -958,11 +956,15 @@ describe('SubagentHeaderLineage', () => {
     expect(screen.queryByRole('button')).toBeNull()
   })
 
-  it('renders working and completed direct-child counts in the actions seat', () => {
+  it('shows the active status beside an icon while keeping both counts accessible', () => {
     const view = render(<HeaderCatalog {...props(catalog())} />)
 
-    expect(screen.getByText('/')).toBeTruthy()
-    expect(screen.getByRole('button', { name: '1 个运行中，1 个已完成' })).toBeTruthy()
+    const trigger = screen.getByRole('button', { name: '1 个运行中，1 个已完成' })
+    expect(trigger.querySelector('svg')).not.toBeNull()
+    expect(within(trigger).getByText('1 个运行中')).toBeTruthy()
+    expect(within(trigger).queryByText('1 个已完成')).toBeNull()
+    fireEvent.focus(trigger)
+    expect(screen.getByRole('tooltip').textContent).toBe('子智能体：1 个运行中，1 个已完成')
 
     view.rerender(<HeaderCatalog {...props(catalog({ entries: [] }))} />)
     expect(screen.queryByRole('button')).toBeNull()

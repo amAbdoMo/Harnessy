@@ -28,6 +28,11 @@
 
 .trigger {
   gap: 4px;
+  white-space: nowrap;
+}
+
+.trigger > svg {
+  flex: none;
 }
 
 .switcherTrigger {
@@ -72,12 +77,18 @@
   white-space: nowrap;
 }
 
-.workingCount {
-  color: var(--dsw-alias-label-secondary);
+.compactCount {
+  display: none;
 }
 
-.countDivider {
-  color: var(--dsw-alias-label-caption);
+@container (max-width: 560px) {
+  .countLabel {
+    display: none;
+  }
+
+  .compactCount {
+    display: inline;
+  }
 }
 
 .trigger:hover,

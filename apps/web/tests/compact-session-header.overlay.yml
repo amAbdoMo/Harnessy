@@ -1,0 +1,4 @@
+# Expose the empty-utilities layout before authored reminders populate the slot.
+- id: session-log-download
+  name: '@deepseek-ai/dsh-session-log-export'
+  disabled: true

@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Load the plugin through the web-app manifest; it renders nothing until the session can see at least one job, so an ordinary conversation never grows a control for a capability it is not using.
+Load the plugin through the web-app manifest; it renders nothing until the session can see at least one job, so an ordinary conversation never grows a control for a capability it is not using. The header trigger shows a clock icon and the live count, or the visible total when nothing is live. Its tooltip and accessible name retain the full background-job label; click it to open the unchanged job list.
 
 ### One row per job
 

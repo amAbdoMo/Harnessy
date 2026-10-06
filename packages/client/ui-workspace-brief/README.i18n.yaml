@@ -3,38 +3,38 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-workspace-brief/README.md
 /:
-  en: 802115ce77e1c790
-  zh: 39f5ebee5d885a5c
+  en: fb624ccf11bffb76
+  zh: 153e31d3bc1dabde
 /deepseek-ai-dsh-client-ui-workspace-brief:
   en: 1cb49f02054f52dc
   zh: 3e7e2f399c39647b
 /deepseek-ai-dsh-client-ui-workspace-brief/summary:
-  en: 81bd70e85e1d7ac3
-  zh: e53cab96abecd794
+  en: 8ba13ac79b59ab1d
+  zh: 1971d8255506c0dd
 /deepseek-ai-dsh-client-ui-workspace-brief/table-of-contents:
   en: d152484eb41ac6b4
   zh: f9eec6518f31908c
 /deepseek-ai-dsh-client-ui-workspace-brief/use-this-package:
-  en: e394016154a8c211
-  zh: 6f81ab827b3cbac3
+  en: ac288519e8d4d34b
+  zh: 6403eebe7c206a7b
 /deepseek-ai-dsh-client-ui-workspace-brief/use-this-package/minimal-composition:
-  en: 780bd0c0b00a1ec3
-  zh: 435cc76e10525516
+  en: d9202cc5a08049e1
+  zh: 0c9ff085afd88c9a
 /deepseek-ai-dsh-client-ui-workspace-brief/understand-the-implementation:
-  en: bf53f578fbe22303
-  zh: 21a9ad56ec43e1c8
+  en: fd9ffeddc5e13a7a
+  zh: 2f7cd7d69e3df524
 /deepseek-ai-dsh-client-ui-workspace-brief/further-exploration:
-  en: d328e9fbdc6f6ebf
-  zh: 98b7ecd83bfd3cb1
+  en: 131bb8b45c55086a
+  zh: 3a762c061018307f
 /deepseek-ai-dsh-client-ui-workspace-brief/model-experience:
-  en: 4bb5504b189c6a65
-  zh: f556296ef2e745fa
+  en: 8ed4c70b75a15644
+  zh: 904bf9ca9cb17cd7
 /deepseek-ai-dsh-client-ui-workspace-brief/model-experience/kv-cache-effect:
-  en: deafe3a4f55210d6
-  zh: 3b3a86fe20924171
+  en: 2bfb1248037a6246
+  zh: 49fc55d4f5ad31a8
 /deepseek-ai-dsh-client-ui-workspace-brief/known-limitations-and-deferred-work:
-  en: 9715c9ab8ef24937
-  zh: 3c40b3f11063c425
+  en: 7bca485610b87c1b
+  zh: d2d184ebfd3b2a2d
 /deepseek-ai-dsh-client-ui-workspace-brief/known-limitations-and-deferred-work/dev-note:
-  en: d724e1c82cfbeff8
-  zh: eeb807e18a5f32ec
+  en: 13b194c47f5d77af
+  zh: 9441c5d19f3b79a3

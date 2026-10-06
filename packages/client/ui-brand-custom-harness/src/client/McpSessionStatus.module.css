@@ -55,6 +55,16 @@
   font-weight: 600;
 }
 
+@container (max-width: 560px) {
+  .triggerLabel {
+    display: none;
+  }
+
+  .trigger {
+    padding-inline: 5px;
+  }
+}
+
 .runningCount {
   min-width: 15px;
   padding: 0 4px;

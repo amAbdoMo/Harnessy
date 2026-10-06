@@ -1,0 +1,9 @@
+- banner:
+  - navigation "Session hierarchy": Use the bash tool to
+  - button "0 working, 6 done"
+  - 'button "Open MCP server status: No MCP servers configured"': MCP
+  - button "10 background jobs running"
+  - button "Open right sidebar"
+  - tablist:
+    - tab "Chat" [selected]
+    - tab "Trajectory"

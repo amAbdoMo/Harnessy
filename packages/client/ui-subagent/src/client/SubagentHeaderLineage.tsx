@@ -7,7 +7,8 @@ import {
 import type { SubagentAddress } from '@deepseek-ai/dsh-subagent/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import {
-  IconChevronDownOutlineRegular, IconChevronRightOutlineRegular, IconRefreshOutlineRegular, StateDot, Tooltip,
+  IconChevronDownOutlineRegular, IconChevronRightOutlineRegular, IconRefreshOutlineRegular,
+  IconUsersOutlineRegular, StateDot, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime, TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import { NS } from './locales.ts'
@@ -755,64 +756,71 @@ function CatalogDropdown({
       onKeyDown={navigate}
       onMouseLeave={scheduleHoverClose}
     >
-      <button
-        ref={triggerRef}
-        onMouseEnter={scheduleHoverOpen}
-        type="button"
-        className={variant === 'switcher'
-          ? `${css.switcherTrigger} ${ancestorSwitcher ? css.ancestorSwitcherTrigger : ''}`
-          : css.trigger}
-        aria-haspopup="tree"
-        aria-expanded={open}
-        aria-label={variant === 'switcher'
-          ? t('switcher.aria', { title: switcherDisplayTitle })
-          : t('count.summary', {
-            working: String(runningCount),
-            done: String(completedCount),
-          })}
-        onClick={openTitle === undefined
-          ? () => {
-            cancelHoverOpen()
-            cancelHoverClose()
-            pinnedRef.current = true
-            if (!open) changeOpen(true)
-          }
-          : () => {
-            cancelHoverOpen()
-            if (open) changeOpen(false)
-            openTitle()
-          }}
-        onKeyDown={(event) => {
-          if (event.key !== 'ArrowDown') return
-          event.preventDefault()
-          if (!open) changeOpen(true)
-          queueMicrotask(() => { focusAt(0) })
-        }}
+      <Tooltip
+        label={t('count.tooltip', { working: String(runningCount), done: String(completedCount) })}
+        side="bottom"
+        portal
+        disabled={open || variant === 'switcher'}
       >
-        {variant === 'switcher'
-          ? <span className={css.switcherTitle}>{switcherDisplayTitle}</span>
-          : (
-            <>
-              {runningCount > 0 && (
-                <span className={css.activitySlot}>
-                  <StateDot state="ongoing" />
-                </span>
-              )}
-              <span className={css.count}>
+        <button
+          ref={triggerRef}
+          onMouseEnter={scheduleHoverOpen}
+          type="button"
+          className={variant === 'switcher'
+            ? `${css.switcherTrigger} ${ancestorSwitcher ? css.ancestorSwitcherTrigger : ''}`
+            : css.trigger}
+          aria-haspopup="tree"
+          aria-expanded={open}
+          aria-label={variant === 'switcher'
+            ? t('switcher.aria', { title: switcherDisplayTitle })
+            : t('count.summary', {
+              working: String(runningCount),
+              done: String(completedCount),
+            })}
+          onClick={openTitle === undefined
+            ? () => {
+              cancelHoverOpen()
+              cancelHoverClose()
+              pinnedRef.current = true
+              if (!open) changeOpen(true)
+            }
+            : () => {
+              cancelHoverOpen()
+              if (open) changeOpen(false)
+              openTitle()
+            }}
+          onKeyDown={(event) => {
+            if (event.key !== 'ArrowDown') return
+            event.preventDefault()
+            if (!open) changeOpen(true)
+            queueMicrotask(() => { focusAt(0) })
+          }}
+        >
+          {variant === 'switcher'
+            ? <span className={css.switcherTitle}>{switcherDisplayTitle}</span>
+            : (
+              <>
+                <IconUsersOutlineRegular size={14} />
                 {runningCount > 0 && (
-                  <>
-                    <span className={css.workingCount}>{t(workingCountKey, { count: runningCount })}</span>
-                    <span className={css.countDivider}>/</span>
-                  </>
+                  <span className={css.activitySlot}>
+                    <StateDot state="ongoing" />
+                  </span>
                 )}
-                <span>{t(doneCountKey, { count: completedCount })}</span>
-              </span>
-            </>
-          )}
-        {variant === 'switcher'
-          ? <SubagentSwitcherIcon />
-          : <IconChevronDownOutlineRegular className={open ? css.triggerOpen : undefined} />}
-      </button>
+                <span className={css.count} aria-hidden="true">
+                  <span className={css.countLabel}>
+                    {runningCount > 0
+                      ? t(workingCountKey, { count: runningCount })
+                      : t(doneCountKey, { count: completedCount })}
+                  </span>
+                  <span className={css.compactCount}>{runningCount > 0 ? runningCount : completedCount}</span>
+                </span>
+              </>
+            )}
+          {variant === 'switcher'
+            ? <SubagentSwitcherIcon />
+            : <IconChevronDownOutlineRegular className={open ? css.triggerOpen : undefined} />}
+        </button>
+      </Tooltip>
       {open && createPortal((
         <div
           ref={menuRef}
