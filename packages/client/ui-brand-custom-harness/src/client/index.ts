@@ -14,6 +14,9 @@ import { AccountLauncher, type AccountLauncherInjected } from './AccountLauncher
 import {
   AccountsManagerCard, type AccountsManagerInjected, type AccountsManagerOperations,
 } from './AccountsManagerCard.tsx'
+import type { AccountResetCreditId } from '@deepseek-ai/dsh-api-remotes/client'
+import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
+import { ResetCreditToast, type ResetCreditNotice, type ResetCreditToastInjected } from './BankedResetDialog.tsx'
 import { createAccountsMenuStore } from './accounts-menu-store.ts'
 import { AccountsUsageController } from './accounts-usage.ts'
 import { NotificationCenter, type NotificationCenterInjected } from './NotificationCenter.tsx'
@@ -206,6 +209,39 @@ export function apply(ctx: ClientContext): void {
     }),
   }, McpConfigurationAction))
 
+  const resetLifecycle = new AbortController()
+  ctx.effect(() => () => { resetLifecycle.abort() })
+  const resetFlights = new Map<string, ReturnType<AccountsManagerOperations['consumeResetCredit']>>()
+  // Unconfirmed redemption identities survive closing the entire Settings surface.
+  const resetAttempts = new Map<string, Map<string, string>>()
+  const consumeReset = (accountId: string, creditId: AccountResetCreditId): ReturnType<AccountsManagerOperations['consumeResetCredit']> => {
+    const keys = resetAttempts.get(accountId) ?? new Map<string, string>()
+    resetAttempts.set(accountId, keys)
+    const idempotencyKey = keys.get(creditId) ?? randomUUID()
+    keys.set(creditId, idempotencyKey)
+    const identity = JSON.stringify([accountId, creditId, idempotencyKey])
+    const existing = resetFlights.get(identity)
+    if (existing !== undefined) return existing
+    const request = (async () => {
+      try {
+        const response = await ctx.remote.accounts.consumeResetCredit(accountId, creditId, idempotencyKey, resetLifecycle.signal)
+        if (response.ok) keys.delete(creditId)
+        if (!resetLifecycle.signal.aborted) resetCreditNotice.set(response.ok
+          ? { id: randomUUID(), outcome: response.value.outcome } : { id: randomUUID(), error: response.error.message })
+        return response.ok ? response.value : { error: response.error.message }
+      } finally { resetFlights.delete(identity) }
+    })()
+    resetFlights.set(identity, request)
+    return request
+  }
+  const resetCreditNotice = createSnapshotStore<ResetCreditNotice | undefined>(undefined)
+  ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+    name: 'shell.overlay', id: 'custom-harness-reset-result', locale: LOCALE_NS,
+    inject: (): ResetCreditToastInjected => ({
+      hooks: { resetCreditNotice },
+      dismiss: (id) => { if (resetCreditNotice.getSnapshot()?.id === id) resetCreditNotice.set(undefined) },
+    }),
+  }, ResetCreditToast))
   const accountRemoteOperations: AccountsManagerOperations = {
     describe: async () => {
       const response = await ctx.remote.accounts.describe()
@@ -229,10 +265,11 @@ export function apply(ctx: ClientContext): void {
       const response = await ctx.remote.accounts.setAutoSwitch(provider, enabled)
       return response.ok ? { state: response.value } : { error: response.error.message }
     },
-    consumeResetCredit: async (accountId, idempotencyKey, signal) => {
-      const response = await ctx.remote.accounts.consumeResetCredit(accountId, idempotencyKey, signal)
-      return response.ok ? response.value : { error: response.error.message }
+    listResetCredits: async (accountId, signal) => {
+      const response = await ctx.remote.accounts.listResetCredits(accountId, signal)
+      return response.ok ? { list: response.value } : { error: response.error.message }
     },
+    consumeResetCredit: consumeReset,
     rename: async (provider, accountId, name) => {
       const response = await ctx.remote.accounts.rename(provider, accountId, name)
       return response.ok ? { state: response.value } : { error: response.error.message }
@@ -253,8 +290,9 @@ export function apply(ctx: ClientContext): void {
     addApiKey: (provider, name, key) => accountsUsage.request(() => accountRemoteOperations.addApiKey(provider, name, key)),
     activate: (provider, accountId) => accountsUsage.request(() => accountRemoteOperations.activate(provider, accountId)),
     setAutoSwitch: (provider, enabled) => accountsUsage.request(() => accountRemoteOperations.setAutoSwitch(provider, enabled)),
-    consumeResetCredit: (accountId, idempotencyKey, signal) =>
-      accountsUsage.request(() => accountRemoteOperations.consumeResetCredit(accountId, idempotencyKey, signal)),
+    listResetCredits: (accountId, signal) => accountRemoteOperations.listResetCredits(accountId, signal),
+    consumeResetCredit: (accountId, creditId) =>
+      accountsUsage.request(() => accountRemoteOperations.consumeResetCredit(accountId, creditId)),
     rename: (provider, accountId, name) => accountsUsage.request(() => accountRemoteOperations.rename(provider, accountId, name)),
     remove: (provider, accountId) => accountsUsage.request(() => accountRemoteOperations.remove(provider, accountId)),
     refreshUsage: () => accountsUsage.refresh(true),

@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useSyncExternalStore } from 'react'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
-import type { AccountsState } from '@deepseek-ai/dsh-api-remotes/client'
+import type { AccountResetCreditId, AccountsState } from '@deepseek-ai/dsh-api-remotes/client'
 import {
   AccountsManagerCard, type AccountsManagerCardProps, type AccountsManagerOperations,
 } from '../src/client/AccountsManagerCard.tsx'
@@ -43,6 +43,7 @@ function operations(overrides: Partial<AccountsManagerOperations> = {}): Account
     addApiKey: vi.fn(async () => ({ state: baseState })),
     activate: vi.fn(async () => ({ state: baseState })),
     setAutoSwitch: vi.fn(async () => ({ state: baseState })),
+    listResetCredits: vi.fn(async () => ({ list: { credits: [] } })),
     consumeResetCredit: vi.fn(async () => ({ outcome: 'reset' as const, state: baseState })),
     rename: vi.fn(async () => ({ state: baseState })),
     remove: vi.fn(async () => ({ state: baseState })),
@@ -66,8 +67,9 @@ function publishing(
     addApiKey: async (provider, name, key) => publish(await value.addApiKey(provider, name, key)),
     activate: async (provider, accountId) => publish(await value.activate(provider, accountId)),
     setAutoSwitch: async (provider, enabled) => publish(await value.setAutoSwitch(provider, enabled)),
-    consumeResetCredit: async (accountId, idempotencyKey, signal) =>
-      publish(await value.consumeResetCredit(accountId, idempotencyKey, signal)),
+    listResetCredits: (accountId, signal) => value.listResetCredits(accountId, signal),
+    consumeResetCredit: async (accountId, creditId) =>
+      publish(await value.consumeResetCredit(accountId, creditId)),
     rename: async (provider, accountId, name) => publish(await value.rename(provider, accountId, name)),
     remove: async (provider, accountId) => publish(await value.remove(provider, accountId)),
     refreshUsage: async signal => publish(await value.refreshUsage(signal)),
@@ -323,7 +325,7 @@ describe('Harnessy account manager', () => {
     expect(await screen.findByText(`${en.accountsResetsInPrefix} 25m`)).toBeTruthy()
   })
 
-  it('shows banked resets and reuses the redemption key after a failed attempt', async () => {
+  it('opens individual resets without redeeming and retries the chosen credit after popup dismissal', async () => {
     const resetState: AccountsState = {
       ...baseState,
       accounts: [{
@@ -344,32 +346,66 @@ describe('Harnessy account manager', () => {
     const consumeResetCredit = vi.fn()
       .mockResolvedValueOnce({ error: 'Reset temporarily unavailable.' })
       .mockResolvedValueOnce({ outcome: 'reset' as const, state: consumedState })
+    const listResetCredits = vi.fn().mockResolvedValue({ list: { credits: [
+      { id: 'earlier' as AccountResetCreditId, resetType: 'codex_rate_limits', status: 'available', expiresAtMs: Date.parse('2030-10-23T00:00:00Z') },
+      { id: 'chosen' as AccountResetCreditId, resetType: 'codex_rate_limits', status: 'available', expiresAtMs: Date.parse('2030-10-29T07:31:00Z') },
+    ] } })
     renderManager(operations({
       describe: vi.fn(async () => ({ state: resetState })),
       refreshUsage: vi.fn(async () => ({ state: resetState })),
-      consumeResetCredit,
+      listResetCredits, consumeResetCredit,
     }))
 
     fireEvent.click(await screen.findByRole('button', { name: en.accountsManage }))
-    expect(await screen.findByText(en.accountsBankedResetCount.replace('{count}', '1'))).toBeTruthy()
-    const resetActionName = en.accountsUseBankedResetFor.replace('{account}', baseState.accounts[0]!.name)
-    const confirmReset = async (): Promise<void> => {
-      fireEvent.click(screen.getByRole('button', { name: resetActionName }))
-      // The styled confirmation replaces the browser dialog and echoes the account.
-      expect(await screen.findByText(
-        en.accountsBankedResetConfirm.replace('{account}', baseState.accounts[0]!.name),
-      )).toBeTruthy()
-      fireEvent.click(await screen.findByRole('button', { name: en.accountsUseBankedReset }))
-    }
-    await confirmReset()
-    expect(await screen.findByText('Reset temporarily unavailable.')).toBeTruthy()
-    await confirmReset()
+    const resetActionName = en.accountsViewBankedResetsFor.replace('{account}', baseState.accounts[0]!.name)
+    fireEvent.click(screen.getByRole('button', { name: resetActionName }))
+    const popup = await screen.findByRole('dialog', { name: en.accountsBankedResets })
+    const useButtons = await within(popup).findAllByRole('button', { name: /^Use reset —/ })
+    expect(useButtons).toHaveLength(2)
+    expect(consumeResetCredit).not.toHaveBeenCalled()
+    expect(await within(popup).findAllByText(/^Expires /)).toHaveLength(2)
+    fireEvent.click(useButtons[1]!)
+    await waitFor(() => { expect(consumeResetCredit).toHaveBeenCalledTimes(1) })
+    fireEvent.click(within(popup).getByRole('button', { name: en.close }))
+    fireEvent.click(screen.getByRole('button', { name: resetActionName }))
+    const reopened = await screen.findByRole('dialog', { name: en.accountsBankedResets })
+    fireEvent.click((await within(reopened).findAllByRole('button', { name: /^Use reset —/ }))[1]!)
     await waitFor(() => { expect(consumeResetCredit).toHaveBeenCalledTimes(2) })
-    expect(consumeResetCredit.mock.calls[1]?.[1]).toBe(consumeResetCredit.mock.calls[0]?.[1])
-    await waitFor(() => {
-      expect(screen.queryByText(en.accountsBankedResetsCount.replace('{count}', '0'))).toBeNull()
-      expect(screen.queryByRole('button', { name: resetActionName })).toBeNull()
-    })
+    expect(consumeResetCredit.mock.calls[0]?.slice(0, 2)).toEqual(['codex-1', 'chosen'])
+    expect(consumeResetCredit.mock.calls[1]?.slice(0, 2)).toEqual(['codex-1', 'chosen'])
+    await waitFor(() => { expect(screen.queryByRole('button', { name: resetActionName })).toBeNull() })
+  })
+
+  it('does not invent expiry or offer unsupported credits, and dispatches only the chosen row', async () => {
+    const resetState: AccountsState = { ...baseState, accounts: [{ ...baseState.accounts[0]!, usage: {
+      windows: [], resetCredits: { availableCount: 3 },
+    } }] }
+    const consumeResetCredit = vi.fn(async (_accountId: string, _creditId: string) => ({ error: 'provider temporarily unavailable' }))
+    renderManager(operations({
+      describe: async () => ({ state: resetState }), refreshUsage: async () => ({ state: resetState }), consumeResetCredit,
+      listResetCredits: async () => ({ list: { credits: [
+        { id: 'unreported' as AccountResetCreditId, resetType: 'codex_rate_limits', status: 'available' },
+        { id: 'later' as AccountResetCreditId, resetType: 'codex_rate_limits', status: 'available', expiresAtMs: Date.parse('2030-10-29T07:31:00Z') },
+        { id: 'expired' as AccountResetCreditId, resetType: 'codex_rate_limits', status: 'available', expiresAtMs: 1 },
+        { id: 'unsupported' as AccountResetCreditId, resetType: 'other', status: 'available' },
+        { id: 'used' as AccountResetCreditId, resetType: 'codex_rate_limits', status: 'redeemed' },
+      ] } }),
+    }))
+    fireEvent.click(await screen.findByRole('button', { name: en.accountsManage }))
+    fireEvent.click(screen.getByRole('button', { name: en.accountsViewBankedResetsFor.replace('{account}', 'Abdo') }))
+    const popup = await screen.findByRole('dialog', { name: en.accountsBankedResets })
+    const actions = await within(popup).findAllByRole('button', { name: /^Use reset —/ })
+    expect(actions).toHaveLength(3)
+    expect((actions[2] as HTMLButtonElement).disabled).toBe(true)
+    expect(within(popup).getByText(en.accountsBankedResetExpiryUnknown)).toBeTruthy()
+    for (const index of [0, 1, 0]) {
+      fireEvent.click(actions[index]!)
+      await waitFor(() => { expect((actions[index] as HTMLButtonElement).disabled).toBe(false) })
+    }
+    expect(consumeResetCredit.mock.calls).toHaveLength(3)
+    expect(consumeResetCredit.mock.calls).toEqual([
+      ['codex-1', 'unreported'], ['codex-1', 'later'], ['codex-1', 'unreported'],
+    ])
   })
 
   it('collects API keys only in the key form and never renders the value afterward', async () => {

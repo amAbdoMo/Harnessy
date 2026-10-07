@@ -137,6 +137,7 @@
     "tests/message-actions.e2e.ts",
     "tests/custom-harness-disablement.e2e.ts",
     "tests/compact-session-header.e2e.ts",
+    "tests/banked-reset-chooser.e2e.ts",
     "tests/open-in-app-ssh.e2e.ts",
     "tests/fork-mid-turn.e2e.ts",
     "tests/message-feedback.e2e.ts",

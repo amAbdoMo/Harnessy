@@ -117,9 +117,15 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the updated public account state with credentials omitted.',
       },
       {
-        signature: '@Remote async consumeResetCredit( accountId: string, idempotencyKey: string, signal: AbortSignal, ): Promise<AccountResetCreditResult>',
-        description: 'Consume one provider-issued Codex reset credit for a saved account.',
-        parameters: [{ name: 'accountId', description: 'saved Codex identity whose reset credit will be consumed.' }, { name: 'idempotencyKey', description: 'stable identifier reused when retrying the same user action.' }, { name: 'signal', description: 'cancellation forwarded to provider requests.' }],
+        signature: '@Remote async listResetCredits(accountId: string, signal: AbortSignal): Promise<AccountResetCreditList>',
+        description: 'Read individual Codex reset credits without redeeming or persisting them.',
+        parameters: [{ name: 'accountId', description: 'saved Codex membership whose credits will be listed.' }, { name: 'signal', description: 'cancellation forwarded to the provider request.' }],
+        returns: 'secret-free provider records, including unavailable or unsupported credits.',
+      },
+      {
+        signature: '@Remote async consumeResetCredit( accountId: string, creditId: AccountResetCreditId, idempotencyKey: string, signal: AbortSignal, ): Promise<AccountResetCreditResult>',
+        description: 'Consume the selected provider-issued Codex reset credit for a saved account.',
+        parameters: [{ name: 'accountId', description: 'saved Codex identity whose reset credit will be consumed.' }, { name: 'creditId', description: 'exact provider credit selected by the user; automatic selection is not used.' }, { name: 'idempotencyKey', description: 'stable identifier reused when retrying the same account and credit action.' }, { name: 'signal', description: 'cancellation forwarded to provider requests.' }],
         returns: 'the provider outcome and refreshed public account state.',
       },
       {
@@ -4715,6 +4721,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface AccountProviderView {\n    readonly id: AccountProviderId;\n    readonly label: string;\n    readonly authMode: AccountAuthMode;\n    readonly available: boolean;\n    readonly accountCount: number;\n    readonly activeAccountId?: string;\n    readonly usageAvailable: boolean;\n    readonly autoSwitchOnLimit: boolean;\n}',
   },
   {
+    name: 'AccountResetCreditId',
+    declaration: 'export type AccountResetCreditId = Branded<\'AccountResetCreditId\'>;',
+  },
+  {
+    name: 'AccountResetCreditList',
+    declaration: 'export interface AccountResetCreditList {\n    readonly credits: readonly AccountResetCreditView[];\n}',
+  },
+  {
     name: 'AccountResetCreditOutcome',
     declaration: 'export type AccountResetCreditOutcome = \'reset\' | \'nothing-to-reset\' | \'no-credit\' | \'already-redeemed\';',
   },
@@ -4725,6 +4739,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'AccountResetCreditsView',
     declaration: 'export interface AccountResetCreditsView {\n    readonly availableCount: number;\n}',
+  },
+  {
+    name: 'AccountResetCreditView',
+    declaration: 'export interface AccountResetCreditView {\n    readonly id: AccountResetCreditId;\n    readonly resetType: string;\n    readonly status: string;\n    readonly expiresAtMs?: number;\n    readonly title?: string;\n}',
   },
   {
     name: 'AccountSignInResult',

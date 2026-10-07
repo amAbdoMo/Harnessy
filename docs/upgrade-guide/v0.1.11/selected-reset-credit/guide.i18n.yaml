@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.1.11/selected-reset-credit/guide.md
+/:
+  en: adae337e7427f1df
+  zh: f7e90fc01b9095cf
+/select-a-reset-credit-before-redeeming:
+  en: dc56a0ac51598d56
+  zh: 8fd3c64709689975
+/select-a-reset-credit-before-redeeming/change:
+  en: c71f4642036f883c
+  zh: 0d73c551ef71dae8
+/select-a-reset-credit-before-redeeming/migration:
+  en: 5e7ddcae53cd8e8c
+  zh: b48a148b21a9479f

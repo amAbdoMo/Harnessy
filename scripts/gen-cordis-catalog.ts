@@ -871,6 +871,8 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   AccountProviderId: 'account-provider identity is owned by packages/api/settings-controller/src/types.ts',
   AccountResetCreditOutcome: 'reset-credit redemption outcome is owned by packages/api/settings-controller/src/types.ts',
   AccountResetCreditResult: 'reset-credit redemption result is owned by packages/api/settings-controller/src/types.ts',
+  AccountResetCreditId: 'provider reset identities are owned by packages/api/settings-controller/README.md',
+  AccountResetCreditList: 'transient reset-credit details are owned by packages/api/settings-controller/README.md',
   AccountAutoSwitchEvent: 'account-switch notification payload is owned by packages/api/settings-controller/src/types.ts',
   AccountsState: 'account-manager response state is owned by packages/api/settings-controller/src/types.ts',
   AccountSignInResult: 'account authorization result is owned by packages/api/settings-controller/src/types.ts',

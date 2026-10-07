@@ -1,0 +1,13 @@
+- dialog "Banked resets":
+  - heading "Banked resets" [level=2]
+  - button "Close"
+  - paragraph: Reset Fixture
+  - list:
+    - listitem:
+      - strong: Full reset (Weekly + 5 hr)
+      - text: Expires Oct 23, 2030, 8:00 AM GMT+8
+      - button "Use reset — Oct 23, 2030, 8:00 AM GMT+8": Use reset
+    - listitem:
+      - strong: Full reset (Weekly + 5 hr)
+      - text: Expires Oct 29, 2030, 3:31 PM GMT+8
+      - button "Use reset — Oct 29, 2030, 3:31 PM GMT+8": Use reset

@@ -7,6 +7,8 @@
  * @module @deepseek-ai/dsh-api-settings-controller/types
  */
 
+import type { Branded } from '@deepseek-ai/dsh-brand'
+
 declare module '@deepseek-ai/dsh-typert-protocol' {
   interface RemoteErrorDetailsMap {
     /**
@@ -123,6 +125,23 @@ export interface AccountUsageWindow {
 /** Provider-reported reset credits that can restore eligible usage windows. */
 export interface AccountResetCreditsView {
   readonly availableCount: number
+}
+
+/** Provider-issued reset identity, retained verbatim across the API. */
+export type AccountResetCreditId = Branded<'AccountResetCreditId'>
+
+/** One provider-issued reset; absent expiry means the provider did not report a date. */
+export interface AccountResetCreditView {
+  readonly id: AccountResetCreditId
+  readonly resetType: string
+  readonly status: string
+  readonly expiresAtMs?: number
+  readonly title?: string
+}
+
+/** Transient provider details fetched when the reset chooser opens. */
+export interface AccountResetCreditList {
+  readonly credits: readonly AccountResetCreditView[]
 }
 
 /** Usage snapshot attached to a managed account. */

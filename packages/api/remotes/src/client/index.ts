@@ -146,7 +146,8 @@ export type {
 export type { CredentialInfo } from '@deepseek-ai/dsh-credentials/types'
 export type {
   AccountAuthMode, AccountAutoSwitchEvent, AccountProviderId, AccountProviderView, AccountResetCreditOutcome,
-  AccountResetCreditResult, AccountResetCreditsView, AccountSignInResult, AccountsState, AccountUsageScope, AccountUsageView,
+  AccountResetCreditId, AccountResetCreditList, AccountResetCreditView, AccountResetCreditResult, AccountResetCreditsView,
+  AccountSignInResult, AccountsState, AccountUsageScope, AccountUsageView,
   AccountUsageWindow, ManagedAccountView,
   McpManagerState, McpServerInput, McpServerStatus, McpServerTransport, McpServerView,
   OpenAIAccountSignInResult, OpenAIAccountState,

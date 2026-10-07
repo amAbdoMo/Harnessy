@@ -2,14 +2,15 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import { Button, Input, Modal, Switch } from '@deepseek-ai/dsh-client-ui-primitives'
-import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
 import type {
-  AccountProviderId, AccountProviderView, AccountResetCreditOutcome, AccountsState, AccountUsageScope,
-  AccountUsageWindow, ManagedAccountView,
+  AccountProviderId, AccountProviderView, AccountResetCreditId, AccountResetCreditList, AccountResetCreditOutcome,
+  AccountsState, AccountUsageScope, AccountUsageWindow, ManagedAccountView,
 } from '@deepseek-ai/dsh-api-remotes/client'
 import type { createAccountsMenuStore } from './accounts-menu-store.ts'
 import { accountUsageLevel } from './account-usage-presentation.ts'
+import { useUsageClock } from './account-usage-clock.ts'
 import { ProviderMark } from './provider-marks.tsx'
+import { BankedResetDialog } from './BankedResetDialog.tsx'
 import css from './AccountsManagerCard.module.css'
 
 interface ManagedAccountGroup {
@@ -17,8 +18,6 @@ interface ManagedAccountGroup {
   readonly primary: ManagedAccountView
   readonly contexts: readonly ManagedAccountView[]
 }
-
-const USAGE_CLOCK_INTERVAL_MS = 30_000
 
 function groupManagedAccounts(accounts: readonly ManagedAccountView[]): readonly ManagedAccountGroup[] {
   const grouped = new Map<string, ManagedAccountView[]>()
@@ -64,7 +63,12 @@ export interface AccountsManagerOperations {
     readonly state?: AccountsState
     readonly error?: string
   }>
-  readonly consumeResetCredit: (accountId: string, idempotencyKey: string, signal: AbortSignal) => Promise<{
+  readonly listResetCredits: (accountId: string, signal: AbortSignal) => Promise<{
+    readonly list?: AccountResetCreditList
+    readonly error?: string
+  }>
+  /** Redemption belongs to the application lifetime, not the popup's query cancellation. */
+  readonly consumeResetCredit: (accountId: string, creditId: AccountResetCreditId) => Promise<{
     readonly outcome?: AccountResetCreditOutcome
     readonly state?: AccountsState
     readonly error?: string
@@ -111,12 +115,10 @@ export function AccountsManagerCard({
   const [editName, setEditName] = useState('')
   const [busyAccount, setBusyAccount] = useState<string | undefined>()
   const [autoSwitching, setAutoSwitching] = useState(false)
-  const [consumingReset, setConsumingReset] = useState<string | undefined>()
-  const [confirmation, setConfirmation] = useState<{ readonly kind: 'reset' | 'remove'; readonly account: ManagedAccountView } | undefined>()
+  const [resetAccountId, setResetAccountId] = useState<string | undefined>()
+  const [confirmation, setConfirmation] = useState<{ readonly account: ManagedAccountView } | undefined>()
   const [selectedContexts, setSelectedContexts] = useState<Readonly<Record<string, string>>>({})
   const attempt = useRef<AbortController | undefined>()
-  const resetAttempt = useRef<AbortController | undefined>()
-  const resetAttempts = useRef<Record<string, string>>({})
   const managerOpen = useRef(false)
   const finishSettingsModal = useRef<(() => void) | undefined>()
   const managerRequested = useStore(snapshot => snapshot.managerRequested)
@@ -150,10 +152,8 @@ export function AccountsManagerCard({
     managerOpen.current = false
     attempt.current?.abort()
     attempt.current = undefined
-    resetAttempt.current?.abort()
-    resetAttempt.current = undefined
     setSigningIn(false)
-    setConsumingReset(undefined)
+    setResetAccountId(undefined)
     setAddingKey(false)
     setOpen(false)
     const finish = finishSettingsModal.current
@@ -224,26 +224,6 @@ export function AccountsManagerCard({
     if (result.error !== undefined) setFailure(result.error)
   }
 
-  const consumeResetCredit = async (account: ManagedAccountView): Promise<void> => {
-    attempt.current?.abort()
-    attempt.current = undefined
-    const controller = new AbortController()
-    const idempotencyKey = resetAttempts.current[account.id] ?? randomUUID()
-    resetAttempts.current[account.id] = idempotencyKey
-    resetAttempt.current = controller
-    setConsumingReset(account.id)
-    setFailure(undefined)
-    const result = await operations.consumeResetCredit(account.id, idempotencyKey, controller.signal)
-    if (resetAttempt.current !== controller) return
-    resetAttempt.current = undefined
-    setConsumingReset(undefined)
-    if (result.outcome !== undefined) Reflect.deleteProperty(resetAttempts.current, account.id)
-    if (result.error !== undefined) setFailure(result.error)
-    else if (result.outcome !== undefined && result.outcome !== 'reset' && result.outcome !== 'already-redeemed') {
-      setFailure(resetCreditOutcomeMessage(result.outcome, t))
-    }
-  }
-
   const saveName = async (account: ManagedAccountView): Promise<void> => {
     if (editName.trim() === '') return
     setBusyAccount(account.id)
@@ -265,8 +245,7 @@ export function AccountsManagerCard({
     const action = confirmation
     setConfirmation(undefined)
     if (action === undefined) return
-    if (action.kind === 'reset') await consumeResetCredit(action.account)
-    else await remove(action.account)
+    await remove(action.account)
   }
 
   return (
@@ -291,19 +270,17 @@ export function AccountsManagerCard({
       {failure === undefined || open ? null : <p className={css.error}>{failure}</p>}
 
       <Modal open={confirmation !== undefined} onClose={() => { setConfirmation(undefined) }}
-        title={confirmation?.kind === 'reset' ? t('accountsBankedResets') : t('accountsRemove')}
+        title={t('accountsRemove')}
         closeLabel={t('cancel')}
         footer={(
           <>
             <Button variant="outline" onClick={() => { setConfirmation(undefined) }}>{t('cancel')}</Button>
             <Button variant="primary" onClick={() => { void runConfirmed() }}>
-              {confirmation?.kind === 'reset' ? t('accountsUseBankedReset') : t('accountsRemove')}
+              {t('accountsRemove')}
             </Button>
           </>
         )}>
-        <p className={css.confirmText}>{confirmation?.kind === 'reset'
-          ? t('accountsBankedResetConfirm').replace('{account}', confirmation.account.name)
-          : t('accountsRemoveConfirm')}</p>
+        <p className={css.confirmText}>{t('accountsRemoveConfirm')}</p>
       </Modal>
 
       <Modal open={open && !(signingIn && provider?.authMode === 'oauth')} onClose={closeManager}
@@ -323,7 +300,7 @@ export function AccountsManagerCard({
               </div>
               <div className={css.toolbarActions}>
                 <Button variant="primary" size="sm"
-                  disabled={provider === undefined || !provider.available || signingIn || consumingReset !== undefined}
+                  disabled={provider === undefined || !provider.available || signingIn}
                   onClick={() => {
                     if (provider?.authMode === 'api-key') setAddingKey(true)
                     else void addOAuth()
@@ -340,7 +317,7 @@ export function AccountsManagerCard({
                   <p>{t('accountsAutoSwitchDescription')}</p>
                 </div>
                 <Switch checked={provider.autoSwitchOnLimit} label={t('accountsAutoSwitchToggle')}
-                  disabled={autoSwitching || consumingReset !== undefined || accounts.length < 2}
+                  disabled={autoSwitching || accounts.length < 2}
                   title={accounts.length < 2 ? t('accountsAutoSwitchNeedsAccount') : undefined}
                   onChange={(enabled) => { void setAutoSwitch(enabled) }} />
               </div>
@@ -368,8 +345,7 @@ export function AccountsManagerCard({
                   {accountGroups.map((group) => {
                     const account = selectedContext(group, selectedContexts[group.id])
                     return <AccountCard key={group.id} account={account} contexts={group.contexts} provider={provider}
-                      busy={busyAccount !== undefined || consumingReset !== undefined}
-                      consumingReset={consumingReset === account.id}
+                      busy={busyAccount !== undefined}
                       editing={editing === account.id} editName={editName}
                       onEditName={setEditName} onActivate={() => { void activate(account) }}
                       onSelectContext={(accountId) => {
@@ -378,14 +354,17 @@ export function AccountsManagerCard({
                       }}
                       onBeginEdit={() => { setEditing(account.id); setEditName(account.name) }}
                       onCancelEdit={() => { setEditing(undefined) }} onSaveName={() => { void saveName(account) }}
-                      onConsumeReset={() => { setConfirmation({ kind: 'reset', account }) }}
-                      onRemove={() => { setConfirmation({ kind: 'remove', account }) }} t={t} />
+                      onOpenResets={() => { setResetAccountId(account.id) }}
+                      onRemove={() => { setConfirmation({ account }) }} t={t} />
                   })}
                 </div>
               )}
           </div>
         </div>
       </Modal>
+
+      <BankedResetDialog account={open ? state?.accounts.find(account => account.id === resetAccountId) : undefined}
+        operations={operations} t={t} onClose={() => { setResetAccountId(undefined) }} />
 
       <Modal open={signingIn && provider?.authMode === 'oauth'} onClose={() => {
         attempt.current?.abort()
@@ -439,13 +418,12 @@ function EmptyAccounts({ provider, signingIn, t }: {
   )
 }
 
-function AccountCard({ account, contexts, provider, busy, consumingReset, editing, editName, onEditName, onActivate,
-  onSelectContext, onBeginEdit, onCancelEdit, onSaveName, onConsumeReset, onRemove, t }: {
+function AccountCard({ account, contexts, provider, busy, editing, editName, onEditName, onActivate,
+  onSelectContext, onBeginEdit, onCancelEdit, onSaveName, onOpenResets, onRemove, t }: {
   readonly account: ManagedAccountView
   readonly contexts: readonly ManagedAccountView[]
   readonly provider: AccountProviderView | undefined
   readonly busy: boolean
-  readonly consumingReset: boolean
   readonly editing: boolean
   readonly editName: string
   readonly onEditName: (value: string) => void
@@ -454,7 +432,7 @@ function AccountCard({ account, contexts, provider, busy, consumingReset, editin
   readonly onBeginEdit: () => void
   readonly onCancelEdit: () => void
   readonly onSaveName: () => void
-  readonly onConsumeReset: () => void
+  readonly onOpenResets: () => void
   readonly onRemove: () => void
   readonly t: AccountsManagerCardProps['t']
 }) {
@@ -496,7 +474,7 @@ function AccountCard({ account, contexts, provider, busy, consumingReset, editin
             <UsageScopeSwitch contexts={contexts} selected={account.id} onSelect={onSelectContext} t={t} />
             <div className={css.usagePanels}>
               <UsageGrid account={account} t={t} />
-              <BankedReset account={account} disabled={busy} consuming={consumingReset} onConsume={onConsumeReset} t={t} />
+              <BankedReset account={account} disabled={busy} onConsume={onOpenResets} t={t} />
             </div>
           </div>
         )
@@ -547,10 +525,9 @@ function UsageGrid({ account, t }: {
   )
 }
 
-function BankedReset({ account, disabled, consuming, onConsume, t }: {
+function BankedReset({ account, disabled, onConsume, t }: {
   readonly account: ManagedAccountView
   readonly disabled: boolean
-  readonly consuming: boolean
   readonly onConsume: () => void
   readonly t: AccountsManagerCardProps['t']
 }) {
@@ -565,8 +542,8 @@ function BankedReset({ account, disabled, consuming, onConsume, t }: {
           : t('accountsBankedResetsCount').replace('{count}', String(count))}</span>
       </div>
       <Button variant="outline" size="sm" disabled={count === 0 || disabled} onClick={onConsume}
-        aria-label={t('accountsUseBankedResetFor').replace('{account}', account.name)}>
-        {consuming ? t('accountsUsingBankedReset') : t('accountsUseBankedReset')}
+        aria-haspopup="dialog" aria-label={t('accountsViewBankedResetsFor').replace('{account}', account.name)}>
+        {t('accountsViewBankedResets')}
       </Button>
     </div>
   )
@@ -591,23 +568,6 @@ function UsageBar({ window, nowMs, t }: {
   )
 }
 
-function useUsageClock(enabled: boolean): number {
-  const [nowMs, setNowMs] = useState(Date.now)
-  useEffect(() => {
-    if (!enabled) return
-    const update = (): void => { setNowMs(Date.now()) }
-    const timer = window.setInterval(update, USAGE_CLOCK_INTERVAL_MS)
-    window.addEventListener('focus', update)
-    document.addEventListener('visibilitychange', update)
-    return () => {
-      window.clearInterval(timer)
-      window.removeEventListener('focus', update)
-      document.removeEventListener('visibilitychange', update)
-    }
-  }, [enabled])
-  return nowMs
-}
-
 function usageResetLabel(
   window: AccountUsageWindow,
   nowMs: number,
@@ -625,11 +585,4 @@ function usageResetLabel(
     ? `${String(days)}${day} ${String(hours)}${hour} ${String(minutes)}${minute}`
     : hours > 0 ? `${String(hours)}${hour} ${String(minutes)}${minute}` : `${String(minutes)}${minute}`
   return `${t('accountsResetsInPrefix')} ${duration}`
-}
-
-function resetCreditOutcomeMessage(
-  outcome: Exclude<AccountResetCreditOutcome, 'reset' | 'already-redeemed'>,
-  t: AccountsManagerCardProps['t'],
-): string {
-  return outcome === 'nothing-to-reset' ? t('accountsBankedResetNothingToReset') : t('accountsBankedResetNone')
 }

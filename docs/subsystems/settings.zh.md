@@ -70,13 +70,22 @@ Manage several local identities per provider while keeping one canonical active 
 @Remote async setAutoSwitch(provider: AccountProviderId, enabled: boolean): Promise<AccountsState>
 
 /**
- * Consume one provider-issued Codex reset credit for a saved account.
+ * Read individual Codex reset credits without redeeming or persisting them.
+ * @param accountId - saved Codex membership whose credits will be listed.
+ * @param signal - cancellation forwarded to the provider request.
+ * @returns secret-free provider records, including unavailable or unsupported credits.
+ */
+@Remote async listResetCredits(accountId: string, signal: AbortSignal): Promise<AccountResetCreditList>
+
+/**
+ * Consume the selected provider-issued Codex reset credit for a saved account.
  * @param accountId - saved Codex identity whose reset credit will be consumed.
- * @param idempotencyKey - stable identifier reused when retrying the same user action.
+ * @param creditId - exact provider credit selected by the user; automatic selection is not used.
+ * @param idempotencyKey - stable identifier reused when retrying the same account and credit action.
  * @param signal - cancellation forwarded to provider requests.
  * @returns the provider outcome and refreshed public account state.
  */
-@Remote async consumeResetCredit( accountId: string, idempotencyKey: string, signal: AbortSignal, ): Promise<AccountResetCreditResult>
+@Remote async consumeResetCredit( accountId: string, creditId: AccountResetCreditId, idempotencyKey: string, signal: AbortSignal, ): Promise<AccountResetCreditResult>
 
 /**
  * Rename one local account without changing its credential or active state.

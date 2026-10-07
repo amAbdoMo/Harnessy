@@ -46,11 +46,15 @@ jobs:
         shell: pwsh
         run: pnpm run build:custom-harness
 
+      - name: Install account-chooser browser
+        shell: pwsh
+        run: pnpm exec playwright install chromium
+
       - name: Test live account surfaces
         shell: pwsh
         env:
           DSH_SNAPSHOT: replay
-        run: pnpm exec vitest run --config vitest.web.config.ts apps/web/tests/accounts-live-usage.expected.e2e.ts
+        run: pnpm exec vitest run --config vitest.web.config.ts apps/web/tests/accounts-live-usage.expected.e2e.ts apps/web/tests/banked-reset-chooser.e2e.ts
 
       - name: Test Windows packaging policy
         shell: pwsh

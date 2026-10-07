@@ -8,6 +8,7 @@
 
 import { createHash, randomUUID } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
+import { brandString } from '@deepseek-ai/dsh-brand'
 import { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-agent'
 import { QUOTA_EXCEEDED_CODE } from '@deepseek-ai/dsh-llm'
@@ -24,6 +25,9 @@ import type {
   AccountAutoSwitchEvent,
   AccountProviderId,
   AccountProviderView,
+  AccountResetCreditId,
+  AccountResetCreditList,
+  AccountResetCreditView,
   AccountResetCreditOutcome,
   AccountResetCreditResult,
   AccountResetCreditsView,
@@ -38,7 +42,8 @@ import type {
 const VAULT_KEY = credentialKey('account-manager', 'accounts')
 const PI_AI_SETTINGS = 'llm-pi-ai'
 const USAGE_URL = 'https://chatgpt.com/backend-api/wham/usage'
-const CONSUME_RESET_CREDIT_URL = 'https://chatgpt.com/backend-api/wham/rate-limit-reset-credits/consume'
+const RESET_CREDITS_URL = 'https://chatgpt.com/backend-api/wham/rate-limit-reset-credits'
+const CONSUME_RESET_CREDIT_URL = `${RESET_CREDITS_URL}/consume`
 const PROFILE_CLAIM = 'https://api.openai.com/profile'
 const AUTH_CLAIM = 'https://api.openai.com/auth'
 const CODEX_AUTO_SWITCH_THRESHOLD = 95
@@ -325,18 +330,44 @@ export class AccountsController extends TypertRemoteService {
   }
 
   /**
-   * Consume one provider-issued Codex reset credit for a saved account.
+   * Read individual Codex reset credits without redeeming or persisting them.
+   * @param accountId - saved Codex membership whose credits will be listed.
+   * @param signal - cancellation forwarded to the provider request.
+   * @returns secret-free provider records, including unavailable or unsupported credits.
+   */
+  @Remote
+  async listResetCredits(accountId: string, signal: AbortSignal): Promise<AccountResetCreditList> {
+    const credentials = this.credentials()
+    const vault = await this.importCanonicalAccounts(credentials)
+    const account = vault.providers['openai-codex']?.accounts[accountId]
+    if (account === undefined) throw notFound('openai-codex', accountId)
+    const access = await this.codexAccess(account, signal)
+    const response = await this.fetchUsage(RESET_CREDITS_URL, {
+      method: 'GET',
+      headers: codexUsageHeaders(access.oauth.access, access.accountId),
+      signal: combinedSignal(signal),
+    })
+    if (!response.ok) throw unavailable(`reset credit details request failed (${String(response.status)})`)
+    return decodeResetCreditList(await response.json())
+  }
+
+  /**
+   * Consume the selected provider-issued Codex reset credit for a saved account.
    * @param accountId - saved Codex identity whose reset credit will be consumed.
-   * @param idempotencyKey - stable identifier reused when retrying the same user action.
+   * @param creditId - exact provider credit selected by the user; automatic selection is not used.
+   * @param idempotencyKey - stable identifier reused when retrying the same account and credit action.
    * @param signal - cancellation forwarded to provider requests.
    * @returns the provider outcome and refreshed public account state.
    */
   @Remote
   async consumeResetCredit(
     accountId: string,
+    creditId: AccountResetCreditId,
     idempotencyKey: string,
     signal: AbortSignal,
   ): Promise<AccountResetCreditResult> {
+    const selectedCreditId = decodeResetCreditId(creditId)
+    if (selectedCreditId === undefined) throw rejected('openai-codex', 'a selected reset credit is required')
     const cleanKey = boundedText(idempotencyKey, 128)
     if (cleanKey === undefined) throw rejected('openai-codex', 'a reset attempt identifier is required')
     const credentials = this.credentials()
@@ -347,7 +378,7 @@ export class AccountsController extends TypertRemoteService {
     const response = await this.fetchUsage(CONSUME_RESET_CREDIT_URL, {
       method: 'POST',
       headers: { ...codexUsageHeaders(access.oauth.access, access.accountId), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ redeem_request_id: cleanKey }),
+      body: JSON.stringify({ redeem_request_id: cleanKey, credit_id: selectedCreditId }),
       signal: combinedSignal(signal),
     })
     if (!response.ok) throw unavailable(`reset credit request failed (${String(response.status)})`)
@@ -1272,6 +1303,34 @@ function decodeResetCredits(value: unknown): AccountResetCreditsView | undefined
   const available = finite(value.available_count) ?? finite(value.availableCount)
   if (available === undefined || !Number.isSafeInteger(available) || available < 0) return undefined
   return { availableCount: available }
+}
+
+function decodeResetCreditId(value: unknown): AccountResetCreditId | undefined {
+  if (typeof value !== 'string' || value.length > 256 || value.trim().length === 0) return undefined
+  return brandString<AccountResetCreditId>(value)
+}
+
+function decodeResetCreditList(payload: unknown): AccountResetCreditList {
+  if (!isRecord(payload) || !Array.isArray(payload.credits)) throw unavailable('the reset credit service returned unreadable details')
+  const ids = new Set<string>()
+  const credits: AccountResetCreditView[] = payload.credits.map((value: unknown) => {
+    if (!isRecord(value)) throw unavailable('the reset credit service returned an unreadable credit')
+    const id = decodeResetCreditId(value.id)
+    const resetType = boundedText(value.reset_type, 128)
+    const status = boundedText(value.status, 128)
+    const expiresAtMs = typeof value.expires_at === 'string' ? Date.parse(value.expires_at) : undefined
+    if (id === undefined || resetType === undefined || status === undefined || ids.has(id)
+      || (value.expires_at !== null && value.expires_at !== undefined
+        && (expiresAtMs === undefined || !Number.isFinite(expiresAtMs)))) {
+      throw unavailable('the reset credit service returned an unreadable credit')
+    }
+    ids.add(id)
+    const title = boundedText(value.title, 160)
+    return { id, resetType, status,
+      ...expiresAtMs === undefined ? {} : { expiresAtMs },
+      ...title === undefined ? {} : { title } }
+  })
+  return { credits }
 }
 
 function decodeResetCreditOutcome(payload: unknown): AccountResetCreditOutcome {

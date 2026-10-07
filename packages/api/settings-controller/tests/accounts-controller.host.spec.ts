@@ -7,7 +7,7 @@ import AuthorizationService from '@deepseek-ai/dsh-authorization'
 import { credentialKey } from '@deepseek-ai/dsh-credentials'
 import { remoteMethods } from '@deepseek-ai/dsh-typert-protocol'
 import AccountsController from '../src/accounts.ts'
-import type { AccountAutoSwitchEvent, AccountsState } from '../src/types.ts'
+import type { AccountAutoSwitchEvent, AccountResetCreditId, AccountsState } from '../src/types.ts'
 import { MemoryCredentials } from '../../../credentials/credentials/tests/memory.ts'
 import { MemorySettings } from './memory-settings.ts'
 import { credentialStoreFrom } from '@deepseek-ai/dsh-llm-pi-ai/src/auth.ts'
@@ -221,7 +221,7 @@ describe('the Harnessy accounts Remote namespace', () => {
     expect(await empty.accountsController.describe()).toMatchObject({ writable: false, accounts: [] })
     const { controller } = await boot()
     expect(remoteMethods(controller).map(method => method.method)).toEqual([
-      'describe', 'addOAuth', 'addApiKey', 'activate', 'setAutoSwitch', 'consumeResetCredit', 'rename', 'deleteAccount',
+      'describe', 'addOAuth', 'addApiKey', 'activate', 'setAutoSwitch', 'listResetCredits', 'consumeResetCredit', 'rename', 'deleteAccount',
       'refreshUsage',
     ])
   })
@@ -470,7 +470,46 @@ describe('the Harnessy accounts Remote namespace', () => {
     expect(requestedAccountId).toBe('account-a')
   })
 
-  it('consumes a provider reset credit idempotently and refreshes usage', async () => {
+  it('lists individual credits with expiry without redeeming or persisting them', async () => {
+    const fetchUsage = vi.fn(async (_input: string | URL | Request, _init?: RequestInit) => new Response(JSON.stringify({ credits: [
+      { id: ' first ', reset_type: 'codex_rate_limits', status: 'available', expires_at: '2030-10-23T00:00:00Z', title: 'Full reset' },
+      { id: 'second', reset_type: 'codex_rate_limits', status: 'available', expires_at: null },
+      { id: 'redeemed', reset_type: 'codex_rate_limits', status: 'redeemed', expires_at: null },
+    ], available_count: 2 }), { status: 200 }))
+    const { ctx, controller } = await boot({ fetchUsage })
+    await ctx.credentials.modifyRecord(credentialKey('llm-pi-ai', 'openai-codex'), () =>
+      Promise.resolve(codexGrant('abdo@example.com', 'account-a')))
+    const account = (await controller.describe()).accounts[0]!
+    const list = await controller.listResetCredits(account.id, new AbortController().signal)
+    expect(list.credits).toEqual([
+      { id: ' first ', resetType: 'codex_rate_limits', status: 'available', expiresAtMs: Date.parse('2030-10-23T00:00:00Z'), title: 'Full reset' },
+      { id: 'second', resetType: 'codex_rate_limits', status: 'available' },
+      { id: 'redeemed', resetType: 'codex_rate_limits', status: 'redeemed' },
+    ])
+    expect(fetchUsage).toHaveBeenCalledOnce()
+    const [url, init] = fetchUsage.mock.calls[0]!
+    expect(url).toBe('https://chatgpt.com/backend-api/wham/rate-limit-reset-credits')
+    expect(init?.method).toBe('GET')
+    expect(new Headers(init?.headers).get('chatgpt-account-id')).toBe('account-a')
+    expect((await controller.describe()).accounts[0]?.usage).toBeUndefined()
+  })
+
+  it.each([
+    { credits: [{ id: 42, reset_type: 'codex_rate_limits', status: 'available' }] },
+    { credits: [{ id: '   ', reset_type: 'codex_rate_limits', status: 'available' }] },
+    { credits: [{ id: 'a'.repeat(257), reset_type: 'codex_rate_limits', status: 'available' }] },
+    { credits: [{ id: 'a', reset_type: 'codex_rate_limits', status: 'available', expires_at: 'invalid' }] },
+    { credits: [{ id: 'a', reset_type: 'codex_rate_limits', status: 'available' }, { id: 'a', reset_type: 'codex_rate_limits', status: 'available' }] },
+    { available_count: 2 },
+  ])('rejects unreadable reset details instead of manufacturing selectable rows (%j)', async (payload) => {
+    const { ctx, controller } = await boot({ fetchUsage: async () => new Response(JSON.stringify(payload)) })
+    await ctx.credentials.modifyRecord(credentialKey('llm-pi-ai', 'openai-codex'), () =>
+      Promise.resolve(codexGrant('abdo@example.com', 'account-a')))
+    const account = (await controller.describe()).accounts[0]!
+    await expect(controller.listResetCredits(account.id, new AbortController().signal)).rejects.toThrow('unreadable')
+  })
+
+  it('consumes the selected provider reset credit idempotently and refreshes usage', async () => {
     const requests: Array<{ readonly input: string; readonly init?: RequestInit }> = []
     const fetchUsage = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const requestUrl = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
@@ -489,13 +528,15 @@ describe('the Harnessy accounts Remote namespace', () => {
       Promise.resolve(codexGrant('abdo@example.com', 'account-a')))
     const account = (await controller.describe()).accounts[0]!
 
-    const result = await controller.consumeResetCredit(account.id, 'reset-attempt-1', new AbortController().signal)
+    const result = await controller.consumeResetCredit(
+      account.id, ' credit-second ' as AccountResetCreditId, 'reset-attempt-1', new AbortController().signal,
+    )
 
     expect(result.outcome).toBe('reset')
     expect(result.state.accounts[0]?.usage?.resetCredits).toEqual({ availableCount: 0 })
     expect(requests[0]?.input).toBe('https://chatgpt.com/backend-api/wham/rate-limit-reset-credits/consume')
     expect(requests[0]?.init?.method).toBe('POST')
-    expect(requests[0]?.init?.body).toBe(JSON.stringify({ redeem_request_id: 'reset-attempt-1' }))
+    expect(requests[0]?.init?.body).toBe(JSON.stringify({ redeem_request_id: 'reset-attempt-1', credit_id: ' credit-second ' }))
     expect(new Headers(requests[0]?.init?.headers).get('chatgpt-account-id')).toBe('account-a')
   })
 
@@ -513,7 +554,7 @@ describe('the Harnessy accounts Remote namespace', () => {
       Promise.resolve(codexGrant('abdo@example.com', 'account-a')))
     const account = (await controller.describe()).accounts[0]!
 
-    const result = await controller.consumeResetCredit(account.id, `attempt-${code}`, new AbortController().signal)
+    const result = await controller.consumeResetCredit(account.id, 'credit-second' as AccountResetCreditId, `attempt-${code}`, new AbortController().signal)
 
     expect(result.outcome).toBe(outcome)
   })
@@ -1174,7 +1215,7 @@ describe('the Harnessy accounts Remote namespace', () => {
         sdkObserved = current
         return undefined
       })
-      reset = controller.consumeResetCredit(account.id, 'fixture-reset', new AbortController().signal)
+      reset = controller.consumeResetCredit(account.id, 'credit-second' as AccountResetCreditId, 'fixture-reset', new AbortController().signal)
       await setImmediate()
       expect(sdkObserved).toBeUndefined()
       release.resolve(undefined)
