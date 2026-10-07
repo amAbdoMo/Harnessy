@@ -83,6 +83,7 @@ it('lists expiry dates, fits both themes and narrow windows, and redeems the sec
   const dialog = page.getByRole('dialog', { name: 'Banked resets', exact: true })
   await dialog.getByRole('button', { name: /Use reset —/ }).nth(1).waitFor()
   expect(redemptions).toEqual([])
+  expect(await dialog.getByText('Reset Fixture', { exact: true }).count()).toBe(0)
   await mkdir(fileURLToPath(new URL('./expected/banked-reset-chooser/', import.meta.url)), { recursive: true })
   await compareOrRefreshGolden(EXPECTED, await dialog.ariaSnapshot(), webSnapshotMode())
   await mkdir(fileURLToPath(new URL('../../../.artifacts', import.meta.url)), { recursive: true })

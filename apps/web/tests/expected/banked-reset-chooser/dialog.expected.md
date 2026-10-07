@@ -1,7 +1,6 @@
 - dialog "Banked resets":
   - heading "Banked resets" [level=2]
   - button "Close"
-  - paragraph: Reset Fixture
   - list:
     - listitem:
       - strong: Full reset (Weekly + 5 hr)

@@ -79,7 +79,7 @@ export function BankedResetDialog({ account, operations, onClose, t }: {
 
   const credits = list?.credits.filter(credit => credit.resetType === 'codex_rate_limits' && credit.status === 'available') ?? []
   return <Modal open={account !== undefined} onClose={onClose} title={t('accountsBankedResets')} closeLabel={t('close')}
-    description={account?.name ?? ''} className={css.dialog ?? ''} contentClassName={css.frame ?? ''}>
+    className={css.dialog ?? ''} contentClassName={css.frame ?? ''}>
     <div className={css.content}>
       {loading && list === undefined ? <div className={css.loading} role="status" aria-label={t('accountsBankedResetsLoading')}><StateDot state="ongoing" /></div> : null}
       {failure === undefined ? null : <div className={css.failure} role="alert">
