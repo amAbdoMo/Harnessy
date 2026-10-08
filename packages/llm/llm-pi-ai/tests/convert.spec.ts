@@ -944,6 +944,8 @@ describe('mapStopReason / mapUsage', () => {
     'other side closed',
     'HTTP2 request did not get a response',
     'WebSocket closed unexpectedly',
+    'WebSocket closed 1000: peer finished',
+    'WebSocket closed 1012: service restarting',
     // undici flattens a mid-stream socket drop to this bare word (its SocketError
     // cause is discarded upstream before it reaches us).
     'terminated',
@@ -956,6 +958,18 @@ describe('mapStopReason / mapUsage', () => {
   ])('maps pi-ai transport wording %j', (errorMessage) => {
     expect(mapStopReason(assistant({ stopReason: 'error', errorMessage })))
       .toMatchObject({ kind: 'error', failure: { code: 'TRANSPORT' } })
+  })
+
+  it.each([1000, 1001, 1005, 1006, 1011, 1012, 1013, 1014])('keeps a premature WebSocket close %i retryable without accepting an incomplete response', (code) => {
+    const errorMessage = `WebSocket closed ${code}`
+    expect(mapStopReason(assistant({ stopReason: 'error', errorMessage })))
+      .toEqual({ kind: 'error', failure: { code: 'TRANSPORT', message: errorMessage } })
+  })
+
+  it.each([1002, 1003, 1007, 1008, 1009, 1010, 1015, 4000])('does not treat WebSocket protocol or policy close %i as transient', (code) => {
+    const errorMessage = `WebSocket closed ${code}`
+    expect(mapStopReason(assistant({ stopReason: 'error', errorMessage })))
+      .toEqual({ kind: 'error', failure: { code: 'PI_AI_ERROR', message: errorMessage } })
   })
 
   it('uses pi-ai provider-specific overflow classification without losing rate-limit exclusions', () => {

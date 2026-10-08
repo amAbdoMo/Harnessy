@@ -1,0 +1,22 @@
+{
+  "failedFinishes": [
+    {
+      "kind": "error",
+      "failure": {
+        "message": "WebSocket closed 1012",
+        "code": "TRANSPORT"
+      }
+    }
+  ],
+  "recovered": {
+    "finish": {
+      "kind": "stop"
+    },
+    "content": [
+      {
+        "type": "text",
+        "text": "recovered"
+      }
+    ]
+  }
+}
