@@ -180,7 +180,7 @@ pnpm run dev:desktop
 
 Development launches use the same product-owned `%LOCALAPPDATA%/CustomHarness` data, Harness home, account credentials, MCP configuration, and Electron browser data as the installed Harnessy application. They keep executable profile metadata and plugin links under `apps/desktop/.desktop-build/development/Harness/profiles/desktop`, so an older installed profile cannot replace the current workspace build; the disposable npm project remains at `apps/desktop/.desktop-build/development/project`. `CUSTOM_HARNESS_DATA_DIR`, `DSH_HOME`, `DSH_AGENTS_HOME`, `DSH_DESKTOP_USER_DATA_DIR`, and `DSH_DESKTOP_PROFILE_DIR` provide explicit absolute-path overrides. Do not run development and installed copies concurrently against the same data directories. Renderer DevTools opens automatically; Main, Renderer, and dsh Host debugging listen on ports 9229, 9222, and 9230. `DSH_DESKTOP_MAIN_INSPECT_PORT`, `DSH_DESKTOP_RENDERER_DEBUG_PORT`, and `DSH_DESKTOP_HOST_INSPECT_PORT` replace those ports, while `DSH_DESKTOP_OPEN_DEVTOOLS=0` keeps the detached Renderer tools closed.
 
-After an explicit build, `start:desktop` reconstructs the disposable project and launches the existing artifacts without building again:
+After an explicit build, `start:desktop` reconstructs the disposable project and launches the existing artifacts without building again. Preparation omits retired virtual-hoist entries whose package manifest is missing, including links to directories containing only generated files; required workspace dependencies and malformed manifests still fail preparation:
 
 ```sh
 pnpm run start:desktop

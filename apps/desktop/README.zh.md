@@ -180,7 +180,7 @@ pnpm run dev:desktop
 
 开发启动会与已安装的 Harnessy 应用共用产品专属的 `%LOCALAPPDATA%/CustomHarness` 数据、Harness home、账户凭据、MCP 配置与 Electron 浏览器数据。可执行 profile 元数据和插件链接单独保存在 `apps/desktop/.desktop-build/development/Harness/profiles/desktop`，因此较旧的已安装 profile 不会替换当前 workspace 构建；一次性 npm 项目仍位于 `apps/desktop/.desktop-build/development/project`。`CUSTOM_HARNESS_DATA_DIR`、`DSH_HOME`、`DSH_AGENTS_HOME`、`DSH_DESKTOP_USER_DATA_DIR` 与 `DSH_DESKTOP_PROFILE_DIR` 提供显式绝对路径覆盖。请勿让开发版和安装版同时使用同一组数据目录运行。Renderer DevTools 默认自动打开，Main、Renderer 和 dsh Host 调试端口依次为 9229、9222 和 9230。`DSH_DESKTOP_MAIN_INSPECT_PORT`、`DSH_DESKTOP_RENDERER_DEBUG_PORT` 与 `DSH_DESKTOP_HOST_INSPECT_PORT` 可以替换这些端口，`DSH_DESKTOP_OPEN_DEVTOOLS=0` 则保持 Renderer 调试窗口关闭。
 
-显式构建完成后，`start:desktop` 会重新生成一次性项目，并跳过构建直接启动已有产物：
+显式构建完成后，`start:desktop` 会重新生成一次性项目，并跳过构建直接启动已有产物。准备过程会忽略缺少包清单的已移除虚拟提升条目，包括指向仅含生成文件的目录的链接；必需的 workspace 依赖缺失或包清单格式错误仍会导致准备失败：
 
 ```sh
 pnpm run start:desktop

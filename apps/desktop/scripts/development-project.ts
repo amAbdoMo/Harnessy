@@ -71,11 +71,11 @@ function linkDirectory(source: string, destination: string): void {
 
 function linkWorkspaceDependency(source: string, destination: string): boolean {
   try {
+    readManifest(join(source, 'package.json'))
     linkDirectory(source, destination)
     return true
   } catch (error) {
-    // pnpm can leave a virtual-hoist link behind after removing a workspace
-    // package. That stale link is not part of the current dependency graph.
+    // Retired hoist links may resolve to leftover build directories without a manifest.
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false
     throw error
   }
