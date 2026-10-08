@@ -48,7 +48,7 @@ jobs:
 
       - name: Install account-chooser browser
         shell: pwsh
-        run: pnpm exec playwright install chromium
+        run: pnpm --filter @deepseek-ai/dsh-web-frontend exec playwright install chromium
 
       - name: Test live account surfaces
         shell: pwsh

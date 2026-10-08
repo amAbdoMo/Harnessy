@@ -37,6 +37,18 @@ describe('Custom Harness Windows workflow', () => {
     expect(compilation).toBeGreaterThan(product)
   })
 
+  it('installs the account-chooser browser through the workspace that owns Playwright', () => {
+    const checks = workflowJob(loadWorkflow('.github/workflows/custom-harness-windows.yml'), 'desktop-checks')
+    if (!Array.isArray(checks.steps)) throw new TypeError('Desktop checks job must define steps')
+    const browser = checks.steps.filter(isRecord).find(step => step.name === 'Install account-chooser browser')
+    const frontend: unknown = JSON.parse(readFileSync(resolve(root, 'apps/web/package.json'), 'utf8'))
+    expect(frontend).toHaveProperty('devDependencies.playwright')
+    expect(browser).toMatchObject({
+      shell: 'pwsh',
+      run: 'pnpm --filter @deepseek-ai/dsh-web-frontend exec playwright install chromium',
+    })
+  })
+
   it('publishes the redacted packaging journal when installer verification fails', () => {
     const installer = workflowJob(loadWorkflow('.github/workflows/custom-harness-windows.yml'), 'unsigned-installer')
     if (!Array.isArray(installer.steps)) throw new TypeError('Unsigned installer job must define steps')
