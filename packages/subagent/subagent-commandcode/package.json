@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-subagent-commandcode",
   "description": "Harnessy's Command Code delegation: lane policy, the commandcode_delegate tools, and the Delegation Remote surface",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "publishConfig": {
     "access": "public"
   },
