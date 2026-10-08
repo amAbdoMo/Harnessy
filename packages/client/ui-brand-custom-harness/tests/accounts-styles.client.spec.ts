@@ -43,6 +43,14 @@ describe('Harnessy account usage styles', () => {
     expect(declarations('.accountToolbar')).toContain('margin: 0 0 12px')
   })
 
+  it('keeps empty provider logos out of the muted hint text treatment', () => {
+    const badge = declarations('.providerMark,\n.avatar,\n.emptyMark')
+    expect(badge).toContain('color: var(--dsw-alias-label-primary-foreground);')
+    expect(badge).toContain('background: var(--dsw-alias-button-primary-fill);')
+    expect(styles).toContain('.empty > span:not(.emptyMark) {\n  color: var(--dsw-alias-label-tertiary);')
+    expect(styles).not.toMatch(/\.empty\s+span\s*\{/u)
+  })
+
   it('matches the closed account card inset to the open menu content', () => {
     expect(launcherStyles).toContain(`.trigger {
   min-height: 68px;

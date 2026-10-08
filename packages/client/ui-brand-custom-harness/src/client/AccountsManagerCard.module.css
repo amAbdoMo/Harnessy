@@ -63,7 +63,7 @@
 .waiting,
 .usageUnavailable,
 .resetTime,
-.empty span {
+.empty > span:not(.emptyMark) {
   margin: 0;
   font-size: 12px;
   line-height: 18px;
@@ -76,7 +76,7 @@
 .waiting,
 .usageUnavailable,
 .resetTime,
-.empty span {
+.empty > span:not(.emptyMark) {
   color: var(--dsw-alias-label-tertiary);
 }
 
