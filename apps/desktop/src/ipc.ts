@@ -22,6 +22,7 @@ export const DESKTOP_IPC = {
   browserRelease: 'dsh-desktop:browser-release',
   browserCommand: 'dsh-desktop:browser-command',
   browserOpenRequested: 'dsh-desktop:browser-open-requested',
+  browserReacquireRequested: 'dsh-desktop:browser-reacquire-requested',
   websiteProfilesList: 'dsh-desktop:website-profiles-list',
   websiteProfilesCreate: 'dsh-desktop:website-profiles-create',
   websiteProfilesAcquire: 'dsh-desktop:website-profiles-acquire',

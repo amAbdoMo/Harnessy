@@ -2,8 +2,9 @@
 import { randomUUID } from 'node:crypto'
 import { setImmediate } from 'node:timers/promises'
 import { app, session, webContents, type BrowserWindow, type Event as ElectronEvent, type Session, type WebContents } from 'electron'
-import type { DesktopBrowserLeaseId, DesktopBrowserOpenRequest, DesktopBrowserReservation, DesktopWebsiteProfileId } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
+import type { DesktopBrowserLeaseId, DesktopBrowserOpenRequest, DesktopBrowserReacquireRequest, DesktopBrowserReservation, DesktopWebsiteProfileId } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
 import { DESKTOP_IPC } from './ipc.ts'
+import { bindBrowserCertificateErrors, localBrowserDeviceOrigin, type ConfirmBrowserCertificate } from './browser-certificates.ts'
 import { executeHumanBrowserCommand } from './browser-human-command.ts'
 import { DesktopWebsiteProfiles, type DesktopWebsiteAccount, type DesktopWebsitePairing } from './website-profiles.ts'
 
@@ -11,14 +12,17 @@ interface GuestLease {
   readonly owner: WebContents
   readonly partition: string
   readonly profile?: DesktopWebsiteProfileId
+  readonly certificateOrigin?: string
   attached: boolean
   invalidated: boolean
+  navigationRevision: number
   invalidation?: Promise<void>
   release?: Promise<void> | undefined
   attachment?: Promise<WebContents | null>
   resolveAttachment?: ((guest: WebContents | null) => void) | undefined
   guest?: WebContents
   closeGuest?: () => void
+  releaseCertificates?: () => void
   releaseInput?: (() => void) | undefined
 }
 
@@ -49,9 +53,12 @@ export class DesktopBrowserGuests {
   /**
    * @param hostUrl - current authenticated DSH Host, which guests cannot request.
    * @param websiteNavigation - request-owner policy through admission and drainage; omitted only for guests without request authority.
+   * @param confirmCertificate - unsafe human consent for local-device AUTHORITY_INVALID, which can include date/name failures;
+   * shared and saved-account Sessions remain ineligible.
    */
   constructor(private readonly hostUrl: () => string | undefined,
-    private readonly websiteNavigation?: (owner: WebContents, lease: DesktopBrowserLeaseId, address?: string) => boolean) {}
+    private readonly websiteNavigation?: (owner: WebContents, lease: DesktopBrowserLeaseId, address?: string) => boolean,
+    private readonly confirmCertificate?: ConfirmBrowserCertificate) {}
 
   /**
    * Sign-out and forgetting join every related guest release; any failure retains authentication storage.
@@ -86,19 +93,32 @@ export class DesktopBrowserGuests {
       this.profilePartitions.add(profile)
     }
     const lease = randomUUID() as DesktopBrowserLeaseId
-    this.leases.set(lease, { owner, partition, profile, attached: false, invalidated: false })
+    this.leases.set(lease, { owner, partition, profile, attached: false, invalidated: false, navigationRevision: 0 })
     return { lease, partition }
   }
 
   /**
-   * Reserve one guest in a workspace's process-lifetime partition.
+   * Reserve a workspace guest or a lease-exclusive local-device guest.
    * @param owner - authenticated primary application WebContents.
    * @param workspace - workspace identity received over IPC.
+   * @param addressHint - optional initial address; local HTTPS devices receive a lease-exclusive Session.
    * @returns opaque lease and the partition approved for it.
    */
-  acquire(owner: WebContents, workspace: unknown): DesktopBrowserReservation {
+  acquire(owner: WebContents, workspace: unknown, addressHint?: unknown): DesktopBrowserReservation {
     if (typeof workspace !== 'string' || workspace.length === 0 || workspace.length > 4096) {
       throw new Error('desktop browser: a workspace storage identity is required')
+    }
+    if (addressHint !== undefined && (typeof addressHint !== 'string' || Buffer.byteLength(addressHint, 'utf8') > 4096
+      || !this.allowedNavigation(addressHint))) throw new Error('desktop browser: initial address rejected')
+    const certificateOrigin = typeof addressHint === 'string' ? localBrowserDeviceOrigin(addressHint) : undefined
+    if (certificateOrigin !== undefined) {
+      const partition = `dsh-sidebar-local-${randomUUID()}`
+      const browserSession = session.fromPartition(partition)
+      const lease = randomUUID() as DesktopBrowserLeaseId
+      const entry: GuestLease = { owner, partition, certificateOrigin, attached: false, invalidated: false, navigationRevision: 0 }
+      this.leases.set(lease, entry)
+      this.configureSession(browserSession, entry)
+      return { lease, partition }
     }
     let partition = this.partitions.get(workspace)
     if (partition === undefined) {
@@ -107,7 +127,7 @@ export class DesktopBrowserGuests {
       this.partitions.set(workspace, partition)
     }
     const lease = randomUUID() as DesktopBrowserLeaseId
-    this.leases.set(lease, { owner, partition, attached: false, invalidated: false })
+    this.leases.set(lease, { owner, partition, attached: false, invalidated: false, navigationRevision: 0 })
     return { lease, partition }
   }
 
@@ -143,8 +163,28 @@ export class DesktopBrowserGuests {
       || lease.release !== undefined || lease.guest === undefined || owner.isDestroyed() || lease.guest.isDestroyed()) {
       throw new Error('desktop browser: guest is unavailable')
     }
-    return executeHumanBrowserCommand(lease.guest, input, url => this.allowedNavigation(url),
-      () => lease.profile === undefined || this.websiteNavigation?.(owner, key) !== false)
+    let command = input
+    let revision: number | undefined
+    if (typeof input === 'object' && input !== null && !Array.isArray(input) && 'revision' in input) {
+      const { revision: candidate, ...nativeCommand } = input
+      if (typeof candidate !== 'number' || !Number.isSafeInteger(candidate) || candidate < 0
+        || candidate < lease.navigationRevision) throw new Error('desktop browser: navigation revision rejected')
+      revision = candidate
+      command = nativeCommand
+    }
+    const guest = lease.guest
+    return executeHumanBrowserCommand({
+      navigationHistory: guest.navigationHistory,
+      reload: () => { guest.reload() },
+      loadURL: (url) => {
+        if (this.reacquireForAddress(key, lease, url, 'GET')) return Promise.resolve()
+        return guest.loadURL(url)
+      },
+    }, command, url => this.allowedNavigation(url), () => {
+      const allowed = lease.profile === undefined || this.websiteNavigation?.(owner, key) !== false
+      if (allowed && revision !== undefined) lease.navigationRevision = revision
+      return allowed
+    })
   }
 
   /**
@@ -196,6 +236,11 @@ export class DesktopBrowserGuests {
       const failures = outcomes.filter(outcome => outcome.status === 'rejected').map((outcome): unknown => outcome.reason)
       if (failures.length === 1) throw failures[0]
       if (failures.length !== 0) throw new AggregateError(failures, 'Desktop browser guest failed to drain')
+      if (lease.certificateOrigin !== undefined) {
+        const browserSession = session.fromPartition(lease.partition)
+        await Promise.all([browserSession.clearStorageData(), browserSession.clearCache(), browserSession.clearAuthCache()])
+        await browserSession.closeAllConnections()
+      }
       this.leases.delete(key)
     })
     lease.release = pending
@@ -299,6 +344,7 @@ export class DesktopBrowserGuests {
     }
     const requestClose = (): void => {
       closing = true
+      releaseCertificates()
       stopBootstrap()
       if (closeIssued || guest.isDestroyed()) return
       guest.close({ waitForBeforeUnload: false })
@@ -329,9 +375,14 @@ export class DesktopBrowserGuests {
       invalidate()
       if (bound !== undefined && bound.lease.release === undefined) {
         const { id, lease } = bound
-        void lease.invalidation?.then(() => {
-          if (this.leases.get(id) === lease) this.leases.delete(id)
-        }).catch((_error: unknown) => { /* Failed drainage retains this lease for profile cleanup. */ })
+        if (lease.certificateOrigin !== undefined) {
+          void this.release(lease.owner, id).catch((_error: unknown) => { /* Failed device cleanup stays joinable. */ })
+        }
+        else {
+          void lease.invalidation?.then(() => {
+            if (this.leases.get(id) === lease) this.leases.delete(id)
+          }).catch((_error: unknown) => { /* Failed drainage retains this lease for profile cleanup. */ })
+        }
       }
     }
     guest.once('destroyed', destroyed)
@@ -355,6 +406,9 @@ export class DesktopBrowserGuests {
           && (bound.lease.profile === undefined || this.websiteNavigation?.(owner, bound.id, url) !== false))
       return url === 'about:blank' || this.bootstrapLease(owner, guest, url) !== undefined
     }
+    const releaseCertificates = bindBrowserCertificateErrors(guest, owner,
+      url => bound !== undefined && usable() && bound.lease.profile === undefined && bound.lease.certificateOrigin !== undefined
+        && new URL(url).origin === bound.lease.certificateOrigin && this.allowedNavigation(url), this.confirmCertificate)
     guest.on('will-frame-navigate', (event) => {
       if (event.isMainFrame && !navigationAllowed(event.url)) { event.preventDefault(); if (bound === undefined) close() }
     })
@@ -371,6 +425,7 @@ export class DesktopBrowserGuests {
       bound = match
       native.bound = true
       match.lease.guest = guest
+      match.lease.releaseCertificates = () => { releaseCertificates() }
       match.lease.closeGuest = () => { closeIssued = false; requestClose() }
       stopBootstrap()
       match.lease.resolveAttachment?.(guest)
@@ -436,6 +491,8 @@ export class DesktopBrowserGuests {
   private invalidate(id: DesktopBrowserLeaseId, lease: GuestLease): void {
     if (lease.invalidated) return
     lease.invalidated = true
+    lease.releaseCertificates?.()
+    delete lease.releaseCertificates
     const settlements: Promise<void>[] = []
     // Publish shared settlement before listeners can reenter release or destruction.
     lease.invalidation = Promise.resolve().then(async () => {
@@ -450,7 +507,18 @@ export class DesktopBrowserGuests {
     }
   }
 
-  private configureSession(browserSession: Session): void {
+  private reacquireForAddress(id: DesktopBrowserLeaseId, lease: GuestLease, url: string, method: string): boolean {
+    if (lease.profile !== undefined || localBrowserDeviceOrigin(url) === lease.certificateOrigin) return false
+    if (method === 'GET' && !lease.invalidated && lease.release === undefined && this.leases.get(id) === lease
+      && !lease.owner.isDestroyed() && lease.guest !== undefined && !lease.guest.isDestroyed()
+      && Buffer.byteLength(url, 'utf8') <= 4096 && this.allowedNavigation(url)) {
+      lease.owner.send(DESKTOP_IPC.browserReacquireRequested,
+        { lease: id, url, revision: lease.navigationRevision } satisfies DesktopBrowserReacquireRequest)
+    }
+    return true
+  }
+
+  private configureSession(browserSession: Session, isolated?: GuestLease): void {
     browserSession.setPermissionRequestHandler((_contents, _permission, callback) => { callback(false) })
     browserSession.setPermissionCheckHandler(() => false)
     browserSession.setDevicePermissionHandler(() => false)
@@ -459,9 +527,21 @@ export class DesktopBrowserGuests {
     browserSession.webRequest.onBeforeRequest((details, callback) => {
       const url = new URL(details.url)
       const network = ['http:', 'https:', 'ws:', 'wss:'].includes(url.protocol)
-      callback({ cancel: network
+      let cancel = network
         ? url.username !== '' || url.password !== '' || this.isApplicationHost(url)
-        : !['about:', 'data:', 'blob:'].includes(url.protocol) })
+        : !['about:', 'data:', 'blob:'].includes(url.protocol)
+      if (isolated !== undefined && (isolated.invalidated || isolated.release !== undefined)) cancel = true
+      if (!cancel && network && details.resourceType === 'mainFrame') {
+        const match = [...this.leases].find(([, lease]) => lease.guest?.id === details.webContentsId)
+        if (match !== undefined) cancel = this.reacquireForAddress(match[0], match[1], details.url, details.method)
+      }
+      if (!cancel && network && isolated?.certificateOrigin !== undefined) {
+        const tlsAddress = new URL(details.url)
+        if (tlsAddress.protocol === 'wss:') tlsAddress.protocol = 'https:'
+        const device = localBrowserDeviceOrigin(tlsAddress.href)
+        if (device !== undefined && device !== isolated.certificateOrigin) cancel = true
+      }
+      callback({ cancel })
     })
   }
 

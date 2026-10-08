@@ -1,14 +1,17 @@
 /**
  * Built Windows Desktop acceptance through real Main, Host, preload and native guests.
- * Only external login/MCP services are fixtures. Pairing uses Main's real shell confirmation;
+ * Only owned website/MCP/model endpoints are fixtures. Pairing uses Main's real shell confirmation;
  * guest attachment uses the shipped lease/partition handshake, not a fake bridge.
  * Requires an interactive Windows desktop and completed Host/Desktop builds.
  * The Agent scenario uses an owned Messages provider, genuine Session/tool execution and live consent.
  */
 import { execFile, spawn, type ChildProcess } from 'node:child_process'
+import { randomBytes, X509Certificate } from 'node:crypto'
 import { existsSync, mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
 import { lstat, readFile, readdir, rmdir, unlink } from 'node:fs/promises'
 import { createServer, type Server } from 'node:http'
+import { createServer as createHttpsServer, type Server as HttpsServer } from 'node:https'
+import type { Duplex } from 'node:stream'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -96,6 +99,101 @@ function loginFixture(cookieValue = 'signed-in') {
   return server
 }
 
+/** Ephemeral PFX bytes only; CertificateRequest never opens or changes an OS certificate store. */
+async function localDeviceCertificate(env: Record<string, string>) {
+  const { stdout } = await runFile(process.env.DSH_TEST_PWSH_PATH ?? 'pwsh.exe', ['-NoProfile', '-NonInteractive', '-Command', `
+$ErrorActionPreference = 'Stop'
+$rsa = [System.Security.Cryptography.RSA]::Create(2048)
+$certificate = $null
+try {
+  $request = [System.Security.Cryptography.X509Certificates.CertificateRequest]::new('CN=127.0.0.1', $rsa, [System.Security.Cryptography.HashAlgorithmName]::SHA256, [System.Security.Cryptography.RSASignaturePadding]::Pkcs1)
+  $san = [System.Security.Cryptography.X509Certificates.SubjectAlternativeNameBuilder]::new()
+  $san.AddIpAddress([System.Net.IPAddress]::Parse('127.0.0.1'))
+  $request.CertificateExtensions.Add($san.Build())
+  $now = [DateTimeOffset]::UtcNow
+  $certificate = $request.CreateSelfSigned($now.AddDays(-1), $now.AddDays(1))
+  @{ pfx = [Convert]::ToBase64String($certificate.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Pfx, 'fixture')); der = [Convert]::ToBase64String($certificate.RawData) } | ConvertTo-Json -Compress
+} finally {
+  if ($null -ne $certificate) { $certificate.Dispose() }
+  $rsa.Dispose()
+}
+`], { env, timeout: 20_000, maxBuffer: 64 * 1024, windowsHide: true })
+  const value: unknown = JSON.parse(stdout)
+  if (typeof value !== 'object' || value === null || !('pfx' in value) || typeof value.pfx !== 'string'
+    || !('der' in value) || typeof value.der !== 'string') throw new Error('In-memory TLS fixture generation returned invalid certificate bytes')
+  const certificate = new X509Certificate(Buffer.from(value.der, 'base64'))
+  if (certificate.checkIP('127.0.0.1') !== '127.0.0.1' || Date.parse(certificate.validFrom) >= Date.now()
+    || Date.parse(certificate.validTo) <= Date.now()) throw new Error('Owned TLS certificate is not currently valid for loopback')
+  // Electron exposes the SHA-256 digest as sha256/base64, rather than Node's colon-separated hex.
+  const fingerprint = `sha256/${Buffer.from(certificate.fingerprint256.replaceAll(':', ''), 'hex').toString('base64')}`
+  return { pfx: Buffer.from(value.pfx, 'base64'), fingerprint }
+}
+
+/** Bounded loopback fixture, including raw TLS sockets that HTTP closeAllConnections does not cover. */
+function localDeviceFixture(certificate: Awaited<ReturnType<typeof localDeviceCertificate>>) {
+  const requests: string[] = []
+  const sockets = new Set<Duplex>()
+  let otherOrigin = ''
+  const server = createHttpsServer({ pfx: certificate.pfx, passphrase: 'fixture', handshakeTimeout: 5_000 }, (request, response) => {
+    response.setHeader('cache-control', 'no-store')
+    if (requests.length >= 128) { response.writeHead(429).end(); return }
+    requests.push(`${request.method} ${request.url}`)
+    if (request.url === '/relative.js' || request.url === '/denied.js') {
+      response.setHeader('content-type', 'text/javascript')
+      response.end('document.title = "Local device relative script loaded"')
+    } else if (request.url === '/other-port') {
+      response.setHeader('content-type', 'text/html')
+      response.end(`<title>Waiting for other port</title><script>
+        const script = document.createElement('script');
+        script.src = ${JSON.stringify(`${otherOrigin}/denied.js`)};
+        script.onload = () => { document.title = 'UNSAFE other port loaded' };
+        script.onerror = () => { document.title = 'Other local TLS port blocked' };
+        document.head.append(script);
+      </script>`)
+    } else {
+      response.setHeader('content-type', 'text/html')
+      response.end(`<title>Waiting for relative script</title><script src="/relative.js"></script>
+        <form action="${otherOrigin}/tls-transition" method="post"><button>Leave with POST</button></form>`)
+    }
+  })
+  server.maxConnections = 16
+  server.maxRequestsPerSocket = 16
+  server.requestTimeout = 5_000
+  server.headersTimeout = 5_000
+  server.on('connection', (socket) => { sockets.add(socket); socket.once('close', () => { sockets.delete(socket) }) })
+  const disconnect = async (): Promise<void> => {
+    await Promise.all([...sockets].map(socket => new Promise<void>((resolve) => {
+      socket.once('close', () => { resolve() })
+      socket.destroy()
+    })))
+  }
+  return {
+    server, requests,
+    configure(other: string): void { otherOrigin = other },
+    async replace(next: Awaited<ReturnType<typeof localDeviceCertificate>>): Promise<void> {
+      server.setSecureContext({ pfx: next.pfx, passphrase: 'fixture' })
+      server.setTicketKeys(randomBytes(48))
+      await disconnect()
+    },
+    async close(): Promise<void> {
+      const draining = disconnect()
+      await Promise.all([draining, server.listening ? closeServer(server) : Promise.resolve()])
+      if (sockets.size !== 0) throw new Error('Owned TLS sockets did not settle after listener close')
+    },
+  }
+}
+
+async function listenHttps(server: HttpsServer): Promise<string> {
+  return (await listen(server)).replace('http:', 'https:')
+}
+
+async function activeBrowserGuest(page: Page): Promise<number> {
+  return page.locator('[data-sidebar-browser-frame="webview"]:visible').evaluate((element) => {
+    const guest = element as WebviewTag
+    return guest.getWebContentsId()
+  })
+}
+
 function mcpFixture() {
   const methods: string[] = []
   const server = createServer((request, response) => {
@@ -148,7 +246,7 @@ function childEnvironment(root: string): Record<string, string> {
     CUSTOM_HARNESS_DATA_DIR: join(root, 'data'), CUSTOM_HARNESS_HOME: home,
     CUSTOM_HARNESS_AGENTS_DIR: join(root, 'agents'), CUSTOM_HARNESS_LOG_DIR: join(root, 'logs'),
     CUSTOM_HARNESS_CACHE_DIR: join(root, 'cache'), DSH_HOME: home, DSH_AGENTS_HOME: join(root, 'agents'),
-    APPDATA: join(root, 'appdata'), LOCALAPPDATA: join(root, 'localappdata'),
+    APPDATA: join(root, 'user', 'AppData', 'Roaming'), LOCALAPPDATA: join(root, 'user', 'AppData', 'Local'),
     HOME: join(root, 'user'), USERPROFILE: join(root, 'user'), TEMP: join(root, 'temp'), TMP: join(root, 'temp'),
     DSH_DESKTOP_PROFILE_DIR: join(root, 'profile'), DSH_DESKTOP_DSH_DIR: project,
     DSH_DESKTOP_PRIMARY_RUNTIME_DIR: primaryRuntime, DSH_DESKTOP_PNPM_ENTRY: pnpmEntry, DSH_DESKTOP_OPEN_DEVTOOLS: '0',
@@ -171,46 +269,123 @@ function powershell(env: Record<string, string>): string {
   return join(systemRoot(env), 'System32/WindowsPowerShell/v1.0/powershell.exe')
 }
 
-// UIAutomation invokes only the exact button in the exact owned process/dialog.
+// Native automation invokes only the exact button in the exact owned process/dialog.
 // It never replaces showMessageBox or sends global keystrokes to the installed GUI.
 function nativeDialog(
   pid: number, title: string, button: string, detail: readonly string[], env: Record<string, string>, optional = false,
+  options: { readonly seconds?: number; readonly fingerprint?: string; readonly nativeHandle?: string } = {},
 ) {
   const literal = (text: string): string => `'${text.replaceAll("'", "''")}'`
   const command = `
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
+Add-Type @'
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+public static class OwnedNativeWindows {
+  public delegate bool Callback(IntPtr handle, IntPtr data);
+  [DllImport("user32.dll")] public static extern bool EnumWindows(Callback callback, IntPtr data);
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr handle, out uint pid);
+  [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr handle);
+  [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr handle, uint command);
+  [DllImport("user32.dll")] public static extern IntPtr GetAncestor(IntPtr handle, uint flags);
+  [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr handle);
+  [DllImport("user32.dll", SetLastError = true)] public static extern IntPtr SendMessageTimeout(IntPtr handle, uint message, IntPtr wParam, IntPtr lParam, uint flags, uint timeout, out IntPtr result);
+  public static void ClickTaskButton(IntPtr dialog, IntPtr control, uint pid, int id) {
+    if (Owner(dialog) != pid || Owner(control) != pid || GetAncestor(control, 2) != dialog)
+      throw new InvalidOperationException("NATIVE_CONTROL_OWNER_MISMATCH: dialog.pid=" + Owner(dialog) + " control.pid=" + Owner(control) + " expected.pid=" + pid + " control.root=" + GetAncestor(control, 2) + " expected.dialog=" + dialog);
+    if (!IsWindowVisible(dialog) || !IsWindowVisible(control)) throw new InvalidOperationException("Native confirmation is not visible");
+    IntPtr result;
+    // TDM_CLICK_BUTTON dispatches the registered button through the native TaskDialog procedure.
+    if (SendMessageTimeout(dialog, 0x400 + 102, new IntPtr(id), IntPtr.Zero, 3, 2000, out result) == IntPtr.Zero)
+      throw new InvalidOperationException("Native TaskDialog click did not complete");
+  }
+  public static uint Owner(IntPtr handle) { uint pid; GetWindowThreadProcessId(handle, out pid); return pid; }
+  public static IntPtr[] ForProcess(uint pid) {
+    var handles = new List<IntPtr>();
+    EnumWindows((handle, data) => { if (Owner(handle) == pid) handles.Add(handle); return true; }, IntPtr.Zero);
+    return handles.ToArray();
+  }
+}
+'@
+${options.nativeHandle === undefined ? '' : `
+$mainHandle = [IntPtr]::new([long]${options.nativeHandle})
+$mainOwner = [OwnedNativeWindows]::Owner($mainHandle)
+if ($mainOwner -ne ${pid}) { throw ('NATIVE_OWNER_MISMATCH: expected ${pid}, actual ' + $mainOwner) }
+$mainElement = [System.Windows.Automation.AutomationElement]::FromHandle($mainHandle)
+if ($mainElement.Current.ProcessId -ne ${pid}) { throw 'NATIVE_UIA_OWNER_MISMATCH' }
+[Console]::WriteLine(('OWNED_MAIN: handle=' + $mainHandle + ' owner=' + $mainOwner + ' visible=' + [OwnedNativeWindows]::IsWindowVisible($mainHandle) + ' UIA.pid=' + $mainElement.Current.ProcessId + ' UIA.name=' + $mainElement.Current.Name + ' UIA.class=' + $mainElement.Current.ClassName))
+`}
 $condition = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, ${pid})
-$deadline = [DateTime]::UtcNow.AddSeconds(45)
+$deadline = [DateTime]::UtcNow.AddSeconds(${options.seconds ?? 45})
 $ownedDialogs = @()
 [Console]::WriteLine('READY')
 while ([DateTime]::UtcNow -lt $deadline) {
   if (-not (Get-Process -Id ${pid} -ErrorAction SilentlyContinue)) {
     ${optional ? 'exit 0' : "throw 'Owned Electron exited before native pairing confirmation'"}
   }
-  $windows = [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $condition)
+  $roots = [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $condition)
+  $windows = @($roots)
+  foreach ($root in $roots) {
+    $windows += @($root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $condition))
+  }
+  $ownedDialogs = @($windows | ForEach-Object { $_.Current.Name + '[' + $_.Current.ClassName + ']' })
   :ownedWindow foreach ($window in $windows) {
-    if ($window.Current.ClassName -eq '#32770') { $ownedDialogs = @($window.Current.Name) }
+    if ($window.Current.ClassName -ne '#32770') { continue }
     if ($window.Current.Name -ne ${literal(title)}) { continue }
+    ${options.nativeHandle === undefined ? '' : `
+    $dialogHandle = [IntPtr]::new($window.Current.NativeWindowHandle)
+    if ([OwnedNativeWindows]::Owner($dialogHandle) -ne ${pid} -or $window.Current.ProcessId -ne ${pid} -or [OwnedNativeWindows]::GetWindow($dialogHandle, 4) -ne $mainHandle) {
+      throw 'NATIVE_DIALOG_OWNER_MISMATCH: task dialog is not owned by the exact Main window'
+    }
+    [Console]::WriteLine(('OWNED_DIALOG: handle=' + $dialogHandle + ' ownerWindow=' + $mainHandle + ' visible=' + [OwnedNativeWindows]::IsWindowVisible($dialogHandle)))
+    `}
     $elements = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
     $text = ($elements | ForEach-Object { $_.Current.Name }) -join "\n"
     foreach ($required in @(${detail.map(literal).join(',')})) {
       if (-not $text.Contains($required)) { ${optional ? 'continue ownedWindow' : "throw ('Native dialog lacks expected pairing detail: ' + $required)"} }
     }
+    ${options.fingerprint === undefined ? '' : `if (-not $text.Contains(${literal(options.fingerprint)})) { throw ('Native TLS dialog lacks the owned certificate fingerprint; expected: ${options.fingerprint}; owned text: ' + $text) }`}
     foreach ($element in $elements) {
-      if ($element.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and $element.Current.Name -eq ${literal(button)}) {
-        $invoke = $element.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
-        $invoke.Invoke()
+      $commandButton = $element.Current.ControlType.Id -eq [System.Windows.Automation.ControlType]::Button.Id -or ($element.Current.ControlType.Id -eq [System.Windows.Automation.ControlType]::Pane.Id -and $element.Current.AutomationId -match '^CommandButton_[0-9]+$')
+      if ($commandButton -and $element.Current.Name -eq ${literal(button)}) {
+        if ($element.Current.ProcessId -ne ${pid} -or -not $element.Current.IsEnabled) { throw 'Native confirmation control is not enabled in the exact owned process' }
+        [Console]::WriteLine(('OWNED_CONTROL: name=' + $element.Current.Name + ' type=' + $element.Current.ControlType.ProgrammaticName + ' id=' + $element.Current.AutomationId + ' patterns=' + (($element.GetSupportedPatterns() | ForEach-Object { $_.ProgrammaticName }) -join ',')))
+        $controlHandle = [IntPtr]::new($element.Current.NativeWindowHandle)
+        [Console]::WriteLine(('OWNED_CONTROL_NATIVE: handle=' + $controlHandle + ' class=' + $element.Current.ClassName + ' framework=' + $element.Current.FrameworkId))
+        if ($controlHandle -ne [IntPtr]::Zero) {
+          if ([OwnedNativeWindows]::Owner($controlHandle) -ne ${pid}) { throw 'NATIVE_CONTROL_OWNER_MISMATCH' }
+          $direct = [System.Windows.Automation.AutomationElement]::FromHandle($controlHandle)
+          if ($direct.Current.ProcessId -ne ${pid} -or $direct.Current.Name -ne ${literal(button)} -or $direct.Current.AutomationId -ne $element.Current.AutomationId) { throw 'NATIVE_CONTROL_IDENTITY_MISMATCH' }
+          [Console]::WriteLine(('OWNED_CONTROL_DIRECT: name=' + $direct.Current.Name + ' type=' + $direct.Current.ControlType.ProgrammaticName + ' patterns=' + (($direct.GetSupportedPatterns() | ForEach-Object { $_.ProgrammaticName }) -join ',')))
+        }
+        $clickedDialog = [IntPtr]::new($window.Current.NativeWindowHandle)
+        $invoke = $null
+        if ($element.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$invoke)) {
+          $invoke.Invoke()
+        } ${options.nativeHandle === undefined ? '' : `elseif ($element.Current.ClassName -eq 'CCPushButton' -and $element.Current.FrameworkId -eq 'DirectUI' -and $element.Current.AutomationId -match '^CommandButton_([0-9]+)$') {
+          # DirectUI registers TaskDialog IDs in CommandButton_<id>; its child HWND has Win32 control ID zero.
+          [OwnedNativeWindows]::ClickTaskButton($dialogHandle, $controlHandle, ${pid}, [int]$Matches[1])
+        }`} else { throw 'Exact native confirmation control has no supported invocation capability' }
+        $closedDeadline = [DateTime]::UtcNow.AddSeconds(5)
+        while ([OwnedNativeWindows]::IsWindow($clickedDialog) -and [DateTime]::UtcNow -lt $closedDeadline) { Start-Sleep -Milliseconds 20 }
+        if ([OwnedNativeWindows]::IsWindow($clickedDialog)) { throw 'Native confirmation action did not close the exact dialog' }
         [Console]::WriteLine('CONFIRMED')
         exit 0
       }
     }
-    throw 'Expected native confirmation button is unavailable'
+    $controls = @($elements | ForEach-Object { 'name=' + $_.Current.Name + ' type=' + $_.Current.ControlType.ProgrammaticName + ' buttonEqual=' + ($_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button) + ' id=' + $_.Current.AutomationId })
+    throw ('Expected native confirmation button is unavailable; owned controls: ' + ($controls -join ', '))
   }
   Start-Sleep -Milliseconds 50
 }
-throw ('Native confirmation dialog timed out; owned task dialog names: ' + ($ownedDialogs -join ', '))
+$nativeWindows = @([OwnedNativeWindows]::ForProcess(${pid}) | ForEach-Object {
+  $element = [System.Windows.Automation.AutomationElement]::FromHandle($_)
+  'handle=' + $_ + ' visible=' + [OwnedNativeWindows]::IsWindowVisible($_) + ' UIA.pid=' + $element.Current.ProcessId + ' UIA.name=' + $element.Current.Name + ' UIA.class=' + $element.Current.ClassName
+})
+throw ('NATIVE_DIALOG_EXPIRED: owned task dialog names: ' + ($ownedDialogs -join ', ') + '; native windows: ' + ($nativeWindows -join ', '))
 `
   const child = spawn(powershell(env), ['-NoProfile', '-NonInteractive', '-Command', command], { env, windowsHide: true })
   let output = ''
@@ -218,19 +393,29 @@ throw ('Native confirmation dialog timed out; owned task dialog names: ' + ($own
   let readyResolve: () => void = () => {}
   let readyReject: (error: Error) => void = () => {}
   const ready = new Promise<void>((resolve, reject) => { readyResolve = resolve; readyReject = reject })
-  child.stdout.on('data', (chunk: Buffer) => { output += chunk.toString(); if (output.includes('READY')) readyResolve() })
+  child.stdout.on('data', (chunk: Buffer) => { output += chunk.toString(); if (/^READY\r?$/mu.test(output)) readyResolve() })
   child.stderr.on('data', (chunk: Buffer) => { errors += chunk.toString() })
   const done = new Promise<void>((resolve, reject) => {
     child.once('error', (error) => { readyReject(error); reject(error) })
     child.once('close', (code) => {
-      if (code === 0) resolve()
-      else reject(new Error(`Native dialog helper exited ${code}: ${errors || output}`))
+      if (code === 0 && (optional || /^CONFIRMED\r?$/mu.test(output))) resolve()
+      else reject(new Error(`Native dialog helper exited ${code}: ${errors}; ${output}`))
       readyReject(new Error(`Native dialog helper closed before readiness: ${errors || output}`))
     })
   })
   // The owner joins failures below; an early helper failure must not become an unhandled rejection.
   void done.catch(() => {})
-  return { child, ready, done }
+  return { child, ready, done, diagnostics: (): string => output }
+}
+
+async function nativeMainWindow(app: ElectronApplication): Promise<{ pid: number; nativeHandle: string }> {
+  return app.evaluate(({ BrowserWindow }) => {
+    const window = BrowserWindow.getAllWindows().find(window => window.webContents.getURL().startsWith('dsh-app://app/'))
+    if (!window) throw new Error('Owned app BrowserWindow is unavailable')
+    const handle = window.getNativeWindowHandle()
+    const nativeHandle = (handle.length === 8 ? handle.readBigUInt64LE() : BigInt(handle.readUInt32LE())).toString()
+    return { pid: process.pid, nativeHandle }
+  })
 }
 
 async function stopHelper(helper: ReturnType<typeof nativeDialog>): Promise<void> {
@@ -276,7 +461,9 @@ async function stopDesktop(app: ElectronApplication, env: Record<string, string>
   const child = app.process()
   if (child.pid === undefined) throw new Error('Owned Electron has no process ID')
   const pids = await ownedTree(child.pid, env)
-  const quit = nativeDialog(child.pid, 'Harnessy', 'Quit', ['Quit Harnessy?'], env, true)
+  const main = await nativeMainWindow(app)
+  expect(pids, 'Native quit target must belong to the launched test process tree').toContain(main.pid)
+  const quit = nativeDialog(main.pid, 'Harnessy', 'Quit', ['Quit Harnessy?'], env, true, { nativeHandle: main.nativeHandle })
   let failure: unknown
   try {
     await quit.ready
@@ -436,7 +623,329 @@ async function sessionLogs(root: string): Promise<string[]> {
   return result
 }
 
+describe('native dialog source helper', () => {
+  it.skipIf(process.platform !== 'win32')('rejects a native handle not owned by the exact target PID', { retry: 0, timeout: 30_000 }, async () => {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-dialog-owner-'))
+    const helper = nativeDialog(process.pid, 'Owned nonexistent TLS dialog', 'Cancel', [], childEnvironment(root), false, { nativeHandle: '0' })
+    try {
+      await expect(helper.ready).rejects.toThrow('NATIVE_OWNER_MISMATCH')
+      await expect(helper.done).rejects.toThrow('NATIVE_OWNER_MISMATCH')
+      expect(helper.diagnostics()).not.toMatch(/^CONFIRMED\r?$/mu)
+      expect(helper.child.exitCode).not.toBeNull()
+    } finally { await stopHelper(helper); await removeOwned(root) }
+  })
+
+  it.skipIf(process.platform !== 'win32')('reports expiry instead of treating an unconfirmed native dialog as consent', { retry: 0, timeout: 30_000 }, async () => {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-dialog-expiry-'))
+    let helper: ReturnType<typeof nativeDialog> | undefined
+    try {
+      helper = nativeDialog(process.pid, 'Owned nonexistent TLS dialog', 'Cancel', [], childEnvironment(root), false, { seconds: 0.1 })
+      await helper.ready
+      await expect(helper.done).rejects.toThrow('NATIVE_DIALOG_EXPIRED')
+      expect(helper.diagnostics()).not.toMatch(/^CONFIRMED\r?$/mu)
+      expect(helper.child.exitCode).not.toBeNull()
+    } finally {
+      if (helper) await stopHelper(helper)
+      await removeOwned(root)
+    }
+  })
+})
+
 describe.skipIf(missing.length > 0)(`built Native Website login${missing.length ? ` (missing artifacts: ${missing.join(', ')})` : ''}`, () => {
+  it('native local TLS consent isolates tabs and reacquisition while preserving normal workspace cookies', { retry: 0, timeout: 420_000 }, async () => {
+    if (process.platform !== 'win32') throw new Error('Native TLS acceptance requires an interactive Windows desktop')
+    expect(readClientBuildRecord(repository).environment.DSH_CLIENT_BUILD_PROFILE,
+      'Native TLS acceptance requires root build:custom-harness artifacts').toBe('custom-harness')
+    const root = mkdtempSync(join(tmpdir(), 'dsh-native-local-tls-'))
+    const env = childEnvironment(root)
+    env.DEEPSEEK_API_KEY = 'fixture-key-not-an-external-credential'
+    const model = websiteModelFixture()
+    const normal = loginFixture()
+    const fixtures: ReturnType<typeof localDeviceFixture>[] = []
+    const helpers = new Set<ReturnType<typeof nativeDialog>>()
+    let app: ElectronApplication | undefined
+    let failure: unknown
+    const cleanupErrors: unknown[] = []
+    try {
+      const certificate = await localDeviceCertificate(env)
+      const replacement = await localDeviceCertificate(env)
+      expect(replacement.fingerprint).not.toBe(certificate.fingerprint)
+      const device = localDeviceFixture(certificate)
+      fixtures.push(device)
+      const otherPort = localDeviceFixture(certificate)
+      fixtures.push(otherPort)
+      const origin = await listenHttps(device.server)
+      const otherOrigin = await listenHttps(otherPort.server)
+      const normalOrigin = await listen(normal)
+      device.configure(otherOrigin)
+      otherPort.configure(origin)
+      const modelOrigin = await listen(model.server)
+      await new DesktopProjectManager(resolveDesktopPaths(env.DSH_HOME, env.DSH_DESKTOP_PROFILE_DIR), { dsh: project }).applyRelease()
+      writeFileSync(join(env.DSH_DESKTOP_PROFILE_DIR!, 'cordis.patch.yml'),
+        '- id: webserver\n  config:\n    host: 127.0.0.1\n    port: 0\n'
+        + `- id: llm-deepseek\n  disabled: false\n  config:\n    baseURL: ${modelOrigin}\n    thinking: disabled\n`
+        + '- id: agent-default-model\n  config:\n    provider: deepseek-official\n    model: deepseek-flash\n    reasoningEffort: off\n'
+        + '- id: directory-picker\n  disabled: true\n'
+        + '- insert:\n    - id: directory-picker-browse\n      name: "@deepseek-ai/dsh-host-directory-picker-browse"\n'
+        + '    - id: ui-directory-picker-browse\n      name: "@deepseek-ai/dsh-client-ui-directory-picker-browse"\n')
+      app = await _electron.launch({ executablePath: electronExecutable,
+        args: [desktop, '--lang=en-US', '--enable-logging=stderr'], env, cwd: desktop, timeout: 120_000 })
+      const activeApp = app
+      await activeApp.evaluate(({ app }) => {
+        const events: string[] = []
+        ;(globalThis as typeof globalThis & { __localTLSFixture?: string[] }).__localTLSFixture = events
+        const record = (entry: string): void => { if (events.length < 100) events.push(entry) }
+        app.on('web-contents-created', (_event, contents) => {
+          if (contents.getType() !== 'webview') return
+          contents.on('did-start-navigation', (event) => { record(`${contents.id}:start:${event.url}`) })
+          contents.on('dom-ready', () => { record(`${contents.id}:ready`) })
+          contents.on('certificate-error', (_event, url, error, certificate, _callback, main) => {
+            record(`${contents.id}:certificate:${url}:${error}:${main}:${certificate.fingerprint}`)
+          })
+          contents.on('did-stop-loading', () => { record(`${contents.id}:stop`) })
+          contents.on('did-fail-load', (_event, code, _description, url) => { record(`${contents.id}:fail:${url}:${code}`) })
+          contents.on('did-fail-provisional-load', (_event, code, _description, url, main) => {
+            record(`${contents.id}:provisional-fail:${url}:${code}:${main}`)
+          })
+          contents.on('will-frame-navigate', (event) => { record(`${contents.id}:will-frame:${event.url}:${event.isMainFrame}`) })
+        })
+      })
+      const page = await applicationPage(app)
+      await page.evaluate(() => { (window as Window & { __DSH_LOCALE__?: { onChange(locale: string): void } }).__DSH_LOCALE__!.onChange('en') })
+      const composer = page.locator('[data-composer-input][contenteditable="true"]').last()
+      await composer.fill('Create the owned native TLS acceptance session; reply without tools.')
+      await composer.press('Enter')
+      await page.locator('[data-chat-turn]').getByText('Website acceptance', { exact: true }).last().waitFor({ timeout: 60_000 })
+      expect(model.errors).toEqual([])
+      await page.locator('[data-sidebar-right-expand]').click()
+      await page.locator('[data-sidebar-right-guide-entry="browser"]').click()
+      const right = page.locator('[data-rightbar-col]')
+      const address = right.getByRole('textbox', { name: 'Enter an HTTP(S) address' })
+      const navigate = async (url: string): Promise<void> => { await address.fill(url); await address.press('Enter') }
+      const nativeTitle = (id: number): Promise<string> => activeApp.evaluate(({ webContents }, id) => {
+        const guest = webContents.fromId(id)
+        return guest && !guest.isDestroyed() ? guest.getTitle() : ''
+      }, id)
+      const current = async (previous?: number): Promise<number> => {
+        await expect.poll(async () => {
+          const id = await activeBrowserGuest(page)
+          return id > 0 && id !== previous
+        }, { timeout: 20_000 }).toBe(true)
+        return activeBrowserGuest(page)
+      }
+      const sameSession = (first: number, second: number): Promise<boolean> => activeApp.evaluate(({ webContents }, ids) =>
+        webContents.fromId(ids.first)!.session === webContents.fromId(ids.second)!.session, { first, second })
+      const partition = (): Promise<string | null> => page.locator('[data-sidebar-browser-frame="webview"]:visible').getAttribute('partition')
+      const denied = async (): Promise<void> => {
+        await expect.poll(() => right.getByRole('status').allTextContents(), { timeout: 20_000 })
+          .toEqual(expect.arrayContaining([expect.stringContaining('ERR_CERT_AUTHORITY_INVALID')]))
+      }
+      let fingerprintControlChecked = false
+      const decide = async (button: 'Cancel' | 'Open device in this tab (unsafe)', fingerprint: string,
+        trigger: () => Promise<void>): Promise<void> => {
+        const pid = activeApp.process().pid
+        if (pid === undefined) throw new Error('Owned Main has no PID for TLS dialog automation')
+        const ownedWindow = await nativeMainWindow(activeApp)
+        expect(await ownedTree(pid, env), 'Native Main must belong to the launched test process tree').toContain(ownedWindow.pid)
+        console.info('TLS native ownership', { launchPid: pid, ...ownedWindow })
+        let navigationTriggered = false
+        if (!fingerprintControlChecked) {
+          const wrong = nativeDialog(ownedWindow.pid, 'Unverified local device', 'Cancel',
+            [origin, 'Cancel', 'Open device in this tab (unsafe)'], env, false,
+            { fingerprint: 'sha256/not-the-owned-certificate', nativeHandle: ownedWindow.nativeHandle })
+          helpers.add(wrong)
+          try {
+            await wrong.ready
+            const outcomes = await Promise.allSettled([wrong.done, trigger()])
+            const rejected = outcomes[0]
+            expect(rejected.status).toBe('rejected')
+            if (rejected.status !== 'rejected') throw new Error('Native helper accepted a mismatched certificate fingerprint')
+            const reason: unknown = rejected.reason
+            expect(reason).toBeInstanceOf(Error)
+            if (!(reason instanceof Error)) throw new Error('Native helper did not report a diagnostic Error')
+            expect(reason.message).toContain('Native TLS dialog lacks the owned certificate fingerprint')
+            expect(outcomes[1]).toMatchObject({ status: 'fulfilled' })
+            expect(wrong.diagnostics()).not.toMatch(/^CONFIRMED\r?$/mu)
+            expect(device.requests).toEqual([])
+            fingerprintControlChecked = true
+            navigationTriggered = true
+            console.info('TLS wrong fingerprint rejected without confirmation')
+          } finally { await stopHelper(wrong); helpers.delete(wrong) }
+        }
+        const helper = nativeDialog(ownedWindow.pid, 'Unverified local device', button,
+          [origin, 'Cancel', 'Open device in this tab (unsafe)'], env, false, { fingerprint, nativeHandle: ownedWindow.nativeHandle })
+        helpers.add(helper)
+        try {
+          await helper.ready
+          const outcomes = await Promise.allSettled([helper.done, navigationTriggered ? Promise.resolve() : trigger()])
+          const failures = outcomes.filter(outcome => outcome.status === 'rejected').map((outcome): unknown => outcome.reason)
+          if (failures.length !== 0) {
+            const details = failures.map(error => error instanceof Error ? error.message : String(error)).join('; ')
+            const guestState = await activeApp.evaluate(({ webContents }) => webContents.getAllWebContents()
+              .filter(contents => contents.getType() === 'webview').map(contents => ({ id: contents.id,
+                url: contents.getURL(), loading: contents.isLoading() })))
+            const status = await right.getByRole('status').allTextContents()
+            const trace = await activeApp.evaluate(() =>
+              (globalThis as typeof globalThis & { __localTLSFixture?: string[] }).__localTLSFixture)
+            const observations = JSON.stringify({ guestState, status, partition: await partition(), trace })
+            throw new AggregateError(failures, `Native TLS decision or UI navigation failed: ${details}; ${observations}`)
+          }
+          console.info(`TLS native ${button}: ${helper.diagnostics().trim()}`)
+        } finally { await stopHelper(helper); helpers.delete(helper) }
+      }
+      const destroyed = async (id: number): Promise<void> => {
+        await expect.poll(() => activeApp.evaluate(({ webContents }, id) => {
+          const guest = webContents.fromId(id)
+          return guest === undefined || guest.isDestroyed()
+        }, id), { timeout: 15_000 }).toBe(true)
+      }
+      const openSecond = async (): Promise<void> => {
+        await right.getByRole('button', { name: 'New tab', exact: true }).click()
+        await right.locator('[data-sidebar-right-guide-entry="browser"]').click()
+      }
+      const closeSecond = async (id: number, primaryTab: string): Promise<void> => {
+        await right.getByRole('tab', { selected: true }).locator('[data-dockkit-tab-close]').click()
+        await destroyed(id)
+        await right.locator(`[data-dockkit-tab="${primaryTab}"]`).click()
+      }
+
+      await navigate(normalOrigin)
+      const normalGuest = await current()
+      const normalPartition = await partition()
+      expect(normalPartition).not.toBeNull()
+      const primaryTab = await right.getByRole('tab', { selected: true }).getAttribute('data-dockkit-tab')
+      if (!primaryTab) throw new Error('Product Browser tab identity is missing')
+      await expect.poll(() => state(activeApp, normalGuest), { timeout: 15_000 }).toBe('anonymous')
+      await signIn(activeApp, normalGuest)
+      await openSecond()
+      await navigate(normalOrigin)
+      const sharedGuest = await current()
+      expect(await partition()).toBe(normalPartition)
+      expect(await sameSession(normalGuest, sharedGuest)).toBe(true)
+      await expect.poll(() => state(activeApp, sharedGuest), { timeout: 15_000 }).toBe('authenticated')
+      await closeSecond(sharedGuest, primaryTab)
+
+      // The assembled frame must replace its normal guest before private TLS navigation.
+      await decide('Cancel', certificate.fingerprint, () => navigate(`${origin}/`))
+      await denied()
+      const privateGuest = await current()
+      const privatePartition = await partition()
+      expect(privateGuest).not.toBe(normalGuest)
+      expect(privatePartition).not.toBe(normalPartition)
+      await destroyed(normalGuest)
+      expect(device.requests).toEqual([])
+      expect(await activeApp.evaluate(async ({ webContents }, id) =>
+        webContents.fromId(id)!.session.cookies.get({ name: 'fixture_login' }), privateGuest)).toEqual([])
+
+      await decide('Open device in this tab (unsafe)', certificate.fingerprint, () => navigate(`${origin}/`))
+      expect(await current()).toBe(privateGuest)
+      await expect.poll(() => nativeTitle(privateGuest), { timeout: 15_000 }).toBe('Local device relative script loaded')
+      expect(device.requests).toEqual(expect.arrayContaining(['GET /', 'GET /relative.js']))
+      await navigate(`${origin}/other-port`)
+      await expect.poll(() => nativeTitle(privateGuest), { timeout: 15_000 }).toBe('Other local TLS port blocked')
+      expect(otherPort.requests).toEqual([])
+
+      // A page-originated POST cannot be reissued as a GET in another origin's Session.
+      await navigate(`${origin}/post-normal`)
+      await expect.poll(() => nativeTitle(privateGuest), { timeout: 15_000 }).toBe('Local device relative script loaded')
+      const postFailure = await activeApp.evaluate(async ({ webContents }, { id, url }) => {
+        const guest = webContents.fromId(id)
+        if (!guest) throw new Error('Private TLS guest is unavailable')
+        return new Promise<{
+          error: string
+          method: string
+          resourceType: string
+          webContentsId: number | undefined
+          url: string
+        }>((resolve, reject) => {
+          const timer = setTimeout(() => {
+            cleanup()
+            const trace = (globalThis as typeof globalThis & { __localTLSFixture?: string[] }).__localTLSFixture
+            reject(new Error(`Owned POST rejection did not settle; ${JSON.stringify({ url: guest.getURL(), loading: guest.isLoading(), trace })}`))
+          }, 15_000)
+          const cleanup = (): void => {
+            clearTimeout(timer)
+            guest.session.webRequest.onErrorOccurred(null)
+          }
+          // Observe the isolated Session's native network result without replacing its onBeforeRequest policy.
+          guest.session.webRequest.onErrorOccurred({ urls: [url] }, (details) => {
+            cleanup()
+            resolve({ error: details.error, method: details.method, resourceType: details.resourceType,
+              webContentsId: details.webContentsId, url: details.url })
+          })
+          void guest.executeJavaScript('setTimeout(() => document.querySelector("form").requestSubmit(), 0); void 0')
+            .catch((error: unknown) => { cleanup(); reject(new Error('Native POST fixture failed', { cause: error })) })
+        })
+      }, { id: privateGuest, url: `${otherOrigin}/tls-transition` })
+      expect(postFailure).toEqual({ error: 'net::ERR_BLOCKED_BY_CLIENT', method: 'POST', resourceType: 'mainFrame',
+        webContentsId: privateGuest, url: `${otherOrigin}/tls-transition` })
+      console.info('TLS native POST rejection', postFailure)
+      expect(await current()).toBe(privateGuest)
+      expect(otherPort.requests).toEqual([])
+
+      await openSecond()
+      await decide('Cancel', certificate.fingerprint, () => navigate(`${origin}/second-tab`))
+      await denied()
+      const secondPrivate = await current()
+      expect(await partition()).not.toBe(privatePartition)
+      expect(await sameSession(privateGuest, secondPrivate)).toBe(false)
+      expect(device.requests).not.toContain('GET /second-tab')
+      await closeSecond(secondPrivate, primaryTab)
+
+      await activeApp.evaluate(async ({ webContents }, id) => { await webContents.fromId(id)!.session.closeAllConnections() }, privateGuest)
+      await device.replace(replacement)
+      await decide('Cancel', replacement.fingerprint, () => navigate(`${origin}/replacement`))
+      await denied()
+      expect(device.requests).not.toContain('GET /replacement')
+      expect(await current()).toBe(privateGuest)
+      await decide('Open device in this tab (unsafe)', replacement.fingerprint, () => navigate(`${origin}/replacement`))
+      await expect.poll(() => nativeTitle(privateGuest), { timeout: 15_000 }).toBe('Local device relative script loaded')
+      expect(device.requests).toContain('GET /replacement')
+
+      await navigate(normalOrigin)
+      const returnedNormal = await current(privateGuest)
+      expect(returnedNormal).not.toBe(privateGuest)
+      await destroyed(privateGuest)
+      expect(await partition()).toBe(normalPartition)
+      expect(await activeApp.evaluate(({ webContents, session }, { id, partition }) =>
+        webContents.fromId(id)!.session === session.fromPartition(partition),
+      { id: returnedNormal, partition: normalPartition! })).toBe(true)
+      await expect.poll(() => state(activeApp, returnedNormal), { timeout: 15_000 }).toBe('authenticated')
+
+      await decide('Cancel', replacement.fingerprint, () => navigate(`${origin}/fresh-acquire`))
+      await denied()
+      const freshPrivate = await current()
+      expect(freshPrivate).not.toBe(privateGuest)
+      expect(await partition()).not.toBe(privatePartition)
+      await destroyed(returnedNormal)
+      expect(device.requests).not.toContain('GET /fresh-acquire')
+      await navigate(normalOrigin)
+      const finalNormal = await current(freshPrivate)
+      await destroyed(freshPrivate)
+      expect(await partition()).toBe(normalPartition)
+      await expect.poll(() => state(activeApp, finalNormal), { timeout: 15_000 }).toBe('authenticated')
+      expect(model.errors).toEqual([])
+      await stopDesktop(activeApp, env)
+      app = undefined
+    } catch (error) { failure = error }
+    finally {
+      for (const helper of helpers) await stopHelper(helper)
+      model.dispose()
+      let settled = app === undefined
+      if (app) { try { await stopDesktop(app, env); settled = true } catch (error) { cleanupErrors.push(error) } }
+      for (const fixture of fixtures) { try { await fixture.close() } catch (error) { cleanupErrors.push(error) } }
+      for (const server of [normal, model.server]) {
+        if (server.listening) { try { await closeServer(server) } catch (error) { cleanupErrors.push(error) } }
+      }
+      if (settled && failure === undefined && cleanupErrors.length === 0) {
+        try { await removeOwned(root) } catch (error) { cleanupErrors.push(error) }
+      } else cleanupErrors.push(new Error(`Native TLS acceptance ${settled ? 'failed' : 'did not shut down'}; retained root: ${root}`))
+      if (failure !== undefined || cleanupErrors.length !== 0) {
+        throw new AggregateError([...(failure === undefined ? [] : [failure]), ...cleanupErrors], 'Native TLS acceptance or cleanup failed')
+      }
+    }
+  })
+
   it('isolates account login, preserves it on reacquire, and durably clears sign-out and forgotten profiles', async () => {
     if (process.platform !== 'win32') throw new Error('Native dialog automation requires an interactive Windows desktop')
     expect(readClientBuildRecord(repository).environment.DSH_CLIENT_BUILD_PROFILE,

@@ -134,7 +134,7 @@ export class ElectronWebViewImpl implements BrowserFrame {
     const revision = ++this.revision
     this.pending = undefined
     this.store.set({ ...this.store.getSnapshot(), loading: true, error: undefined })
-    void this.bridge.command(lease, { kind }).catch((error: unknown) => {
+    void this.bridge.command(lease, { kind, revision }).catch((error: unknown) => {
       if (this.element === element && !this.lifetime.signal.aborted && this.revision === revision) this.commandFailed(error)
     })
   }
@@ -143,19 +143,28 @@ export class ElectronWebViewImpl implements BrowserFrame {
     const attachment = this.attachment
     if (attachment === undefined || this.initializing !== undefined || this.element !== undefined || this.lifetime.signal.aborted) return
     const signal = AbortSignal.any([this.lifetime.signal, attachment.signal])
-    this.initializing = this.createGuest(signal).catch(async (error: unknown) => {
+    let failed = false
+    const initializing = this.createGuest(signal).catch(async (error: unknown) => {
+      failed = true
       // Release failures stay in the owned inventory for terminal disposal.
       await Promise.allSettled([this.dropGuest()])
       if (!signal.aborted) this.commandFailed(error)
     }).finally(() => {
+      if (this.initializing !== initializing) return
       this.initializing = undefined
-      if (this.attachment !== attachment && this.pending !== undefined) this.initialize()
+      if ((!failed || this.attachment !== attachment) && this.element === undefined && this.pending !== undefined) this.initialize()
     })
+    this.initializing = initializing
   }
 
   private async createGuest(attachmentSignal: AbortSignal): Promise<void> {
+    // A failed native release blocks all replacement and retry acquisitions.
+    await Promise.all(this.releases)
+    if (attachmentSignal.aborted) return
     const reservation = await this.reserve(attachmentSignal)
     if (reservation === undefined) return
+    // Cancellation can change while Main processes the reservation.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (attachmentSignal.aborted) { await this.release(reservation.lease); return }
     this.lease = reservation.lease
     this.guestLifetime = new AbortController()
@@ -166,6 +175,21 @@ export class ElectronWebViewImpl implements BrowserFrame {
       if (this.element === element && !signal.aborted) this.options.openRequested(url)
     })
     signal.addEventListener('abort', unsubscribeOpen, { once: true })
+    if (this.options.profileId === undefined) {
+      const unsubscribeReacquire = this.bridge.onReacquireRequested(reservation.lease, (url, revision) => {
+        if (this.element !== element || this.lease !== reservation.lease || signal.aborted || revision !== this.revision) return
+        const parsed = parseBrowserAddress(url)
+        if (!parsed.ok) return
+        this.revision++
+        this.pending = parsed.target
+        this.store.set({ ...this.store.getSnapshot(), target: parsed.target, address: 'requested', loading: true,
+          canGoBack: false, canGoForward: false, error: undefined })
+        this.persist(parsed.target)
+        void this.dropGuest()
+        this.initialize()
+      })
+      signal.addEventListener('abort', unsubscribeReacquire, { once: true })
+    }
     const binding = { lease: reservation.lease, signal }
     element.addEventListener('dom-ready', () => {
       this.requests?.bind(binding)
@@ -210,8 +234,16 @@ export class ElectronWebViewImpl implements BrowserFrame {
     // the Workspace-keyed one, so its sign-in survives until the user clears it.
     if (profile !== undefined) return this.bridge.profiles.acquire(profile)
     this.workspaceKey ??= await this.workspace(attachmentSignal)
-    if (attachmentSignal.aborted) return undefined
-    return this.bridge.acquire(this.workspaceKey)
+    while (!attachmentSignal.aborted) {
+      const addressHint = this.pending?.url
+      const reservation = await this.bridge.acquire(this.workspaceKey, addressHint)
+      // The awaited reservation does not preserve the signal's earlier state.
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      if (attachmentSignal.aborted || addressHint === this.pending?.url) return reservation
+      // An acquisition selected for a superseded target never reaches the DOM.
+      await this.release(reservation.lease)
+    }
+    return undefined
   }
 
   private loadPending(): void {
@@ -221,7 +253,7 @@ export class ElectronWebViewImpl implements BrowserFrame {
     if (!this.ready || target === undefined || element === undefined || lease === undefined) return
     const revision = this.revision
     this.pending = undefined
-    void this.bridge.command(lease, { kind: 'navigate', url: target.url }).catch((error: unknown) => {
+    void this.bridge.command(lease, { kind: 'navigate', url: target.url, revision }).catch((error: unknown) => {
       if (this.element !== element || this.lifetime.signal.aborted || this.revision !== revision) return
       if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ERR_ABORTED') return
       if (this.store.getSnapshot().error === undefined) this.commandFailed(error)
@@ -294,7 +326,7 @@ export class ElectronWebViewImpl implements BrowserFrame {
   }
 
   private release(lease: DesktopBrowserLeaseId): Promise<void> {
-    const released = this.bridge.release(lease)
+    const released = (async () => this.bridge.release(lease))()
     this.releases.add(released)
     void released.then(() => { this.releases.delete(released) }, (error: unknown) => {
       // Failed releases remain joinable; private guest diagnostics are not published.

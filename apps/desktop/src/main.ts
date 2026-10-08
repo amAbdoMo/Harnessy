@@ -515,7 +515,36 @@ async function main(): Promise<void> {
   let hostUrl: string | undefined
   let hostCookie: string | undefined
   const browserGuests = new DesktopBrowserGuests(() => hostUrl,
-    (owner, lease, address): boolean => websiteAuthority.allowsNativeNavigation(owner, lease, address))
+    (owner, lease, address): boolean => websiteAuthority.allowsNativeNavigation(owner, lease, address),
+    async ({ owner, origin, fingerprint, signal }): Promise<boolean> => {
+      const parent = mainWindow
+      if (parent === undefined) return false
+      const available = (): boolean => parent === mainWindow && !parent.isDestroyed() && parent.webContents === owner
+        && parent.isVisible() && !signal.aborted && !isQuitting() && !isMandatory()
+      if (!available()) return false
+      const controller = new AbortController()
+      const dialogSignal = AbortSignal.any([signal, controller.signal])
+      const cancel = (): void => { controller.abort() }
+      ordinaryDialogs.add(controller)
+      parent.on('hide', cancel)
+      parent.once('closed', cancel)
+      app.on('before-quit', cancel)
+      try {
+        const { messages } = currentDesktopLocale()
+        const result = await dialog.showMessageBox(parent, {
+          type: 'warning', title: messages.browserCertificateTitle, message: messages.browserCertificateWarning,
+          detail: formatDesktopMessage(messages.browserCertificateDetail, { origin, fingerprint }),
+          buttons: [messages.browserCertificateContinue, messages.cancel], defaultId: 1, cancelId: 1, noLink: true, signal: dialogSignal,
+        })
+        return result.response === 0 && !dialogSignal.aborted && available()
+      }
+      finally {
+        ordinaryDialogs.delete(controller)
+        parent.removeListener('hide', cancel)
+        parent.removeListener('closed', cancel)
+        app.removeListener('before-quit', cancel)
+      }
+    })
   const websiteProfiles = browserGuests.createProfiles(join(app.getPath('userData'), 'website-profiles.json'), {
     inspect: async (serverName) => {
       const host = backend.host
@@ -911,9 +940,9 @@ async function main(): Promise<void> {
     reportFatal(new Error(message), 'web-boot')
   })
 
-  ipcMain.handle(DESKTOP_IPC.browserAcquire, (event, workspace: unknown) => {
+  ipcMain.handle(DESKTOP_IPC.browserAcquire, (event, workspace: unknown, addressHint: unknown) => {
     assertProductSender(event)
-    return browserGuests.acquire(event.sender, workspace)
+    return browserGuests.acquire(event.sender, workspace, addressHint)
   })
   ipcMain.handle(DESKTOP_IPC.browserRelease, (event, lease: unknown) => {
     assertProductSender(event)

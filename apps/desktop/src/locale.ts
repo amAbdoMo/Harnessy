@@ -1,6 +1,10 @@
 /** Typed English and Chinese copy owned by the Electron shell. */
 
 export const en = {
+  browserCertificateTitle: 'Unverified local device',
+  browserCertificateWarning: 'This device’s certificate cannot be verified and may be expired or not match this address. An attacker could impersonate the device. Continue only if you recognize the device and trust this network.',
+  browserCertificateDetail: 'Device: {origin}\nCertificate fingerprint: {fingerprint}\n\nAcceptance stays in this isolated device tab until it closes, including its resources and reloads. It does not install or permanently trust the certificate.',
+  browserCertificateContinue: 'Open device in this tab (unsafe)',
   cliCommandMenu: 'Manage dsh Command…',
   cliCommandTitle: 'Manage dsh Command',
   cliCommandLocation: 'Desktop command: {path}',
@@ -183,6 +187,10 @@ export const en = {
 export type DesktopMessages = { readonly [Key in keyof typeof en]: string }
 
 export const zh = {
+  browserCertificateTitle: '未经验证的本地设备',
+  browserCertificateWarning: '无法验证此设备的证书，它可能已过期或与此地址不匹配。攻击者可能冒充该设备。只有在认识此设备并信任当前网络时才继续',
+  browserCertificateDetail: '设备：{origin}\n证书指纹：{fingerprint}\n\n接受证书仅适用于此独立设备标签页关闭前的访问，包括资源加载和重新加载，不会安装或永久信任该证书',
+  browserCertificateContinue: '在此标签页打开设备（不安全）',
   cliCommandMenu: '管理 dsh 命令…',
   cliCommandTitle: '管理 dsh 命令',
   cliCommandLocation: 'Desktop 命令：{path}',

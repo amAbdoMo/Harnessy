@@ -12,6 +12,7 @@
     "apps/desktop/src/keyboard.ts",
     "apps/desktop/src/keybindings.ts",
     "apps/desktop/src/browser-guests.ts",
+    "apps/desktop/src/browser-certificates.ts",
     "apps/desktop/src/browser-human-command.ts",
     "apps/desktop/src/website-profiles.ts",
     "apps/desktop/src/ipc.ts",

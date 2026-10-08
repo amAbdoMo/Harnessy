@@ -22,6 +22,13 @@ Desktop microphone access is restricted to audio requests from the primary `dsh-
 
 Press F12 (Fn+F12 on media-key keyboards), Command+Option+I on macOS, or Ctrl+Shift+I on Windows to toggle DevTools for the focused application page, including in packaged builds. These native shortcuts use hidden application-menu items. Update overlays and packaged embedded browser guests disable DevTools.
 
+<a id="local-https-devices"></a>
+## Local HTTPS devices
+
+Ordinary Desktop Browser tabs can open HTTPS devices at `localhost` or literal loopback, private, and link-local IP addresses. When Chromium reports `ERR_CERT_AUTHORITY_INVALID`, Main shows the device origin and certificate fingerprint in a warning with Cancel selected by default. This error can include an expired or address-mismatched certificate; continuing is unsafe and requires explicit human confirmation. Public-site certificate failures and saved-account guests receive no exception. Web iframe browsing cannot override TLS validation.
+
+Each local-device tab uses a fresh, origin-scoped Electron Session. Acceptance may be reused for that tab’s same-device resources and reloads, but never reaches another tab or the shared workspace partition. Closing the tab revokes network admission, destroys its guest, clears its storage, and closes its connections; no certificate is installed or permanently trusted. Navigating between device origins or back to ordinary browsing replaces the guest after drainage, losing page memory and native history. GET navigation can be reissued; POST bodies are never replayed across storage partitions. Local-device login storage is not shared or restored after closure.
+
 ## Website account isolation
 
 Saved website/account associations use separate persistent Electron partitions. Site-issued persistent cookies follow the site's expiry policy; partitioning does not extend session-cookie lifetimes. The user confirms the website, account label, MCP namespace and inspected endpoint in a Main-owned desktop dialog, then enters login and verification directly in the page. The Host rejects pairing if it becomes inactive or the MCP registry provider is removed or replaced during inspection. Metadata contains no passwords or cookies; signed-in page URLs and titles stay out of saved Browser navigation. A process restart restores no Agent permission. Storage isolation does not protect cookies from other processes running as the same operating-system user.

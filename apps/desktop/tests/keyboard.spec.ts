@@ -34,9 +34,12 @@ const overlays = await vi.hoisted(async () => {
   return { Window, application: Object.assign(new EventEmitter(), { isPackaged: true }) }
 })
 const nativeSessions = vi.hoisted(() => new Map<string, ReturnType<typeof createNativeSession>>())
+type BeforeRequestFixture = (details: Pick<Electron.OnBeforeRequestListenerDetails,
+  'url' | 'method' | 'resourceType' | 'webContentsId'>, callback: (response: { cancel?: boolean }) => void) => void
 function createNativeSession() {
   return { ...storage, setPermissionRequestHandler: vi.fn(), setPermissionCheckHandler: vi.fn(), setDevicePermissionHandler: vi.fn(),
-    setDisplayMediaRequestHandler: vi.fn(), on: vi.fn(), webRequest: { onBeforeRequest: vi.fn() } }
+    setDisplayMediaRequestHandler: vi.fn(), on: vi.fn(),
+    webRequest: { onBeforeRequest: vi.fn<(listener: BeforeRequestFixture) => void>() } }
 }
 function nativeSession(partition: string) {
   let value = nativeSessions.get(partition)
@@ -75,7 +78,8 @@ const installFixture = installDesktopShortcuts as (
 type GuestsFixture = {
   createProfiles(...args: Parameters<InstanceType<typeof DesktopBrowserGuests>['createProfiles']>): DesktopWebsiteProfiles
   acquireProfile(owner: ContentsFixture, profile: DesktopWebsiteProfileId): DesktopBrowserReservation
-  acquire(owner: ContentsFixture, workspace: unknown): DesktopBrowserReservation
+  acquire(owner: ContentsFixture, workspace: unknown, addressHint?: unknown): DesktopBrowserReservation
+  command(owner: ContentsFixture, id: unknown, input: unknown): Promise<void>
   release(owner: ContentsFixture, id: unknown): Promise<void>
   inspectWebsite(owner: ContentsFixture, id: DesktopBrowserLeaseId): {
     owner: ContentsFixture
@@ -90,12 +94,15 @@ function desktopDefaults(binding: ShortcutBinding): ShortcutDefinition['defaults
   return { 'desktop:macos': binding, 'desktop:windows': binding, 'desktop:linux': binding }
 }
 
+let nextNativeGuestId = 1
 function browserGuest(reservation: DesktopBrowserReservation, owner: ContentsFixture) {
   const frame: FrameFixture = { url: `about:blank#${reservation.lease}`, name: '', parent: null }
   let destroyed = false
-  const guest = Object.assign(new EventEmitter(), { mainFrame: frame, focusedFrame: frame,
+  const guest = Object.assign(new EventEmitter(), { id: nextNativeGuestId++, mainFrame: frame, focusedFrame: frame,
     hostWebContents: owner, session: nativeSession(reservation.partition), getURL: () => frame.url, getType: () => 'webview',
-    isDestroyed: () => destroyed, isFocused: vi.fn(() => true),
+    isDestroyed: () => destroyed, isLoading: vi.fn(() => true), isFocused: vi.fn(() => true),
+    loadURL: vi.fn(async (_url: string) => {}), reload: vi.fn(),
+    navigationHistory: { canGoBack: vi.fn(() => false), goBack: vi.fn(), canGoForward: vi.fn(() => false), goForward: vi.fn() },
     setWindowOpenHandler: vi.fn(), setIgnoreMenuShortcuts: vi.fn(), send: vi.fn(), close: vi.fn(),
     focus: vi.fn(), sendInputEvent: vi.fn() })
   nativeContents.add(guest)
@@ -803,6 +810,272 @@ it.each(['macos', 'windows'] as const)('requires fresh %s chord presses when Ele
   }
 })
 
+const privateDevice = 'https://192.168.1.10:8443/'
+const otherPrivateDevice = 'https://192.168.1.11:8443/'
+const publicWebsite = 'https://portal.example.test/'
+const applicationHost = 'https://host.example.test:19387/'
+
+async function guestPolicyFixture() {
+  const f = await fixture()
+  // Test-finished releases run after the suite's afterEach clears native mock histories.
+  for (const method of nativeCleanupMethods) storage[method].mockClear()
+  const confirm = vi.fn<NonNullable<ConstructorParameters<typeof DesktopBrowserGuests>[2]>>(async () => true)
+  const guests = new DesktopBrowserGuests(() => applicationHost, undefined, confirm) as GuestsFixture
+  guests.bind(f.window, () => () => {})
+  const attach = (reservation: DesktopBrowserReservation) => {
+    const native = browserGuest(reservation, f.contents)
+    native.guest.close.mockImplementation(() => { native.guest.emit('destroyed') })
+    onTestFinished(async () => {
+      const release = guests.release(f.contents, reservation.lease)
+      native.guest.emit('destroyed')
+      await release
+    })
+    const event = { preventDefault: vi.fn() }
+    f.contents.emit('will-attach-webview', event, {}, { src: native.frame.url, partition: reservation.partition })
+    expect(event.preventDefault).not.toHaveBeenCalled()
+    f.contents.emit('did-attach-webview', {}, native.guest)
+    const beforeRequest = native.guest.session.webRequest.onBeforeRequest.mock.calls.at(-1)![0]
+    const request = (url: string, resourceType: Electron.OnBeforeRequestListenerDetails['resourceType'] = 'mainFrame',
+      method = 'GET', webContentsId = native.guest.id) => {
+      const callback = vi.fn<(response: { cancel?: boolean }) => void>()
+      beforeRequest({ url, resourceType, method, webContentsId }, callback)
+      expect(callback).toHaveBeenCalledOnce()
+      return callback.mock.calls[0]![0]
+    }
+    return { ...native, reservation, request }
+  }
+  const ordinary = (hint?: string, workspace = 'policy:test') => attach(guests.acquire(f.contents, workspace, hint))
+  return { ...f, guests, confirm, attach, ordinary }
+}
+
+it('isolates each private-device tab while public tabs retain workspace storage and ordinary release preserves it', async () => {
+  const f = await guestPolicyFixture()
+  const first = f.ordinary(privateDevice)
+  const second = f.ordinary(privateDevice)
+  const third = f.ordinary(otherPrivateDevice)
+  const publicTab = f.ordinary(publicWebsite)
+  const publicAlias = f.ordinary('https://another.example.test/')
+  const noHint = f.ordinary()
+  const otherWorkspace = f.ordinary(publicWebsite, 'policy:other')
+  expect(new Set([first.reservation.partition, second.reservation.partition, third.reservation.partition,
+    publicTab.reservation.partition]).size).toBe(4)
+  expect(first.guest.session).not.toBe(second.guest.session)
+  expect(publicAlias.reservation.partition).toBe(publicTab.reservation.partition)
+  expect(noHint.reservation.partition).toBe(publicTab.reservation.partition)
+  expect(publicAlias.guest.session).toBe(publicTab.guest.session)
+  expect(otherWorkspace.reservation.partition).not.toBe(publicTab.reservation.partition)
+  for (const tab of [first, second, third]) expect(tab.reservation.partition).not.toMatch(/^persist:/u)
+  await f.guests.release(f.contents, publicTab.reservation.lease)
+  for (const method of nativeCleanupMethods) expect(storage[method]).not.toHaveBeenCalled()
+  expect(f.ordinary(publicWebsite).reservation.partition).toBe(publicAlias.reservation.partition)
+})
+
+it.each([
+  'https://user:secret@192.168.1.10:8443/', applicationHost,
+  'https://127.0.0.1:19387/', 'https://localhost:19387/', 'https://[::1]:19387/',
+])('rejects excluded initial hint %s before creating a lease or request policy', async (hint) => {
+  const f = await guestPolicyFixture()
+  const partitions = nativeSessions.size
+  expect(() => f.guests.acquire(f.contents, 'policy:test', hint)).toThrow('initial address rejected')
+  expect(nativeSessions.size).toBe(partitions)
+  expect(f.confirm).not.toHaveBeenCalled()
+  expect(f.contents.send).not.toHaveBeenCalled()
+})
+
+it.each([
+  { from: publicWebsite, to: privateDevice, transition: true },
+  { from: privateDevice, to: publicWebsite, transition: true },
+  { from: privateDevice, to: otherPrivateDevice, transition: true },
+  { from: privateDevice, to: `${privateDevice}settings`, transition: false },
+  { from: publicWebsite, to: 'https://another.example.test/', transition: false },
+])('Main navigation from $from to $to dispatches a new lease only for a storage transition', async ({ from, to, transition }) => {
+  const f = await guestPolicyFixture()
+  const tab = f.ordinary(from)
+  await f.guests.command(f.contents, tab.reservation.lease, { kind: 'navigate', url: to })
+  if (transition) {
+    expect(f.contents.send).toHaveBeenCalledExactlyOnceWith(DESKTOP_IPC.browserReacquireRequested,
+      { lease: tab.reservation.lease, url: to, revision: 0 })
+    expect(tab.guest.loadURL).not.toHaveBeenCalled()
+  } else {
+    expect(tab.guest.loadURL).toHaveBeenCalledExactlyOnceWith(to)
+    expect(f.contents.send).not.toHaveBeenCalled()
+  }
+})
+
+it('echoes the accepted command revision into native transitions without admitting malformed or stale commands', async () => {
+  const f = await guestPolicyFixture()
+  const tab = f.ordinary(publicWebsite)
+  await f.guests.command(f.contents, tab.reservation.lease, { kind: 'navigate', url: privateDevice, revision: 7 })
+  expect(f.contents.send).toHaveBeenCalledExactlyOnceWith(DESKTOP_IPC.browserReacquireRequested,
+    { lease: tab.reservation.lease, url: privateDevice, revision: 7 })
+  f.contents.send.mockClear()
+  await f.guests.command(f.contents, tab.reservation.lease, { kind: 'navigate', url: publicWebsite, revision: 8 })
+  for (const revision of [-1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1, '9', 7]) {
+    expect(() => f.guests.command(f.contents, tab.reservation.lease, { kind: 'navigate', url: privateDevice, revision }))
+      .toThrow('revision rejected')
+  }
+  await expect(f.guests.command(f.contents, tab.reservation.lease,
+    { kind: 'navigate', url: privateDevice, revision: 9, extra: true })).rejects.toThrow('command rejected')
+  expect(f.contents.send).not.toHaveBeenCalled()
+  expect(tab.request(otherPrivateDevice)).toEqual({ cancel: true })
+  expect(f.contents.send).toHaveBeenCalledExactlyOnceWith(DESKTOP_IPC.browserReacquireRequested,
+    { lease: tab.reservation.lease, url: otherPrivateDevice, revision: 8 })
+})
+
+it('Main commands reject credentials and the application Host before requesting a storage transition', async () => {
+  const f = await guestPolicyFixture()
+  const tab = f.ordinary(privateDevice)
+  for (const url of ['https://user:secret@192.168.1.11:8443/', applicationHost, 'https://127.0.0.1:19387/']) {
+    await expect(f.guests.command(f.contents, tab.reservation.lease, { kind: 'navigate', url })).rejects.toThrow('command rejected')
+  }
+  expect(f.contents.send).not.toHaveBeenCalled()
+  expect(tab.guest.loadURL).not.toHaveBeenCalled()
+})
+
+it.each([
+  { from: privateDevice, to: publicWebsite, method: 'GET', cancel: true, notify: true },
+  { from: privateDevice, to: publicWebsite, method: 'POST', cancel: true, notify: false },
+  { from: privateDevice, to: otherPrivateDevice, method: 'GET', cancel: true, notify: true },
+  { from: privateDevice, to: otherPrivateDevice, method: 'POST', cancel: true, notify: false },
+  { from: publicWebsite, to: privateDevice, method: 'GET', cancel: true, notify: true },
+  { from: publicWebsite, to: privateDevice, method: 'POST', cancel: true, notify: false },
+  { from: privateDevice, to: `${privateDevice}submit`, method: 'POST', cancel: false, notify: false },
+  { from: publicWebsite, to: 'https://another.example.test/', method: 'GET', cancel: false, notify: false },
+])('native $method main-frame request from $from to $to filters replay by method', async ({ from, to, method, cancel, notify }) => {
+  const f = await guestPolicyFixture()
+  const tab = f.ordinary(from)
+  expect(tab.request(to, 'mainFrame', method)).toEqual({ cancel })
+  if (notify) expect(f.contents.send).toHaveBeenCalledExactlyOnceWith(DESKTOP_IPC.browserReacquireRequested,
+    { lease: tab.reservation.lease, url: to, revision: 0 })
+  else expect(f.contents.send).not.toHaveBeenCalled()
+  expect(tab.guest.loadURL).not.toHaveBeenCalled()
+})
+
+it('correlates shared-session main-frame requests by native guest id and excludes Host and credentials before transitions', async () => {
+  const f = await guestPolicyFixture()
+  const first = f.ordinary(publicWebsite)
+  const second = f.ordinary(publicWebsite)
+  expect(first.request(privateDevice, 'mainFrame', 'GET', second.guest.id)).toEqual({ cancel: true })
+  expect(f.contents.send).toHaveBeenCalledExactlyOnceWith(DESKTOP_IPC.browserReacquireRequested,
+    { lease: second.reservation.lease, url: privateDevice, revision: 0 })
+  f.contents.send.mockClear()
+  expect(first.request(privateDevice, 'mainFrame', 'GET', -1)).toEqual({ cancel: false })
+  for (const url of ['https://user:secret@192.168.1.11:8443/', applicationHost, 'https://127.0.0.1:19387/',
+    'wss://127.0.0.1:19387/socket']) expect(first.request(url)).toEqual({ cancel: true })
+  expect(f.contents.send).not.toHaveBeenCalled()
+})
+
+it.each([
+  { url: `${privateDevice}asset.js`, resource: 'script', cancel: false },
+  { url: `${otherPrivateDevice}asset.js`, resource: 'script', cancel: true },
+  { url: 'https://192.168.1.10:9443/asset.js', resource: 'script', cancel: true },
+  { url: 'wss://192.168.1.10:8443/socket', resource: 'webSocket', cancel: false },
+  { url: 'wss://192.168.1.11:8443/socket', resource: 'webSocket', cancel: true },
+  { url: `${otherPrivateDevice}frame`, resource: 'subFrame', cancel: true },
+  { url: `${publicWebsite}asset.js`, resource: 'script', cancel: false },
+] as const)('private Session resource $url ($resource) stays within its device TLS origin', async ({ url, resource, cancel }) => {
+  const f = await guestPolicyFixture()
+  const tab = f.ordinary(privateDevice)
+  expect(tab.request(url, resource)).toEqual({ cancel })
+  expect(f.contents.send).not.toHaveBeenCalled()
+  expect(tab.guest.loadURL).not.toHaveBeenCalled()
+})
+
+it.each([
+  { cause: 'release', last: 'destruction' }, { cause: 'crash', last: 'authority' },
+] as const)('revoked private Session blocks requests during $cause and waits for $last before clearing', async ({ cause, last }) => {
+  const f = await guestPolicyFixture()
+  const tab = f.ordinary(privateDevice)
+  const authority = Promise.withResolvers<undefined>()
+  const closed = Promise.withResolvers<undefined>()
+  const cacheStarted = Promise.withResolvers<undefined>()
+  const cache = Promise.withResolvers<undefined>()
+  onTestFinished(f.guests.onInvalidated(() => authority.promise))
+  tab.guest.close.mockImplementation(() => { closed.resolve(undefined) })
+  storage.clearCache.mockImplementationOnce(async () => { cacheStarted.resolve(undefined); await cache.promise })
+  onTestFinished(async () => {
+    authority.resolve(undefined); cache.resolve(undefined); tab.guest.emit('destroyed')
+    await f.guests.release(f.contents, tab.reservation.lease)
+  })
+  expect(tab.request('data:text/plain,ready', 'image')).toEqual({ cancel: false })
+  if (cause === 'crash') tab.guest.emit('render-process-gone')
+  const release = f.guests.release(f.contents, tab.reservation.lease)
+  for (const url of [privateDevice, publicWebsite, 'data:text/plain,revoked', 'about:blank', 'blob:https://192.168.1.10:8443/id']) {
+    expect(tab.request(url)).toEqual({ cancel: true })
+  }
+  expect(f.contents.send).not.toHaveBeenCalled()
+  await closed.promise
+  for (const method of nativeCleanupMethods) expect(storage[method]).not.toHaveBeenCalled()
+  if (last === 'destruction') authority.resolve(undefined)
+  else tab.guest.emit('destroyed')
+  await setImmediate()
+  for (const method of nativeCleanupMethods) expect(storage[method]).not.toHaveBeenCalled()
+  if (last === 'destruction') tab.guest.emit('destroyed')
+  else authority.resolve(undefined)
+  await cacheStarted.promise
+  expect(storage.closeAllConnections).not.toHaveBeenCalled()
+  cache.resolve(undefined)
+  await release
+  for (const method of nativeCleanupMethods) expect(storage[method]).toHaveBeenCalledOnce()
+  expect(tab.request(privateDevice)).toEqual({ cancel: true })
+  const next = f.ordinary(privateDevice)
+  expect(next.reservation.partition).not.toBe(tab.reservation.partition)
+  expect(next.guest.session).not.toBe(tab.guest.session)
+  expect(next.request(privateDevice)).toEqual({ cancel: false })
+})
+
+it('joins private storage cleanup after native destruction precedes explicit release', async () => {
+  const f = await guestPolicyFixture()
+  const tab = f.ordinary(privateDevice)
+  const authority = Promise.withResolvers<undefined>()
+  const cache = Promise.withResolvers<undefined>()
+  const cacheStarted = Promise.withResolvers<undefined>()
+  onTestFinished(f.guests.onInvalidated(() => authority.promise))
+  storage.clearCache.mockImplementationOnce(async () => { cacheStarted.resolve(undefined); await cache.promise })
+  onTestFinished(() => { authority.resolve(undefined); cache.resolve(undefined) })
+  tab.guest.emit('destroyed')
+  expect(tab.request(privateDevice)).toEqual({ cancel: true })
+  authority.resolve(undefined)
+  await cacheStarted.promise
+  let settled = false
+  const release = f.guests.release(f.contents, tab.reservation.lease).then(() => { settled = true })
+  await setImmediate()
+  expect(settled).toBe(false)
+  expect(storage.closeAllConnections).not.toHaveBeenCalled()
+  cache.resolve(undefined)
+  await release
+  for (const method of nativeCleanupMethods) expect(storage[method]).toHaveBeenCalledOnce()
+  await f.guests.release(f.contents, tab.reservation.lease)
+  for (const method of nativeCleanupMethods) expect(storage[method]).toHaveBeenCalledOnce()
+})
+
+it.each(['private', 'profile', 'shared', 'other-origin', 'stale-url', 'subframe', 'other-error'] as const)(
+  'certificate confirmation is limited to the exact private lease navigation: %s', async (kind) => {
+    const f = await guestPolicyFixture()
+    const profile = 'cd1b6493-c881-4967-a544-b0a49f2d847f' as DesktopWebsiteProfileId
+    const tab = kind === 'profile' ? f.attach(f.guests.acquireProfile(f.contents, profile))
+      : f.ordinary(kind === 'shared' ? publicWebsite : privateDevice)
+    const target = `${privateDevice}settings?token=private`
+    tab.guest.emit('did-start-navigation', { isMainFrame: true, isSameDocument: false, url: target })
+    const url = kind === 'other-origin' ? `${otherPrivateDevice}settings` : kind === 'stale-url' ? `${privateDevice}old` : target
+    const event = { preventDefault: vi.fn() }
+    const result = Promise.withResolvers<boolean>()
+    const callback = vi.fn((trusted: boolean) => { result.resolve(trusted) })
+    tab.guest.emit('certificate-error', event, url,
+      kind === 'other-error' ? 'net::ERR_CERT_DATE_INVALID' : 'net::ERR_CERT_AUTHORITY_INVALID',
+      { fingerprint: 'AA:BB' }, callback, kind !== 'subframe')
+    expect(await result.promise).toBe(kind === 'private')
+    expect(event.preventDefault).toHaveBeenCalledOnce()
+    expect(callback).toHaveBeenCalledOnce()
+    if (kind === 'private') {
+      expect(f.confirm).toHaveBeenCalledOnce()
+      const [prompt] = f.confirm.mock.calls[0]!
+      expect(prompt).toMatchObject({ owner: f.contents, origin: new URL(privateDevice).origin, fingerprint: 'AA:BB' })
+      expect(prompt.signal).toBeInstanceOf(AbortSignal)
+    } else expect(f.confirm).not.toHaveBeenCalled()
+  },
+)
+
 async function bootstrapFixture() {
   const f = await fixture()
   const guests = new DesktopBrowserGuests(() => undefined) as GuestsFixture
@@ -921,8 +1194,8 @@ it.each(['deadline', 'crash'] as const)('keeps owner release waiting for an unid
   const released = f.guests.release(f.contents, f.reservation.lease).then(() => { settled = true })
   onTestFinished(async () => { guest.emit('destroyed'); await released })
   guest.emit('did-navigate', {}, `about:blank#${f.reservation.lease}`, 200, 'OK')
-  await Promise.resolve()
-  await Promise.resolve()
+  await Promise.resolve(undefined)
+  await Promise.resolve(undefined)
   expect(f.attachInput).not.toHaveBeenCalled()
   expect(settled).toBe(false)
   guest.emit('destroyed')
@@ -1105,7 +1378,7 @@ it.each(['macos', 'windows', 'linux'] as const)('routes approved %s browser gues
   guest.isFocused.mockReturnValue(true)
   const release = guests.release(f.contents, reservation.lease)
   expect(detach).toHaveBeenCalledOnce()
-  await Promise.resolve()
+  await Promise.resolve(undefined)
   expect(guest.close).toHaveBeenCalledExactlyOnceWith({ waitForBeforeUnload: false })
   guest.emit('before-input-event', { preventDefault }, input)
   expect(f.contents.send).toHaveBeenCalledOnce()
@@ -1143,7 +1416,7 @@ it.each(['release', 'destruction', 'crash'] as const)('invalidates exact website
     const release = guests.release(f.contents, reservation.lease)
     expect(revoked).toHaveBeenCalledOnce()
     const repeated = guests.release(f.contents, reservation.lease)
-    await Promise.resolve()
+    await Promise.resolve(undefined)
     guest.emit('destroyed')
     await Promise.all([release, repeated])
   } else guest.emit(cause === 'crash' ? 'render-process-gone' : 'destroyed')

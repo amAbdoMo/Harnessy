@@ -28,9 +28,11 @@ Browser has separate Host and Client compiler programs. Desktop and the Host agg
 
 ### Storage ownership
 
-`DesktopBrowserGuests` assigns a random, non-persistent Electron partition to each canonical CWD account. The Client uses the Host-normalized `WorkspaceView.path`, not the Workspace record UUID, so recreating a Workspace at the same directory does not change its storage account key. Browser tabs whose DSH Sessions resolve to that CWD share the account; Sessions without a resolved Workspace remain separately isolated. Workspace membership is resolved after the Client receives its authoritative baseline and is fixed for a guest occurrence. The CWD key controls sharing, not disk persistence.
+`DesktopBrowserGuests` assigns a random, non-persistent Electron partition to each canonical CWD account for ordinary browsing outside local HTTPS device scopes. The Client uses the Host-normalized `WorkspaceView.path`, not the Workspace record UUID, so recreating a Workspace at the same directory does not change its storage account key. Browser tabs whose DSH Sessions resolve to that CWD share the account; Sessions without a resolved Workspace remain separately isolated. Workspace membership is resolved after the Client receives its authoritative baseline and is fixed for a guest occurrence. The CWD key controls sharing, not disk persistence.
 
-Closing a tab releases its guest, not its account's cookies or storage. Cookies, localStorage, IndexedDB, Service Workers and cache remain partition-owned and subject to normal origin rules. DOM, native history and sessionStorage remain page-owned. Account partitions survive window recreation within the Electron process but do not persist across application exit.
+Closing a shared-workspace tab releases its guest, not its account's cookies or storage. Cookies, localStorage, IndexedDB, Service Workers and cache remain partition-owned and subject to normal origin rules. DOM, native history and sessionStorage remain page-owned. Account partitions survive window recreation within the Electron process but do not persist across application exit.
+
+Local HTTPS device visits instead receive a fresh, lease-exclusive Session scoped to the exact device origin. Native TLS acceptance can reuse connections inside that Session, so certificate consent cannot safely live in a shared workspace partition. Main owns origin admission and explicit unsafe consent; the renderer replaces the guest for storage transitions and never changes an active partition. Device storage and connections are cleared only after native destruction and authority drainage. The [Desktop policy](../../../../apps/desktop/README.md#local-https-devices) owns supported addresses, warning semantics and GET-only transition behavior.
 
 ### Initial guest policy
 
@@ -47,6 +49,8 @@ The Desktop toolbar has no sandbox-disable switch. The implementation adds no re
 **Move the guest between visible and hidden DOM containers.** Electron 44's `WebViewElement.disconnectedCallback` detaches the guest and resets its internal instance. Retaining the element reference or React key does not preserve that instance; the parent stays fixed instead.
 
 **Use one partition per tab.** This isolates site accounts between related pages. Workspace ownership provides the requested sharing without sharing the application Session; a tab still owns its own guest.
+
+**Store local-device certificate approval on a shared Session.** Electron can reuse accepted TLS state and pooled connections for another guest without raising a fresh certificate event. Per-guest JavaScript eligibility or closing connections alone cannot establish isolation; local visits require fresh, never-reused Sessions.
 
 **Change the partition of an active webview.** Electron fixes the partition before first navigation. Selecting another isolation scope requires a replacement guest and an explicit policy for existing site data, not a live attribute toggle.
 

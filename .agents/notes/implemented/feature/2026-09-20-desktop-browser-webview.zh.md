@@ -28,9 +28,11 @@ Browser 分别拥有 Host 与 Client 编译程序。Desktop 和 Host 聚合配�
 
 ### Storage ownership
 
-`DesktopBrowserGuests` 为每个规范化 CWD 存储账号分配随机、非持久化的 Electron partition。Client 使用 Host 规范化后的 `WorkspaceView.path`，不使用 Workspace 记录 UUID，因此在同一目录重建 Workspace 不改变存储账号 key。DSH Session 解析到同一 CWD 的 Browser Tab 共享账号；没有可解析 Workspace 的 Session 仍单独隔离。Workspace 归属在 Client 收到权威基线后解析，并在一次 guest occurrence 内保持不变。CWD key 控制共享关系，不决定是否落盘。
+`DesktopBrowserGuests` 为本地 HTTPS 设备范围之外的普通浏览，按每个规范化 CWD 存储账号分配随机、非持久化的 Electron partition。Client 使用 Host 规范化后的 `WorkspaceView.path`，不使用 Workspace 记录 UUID，因此在同一目录重建 Workspace 不改变存储账号 key。DSH Session 解析到同一 CWD 的 Browser Tab 共享账号；没有可解析 Workspace 的 Session 仍单独隔离。Workspace 归属在 Client 收到权威基线后解析，并在一次 guest occurrence 内保持不变。CWD key 控制共享关系，不决定是否落盘。
 
-关闭 tab 只释放它的 guest，不清空账号的 Cookie 或存储。Cookie、localStorage、IndexedDB、Service Worker 与缓存由 partition 持有，并继续遵循普通 origin 规则。DOM、原生 history 与 sessionStorage 仍由页面持有。账号 partition 在同一 Electron 进程内重建窗口后仍保留，但不跨应用退出持久化。
+关闭工作区共享 tab 只释放它的 guest，不清空账号的 Cookie 或存储。Cookie、localStorage、IndexedDB、Service Worker 与缓存由 partition 持有，并继续遵循普通 origin 规则。DOM、原生 history 与 sessionStorage 仍由页面持有。账号 partition 在同一 Electron 进程内重建窗口后仍保留，但不跨应用退出持久化。
+
+本地 HTTPS 设备访问改用全新且由租约独占、限定于确定设备源地址的 Session。原生 TLS 接受可在该 Session 内复用连接，因此不能把证书确认安全地放在工作区共享分区中。Main 负责源地址准入与明确的不安全确认；renderer 在存储切换时替换 guest，不修改活动分区。设备存储及连接仅在原生 guest 销毁且权限工作停稳后清除。[Desktop 策略](../../../../apps/desktop/README.zh.md#local-https-devices)负责支持的地址、警告语义及只重发 GET 的切换行为。
 
 ### Initial guest policy
 
@@ -47,6 +49,8 @@ Desktop toolbar 没有关闭 sandbox 的开关。实现不增加远程调试端�
 **在可见与隐藏 DOM 容器之间搬移 guest。** Electron 44 的 `WebViewElement.disconnectedCallback` 会 detach guest 并重置内部实例。保留元素引用或 React key 不能保留该实例，因此父节点保持固定。
 
 **每个 tab 使用独立 partition。** 这会隔离相关页面的站点账号。Workspace 所有权提供所需的共享，同时不共享应用 Session；每个 tab 仍拥有独立 guest。
+
+**将本地设备证书接受存于共享 Session。** Electron 可为另一个 guest 复用已接受的 TLS 状态和连接池，而不产生新的证书事件。仅靠逐 guest 的 JavaScript 准入或关闭连接不能建立隔离；本地访问要求全新且不复用的 Session。
 
 **修改活动 webview 的 partition。** Electron 在首次导航前确定 partition。选择其他隔离粒度需要替换 guest，并明确已有站点数据的处置策略，而不是实时切换属性。
 

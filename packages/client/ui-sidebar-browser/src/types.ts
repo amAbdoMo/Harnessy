@@ -176,19 +176,34 @@ export interface DesktopBrowserOpenRequest {
   readonly url: string
 }
 
+/** Main-approved GET storage transition, correlated with the latest owned navigation command. */
+export interface DesktopBrowserReacquireRequest {
+  readonly lease: DesktopBrowserLeaseId
+  readonly url: string
+  readonly revision: number
+}
+
 /** Human toolbar actions; Main checks the exact lease and account reservation immediately before execution. */
-export type DesktopBrowserHumanCommand =
+export type DesktopBrowserHumanCommand = (
   | { readonly kind: 'navigate'; readonly url: string }
   | { readonly kind: 'back' }
   | { readonly kind: 'forward' }
   | { readonly kind: 'reload' }
+) & {
+  /** Nonnegative safe integer; renderer commands always supply it, manual callers may omit it. */
+  readonly revision?: number
+}
 
 /** Origin-scoped operations; no Electron objects or arbitrary IPC cross this interface. */
 export interface DesktopBrowserBridge {
   readonly profiles: DesktopWebsiteProfilesBridge
   readonly requests: DesktopWebsiteRequestsBridge
-  /** @param workspace - resolved storage account. @returns one approved guest reservation. */
-  acquire(workspace: string): Promise<DesktopBrowserReservation>
+  /**
+   * @param workspace - resolved storage account.
+   * @param addressHint - latest pending address; Main alone selects the guest's storage Session.
+   * @returns one approved guest reservation.
+   */
+  acquire(workspace: string, addressHint?: string): Promise<DesktopBrowserReservation>
   /**
    * @param lease - exact native guest.
    * @param command - Human action, including a deferred load.
@@ -199,4 +214,11 @@ export interface DesktopBrowserBridge {
   release(lease: DesktopBrowserLeaseId): Promise<void>
   /** @param lease - originating guest. @param listener - approved URL consumer. @returns unsubscribe callback. */
   onOpenRequested(lease: DesktopBrowserLeaseId, listener: (url: string) => void): () => void
+  /**
+   * @param lease - exact ordinary guest requiring a storage Session transition.
+   * @param listener - Main-approved GET address and owned command revision; never a POST replay.
+   * Consumers ignore superseded revisions before replacement.
+   * @returns unsubscribe callback; saved-profile guests do not request replacement.
+   */
+  onReacquireRequested(lease: DesktopBrowserLeaseId, listener: (url: string, revision: number) => void): () => void
 }

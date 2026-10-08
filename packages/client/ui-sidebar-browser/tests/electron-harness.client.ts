@@ -28,6 +28,7 @@ export function websiteProfile(id: DesktopWebsiteProfileId, name = 'Work account
  */
 export function electronFixture(initial?: BrowserTabState, profile?: DesktopWebsiteProfileId, sessionId?: Branded<'SessionId'>) {
   const opens = new Set<(url: string) => void>()
+  const reacquires = new Set<(url: string, revision: number) => void>()
   const reservation: DesktopBrowserReservation = { lease: `lease-${++sequence}` as DesktopBrowserLeaseId, partition: 'partition' }
   const profiles = {
     list: vi.fn(async (): Promise<readonly DesktopWebsiteProfile[]> => []),
@@ -42,7 +43,7 @@ export function electronFixture(initial?: BrowserTabState, profile?: DesktopWebs
   }
   const bridge = {
     profiles, requests: requestStubs(),
-    acquire: vi.fn(async (_workspace: string) => reservation),
+    acquire: vi.fn(async (_workspace: string, _addressHint?: string) => reservation),
     command: vi.fn(async (lease: DesktopBrowserLeaseId, command: DesktopBrowserHumanCommand): Promise<void> => {
       const guest = guests.find(candidate => candidate.element.isConnected && candidate.element.getAttribute('src') === `about:blank#${lease}`)
       if (guest === undefined) throw new Error('Native guest is unavailable')
@@ -58,6 +59,10 @@ export function electronFixture(initial?: BrowserTabState, profile?: DesktopWebs
     onOpenRequested: vi.fn((_lease: DesktopBrowserLeaseId, listener: (url: string) => void) => {
       opens.add(listener)
       return () => { opens.delete(listener) }
+    }),
+    onReacquireRequested: vi.fn((_lease: DesktopBrowserLeaseId, listener: (url: string, revision: number) => void) => {
+      reacquires.add(listener)
+      return () => { reacquires.delete(listener) }
     }),
   } satisfies DesktopBrowserBridge
   const workspace = vi.fn(async (_signal: AbortSignal) => 'cwd:/workspace')
@@ -91,7 +96,8 @@ export function electronFixture(initial?: BrowserTabState, profile?: DesktopWebs
   host.id = `electron-fixture-${sequence}`
   document.body.append(host)
   return {
-    ...page, presentation, bridge, profiles, workspace, persist, openRequested, opens, guests, host, reservation, requestsSession, report,
+    ...page, presentation, bridge, profiles, workspace, persist, openRequested, opens, reacquires,
+    guests, host, reservation, requestsSession, report,
     mount: () => presentation.mount(host.id),
     async guest() {
       await vi.waitFor(() => { expectGuest() })

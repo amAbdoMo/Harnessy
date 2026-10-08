@@ -114,6 +114,7 @@ export function installWebsiteBridge(): void {
       releasesSettled++
     },
     onOpenRequested: (_lease, listener) => subscribe(openListeners, listener),
+    onReacquireRequested: () => () => {},
   }
   Object.defineProperty(globalThis, 'dshDesktop', { value: { protocolVersion: 1, browser }, configurable: true })
   Object.defineProperty(globalThis, 'websiteBridgeProbe', { value: {

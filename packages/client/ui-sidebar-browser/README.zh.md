@@ -107,7 +107,7 @@ Desktop 主进程批准 guest 租约，并执行挂载、导航和权限策略�
 - 出于安全原因，浏览器会隐藏很多 iframe 失败：DNS、TLS、mixed-content、CSP 与 `X-Frame-Options` 失败可能触发 `load`，也可能不提供可操作 event，而不是触发 `error`。加载失败 notice 只能作为 best-effort 提示。
 - 普通 tab 只要仍在 Sidebar 布局中，就会跨刷新与插件卸载保留标题/URL 检查点；已保存账户 tab 改为保留 profile id 与配置的起始 URL。关闭 tab 会删除其检查点。重启恢复不恢复页面内存、未保存的表单、Chromium history 或请求授权。
 - 本地文件会被拒绝，并继续由 Document Preview 负责。
-- 普通 Desktop tab 按规范化的工作区 CWD 共享进程内存储分区；未解析的 Workspace 按 Session 隔离。已保存账户 tab 使用独立持久分区，认证一直保留到成功退出或遗忘。清理会撤销权限，等待每个 guest 释放，即使同批其他释放失败，然后清除 storage、cache、认证和连接。任何清理等待失败都会保留存储并阻止使用该 profile；中断的清理在重启后仍保持阻止状态。持久化不防止同一 OS 用户读取 Cookie。guest 权限、下载与原生 popup 均被拒绝；通过检查的 HTTP(S) popup 请求会打开 Sidebar tab。Host 地址过滤不是通用私网或 DNS-rebinding 防火墙。
+- 普通 Desktop tab 按规范化的工作区 CWD 共享进程内存储分区；未解析的 Workspace 按 Session 隔离。[本地 HTTPS 设备标签页](../../../apps/desktop/README.zh.md#local-https-devices) 改用全新且限定于源地址的分区；证书接受及登录存储不跨标签页共享，存储切换会在原 guest 实际释放后替换它。已保存账户 tab 使用独立持久分区，认证一直保留到成功退出或遗忘。清理会撤销权限，等待每个 guest 释放，即使同批其他释放失败，然后清除 storage、cache、认证和连接。任何清理等待失败都会保留存储并阻止使用该 profile；中断的清理在重启后仍保持阻止状态。持久化不防止同一 OS 用户读取 Cookie。guest 权限、下载与原生 popup 均被拒绝；通过检查的 HTTP(S) popup 请求会打开 Sidebar tab。Host 地址过滤不是通用私网或 DNS-rebinding 防火墙。
 - 独立的 Desktop Host 提供限定于请求的浏览器操作，要求每次单独批准并说明优先使用 MCP 后仍需回退的原因。任意 JavaScript 不可用；脚本创建的 worker 可能在用户接管后继续运行，重载不能保证终止它们。DOM 过滤不能保证移除所有认证秘密。未知 MCP 结果继续保留账号锁；自动重启核对不可用。
 
 <a id="dev-note"></a>
