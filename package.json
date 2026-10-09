@@ -66,6 +66,7 @@
     "build:native-system": "tsx native/system/scripts/build.ts --host-addon-only",
     "test:coverage:partitioned": "tsx scripts/run-coverage-partitions.ts",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "test:e2e:ui": "e2e run",
     "test:bench": "npm run build:bench && npm run build:web && npm run test:bench:built",
     "test:bench:built": "vitest run --config vitest.bench.config.ts",
     "test:expected": "vitest run --config vitest.expected.config.ts",
@@ -270,6 +271,11 @@
     "vite-tsconfig-paths": "^6.1.1",
     "vitest": "^4.1.8",
     "@deepseek-ai/dsh-skill-office": "workspace:*",
-    "@deepseek-ai/dsh-tool-workspace-dependencies": "workspace:*"
+    "@deepseek-ai/dsh-tool-workspace-dependencies": "workspace:*",
+    "e2e": "^0.18.0",
+    "@e2e-dev/web": "^0.13.0",
+    "ai": "^7.0.0",
+    "@ai-sdk/openai": "^4.0.91",
+    "zod": "^4.1.8"
   }
 }
