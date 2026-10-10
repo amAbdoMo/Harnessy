@@ -1,0 +1,105 @@
+{
+  "prepared": {
+    "isError": false,
+    "value": {
+      "project": "/inert-device-preview/app",
+      "choices": [
+        {
+          "script": "dev",
+          "command": "vite"
+        }
+      ],
+      "needsInput": false,
+      "plan": {
+        "projectId": "<project-id>",
+        "cwd": "/inert-device-preview/app",
+        "command": "npm run 'dev'",
+        "url": "http://localhost:4179/"
+      }
+    },
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"project\":\"/inert-device-preview/app\",\"choices\":[{\"script\":\"dev\",\"command\":\"vite\"}],\"needsInput\":false,\"plan\":{\"projectId\":\"<project-id>\",\"cwd\":\"/inert-device-preview/app\",\"command\":\"npm run 'dev'\",\"url\":\"http://localhost:4179/\"}}"
+      }
+    ],
+    "meta": {
+      "devicePreview": {
+        "project": "/inert-device-preview/app",
+        "choices": [
+          {
+            "script": "dev",
+            "command": "vite"
+          }
+        ],
+        "needsInput": false,
+        "plan": {
+          "projectId": "<project-id>",
+          "cwd": "/inert-device-preview/app",
+          "command": "npm run 'dev'",
+          "url": "http://localhost:4179/"
+        }
+      }
+    }
+  },
+  "opened": {
+    "isError": false,
+    "value": {
+      "kind": "opened",
+      "previewId": "<preview-id>",
+      "server": {
+        "cwd": "",
+        "url": "https://example.test/device",
+        "ownership": "external",
+        "status": "external"
+      }
+    },
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"kind\":\"opened\",\"previewId\":\"<preview-id>\",\"server\":{\"cwd\":\"\",\"url\":\"https://example.test/device\",\"ownership\":\"external\",\"status\":\"external\"}}"
+      }
+    ],
+    "meta": {
+      "devicePreview": {
+        "kind": "opened",
+        "previewId": "<preview-id>",
+        "server": {
+          "cwd": "",
+          "url": "https://example.test/device",
+          "ownership": "external",
+          "status": "external"
+        }
+      }
+    }
+  },
+  "layout": {
+    "isError": false,
+    "value": {
+      "previewId": "<preview-id>",
+      "slot": "phone",
+      "operation": "layout",
+      "kind": "layout",
+      "text": "{\"viewport\":{\"width\":390,\"height\":844},\"document\":{\"width\":390,\"height\":844},\"horizontalOverflow\":false,\"truncated\":false,\"overflow\":[]}",
+      "width": 390,
+      "height": 844
+    },
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"previewId\":\"<preview-id>\",\"slot\":\"phone\",\"operation\":\"layout\",\"kind\":\"layout\",\"text\":\"{\\\"viewport\\\":{\\\"width\\\":390,\\\"height\\\":844},\\\"document\\\":{\\\"width\\\":390,\\\"height\\\":844},\\\"horizontalOverflow\\\":false,\\\"truncated\\\":false,\\\"overflow\\\":[]}\",\"width\":390,\"height\":844}"
+      }
+    ],
+    "meta": {
+      "devicePreview": {
+        "previewId": "<preview-id>",
+        "slot": "phone",
+        "operation": "layout",
+        "kind": "layout",
+        "text": "{\"viewport\":{\"width\":390,\"height\":844},\"document\":{\"width\":390,\"height\":844},\"horizontalOverflow\":false,\"truncated\":false,\"overflow\":[]}",
+        "width": 390,
+        "height": 844
+      }
+    }
+  }
+}

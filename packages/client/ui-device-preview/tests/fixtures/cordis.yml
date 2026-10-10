@@ -1,0 +1,4 @@
+- id: inert-native-browser
+  name: cordis:inertNativeBrowser
+- id: device-preview-under-test
+  name: cordis:devicePreviewUnderTest

@@ -19,6 +19,9 @@ import { installWebsiteRequests } from './website-requests.ts'
 import { installWebsiteControlReceiver, websiteHostSnapshot } from './website-control.ts'
 import { installWebsiteParentChannel } from './website-parent.ts'
 import { installWebsiteRequestTools, installWebsiteTools } from './website-tools.ts'
+import { installDevicePreviewController } from './device-preview-controller.ts'
+import { installDevicePreviewParentChannel } from './device-preview-parent.ts'
+import { installDevicePreviewTools } from './device-preview-tools.ts'
 
 async function main(): Promise<void> {
   const runtimeDir = process.argv[2] as string
@@ -35,6 +38,9 @@ async function main(): Promise<void> {
     websiteRequests?: ReturnType<typeof installWebsiteRequests>
     websiteParent?: ReturnType<typeof installWebsiteParentChannel>
     websiteTools?: ReturnType<typeof installWebsiteTools>
+    devicePreviewController?: ReturnType<typeof installDevicePreviewController>
+    devicePreviewParent?: ReturnType<typeof installDevicePreviewParentChannel>
+    devicePreviewTools?: ReturnType<typeof installDevicePreviewTools>
   } = {}
   const send = (message: object): Promise<void> => new Promise((resolve, reject) => {
     if (!process.connected || process.send === undefined) { reject(new Error('Desktop parent channel is unavailable')); return }
@@ -55,6 +61,9 @@ async function main(): Promise<void> {
       }, (request, signal) => parent.check(websiteHostSnapshot(request), signal),
       scope => installWebsiteRequestTools(scope, parent))
       control.websiteTools = installWebsiteTools(ctx, control.websiteRequests, parent)
+      const previewController = control.devicePreviewController = installDevicePreviewController(ctx, send)
+      const previewParent = control.devicePreviewParent = installDevicePreviewParentChannel(ctx, send)
+      control.devicePreviewTools = installDevicePreviewTools(ctx, previewController, previewParent)
     },
     ...(process.argv[5] === undefined ? {} : {
       packageManager: {
@@ -71,15 +80,21 @@ async function main(): Promise<void> {
   const websiteControl = installWebsiteControlReceiver(
     () => stopping === undefined ? control.websiteRequests : undefined, send)
   const stop = (): Promise<void> => stopping ??= (async () => {
+    control.devicePreviewParent?.close()
     // Startup failure is reported by main; shutdown only owns a tree that booted.
     const running = await application.catch(() => undefined)
-    await running?.shutdown.shutdown(0)
-    await send({ type: 'shutdown-complete' })
-    if (process.connected) process.disconnect()
+    control.devicePreviewParent?.close()
+    try { await control.devicePreviewController?.dispose() }
+    finally { await running?.shutdown.shutdown(0) }
+    if (process.connected) {
+      await send({ type: 'shutdown-complete' })
+      process.disconnect()
+    }
   })()
   process.on('message', (message: unknown) => {
+    if (control.devicePreviewController?.receive(message) === true || control.devicePreviewParent?.receive(message) === true) return
     if (typeof message !== 'object' || message === null || !('type' in message)) return
-    if (message.type === 'shutdown') { void stop(); return }
+    if (message.type === 'shutdown') { void stop().catch((error: unknown) => { console.error(error) }); return }
     if (control.websiteParent?.receive(message) === true || websiteControl(message)) return
     if (message.type === 'website-mcp') {
       if (!('requestId' in message) || !Number.isSafeInteger(message.requestId)
@@ -127,12 +142,19 @@ async function main(): Promise<void> {
   })
   process.once('disconnect', () => {
     control.websiteParent?.close()
-    void stop()
+    control.devicePreviewParent?.close()
+    void stop().catch((error: unknown) => { console.error(error) })
   })
   const { ctx } = await application
   try {
     if (control.websiteTools === undefined) throw new Error('Desktop website tools were not initialized')
+    await ctx.loader.await()
+    if (control.devicePreviewTools === undefined || control.devicePreviewController === undefined) {
+      throw new Error('Desktop device preview tools were not initialized')
+    }
     await control.websiteTools.await()
+    await control.devicePreviewTools.await()
+    await control.devicePreviewController.await()
   } catch (error) { await ctx.fiber.dispose(); throw error }
   control.updateTasks = installDesktopUpdateTaskControl(ctx)
   control.quitInspection = installDesktopQuitInspection(ctx)

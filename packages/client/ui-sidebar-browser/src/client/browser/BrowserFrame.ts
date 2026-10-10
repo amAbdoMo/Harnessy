@@ -1,6 +1,7 @@
 /** Carrier-neutral page navigation and observable state. */
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BrowserTarget } from './url.ts'
+import type { BrowserViewport } from '../../types.ts'
 
 /** A loading failure, optionally carrying the underlying browser's diagnostic. */
 export interface BrowserLoadError {
@@ -29,6 +30,13 @@ export interface BrowserSandboxControl {
 /** Navigation owns page lifetime; mounting and hiding belong to BrowserPresentation. */
 export interface BrowserFrame extends HostObservable<BrowserFrameState> {
   readonly sandbox?: BrowserSandboxControl
+  /**
+   * Optional native fixed-layout preview, absent for saved-account pages and unsupported carriers.
+   * @param viewport - integer CSS dimensions (1–8192) and finite positive visual fit at most one.
+   * May be called before mounting; retained settings apply to replacement guests. Failures publish error state.
+   * The presentation owner supplies a surface of width * scale by height * scale, without a CSS transform.
+   */
+  readonly setViewport?: (viewport: BrowserViewport) => void
   /** @param target - validated HTTP(S) address; loading failures are published in state. */
   loadUrl(target: BrowserTarget): void
   /** Move backward when the provider reports an available entry. */

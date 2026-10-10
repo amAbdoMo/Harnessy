@@ -10,6 +10,8 @@ import type {
   DesktopWebsiteBrowserOperation, DesktopWebsiteBrowserResult,
 } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
 import { DesktopWebsiteOperations, isWebsiteOperationCommand } from './website-operations.ts'
+import { DesktopDevicePreviewHost } from './device-preview-host.ts'
+import type { DevicePreviewHostRequest, DevicePreviewId, DevicePreviewProjectId, DevicePreviewResponse } from '@deepseek-ai/dsh-client-ui-device-preview/types'
 
 interface ReadyEvent {
   readonly type: 'ready'
@@ -221,6 +223,13 @@ export class DesktopHostProcess {
       operation: DesktopWebsiteBrowserOperation) => Promise<DesktopWebsiteBrowserResult>
   } | undefined
   private websiteOperations: DesktopWebsiteOperations | undefined
+  private readonly devicePreviews = new DesktopDevicePreviewHost(message => new Promise<void>((resolve, reject) => {
+    const child = this.child
+    if (child === undefined || !child.connected || this.stopping || this.failureReported) {
+      reject(new Error('Device preview Host is unavailable')); return
+    }
+    child.send(message, (error) => { if (error === null) resolve(); else reject(error) })
+  }))
   private readonly controlRequests = new Map<number, {
     type: DesktopHostControlResponse['type']
     resolve: (response: DesktopHostControlResponse) => void
@@ -300,6 +309,16 @@ export class DesktopHostProcess {
     child.stdout?.pipe(process.stdout)
     child.on('message', (message: unknown) => {
       if (this.child !== child) return
+      try {
+        if (this.devicePreviews.receive(message, response => new Promise<void>((resolve, reject) => {
+          if (this.child !== child || !child.connected || this.stopping) { reject(new Error('Device preview Host retired')); return }
+          child.send(response, (error) => { if (error === null) resolve(); else reject(error) })
+        }))) return
+      } catch (error: unknown) {
+        this.fail(error instanceof Error ? error : new Error('Device preview Host event rejected'))
+        child.kill('SIGTERM')
+        return
+      }
       if (!isDesktopHostEvent(message)) {
         this.fail(new Error('dsh desktop host sent an invalid IPC event'))
         child.kill('SIGTERM')
@@ -471,6 +490,20 @@ export class DesktopHostProcess {
     return snapshot
   }
 
+  /** @param listener - sole same-preview native handler installed before startup. @returns registration disposer. */
+  onDevicePreviewRequest(listener: (request: DevicePreviewHostRequest) => Promise<DevicePreviewResponse | undefined>): () => void {
+    if (this.child !== undefined) throw new Error('Device preview native owner must register before Host startup')
+    return this.devicePreviews.register(listener)
+  }
+
+  /** @param projectId - owned launcher from the displayed preview. @returns after its process range settles. */
+  stopDevicePreview(projectId: DevicePreviewProjectId): Promise<void> { return this.devicePreviews.stop(projectId) }
+
+  /** @param previewId - occurrence whose Main authority was retired; launchers remain owned until explicit Stop. */
+  retireDevicePreview(previewId: DevicePreviewId): void {
+    void this.devicePreviews.retire(previewId).catch((error: unknown) => { console.error('Device preview retirement could not be delivered', error) })
+  }
+
   private async control(
     request: { readonly type: 'update-tasks'; readonly action: 'inspect' | 'lock' | 'unlock' } | { readonly type: 'quit-inspection' }
       | { readonly type: 'website-mcp'; readonly serverName: string }
@@ -508,6 +541,7 @@ export class DesktopHostProcess {
     const child = this.child
     if (child === undefined) return
     this.stopping = true
+    this.devicePreviews.close(new Error('Device preview Host is stopping'))
     const operationsSettled = this.websiteOperations?.close() ?? Promise.resolve()
     this.publishPlatformSession(null)
     let graceful = false
@@ -541,6 +575,7 @@ export class DesktopHostProcess {
   }
 
   private fail(error: Error): void {
+    this.devicePreviews.close(error)
     void this.websiteOperations?.close()
     this.publishPlatformSession(null)
     this.readyReject(error)

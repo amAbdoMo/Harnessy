@@ -61,6 +61,8 @@ import { DesktopPolicyTestAuth } from './policy-test-auth.ts'
 import { DesktopUpdateDialog, type UpdateDialogOptions } from './update-dialog.ts'
 import { readDesktopRuntime } from './runtime-tree.ts'
 import { DesktopBrowserGuests } from './browser-guests.ts'
+import { DesktopDevicePreviews } from './device-preview.ts'
+import { parseDevicePreviewAcknowledgement, parseDevicePreviewBinding, parseDevicePreviewId, parseDevicePreviewProjectId, parseDevicePreviewUnbinding } from './device-preview-protocol.ts'
 import { DesktopWebsiteAuthority } from './website-authority.ts'
 import { parseWebsiteProfileId } from './website-profiles.ts'
 import { installWebsiteRequestIpc } from './website-request-ipc.ts'
@@ -571,6 +573,14 @@ async function main(): Promise<void> {
     },
   }, account => websiteAuthority.requests.revokeAccount(account))
   let websiteHost: DesktopHostProcess | undefined
+  let previewHost: DesktopHostProcess | undefined
+  const devicePreviews = new DesktopDevicePreviews({ window: () => mainWindow, currentHost: () => previewHost,
+    guest: (owner, lease) => browserGuests.inspectPreview(owner, lease),
+    cancelGuest: (owner, lease, guest) => { browserGuests.cancelPreview(owner, lease, guest) },
+    retired: (host, previewId) => { if (previewHost !== undefined && host === previewHost) previewHost.retireDevicePreview(previewId) },
+  })
+  const detachPreviewGuests = browserGuests.onInvalidated((owner, lease) => { devicePreviews.invalidate(owner, lease) })
+  app.once('will-quit', detachPreviewGuests)
   const websiteAuthority = new DesktopWebsiteAuthority({
     currentHost: () => backend.host === undefined ? undefined : websiteHost,
     window: () => mainWindow, applicationUrl, profiles: websiteProfiles, guests: browserGuests,
@@ -650,11 +660,15 @@ async function main(): Promise<void> {
     const host = new DesktopHostProcess(resources.node, resources.dsh, activeProject,
       hostInspectPort, { ...hostEnvironment, DSH_CLIENT_VERSION: desktopClientVersion() }, (error) => {
         void websiteAuthority.requests.revokeHost(host).catch((_failure: unknown) => { /* Captured failed transactions stay locked. */ })
+        if (previewHost === host) previewHost = undefined
+        void devicePreviews.retireHost(host).catch((failure: unknown) => { console.error('Device preview Host retirement failed', failure) })
         onFailure(error)
       },
       primaryRuntime,
       resources, (next) => { platformView.setSession(next) })
     websiteHost = host
+    previewHost = host
+    const detachPreviewHost = host.onDevicePreviewRequest(request => devicePreviews.request(host, request))
     const detachWebsiteHost = websiteAuthority.attachHost(host)
     return {
       start: async () => {
@@ -705,9 +719,13 @@ async function main(): Promise<void> {
         })
       },
       stop: async () => {
+        detachPreviewHost()
+        if (previewHost === host) previewHost = undefined
+        const previewDraining = devicePreviews.retireHost(host)
         const draining = detachWebsiteHost()
         if (websiteHost === host) websiteHost = undefined
         await draining.catch((error: unknown) => { console.error('Website authority could not confirm settlement before Host shutdown', error) })
+        await previewDraining
         stopAccount?.()
         try { await host.stop(requireCleanStop) }
         catch (error) {
@@ -951,6 +969,31 @@ async function main(): Promise<void> {
   ipcMain.handle(DESKTOP_IPC.browserCommand, (event, lease: unknown, command: unknown) => {
     assertProductSender(event)
     return browserGuests.command(event.sender, lease, command)
+  })
+  ipcMain.handle(DESKTOP_IPC.devicePreviewAcknowledge, (event, input: unknown) => {
+    assertProductSender(event)
+    devicePreviews.acknowledge(event.sender, parseDevicePreviewAcknowledgement(input))
+  })
+  ipcMain.handle(DESKTOP_IPC.devicePreviewBind, (event, input: unknown) => {
+    assertProductSender(event)
+    devicePreviews.bind(event.sender, parseDevicePreviewBinding(input))
+  })
+  ipcMain.handle(DESKTOP_IPC.devicePreviewUnbind, (event, input: unknown) => {
+    assertProductSender(event)
+    devicePreviews.unbind(event.sender, parseDevicePreviewUnbinding(input))
+  })
+  ipcMain.handle(DESKTOP_IPC.devicePreviewClose, (event, input: unknown) => {
+    assertProductSender(event)
+    return devicePreviews.close(event.sender, parseDevicePreviewId(input))
+  })
+  ipcMain.handle(DESKTOP_IPC.devicePreviewStop, async (event, input: unknown) => {
+    assertProductSender(event)
+    const projectId = parseDevicePreviewProjectId(input)
+    const host = previewHost
+    if (host === undefined || !devicePreviews.canStop(event.sender, projectId)) throw new Error('Device preview does not own this launcher')
+    await host.stopDevicePreview(projectId)
+    assertProductSender(event)
+    if (previewHost !== host) throw new Error('Device preview Host changed during Stop')
   })
   ipcMain.handle(DESKTOP_IPC.websiteProfilesList, async (event) => {
     assertProductSender(event)
@@ -1366,6 +1409,22 @@ async function main(): Promise<void> {
       void websiteAuthority.requests.revokeOwner(window.webContents)
         .catch((_error: unknown) => { /* Native privacy changes retain failed drainage. */ })
     }
+    const revokePreviewOwner = (): void => {
+      void devicePreviews.revokeOwner(window.webContents)
+        .catch((error: unknown) => { console.error('Device preview visibility revocation could not settle', error) })
+    }
+    const retirePreviewOwner = (): void => {
+      void devicePreviews.revokeOwner(window.webContents, true)
+        .catch((error: unknown) => { console.error('Device preview renderer retirement could not settle', error) })
+    }
+    window.on('hide', revokePreviewOwner)
+    window.on('minimize', revokePreviewOwner)
+    window.on('close', revokePreviewOwner)
+    window.webContents.on('render-process-gone', retirePreviewOwner)
+    window.webContents.once('destroyed', retirePreviewOwner)
+    window.webContents.on('did-start-navigation', (_event, _url, inPlace, mainFrame) => {
+      if (mainFrame && !inPlace) retirePreviewOwner()
+    })
     window.on('hide', revokeWebsiteOwner)
     window.on('minimize', revokeWebsiteOwner)
     window.on('close', revokeWebsiteOwner)

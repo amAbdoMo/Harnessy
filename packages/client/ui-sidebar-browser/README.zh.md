@@ -66,6 +66,8 @@ Web 记录 toolbar 提交和 typed tab 打开。导航状态机把每个受控 r
 
 ### Controller
 
+Desktop 向[设备预览](../ui-device-preview/README.zh.md)提供以纯类型声明共享的 `nativeBrowser` 页面服务。使用者负责页面销毁。普通页面可以在不导航的情况下应用固定 CSS 视口尺寸；已保存账号页面不提供视口操作。原生命令成功后的通知标识精确租约及已确认尺寸，释放操作则在实际等待 guest 结束前撤销关联。
+
 每个 tab 的 `BrowserController` 负责地址校验、命令和显式恢复。`BrowserFrame` 提供与载体无关的导航状态；`IframeImpl` 使用 `BrowserNavigation`，`ElectronWebViewImpl` 仅为普通 tab 观察 Chromium history。`BrowserPresentation` 负责 DOM 的物理挂载。Session 所有的 `WebsiteRequestSession` 维护有界请求列表与精确 claim；每个已保存账户页面负责自身的准入、撤销和清理等待。销毁会同步停止请求列表观察，并在不等待原生清理完成的情况下撤下控件。它会等待准入和 guest 释放，包括迟到的获取结果；失败的清理仍可等待，并阻止复用。框架绑定的 Browser、profile 和 request hook 提供快照；组件只接收普通 callback，不接收 provider 或 observable 对象。
 
 Desktop 主进程批准 guest 租约，并执行挂载、导航和权限策略。preload 暴露限定范围的 Browser、profile 和 request 操作。共享声明通过 `/types` 配合 `import type` 引入；Host 与 Client 使用独立 tsconfig 编译。Desktop tab 声明 `keepMounted`，在切 tab、切 Session、收起与浮动期间保留 DOM，而非保留权限。逻辑或物理隐藏会撤销已保存账户的交接；重新显示 guest 后需要再次显式 Resume。Takeover 独立于待完成的准备或确认立即发起撤销，然后等待它们结束。反馈异常不能中断清理；UI notice 不包含传输诊断。

@@ -15,6 +15,8 @@ import type { BrowserInjected } from './browser/BrowserController.ts'
 import { absentWebsiteProfilesSource, createWebsiteProfilesModel } from './browser/profiles.ts'
 import { createIframePage } from './pages.ts'
 import { createElectronPage } from './electron/pages.ts'
+import { observeBrowserBridge } from './electron/observed-bridge.ts'
+import type { NativeBrowser } from './browser/native-browser.ts'
 import type { DesktopBrowserBridge, DesktopWebsiteProfileId } from '../types.ts'
 import { browserWorkspace } from './electron/workspace.ts'
 import type { BrowserPageFactory } from './browser/BrowserPage.ts'
@@ -28,6 +30,7 @@ export type { BrowserBodyProps } from './view/BrowserBody.tsx'
 export type { BrowserControllerState, BrowserInjected, BrowserMountRequest, BrowserTabControllers } from './browser/BrowserController.ts'
 export type { BrowserFrame, BrowserFrameState, BrowserLoadError, BrowserSandboxControl } from './browser/BrowserFrame.ts'
 export type { BrowserPage, BrowserPageFactory, BrowserPageOptions } from './browser/BrowserPage.ts'
+export type { NativeBrowser, NativeBrowserPageRequest } from './browser/native-browser.ts'
 export type { BrowserPresentation } from './view/BrowserPresentation.ts'
 export type { BrowserFailure, BrowserHistoryEntry, BrowserNavigationStatus, BrowserTabState } from './browser/BrowserPersistence.ts'
 export type { SidebarBrowserKey } from './locales.ts'
@@ -90,14 +93,22 @@ export function apply(ctx: Context): void {
   const installFrames = (scope: Context): void => {
     const controllers = new Map<BrowserBodyProps['sessionId'], BrowserInjected>()
     const requests = new Map<BrowserBodyProps['sessionId'], WebsiteRequestSession>()
-    const factory = (sessionId: BrowserBodyProps['sessionId']): BrowserPageFactory => {
-      if (desktop === undefined) return createIframePage
-      const session = new WebsiteRequestSession(sessionId, desktop.requests,
-        (profile, outcome) => { profiles?.reportRequest(profile, outcome) })
-      requests.set(sessionId, session)
-      return options => createElectronPage(options, desktop,
-        signal => browserWorkspace(scope.workspaces.list, sessionId, signal), session)
+    const native: NativeBrowser | undefined = desktop === undefined ? undefined : {
+      createPage: ({ sessionId, options, leaseChanged }) => {
+        let session = requests.get(sessionId)
+        if (session === undefined) {
+          session = new WebsiteRequestSession(sessionId, desktop.requests,
+            (profile, outcome) => { profiles?.reportRequest(profile, outcome) })
+          requests.set(sessionId, session)
+        }
+        const bridge = leaseChanged === undefined ? desktop : observeBrowserBridge(desktop, leaseChanged)
+        return createElectronPage(options, bridge,
+          signal => browserWorkspace(scope.workspaces.list, sessionId, signal), session)
+      },
     }
+    if (native !== undefined) scope.provide('nativeBrowser', native)
+    const factory = (sessionId: BrowserBodyProps['sessionId']): BrowserPageFactory =>
+      native === undefined ? createIframePage : options => native.createPage({ sessionId, options })
     scope.effect(() => async () => {
       // Stop every roster listener before joining any page's physical cleanup.
       const results = await Promise.allSettled([

@@ -22,6 +22,15 @@ Desktop microphone access is restricted to audio requests from the primary `dsh-
 
 Press F12 (Fn+F12 on media-key keyboards), Command+Option+I on macOS, or Ctrl+Shift+I on Windows to toggle DevTools for the focused application page, including in packaged builds. These native shortcuts use hidden application-menu items. Update overlays and packaged embedded browser guests disable DevTools.
 
+<a id="device-preview"></a>
+## Device preview
+
+[Device Preview](../../packages/client/ui-device-preview/README.md) presents web-compatible apps in phone and tablet frames. The private Host tools prepare existing project scripts without installing dependencies, then ask permission for the exact launcher, working directory and URL. Allowed-once explicitly enables that unchanged plan for this app run under the same Agent and execution permissions; changed manifests, launch arguments or permission providers require new preparation or consent. Managed subprocess ranges and jobs own launchers. External URLs carry no termination authority. Closing a preview or hiding the window does not stop its server; explicit Stop and Host shutdown drain only recorded owned ranges. Startup output can identify readiness, but opening a visible preview does not establish HTTP readiness.
+
+Opening does not read the page. Each requested screenshot or bounded layout read requires fresh approval for the exact preview, device and operation. Main checks the current Host, initiating Session, committed visible ordinary guest, viewport and starting origin before and after native work. Saved-account guests are excluded; hiding, minimizing, renderer loss and Host replacement withdraw in-flight results. Screenshot results use durable image attachments and require an image-capable active model. Preview tools provide no clicking, typing, navigation or arbitrary scripts. Tool calls and results are recorded normally; device viewing controls add no Session events. Manual Desktop qualification owns fractional-fit input mapping and actual native rendering.
+
+Native inspection rejects while the main document is loading. Main permits at most 64 pending requests and gives native observations a 25-second deadline. Cancellation closes only the captured ordinary guest, including an already-invalidated lease awaiting metrics drainage, and joins the actual native promise before teardown completes. Closed occurrences send a private retirement notice that removes the Host's preview cache without stopping their launcher. Interrupted guests may require an explicit Reload.
+
 <a id="local-https-devices"></a>
 ## Local HTTPS devices
 

@@ -13,6 +13,7 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { DesktopWebsiteProfile } from '../../types.ts'
+import type { SidebarRightTabParamsFor } from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
 import type { BrowserInjected } from '../browser/BrowserController.ts'
 import { emptyBrowserFrame } from '../browser/BrowserFrame.ts'
 import { currentBrowserTarget } from '../browser/BrowserPersistence.ts'
@@ -59,7 +60,7 @@ export function BrowserBody(props: BrowserBodyProps): ReactNode {
   const saved = useStore(state => state.byTab[tab.id])
   const initial = useRef(saved)
   const initialUrl = useRef(tab.navigation.params?.url)
-  const profileId = tab.navigation.params?.profileId
+  const profileId = (tab.navigation.params as SidebarRightTabParamsFor<'browser'>)?.profileId
   const viewportId = useId()
   const [mountEpoch, setMountEpoch] = useState(0)
   const state = useBrowserState(tab.id)

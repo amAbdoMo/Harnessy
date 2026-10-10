@@ -1,6 +1,6 @@
 /** Electron navigation and guest lifetime, independent from DOM placement. */
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
-import type { DesktopBrowserBridge, DesktopBrowserLeaseId, DesktopBrowserReservation } from '../../types.ts'
+import type { BrowserViewport, DesktopBrowserBridge, DesktopBrowserLeaseId, DesktopBrowserReservation } from '../../types.ts'
 import type { ElectronWebviewPresentation, WebviewElement } from './ElectronWebviewPresentation.ts'
 import { emptyBrowserFrame, type BrowserFrame, type BrowserFrameState, type BrowserLoadError } from '../browser/BrowserFrame.ts'
 import type { BrowserPageOptions } from '../browser/BrowserPage.ts'
@@ -31,6 +31,8 @@ export class ElectronWebViewImpl implements BrowserFrame {
   private disposal: Promise<void> | undefined
   private attachment: AbortController | undefined
   private readonly releases = new Set<Promise<void>>()
+  private viewport: BrowserViewport | undefined
+  readonly setViewport?: (viewport: BrowserViewport) => void
 
   /**
    * @param options - saved address, persistence and source-tab opening callback.
@@ -47,6 +49,11 @@ export class ElectronWebViewImpl implements BrowserFrame {
     // carry a one-time token, so its navigation is never written.
     this.checkpoint = options.profileId === undefined ? currentBrowserTarget(options.initial) : undefined
     this.store = createSnapshotStore(emptyBrowserFrame())
+    if (options.profileId === undefined) this.setViewport = (viewport) => {
+      if (this.lifetime.signal.aborted) return
+      this.viewport = { width: viewport.width, height: viewport.height, scale: viewport.scale }
+      this.applyViewport()
+    }
   }
 
   /** @returns immutable carrier-neutral navigation state. */
@@ -195,6 +202,7 @@ export class ElectronWebViewImpl implements BrowserFrame {
       this.requests?.bind(binding)
       this.ready = true
       this.observe(this.store.getSnapshot().address !== 'requested')
+      this.applyViewport()
       this.loadPending()
     }, { signal })
     element.addEventListener('did-navigate', () => { this.observe(true) }, { signal })
@@ -244,6 +252,17 @@ export class ElectronWebViewImpl implements BrowserFrame {
       await this.release(reservation.lease)
     }
     return undefined
+  }
+
+  private applyViewport(): void {
+    const viewport = this.viewport
+    const element = this.element
+    const lease = this.lease
+    if (!this.ready || viewport === undefined || element === undefined || lease === undefined) return
+    // Fit updates share the current navigation revision: resizing cannot cancel an approved storage transition.
+    void this.bridge.command(lease, { kind: 'preview-viewport', viewport, revision: this.revision }).catch((error: unknown) => {
+      if (this.element === element && !this.lifetime.signal.aborted && this.viewport === viewport) this.commandFailed(error)
+    })
   }
 
   private loadPending(): void {

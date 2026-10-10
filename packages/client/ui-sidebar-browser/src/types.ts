@@ -183,12 +183,21 @@ export interface DesktopBrowserReacquireRequest {
   readonly revision: number
 }
 
-/** Human toolbar actions; Main checks the exact lease and account reservation immediately before execution. */
+/** Integer layout dimensions (1–8192 CSS pixels) and native visual fit; no device identity or user-agent emulation. */
+export interface BrowserViewport {
+  readonly width: number
+  readonly height: number
+  /** Finite positive compositor fit factor, at most one; does not change layout pixels. */
+  readonly scale: number
+}
+
+/** Human toolbar and presentation actions; Main checks the exact lease and account reservation before execution. */
 export type DesktopBrowserHumanCommand = (
   | { readonly kind: 'navigate'; readonly url: string }
   | { readonly kind: 'back' }
   | { readonly kind: 'forward' }
   | { readonly kind: 'reload' }
+  | { readonly kind: 'preview-viewport'; readonly viewport: BrowserViewport }
 ) & {
   /** Nonnegative safe integer; renderer commands always supply it, manual callers may omit it. */
   readonly revision?: number

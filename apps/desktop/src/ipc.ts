@@ -4,6 +4,7 @@ import type { DesktopKeyboardApi, DesktopShortcutsApi } from '@deepseek-ai/dsh-c
 import type { IpcMainInvokeEvent } from 'electron'
 import { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { DesktopBrowserBridge } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
+import type { DesktopDevicePreviewBridge } from '@deepseek-ai/dsh-client-ui-device-preview/types'
 
 /** IPC channel names kept private to the desktop application bundle. */
 export const DESKTOP_IPC = {
@@ -23,6 +24,12 @@ export const DESKTOP_IPC = {
   browserCommand: 'dsh-desktop:browser-command',
   browserOpenRequested: 'dsh-desktop:browser-open-requested',
   browserReacquireRequested: 'dsh-desktop:browser-reacquire-requested',
+  devicePreviewOpen: 'dsh-desktop:device-preview-open',
+  devicePreviewAcknowledge: 'dsh-desktop:device-preview-acknowledge',
+  devicePreviewBind: 'dsh-desktop:device-preview-bind',
+  devicePreviewUnbind: 'dsh-desktop:device-preview-unbind',
+  devicePreviewClose: 'dsh-desktop:device-preview-close',
+  devicePreviewStop: 'dsh-desktop:device-preview-stop',
   websiteProfilesList: 'dsh-desktop:website-profiles-list',
   websiteProfilesCreate: 'dsh-desktop:website-profiles-create',
   websiteProfilesAcquire: 'dsh-desktop:website-profiles-acquire',
@@ -150,6 +157,7 @@ export interface DesktopUpdatePresentation {
 export interface DshDesktopProductApi {
   readonly protocolVersion: 1
   readonly browser: DesktopBrowserBridge
+  readonly preview: DesktopDevicePreviewBridge
   readonly keyboard: DesktopKeyboardApi
   readonly shortcuts: DesktopShortcutsApi
   readonly notifications: {

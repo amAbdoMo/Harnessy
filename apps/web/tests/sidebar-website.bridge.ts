@@ -105,6 +105,7 @@ export function installWebsiteBridge(): void {
         case 'back': guest.goBack(); return
         case 'forward': guest.goForward(); return
         case 'reload': guest.reload(); return
+        case 'preview-viewport': throw new Error('Saved-account test guests do not support device preview metrics')
         default: assertNever(command)
       }
     },

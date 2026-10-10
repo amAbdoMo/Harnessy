@@ -52,6 +52,7 @@ export function electronFixture(initial?: BrowserTabState, profile?: DesktopWebs
         case 'back': guest.goBack(); return
         case 'forward': guest.goForward(); return
         case 'reload': guest.reload(); return
+        case 'preview-viewport': return
         default: assertNever(command)
       }
     }),

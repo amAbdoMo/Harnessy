@@ -1,0 +1,320 @@
+.root {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-base);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.header {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l3);
+}
+
+.startRow,
+.controlRow,
+.choiceGroup,
+.navigation,
+.imageActions,
+.project {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.controlRow,
+.imageActions,
+.project {
+  flex-wrap: wrap;
+}
+
+.choiceGroup > button[aria-pressed='true'] {
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.address {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.hint {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.devices {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+  overflow: auto;
+}
+
+.comparison {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.lane {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+  padding: 12px;
+}
+
+.lane[hidden] {
+  display: none;
+}
+
+.comparison .lane + .lane {
+  border-left: 0.5px solid var(--dsw-alias-border-l3);
+}
+
+.laneTitle {
+  margin: 0;
+  font-size: inherit;
+  font-weight: 500;
+  line-height: inherit;
+}
+
+.controls {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.customSize {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.customSize label {
+  display: flex;
+  flex: 1 1 72px;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.customSize label > span {
+  width: 100%;
+}
+
+.fileInput {
+  display: none;
+}
+
+.noticeSlot {
+  flex: 0 0 auto;
+  min-height: 20px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.frameArea {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 160px;
+}
+
+.fitPanel {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 120px;
+}
+
+.scrollPanel {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  justify-items: center;
+  align-items: start;
+  overflow: auto;
+}
+
+.scaledSize {
+  position: relative;
+  width: var(--device-display-width);
+  height: var(--device-display-height);
+}
+
+.hardware {
+  position: relative;
+  box-sizing: border-box;
+  isolation: isolate;
+  width: var(--device-display-width);
+  height: var(--device-display-height);
+  padding: calc(var(--device-bezel) * var(--device-scale));
+  background: linear-gradient(135deg, var(--dsw-alias-border-l4), var(--dsw-alias-bg-overlay) 35%, var(--dsw-alias-border-l3));
+  border: 0;
+  border-radius: calc(var(--device-radius) * var(--device-scale));
+  box-shadow: var(--dsw-elevation-panel);
+}
+
+.hardware::before {
+  position: absolute;
+  z-index: -1;
+  inset: calc(3px * var(--device-scale)) calc(-3px * var(--device-scale)) calc(-3px * var(--device-scale)) calc(3px * var(--device-scale));
+  background: var(--dsw-alias-border-l4);
+  border-radius: inherit;
+  content: '';
+}
+
+.ios-phone {
+  --device-radius: 48px;
+  --device-screen-radius: 36px;
+}
+
+.android-phone {
+  --device-radius: 32px;
+  --device-screen-radius: 22px;
+}
+
+.ios-tablet {
+  --device-radius: 38px;
+  --device-screen-radius: 18px;
+}
+
+.android-tablet {
+  --device-radius: 26px;
+  --device-screen-radius: 10px;
+}
+
+.screen {
+  position: relative;
+  width: calc(var(--device-width) * var(--device-scale));
+  height: calc(var(--device-height) * var(--device-scale));
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--dsw-alias-bg-base);
+  border-radius: calc(var(--device-screen-radius) * var(--device-scale));
+}
+
+.surface {
+  width: 100%;
+  height: 100%;
+}
+
+.surface > * {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.screenshot {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+.screenNotice {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 32px;
+  color: var(--dsw-alias-label-secondary);
+  text-align: center;
+  pointer-events: none;
+}
+
+.camera {
+  position: absolute;
+  z-index: 1;
+  top: calc((var(--device-bezel) / 2 - 2px) * var(--device-scale));
+  left: calc(50% - 2px * var(--device-scale));
+  width: calc(4px * var(--device-scale));
+  height: calc(4px * var(--device-scale));
+  background: var(--dsw-alias-label-secondary);
+  border-radius: 50%;
+  corner-shape: round;
+  pointer-events: none;
+}
+
+.ios-phone .camera {
+  left: calc(50% - 22px * var(--device-scale));
+  width: calc(44px * var(--device-scale));
+  border-radius: 999px;
+  corner-shape: round;
+}
+
+.landscape .camera {
+  top: calc(50% - 2px * var(--device-scale));
+  left: calc((var(--device-bezel) / 2 - 2px) * var(--device-scale));
+}
+
+.ios-phone.landscape .camera {
+  top: calc(50% - 22px * var(--device-scale));
+  width: calc(4px * var(--device-scale));
+  height: calc(44px * var(--device-scale));
+}
+
+.hardwareButtons {
+  position: absolute;
+  top: 20%;
+  right: calc(-2px * var(--device-scale));
+  width: calc(3px * var(--device-scale));
+  height: calc(48px * var(--device-scale));
+  background: var(--dsw-alias-border-l4);
+  border-radius: calc(var(--dsw-radius-sm) * var(--device-scale));
+  pointer-events: none;
+}
+
+.landscape .hardwareButtons {
+  top: calc(-2px * var(--device-scale));
+  right: 20%;
+  width: calc(48px * var(--device-scale));
+  height: calc(3px * var(--device-scale));
+}
+
+.dimensions,
+.imageLabel {
+  flex: 0 0 auto;
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .comparison {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .comparison .lane {
+    min-height: 440px;
+  }
+
+  .comparison .lane + .lane {
+    border-top: 0.5px solid var(--dsw-alias-border-l3);
+    border-left: 0;
+  }
+
+  .startRow {
+    flex-wrap: wrap;
+  }
+}

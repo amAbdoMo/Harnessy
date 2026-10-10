@@ -2,10 +2,11 @@
 import { randomUUID } from 'node:crypto'
 import { setImmediate } from 'node:timers/promises'
 import { app, session, webContents, type BrowserWindow, type Event as ElectronEvent, type Session, type WebContents } from 'electron'
-import type { DesktopBrowserLeaseId, DesktopBrowserOpenRequest, DesktopBrowserReacquireRequest, DesktopBrowserReservation, DesktopWebsiteProfileId } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
+import type { BrowserViewport, DesktopBrowserLeaseId, DesktopBrowserOpenRequest, DesktopBrowserReacquireRequest, DesktopBrowserReservation, DesktopWebsiteProfileId } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
 import { DESKTOP_IPC } from './ipc.ts'
 import { bindBrowserCertificateErrors, localBrowserDeviceOrigin, type ConfirmBrowserCertificate } from './browser-certificates.ts'
 import { executeHumanBrowserCommand } from './browser-human-command.ts'
+import { BrowserPreviewViewport } from './browser-preview-viewport.ts'
 import { DesktopWebsiteProfiles, type DesktopWebsiteAccount, type DesktopWebsitePairing } from './website-profiles.ts'
 
 interface GuestLease {
@@ -16,6 +17,7 @@ interface GuestLease {
   attached: boolean
   invalidated: boolean
   navigationRevision: number
+  viewport?: BrowserPreviewViewport
   invalidation?: Promise<void>
   release?: Promise<void> | undefined
   attachment?: Promise<WebContents | null>
@@ -140,6 +142,33 @@ export class DesktopBrowserGuests {
     return () => { this.invalidationListeners.delete(listener) }
   }
 
+  /** @param owner - authenticated application renderer. @param id - exact ordinary preview lease.
+   * @returns its attached viewport-controlled guest, never a saved-account guest; undefined after invalidation.
+   */
+  inspectPreview(owner: WebContents, id: DesktopBrowserLeaseId): WebContents | undefined {
+    const lease = this.leases.get(id)
+    if (lease === undefined || lease.owner !== owner || lease.profile !== undefined || lease.viewport === undefined
+      || !lease.attached || lease.invalidated || lease.release !== undefined || lease.guest === undefined
+      || owner.isDestroyed() || lease.guest.isDestroyed()) return undefined
+    return lease.guest
+  }
+
+  /** Revoke and close only a captured ordinary preview guest, including an invalidated lease awaiting metrics drainage.
+   * Native observations reject on guest destruction; active inspection admission is not a cancellation prerequisite.
+   * @param owner - authenticated application renderer.
+   * @param id - exact viewport-controlled lease.
+   * @param expected - captured native guest; replacement guests must survive stale cancellation.
+   */
+  cancelPreview(owner: WebContents, id: DesktopBrowserLeaseId, expected: WebContents): void {
+    const lease = this.leases.get(id)
+    if (lease === undefined || lease.owner !== owner || lease.profile !== undefined || lease.viewport === undefined
+      || lease.guest !== expected || expected.isDestroyed()) return
+    this.invalidate(id, lease)
+    this.releaseInput(lease)
+    if (lease.closeGuest !== undefined) lease.closeGuest()
+    else expected.close({ waitForBeforeUnload: false })
+  }
+
   /** @param owner - authenticated IPC sender. @param id - exact lease. @returns attached website guest, or undefined after invalidation. */
   inspectWebsite(owner: WebContents, id: DesktopBrowserLeaseId): DesktopWebsiteGuestInspection | undefined {
     const lease = this.leases.get(id)
@@ -152,8 +181,8 @@ export class DesktopBrowserGuests {
   /**
    * @param owner - authenticated primary renderer, not a website guest.
    * @param id - native lease received over IPC.
-   * @param input - bounded Human navigation command, including deferred initial loads.
-   * @returns after native load settlement or command dispatch; ownership and account reservations are checked in Main.
+   * @param input - bounded Human navigation or ordinary-guest viewport command, including deferred initial loads.
+   * @returns after native load settlement, metrics acknowledgement or command dispatch; ownership is checked in Main.
    */
   command(owner: WebContents, id: unknown, input: unknown): Promise<void> {
     if (typeof id !== 'string' || id.length > 128) throw new Error('desktop browser: invalid guest lease')
@@ -167,21 +196,34 @@ export class DesktopBrowserGuests {
     let revision: number | undefined
     if (typeof input === 'object' && input !== null && !Array.isArray(input) && 'revision' in input) {
       const { revision: candidate, ...nativeCommand } = input
-      if (typeof candidate !== 'number' || !Number.isSafeInteger(candidate) || candidate < 0
+      if (!Object.hasOwn(input, 'revision') || typeof candidate !== 'number' || !Number.isSafeInteger(candidate) || candidate < 0
         || candidate < lease.navigationRevision) throw new Error('desktop browser: navigation revision rejected')
       revision = candidate
       command = nativeCommand
     }
     const guest = lease.guest
+    const viewport = lease.viewport
     return executeHumanBrowserCommand({
       navigationHistory: guest.navigationHistory,
+      ...(viewport === undefined ? {} : { navigationReady: () => viewport.settled() }),
+      ...(lease.profile !== undefined ? {} : { setViewport: (viewport: BrowserViewport) => {
+        lease.viewport ??= new BrowserPreviewViewport(guest, () => this.leases.get(key) === lease
+          && !lease.invalidated && lease.release === undefined && lease.guest === guest && !owner.isDestroyed(), () => {
+          console.error('Desktop browser viewport debugger ownership lost')
+          void this.release(owner, key).catch((error: unknown) => { console.error('Desktop browser viewport release failed', error) })
+        })
+        return lease.viewport.set(viewport)
+      } }),
       reload: () => { guest.reload() },
       loadURL: (url) => {
         if (this.reacquireForAddress(key, lease, url, 'GET')) return Promise.resolve()
         return guest.loadURL(url)
       },
     }, command, url => this.allowedNavigation(url), () => {
-      const allowed = lease.profile === undefined || this.websiteNavigation?.(owner, key) !== false
+      const allowed = !lease.invalidated && lease.release === undefined && lease.guest === guest
+        && !owner.isDestroyed() && !guest.isDestroyed()
+        && (revision === undefined || revision >= lease.navigationRevision)
+        && (lease.profile === undefined || this.websiteNavigation?.(owner, key) !== false)
       if (allowed && revision !== undefined) lease.navigationRevision = revision
       return allowed
     })
@@ -200,6 +242,7 @@ export class DesktopBrowserGuests {
     if (lease.owner !== owner) throw new Error('desktop browser: guest belongs to another window')
     if (lease.release !== undefined) return lease.release
     const nativeClose = Promise.resolve().then(async () => {
+      const viewportDrain = lease.viewport?.dispose()
       let guest = lease.guest
       if (guest === undefined && lease.attachment !== undefined) {
         let timer: ReturnType<typeof setTimeout> | undefined
@@ -212,22 +255,26 @@ export class DesktopBrowserGuests {
           ])
         } finally { clearTimeout(timer) }
       }
-      if (guest !== undefined && !guest.isDestroyed()) {
+      if (guest !== undefined) {
         const closing = guest
         let timer: ReturnType<typeof setTimeout> | undefined
-        let onDestroyed!: () => void
+        let onDestroyed: (() => void) | undefined
         try {
-          const destroyed = new Promise<void>((resolve, reject) => {
+          const destroyed = closing.isDestroyed() ? Promise.resolve() : new Promise<void>((resolve) => {
             onDestroyed = resolve
             closing.once('destroyed', onDestroyed)
+          })
+          const deadline = new Promise<never>((_resolve, reject) => {
             timer = setTimeout(() => { reject(new Error('desktop browser: guest destruction did not finish; cleanup remains blocked')) }, 5_000)
           })
-          if (lease.closeGuest !== undefined) lease.closeGuest()
-          else closing.close({ waitForBeforeUnload: false })
-          await destroyed
+          if (!closing.isDestroyed()) {
+            if (lease.closeGuest !== undefined) lease.closeGuest()
+            else closing.close({ waitForBeforeUnload: false })
+          }
+          await Promise.race([Promise.all([destroyed, viewportDrain]), deadline])
         } finally {
           clearTimeout(timer)
-          closing.removeListener('destroyed', onDestroyed)
+          if (onDestroyed !== undefined) closing.removeListener('destroyed', onDestroyed)
         }
       }
     })
@@ -386,6 +433,18 @@ export class DesktopBrowserGuests {
       }
     }
     guest.once('destroyed', destroyed)
+    const reapplyViewport = (): void => {
+      const viewport = bound?.lease.viewport
+      if (viewport === undefined || !usable()) return
+      void viewport.reapply().catch((error: unknown) => {
+        if (!usable()) return
+        console.error('Desktop browser viewport reapplication failed', error)
+        invalidate()
+        close()
+      })
+    }
+    guest.on('dom-ready', reapplyViewport)
+    guest.on('did-navigate', reapplyViewport)
     guest.on('render-process-gone', () => { invalidate(); close() })
     const humanInputAllowed = (): boolean => bound === undefined || bound.lease.profile === undefined
       || this.websiteNavigation?.(owner, bound.id) !== false
