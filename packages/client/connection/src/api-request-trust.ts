@@ -83,6 +83,16 @@ function isTrustedAuthority(hostUrl: URL, trustedHosts: readonly string[]): bool
 }
 
 /**
+ * Classify an authority already accepted by {@link assertTrustedAuthority}.
+ * @param entry - the configured authority, verbatim.
+ * @returns true unless the entry parses as a loopback hostname.
+ */
+export function isRemoteAuthority(entry: string): boolean {
+  const url = parseAuthority(entry)
+  return url === undefined || !isLoopbackHostname(url.hostname)
+}
+
+/**
  * Decide whether one /api request may reach the RPC bridge.
  * @param request - Node HTTP or Fetch request facts (headers).
  * @param trustedHosts - non-loopback authorities this deployment serves: exact `host:port`, or port-less `host` matching any port.

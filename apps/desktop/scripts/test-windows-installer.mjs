@@ -29,6 +29,11 @@ await mkdir(outputRoot, { recursive: true })
 const output = await mkdtemp(join(outputRoot, 'run-'))
 const payload = join(output, 'payload')
 await mkdir(join(payload, 'resources'), { recursive: true })
+const desktopManifest = JSON.parse(await readFile(join(appRoot, 'package.json'), 'utf8'))
+await writeFile(join(payload, 'package.json'), JSON.stringify({
+  name: packageName, version: desktopManifest.version, description: 'Isolated installer regression payload',
+  main: 'index.js', author: 'Harnessy',
+}))
 const previousEnvironment = { ...process.env }
 const signingEnvironment = process.argv.includes('--signed') ? loadDesktopPackageEnvironment('win32') : {}
 const signingRun = process.argv.includes('--signed')
@@ -103,10 +108,13 @@ SectionEnd
       !line.startsWith('LangString ') || line.includes(`\${LANG_${languageId}}`)).join('\n'))
     const include = join(languageOutput, 'include.nsh')
     await writeFile(include, `!define INSTALLER_BUILD_DIR "${join(output, 'ui')}"\n!define INSTALLER_STRINGS_FILE "${strings}"\n!include "${join(appRoot, 'scripts', 'installer.nsh')}"\n`)
-    await build({ projectDir: appRoot, prepackaged: payload, targets: Platform.WINDOWS.createTarget(['nsis'], Arch.x64), publish: 'never',
-      config: { ...config, productName, extraMetadata: { ...config.extraMetadata, name: packageName },
+    await build({ projectDir: payload, prepackaged: payload, targets: Platform.WINDOWS.createTarget(['nsis'], Arch.x64), publish: 'never',
+      config: { ...config, appId: `com.deepseek.harness.installertest.n${id}`, productName, executableName: productName,
+        win: { ...config.win, executableName: productName }, electronVersion: desktopManifest.devDependencies.electron,
+        extraMetadata: { ...config.extraMetadata, name: packageName },
         artifactName: 'installer-test.exe', directories: { output: languageOutput },
-        nsis: { ...config.nsis, guid, include, installerLanguages: [language] }, beforeBuild: undefined, afterPack: undefined, afterSign: undefined, artifactBuildCompleted: undefined },
+        nsis: { ...config.nsis, guid, include, shortcutName: productName, installerLanguages: [language] },
+        beforeBuild: undefined, beforePack: undefined, afterPack: undefined, afterSign: undefined, artifactBuildCompleted: undefined },
     })
     if (process.argv.includes('--compile-only')) continue
     const result = await execute('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',

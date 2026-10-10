@@ -20,6 +20,11 @@ export type DirectoryPickerEnv = Readonly<
 export interface DirectoryPickerHostFacts {
   /** Effective webserver bind host (the schema's closed loopback/all-interfaces union). */
   bindHost: HttpServerConfig['host']
+  /**
+   * Whether the Connection trust policy admits a non-loopback authority (a
+   * validated `trustedHosts` entry naming a remote hostname).
+   */
+  allowsRemoteAuthorities: boolean
   /** Host process platform. */
   platform: NodeJS.Platform
   /** SSH launch fact from the inherited process layer, independent of `.env` values. */
@@ -36,18 +41,19 @@ const present = (value: string | undefined): boolean => value !== undefined && v
 /**
  * Resolve which backend serves this boot. `native` requires every signal that
  * the operator can see the host display and the native backend can serve it:
- * a loopback-only bind (an all-interfaces bind admits remote browsers no OS
- * chooser can reach), no SSH launch (under SSH port-forwarding the chooser
- * would open on the unattended server), and a servable display session —
- * assumed on darwin/win32, requiring `DISPLAY`/`WAYLAND_DISPLAY` plus a
- * chooser binary on linux, and never true elsewhere (the native backend
- * drives exactly darwin/win32/linux). Anything ambiguous resolves to
+ * no remote-authority trust, a loopback-only bind (remote-authority trust or
+ * a non-loopback bind admits remote browsers no OS chooser can reach), no SSH
+ * launch (under SSH port-forwarding the chooser would open on the unattended
+ * server), and a servable display session — assumed on darwin/win32,
+ * requiring `DISPLAY`/`WAYLAND_DISPLAY` plus a chooser binary on linux, and
+ * never true elsewhere (the native backend drives exactly darwin/win32/linux).
+ * Anything ambiguous resolves to
  * `browse`, which works everywhere.
  * @param facts - the sampled host facts.
  * @returns the backend kind to mount.
  */
 export function resolveDirectoryPickerBackend(facts: DirectoryPickerHostFacts): DirectoryPickerBackendKind {
-  if (facts.bindHost !== '127.0.0.1') return 'browse'
+  if (facts.allowsRemoteAuthorities || facts.bindHost !== '127.0.0.1') return 'browse'
   if (facts.ssh) return 'browse'
   if (facts.platform === 'darwin' || facts.platform === 'win32') return 'native'
   if (facts.platform !== 'linux' || !facts.linuxChooser) return 'browse'

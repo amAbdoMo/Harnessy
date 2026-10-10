@@ -21,6 +21,7 @@ const state = vi.hoisted(() => ({
   beforeRead: vi.fn(async () => {}),
   beforeWelcome: vi.fn(async () => {}),
   copy: vi.fn(),
+  notificationShortcutIdentity: '',
   expiryListener: undefined as (() => void) | undefined,
   accountListener: undefined as ((value: AccountView) => void) | undefined,
   accountState: vi.fn<() => Promise<AccountView>>().mockResolvedValue({
@@ -55,7 +56,13 @@ vi.mock('../src/crash-report.ts', async importOriginal => ({
 }))
 vi.mock('electron', () => ({
   clipboard: { writeText: state.copy },
-  shell: { openExternal: vi.fn(async () => {}), writeShortcutLink: vi.fn(() => true) },
+  shell: { openExternal: vi.fn(async () => {}),
+    writeShortcutLink: vi.fn((_path: string, _operation: string, options: { appUserModelId?: string }) => {
+      state.notificationShortcutIdentity = options.appUserModelId ?? ''
+      return true
+    }),
+    readShortcutLink: vi.fn(() => ({ appUserModelId: state.notificationShortcutIdentity })) },
+  systemPreferences: { on: vi.fn(), off: vi.fn() },
   app: {
     isPackaged: false,
     name: 'Harness',
@@ -92,6 +99,7 @@ vi.mock('electron', () => ({
     focus = state.focusWorkspace
     moveTop = state.moveTopWorkspace
     hide = vi.fn()
+    setOverlayIcon = vi.fn()
     show = state.showWorkspace
     showInactive = state.showInactiveWorkspace
     async loadURL(url: string) { state.contents = this.webContents; await state.loadWorkspace(url); this.ready?.() }
@@ -131,6 +139,7 @@ vi.mock('../src/host-process.ts', async importOriginal => ({
     onWebsiteCheck = vi.fn(() => () => {})
     onWebsitePageInfo = vi.fn(() => async () => {})
     onWebsiteRevoked = vi.fn(() => () => {})
+    onDevicePreviewRequest = vi.fn(() => () => {})
     websiteControl = vi.fn(async () => {})
     fetch() {
       return Promise.resolve(Response.json({
