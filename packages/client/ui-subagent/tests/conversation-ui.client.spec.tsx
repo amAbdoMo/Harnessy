@@ -295,6 +295,29 @@ describe('SubagentHeaderLineage', () => {
     expect(screen.getByRole('treeitem', { name: /reviewer/ })).toBeTruthy()
   })
 
+  it.each([false, true])('counts completed descendants in collapsed branches with working agents: %s', (working) => {
+    const root = catalog({ entries: [
+      { id: CHILD, mode: 'continuable', label: 'worker', activity: 'inactive' },
+      ...working ? [{ id: 'active-child' as SessionId, mode: 'one-shot' as const,
+        label: 'active reviewer', activity: 'running' as const }] : [],
+    ] })
+    render(<HeaderCatalog {...props(root, {
+      [CHILD]: catalog({ entries: [
+        { id: GRANDCHILD, mode: 'one-shot', label: 'nested reviewer', activity: 'inactive' },
+      ] }),
+    })} />)
+    const trigger = countTrigger()
+    expect(trigger.getAttribute('aria-label')).toBe(`${working ? 1 : 0} 个运行中，2 个已完成`)
+    if (!working) expect(within(trigger).getByText('2 个已完成')).toBeTruthy()
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' })
+    const completed = screen.getByRole('treeitem', { name: '显示或隐藏 2 个已完成的子智能体' })
+    expect(completed.textContent).toBe('2 个已完成')
+    expect(completed.parentElement?.getAttribute('data-working')).toBe(String(working))
+    fireEvent.click(completed)
+    expect(screen.getByRole('treeitem', { name: /worker/ })).toBeTruthy()
+    expect(screen.queryByRole('treeitem', { name: /nested reviewer/ })).toBeNull()
+  })
+
   it('selects singular count keys for one direct child', () => {
     const base = props(catalog({
       entries: [{

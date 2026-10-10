@@ -111,9 +111,11 @@ function McpPanel({ panelRef, position, servers, activity, reconnecting, reconne
               <div key={server.id} className={css.server} data-status={server.status}>
                 <span className={css.statusDot} aria-hidden="true" />
                 <span className={css.serverBody}>
-                  <strong>{server.name}</strong>
-                  <span>{statusCopy(server, t)}</span>
-                  <span>{latest === undefined
+                  <span className={css.serverHeader}>
+                    <strong title={server.name}>{server.name}</strong>
+                    <span className={css.serverStatus}>{statusCopy(server, t)}</span>
+                  </span>
+                  <span className={css.serverUsage}>{latest === undefined
                     ? t('mcpSessionNeverUsed')
                     : t('mcpSessionLastUsed', { time: activityTime(latest.finishedAt ?? latest.startedAt) })}</span>
                 </span>

@@ -357,6 +357,9 @@
 
 .completedGroup {
   margin: 2px 4px 1px;
+}
+
+.completedGroup[data-working='true'] {
   padding-top: 2px;
   border-top: 0.5px solid var(--dsw-alias-border-l2);
 }

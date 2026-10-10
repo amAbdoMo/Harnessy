@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { useSyncExternalStore } from 'react'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { McpManagerState, McpServerView } from '@deepseek-ai/dsh-api-remotes/client'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
@@ -19,8 +19,8 @@ function server(status: McpServerView['status']): McpServerView {
   }
 }
 
-function mount(status: McpServerView['status']) {
-  const registry: McpManagerState = { available: true, writable: true, servers: [server(status)] }
+function mount(status: McpServerView['status'], name = 'WordPress') {
+  const registry: McpManagerState = { available: true, writable: true, servers: [{ ...server(status), name }] }
   const mcpStatus = createSnapshotStore<McpStatusSnapshot>({ state: registry, error: undefined, refreshing: false })
   const reconnect = vi.fn(async () => undefined)
   const manage = vi.fn()
@@ -57,10 +57,30 @@ describe('MCP Session status', () => {
     expect(mounted.manage).toHaveBeenCalledOnce()
   })
 
-  it('offers reconnect only for a failed enabled server', () => {
+  it.each([
+    ['connected', en.mcpStatusConnected],
+    ['connecting', en.mcpStatusConnecting],
+    ['reconnecting', en.mcpStatusReconnecting],
+    ['disabled', en.mcpStatusDisabled],
+  ] as const)('retains the %s label and usage detail without offering reconnect', (status, label) => {
+    const name = 'WordPress MCP Adapter — production editorial workspace with a long server name'
+    mount(status, name)
+    fireEvent.click(screen.getByRole('button', { name: /^Open MCP server status:/u }))
+    expect(screen.getByText(name).getAttribute('title')).toBe(name)
+    expect(screen.getByText(label)).toBeTruthy()
+    expect(screen.getByText(en.mcpSessionNeverUsed)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: en.mcpSessionReconnect })).toBeNull()
+  })
+
+  it('disables reconnect while the failed server request is pending and restores the action afterward', async () => {
     const mounted = mount('error')
     fireEvent.click(screen.getByRole('button', { name: /need attention/u }))
+    expect(screen.getByText(en.mcpStatusError)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: en.mcpSessionReconnect }))
     expect(mounted.reconnect).toHaveBeenCalledWith('wordpress')
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: en.mcpStatusReconnecting }).disabled).toBe(true)
+    await waitFor(() => {
+      expect(screen.getByRole<HTMLButtonElement>('button', { name: en.mcpSessionReconnect }).disabled).toBe(false)
+    })
   })
 })

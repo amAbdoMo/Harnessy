@@ -740,7 +740,10 @@ function CatalogDropdown({
         && (descendantIndex.get(entry.id)?.runningCount ?? 0) === 0,
     ),
   }
-  const completedDirectCount = completedCatalog.entries.length
+  const completedBranchCount = completedCatalog.entries.reduce(
+    (count, entry) => count + 1 + (descendantIndex.get(entry.id)?.count ?? 0),
+    0,
+  )
 
   const toggleCompleted = (event: KeyboardEvent<HTMLDivElement> | MouseEvent<HTMLDivElement>): void => {
     if ('key' in event && event.key !== 'Enter' && event.key !== ' ') return
@@ -845,14 +848,14 @@ function CatalogDropdown({
               closeCatalog={() => { changeOpen(false) }}
               t={t}
             />
-            {completedDirectCount > 0 && (
-              <div className={css.completedGroup}>
+            {completedBranchCount > 0 && (
+              <div className={css.completedGroup} data-working={runningCount > 0}>
                 <div
                   role="treeitem"
                   tabIndex={0}
                   aria-level={1}
                   aria-expanded={completedOpen}
-                  aria-label={t('completed.toggle', { count: String(completedDirectCount) })}
+                  aria-label={t('completed.toggle', { count: String(completedBranchCount) })}
                   className={css.completedToggle}
                   onClick={toggleCompleted}
                   onKeyDown={toggleCompleted}
@@ -861,7 +864,7 @@ function CatalogDropdown({
                     size={14}
                     className={completedOpen ? css.completedChevronOpen : undefined}
                   />
-                  <span>{t('completed.label', { count: String(completedDirectCount) })}</span>
+                  <span>{t('completed.label', { count: String(completedBranchCount) })}</span>
                 </div>
                 {completedOpen && (
                   <div role="group" className={css.completedRows}>

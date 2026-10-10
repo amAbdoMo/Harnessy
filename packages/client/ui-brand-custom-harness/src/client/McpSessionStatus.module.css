@@ -52,7 +52,7 @@
 }
 
 .triggerLabel {
-  font-weight: 600;
+  font-weight: 500;
 }
 
 @container (max-width: 560px) {
@@ -78,7 +78,7 @@
 .trigger[data-status='connected'] .triggerDot,
 .server[data-status='connected'] .statusDot,
 .activityRow[data-status='success'] .activityDot {
-  background: var(--dsw-static-green-400);
+  background: var(--dsw-alias-state-success-secondary);
 }
 
 .trigger[data-status='connecting'] .triggerDot,
@@ -91,13 +91,15 @@
 .trigger[data-status='error'] .triggerDot,
 .server[data-status='error'] .statusDot,
 .activityRow[data-status='error'] .activityDot {
-  background: var(--dsw-static-red-400);
+  background: var(--dsw-alias-state-error-secondary);
 }
 
 .panel {
   position: fixed;
   z-index: 1200;
   display: grid;
+  grid-template-rows: auto minmax(0, auto) auto minmax(0, auto);
+  box-sizing: border-box;
   width: min(420px, calc(100vw - 24px));
   max-height: min(620px, calc(100vh - 24px));
   overflow: hidden;
@@ -133,18 +135,46 @@
 .serverBody strong,
 .activityBody strong {
   color: var(--dsw-alias-label-primary);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 18px;
+  font-size: var(--dsw-font-xxs-12-font-size);
+  font-weight: 500;
+  line-height: var(--dsw-font-xxs-12-line-height);
 }
 
 .panelHeader span,
-.serverBody span,
+.serverStatus,
+.serverUsage,
 .activityBody span,
 .empty {
-  color: var(--dsw-alias-label-tertiary);
-  font-size: 11px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--dsw-font-xxxs-11-font-size);
   line-height: 16px;
+}
+
+.serverHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 9px;
+  min-width: 0;
+}
+
+.serverHeader strong {
+  flex: 1 1 120px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.serverStatus {
+  flex: 0 1 auto;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  line-height: var(--dsw-font-xxs-12-line-height);
+}
+
+.serverUsage {
+  overflow-wrap: anywhere;
 }
 
 .manage,
@@ -171,22 +201,43 @@
 .servers,
 .activity {
   display: grid;
+  min-height: 0;
+  margin-inline: 6px;
   overflow: auto;
+  --dsh-scrollbar-track-margin: 6px;
 }
 
 .servers {
   max-height: 250px;
-  padding: 6px;
+  padding: 6px 0 12px;
 }
 
 .server,
 .activityRow {
   display: grid;
-  grid-template-columns: max-content minmax(0, 1fr) max-content;
   gap: 9px;
   align-items: center;
   padding: 8px;
   border-radius: var(--dsw-radius-sm);
+}
+
+.server {
+  grid-template-columns: max-content minmax(0, 1fr);
+  padding-block: 6px;
+}
+
+.server:has(> .reconnect),
+.activityRow {
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+}
+
+.statusDot {
+  align-self: start;
+  margin-top: calc((var(--dsw-font-xxs-12-line-height) - 7px) / 2);
+}
+
+.reconnect {
+  align-self: start;
 }
 
 .server:hover,
@@ -205,14 +256,13 @@
   border-top: 0.5px solid var(--dsw-alias-border-l1);
   color: var(--dsw-alias-label-secondary);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 16px;
 }
 
 .activity {
-  min-height: 54px;
   max-height: 270px;
-  padding: 0 6px 6px;
+  padding: 0 0 6px;
 }
 
 .empty {
@@ -223,4 +273,15 @@
 .reconnect:disabled {
   cursor: default;
   opacity: 0.55;
+}
+
+@media (max-width: 360px) {
+  .server:has(> .reconnect) {
+    grid-template-columns: max-content minmax(0, 1fr);
+  }
+
+  .reconnect {
+    grid-column: 2;
+    justify-self: start;
+  }
 }
