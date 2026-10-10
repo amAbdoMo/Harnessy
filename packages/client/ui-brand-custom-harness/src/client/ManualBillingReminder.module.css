@@ -1,0 +1,40 @@
+.reminder {
+  margin-top: 4px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.row,
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.reminder .label,
+.reminder .date { color: var(--dsw-alias-label-secondary); }
+.reminder .overdue { color: var(--dsw-alias-state-warn-label); }
+
+.editor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.hint,
+.failure {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.hint { color: var(--dsw-alias-label-secondary); }
+.failure {
+  min-height: 18px;
+  color: var(--dsw-alias-state-error-primary);
+}

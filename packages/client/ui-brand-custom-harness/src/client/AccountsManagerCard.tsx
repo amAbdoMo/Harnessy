@@ -11,6 +11,7 @@ import { accountUsageLevel } from './account-usage-presentation.ts'
 import { useUsageClock } from './account-usage-clock.ts'
 import { ProviderMark } from './provider-marks.tsx'
 import { BankedResetDialog } from './BankedResetDialog.tsx'
+import { ManualBillingReminder } from './ManualBillingReminder.tsx'
 import css from './AccountsManagerCard.module.css'
 
 interface ManagedAccountGroup {
@@ -60,6 +61,11 @@ export interface AccountsManagerOperations {
     readonly error?: string
   }>
   readonly setAutoSwitch: (provider: AccountProviderId, enabled: boolean) => Promise<{
+    readonly state?: AccountsState
+    readonly error?: string
+  }>
+  /** Save an exact YYYY-MM-DD date for one membership; null clears. Transport failures return an error. */
+  readonly setManualBillingDate: (provider: AccountProviderId, accountId: string, date: string | null) => Promise<{
     readonly state?: AccountsState
     readonly error?: string
   }>
@@ -345,7 +351,8 @@ export function AccountsManagerCard({
                   {accountGroups.map((group) => {
                     const account = selectedContext(group, selectedContexts[group.id])
                     return <AccountCard key={group.id} account={account} contexts={group.contexts} provider={provider}
-                      busy={busyAccount !== undefined}
+                      busy={busyAccount !== undefined} writable={state?.writable ?? false}
+                      saveBillingDate={operations.setManualBillingDate}
                       editing={editing === account.id} editName={editName}
                       onEditName={setEditName} onActivate={() => { void activate(account) }}
                       onSelectContext={(accountId) => {
@@ -418,12 +425,14 @@ function EmptyAccounts({ provider, signingIn, t }: {
   )
 }
 
-function AccountCard({ account, contexts, provider, busy, editing, editName, onEditName, onActivate,
+function AccountCard({ account, contexts, provider, busy, writable, saveBillingDate, editing, editName, onEditName, onActivate,
   onSelectContext, onBeginEdit, onCancelEdit, onSaveName, onOpenResets, onRemove, t }: {
   readonly account: ManagedAccountView
   readonly contexts: readonly ManagedAccountView[]
   readonly provider: AccountProviderView | undefined
   readonly busy: boolean
+  readonly writable: boolean
+  readonly saveBillingDate: AccountsManagerOperations['setManualBillingDate']
   readonly editing: boolean
   readonly editName: string
   readonly onEditName: (value: string) => void
@@ -446,6 +455,8 @@ function AccountCard({ account, contexts, provider, busy, editing, editName, onE
             : <strong>{account.name}</strong>}
           <span>{account.detail ?? `${provider?.label ?? ''} ${account.authMode === 'oauth'
             ? t('accountsOAuthAccount') : t('accountsApiKeyAccount')}`}</span>
+          <ManualBillingReminder key={JSON.stringify([account.provider, account.id])} account={account}
+            writable={writable && !busy} saveDate={saveBillingDate} t={t} />
           {account.active && <span className={css.activePill}>{t('accountsActive')}</span>}
         </div>
         <div className={css.accountActions}>

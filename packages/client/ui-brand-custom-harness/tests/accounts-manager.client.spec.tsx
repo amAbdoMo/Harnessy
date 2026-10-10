@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useSyncExternalStore } from 'react'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
@@ -8,6 +8,7 @@ import {
   AccountsManagerCard, type AccountsManagerCardProps, type AccountsManagerOperations,
 } from '../src/client/AccountsManagerCard.tsx'
 import { en, zh } from '../src/client/locales.ts'
+import { BillingReminderToast, type BillingReminderNotice } from '../src/client/ManualBillingReminder.tsx'
 import { createAccountsMenuStore } from '../src/client/accounts-menu-store.ts'
 import { slotTestProps } from './slot-test-props.ts'
 
@@ -43,6 +44,7 @@ function operations(overrides: Partial<AccountsManagerOperations> = {}): Account
     addApiKey: vi.fn(async () => ({ state: baseState })),
     activate: vi.fn(async () => ({ state: baseState })),
     setAutoSwitch: vi.fn(async () => ({ state: baseState })),
+    setManualBillingDate: vi.fn(async () => ({ state: baseState })),
     listResetCredits: vi.fn(async () => ({ list: { credits: [] } })),
     consumeResetCredit: vi.fn(async () => ({ outcome: 'reset' as const, state: baseState })),
     rename: vi.fn(async () => ({ state: baseState })),
@@ -67,6 +69,7 @@ function publishing(
     addApiKey: async (provider, name, key) => publish(await value.addApiKey(provider, name, key)),
     activate: async (provider, accountId) => publish(await value.activate(provider, accountId)),
     setAutoSwitch: async (provider, enabled) => publish(await value.setAutoSwitch(provider, enabled)),
+    setManualBillingDate: async (provider, accountId, date) => publish(await value.setManualBillingDate(provider, accountId, date)),
     listResetCredits: (accountId, signal) => value.listResetCredits(accountId, signal),
     consumeResetCredit: async (accountId, creditId) =>
       publish(await value.consumeResetCredit(accountId, creditId)),
@@ -106,6 +109,184 @@ function renderManager(
     accounts,
   }
 }
+
+function billingState(date?: string): AccountsState {
+  return {
+    ...baseState,
+    accounts: baseState.accounts.map(account => ({ ...account, ...(date === undefined ? {} : { manualBillingDate: date }) })),
+  }
+}
+
+describe('manual billing reminders', () => {
+  it.each([en, zh])('announces localized saved, cleared, and failed outcomes from the root toast', (copy) => {
+    let notice: BillingReminderNotice | undefined
+    const props = slotTestProps<Parameters<typeof BillingReminderToast>[0]>({
+      t: (key: keyof typeof en) => copy[key], dismiss: vi.fn(),
+      useBillingReminderNotice: <T,>(selector: (value: BillingReminderNotice | undefined) => T): T => selector(notice),
+    })
+    const rendered = render(<BillingReminderToast {...props} />)
+    expect(rendered.container.textContent).toBe('')
+    for (const [outcome, text] of [
+      ['saved', copy.accountsBillingSaved], ['cleared', copy.accountsBillingCleared], ['failed', copy.accountsBillingFailed],
+    ] as const) {
+      notice = { id: outcome, outcome }
+      rendered.rerender(<BillingReminderToast {...props} />)
+      expect(screen.getByText(text)).toBeTruthy()
+    }
+  })
+
+  it('places the reminder beneath email and plan, outside usage and header actions', async () => {
+    const state = billingState('2030-02-28')
+    renderManager(operations({ describe: async () => ({ state }), refreshUsage: async () => ({ state }) }))
+    fireEvent.click(await screen.findByRole('button', { name: en.accountsManage }))
+    const reminder = await screen.findByRole('group', { name: en.accountsBillingReminder })
+    const detail = screen.getByText('abdo@example.com · plus')
+    expect(detail.parentElement).toBe(reminder.parentElement)
+    expect(detail.nextElementSibling).toBe(reminder)
+    expect(within(reminder).getByText('2030-02-28').getAttribute('datetime')).toBe('2030-02-28')
+    expect(within(reminder).queryByRole('progressbar')).toBeNull()
+    expect(within(reminder).queryByRole('button', { name: en.accountsViewBankedResets })).toBeNull()
+  })
+
+  it('cancels without writing, saves the exact date, edits, and explicitly clears with null', async () => {
+    let state = billingState()
+    const setManualBillingDate = vi.fn<AccountsManagerOperations['setManualBillingDate']>(async (_provider, _id, date) => {
+      state = billingState(date === null ? undefined : date)
+      return { state }
+    })
+    const api = operations({ describe: async () => ({ state }), refreshUsage: async () => ({ state }), setManualBillingDate })
+    renderManager(api)
+    fireEvent.click(await screen.findByRole('button', { name: en.accountsManage }))
+    fireEvent.click(screen.getByRole('button', { name: en.accountsBillingAdd }))
+    const field = screen.getByLabelText(en.accountsBillingDate)
+    expect(field.getAttribute('type')).toBe('date')
+    expect(screen.getByRole('button', { name: en.accountsSave }).hasAttribute('disabled')).toBe(true)
+    fireEvent.change(field, { target: { value: '2032-02-29' } })
+    fireEvent.click(screen.getByRole('button', { name: en.cancel }))
+    expect(setManualBillingDate).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: en.accountsBillingAdd }))
+    expect(screen.getByLabelText(en.accountsBillingDate).getAttribute('value')).toBe('')
+    fireEvent.change(screen.getByLabelText(en.accountsBillingDate), { target: { value: '2032-02-29' } })
+    fireEvent.click(screen.getByRole('button', { name: en.accountsSave }))
+    await screen.findByRole('button', { name: en.accountsBillingEdit })
+    expect(screen.getByText('2032-02-29')).toBeTruthy()
+    expect(setManualBillingDate).toHaveBeenLastCalledWith('openai-codex', 'codex-1', '2032-02-29')
+    fireEvent.click(screen.getByRole('button', { name: en.accountsBillingEdit }))
+    fireEvent.change(screen.getByLabelText(en.accountsBillingDate), { target: { value: '2032-03-01' } })
+    fireEvent.click(screen.getByRole('button', { name: en.accountsSave }))
+    await screen.findByText('2032-03-01')
+    fireEvent.click(screen.getByRole('button', { name: en.accountsBillingEdit }))
+    fireEvent.click(screen.getByRole('button', { name: en.accountsBillingClear }))
+    await screen.findByRole('button', { name: en.accountsBillingAdd })
+    expect(setManualBillingDate).toHaveBeenLastCalledWith('openai-codex', 'codex-1', null)
+    expect(screen.queryByText('2032-03-01')).toBeNull()
+    expect(api.consumeResetCredit).not.toHaveBeenCalled()
+    expect(api.listResetCredits).not.toHaveBeenCalled()
+  })
+
+  it('keeps saved data and the draft after failed save or clear, disabling duplicate writes', async () => {
+    const state = billingState('2030-01-01')
+    const failed = Promise.withResolvers<Awaited<ReturnType<AccountsManagerOperations['setManualBillingDate']>>>()
+    const setManualBillingDate = vi.fn<AccountsManagerOperations['setManualBillingDate']>()
+      .mockReturnValueOnce(failed.promise).mockResolvedValue({ error: 'storage is read-only' })
+    renderManager(operations({ describe: async () => ({ state }), refreshUsage: async () => ({ state }), setManualBillingDate }))
+    fireEvent.click(await screen.findByRole('button', { name: en.accountsManage }))
+    fireEvent.click(screen.getByRole('button', { name: en.accountsBillingEdit }))
+    fireEvent.change(screen.getByLabelText(en.accountsBillingDate), { target: { value: '2030-02-01' } })
+    fireEvent.click(screen.getByRole('button', { name: en.accountsSave }))
+    expect(screen.getByRole('button', { name: en.accountsBillingSaving }).hasAttribute('disabled')).toBe(true)
+    expect(screen.getByRole('button', { name: en.accountsBillingClear }).hasAttribute('disabled')).toBe(true)
+    failed.resolve({ error: 'storage is read-only' })
+    await screen.findByRole('alert')
+    expect(screen.getByText(en.accountsBillingFailed)).toBeTruthy()
+    expect(screen.getByText('2030-01-01')).toBeTruthy()
+    expect(screen.getByLabelText(en.accountsBillingDate).getAttribute('value')).toBe('2030-02-01')
+    fireEvent.click(screen.getByRole('button', { name: en.accountsBillingClear }))
+    await waitFor(() => { expect(setManualBillingDate).toHaveBeenCalledTimes(2) })
+    await waitFor(() => { expect(screen.getByRole('button', { name: en.accountsSave }).hasAttribute('disabled')).toBe(false) })
+    expect(screen.getByText('2030-01-01')).toBeTruthy()
+    expect(screen.getByText(en.accountsBillingFailed)).toBeTruthy()
+  })
+
+  it('isolates reminders and drafts between memberships, including late completion after a switch', async () => {
+    let state: AccountsState = {
+      ...baseState,
+      accounts: baseState.accounts.flatMap(account => [
+        { ...account, usageScope: 'personal' as const, manualBillingDate: '2030-01-01' },
+        { ...account, id: 'codex-workspace', active: false, usageScope: 'workspace' as const, manualBillingDate: '2030-02-01' },
+      ]),
+    }
+    const pending = Promise.withResolvers<Awaited<ReturnType<AccountsManagerOperations['setManualBillingDate']>>>()
+    const setManualBillingDate = vi.fn<AccountsManagerOperations['setManualBillingDate']>().mockReturnValueOnce(pending.promise)
+      .mockImplementation(async (_provider, id, date) => {
+        state = { ...state, accounts: state.accounts.map((account) => {
+          if (account.id !== id) return account
+          const { manualBillingDate: _previousDate, ...membership } = account
+          return date === null ? membership : { ...membership, manualBillingDate: date }
+        }) }
+        return { state }
+      })
+    renderManager(operations({ describe: async () => ({ state }), refreshUsage: async () => ({ state }), setManualBillingDate }))
+    fireEvent.click(await screen.findByRole('button', { name: en.accountsManage }))
+    fireEvent.click(screen.getByRole('button', { name: en.accountsBillingEdit }))
+    fireEvent.change(screen.getByLabelText(en.accountsBillingDate), { target: { value: '2030-03-01' } })
+    fireEvent.click(screen.getByRole('button', { name: en.accountsSave }))
+    fireEvent.click(screen.getByRole('button', { name: en.accountsUsageWorkspace }))
+    expect(screen.getByText('2030-02-01')).toBeTruthy()
+    expect(screen.queryByLabelText(en.accountsBillingDate)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: en.accountsBillingEdit }))
+    fireEvent.change(screen.getByLabelText(en.accountsBillingDate), { target: { value: '2030-04-01' } })
+    await act(async () => { pending.resolve({ error: 'failed personal write' }); await pending.promise })
+    expect(screen.queryByText(en.accountsBillingFailed)).toBeNull()
+    expect(screen.getByLabelText(en.accountsBillingDate).getAttribute('value')).toBe('2030-04-01')
+    fireEvent.click(screen.getByRole('button', { name: en.accountsSave }))
+    await screen.findByText('2030-04-01')
+    expect(setManualBillingDate).toHaveBeenLastCalledWith('openai-codex', 'codex-workspace', '2030-04-01')
+    fireEvent.click(screen.getByRole('button', { name: en.accountsUsagePersonal }))
+    expect(screen.getByText('2030-01-01')).toBeTruthy()
+  })
+
+  it.each([en, zh])('uses localized copy and a date-only value; past dates stay overdue without advancing', async (copy) => {
+    const now = new Date(2026, 8, 18, 23, 59).getTime()
+    vi.spyOn(Date, 'now').mockReturnValue(now)
+    const state = billingState('2026-09-18')
+    const api = operations({ describe: async () => ({ state }), refreshUsage: async () => ({ state }) })
+    renderManager(api, undefined, key => copy[key])
+    fireEvent.click(await screen.findByRole('button', { name: copy.accountsManage }))
+    const date = screen.getByText('2026-09-18')
+    expect(date.tagName).toBe('TIME')
+    expect(date.getAttribute('datetime')).toBe('2026-09-18')
+    expect(screen.queryByText(copy.accountsBillingOverdue)).toBeNull()
+    vi.mocked(Date.now).mockReturnValue(new Date(2026, 8, 19, 0, 1).getTime())
+    fireEvent(window, new Event('focus'))
+    await screen.findByText(copy.accountsBillingOverdue)
+    expect(screen.getByText('2026-09-18')).toBeTruthy()
+    expect(api.setManualBillingDate).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: copy.accountsBillingEdit }))
+    expect(screen.getByLabelText(copy.accountsBillingDate).getAttribute('type')).toBe('date')
+    expect(screen.getByText(copy.accountsBillingManualHint)).toBeTruthy()
+    screen.getByRole('button', { name: copy.accountsBillingClear })
+    screen.getByRole('button', { name: copy.cancel })
+  })
+
+  it('blocks empty and invalid calendar values and does not allow writes from read-only state', async () => {
+    const api = operations()
+    const rendered = renderManager(api)
+    fireEvent.click(await screen.findByRole('button', { name: en.accountsManage }))
+    fireEvent.click(screen.getByRole('button', { name: en.accountsBillingAdd }))
+    const field = screen.getByLabelText(en.accountsBillingDate)
+    for (const invalid of ['', '2031-02-29', '2030-13-01', '0000-01-01', '2030-01-01T00:00:00Z']) {
+      fireEvent.change(field, { target: { value: invalid } })
+      expect(screen.getByRole('button', { name: en.accountsSave }).hasAttribute('disabled')).toBe(true)
+      fireEvent.submit(field.closest('form') ?? field)
+    }
+    expect(api.setManualBillingDate).not.toHaveBeenCalled()
+    rendered.accounts.set({ ...baseState, writable: false })
+    await waitFor(() => { expect(field.hasAttribute('disabled')).toBe(true) })
+    fireEvent.click(screen.getByRole('button', { name: en.cancel }))
+    expect(screen.getByRole('button', { name: en.accountsBillingAdd }).hasAttribute('disabled')).toBe(true)
+  })
+})
 
 describe('Harnessy account manager', () => {
   it('takes exclusive modal ownership and closes the underlying settings panel when finished', async () => {

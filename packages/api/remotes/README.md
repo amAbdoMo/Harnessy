@@ -87,4 +87,4 @@ None.
 
 </details>
 
-The Client assembly includes the account namespace for login commands and reconnectable account snapshots.
+The Client assembly includes the account namespace for login commands and reconnectable account snapshots. The separately mounted `accounts` namespace projects the settings controller's manual billing reminder operation and redacted membership dates through its generated `/remote` contribution; consumers need no additional runtime import. Rebuild the owner-generated Remote artifacts before compiling the Client after changing that operation.

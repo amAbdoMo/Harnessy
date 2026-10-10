@@ -172,6 +172,8 @@ export interface ManagedAccountView {
   readonly usage?: AccountUsageView
   readonly usageUpdatedAt?: number
   readonly usageError?: string
+  /** User-entered Gregorian YYYY-MM-DD reminder for this membership; never inferred or advanced. */
+  readonly manualBillingDate?: string
 }
 
 /** Complete browser-safe snapshot of Harnessy's managed provider accounts. */
@@ -214,7 +216,7 @@ declare module '@deepseek-ai/cordis' {
     'accounts/auto-switched'(event: AccountAutoSwitchEvent): void
     /**
      * Publish the redacted account snapshot after a committed vault change.
-     * @param state - current account identities, selection, and provider-reported usage.
+     * @param state - current account identities, selection, provider-reported usage, and user-entered billing reminders.
      * @mode emit
      */
     'accounts/changed'(state: AccountsState): void

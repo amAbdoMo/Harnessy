@@ -1,7 +1,7 @@
 /**
  * Host-owned multi-account manager for Harnessy's supported model providers.
  * Credentials stay inside the protected credential store; Remote methods
- * expose only labels, activation state, and provider-supported usage data.
+ * expose only labels, activation state, provider-supported usage, and manual billing reminders.
  *
  * @module @deepseek-ai/dsh-api-settings-controller/src/accounts
  */
@@ -74,6 +74,7 @@ interface StoredAccount {
   readonly usage?: AccountUsageView
   readonly usageUpdatedAt?: number
   readonly usageError?: string
+  readonly manualBillingDate?: string
 }
 
 interface ProviderVault {
@@ -337,11 +338,7 @@ export class AccountsController extends TypertRemoteService {
    */
   @Remote
   async listResetCredits(accountId: string, signal: AbortSignal): Promise<AccountResetCreditList> {
-    const credentials = this.credentials()
-    const vault = await this.importCanonicalAccounts(credentials)
-    const account = vault.providers['openai-codex']?.accounts[accountId]
-    if (account === undefined) throw notFound('openai-codex', accountId)
-    const access = await this.codexAccess(account, signal)
+    const access = await this.codexAccess(accountId, signal)
     const response = await this.fetchUsage(RESET_CREDITS_URL, {
       method: 'GET',
       headers: codexUsageHeaders(access.oauth.access, access.accountId),
@@ -357,7 +354,8 @@ export class AccountsController extends TypertRemoteService {
    * @param creditId - exact provider credit selected by the user; automatic selection is not used.
    * @param idempotencyKey - stable identifier reused when retrying the same account and credit action.
    * @param signal - cancellation forwarded to provider requests.
-   * @returns the provider outcome and refreshed public account state.
+   * @returns the provider outcome and committed public state after refreshing only the selected membership;
+   * unrelated usage is retained, and this usage-only refresh does not automatically switch accounts.
    */
   @Remote
   async consumeResetCredit(
@@ -370,11 +368,7 @@ export class AccountsController extends TypertRemoteService {
     if (selectedCreditId === undefined) throw rejected('openai-codex', 'a selected reset credit is required')
     const cleanKey = boundedText(idempotencyKey, 128)
     if (cleanKey === undefined) throw rejected('openai-codex', 'a reset attempt identifier is required')
-    const credentials = this.credentials()
-    const vault = await this.importCanonicalAccounts(credentials)
-    const account = vault.providers['openai-codex']?.accounts[accountId]
-    if (account === undefined) throw notFound('openai-codex', accountId)
-    const access = await this.codexAccess(account, signal)
+    const access = await this.codexAccess(accountId, signal)
     const response = await this.fetchUsage(CONSUME_RESET_CREDIT_URL, {
       method: 'POST',
       headers: { ...codexUsageHeaders(access.oauth.access, access.accountId), 'Content-Type': 'application/json' },
@@ -383,8 +377,40 @@ export class AccountsController extends TypertRemoteService {
     })
     if (!response.ok) throw unavailable(`reset credit request failed (${String(response.status)})`)
     const outcome = decodeResetCreditOutcome(await response.json())
-    const state = await this.refreshUsage(signal)
+    const state = await this.refreshUsageRun(signal, false, accountId)
     return { outcome, state }
+  }
+
+  /**
+   * Save or clear a user-entered billing reminder for exactly one saved membership.
+   * The date is never inferred, advanced, or copied to another membership.
+   * @param provider - provider owning the saved membership.
+   * @param accountId - saved membership to edit, independent of the active selection.
+   * @param date - exact Gregorian YYYY-MM-DD (years 0001–9999), including past dates; null clears it.
+   * @returns the redacted state after persistence commits and accounts/changed is published.
+   * @throws RemoteError when the date is invalid, the membership is absent, or storage is unavailable;
+   * credential-provider write failures propagate without publishing a changed snapshot.
+   */
+  @Remote
+  async setManualBillingDate(provider: AccountProviderId, accountId: string, date: string | null): Promise<AccountsState> {
+    providerDefinition(provider)
+    const manualBillingDate = date === null ? undefined : decodeManualBillingDate(date)
+    if (date !== null && manualBillingDate === undefined) {
+      throw rejected(provider, 'billing reminder must be a valid YYYY-MM-DD date')
+    }
+    const next = await this.mutateVault(this.credentials(), (current) => {
+      const providerVault = current.providers[provider]
+      const account = providerVault?.accounts[accountId]
+      if (providerVault === undefined || account === undefined) throw notFound(provider, accountId)
+      const { manualBillingDate: _previousDate, ...withoutReminder } = account
+      return replaceProviderVault(current, provider, {
+        ...providerVault,
+        accounts: { ...providerVault.accounts, [accountId]: {
+          ...withoutReminder, ...manualBillingDate === undefined ? {} : { manualBillingDate },
+        } },
+      })
+    })
+    return this.publicState(next, true)
   }
 
   /**
@@ -475,7 +501,7 @@ export class AccountsController extends TypertRemoteService {
     if (!this.usageLifecycle.signal.aborted) this.ctx.logger.warn(`accounts: usage refresh failed: ${messageOf(error)}`)
   }
 
-  private async refreshUsageRun(signal: AbortSignal, automatic: boolean): Promise<AccountsState> {
+  private async refreshUsageRun(signal: AbortSignal, automatic: boolean, accountId?: string): Promise<AccountsState> {
     assertUsageRefreshActive(signal)
     const predecessor = this.usageRefreshTail
     let release!: () => void
@@ -483,20 +509,21 @@ export class AccountsController extends TypertRemoteService {
     await predecessor
     try {
       assertUsageRefreshActive(signal)
-      return await this.refreshUsageOnce(signal, automatic)
+      return await this.refreshUsageOnce(signal, automatic, accountId)
     } finally {
       release()
     }
   }
 
-  private async refreshUsageOnce(signal: AbortSignal, automatic: boolean): Promise<AccountsState> {
+  private async refreshUsageOnce(signal: AbortSignal, automatic: boolean, accountId?: string): Promise<AccountsState> {
     const revision = this.selectionRevisions.get('openai-codex') ?? 0
     const credentials = this.credentials()
     let vault = await this.importCanonicalAccounts(credentials)
     const codex = vault.providers['openai-codex']
     if (codex === undefined) return this.publicState(vault, true)
-    const accounts = Object.values(codex.accounts).sort((left, right) =>
-      Number(right.id === codex.activeAccountId) - Number(left.id === codex.activeAccountId))
+    const accounts = Object.values(codex.accounts)
+      .filter(account => accountId === undefined || account.id === accountId)
+      .sort((left, right) => Number(right.id === codex.activeAccountId) - Number(left.id === codex.activeAccountId))
     for (const saved of accounts) {
       assertUsageRefreshActive(signal)
       const account = (await this.readVault(credentials)).providers['openai-codex']?.accounts[saved.id]
@@ -510,7 +537,10 @@ export class AccountsController extends TypertRemoteService {
           || !sameRecord(existing.credential, refreshed.credential)) return undefined
         return replaceProviderVault(current, 'openai-codex', {
           ...currentProvider,
-          accounts: { ...currentProvider.accounts, [account.id]: { ...refreshed, name: existing.name } },
+          accounts: {
+            ...currentProvider.accounts,
+            [account.id]: retainManualBillingDate({ ...refreshed, name: existing.name }, existing),
+          },
         })
       })
     }
@@ -610,7 +640,7 @@ export class AccountsController extends TypertRemoteService {
   private async refreshCodexAccount(account: StoredAccount, signal: AbortSignal): Promise<StoredAccount> {
     let credential = account.credential
     try {
-      const access = await this.codexAccess(account, signal)
+      const access = await this.codexAccess(account.id, signal)
       credential = access.credential
       const headers = codexUsageHeaders(access.oauth.access, access.accountId)
       const response = await this.fetchUsage(USAGE_URL, { headers, signal: combinedSignal(signal) })
@@ -657,7 +687,7 @@ export class AccountsController extends TypertRemoteService {
     }
   }
 
-  private async codexAccess(account: StoredAccount, signal: AbortSignal): Promise<{
+  private async codexAccess(accountId: string, signal: AbortSignal): Promise<{
     readonly credential: CredentialRecord
     readonly oauth: OAuthCredential
     readonly accountId?: string
@@ -666,8 +696,8 @@ export class AccountsController extends TypertRemoteService {
     return this.withCommit(credentials, async () => {
       assertUsageRefreshActive(signal)
       const vault = await this.importCanonicalAccountsUnlocked(credentials)
-      const latest = vault.providers['openai-codex']?.accounts[account.id]
-      if (latest === undefined) throw notFound('openai-codex', account.id)
+      const latest = vault.providers['openai-codex']?.accounts[accountId]
+      if (latest === undefined) throw notFound('openai-codex', accountId)
       let credential = latest.credential
       let oauth = oauthCredential(credential)
       if (oauth === undefined) throw new Error('the saved account is not an OAuth account')
@@ -953,6 +983,14 @@ function parseVault(record: CredentialRecord | undefined): AccountVault {
 
 /** Decode one provider's protected account records from durable JSON. */
 function decodeProviderVault(value: unknown, definition: ProviderDefinition): ProviderVault | undefined {
+  if (isRecord(value) && isRecord(value.accounts)) {
+    for (const account of Object.values(value.accounts)) {
+      if (isRecord(account) && account.manualBillingDate !== undefined
+        && decodeManualBillingDate(account.manualBillingDate) === undefined) {
+        throw rejected(definition.id, 'stored billing reminder must be a valid YYYY-MM-DD date')
+      }
+    }
+  }
   if (!isRecord(value) || !isRecord(value.accounts)
     || (value.activeAccountId !== undefined && typeof value.activeAccountId !== 'string')
     || (value.autoSwitchOnLimit !== undefined && typeof value.autoSwitchOnLimit !== 'boolean')) return undefined
@@ -979,6 +1017,8 @@ function decodeStoredAccount(value: unknown, definition: ProviderDefinition): St
     || (value.usageUpdatedAt !== undefined
       && (typeof value.usageUpdatedAt !== 'number' || !Number.isFinite(value.usageUpdatedAt)))
     || (value.usageError !== undefined && typeof value.usageError !== 'string')) return undefined
+  const manualBillingDate = value.manualBillingDate === undefined
+    ? undefined : decodeManualBillingDate(value.manualBillingDate)
   const usage = value.usage === undefined ? undefined : decodeUsage(value.usage)
   if (value.usage !== undefined && usage === undefined) return undefined
   return {
@@ -992,7 +1032,20 @@ function decodeStoredAccount(value: unknown, definition: ProviderDefinition): St
     ...usage === undefined ? {} : { usage },
     ...typeof value.usageUpdatedAt === 'number' ? { usageUpdatedAt: value.usageUpdatedAt } : {},
     ...typeof value.usageError === 'string' ? { usageError: value.usageError } : {},
+    ...manualBillingDate === undefined ? {} : { manualBillingDate },
   }
+}
+
+/** Validate date-only durable and Remote input without timezone conversion or normalization. */
+function decodeManualBillingDate(value: unknown): string | undefined {
+  if (typeof value !== 'string' || value.length !== 10 || !/^\d{4}-\d{2}-\d{2}$/u.test(value)) return undefined
+  const year = Number(value.slice(0, 4))
+  const month = Number(value.slice(5, 7))
+  const day = Number(value.slice(8, 10))
+  if (year === 0 || month < 1 || month > 12 || day < 1) return undefined
+  const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)
+  const daysInMonth = month === 2 ? (leapYear ? 29 : 28) : [4, 6, 9, 11].includes(month) ? 30 : 31
+  return day <= daysInMonth ? value : undefined
 }
 
 /** Decode the credential seam's tagged durable value. */
@@ -1057,9 +1110,18 @@ function upsertAccount(vault: AccountVault, account: StoredAccount, activeAccoun
   const current = vault.providers[account.provider]
   return replaceProviderVault(vault, account.provider, {
     ...current,
-    accounts: { ...current?.accounts, [account.id]: account },
+    accounts: { ...current?.accounts, [account.id]: retainManualBillingDate(account, current?.accounts[account.id]) },
     activeAccountId,
   })
+}
+
+/** Keep the current membership's reminder, including a clear during an in-flight refresh. */
+function retainManualBillingDate(account: StoredAccount, current: StoredAccount | undefined): StoredAccount {
+  const { manualBillingDate: _staleDate, ...withoutReminder } = account
+  return {
+    ...withoutReminder,
+    ...current?.manualBillingDate === undefined ? {} : { manualBillingDate: current.manualBillingDate },
+  }
 }
 
 function updateAccountCredential(
@@ -1068,7 +1130,10 @@ function updateAccountCredential(
   account: StoredAccount,
   credential: CredentialRecord,
 ): AccountVault {
-  const accounts = { ...provider.accounts, [account.id]: { ...account, credential } }
+  const identityChanged = account.provider !== 'openai-codex' && account.authMode === 'oauth'
+    && genericOAuthIdentity(account.credential).stable !== genericOAuthIdentity(credential).stable
+  const { manualBillingDate: _previousDate, ...withoutReminder } = account
+  const accounts = { ...provider.accounts, [account.id]: { ...(identityChanged ? withoutReminder : account), credential } }
   if (account.provider === 'openai-codex') {
     const oldOAuth = oauthCredential(account.credential)
     const newOAuth = oauthCredential(credential)
@@ -1182,6 +1247,7 @@ function publicAccount(account: StoredAccount, activeAccountId: string | undefin
     ...account.usage === undefined ? {} : { usage: account.usage },
     ...account.usageUpdatedAt === undefined ? {} : { usageUpdatedAt: account.usageUpdatedAt },
     ...account.usageError === undefined ? {} : { usageError: account.usageError },
+    ...account.manualBillingDate === undefined ? {} : { manualBillingDate: account.manualBillingDate },
   }
 }
 

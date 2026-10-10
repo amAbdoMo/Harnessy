@@ -6,6 +6,8 @@ import LlmRuntime, { LlmAdapter, type GenerateOptions, type StreamChunk } from '
 import AuthorizationService from '@deepseek-ai/dsh-authorization'
 import { credentialKey } from '@deepseek-ai/dsh-credentials'
 import { remoteMethods } from '@deepseek-ai/dsh-typert-protocol'
+import TypertRegistry from '../../../typert/registry/src/index.ts'
+import { TypertGatewayService } from '../../gateway/src/index.ts'
 import AccountsController from '../src/accounts.ts'
 import type { AccountAutoSwitchEvent, AccountResetCreditId, AccountsState } from '../src/types.ts'
 import { MemoryCredentials } from '../../../credentials/credentials/tests/memory.ts'
@@ -221,7 +223,7 @@ describe('the Harnessy accounts Remote namespace', () => {
     expect(await empty.accountsController.describe()).toMatchObject({ writable: false, accounts: [] })
     const { controller } = await boot()
     expect(remoteMethods(controller).map(method => method.method)).toEqual([
-      'describe', 'addOAuth', 'addApiKey', 'activate', 'setAutoSwitch', 'listResetCredits', 'consumeResetCredit', 'rename', 'deleteAccount',
+      'describe', 'addOAuth', 'addApiKey', 'activate', 'setAutoSwitch', 'listResetCredits', 'consumeResetCredit', 'setManualBillingDate', 'rename', 'deleteAccount',
       'refreshUsage',
     ])
   })
@@ -480,7 +482,9 @@ describe('the Harnessy accounts Remote namespace', () => {
     await ctx.credentials.modifyRecord(credentialKey('llm-pi-ai', 'openai-codex'), () =>
       Promise.resolve(codexGrant('abdo@example.com', 'account-a')))
     const account = (await controller.describe()).accounts[0]!
+    const reads = vi.spyOn(ctx.credentials, 'readRecord')
     const list = await controller.listResetCredits(account.id, new AbortController().signal)
+    expect(reads.mock.calls.filter(([key]) => key === credentialKey('llm-pi-ai', 'openai-codex'))).toHaveLength(1)
     expect(list.credits).toEqual([
       { id: ' first ', resetType: 'codex_rate_limits', status: 'available', expiresAtMs: Date.parse('2030-10-23T00:00:00Z'), title: 'Full reset' },
       { id: 'second', resetType: 'codex_rate_limits', status: 'available' },
@@ -509,12 +513,17 @@ describe('the Harnessy accounts Remote namespace', () => {
     await expect(controller.listResetCredits(account.id, new AbortController().signal)).rejects.toThrow('unreadable')
   })
 
-  it('consumes the selected provider reset credit idempotently and refreshes usage', async () => {
+  it('consumes the selected membership credit and refreshes only that membership among many saved accounts', async () => {
     const requests: Array<{ readonly input: string; readonly init?: RequestInit }> = []
+    let redeemed = false
     const fetchUsage = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const requestUrl = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
       requests.push({ input: requestUrl, ...init === undefined ? {} : { init } })
-      if (requests.length === 1) return new Response(JSON.stringify({ code: 'reset', windows_reset: 2 }), { status: 200 })
+      if (init?.method === 'POST') {
+        redeemed = true
+        return new Response(JSON.stringify({ code: 'reset', windows_reset: 2 }), { status: 200 })
+      }
+      if (!redeemed) return usageResponse(60)
       return new Response(JSON.stringify({
         rate_limit_reset_credits: { available_count: 0 },
         rate_limit: {
@@ -524,21 +533,190 @@ describe('the Harnessy accounts Remote namespace', () => {
       }), { status: 200 })
     }) as typeof fetch
     const { ctx, controller } = await boot({ fetchUsage })
-    await ctx.credentials.modifyRecord(credentialKey('llm-pi-ai', 'openai-codex'), () =>
-      Promise.resolve(codexGrant('abdo@example.com', 'account-a')))
-    const account = (await controller.describe()).accounts[0]!
+    const key = credentialKey('llm-pi-ai', 'openai-codex')
+    const personal = codexGrant('abdo@example.com', 'account-a')
+    await ctx.credentials.modifyRecord(key, () => Promise.resolve(personal))
+    await controller.describe()
+    await seedOAuth(ctx, codexGrant('abdo@example.com', 'workspace-a', { plan: 'business' }))
+    for (let index = 0; index < 12; index++) {
+      await seedOAuth(ctx, codexGrant(`other-${String(index)}@example.com`, `unrelated-${String(index)}`))
+    }
+    const before = await controller.refreshUsage(new AbortController().signal)
+    const selected = before.accounts.find(account => account.usageScope === 'workspace')
+    if (selected === undefined) throw new Error('workspace membership was not saved')
+    requests.length = 0
+    const changes: AccountsState[] = []
+    ctx.on('accounts/changed', (state) => { changes.push(state) })
 
     const result = await controller.consumeResetCredit(
-      account.id, ' credit-second ' as AccountResetCreditId, 'reset-attempt-1', new AbortController().signal,
+      selected.id, ' credit-second ' as AccountResetCreditId, 'reset-attempt-1', new AbortController().signal,
     )
 
     expect(result.outcome).toBe('reset')
-    expect(result.state.accounts[0]?.usage?.resetCredits).toEqual({ availableCount: 0 })
+    expect(result.state.accounts).toHaveLength(14)
+    expect(result.state.accounts.find(account => account.id === selected.id)?.usage?.resetCredits).toEqual({ availableCount: 0 })
+    expect(result.state.accounts.filter(account => account.id !== selected.id))
+      .toEqual(before.accounts.filter(account => account.id !== selected.id))
+    expect(await controller.describe()).toEqual(result.state)
+    expect(changes).toEqual([result.state])
+    expect(await ctx.credentials.readRecord(key)).toEqual(personal)
+    expect(requests).toHaveLength(2)
+    expect(requests[1]?.input).toBe('https://chatgpt.com/backend-api/wham/usage')
+    expect(new Headers(requests[1]?.init?.headers).get('chatgpt-account-id')).toBe('workspace-a')
     expect(requests[0]?.input).toBe('https://chatgpt.com/backend-api/wham/rate-limit-reset-credits/consume')
     expect(requests[0]?.init?.method).toBe('POST')
     expect(requests[0]?.init?.body).toBe(JSON.stringify({ redeem_request_id: 'reset-attempt-1', credit_id: ' credit-second ' }))
-    expect(new Headers(requests[0]?.init?.headers).get('chatgpt-account-id')).toBe('account-a')
+    expect(new Headers(requests[0]?.init?.headers).get('chatgpt-account-id')).toBe('workspace-a')
   })
+
+  it('keeps a full usage refresh queued behind the selected post-reset refresh', async () => {
+    const entered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const memberships: Array<string | null> = []
+    const fetchUsage: typeof fetch = async (_input, init) => {
+      if (init?.method === 'POST') return Response.json({ code: 'reset' })
+      memberships.push(new Headers(init?.headers).get('chatgpt-account-id'))
+      if (memberships.length === 1) {
+        entered.resolve(undefined)
+        await release.promise
+      }
+      return usageResponse(20)
+    }
+    const { ctx, controller } = await boot({ fetchUsage })
+    await ctx.credentials.modifyRecord(credentialKey('llm-pi-ai', 'openai-codex'), () =>
+      Promise.resolve(codexGrant('owner@example.com', 'personal')))
+    await controller.describe()
+    await seedOAuth(ctx, codexGrant('owner@example.com', 'workspace', { plan: 'business' }))
+    const selected = (await controller.describe()).accounts.find(account => account.usageScope === 'workspace')
+    if (selected === undefined) throw new Error('workspace membership was not saved')
+    const resetting = controller.consumeResetCredit(selected.id, 'selected' as AccountResetCreditId, 'attempt', new AbortController().signal)
+    let full: ReturnType<AccountsController['refreshUsage']> | undefined
+    try {
+      await bounded(entered.promise)
+      full = controller.refreshUsage(new AbortController().signal)
+      await setImmediate()
+      expect(memberships).toEqual(['workspace'])
+      release.resolve(undefined)
+      const reset = await bounded(resetting)
+      expect(reset.state.accounts.find(account => account.active)?.usage).toBeUndefined()
+      const state = await bounded(full)
+      expect(state.accounts.every(account => account.usage?.windows[0]?.usedPercent === 20)).toBe(true)
+      expect(memberships).toEqual(['workspace', 'personal', 'workspace'])
+    } finally {
+      release.resolve(undefined)
+      await Promise.allSettled([resetting, ...full === undefined ? [] : [full]])
+    }
+  })
+
+  it.each(['cancel', 'delete', 'rotate'] as const)(
+    'does not commit stale post-reset usage after %s during the selected request', async (action) => {
+      const entered = Promise.withResolvers<undefined>()
+      const release = Promise.withResolvers<undefined>()
+      const fetchUsage: typeof fetch = async (_input, init) => {
+        if (init?.method === 'POST') return Response.json({ code: 'reset' })
+        entered.resolve(undefined)
+        await release.promise
+        return usageResponse(90)
+      }
+      const { ctx, controller } = await boot({ fetchUsage })
+      const key = credentialKey('llm-pi-ai', 'openai-codex')
+      const grant = codexGrant('owner@example.com', 'personal', { userId: 'owner' })
+      await ctx.credentials.modifyRecord(key, () => Promise.resolve(grant))
+      const [account] = (await controller.describe()).accounts
+      if (account === undefined) throw new Error('selected membership was not saved')
+      const changes: AccountsState[] = []
+      ctx.on('accounts/changed', (state) => { changes.push(state) })
+      const signal = new AbortController()
+      const resetting = controller.consumeResetCredit(account.id, 'selected' as AccountResetCreditId, 'attempt', signal.signal)
+      const rotated = { ...grant.payload, refresh: 'rotated-during-reset', expires: Date.now() + 3_600_000 }
+      try {
+        await bounded(entered.promise)
+        const cancelled = action === 'cancel'
+          ? expect(resetting).rejects.toMatchObject({ code: 'gateway/cancelled' }) : undefined
+        if (action === 'cancel') signal.abort()
+        else if (action === 'delete') await controller.deleteAccount('openai-codex', account.id)
+        else await credentialStoreFrom(ctx).modify('openai-codex', () => Promise.resolve(rotated))
+        release.resolve(undefined)
+        if (cancelled !== undefined) await bounded(cancelled)
+        else {
+          const result = await bounded(resetting)
+          expect(result.outcome).toBe('reset')
+          expect(result.state).toEqual(await controller.describe())
+        }
+        const state = await controller.describe()
+        expect(state.accounts).toHaveLength(action === 'delete' ? 0 : 1)
+        expect(state.accounts[0]?.usage).toBeUndefined()
+        expect(changes.every(state => state.accounts.every(account => account.usage === undefined))).toBe(true)
+        expect(await ctx.credentials.readRecord(key)).toEqual(action === 'delete' ? undefined
+          : action === 'rotate' ? { kind: 'grant', payload: rotated } : grant)
+      } finally {
+        release.resolve(undefined)
+        await Promise.allSettled([resetting])
+      }
+    },
+  )
+
+  it.each(['wait', 'cancel', 'delete', 'rotate'] as const)(
+    'serializes selected post-reset usage behind a full refresh and rechecks %s before fetching', async (action) => {
+      const entered = Promise.withResolvers<undefined>()
+      const release = Promise.withResolvers<undefined>()
+      const redeemed = Promise.withResolvers<undefined>()
+      const authorizations: Array<string | null> = []
+      const fetchUsage: typeof fetch = async (_input, init) => {
+        if (init?.method === 'POST') {
+          redeemed.resolve(undefined)
+          return Response.json({ code: 'reset' })
+        }
+        authorizations.push(new Headers(init?.headers).get('authorization'))
+        if (authorizations.length === 1) {
+          entered.resolve(undefined)
+          await release.promise
+          return usageResponse(40)
+        }
+        return usageResponse(20)
+      }
+      const { ctx, controller } = await boot({ fetchUsage })
+      const key = credentialKey('llm-pi-ai', 'openai-codex')
+      const grant = codexGrant('owner@example.com', 'personal', { userId: 'owner' })
+      await ctx.credentials.modifyRecord(key, () => Promise.resolve(grant))
+      const [account] = (await controller.describe()).accounts
+      if (account === undefined) throw new Error('selected membership was not saved')
+      const first = controller.refreshUsage(new AbortController().signal)
+      const signal = new AbortController()
+      let resetting: ReturnType<AccountsController['consumeResetCredit']> | undefined
+      const rotated = { ...grant.payload, access: `${grant.payload.access}.rotated`, refresh: 'rotated-before-reset-read' }
+      try {
+        await bounded(entered.promise)
+        resetting = controller.consumeResetCredit(account.id, 'selected' as AccountResetCreditId, 'attempt', signal.signal)
+        await bounded(redeemed.promise)
+        await setImmediate()
+        expect(authorizations).toHaveLength(1)
+        const cancelled = action === 'cancel'
+          ? expect(resetting).rejects.toMatchObject({ code: 'gateway/cancelled' }) : undefined
+        if (action === 'cancel') signal.abort()
+        else if (action === 'delete') await controller.deleteAccount('openai-codex', account.id)
+        else if (action === 'rotate') await credentialStoreFrom(ctx).modify('openai-codex', () => Promise.resolve(rotated))
+        release.resolve(undefined)
+        await bounded(first)
+        if (cancelled !== undefined) await bounded(cancelled)
+        else {
+          const result = await bounded(resetting)
+          expect(result.state).toEqual(await controller.describe())
+          expect(result.state.accounts[0]?.usage?.windows[0]?.usedPercent).toBe(action === 'delete' ? undefined : 20)
+        }
+        expect(authorizations).toEqual(action === 'wait' ? [`Bearer ${grant.payload.access}`, `Bearer ${grant.payload.access}`]
+          : action === 'rotate' ? [`Bearer ${grant.payload.access}`, `Bearer ${rotated.access}`] : [`Bearer ${grant.payload.access}`])
+        expect(await ctx.credentials.readRecord(key)).toEqual(action === 'delete' ? undefined
+          : action === 'rotate' ? { kind: 'grant', payload: rotated } : grant)
+        // A cancelled queued refresh must still release its place for the next caller.
+        const next = await bounded(controller.refreshUsage(new AbortController().signal))
+        expect(next.accounts[0]?.usage?.windows[0]?.usedPercent).toBe(action === 'delete' ? undefined : 20)
+      } finally {
+        release.resolve(undefined)
+        await Promise.allSettled([first, ...resetting === undefined ? [] : [resetting]])
+      }
+    },
+  )
 
   it.each([
     ['nothing_to_reset', 'nothing-to-reset'],
@@ -1301,5 +1479,425 @@ describe('the Harnessy accounts Remote namespace', () => {
     const state = await controller.refreshUsage(new AbortController().signal)
     expect(state.accounts.find(account => account.detail?.startsWith('first@example.com'))?.active).toBe(true)
     expect(await ctx.credentials.readRecord(key)).toEqual(first)
+  })
+})
+
+describe('manual account billing dates on the Host', () => {
+  const vaultKey = credentialKey('account-manager', 'accounts')
+
+  it('stores independent dates for one owner’s memberships and key providers without exposing credentials', async () => {
+    const { ctx, controller } = await boot()
+    const canonical = credentialKey('llm-pi-ai', 'openai-codex')
+    const grant = codexGrant('owner@example.com', 'personal', { userId: 'owner' })
+    await ctx.credentials.modifyRecord(canonical, () => Promise.resolve(grant))
+    await controller.describe()
+    await seedOAuth(ctx, codexGrant('owner@example.com', 'workspace', { userId: 'owner', plan: 'business' }))
+    const memberships = (await controller.describe()).accounts
+    const personal = memberships.find(account => account.usageScope === 'personal')
+    const workspace = memberships.find(account => account.usageScope === 'workspace')
+    if (personal === undefined || workspace === undefined) throw new Error('billing memberships were not saved')
+    const [keyAccount] = (await controller.addApiKey('zai', 'Key account', 'billing-key-secret')).accounts
+      .filter(account => account.provider === 'zai')
+    if (keyAccount === undefined) throw new Error('key account was not saved')
+    const routeBefore = ctx.settings.describe()
+    const changes: AccountsState[] = []
+    ctx.on('accounts/changed', (state) => { changes.push(state) })
+
+    await controller.setManualBillingDate('openai-codex', personal.id, '2028-02-29')
+    await controller.setManualBillingDate('openai-codex', workspace.id, '2030-04-30')
+    const saved = await controller.setManualBillingDate('zai', keyAccount.id, '2031-01-31')
+    expect(personal.ownerId).toBe(workspace.ownerId)
+    expect(saved.accounts.find(account => account.id === personal.id)?.manualBillingDate).toBe('2028-02-29')
+    expect(saved.accounts.find(account => account.id === workspace.id)?.manualBillingDate).toBe('2030-04-30')
+    expect(saved.accounts.find(account => account.id === keyAccount.id)?.manualBillingDate).toBe('2031-01-31')
+    expect(await ctx.credentials.readRecord(vaultKey)).toMatchObject({ kind: 'grant', payload: { providers: {
+      'openai-codex': { accounts: {
+        [personal.id]: { manualBillingDate: '2028-02-29' }, [workspace.id]: { manualBillingDate: '2030-04-30' },
+      } },
+      zai: { accounts: { [keyAccount.id]: { manualBillingDate: '2031-01-31' } } },
+    } } })
+    const beforeRejected = await ctx.credentials.readRecord(vaultKey)
+    const changeCount = changes.length
+    await expect(controller.setManualBillingDate('zai', personal.id, '2032-01-01'))
+      .rejects.toMatchObject({ code: 'accounts/not-found' })
+    await expect(controller.setManualBillingDate('openai-codex', 'missing-membership', '2032-01-01'))
+      .rejects.toMatchObject({ code: 'accounts/not-found' })
+    expect(await ctx.credentials.readRecord(vaultKey)).toEqual(beforeRejected)
+    expect(changes).toHaveLength(changeCount)
+
+    const cleared = await controller.setManualBillingDate('openai-codex', personal.id, null)
+    expect(cleared.accounts.find(account => account.id === personal.id)).not.toHaveProperty('manualBillingDate')
+    expect(cleared.accounts.find(account => account.id === workspace.id)?.manualBillingDate).toBe('2030-04-30')
+    expect(await ctx.credentials.readRecord(vaultKey))
+      .not.toHaveProperty(`payload.providers.openai-codex.accounts.${personal.id}.manualBillingDate`)
+    expect(await controller.describe()).toEqual(cleared)
+    expect(changes.at(-1)).toEqual(cleared)
+    const visible = JSON.stringify([saved, cleared, changes])
+    expect(visible).not.toContain('billing-key-secret')
+    expect(visible).not.toContain(grant.payload.access)
+    expect(visible).not.toContain(grant.payload.refresh)
+    expect(await ctx.credentials.readRecord(canonical)).toEqual(grant)
+    expect(ctx.settings.describe()).toEqual(routeBefore)
+  })
+
+  it.each(['0001-01-01', '0004-02-29', '0099-12-31', '2000-02-29', '2400-02-29', '9999-12-31'])(
+    'round-trips the exact Gregorian date %s', async (date) => {
+      const { ctx, controller } = await boot()
+      const [account] = (await controller.addApiKey('zai', 'Calendar', 'calendar-secret')).accounts
+      if (account === undefined) throw new Error('calendar account was not saved')
+      const state = await controller.setManualBillingDate('zai', account.id, date)
+      expect(state.accounts[0]?.manualBillingDate).toBe(date)
+      expect((await controller.describe()).accounts[0]?.manualBillingDate).toBe(date)
+      expect(await ctx.credentials.readRecord(vaultKey))
+        .toHaveProperty(`payload.providers.zai.accounts.${account.id}.manualBillingDate`, date)
+    },
+  )
+
+  it.each([
+    '', '2028-2-29', '2028-02-9', ' 2028-02-29', '2028-02-29 ', '2028-02-29\n',
+    '2028-02-29T00:00:00Z', '0000-01-01', '10000-01-01', '-001-01-01',
+    '2028-00-01', '2028-13-01', '2028-01-00', '2028-01-32', '2028-04-31',
+    '2027-02-29', '1900-02-29', '2100-02-29', '2028-02-30',
+  ])('rejects the non-calendar date %j without a write or notification', async (date) => {
+    const { ctx, controller } = await boot()
+    const [account] = (await controller.addApiKey('zai', 'Calendar', 'calendar-secret')).accounts
+    if (account === undefined) throw new Error('calendar account was not saved')
+    await controller.setManualBillingDate('zai', account.id, '2028-02-29')
+    const before = await ctx.credentials.readRecord(vaultKey)
+    const changes: AccountsState[] = []
+    ctx.on('accounts/changed', (state) => { changes.push(state) })
+    await expect(controller.setManualBillingDate('zai', account.id, date)).rejects.toMatchObject({ code: 'accounts/rejected' })
+    expect(await ctx.credentials.readRecord(vaultKey)).toEqual(before)
+    expect(changes).toEqual([])
+  })
+
+  it('accepts and clears named wire dates but rejects malformed JSON date values without changing the vault', async () => {
+    const { ctx, controller } = await boot()
+    await ctx.plugin(TypertRegistry)
+    await ctx.plugin(TypertGatewayService)
+    const [account] = (await controller.addApiKey('zai', 'Wire', 'wire-secret')).accounts
+    if (account === undefined) throw new Error('wire account was not saved')
+    const invoke = (date: unknown) => ctx.typertGateway.invoke({
+      namespace: 'accounts', method: 'setManualBillingDate', args: { provider: 'zai', accountId: account.id, date },
+    })
+    const saved = await invoke('2000-02-29')
+    expect(saved).toHaveProperty('accounts.0.manualBillingDate', '2000-02-29')
+    const before = await ctx.credentials.readRecord(vaultKey)
+    const changes: AccountsState[] = []
+    ctx.on('accounts/changed', (state) => { changes.push(state) })
+    for (const date of [false, 20280229, {}, [], '1900-02-29', '2028-02-29T00:00:00Z']) {
+      await expect(invoke(date)).rejects.toMatchObject({ code: 'accounts/rejected' })
+    }
+    expect(await ctx.credentials.readRecord(vaultKey)).toEqual(before)
+    expect(changes).toEqual([])
+    expect(await invoke(null)).not.toHaveProperty('accounts.0.manualBillingDate')
+    expect(await ctx.credentials.readRecord(vaultKey))
+      .not.toHaveProperty(`payload.providers.zai.accounts.${account.id}.manualBillingDate`)
+  })
+
+  it.each([
+    null, false, 20280229, {}, [], '', '0000-01-01', '10000-01-01', '1900-02-29',
+    '2028-04-31', '2028-02-29\n', '2028-02-29T00:00:00Z',
+  ])(
+    'fails closed for a provider containing the invalid durable billing value %j', async (manualBillingDate) => {
+      const { ctx, controller } = await boot()
+      const account = (id: string, provider: 'zai' | 'opencode') => ({
+        id, provider, authMode: 'api-key', name: id, credential: { kind: 'api-key', key: `secret-${id}` }, createdAt: 1,
+      })
+      const record = { kind: 'grant' as const, payload: { version: 1, providers: {
+        zai: { activeAccountId: 'bad', accounts: {
+          bad: { ...account('bad', 'zai'), manualBillingDate }, valid: account('valid', 'zai'),
+        } },
+        opencode: { activeAccountId: 'old', accounts: { old: account('old', 'opencode') } },
+      } } }
+      await ctx.credentials.modifyRecord(vaultKey, () => Promise.resolve(record))
+      const changes: AccountsState[] = []
+      ctx.on('accounts/changed', (state) => { changes.push(state) })
+      await expect(controller.describe()).rejects.toMatchObject({ code: 'accounts/rejected' })
+      await expect(controller.setManualBillingDate('zai', 'valid', '2028-02-29'))
+        .rejects.toMatchObject({ code: 'accounts/rejected' })
+      expect(await ctx.credentials.readRecord(vaultKey)).toEqual(record)
+      expect(changes).toEqual([])
+    },
+  )
+
+  it.each(['account-field', 'provider-field', 'earlier-sibling'])(
+    'rejects a corrupt reminder before discarding a malformed %s', async (corruption) => {
+      const { ctx, controller } = await boot()
+      const account = { id: 'bad', provider: 'zai', authMode: 'api-key',
+        credential: { kind: 'api-key', key: 'corrupt-secret' }, name: 'Bad', createdAt: 1,
+        manualBillingDate: '1900-02-29', ...(corruption === 'account-field' ? { usageError: 123 } : {}),
+      }
+      const record = { kind: 'grant' as const, payload: { version: 1, providers: {
+        zai: { ...(corruption === 'provider-field' ? { activeAccountId: false } : {}), accounts: {
+          ...(corruption === 'earlier-sibling' ? { malformed: null } : {}), bad: account,
+        } },
+      } } }
+      await ctx.credentials.modifyRecord(vaultKey, () => Promise.resolve(record))
+      const changes: AccountsState[] = []
+      ctx.on('accounts/changed', (state) => { changes.push(state) })
+      await expect(controller.describe()).rejects.toMatchObject({ code: 'accounts/rejected' })
+      expect(await ctx.credentials.readRecord(vaultKey)).toEqual(record)
+      expect(changes).toEqual([])
+    },
+  )
+
+  it.each(['kimi-coding', 'anthropic'] as const)(
+    'keeps a same-subject %s token rotation but clears the reminder for a different canonical subject', async (provider) => {
+      const { ctx, controller } = await boot()
+      const key = credentialKey('llm-pi-ai', provider)
+      const grant = (subject: string, refresh: string) => ({ kind: 'grant' as const, payload: {
+        access: jwt({ sub: subject, email: `${subject}@example.com` }), refresh, expires: Date.now() + 3_600_000,
+      } })
+      await ctx.credentials.modifyRecord(key, () => Promise.resolve(grant('first', 'initial-token')))
+      const [account] = (await controller.describe()).accounts
+      if (account === undefined) throw new Error('OAuth membership was not saved')
+      await controller.setManualBillingDate(provider, account.id, '2028-02-29')
+      await ctx.credentials.modifyRecord(key, () => Promise.resolve(grant('first', 'rotated-token')))
+      expect((await controller.describe()).accounts.find(member => member.id === account.id)?.manualBillingDate).toBe('2028-02-29')
+      await ctx.credentials.modifyRecord(key, () => Promise.resolve(grant('second', 'different-owner-token')))
+      expect((await controller.describe()).accounts.find(member => member.id === account.id)).not.toHaveProperty('manualBillingDate')
+      expect(await ctx.credentials.readRecord(vaultKey)).not.toHaveProperty(`payload.providers.${provider}.accounts.${account.id}.manualBillingDate`)
+    },
+  )
+
+  it('loads old durable accounts with no billing field alongside a valid dated record', async () => {
+    const { ctx, controller } = await boot()
+    await ctx.credentials.modifyRecord(vaultKey, () => Promise.resolve({ kind: 'grant', payload: {
+      version: 1, providers: { zai: { activeAccountId: 'old', accounts: {
+        old: { id: 'old', provider: 'zai', authMode: 'api-key', credential: { kind: 'api-key', key: 'old-secret' }, name: 'Old', createdAt: 1 },
+        dated: { id: 'dated', provider: 'zai', authMode: 'api-key', credential: { kind: 'api-key', key: 'dated-secret' },
+          name: 'Dated', createdAt: 2, manualBillingDate: '0001-01-01' },
+      } } },
+    } }))
+    const state = await controller.describe()
+    expect(state.accounts).toHaveLength(2)
+    expect(state.accounts.find(account => account.id === 'old')).not.toHaveProperty('manualBillingDate')
+    expect(state.accounts.find(account => account.id === 'dated')?.manualBillingDate).toBe('0001-01-01')
+    const saved = await controller.setManualBillingDate('zai', 'old', '9999-12-31')
+    expect(saved.accounts.find(account => account.id === 'old')?.manualBillingDate).toBe('9999-12-31')
+  })
+
+  it.each(['2028-02-29', null])('publishes and returns billing value %j only after storage commits', async (date) => {
+    const { ctx, controller } = await boot()
+    const [account] = (await controller.addApiKey('zai', 'Commit', 'commit-secret')).accounts
+    if (account === undefined) throw new Error('commit account was not saved')
+    await controller.setManualBillingDate('zai', account.id, '2030-01-01')
+    const before = await ctx.credentials.readRecord(vaultKey)
+    const entered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const modify = ctx.credentials.modifyRecord.bind(ctx.credentials)
+    vi.spyOn(ctx.credentials, 'modifyRecord').mockImplementation(async (key, mutate) => {
+      if (key === vaultKey) { entered.resolve(undefined); await release.promise }
+      return modify(key, mutate)
+    })
+    const changes: AccountsState[] = []
+    const eventRecords: Array<ReturnType<typeof ctx.credentials.readRecord>> = []
+    ctx.on('accounts/changed', (state) => {
+      eventRecords.push(ctx.credentials.readRecord(vaultKey))
+      changes.push(state)
+    })
+    let returned = false
+    const pending = controller.setManualBillingDate('zai', account.id, date).then((state) => { returned = true; return state })
+    try {
+      await bounded(entered.promise)
+      expect(returned).toBe(false)
+      expect(changes).toEqual([])
+      expect(await ctx.credentials.readRecord(vaultKey)).toEqual(before)
+      release.resolve(undefined)
+      const state = await bounded(pending)
+      expect(changes).toEqual([state])
+      const durable = await ctx.credentials.readRecord(vaultKey)
+      expect(await Promise.all(eventRecords)).toEqual([durable])
+      if (date === null) {
+        expect(state.accounts[0]).not.toHaveProperty('manualBillingDate')
+        expect(durable).not.toHaveProperty(`payload.providers.zai.accounts.${account.id}.manualBillingDate`)
+      } else {
+        expect(state.accounts[0]?.manualBillingDate).toBe(date)
+        expect(durable).toHaveProperty(`payload.providers.zai.accounts.${account.id}.manualBillingDate`, date)
+      }
+    } finally {
+      release.resolve(undefined)
+      await Promise.allSettled([pending])
+    }
+  })
+
+  it.each(['2028-02-29', null])('keeps the previous date and emits nothing when storing %j fails', async (date) => {
+    const { ctx, controller } = await boot()
+    const [account] = (await controller.addApiKey('zai', 'Failure', 'failure-secret')).accounts
+    if (account === undefined) throw new Error('failure account was not saved')
+    await controller.setManualBillingDate('zai', account.id, '2030-01-01')
+    const before = await ctx.credentials.readRecord(vaultKey)
+    const modify = ctx.credentials.modifyRecord.bind(ctx.credentials)
+    const fault = vi.spyOn(ctx.credentials, 'modifyRecord').mockImplementation(async (key, mutate) => {
+      if (key === vaultKey) {
+        await mutate(await ctx.credentials.readRecord(key))
+        throw new Error('fixture billing write failed')
+      }
+      return modify(key, mutate)
+    })
+    const changes: AccountsState[] = []
+    ctx.on('accounts/changed', (state) => { changes.push(state) })
+    await expect(controller.setManualBillingDate('zai', account.id, date)).rejects.toThrow('fixture billing write failed')
+    expect(await ctx.credentials.readRecord(vaultKey)).toEqual(before)
+    expect(changes).toEqual([])
+    fault.mockRestore()
+    expect((await controller.describe()).accounts[0]?.manualBillingDate).toBe('2030-01-01')
+  })
+
+  it.each([
+    { outcome: 'success', date: '2032-02-29' }, { outcome: 'error', date: '2032-02-29' },
+    { outcome: 'success', date: null }, { outcome: 'error', date: null },
+  ])('retains a concurrent billing edit during $outcome usage refresh (date $date)', async ({ outcome, date }) => {
+    const entered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const { ctx, controller } = await boot({ fetchUsage: async () => {
+      entered.resolve(undefined)
+      await release.promise
+      if (outcome === 'error') throw new Error('fixture billing usage failed')
+      return usageResponse(20)
+    } })
+    await ctx.credentials.modifyRecord(credentialKey('llm-pi-ai', 'openai-codex'), () =>
+      Promise.resolve(codexGrant('owner@example.com', 'personal', { userId: 'owner' })))
+    await controller.describe()
+    await seedOAuth(ctx, codexGrant('owner@example.com', 'workspace', { userId: 'owner', plan: 'business' }))
+    const accounts = (await controller.describe()).accounts
+    const personal = accounts.find(account => account.usageScope === 'personal')
+    const workspace = accounts.find(account => account.usageScope === 'workspace')
+    if (personal === undefined || workspace === undefined) throw new Error('usage memberships were not saved')
+    await controller.setManualBillingDate('openai-codex', personal.id, '2030-01-01')
+    await controller.setManualBillingDate('openai-codex', workspace.id, '2031-01-01')
+    const refresh = controller.refreshUsage(new AbortController().signal)
+    const changes: AccountsState[] = []
+    ctx.on('accounts/changed', (state) => { changes.push(state) })
+    try {
+      await bounded(entered.promise)
+      const edited = await bounded(controller.setManualBillingDate('openai-codex', personal.id, date))
+      expect(edited.accounts.find(account => account.id === personal.id)?.manualBillingDate).toBe(date ?? undefined)
+      changes.length = 0
+      release.resolve(undefined)
+      const state = await bounded(refresh)
+      expect(state.accounts.find(account => account.id === personal.id)?.manualBillingDate).toBe(date ?? undefined)
+      expect(state.accounts.find(account => account.id === workspace.id)?.manualBillingDate).toBe('2031-01-01')
+      expect(changes.length).toBeGreaterThan(0)
+      expect(changes.every(state => state.accounts.find(account => account.id === personal.id)?.manualBillingDate
+        === (date ?? undefined))).toBe(true)
+      expect(state.accounts.every(account => outcome === 'error'
+        ? account.usageError === 'Usage is temporarily unavailable.' : account.usage?.windows[0]?.usedPercent === 20)).toBe(true)
+      expect(await controller.describe()).toEqual(state)
+      const durable = await ctx.credentials.readRecord(vaultKey)
+      if (date === null) expect(durable).not.toHaveProperty(`payload.providers.openai-codex.accounts.${personal.id}.manualBillingDate`)
+      else expect(durable).toHaveProperty(`payload.providers.openai-codex.accounts.${personal.id}.manualBillingDate`, date)
+      expect(durable).toHaveProperty(`payload.providers.openai-codex.accounts.${workspace.id}.manualBillingDate`, '2031-01-01')
+    } finally {
+      release.resolve(undefined)
+      await Promise.allSettled([refresh])
+    }
+  })
+
+  it('retains dates through shared token refresh without copying one membership’s date to another', async () => {
+    const now = Date.now()
+    const personal = codexGrant('owner@example.com', 'personal', { userId: 'owner' })
+    personal.payload.expires = now - 1
+    const workspace = codexGrant('owner@example.com', 'workspace', { userId: 'owner', plan: 'business' })
+    workspace.payload.refresh = personal.payload.refresh
+    const rotated = { ...personal.payload, refresh: 'billing-rotated-token', expires: now + 3_600_000 }
+    oauthRefresh.mockResolvedValueOnce(rotated)
+    const { ctx, controller } = await boot({ now: () => now, fetchUsage: async () => usageResponse(20) })
+    await ctx.credentials.modifyRecord(credentialKey('llm-pi-ai', 'openai-codex'), () => Promise.resolve(personal))
+    const [active] = (await controller.describe()).accounts
+    if (active === undefined) throw new Error('refresh account was not saved')
+    await seedOAuth(ctx, workspace)
+    const other = (await controller.describe()).accounts.find(account => account.usageScope === 'workspace')
+    if (other === undefined) throw new Error('refresh workspace was not saved')
+    await controller.setManualBillingDate('openai-codex', active.id, '2028-02-29')
+    await controller.setManualBillingDate('openai-codex', other.id, '2030-04-30')
+    const state = await controller.refreshUsage(new AbortController().signal)
+    expect(state.accounts.find(account => account.id === active.id)?.manualBillingDate).toBe('2028-02-29')
+    expect(state.accounts.find(account => account.id === other.id)?.manualBillingDate).toBe('2030-04-30')
+    expect(await ctx.credentials.readRecord(vaultKey)).toMatchObject({ kind: 'grant', payload: { providers: {
+      'openai-codex': { accounts: {
+        [active.id]: { manualBillingDate: '2028-02-29', credential: { payload: rotated } },
+        [other.id]: { manualBillingDate: '2030-04-30', credential: { payload: { refresh: rotated.refresh } } },
+      } },
+    } } })
+    expect(await ctx.credentials.readRecord(credentialKey('llm-pi-ai', 'openai-codex'))).toEqual({ kind: 'grant', payload: rotated })
+  })
+
+  it('preserves dates on rename, canonical import and same-membership re-login without transferring them to new memberships', async () => {
+    const { ctx, controller } = await boot({ openUrl: async () => {} })
+    const key = credentialKey('llm-pi-ai', 'openai-codex')
+    const personal = codexGrant('owner@example.com', 'personal', { userId: 'owner' })
+    await ctx.credentials.modifyRecord(key, () => Promise.resolve(personal))
+    const [account] = (await controller.describe()).accounts
+    if (account === undefined) throw new Error('re-login account was not saved')
+    await seedOAuth(ctx, codexGrant('owner@example.com', 'workspace', { userId: 'owner', plan: 'business' }))
+    const workspace = (await controller.describe()).accounts.find(account => account.usageScope === 'workspace')
+    if (workspace === undefined) throw new Error('re-login workspace was not saved')
+    await controller.setManualBillingDate('openai-codex', account.id, '2028-02-29')
+    await controller.setManualBillingDate('openai-codex', workspace.id, '2030-04-30')
+    await controller.rename('openai-codex', account.id, 'My membership')
+    const rotated = { ...personal.payload, refresh: 'billing-sdk-rotation', expires: Date.now() + 3_600_000 }
+    await credentialStoreFrom(ctx).modify('openai-codex', () => Promise.resolve(rotated))
+    const imported = await controller.describe()
+    expect(imported.accounts.find(member => member.id === account.id)).toMatchObject({ name: 'My membership', manualBillingDate: '2028-02-29' })
+    expect(imported.accounts.find(member => member.id === workspace.id)?.manualBillingDate).toBe('2030-04-30')
+    let login = { ...personal, payload: { ...personal.payload, refresh: 'billing-re-login' } }
+    ctx.authorization.registerFlow({
+      key, label: 'Codex', methods: [{ id: 'oauth', label: 'Sign in' }], supportsDestination: true,
+      async run(session) { await session.commit(login) },
+    })
+    await controller.addOAuth('openai-codex', new AbortController().signal)
+    const relogged = await controller.describe()
+    expect(relogged.accounts).toHaveLength(2)
+    expect(relogged.accounts.find(member => member.id === account.id)?.manualBillingDate).toBe('2028-02-29')
+    expect(relogged.accounts.find(member => member.id === workspace.id)?.manualBillingDate).toBe('2030-04-30')
+    expect(await ctx.credentials.readRecord(vaultKey))
+      .toHaveProperty(`payload.providers.openai-codex.accounts.${account.id}.credential.payload.refresh`, 'billing-re-login')
+    login = codexGrant('owner@example.com', 'different-workspace', { userId: 'owner', plan: 'business' })
+    await controller.addOAuth('openai-codex', new AbortController().signal)
+    const added = await controller.describe()
+    const newMember = added.accounts.find(member => member.id !== account.id && member.id !== workspace.id)
+    if (newMember === undefined) throw new Error('different membership was not saved')
+    expect(newMember.ownerId).toBe(account.ownerId)
+    expect(newMember).not.toHaveProperty('manualBillingDate')
+    expect(added.accounts.find(member => member.id === account.id)?.manualBillingDate).toBe('2028-02-29')
+    expect(added.accounts.find(member => member.id === workspace.id)?.manualBillingDate).toBe('2030-04-30')
+    login = codexGrant('stranger@example.com', 'workspace', { userId: 'stranger', plan: 'business' })
+    await controller.addOAuth('openai-codex', new AbortController().signal)
+    const separateOwner = (await controller.describe()).accounts.find(member => member.detail?.startsWith('stranger@example.com'))
+    if (separateOwner === undefined) throw new Error('different owner was not saved')
+    expect(separateOwner.ownerId).not.toBe(account.ownerId)
+    expect(separateOwner).not.toHaveProperty('manualBillingDate')
+    await controller.deleteAccount('openai-codex', workspace.id)
+    login = codexGrant('owner@example.com', 'workspace', { userId: 'owner', plan: 'business' })
+    await controller.addOAuth('openai-codex', new AbortController().signal)
+    const readded = (await controller.describe()).accounts.find(member => member.id === workspace.id)
+    if (readded === undefined) throw new Error('deleted membership was not re-added')
+    expect(readded).not.toHaveProperty('manualBillingDate')
+  })
+
+  it('retains billing dates while normalizing legacy membership ids', async () => {
+    const { ctx, controller } = await boot()
+    await ctx.credentials.modifyRecord(vaultKey, () => Promise.resolve({ kind: 'grant', payload: {
+      version: 1, providers: { 'openai-codex': { activeAccountId: 'legacy-personal', accounts: {
+        'legacy-personal': { id: 'legacy-personal', provider: 'openai-codex', authMode: 'oauth',
+          credential: codexGrant('owner@example.com', 'personal', { userId: 'owner' }), name: 'Personal', createdAt: 1, manualBillingDate: '2028-02-29' },
+        'legacy-workspace': { id: 'legacy-workspace', provider: 'openai-codex', authMode: 'oauth',
+          credential: codexGrant('owner@example.com', 'workspace', { userId: 'owner', plan: 'business' }), name: 'Work', createdAt: 2 },
+      } } },
+    } }))
+    const state = await controller.describe()
+    const personal = state.accounts.find(account => account.active)
+    const workspace = state.accounts.find(account => !account.active)
+    if (personal === undefined || workspace === undefined) throw new Error('normalized memberships were not saved')
+    expect(personal.id).not.toBe('legacy-personal')
+    expect(workspace.id).not.toBe('legacy-workspace')
+    expect(personal.manualBillingDate).toBe('2028-02-29')
+    expect(workspace).not.toHaveProperty('manualBillingDate')
+    expect(personal.ownerId).toBe(workspace.ownerId)
+    expect(await ctx.credentials.readRecord(vaultKey)).toMatchObject({ kind: 'grant', payload: { providers: {
+      'openai-codex': { activeAccountId: personal.id, accounts: { [personal.id]: { manualBillingDate: '2028-02-29' } } },
+    } } })
   })
 })

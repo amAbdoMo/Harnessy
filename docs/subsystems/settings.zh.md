@@ -83,9 +83,22 @@ Manage several local identities per provider while keeping one canonical active 
  * @param creditId - exact provider credit selected by the user; automatic selection is not used.
  * @param idempotencyKey - stable identifier reused when retrying the same account and credit action.
  * @param signal - cancellation forwarded to provider requests.
- * @returns the provider outcome and refreshed public account state.
+ * @returns the provider outcome and committed public state after refreshing only the selected membership;
+ * unrelated usage is retained, and this usage-only refresh does not automatically switch accounts.
  */
 @Remote async consumeResetCredit( accountId: string, creditId: AccountResetCreditId, idempotencyKey: string, signal: AbortSignal, ): Promise<AccountResetCreditResult>
+
+/**
+ * Save or clear a user-entered billing reminder for exactly one saved membership.
+ * The date is never inferred, advanced, or copied to another membership.
+ * @param provider - provider owning the saved membership.
+ * @param accountId - saved membership to edit, independent of the active selection.
+ * @param date - exact Gregorian YYYY-MM-DD (years 0001–9999), including past dates; null clears it.
+ * @returns the redacted state after persistence commits and accounts/changed is published.
+ * @throws RemoteError when the date is invalid, the membership is absent, or storage is unavailable;
+ * credential-provider write failures propagate without publishing a changed snapshot.
+ */
+@Remote async setManualBillingDate(provider: AccountProviderId, accountId: string, date: string | null): Promise<AccountsState>
 
 /**
  * Rename one local account without changing its credential or active state.
@@ -337,7 +350,7 @@ Publish the redacted account snapshot after a committed vault change.
 ```ts cordis-catalog
 /**
  * Publish the redacted account snapshot after a committed vault change.
- * @param state - current account identities, selection, and provider-reported usage.
+ * @param state - current account identities, selection, provider-reported usage, and user-entered billing reminders.
  * @mode emit
  */
 'accounts/changed'(state: AccountsState): void

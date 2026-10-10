@@ -22,6 +22,8 @@ import ToolRuntime from '@deepseek-ai/dsh-tools'
 import { profileComposition } from '../../../settings/settings/tests/profile-composition.ts'
 import AccountsController from '../src/accounts.ts'
 import type { AccountAutoSwitchEvent, AccountsState } from '../src/types.ts'
+import TypertRegistry from '../../../typert/registry/src/index.ts'
+import { TypertGatewayService } from '../../gateway/src/index.ts'
 
 const NOW = 1_800_000_000_000
 const KEY = credentialKey('llm-pi-ai', 'zai')
@@ -43,8 +45,14 @@ class ProviderWire {
     body: string
   }[] = []
   readonly usageRequests: string[] = []
+  readonly resetRequests: { method: string; membership: string; authorization: string | null; body: string }[] = []
   readonly usage = new Map<string, number>([['personal', 10], ['workspace', 20]])
   failFirstCodexQuota = false
+  billingUsage: {
+    readonly entered: ReturnType<typeof Promise.withResolvers<undefined>>
+    readonly release: ReturnType<typeof Promise.withResolvers<undefined>>
+    readonly fail: boolean
+  } | undefined
 
   readonly fetch: typeof fetch = async (input, init) => {
     const request = new Request(input, init)
@@ -85,12 +93,26 @@ class ProviderWire {
 
   readonly fetchUsage: typeof fetch = async (input, init) => {
     const request = new Request(input, init)
-    if (request.url !== 'https://chatgpt.com/backend-api/wham/usage') {
-      throw new Error(`unexpected usage URL: ${request.url}`)
-    }
     const membership = request.headers.get('chatgpt-account-id')
     if (membership === null || !this.usage.has(membership)) throw new Error('unexpected usage membership')
+    if (request.method === 'GET' && request.url === 'https://chatgpt.com/backend-api/wham/rate-limit-reset-credits') {
+      this.resetRequests.push({ method: request.method, membership, authorization: request.headers.get('authorization'), body: '' })
+      return Response.json({ credits: [{ id: 'selected-credit', reset_type: 'codex_rate_limits', status: 'available', expires_at: null }] })
+    }
+    if (request.method === 'POST' && request.url === 'https://chatgpt.com/backend-api/wham/rate-limit-reset-credits/consume') {
+      this.resetRequests.push({ method: request.method, membership, authorization: request.headers.get('authorization'), body: await request.text() })
+      this.usage.set(membership, 0)
+      return Response.json({ code: 'reset', windows_reset: 2 })
+    }
+    if (request.method !== 'GET' || request.url !== 'https://chatgpt.com/backend-api/wham/usage') {
+      throw new Error(`unexpected usage request: ${request.method} ${request.url}`)
+    }
     this.usageRequests.push(membership)
+    if (this.billingUsage !== undefined) {
+      this.billingUsage.entered.resolve(undefined)
+      await this.billingUsage.release.promise
+      if (this.billingUsage.fail) throw new Error('fixture billing usage failed')
+    }
     return Response.json({ rate_limit: {
       primary_window: { used_percent: this.usage.get(membership), limit_window_seconds: 18_000, reset_after_seconds: 900 },
       secondary_window: { used_percent: 5, limit_window_seconds: 604_800, reset_after_seconds: 86_400 },
@@ -133,6 +155,7 @@ class FixtureAccounts extends AccountsController {
 
 afterEach(async () => {
   wire?.release.resolve(undefined)
+  wire?.billingUsage?.release.resolve(undefined)
   try {
     await context?.fiber.dispose()
     context = undefined
@@ -144,8 +167,8 @@ afterEach(async () => {
   }
 })
 
-async function loadComposition(): Promise<{ ctx: Context; patchPath: string; http: ProviderWire }> {
-  const home = await mkdtemp(join(tmpdir(), 'dsh-accounts-loader-'))
+async function loadComposition(existingHome?: string): Promise<{ ctx: Context; patchPath: string; http: ProviderWire }> {
+  const home = existingHome ?? await mkdtemp(join(tmpdir(), 'dsh-accounts-loader-'))
   root = home
   const http = new ProviderWire()
   wire = http
@@ -321,6 +344,55 @@ describe('accounts across real Loader turns', () => {
     expect(agent.session).toBe(session)
   })
 
+  it('lists and consumes a selected reset through the Loader without refreshing or promoting another membership', { timeout: 60_000 }, async () => {
+    const { ctx, patchPath, http } = await loadComposition()
+    await seedCodex(ctx, 'personal')
+    await ctx.accountsController.setAutoSwitch('openai-codex', false)
+    http.usage.set('personal', 100)
+    const before = await ctx.accountsController.refreshUsage(new AbortController().signal)
+    await ctx.accountsController.setAutoSwitch('openai-codex', true)
+    const selected = before.accounts.find(account => account.usageScope === 'workspace')
+    if (selected === undefined) throw new Error('workspace membership was not saved')
+    const configBefore = routeValue(ctx)
+    const patchBefore = await readFile(patchPath, 'utf8')
+    const changes: AccountsState[] = []
+    const switches: AccountAutoSwitchEvent[] = []
+    ctx.on('accounts/changed', (state) => { changes.push(state) })
+    ctx.on('accounts/auto-switched', (event) => { switches.push(event) })
+    http.usageRequests.length = 0
+    const list = await ctx.accountsController.listResetCredits(selected.id, new AbortController().signal)
+    const [credit] = list.credits
+    if (credit === undefined) throw new Error('reset credit was not listed')
+    expect(http.usageRequests).toEqual([])
+    expect(changes).toEqual([])
+    const result = await ctx.accountsController.consumeResetCredit(selected.id, credit.id, 'selected-attempt', new AbortController().signal)
+    expect(result.outcome).toBe('reset')
+    expect(http.resetRequests).toEqual([
+      { method: 'GET', membership: 'workspace', authorization: `Bearer ${codexGrant('workspace').payload.access}`, body: '' },
+      { method: 'POST', membership: 'workspace', authorization: `Bearer ${codexGrant('workspace').payload.access}`,
+        body: JSON.stringify({ redeem_request_id: 'selected-attempt', credit_id: 'selected-credit' }) },
+    ])
+    expect(http.usageRequests).toEqual(['workspace'])
+    expect(result.state.accounts.map(account => ({ scope: account.usageScope, active: account.active,
+      usedPercent: account.usage?.windows[0]?.usedPercent }))).toEqual([
+      { scope: 'personal', active: true, usedPercent: 100 },
+      { scope: 'workspace', active: false, usedPercent: 0 },
+    ])
+    expect(changes).toEqual([result.state])
+    expect(await ctx.accountsController.describe()).toEqual(result.state)
+    expect(await ctx.credentials.readRecord(VAULT)).toMatchObject({ kind: 'grant', payload: { providers: {
+      'openai-codex': { accounts: { [selected.id]: { usage: { windows: [
+        expect.objectContaining({ usedPercent: 0 }), expect.objectContaining({ usedPercent: 5 }),
+      ] } } } },
+    } } })
+    expect(await ctx.credentials.readRecord(CODEX)).toEqual(codexGrant('personal'))
+    expect(switches).toEqual([])
+    expect(routeValue(ctx)).toEqual(configBefore)
+    expect(await readFile(patchPath, 'utf8')).toBe(patchBefore)
+    expect(JSON.stringify(result)).not.toContain('fixture-refresh-never-used')
+    expect(JSON.stringify(result)).not.toContain('signature')
+  })
+
   it('pushes fresh usage after a real Codex request with automatic switching disabled', { timeout: 60_000 }, async () => {
     const { ctx, http } = await loadComposition()
     await ctx.settings.mutate('llm-pi-ai', [{ op: 'set', path: ['providers', 'openai-codex'], value: {
@@ -434,4 +506,207 @@ describe('accounts across real Loader turns', () => {
     expect(ctx.agents.get(agent.id)).toBe(agent)
     expect(agent.session).toBe(session)
   })
+})
+
+describe('manual billing dates through the real source Loader', () => {
+  it('retains a Kimi reminder during token rotation but removes it on canonical subject replacement', { timeout: 60_000 }, async () => {
+    const { ctx, http } = await loadComposition()
+    const key = credentialKey('llm-pi-ai', 'kimi-coding')
+    const grant = (subject: string, refresh: string) => ({ kind: 'grant' as const, payload: {
+      access: `header.${Buffer.from(JSON.stringify({ sub: subject })).toString('base64url')}.signature`,
+      refresh, expires: 4_000_000_000_000,
+    } })
+    await ctx.credentials.modifyRecord(key, () => Promise.resolve(grant('first-owner', 'initial-token')))
+    const [account] = (await ctx.accountsController.describe()).accounts
+    if (account === undefined) throw new Error('Kimi membership was not saved')
+    await ctx.accountsController.setManualBillingDate('kimi-coding', account.id, '2028-02-29')
+    await ctx.credentials.modifyRecord(key, () => Promise.resolve(grant('first-owner', 'rotated-token')))
+    expect((await ctx.accountsController.describe()).accounts[0]?.manualBillingDate).toBe('2028-02-29')
+    await ctx.credentials.modifyRecord(key, () => Promise.resolve(grant('replacement-owner', 'replacement-token')))
+    expect((await ctx.accountsController.describe()).accounts[0]).not.toHaveProperty('manualBillingDate')
+    expect(await ctx.credentials.readRecord(VAULT))
+      .not.toHaveProperty(`payload.providers.kimi-coding.accounts.${account.id}.manualBillingDate`)
+    if (root === undefined) throw new Error('Loader home was not allocated')
+    expect(await readFile(join(root, '.credentials.yaml'), 'utf8')).not.toContain('2028-02-29')
+    expect(http.requests).toEqual([])
+    expect(http.usageRequests).toEqual([])
+  })
+
+  it('rejects a corrupt saved reminder without rewriting local credentials', { timeout: 60_000 }, async () => {
+    const { ctx } = await loadComposition()
+    const account = (id: string, provider: 'zai' | 'opencode') => ({
+      id, provider, authMode: 'api-key', credential: { kind: 'api-key', key: `secret-${id}` }, name: id, createdAt: NOW,
+    })
+    await ctx.credentials.modifyRecord(VAULT, () => Promise.resolve({ kind: 'grant', payload: {
+      version: 1, providers: {
+        zai: { activeAccountId: 'bad', accounts: {
+          malformed: null,
+          bad: { ...account('bad', 'zai'), usageError: 123, manualBillingDate: '1900-02-29' }, sibling: account('sibling', 'zai'),
+        } },
+        opencode: { activeAccountId: 'old', accounts: { old: account('old', 'opencode') } },
+      },
+    } }))
+    if (root === undefined) throw new Error('Loader home was not allocated')
+    const credentialsPath = join(root, '.credentials.yaml')
+    const before = await readFile(credentialsPath, 'utf8')
+    const recordBefore = await ctx.credentials.readRecord(VAULT)
+    const changes: AccountsState[] = []
+    ctx.on('accounts/changed', (state) => { changes.push(state) })
+    await expect(ctx.accountsController.describe()).rejects.toMatchObject({ code: 'accounts/rejected' })
+    await expect(ctx.accountsController.setManualBillingDate('zai', 'sibling', '2028-02-29'))
+      .rejects.toMatchObject({ code: 'accounts/rejected' })
+    expect(await ctx.credentials.readRecord(VAULT)).toEqual(recordBefore)
+    expect(await readFile(credentialsPath, 'utf8')).toBe(before)
+    expect(changes).toEqual([])
+  })
+
+  it('persists redacted membership and provider dates through local-credential restarts, rename and canonical import', { timeout: 60_000 }, async () => {
+    const { ctx, patchPath, http } = await loadComposition()
+    if (root === undefined) throw new Error('Loader home was not allocated')
+    const home = root
+    const credentialsPath = join(home, '.credentials.yaml')
+    await seedCodex(ctx, 'personal')
+    await ctx.accountsController.setAutoSwitch('openai-codex', false)
+    const old = await ctx.accountsController.describe()
+    expect(old.accounts).toHaveLength(2)
+    expect(old.accounts.every(account => !Object.hasOwn(account, 'manualBillingDate'))).toBe(true)
+    const personal = old.accounts.find(account => account.usageScope === 'personal')
+    const workspace = old.accounts.find(account => account.usageScope === 'workspace')
+    if (personal === undefined || workspace === undefined) throw new Error('billing memberships were not saved')
+    expect(personal.ownerId).toBe(workspace.ownerId)
+    const [keyAccount] = (await ctx.accountsController.addApiKey('zai', 'Billing key', 'loader-billing-secret')).accounts
+      .filter(account => account.provider === 'zai')
+    if (keyAccount === undefined) throw new Error('billing key was not saved')
+    await ctx.plugin(TypertRegistry)
+    await ctx.plugin(TypertGatewayService)
+    const changes: AccountsState[] = []
+    const eventFiles: Promise<string>[] = []
+    ctx.on('accounts/changed', (state) => {
+      changes.push(state)
+      eventFiles.push(readFile(credentialsPath, 'utf8'))
+    })
+    const configBefore = routeValue(ctx)
+    const patchBefore = await readFile(patchPath, 'utf8')
+    const beforeRejected = await ctx.credentials.readRecord(VAULT)
+    for (const date of ['1900-02-29', '0000-01-01', '2028-04-31', '2028-02-29T00:00:00Z', false]) {
+      await expect(ctx.typertGateway.invoke({ namespace: 'accounts', method: 'setManualBillingDate', args: {
+        provider: 'openai-codex', accountId: personal.id, date,
+      } })).rejects.toMatchObject({ code: 'accounts/rejected' })
+    }
+    await expect(ctx.accountsController.setManualBillingDate('zai', personal.id, '2028-02-29'))
+      .rejects.toMatchObject({ code: 'accounts/not-found' })
+    expect(await ctx.credentials.readRecord(VAULT)).toEqual(beforeRejected)
+    expect(changes).toEqual([])
+    const saved = await ctx.typertGateway.invoke({ namespace: 'accounts', method: 'setManualBillingDate', args: {
+      provider: 'openai-codex', accountId: personal.id, date: '2028-02-29',
+    } })
+    expect(saved).toHaveProperty('accounts.0.manualBillingDate', '2028-02-29')
+    expect(await Promise.all(eventFiles)).toEqual([expect.stringContaining('2028-02-29')])
+    await ctx.accountsController.setManualBillingDate('openai-codex', workspace.id, '2030-04-30')
+    const state = await ctx.accountsController.setManualBillingDate('zai', keyAccount.id, '0001-01-01')
+    expect(changes.at(-1)).toEqual(state)
+    const visible = JSON.stringify([saved, state, changes])
+    expect(visible).not.toContain('fixture-refresh-never-used')
+    expect(visible).not.toContain('signature')
+    expect(visible).not.toContain('loader-billing-secret')
+    const file = await readFile(credentialsPath, 'utf8')
+    for (const date of ['2028-02-29', '2030-04-30', '0001-01-01']) expect(file).toContain(date)
+    const durable = await ctx.credentials.readRecord(VAULT)
+    expect(durable).toMatchObject({ kind: 'grant', payload: { providers: {
+      'openai-codex': { accounts: {
+        [personal.id]: { manualBillingDate: '2028-02-29' }, [workspace.id]: { manualBillingDate: '2030-04-30' },
+      } }, zai: { accounts: { [keyAccount.id]: { manualBillingDate: '0001-01-01' } } },
+    } } })
+    expect(routeValue(ctx)).toEqual(configBefore)
+    expect(await readFile(patchPath, 'utf8')).toBe(patchBefore)
+    expect(await ctx.credentials.readRecord(CODEX)).toEqual(codexGrant('personal'))
+    expect(http.usageRequests).toEqual([])
+    expect(http.requests).toEqual([])
+    await Promise.all(eventFiles)
+    await ctx.fiber.dispose()
+    context = undefined
+
+    const restarted = await loadComposition(home)
+    expect(await restarted.ctx.credentials.readRecord(VAULT)).toEqual(durable)
+    const restored = await restarted.ctx.accountsController.describe()
+    expect(restored.accounts).toEqual(state.accounts)
+    await restarted.ctx.accountsController.rename('openai-codex', personal.id, 'Personal billing')
+    const grant = codexGrant('personal')
+    const rotated = { ...grant, payload: { ...grant.payload, refresh: 'loader-billing-canonical-rotation' } }
+    await restarted.ctx.credentials.modifyRecord(CODEX, () => Promise.resolve(rotated))
+    const imported = await restarted.ctx.accountsController.describe()
+    expect(imported.accounts.find(account => account.id === personal.id)).toMatchObject({
+      name: 'Personal billing', manualBillingDate: '2028-02-29', active: true,
+    })
+    expect(imported.accounts.find(account => account.id === workspace.id)?.manualBillingDate).toBe('2030-04-30')
+    expect(await restarted.ctx.credentials.readRecord(VAULT))
+      .toHaveProperty(`payload.providers.openai-codex.accounts.${personal.id}.credential.payload.refresh`, rotated.payload.refresh)
+    await restarted.ctx.accountsController.setManualBillingDate('openai-codex', personal.id, null)
+    const cleared = await restarted.ctx.accountsController.setManualBillingDate('zai', keyAccount.id, null)
+    expect(cleared.accounts.find(account => account.id === personal.id)).not.toHaveProperty('manualBillingDate')
+    expect(cleared.accounts.find(account => account.id === keyAccount.id)).not.toHaveProperty('manualBillingDate')
+    expect(cleared.accounts.find(account => account.id === workspace.id)?.manualBillingDate).toBe('2030-04-30')
+    const clearedFile = await readFile(credentialsPath, 'utf8')
+    expect(clearedFile).not.toContain('2028-02-29')
+    expect(clearedFile).not.toContain('0001-01-01')
+    expect(clearedFile).toContain('2030-04-30')
+    await restarted.ctx.fiber.dispose()
+    context = undefined
+
+    const afterClear = await loadComposition(home)
+    expect((await afterClear.ctx.accountsController.describe()).accounts).toEqual(cleared.accounts)
+    expect(await afterClear.ctx.credentials.readRecord(VAULT))
+      .not.toHaveProperty(`payload.providers.openai-codex.accounts.${personal.id}.manualBillingDate`)
+  })
+
+  it.each(['success', 'error'] as const)(
+    'retains concurrent set and clear edits during %s usage with real local storage', { timeout: 60_000 }, async (outcome) => {
+      const { ctx, http } = await loadComposition()
+      if (root === undefined) throw new Error('Loader home was not allocated')
+      const credentialsPath = join(root, '.credentials.yaml')
+      await seedCodex(ctx, 'personal')
+      await ctx.accountsController.setAutoSwitch('openai-codex', false)
+      const accounts = (await ctx.accountsController.describe()).accounts
+      const personal = accounts.find(account => account.usageScope === 'personal')
+      const workspace = accounts.find(account => account.usageScope === 'workspace')
+      if (personal === undefined || workspace === undefined) throw new Error('billing memberships were not saved')
+      await ctx.accountsController.setManualBillingDate('openai-codex', personal.id, '2030-01-01')
+      await ctx.accountsController.setManualBillingDate('openai-codex', workspace.id, '2031-01-01')
+      const held = { entered: Promise.withResolvers<undefined>(), release: Promise.withResolvers<undefined>(), fail: outcome === 'error' }
+      http.billingUsage = held
+      const refresh = ctx.accountsController.refreshUsage(new AbortController().signal)
+      const changes: AccountsState[] = []
+      ctx.on('accounts/changed', (state) => { changes.push(state) })
+      try {
+        await Promise.race([
+          held.entered.promise,
+          refresh.then(() => { throw new Error('billing refresh settled before HTTP') }),
+        ])
+        await ctx.accountsController.setManualBillingDate('openai-codex', personal.id, '2032-02-29')
+        await ctx.accountsController.setManualBillingDate('openai-codex', workspace.id, null)
+        changes.length = 0
+        held.release.resolve(undefined)
+        const state = await refresh
+        expect(state.accounts.find(account => account.id === personal.id)?.manualBillingDate).toBe('2032-02-29')
+        expect(state.accounts.find(account => account.id === workspace.id)).not.toHaveProperty('manualBillingDate')
+        expect(changes.length).toBeGreaterThan(0)
+        expect(changes.every(state => state.accounts.find(account => account.id === personal.id)?.manualBillingDate === '2032-02-29'
+          && state.accounts.find(account => account.id === workspace.id)?.manualBillingDate === undefined)).toBe(true)
+        expect(state.accounts.every(account => outcome === 'error'
+          ? account.usageError === 'Usage is temporarily unavailable.' : account.usage !== undefined)).toBe(true)
+        expect(await ctx.accountsController.describe()).toEqual(state)
+        const durable = await ctx.credentials.readRecord(VAULT)
+        expect(durable).toHaveProperty(`payload.providers.openai-codex.accounts.${personal.id}.manualBillingDate`, '2032-02-29')
+        expect(durable).not.toHaveProperty(`payload.providers.openai-codex.accounts.${workspace.id}.manualBillingDate`)
+        const file = await readFile(credentialsPath, 'utf8')
+        expect(file).toContain('2032-02-29')
+        expect(file).not.toContain('2030-01-01')
+        expect(file).not.toContain('2031-01-01')
+        expect(await ctx.credentials.readRecord(CODEX)).toEqual(codexGrant('personal'))
+      } finally {
+        held.release.resolve(undefined)
+        await Promise.allSettled([refresh])
+      }
+    },
+  )
 })

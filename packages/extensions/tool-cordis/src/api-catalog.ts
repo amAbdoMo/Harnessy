@@ -126,7 +126,14 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         signature: '@Remote async consumeResetCredit( accountId: string, creditId: AccountResetCreditId, idempotencyKey: string, signal: AbortSignal, ): Promise<AccountResetCreditResult>',
         description: 'Consume the selected provider-issued Codex reset credit for a saved account.',
         parameters: [{ name: 'accountId', description: 'saved Codex identity whose reset credit will be consumed.' }, { name: 'creditId', description: 'exact provider credit selected by the user; automatic selection is not used.' }, { name: 'idempotencyKey', description: 'stable identifier reused when retrying the same account and credit action.' }, { name: 'signal', description: 'cancellation forwarded to provider requests.' }],
-        returns: 'the provider outcome and refreshed public account state.',
+        returns: 'the provider outcome and committed public state after refreshing only the selected membership; unrelated usage is retained, and this usage-only refresh does not automatically switch accounts.',
+      },
+      {
+        signature: '@Remote async setManualBillingDate(provider: AccountProviderId, accountId: string, date: string | null): Promise<AccountsState>',
+        description: 'Save or clear a user-entered billing reminder for exactly one saved membership. The date is never inferred, advanced, or copied to another membership.',
+        parameters: [{ name: 'provider', description: 'provider owning the saved membership.' }, { name: 'accountId', description: 'saved membership to edit, independent of the active selection.' }, { name: 'date', description: 'exact Gregorian YYYY-MM-DD (years 0001–9999), including past dates; null clears it.' }],
+        returns: 'the redacted state after persistence commits and accounts/changed is published.',
+        throws: ['RemoteError when the date is invalid, the membership is absent, or storage is unavailable; credential-provider write failures propagate without publishing a changed snapshot.'],
       },
       {
         signature: '@Remote async rename(provider: AccountProviderId, accountId: string, name: string): Promise<AccountsState>',
@@ -4014,7 +4021,7 @@ export const EVENT_API: readonly EventApiEntry[] = [
     signature: '\'accounts/changed\'(state: AccountsState): void',
     summary: 'Publish the redacted account snapshot after a committed vault change.',
     description: 'Publish the redacted account snapshot after a committed vault change.',
-    parameters: [{ name: 'state', description: 'current account identities, selection, and provider-reported usage.' }],
+    parameters: [{ name: 'state', description: 'current account identities, selection, provider-reported usage, and user-entered billing reminders.' }],
   },
   {
     name: 'agent-loop/config-start-failed',
@@ -6114,7 +6121,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ManagedAccountView',
-    declaration: 'export interface ManagedAccountView {\n    readonly id: string;\n    readonly provider: AccountProviderId;\n    readonly ownerId: string;\n    readonly name: string;\n    readonly detail?: string;\n    readonly initials: string;\n    readonly active: boolean;\n    readonly authMode: AccountAuthMode;\n    readonly usageScope?: AccountUsageScope;\n    readonly usage?: AccountUsageView;\n    readonly usageUpdatedAt?: number;\n    readonly usageError?: string;\n}',
+    declaration: 'export interface ManagedAccountView {\n    readonly id: string;\n    readonly provider: AccountProviderId;\n    readonly ownerId: string;\n    readonly name: string;\n    readonly detail?: string;\n    readonly initials: string;\n    readonly active: boolean;\n    readonly authMode: AccountAuthMode;\n    readonly usageScope?: AccountUsageScope;\n    readonly usage?: AccountUsageView;\n    readonly usageUpdatedAt?: number;\n    readonly usageError?: string;\n    readonly manualBillingDate?: string;\n}',
   },
   {
     name: 'ManagementError',

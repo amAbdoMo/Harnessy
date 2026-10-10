@@ -87,4 +87,4 @@ Host entry 为每条 Client 流独立注册一组 allowlist listener 和一个�
 
 </details>
 
-客户端组装包含 account 命名空间，用于登录操作和可重连的账号快照。
+客户端组装包含 account 命名空间，用于登录操作和可重连的账号快照。独立挂载的 `accounts` 命名空间通过 settings controller 生成的 `/remote` contribution 投射手动账单提醒操作和脱敏的 membership 日期；消费者不需要额外的 runtime import。修改该操作后，请先重新构建提供方生成的 Remote 产物，再编译 Client。

@@ -43,7 +43,10 @@ import { createSharedSkillsRowStore } from './shared-skills-store.ts'
 import {
   CustomHarnessMark, CustomHarnessName, CustomHarnessTagline, requiredBuildValue,
 } from './Brand.tsx'
-import { en, type BrandKey } from './locales.ts'
+import { en, zh, type BrandKey } from './locales.ts'
+import {
+  BillingReminderToast, type BillingReminderNotice, type BillingReminderToastInjected,
+} from './ManualBillingReminder.tsx'
 import { CUSTOM_HARNESS_THEME_TOKENS } from './tokens.ts'
 import { SHARED_SKILLS_SETTINGS_NAMESPACE, type SharedSkillsSettings } from '../shared-skills.ts'
 
@@ -70,7 +73,7 @@ export const inject = [
 export function apply(ctx: ClientContext): void {
   if (process.env.DSH_CLIENT_BUILD_PROFILE !== BUILD_PROFILE) return
 
-  ctx.effect(() => ctx.locale.register(LOCALE_NS, { en }), 'custom-harness brand: dictionaries')
+  ctx.effect(() => ctx.locale.register(LOCALE_NS, { en, zh }), 'custom-harness brand: dictionaries')
   ctx.effect(() => ctx.theme.overrideTokens(
     '@deepseek-ai/dsh-client-ui-brand-custom-harness',
     CUSTOM_HARNESS_THEME_TOKENS,
@@ -253,6 +256,14 @@ export function apply(ctx: ClientContext): void {
       dismiss: (id) => { if (resetCreditNotice.getSnapshot()?.id === id) resetCreditNotice.set(undefined) },
     }),
   }, ResetCreditToast))
+  const billingReminderNotice = createSnapshotStore<BillingReminderNotice | undefined>(undefined)
+  ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+    name: 'shell.overlay', id: 'custom-harness-billing-reminder-result', locale: LOCALE_NS,
+    inject: (): BillingReminderToastInjected => ({
+      hooks: { billingReminderNotice },
+      dismiss: (id) => { if (billingReminderNotice.getSnapshot()?.id === id) billingReminderNotice.set(undefined) },
+    }),
+  }, BillingReminderToast))
   const accountRemoteOperations: AccountsManagerOperations = {
     describe: async () => {
       const response = await ctx.remote.accounts.describe()
@@ -280,6 +291,10 @@ export function apply(ctx: ClientContext): void {
       const response = await ctx.remote.accounts.listResetCredits(accountId, signal)
       return response.ok ? { list: response.value } : { error: response.error.message }
     },
+    setManualBillingDate: async (provider, accountId, date) => {
+      const response = await ctx.remote.accounts.setManualBillingDate(provider, accountId, date)
+      return response.ok ? { state: response.value } : { error: response.error.message }
+    },
     consumeResetCredit: consumeReset,
     rename: async (provider, accountId, name) => {
       const response = await ctx.remote.accounts.rename(provider, accountId, name)
@@ -301,6 +316,18 @@ export function apply(ctx: ClientContext): void {
     addApiKey: (provider, name, key) => accountsUsage.request(() => accountRemoteOperations.addApiKey(provider, name, key)),
     activate: (provider, accountId) => accountsUsage.request(() => accountRemoteOperations.activate(provider, accountId)),
     setAutoSwitch: (provider, enabled) => accountsUsage.request(() => accountRemoteOperations.setAutoSwitch(provider, enabled)),
+    setManualBillingDate: async (provider, accountId, date) => {
+      try {
+        const response = await accountsUsage.request(() => accountRemoteOperations.setManualBillingDate(provider, accountId, date))
+        billingReminderNotice.set({ id: randomUUID(), outcome: response.error !== undefined
+          ? 'failed' : date === null ? 'cleared' : 'saved' })
+        return response
+      } catch (error) {
+        // Transport rejection leaves the saved reminder and draft available for retry.
+        billingReminderNotice.set({ id: randomUUID(), outcome: 'failed' })
+        return { error: String(error) }
+      }
+    },
     listResetCredits: (accountId, signal) => accountRemoteOperations.listResetCredits(accountId, signal),
     consumeResetCredit: (accountId, creditId) =>
       accountsUsage.request(() => accountRemoteOperations.consumeResetCredit(accountId, creditId)),
