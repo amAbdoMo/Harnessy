@@ -101,6 +101,8 @@ export function BrowserProfilePicker({
   return (
     <>
       <Menu
+        portal
+        align="end"
         open={open}
         onClose={() => { setOpen(false) }}
         items={heading}

@@ -75,7 +75,7 @@ export function BrowserProfileBar({ profileId, profiles, useWebsiteProfiles, req
       </div>
       <p className={css.profileHint}>{copy.hint}</p>
       <div className={css.profileActions}>
-        {!clearing && <Menu open={choosingRequest} onClose={() => { setChoosingRequest(false) }}
+        {!clearing && <Menu portal open={choosingRequest} onClose={() => { setChoosingRequest(false) }}
           items={available.length === 0 ? [{ type: 'label', id: 'empty', text: t('requests.empty') }]
             : available.map(request => ({ id: request.id, label: t('requests.label', { id: request.id }),
               disabled: requests?.phase !== 'ready' || requests.busy !== undefined || blocked,

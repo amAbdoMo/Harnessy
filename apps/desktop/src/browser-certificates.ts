@@ -13,24 +13,62 @@ export interface BrowserCertificatePrompt {
 /** A trusted shell decision; absence of a confirmation capability leaves TLS validation unchanged. */
 export type ConfirmBrowserCertificate = (prompt: BrowserCertificatePrompt) => Promise<boolean>
 
+interface CertificateApproval {
+  readonly origin: string
+  readonly fingerprint: string
+}
+
+interface CertificateDecision extends CertificateApproval {
+  readonly controller: AbortController
+  readonly generation: number
+  readonly address: string
+  readonly callbacks: Array<{ readonly address: string; readonly finish: (trusted: boolean) => void }>
+}
+
 /**
- * Bind explicit consent to the current main-frame navigation, never to a shared Session or hostname allowlist.
+ * Retain one approved origin and leaf fingerprint in this guest until replacement or disposal.
+ * Only authority-invalid errors can be accepted; fresh consent requires the current main-frame navigation.
+ * Matching pending resources share consent, with each request's URL rechecked; changed fingerprints withdraw consent and approval.
+ * Navigation cancels pending consent, not approval; no shared Session or hostname allowlist receives trust.
  * @param guest - exact native guest owned by the Browser lease.
  * @param owner - authenticated primary renderer that owns this lease.
  * @param eligible - live ordinary-guest ownership and existing navigation policy, rechecked before accepting.
  * @param confirm - Main-owned user confirmation; omitted means deny.
- * @returns disposer that denies any pending callback and withdraws all listeners.
+ * @returns disposer that denies pending callbacks, clears approval, and withdraws all listeners.
  */
 export function bindBrowserCertificateErrors(guest: WebContents, owner: WebContents, eligible: (url: string) => boolean,
   confirm: ConfirmBrowserCertificate | undefined): () => void {
   if (confirm === undefined) return () => {}
   let target: string | undefined
-  let pending: AbortController | undefined
+  let generation = 0
+  let approved: CertificateApproval | undefined
+  let pending: CertificateDecision | undefined
   let disposed = false
-  const advance = (url: string): void => {
-    pending?.abort()
+  const cancelPending = (): void => {
+    const decision = pending
     pending = undefined
+    decision?.controller.abort()
+  }
+  const advance = (url: string): void => {
     target = navigationTarget(url)
+    generation += 1
+    cancelPending()
+  }
+  const isEligible = (address: string): boolean => {
+    if (disposed) return false
+    let allowed = false
+    try { allowed = eligible(address) }
+    catch (_error: unknown) { /* Failed ownership checks deny this request without starving other native callbacks. */ }
+    return allowed && !disposed
+  }
+  const canConsent = (decision: CertificateDecision): boolean => isEligible(decision.address) && pending === decision
+    && !decision.controller.signal.aborted && generation === decision.generation && target === decision.address
+  const settleDecision = (decision: CertificateDecision, approval: CertificateApproval | undefined): void => {
+    if (pending === decision) pending = undefined
+    // Committed callbacks survive loading events, but never guest loss or withdrawal of this certificate.
+    for (const { address, finish } of decision.callbacks.splice(0)) {
+      finish(approval !== undefined && isEligible(address) && approved === approval)
+    }
   }
   const started = (event: { isMainFrame: boolean; isSameDocument: boolean; url: string }): void => {
     if (event.isMainFrame && !event.isSameDocument) advance(event.url)
@@ -54,27 +92,41 @@ export function bindBrowserCertificateErrors(guest: WebContents, owner: WebConte
       try { callback(trusted) }
       catch (_error: unknown) { /* A canceled native request may have already destroyed its callback. */ }
     }
+    const requestGeneration = generation
     const address = navigationTarget(url)
-    if (disposed || !mainFrame || error !== 'net::ERR_CERT_AUTHORITY_INVALID'
-      || address === undefined || address !== target || !localDevice(new URL(address).hostname)
-      || !eligible(address) || pending !== undefined) { finish(false); return }
-    const decision = new AbortController()
-    pending = decision
-    decision.signal.addEventListener('abort', () => { finish(false) }, { once: true })
+    if (address === undefined || !localDevice(new URL(address).hostname)) { finish(false); return }
+    const origin = new URL(address).origin
     const fingerprint = certificate.fingerprint
+    if (approved?.origin === origin && approved.fingerprint !== fingerprint) approved = undefined
+    if (pending?.origin === origin && pending.fingerprint !== fingerprint) cancelPending()
+    if (!isEligible(address) || error !== 'net::ERR_CERT_AUTHORITY_INVALID') { finish(false); return }
+    if (approved?.origin === origin && approved.fingerprint === fingerprint) { finish(true); return }
+    if (requestGeneration !== generation || (mainFrame && address !== target)) { finish(false); return }
+    if (pending !== undefined) {
+      if (pending.generation === generation && pending.origin === origin && pending.fingerprint === fingerprint) {
+        pending.callbacks.push({ address, finish })
+      } else finish(false)
+      return
+    }
+    if (!mainFrame || address !== target) { finish(false); return }
+    const decision: CertificateDecision = {
+      controller: new AbortController(), generation, address, origin, fingerprint, callbacks: [{ address, finish }],
+    }
+    pending = decision
+    decision.controller.signal.addEventListener('abort', () => { settleDecision(decision, undefined) }, { once: true })
     void Promise.resolve().then(() => {
-      if (decision.signal.aborted) return false
-      return confirm({ owner, origin: new URL(address).origin, fingerprint, signal: decision.signal })
+      if (!canConsent(decision)) return false
+      return confirm({ owner, origin, fingerprint, signal: decision.controller.signal })
     }).then((accepted) => {
-      finish(accepted && !decision.signal.aborted && !disposed && target === address && eligible(address))
-    }).catch((_error: unknown) => { finish(false) }).finally(() => {
-      if (pending === decision) pending = undefined
-    })
+      const approval = accepted && canConsent(decision) ? { origin, fingerprint } : undefined
+      if (approval !== undefined) approved = approval
+      settleDecision(decision, approval)
+    }).catch((_error: unknown) => { settleDecision(decision, undefined) })
   }
   const dispose = (): void => {
     disposed = true
-    pending?.abort()
-    pending = undefined
+    approved = undefined
+    cancelPending()
     guest.removeListener('did-start-navigation', started)
     guest.removeListener('will-redirect', redirected)
     guest.removeListener('certificate-error', certificateError)

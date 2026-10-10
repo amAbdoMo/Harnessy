@@ -429,7 +429,9 @@ describe('BrowserBody saved profiles', () => {
     const resume = mounted.view.getByRole('button', { name: zh['profiles.resume'] })
     expect(resume).toHaveProperty('disabled', true)
     expect(mounted.view.getByText(zh['profiles.bar.human'])).toBeDefined()
+    mounted.view.container.style.overflow = 'hidden'
     fireEvent.click(mounted.view.getByRole('button', { name: zh['requests.choose'] }))
+    expect(mounted.view.container.contains(mounted.view.getByRole('menu'))).toBe(false)
     const selectedLabel = zh['requests.label'].replace('{id}', requestId)
     fireEvent.click(mounted.view.getByRole('menuitem', { name: selectedLabel }))
     expect(resume).toHaveProperty('disabled', false)
@@ -505,6 +507,25 @@ describe('BrowserBody saved profiles', () => {
     expect(mounted.view.getByText(zh['profiles.desktopOnly'])).toBeDefined()
     expect(mounted.view.queryByRole('button', { name: zh['profiles.button'] })).toBeNull()
     expect(mounted.view.queryByText(zh['profiles.missing'])).toBeNull()
+  })
+
+  it('keeps the account menu outside clipped toolbar ancestors and inside the right window edge', () => {
+    const width = 260
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(new DOMRect(window.innerWidth - 36, 20, 24, 24))
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(width)
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(180)
+    const mounted = mountProfileTab(profileCommands(), { profiles: [PROFILE] })
+    mounted.view.container.style.overflow = 'hidden'
+    fireEvent.click(mounted.view.getByRole('button', { name: zh['profiles.button'] }))
+    const menu = mounted.view.getByRole('menu')
+    expect(mounted.view.container.contains(menu)).toBe(false)
+    expect(parseFloat(menu.style.left)).toBe(window.innerWidth - 12 - width)
+    expect(menu.textContent).toContain(PROFILE.name)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(mounted.view.queryByRole('menu')).toBeNull()
+    fireEvent.click(mounted.view.getByRole('button', { name: zh['profiles.button'] }))
+    fireEvent.pointerDown(document.body)
+    expect(mounted.view.queryByRole('menu')).toBeNull()
   })
 
   it('opens a saved profile page from the picker and marks the profile this tab uses', () => {
