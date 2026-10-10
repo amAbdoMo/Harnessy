@@ -159,9 +159,6 @@
   position: relative;
   min-width: 0;
 }
-.menuBody > .node {
-  margin-left: -2px;
-}
 
 .row {
   position: relative;
@@ -171,7 +168,7 @@
   box-sizing: border-box;
   width: 100%;
   min-height: 44px;
-  padding: 6px 7px 6px 9px;
+  padding: 6px 7px;
   border: 0;
   border-radius: var(--dsw-radius-lg);
   background: transparent;
@@ -356,7 +353,7 @@
 }
 
 .completedGroup {
-  margin: 2px 4px 1px;
+  margin: 2px 0 1px;
 }
 
 .completedGroup[data-working='true'] {
@@ -395,7 +392,7 @@
 }
 
 .completedRows {
-  margin-left: 10px;
+  margin: 0;
 }
 
 .notice,

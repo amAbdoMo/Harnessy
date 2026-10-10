@@ -1,16 +1,17 @@
 import type { AccountView } from '@deepseek-ai/dsh-deepseek-account/types'
 import type { DesktopBrowserReservation, DesktopWebsiteHostCommand, DesktopWebsiteHostSnapshot, DesktopWebsiteProfile, DesktopWebsiteRequestReceipt } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
 import { EventEmitter } from 'node:events'
+import { JSDOM } from 'jsdom'
 import { SessionId } from '@deepseek-ai/dsh-session/types'
 import { registerWindowsToastIdentity } from '../src/windows-notification-registration.ts'
 import { WINDOWS_TITLEBAR_HEIGHT } from '../src/windows-layout.ts'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
-import type { IpcMainInvokeEvent } from 'electron'
+import type { BrowserWindow, IpcMainInvokeEvent } from 'electron'
 import { join } from 'node:path'
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import type { MenuItemConstructorOptions, MessageBoxOptions } from 'electron'
-import { DESKTOP_IPC, type DesktopUpdateState } from '../src/ipc.ts'
+import { DESKTOP_IPC, type DesktopUpdateState, type DshDesktopProductApi } from '../src/ipc.ts'
 import { MANDATORY_IPC } from '../src/mandatory-update-ipc.ts'
 import { DesktopHostFatalError, DesktopHostUncleanExitError, type DesktopHostProcess } from '../src/host-process.ts'
 import { en, zh } from '../src/locale.ts'
@@ -55,6 +56,23 @@ const harness = await vi.hoisted(async () => {
   const windows: FakeWindow[] = []
   let windowFailure: Error | undefined
   const powerMonitor = new EventEmitter()
+  const systemPreferences = Object.assign(new EventEmitter(), { getAccentColor: vi.fn(() => '336699ff') })
+  const createFromBitmap = vi.fn((bitmap: Buffer, size: { width: number; height: number }) => ({
+    toBitmap: () => Buffer.from(bitmap), getSize: () => size,
+  }))
+  const exposed = new Map<string, unknown>()
+  const exposeInMainWorld = vi.fn((name: string, api: unknown) => { exposed.set(name, api) })
+  let ticketSettlement: Promise<undefined> | undefined
+  const rendererInvoke = vi.fn(async (channel: string, ...args: unknown[]): Promise<unknown> => {
+    const owner = windows[0]
+    const handler = handlers.get(channel)
+    if (owner === undefined || handler === undefined) throw new Error(`Missing native owner or IPC handler ${channel}`)
+    const reply = handler({ sender: owner.webContents, senderFrame: owner.webContents.mainFrame }, ...args)
+    if (channel === DESKTOP_IPC.taskbarDocument) await ticketSettlement
+    return reply
+  })
+  const rendererEvents = new EventEmitter()
+  const rendererSend = vi.fn()
   const hosts: FakeHost[] = []
   const handlers = new Map<string, InvokeHandler>()
   let pluginsEnabled = false
@@ -98,7 +116,7 @@ const harness = await vi.hoisted(async () => {
       openDevTools: vi.fn(),
       getURL: () => this.urls.at(-1) ?? '',
       isLoadingMainFrame: vi.fn(() => false),
-      mainFrame: { url: '' },
+      mainFrame: { url: '', processId: 10, routingId: 20, detached: false, isDestroyed: () => this.destroyed },
       getZoomFactor: () => 1,
       isDestroyed: () => this.destroyed,
       setIgnoreMenuShortcuts: vi.fn(),
@@ -118,6 +136,7 @@ const harness = await vi.hoisted(async () => {
     readonly setSize = vi.fn()
     readonly getBounds = vi.fn(() => ({ x: 0, y: 0, width: 800, height: 700 }))
     readonly setMinimumSize = vi.fn()
+    readonly setOverlayIcon = vi.fn<BrowserWindow['setOverlayIcon']>()
     readonly setTitleBarOverlay = vi.fn()
     readonly setVibrancy = vi.fn()
     readonly setBackgroundColor = vi.fn()
@@ -245,6 +264,8 @@ const harness = await vi.hoisted(async () => {
   return {
     failWindow(error: Error) { windowFailure = error },
     windows, hosts, handlers, app, FakeWindow, FakeHost, powerMonitor, nativeTheme, analytics, loginShell, readLoginShell,
+    systemPreferences, createFromBitmap, exposed, exposeInMainWorld, rendererInvoke, rendererEvents, rendererSend,
+    set ticketSettlement(promise: Promise<undefined> | undefined) { ticketSettlement = promise },
     trays, FakeTray, backgroundNotice, shellDialog, notifications, FakeNotification, writeShortcutLink, readShortcutLink,
     menu, popup, socketHeaders: vi.fn(), updateCheck, updateDownload, updateVerify, updateInstall,
     platformDispose,
@@ -299,6 +320,11 @@ const harness = await vi.hoisted(async () => {
       backgroundNotice.markerPath = undefined
       shellDialog.isOpen = false
       powerMonitor.removeAllListeners()
+      systemPreferences.removeAllListeners()
+      systemPreferences.getAccentColor.mockReset().mockReturnValue('336699ff')
+      exposed.clear()
+      rendererEvents.removeAllListeners()
+      ticketSettlement = undefined
       app.isPackaged = true
       windowFailure = undefined
       pluginsEnabled = false
@@ -321,6 +347,8 @@ const harness = await vi.hoisted(async () => {
     },
   }
 })
+
+const rendererCleanups: (() => void | Promise<void>)[] = []
 
 const testAuth = vi.hoisted(() => ({ login: vi.fn<() => Promise<'returned' | 'cancelled' | 'failed'>>(),
   focus: vi.fn(), dispose: vi.fn(async () => {}) }))
@@ -356,7 +384,16 @@ vi.mock('electron', () => ({
   protocol: { registerSchemesAsPrivileged: vi.fn(), handle: harness.protocolHandle },
   powerMonitor: harness.powerMonitor,
   Tray: harness.FakeTray,
-  nativeImage: { createFromPath: (path: string) => ({ path }) },
+  nativeImage: { createFromPath: (path: string) => ({ path }), createFromBitmap: harness.createFromBitmap },
+  systemPreferences: harness.systemPreferences,
+  contextBridge: { exposeInMainWorld: harness.exposeInMainWorld },
+  ipcRenderer: {
+    invoke: harness.rendererInvoke,
+    on: (channel: string, listener: (...args: unknown[]) => void) => { harness.rendererEvents.on(channel, listener) },
+    off: (channel: string, listener: (...args: unknown[]) => void) => { harness.rendererEvents.off(channel, listener) },
+    send: harness.rendererSend,
+  },
+  webUtils: { getPathForFile: () => '' },
 }))
 vi.mock('../src/background-notice.ts', () => ({ DesktopBackgroundNotice: class {
   constructor(options: { markerPath: string }) { harness.backgroundNotice.markerPath = options.markerPath }
@@ -491,6 +528,7 @@ beforeEach(() => {
 })
 
 afterEach(async () => {
+  for (const cleanup of rendererCleanups.splice(0).reverse()) await cleanup()
   harness.prepared.resolve()
   for (const host of harness.hosts) { host.ready.resolve(); host.exited.resolve() }
   harness.app.quit()
@@ -1125,6 +1163,182 @@ describe('desktop main startup', () => {
     await harness.navigated.promise
     return harness.hosts[0]!
   }
+
+  async function loadProductPreload(initialReadiness: DocumentReadyState = 'loading') {
+    const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>')
+    // Electron DOM-ready and renderer load are separate signals. The event target suppresses jsdom's automatic load.
+    const rendererWindow = new EventTarget()
+    rendererCleanups.push(() => { rendererWindow.dispatchEvent(new Event('pagehide')); dom.window.close() })
+    let readiness = initialReadiness
+    if (initialReadiness === 'complete') {
+      const canvas: Pick<CanvasRenderingContext2D, 'clearRect' | 'fillStyle' | 'fillRect' | 'getImageData'> = {
+        clearRect: () => {}, fillStyle: '', fillRect: () => {},
+        getImageData: () => ({ data: new Uint8ClampedArray([0, 0, 0, 255]), width: 1, height: 1, colorSpace: 'srgb' }),
+      }
+      vi.spyOn(dom.window.HTMLCanvasElement.prototype, 'getContext').mockReturnValue(canvas as CanvasRenderingContext2D)
+      vi.stubGlobal('getComputedStyle', dom.window.getComputedStyle.bind(dom.window))
+    }
+    vi.spyOn(dom.window.document, 'readyState', 'get').mockImplementation(() => readiness)
+    vi.stubGlobal('document', dom.window.document)
+    vi.stubGlobal('window', rendererWindow)
+    vi.stubGlobal('location', new URL('dsh-app://app/'))
+    vi.stubGlobal('MutationObserver', dom.window.MutationObserver)
+    vi.stubGlobal('process', { ...process, platform: 'win32', isMainFrame: true })
+    await import('../src/preload-app.ts')
+    const exposed = harness.exposed.get('dshDesktop') as DshDesktopProductApi | undefined
+    if (exposed?.taskbar === undefined) throw new Error('Windows preload did not expose taskbar')
+    return {
+      taskbar: exposed.taskbar,
+      load: () => { readiness = 'complete'; rendererWindow.dispatchEvent(new Event('load')) },
+    }
+  }
+
+  function drainTaskbarPublications(publications: readonly Promise<void>[], release: () => void): void {
+    const settled = Promise.allSettled(publications)
+    rendererCleanups.push(async () => { release(); await settled })
+  }
+
+  it('installs real taskbar IPC, accepts only the captured document, and disposes its native owner on quit', async () => {
+    await readyForUpdate()
+    const window = harness.windows[0]
+    if (window === undefined) throw new Error('Missing primary window')
+    const epoch = invoke(DESKTOP_IPC.taskbarDocument, 'app')
+    expect(() => invoke(DESKTOP_IPC.taskbarSetUnread, 'app', true, epoch)).toThrow('stale application document')
+    window.webContents.isLoadingMainFrame.mockReturnValue(true)
+    window.webContents.emit('dom-ready')
+    invoke(DESKTOP_IPC.taskbarSetUnread, 'app', true, epoch)
+    const overlay = window.setOverlayIcon.mock.lastCall?.[0]
+    expect(overlay?.getSize()).toEqual({ width: 16, height: 16 })
+    expect([...overlay?.toBitmap().subarray((7 * 16 + 7) * 4, (7 * 16 + 7) * 4 + 4) ?? []]).toEqual([153, 102, 51, 255])
+    expect(() => invoke(DESKTOP_IPC.taskbarSetUnread, 'shell', true, epoch)).toThrow('unowned renderer')
+    const unreadHandler = harness.handlers.get(DESKTOP_IPC.taskbarSetUnread)
+    if (unreadHandler === undefined) throw new Error('Missing taskbar unread handler')
+    expect(() => unreadHandler({ sender: {}, senderFrame: window.webContents.mainFrame }, true, epoch)).toThrow('unowned renderer')
+    harness.app.emit('will-quit')
+    expect(window.setOverlayIcon.mock.lastCall).toEqual([null, ''])
+    expect(harness.handlers.has(DESKTOP_IPC.taskbarDocument)).toBe(false)
+    expect(harness.handlers.has(DESKTOP_IPC.taskbarSetUnread)).toBe(false)
+    expect(harness.systemPreferences.listenerCount('accent-color-changed')).toBe(0)
+    expect(() => unreadHandler({ sender: window.webContents, senderFrame: window.webContents.mainFrame }, true, epoch)).toThrow('stale')
+  })
+
+  it.each(['before-load', 'after-load'] as const)('composes the real preload single early publication with main IPC when the ticket settles %s', async (settlement) => {
+    await readyForUpdate()
+    const window = harness.windows[0]
+    if (window === undefined) throw new Error('Missing primary window')
+    const ticket = Promise.withResolvers<undefined>()
+    harness.ticketSettlement = ticket.promise
+    onTestFinished(() => { ticket.resolve(undefined) })
+    const renderer = await loadProductPreload()
+    // The publisher may dedupe this initial value; acceptance must not depend on a second publication.
+    const published = renderer.taskbar.setUnread(true)
+    drainTaskbarPublications([published], () => { renderer.load(); ticket.resolve(undefined) })
+    expect(harness.rendererInvoke.mock.calls.filter(([channel]) => channel === DESKTOP_IPC.taskbarSetUnread)).toEqual([])
+    window.webContents.isLoadingMainFrame.mockReturnValue(true)
+    window.webContents.emit('dom-ready')
+    if (settlement === 'before-load') {
+      const requestIndex = harness.rendererInvoke.mock.calls.findIndex(([channel]) => channel === DESKTOP_IPC.taskbarDocument)
+      const request = harness.rendererInvoke.mock.results[requestIndex]
+      if (request?.type !== 'return') throw new Error('Missing preload document-ticket request')
+      ticket.resolve(undefined)
+      // The aggregate resumes after the preload's earlier ticket continuation reaches its renderer-load wait.
+      await Promise.all([request.value])
+      expect(harness.rendererInvoke.mock.calls.filter(([channel]) => channel === DESKTOP_IPC.taskbarSetUnread)).toEqual([])
+    }
+    renderer.load()
+    if (settlement === 'after-load') ticket.resolve(undefined)
+    await published
+    expect(harness.rendererInvoke.mock.calls.filter(([channel]) => channel.startsWith('dsh-desktop:taskbar-'))).toEqual([
+      [DESKTOP_IPC.taskbarDocument], [DESKTOP_IPC.taskbarSetUnread, true, 0],
+    ])
+    expect(window.setOverlayIcon.mock.lastCall?.[0]?.getSize()).toEqual({ width: 16, height: 16 })
+  })
+
+  it('publishes through the real preload imported after renderer load without waiting for another load event', async () => {
+    await readyForUpdate()
+    const window = harness.windows[0]
+    if (window === undefined) throw new Error('Missing primary window')
+    window.webContents.emit('dom-ready')
+    const renderer = await loadProductPreload('complete')
+    await renderer.taskbar.setUnread(true)
+    expect(harness.rendererInvoke.mock.calls.filter(([channel]) => channel === DESKTOP_IPC.taskbarSetUnread)).toEqual([
+      [DESKTOP_IPC.taskbarSetUnread, true, 0],
+    ])
+    expect(window.setOverlayIcon.mock.lastCall?.[0]?.getSize()).toEqual({ width: 16, height: 16 })
+  })
+
+  it('rejects a failed pending preload ticket without dispatching unread after renderer load', async () => {
+    await readyForUpdate()
+    const ticket = Promise.withResolvers<undefined>()
+    harness.ticketSettlement = ticket.promise
+    onTestFinished(() => { ticket.resolve(undefined) })
+    const renderer = await loadProductPreload()
+    const published = renderer.taskbar.setUnread(true)
+    drainTaskbarPublications([published], () => { renderer.load(); ticket.resolve(undefined) })
+    const failed = expect(published).rejects.toThrow('ticket transport failed')
+    renderer.load()
+    ticket.reject(new Error('ticket transport failed'))
+    await failed
+    expect(harness.rendererInvoke.mock.calls.filter(([channel]) => channel === DESKTOP_IPC.taskbarSetUnread)).toEqual([])
+    expect(harness.createFromBitmap).not.toHaveBeenCalled()
+  })
+
+  it('preserves pending true, false and HMR-clear order through preload ticket and renderer-load readiness', async () => {
+    await readyForUpdate()
+    const window = harness.windows[0]
+    if (window === undefined) throw new Error('Missing primary window')
+    const ticket = Promise.withResolvers<undefined>()
+    harness.ticketSettlement = ticket.promise
+    onTestFinished(() => { ticket.resolve(undefined) })
+    const renderer = await loadProductPreload()
+    const pending = [renderer.taskbar.setUnread(true), renderer.taskbar.setUnread(false), renderer.taskbar.setUnread(false)]
+    drainTaskbarPublications(pending, () => { renderer.load(); ticket.resolve(undefined) })
+    expect(harness.createFromBitmap).not.toHaveBeenCalled()
+    window.webContents.emit('dom-ready')
+    renderer.load()
+    expect(harness.createFromBitmap).not.toHaveBeenCalled()
+    ticket.resolve(undefined)
+    await Promise.all(pending)
+    expect(harness.rendererInvoke.mock.calls.filter(([channel]) => channel === DESKTOP_IPC.taskbarSetUnread)).toEqual([
+      [DESKTOP_IPC.taskbarSetUnread, true, 0], [DESKTOP_IPC.taskbarSetUnread, false, 0], [DESKTOP_IPC.taskbarSetUnread, false, 0],
+    ])
+    expect(harness.createFromBitmap).toHaveBeenCalledOnce()
+    expect(window.setOverlayIcon.mock.lastCall).toEqual([null, ''])
+  })
+
+  it('retires same-frame same-origin tickets immediately on reload and accepts only the new preload epoch', async () => {
+    await readyForUpdate()
+    const window = harness.windows[0]
+    if (window === undefined) throw new Error('Missing primary window')
+    const ticket = Promise.withResolvers<undefined>()
+    harness.ticketSettlement = ticket.promise
+    onTestFinished(() => { ticket.resolve(undefined) })
+    const oldRenderer = await loadProductPreload()
+    window.webContents.emit('dom-ready')
+    const published = oldRenderer.taskbar.setUnread(true)
+    drainTaskbarPublications([published], () => { oldRenderer.load(); ticket.resolve(undefined) })
+    const failed = expect(published).rejects.toThrow('stale document ticket')
+    const sameFrame = window.webContents.mainFrame
+    window.webContents.emit('did-start-navigation', { isMainFrame: true, isSameDocument: false })
+    expect(() => invoke(DESKTOP_IPC.taskbarSetUnread, 'app', true, 0)).toThrow('stale application document')
+    expect(window.webContents.mainFrame).toBe(sameFrame)
+    window.webContents.emit('dom-ready')
+    oldRenderer.load()
+    ticket.resolve(undefined)
+    await failed
+    expect(harness.createFromBitmap).not.toHaveBeenCalled()
+    // Re-evaluate only the preload entry; main and its registered native owner remain installed.
+    vi.resetModules()
+    harness.ticketSettlement = undefined
+    const replacement = await loadProductPreload()
+    window.webContents.emit('dom-ready')
+    replacement.load()
+    await replacement.taskbar.setUnread(true)
+    expect(harness.rendererInvoke.mock.calls.filter(([channel]) => channel === DESKTOP_IPC.taskbarSetUnread)).toEqual([
+      [DESKTOP_IPC.taskbarSetUnread, true, 0], [DESKTOP_IPC.taskbarSetUnread, true, 1],
+    ])
+    expect(window.setOverlayIcon.mock.lastCall?.[0]?.getSize()).toEqual({ width: 16, height: 16 })
+  })
 
   it('opens Harnessy directly when no DeepSeek credential is configured', async () => {
     await import('../src/main.ts')

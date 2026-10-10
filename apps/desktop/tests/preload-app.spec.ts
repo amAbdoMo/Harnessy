@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { installMandatoryUpdateOverlay } from '../src/preload-mandatory-overlay.ts'
-import { syncWindowsAppearance } from '../src/preload-windows.ts'
+import { MANDATORY_IPC } from '../src/mandatory-update-ipc.ts'
 import { DESKTOP_IPC, type DshDesktopProductApi } from '../src/ipc.ts'
 import { SessionId } from '@deepseek-ai/dsh-session/types'
 
@@ -12,21 +11,42 @@ const electron = vi.hoisted(() => ({
   webUtils: { getPathForFile: vi.fn() },
 }))
 vi.mock('electron', () => electron)
-vi.mock('../src/preload-platform.ts', () => ({ markDocumentPlatform: vi.fn(), syncWindowFullscreen: vi.fn() }))
-vi.mock('../src/preload-theme.ts', () => ({ syncNativeTheme: vi.fn() }))
-vi.mock('../src/preload-windows.ts', () => ({ syncWindowsAppearance: vi.fn() }))
-vi.mock('../src/preload-mandatory-overlay.ts', () => ({ installMandatoryUpdateOverlay: vi.fn() }))
 
-beforeEach(() => { vi.stubGlobal('process', { ...process, isMainFrame: true }) })
-afterEach(() => { document.body.replaceChildren(); vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.clearAllMocks(); vi.resetModules() })
+const responses = new Map<string, unknown>()
 
-it('reads only native login API-key presence through the onboarding bridge', async () => {
+beforeEach(() => {
+  vi.stubGlobal('process', { ...process, platform: 'win32', isMainFrame: true })
+  // Preload runs before the parser completes; automatic jsdom load must not install unrelated native caption rendering.
+  vi.stubGlobal('window', new EventTarget())
+  vi.spyOn(document, 'readyState', 'get').mockReturnValue('loading')
+  responses.clear()
+  responses.set(DESKTOP_IPC.taskbarDocument, 0)
+  electron.ipcRenderer.invoke.mockReset().mockImplementation(async (channel: string) => {
+    if (channel === MANDATORY_IPC.status) throw new Error('No mandatory policy configured')
+    return responses.get(channel)
+  })
+})
+afterEach(() => {
+  window.dispatchEvent(new Event('pagehide'))
+  document.body.replaceChildren()
+  delete document.documentElement.dataset.platform
+  delete document.documentElement.dataset.windowsTitlebar
+  document.documentElement.style.removeProperty('--dsh-windows-titlebar-height')
+  vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.clearAllMocks(); vi.resetModules()
+})
+
+it.each(['win32', 'darwin', 'linux'] as const)('reads channel-specific login presence without consuming it for the taskbar ticket (%s)', async (platform) => {
+  vi.stubGlobal('process', { ...process, platform })
   vi.stubGlobal('location', new URL('dsh-app://app/'))
-  electron.ipcRenderer.invoke.mockResolvedValueOnce(true)
+  responses.set(DESKTOP_IPC.onboardingApiKey, true)
   await import('../src/preload-app.ts')
   const api = electron.contextBridge.exposeInMainWorld.mock.calls.find(([name]) => name === 'dshOnboarding')?.[1] as { hasApiKey(): Promise<boolean> }
   expect(await api.hasApiKey()).toBe(true)
-  expect(electron.ipcRenderer.invoke).toHaveBeenCalledWith(DESKTOP_IPC.onboardingApiKey)
+  expect(electron.ipcRenderer.invoke.mock.calls).toEqual([
+    ...(platform === 'win32' ? [[MANDATORY_IPC.status], [DESKTOP_IPC.taskbarDocument]] : []), [DESKTOP_IPC.onboardingApiKey],
+  ])
+  const product = electron.contextBridge.exposeInMainWorld.mock.calls.find(([name]) => name === 'dshDesktop')?.[1] as DshDesktopProductApi
+  expect(product.taskbar === undefined).toBe(platform !== 'win32')
 })
 
 it('exposes onboarding size activation to the application document', async () => {
@@ -46,7 +66,7 @@ it('exposes update controls and native notifications only to the product documen
   await api.updates.open()
   await api.notifications.show({ title: 'Task finished', body: 'The task completed.' })
   expect(electron.ipcRenderer.invoke.mock.calls).toEqual([
-    [DESKTOP_IPC.updatesStatus], [DESKTOP_IPC.updatesOpen],
+    [MANDATORY_IPC.status], [DESKTOP_IPC.taskbarDocument], [DESKTOP_IPC.updatesStatus], [DESKTOP_IPC.updatesOpen],
     [DESKTOP_IPC.notificationsShow, { title: 'Task finished', body: 'The task completed.' }],
   ])
   expect(api).not.toHaveProperty('plugins')
@@ -99,11 +119,11 @@ it.each(['dsh-app://shell/plugin-manager.html', 'dsh-app://other/index.html', 'h
 it('reads the local machine description only from the application main frame', async () => {
   const description = 'platform=darwin; os=15.6; app_arch=arm64; cpu=Apple M4; memory_gib=32.0'
   vi.stubGlobal('location', new URL('dsh-app://app/index.html'))
-  electron.ipcRenderer.invoke.mockResolvedValue(description)
+  responses.set(DESKTOP_IPC.deviceInfo, description)
   await import('../src/preload-app.ts')
   const api = electron.contextBridge.exposeInMainWorld.mock.calls.find(([name]) => name === 'dshDesktop')?.[1] as DshDesktopProductApi
   await expect(api.deviceInfo()).resolves.toBe(description)
-  expect(electron.ipcRenderer.invoke).toHaveBeenCalledExactlyOnceWith(DESKTOP_IPC.deviceInfo)
+  expect(electron.ipcRenderer.invoke.mock.calls).toEqual([[MANDATORY_IPC.status], [DESKTOP_IPC.taskbarDocument], [DESKTOP_IPC.deviceInfo]])
   vi.resetModules()
   electron.contextBridge.exposeInMainWorld.mockClear()
   vi.stubGlobal('process', { ...process, isMainFrame: false })
@@ -130,9 +150,11 @@ it('exposes a directory picker only to the local application document', async ()
   vi.stubGlobal('location', new URL('dsh-app://app/'))
   await import('../src/preload-app.ts')
   const api = electron.contextBridge.exposeInMainWorld.mock.calls.find(([name]) => name === '__DSH_DIRECTORY_PICKER__')?.[1] as { pick(): Promise<string | null> }
-  electron.ipcRenderer.invoke.mockResolvedValue('/workspace')
+  responses.set(DESKTOP_IPC.directoryPick, '/workspace')
   await expect(api.pick()).resolves.toBe('/workspace')
-  expect(electron.ipcRenderer.invoke).toHaveBeenCalledExactlyOnceWith(DESKTOP_IPC.directoryPick)
+  expect(electron.ipcRenderer.invoke.mock.calls).toEqual([
+    [MANDATORY_IPC.status], [DESKTOP_IPC.taskbarDocument], [DESKTOP_IPC.directoryPick],
+  ])
   for (const url of ['dsh-app://shell/startup.html', 'https://example.com/']) {
     vi.resetModules()
     electron.contextBridge.exposeInMainWorld.mockClear()
@@ -163,7 +185,7 @@ it.each(['dsh-app://app/', 'dsh-app://shell/plugin-manager.html', 'https://examp
   'installs Windows appearance only for the application document (%s)', async (url) => {
     vi.stubGlobal('location', new URL(url))
     await import('../src/preload-app.ts')
-    expect(syncWindowsAppearance).toHaveBeenCalledTimes(url === 'dsh-app://app/' ? 1 : 0)
+    expect(document.documentElement.dataset.windowsTitlebar === '').toBe(url === 'dsh-app://app/')
   },
 )
 
@@ -191,10 +213,16 @@ it.each(['win32', 'darwin'] as const)('installs the embedded mandatory UI only i
   vi.stubGlobal('process', { ...process, platform })
   for (const url of ['dsh-app://app/', 'dsh-app://shell/mandatory-update.html', 'https://example.com/']) {
     vi.resetModules()
-    vi.mocked(installMandatoryUpdateOverlay).mockClear()
+    electron.ipcRenderer.on.mockClear()
+    electron.ipcRenderer.invoke.mockClear()
     vi.stubGlobal('location', new URL(url))
     await import('../src/preload-app.ts')
-    expect(installMandatoryUpdateOverlay).toHaveBeenCalledTimes(platform === 'win32' && url === 'dsh-app://app/' ? 1 : 0)
+    expect(electron.ipcRenderer.on.mock.calls.filter(([channel]) => channel === MANDATORY_IPC.state)).toHaveLength(
+      platform === 'win32' && url === 'dsh-app://app/' ? 1 : 0,
+    )
+    expect(electron.ipcRenderer.invoke.mock.calls.filter(([channel]) => channel === MANDATORY_IPC.status)).toEqual(
+      platform === 'win32' && url === 'dsh-app://app/' ? [[MANDATORY_IPC.status]] : [],
+    )
   }
 })
 

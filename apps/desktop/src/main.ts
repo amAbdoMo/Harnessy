@@ -70,6 +70,7 @@ import { installDesktopShortcuts } from './keyboard.ts'
 import { DesktopUpdateOverlays } from './update-overlay.ts'
 import { DesktopQuitConfirmation } from './quit-confirmation.ts'
 import { DesktopTray } from './tray.ts'
+import { DesktopTaskbarUnread, installDesktopTaskbarIpc } from './taskbar-unread.ts'
 import { DesktopBackgroundNotice } from './background-notice.ts'
 import { windowsNotificationApplicationId, windowsNotificationShortcut } from './windows-notifications.ts'
 import { registerWindowsToastIdentity, type LegacyWindowsToastShortcut } from './windows-notification-registration.ts'
@@ -473,6 +474,7 @@ async function main(): Promise<void> {
   let mandatoryUI: DesktopMandatoryUpdateWindow | undefined
   let policyAuth: DesktopPolicyTestAuth | undefined
   let tray: DesktopTray | undefined
+  let taskbar: DesktopTaskbarUnread | undefined
   /**
    * The operating system is ending the session: the quit skips its confirmation. Windows sets it
    * on the definitive session-end message. macOS sets it on the power-off notification, which
@@ -608,6 +610,8 @@ async function main(): Promise<void> {
       throw new Error('dsh desktop: rejected IPC from an unowned renderer')
     }
   }
+  const detachTaskbarIpc = installDesktopTaskbarIpc(ipcMain, assertProductSender, () => taskbar)
+  app.once('will-quit', () => { detachTaskbarIpc(); taskbar?.dispose() })
   const detachWebsiteRequestIpc = installWebsiteRequestIpc(ipcMain, assertProductSender, websiteAuthority)
   const detachWebsiteRequestChanges = websiteAuthority.subscribe(() => {
     if (mainWindow !== undefined && !mainWindow.isDestroyed()) {
@@ -1312,6 +1316,7 @@ async function main(): Promise<void> {
       submenu: [...applicationItems(), ...devToolsItems],
     }, ...platformMenus()]))
     tray?.relabel()
+    taskbar?.repaint()
   }
   refreshApplicationMenu()
   const trayIconPath = development ? join(app.getAppPath(), 'resources', 'tray-windows.ico')
@@ -1401,6 +1406,8 @@ async function main(): Promise<void> {
   const createMainWindow = (): BrowserWindow => {
     const window = createWindow(appPreload, applicationIconPath, false, true)
     mainWindow = window
+    taskbar?.dispose()
+    taskbar = process.platform === 'win32' ? new DesktopTaskbarUnread(window, currentDesktopLocale) : undefined
     window.webContents.on('did-finish-load', () => { notificationActivation.flush() })
     browserGuests.bind(window, (guest, name) => shortcuts.attachGuest(window, guest, name))
     shortcuts.attach(window)
@@ -1607,6 +1614,7 @@ async function main(): Promise<void> {
     quitConfirmation.dispose()
     backgroundNotice?.dispose()
     tray?.dispose()
+    taskbar?.dispose()
     stopAccount?.()
     if (welcomeWindow !== undefined && !welcomeWindow.isDestroyed()) welcomeWindow.hide()
     if (mainWindow !== undefined && !mainWindow.isDestroyed()) mainWindow.hide()
@@ -1626,6 +1634,7 @@ async function main(): Promise<void> {
       backgroundNotice?.dispose()
       updateJournal?.action('quit-requested')
       tray?.dispose()
+      taskbar?.dispose()
       updateDialog.dispose()
       mandatoryUI?.dispose()
       // Installation preparation already awaited Platform storage cleanup.

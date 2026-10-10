@@ -46,6 +46,8 @@ export const DESKTOP_IPC = {
   websiteRequestsChanged: 'dsh-desktop:website-requests-changed',
   directoryPick: 'dsh-desktop:directory-pick',
   deviceInfo: 'dsh-desktop:device-info',
+  taskbarDocument: 'dsh-desktop:taskbar-document',
+  taskbarSetUnread: 'dsh-desktop:taskbar-set-unread',
   localeBootstrap: 'dsh-desktop:locale-bootstrap',
   localeChanged: 'dsh-desktop:locale-changed',
   updatesStatus: 'dsh-desktop:updates-status',
@@ -156,6 +158,18 @@ export interface DesktopUpdatePresentation {
 /** Product documents cannot supply update versions, package URLs, or installation authorization. */
 export interface DshDesktopProductApi {
   readonly protocolVersion: 1
+  /** Windows-only taskbar app-icon overlay; no counts or app-navigation badges. */
+  readonly taskbar?: {
+    /**
+     * Publish current ordinary-Session unread state; false clears the overlay.
+     * Dispatch waits for the private document ticket and renderer load; stale document calls reject.
+     * Main-document replacement, renderer loss and native owner teardown also clear it.
+     * Native accent and overlay failures are diagnosed without rejecting accepted state; a later repaint retries unread state.
+     * @param unread - whether any non-subagent Session has an unread completion.
+     * @returns completion of state acceptance and best-effort native painting, not evidence of Windows presentation.
+     */
+    setUnread(unread: boolean): Promise<void>
+  }
   readonly browser: DesktopBrowserBridge
   readonly preview: DesktopDevicePreviewBridge
   readonly keyboard: DesktopKeyboardApi

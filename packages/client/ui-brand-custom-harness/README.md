@@ -35,6 +35,8 @@ The MCP Servers section presents one compact card per saved server, with a warm 
 
 A native task or action-needed notification selects its existing Session through workspace navigation, without reloading the application document. Selection waits for the initial Session catalog; a removed Session leaves the current view unchanged. Account and MCP notifications open the app without a Session target. The [Desktop notification registration](../../../apps/desktop/README.md#native-activity-notifications) owns Windows branding, protocol activation, and development limitations.
 
+The Windows taskbar app icon shows an unread dot when a listed, non-archived ordinary Session completes outside the main conversation view. Reading the Session clears its existing local completion reminder; reading notification history does not. Subagent completions, unlisted or missing metadata, and unselected blank Sessions do not contribute. Historical idle Sessions do not become unread on startup. This window-local indicator follows the native Windows accent color, not the Conversations button or the notification bell. Ordinary Web pages have no native indicator. The publisher sends only a boolean to the optional desktop carrier and clears it when its plugin unloads or the page leaves. Carrier failures are logged without changing Session unread state.
+
 <a id="model-experience"></a>
 ## Model Experience
 

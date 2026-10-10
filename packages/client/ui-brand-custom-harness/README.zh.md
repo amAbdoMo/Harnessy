@@ -35,6 +35,8 @@ MCP Servers 区域为每个已保存服务器显示紧凑卡片，整张卡片�
 
 原生任务或需要用户操作的通知通过工作区导航选择仍然存在的 Session，不重新加载应用文档。选择操作会等待初始 Session 目录；Session 已移除时保留当前视图。账户与 MCP 通知只打开应用，不指定 Session。[Desktop 通知注册](../../../apps/desktop/README.zh.md#native-activity-notifications)负责 Windows 品牌、协议激活和开发版本限制。
 
+当仍在列表中、未归档的普通 Session 在主对话视图之外完成时，Windows 任务栏应用图标会显示未读圆点。阅读该 Session 会清除现有的本地完成提醒；阅读通知历史不会清除它。子代理完成、未列出或缺少元数据的 Session，以及未选中的空白 Session 均不参与计算。启动时不会把历史空闲 Session 标为未读。此窗口本地指示器采用原生 Windows 强调色，不属于 Conversations 按钮或通知铃铛。普通 Web 页面没有原生指示器。发布器只向可选的桌面载体发送布尔值，并在插件卸载或页面离开时清除指示器。载体失败会写入诊断日志，不改变 Session 的未读状态。
+
 <a id="model-experience"></a>
 ## 模型体验
 

@@ -7,6 +7,8 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings-models/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
+import type {} from '@deepseek-ai/dsh-client-ui-session/client'
+import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import { AboutRow, type AboutRowInjected } from './AboutRow.tsx'
@@ -27,6 +29,7 @@ import {
 } from './notification-history.ts'
 import { notificationPresentation, shouldShowNativeNotification } from './notification-presentation.ts'
 import { showNativeNotification, subscribeNativeNotificationActivation, type NativeNotifications } from './native-notifications.ts'
+import { subscribeNativeTaskbar, type NativeTaskbar } from './native-taskbar.ts'
 import { SharedSkillsRow, type SharedSkillsRowInjected } from './SharedSkillsRow.tsx'
 import {
   McpServersSection, type McpManagerOperations, type McpServersInjected,
@@ -54,10 +57,10 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 const BUILD_PROFILE = 'custom-harness'
 const LOCALE_NS = 'customHarnessBrand'
 
-/** Required services: slots, locale, and theme token composition. */
+/** Required product presentation, Session status/catalog, Workspace archive, and Remote services. */
 export const inject = [
   'slots', 'locale', 'theme', 'remote', 'remote.accounts', 'remote.directoryPicker',
-  'remote.mcpManager', 'configForms', 'sessions', 'uiWorkspace',
+  'remote.mcpManager', 'configForms', 'sessions', 'uiSession', 'uiWorkspace', 'workspaces',
 ]
 
 /**
@@ -131,7 +134,15 @@ export function apply(ctx: ClientContext): void {
   }, SharedSkillsRow))
 
   const notifications = new NotificationHistoryController()
-  const desktop = (globalThis as typeof globalThis & { dshDesktop?: { notifications?: NativeNotifications } }).dshDesktop
+  const desktop = (globalThis as typeof globalThis & {
+    dshDesktop?: { notifications?: NativeNotifications; taskbar?: NativeTaskbar }
+  }).dshDesktop
+  const taskbar = desktop?.taskbar
+  if (taskbar !== undefined) ctx.effect(() => subscribeNativeTaskbar(taskbar, {
+    sessions: ctx.sessions.list,
+    statuses: ctx.uiSession.sessionStatus,
+    workspaces: ctx.workspaces.list,
+  }, window), 'custom-harness: native taskbar completion unread')
   const nativeNotifications = desktop?.notifications
   ctx.effect(() => subscribeNativeNotificationActivation(nativeNotifications, ctx.sessions.list,
     (sessionId) => { ctx.uiWorkspace.openSession(sessionId) }), 'custom-harness: native notification navigation')

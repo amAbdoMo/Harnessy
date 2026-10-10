@@ -13,6 +13,23 @@ import { createDesktopDevicePreviewBridge } from './preload-device-preview.ts'
 
 type NotificationSessionId = NonNullable<DesktopNotificationPayload['sessionId']>
 
+function createTaskbarApi(): NonNullable<DshDesktopProductApi['taskbar']> {
+  const ticket = ipcRenderer.invoke(DESKTOP_IPC.taskbarDocument).then(
+    (epoch: unknown) => ({ epoch }), (error: unknown) => ({ error }),
+  )
+  const loaded = Promise.withResolvers<undefined>()
+  if (document.readyState === 'complete') loaded.resolve(undefined)
+  else window.addEventListener('load', () => { loaded.resolve(undefined) }, { once: true })
+  return {
+    async setUnread(unread) {
+      const binding = await ticket
+      if ('error' in binding) throw binding.error
+      await loaded.promise
+      await ipcRenderer.invoke(DESKTOP_IPC.taskbarSetUnread, unread, binding.epoch)
+    },
+  }
+}
+
 function createProductApi(): DshDesktopProductApi {
   const notificationListeners = new Set<(sessionId: NotificationSessionId) => void>()
   let pendingNotification: NotificationSessionId | undefined
@@ -25,6 +42,7 @@ function createProductApi(): DshDesktopProductApi {
   })
   return {
     protocolVersion: 1,
+    ...process.platform === 'win32' ? { taskbar: createTaskbarApi() } : {},
     browser: createDesktopBrowserBridge(),
     preview: createDesktopDevicePreviewBridge(),
     deviceInfo: () => ipcRenderer.invoke(DESKTOP_IPC.deviceInfo) as Promise<string>,
