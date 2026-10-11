@@ -6,10 +6,8 @@ import { resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import {
   CLIENT_BUILD_RECORD_PATH,
-  CLIENT_BUILD_PROFILE_SELECTOR,
   clientBuildProcessEnvironment,
-  repositoryClientBuildEnvironment,
-  resolveClientBuildEnvironment,
+  resolveCompleteClientBuildEnvironment,
   writeClientBuildRecord,
 } from './client-build-environment.ts'
 import { pnpmInvocation } from './pnpm-invocation.ts'
@@ -39,9 +37,7 @@ function main(): void {
     allowPositionals: false,
   })
   const root = resolve(import.meta.dirname, '..')
-  const repositoryEnvironment = repositoryClientBuildEnvironment(root, process.env)
-  const profile = values.profile ?? process.env[CLIENT_BUILD_PROFILE_SELECTOR]
-  const clientEnvironment = resolveClientBuildEnvironment(repositoryEnvironment, profile)
+  const clientEnvironment = resolveCompleteClientBuildEnvironment(root, process.env, values.profile)
   const buildEnvironment = clientBuildProcessEnvironment(process.env, clientEnvironment)
 
   rmSync(resolve(root, CLIENT_BUILD_RECORD_PATH), { force: true })

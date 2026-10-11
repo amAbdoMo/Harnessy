@@ -69,7 +69,7 @@ Npm sections describe installation and development relationships; each build fac
 
 ## Build-time browser environment
 
-Client business code may statically read `process.env.DSH_CLIENT_*`; every referenced value is public artifact content. The shared build-environment helper gives Vite and dynamic tsdown bundles the same build-process values, resolves unset names to `undefined`, and exposes no dynamic lookup or enumeration. A complete root build records the exact public values and a digest of all client artifacts; release and built-artifact consumers reject a missing or stale record. Use runtime configuration for choices that must change after build.
+Client business code may statically read `process.env.DSH_CLIENT_*`; every referenced value is public artifact content. Use the shared build-environment resolver for Vite and dynamic tsdown bundles: it preserves the recorded identity when no public values are supplied and rejects incomplete overrides of a recorded environment ([workflow](../../docs/development.md#typescript-project-layout)). Substitutions resolve unset names to `undefined` and expose no dynamic lookup or enumeration. A complete root build records the exact public values and a digest of all client artifacts; release and built-artifact consumers reject a missing or stale record. Use runtime configuration for choices that must change after build.
 
 ## Shared modules and the module graph
 

@@ -236,6 +236,62 @@ export function resolveClientBuildEnvironment(
 }
 
 /**
+ * Resolve public values for a partial browser build without dropping its recorded identity.
+ * Complete explicit environments take precedence; partial overrides of a recorded identity fail before bundling.
+ * The recorded environment is reused exactly, without verifying or updating its artifact digest.
+ * @param root - repository root containing the complete-build record, when available.
+ * @param environment - caller environment supplying explicit values or a profile selector.
+ * @returns public values shared by bundler substitutions and document identity.
+ */
+export function resolveClientBundlerEnvironment(
+  root: string,
+  environment: NodeJS.ProcessEnv,
+): ClientBuildEnvironment {
+  const inherited = resolveClientBuildEnvironment(environment)
+  if (environment[CLIENT_BUILD_PROFILE_SELECTOR] !== undefined) return inherited
+  if (inherited.DSH_CLIENT_BUILD_PROFILE !== undefined) {
+    assertClientBuildEnvironment(inherited, resolveClientBuildEnvironment(inherited, inherited.DSH_CLIENT_BUILD_PROFILE))
+    return inherited
+  }
+  if (inherited[CLIENT_COMMIT_HASH_VARIABLE] !== undefined && inherited[CLIENT_VERSION_VARIABLE] !== undefined) {
+    return inherited
+  }
+  if (!existsSync(resolve(root, CLIENT_BUILD_RECORD_PATH))) return inherited
+  if (Object.keys(inherited).length !== 0) {
+    throw new Error('partial client build cannot override a recorded environment; '
+      + 'supply a complete explicit environment or run a complete build with an explicit profile')
+  }
+  return loadClientBuildRecord(root).environment
+}
+
+/**
+ * Select a complete build's identity and refresh its repository metadata.
+ * With no explicit public values or profile, reuse the last recorded identity; named profiles omit dirty metadata.
+ * @param root - repository root supplying the record, version, and Git metadata.
+ * @param environment - caller environment supplying optional public values or profile selection.
+ * @param profile - explicit profile, ahead of environment selectors and the recorded identity.
+ * @returns complete public values for every build stage and the new artifact record.
+ */
+export function resolveCompleteClientBuildEnvironment(
+  root: string,
+  environment: NodeJS.ProcessEnv,
+  profile: string | undefined = environment[CLIENT_BUILD_PROFILE_SELECTOR] ?? environment.DSH_CLIENT_BUILD_PROFILE,
+): ClientBuildEnvironment {
+  let callerEnvironment = environment
+  if (profile === undefined && Object.keys(clientBuildEnvironment(environment)).length === 0) {
+    const {
+      DSH_CLIENT_COMMIT_HASH: _recordedCommit,
+      DSH_CLIENT_VERSION: _recordedVersion,
+      DSH_CLIENT_GIT_DIRTY: _recordedDirty,
+      ...identity
+    } = resolveClientBundlerEnvironment(root, environment)
+    callerEnvironment = clientBuildProcessEnvironment(environment, identity)
+    profile = identity.DSH_CLIENT_BUILD_PROFILE
+  }
+  return resolveClientBuildEnvironment(repositoryClientBuildEnvironment(root, callerEnvironment), profile)
+}
+
+/**
  * Construct a subprocess environment containing exactly the selected public values.
  * @param environment - parent process environment.
  * @param clientEnvironment - complete public environment selected for the build.
@@ -331,19 +387,7 @@ export function readClientBuildRecord(
   root: string,
   expected?: Readonly<Record<`DSH_CLIENT_${string}`, string>>,
 ): ClientBuildRecord {
-  const path = resolve(root, CLIENT_BUILD_RECORD_PATH)
-  if (!existsSync(path)) {
-    throw new Error(`client build record ${CLIENT_BUILD_RECORD_PATH} is missing; run a complete pnpm run build first`)
-  }
-
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(readFileSync(path, 'utf8'))
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error)
-    throw new Error(`client build record ${CLIENT_BUILD_RECORD_PATH} is invalid JSON: ${detail}`)
-  }
-  const record = parseClientBuildRecord(parsed)
+  const record = loadClientBuildRecord(root)
   if (expected !== undefined) assertClientBuildEnvironment(record.environment, expected)
 
   const current = clientArtifactDigest(root)
@@ -353,6 +397,22 @@ export function readClientBuildRecord(
     )
   }
   return record
+}
+
+/** Read the record's validated fields without asserting that partial builds left its artifacts unchanged. */
+function loadClientBuildRecord(root: string): ClientBuildRecord {
+  const path = resolve(root, CLIENT_BUILD_RECORD_PATH)
+  if (!existsSync(path)) {
+    throw new Error(`client build record ${CLIENT_BUILD_RECORD_PATH} is missing; run a complete pnpm run build first`)
+  }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(readFileSync(path, 'utf8'))
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error)
+    throw new Error(`client build record ${CLIENT_BUILD_RECORD_PATH} is invalid JSON: ${detail}`)
+  }
+  return parseClientBuildRecord(parsed)
 }
 
 /** Return the deterministic digest of every artifact affected by the public client environment. */

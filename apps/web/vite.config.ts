@@ -4,10 +4,11 @@ import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
-import { clientBuildEnvironmentDefines } from '../../scripts/client-build-environment.ts'
+import { clientBuildEnvironmentDefines, resolveClientBundlerEnvironment } from '../../scripts/client-build-environment.ts'
 import { productWebBundleIsolation } from './product-isolation.ts'
 
 const src = (rel: string): string => fileURLToPath(new URL(rel, import.meta.url))
+const clientEnvironment = resolveClientBundlerEnvironment(src('../../'), process.env)
 const STANDALONE_ERROR = 'apps/web is not a standalone application: bare Vite cannot inject window.__DSH_BOOT__. '
   + 'From a repository checkout, run `pnpm dsh web`; an installed package uses `dsh web`. '
   + 'For client-plugin HMR, run `pnpm run dev:web`, which starts `dsh web` and the rebuild watchers together.'
@@ -20,10 +21,10 @@ function escapeHtmlText(value: string): string {
 
 /** Project the public build identity into the initial HTML and install metadata. */
 function clientDocumentIdentity(): Plugin {
-  const title = escapeHtmlText(process.env.DSH_CLIENT_TITLE ?? DEFAULT_CLIENT_TITLE)
-  const productName = process.env.DSH_CLIENT_PRODUCT_NAME
-  const shortName = process.env.DSH_CLIENT_MANIFEST_SHORT_NAME
-  const iconPath = process.env.DSH_CLIENT_ICON_PATH
+  const title = escapeHtmlText(clientEnvironment.DSH_CLIENT_TITLE ?? DEFAULT_CLIENT_TITLE)
+  const productName = clientEnvironment.DSH_CLIENT_PRODUCT_NAME
+  const shortName = clientEnvironment.DSH_CLIENT_MANIFEST_SHORT_NAME
+  const iconPath = clientEnvironment.DSH_CLIENT_ICON_PATH
   return {
     name: 'dsh-client-document-identity',
     transformIndexHtml(html) {
@@ -267,7 +268,7 @@ export default defineConfig({
     ],
   },
   define: {
-    ...clientBuildEnvironmentDefines(process.env),
+    ...clientBuildEnvironmentDefines(clientEnvironment),
     // vendored loader internal.ts: fromInternal() probes the Node major —
     // "0.0.0" takes neither branch, returning undefined (exactly the empty
     // internal slot the shell boot fills with the client module loader).
