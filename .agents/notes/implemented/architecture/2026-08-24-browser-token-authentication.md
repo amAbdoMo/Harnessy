@@ -36,7 +36,7 @@ Unit coverage pins process-token retention across Connection reloads, one secret
 
 **Rotate the signing secret on every restart.** This prevents an existing browser from reconnecting after an ordinary DSH restart. Persisting only the signing secret keeps that workflow while process-token rotation limits the startup URL to one process lifetime.
 
-**Add logout, TLS-proxy, and forwarding-header configuration.** None is required by the loopback Web application or the reported authentication gap. Adding them would define deployment contracts without current consumers. Browser site-data controls revoke one browser session; deleting the credential record and restarting the process revokes all sessions.
+**Add logout, TLS-proxy, and forwarding-header configuration to Connection.** The loopback application needs none of these to authenticate callers. The [Android companion](../feature/2026-10-11-harnessy-android-companion.md) owns Desktop's private proxy deployment without granting identity to forwarding headers or changing Connection's credential semantics. Browser site-data controls revoke one browser session; deleting the credential record and restarting the process revokes all sessions.
 
 ## Consequences
 

@@ -21,6 +21,8 @@ import { createLaunchEnvironmentSnapshot, DSH_LAUNCH_ENVIRONMENT_KEY } from '@de
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import type { WebServer } from '@deepseek-ai/dsh-host-webserver'
 import { apply, Config, internals } from '../src/index.ts'
+import { apply as applyStartup } from '../src/startup.ts'
+import { provideCmdline } from '@deepseek-ai/dsh-cmdline'
 
 vi.mock('node:child_process', async importOriginal => ({
   ...await importOriginal<typeof import('node:child_process')>(),
@@ -227,6 +229,24 @@ describe('web-app runtime glue', () => {
     expect(assembly.sections.find(entry => entry.name === 'app:web-surface')?.text)
       .toContain('rebuilding the affected Web artifacts')
     await ctx.fiber.dispose()
+  })
+
+  it('does not print a credential URL when a profile override attempts to reverse --no-print-url', async () => {
+    stageDist()
+    const ctx = new Context()
+    onTestFinished(() => ctx.fiber.dispose())
+    provideCmdline(ctx, { args: ['--no-open', '--no-print-url'], exit: () => {} })
+    applyStartup(ctx)
+    ctx.provide('webServer', fakeHttpServer().server)
+    provideConnection(ctx)
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    const openBrowser = vi.fn(async () => {})
+    internals.openBrowser = openBrowser
+    apply(ctx, new Config({ openBrowser: false, printUrl: true, surfaceContext: false,
+      publicUrl: 'https://pc.tailnet.ts.net/', trustedHosts: ['pc.tailnet.ts.net'] }))
+    await ctx.fiber.await()
+    expect(log).not.toHaveBeenCalled()
+    expect(openBrowser).not.toHaveBeenCalled()
   })
 
   it('skips the surface context when disabled (the one-shot layer): no prompt section, no bash variables', async () => {

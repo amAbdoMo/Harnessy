@@ -3,7 +3,10 @@
 import type { GlobalStandardProps, RenderOpts } from '@deepseek-ai/dsh-client-ui-slots'
 import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, render } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, within } from '@testing-library/react'
+import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
+import type { ConnectionState } from '@deepseek-ai/dsh-client-connection/client'
+import { useState } from 'react'
 import { AppFrame } from '../src/client/AppFrame.tsx'
 import type { AppFrameProps } from '../src/client/AppFrame.tsx'
 import type { MainPanelId, RightbarOwnerProps, SidebarOwnerProps } from '../src/client/index.ts'
@@ -23,6 +26,12 @@ const translate: AppFrameProps['t'] = (key) => {
   if (key === 'brand.localBuild') return 'DSH Local Build'
   if (key === 'appMenu.toggleSidebar') return 'Toggle sidebar'
   if (key === 'appMenu.file') return 'File'
+  if (key === 'close') return 'Close'
+  if (key === 'connection.error') return 'Disconnected — reconnect'
+  if (key === 'connection.connecting') return 'Reconnecting'
+  if (key === 'connection.connected') return 'Connected'
+  if (key === 'connection.reconnect') return 'Disconnected, reconnect now'
+  if (key === 'connection.restart') return 'Reconnecting, reconnect now'
   return key
 }
 
@@ -67,19 +76,29 @@ function resize(width: number): void {
   })
 }
 
+function DraftFixture() {
+  const [draft, setDraft] = useState('')
+  return <textarea aria-label="Message" value={draft} onChange={(event) => { setDraft(event.target.value) }} />
+}
+
 function mountFrame(windowWidth = frameWidth) {
   vi.stubGlobal('innerWidth', windowWidth)
   const instance = createLayoutStore().create()
+  const connection = createSnapshotStore<ConnectionState | undefined>('connected')
+  const reconnect = vi.fn()
   const slotCalls: { key: string; props: object; options: RenderOpts | undefined }[] = []
   const renderSlot: AppFrameProps['renderSlot'] = (key, owner, options) => {
     slotCalls.push({ key, props: owner, options })
-    return <div data-testid={`${key}-content`} data-entry-key={options?.entryKey} />
+    return <div data-testid={`${key}-content`} data-entry-key={options?.entryKey}>
+      {key === 'main' && <DraftFixture />}
+      {key === 'sidebar' && <button type="button" onClick={() => { instance.actions.selectPanel('tasks' as MainPanelId) }}>Tasks</button>}
+    </div>
   }
   const useSessions: AppFrameProps['useSessions'] = sel => sel({
     ids: selectedSession === undefined ? [] : [selectedSession],
     byId: selectedSession === undefined ? {} : {
       [selectedSession]: {
-        id: selectedSession, displayTitle: 'Test', running: false, retainedBy: { mainView: 1 }, blank: false, updatedAt: 1,
+        id: selectedSession, displayTitle: selectedSessionTitle ?? 'Test', running: false, retainedBy: { mainView: 1 }, blank: false, updatedAt: 1,
         ...(selectedSessionTitle === undefined ? {} : { title: selectedSessionTitle }),
       },
     },
@@ -98,6 +117,8 @@ function mountFrame(windowWidth = frameWidth) {
   const element = () => (
     <AppFrame
       useStore={useStore}
+      useConnectionState={bindSnapshotSelector(connection)}
+      reconnect={reconnect}
       actions={instance.actions}
       renderSlot={renderSlot}
       useSessions={useSessions}
@@ -112,7 +133,7 @@ function mountFrame(windowWidth = frameWidth) {
   const utils = render(element())
   const frame = utils.container.firstElementChild as HTMLElement
   return {
-    ...utils, instance, frame, slotCalls,
+    ...utils, instance, frame, slotCalls, connection, reconnect,
     rerenderFrame: () => { utils.rerender(element()) },
     rightOwner: () => slotCalls.findLast(c => c.key === 'rightbar')!.props as RightbarOwnerProps,
     sidebarOwner: () => slotCalls.findLast(c => c.key === 'sidebar')!.props as SidebarOwnerProps,
@@ -123,6 +144,7 @@ function mountFrame(windowWidth = frameWidth) {
    specs read the specified tracks): [sidebar px, rightbar growth limit].
    The centre's protected minimum must accompany an open right track. */
 function tracks(frame: HTMLElement): number[] {
+  if (frame.style.gridTemplateColumns === '0px minmax(0px, 1fr) 0px') return [0, 0]
   const match = /^([\d.]+)px minmax\((0|400)px, 1fr\) minmax\(0px, ([\d.]+)px\)$/.exec(frame.style.gridTemplateColumns)
   if (match === null) throw new Error(`unexpected template: ${frame.style.gridTemplateColumns}`)
   const rightbar = Number(match[3])
@@ -311,6 +333,98 @@ describe('AppFrame', () => {
   })
 })
 
+describe('AppFrame phone presentation', () => {
+  it('opens a viewport navigator without resetting the message draft and returns focus after dismissal', () => {
+    frameWidth = 390
+    selectedSessionTitle = 'Fix the build'
+    const { frame, getByRole, queryByRole, sidebarOwner } = mountFrame()
+    const draft = getByRole('textbox', { name: 'Message' }) as HTMLTextAreaElement
+    fireEvent.change(draft, { target: { value: 'Keep this draft' } })
+    const toggle = getByRole('button', { name: 'Toggle sidebar' })
+    expect({ heading: getByRole('heading').textContent, navigator: toggle.getAttribute('aria-expanded') })
+      .toMatchInlineSnapshot(`
+        {
+          "heading": "Fix the build",
+          "navigator": "false",
+        }
+      `)
+    expect(tracks(frame)).toEqual([0, 0])
+    expect(frame.querySelector('[data-side]')).toBeNull()
+    toggle.focus()
+    fireEvent.click(toggle)
+    const dialog = getByRole('dialog', { name: 'Toggle sidebar' })
+    expect(dialog.closest('#root')).toBeNull()
+    expect(sidebarOwner()).toEqual({ collapsed: false, width: 390 })
+    const close = within(dialog).getByRole('button', { name: 'Close' })
+    expect(document.activeElement).toBe(close)
+    within(dialog).getByRole('button', { name: 'Tasks' }).focus()
+    fireEvent.keyDown(document, { key: 'Tab' })
+    expect(document.activeElement).toBe(close)
+    expect(getByRole('textbox', { name: 'Message' })).toBe(draft)
+    expect(draft.value).toBe('Keep this draft')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(queryByRole('dialog')).toBeNull()
+    expect(document.activeElement).toBe(toggle)
+    expect(draft.value).toBe('Keep this draft')
+    fireEvent.click(toggle)
+    fireEvent.click(getByRole('dialog').parentElement!.querySelector('[aria-hidden="true"]')!)
+    expect(queryByRole('dialog')).toBeNull()
+    expect(document.activeElement).toBe(toggle)
+  })
+
+  it('dismisses navigation after selecting a Session or a global panel', () => {
+    frameWidth = 390
+    const { getByRole, queryByRole, rerenderFrame } = mountFrame()
+    fireEvent.click(getByRole('button', { name: 'Toggle sidebar' }))
+    selectedSession = 'another-session' as SessionId
+    selectedSessionTitle = 'Another task'
+    rerenderFrame()
+    expect(queryByRole('dialog')).toBeNull()
+    expect(getByRole('heading').textContent).toBe('Another task')
+    fireEvent.click(getByRole('button', { name: 'Toggle sidebar' }))
+    fireEvent.click(within(getByRole('dialog')).getByRole('button', { name: 'Tasks' }))
+    expect(queryByRole('dialog')).toBeNull()
+    expect(getByRole('heading').textContent).toBe('DSH Local Build')
+  })
+
+  it('exposes disconnected and connecting recovery actions outside Settings without touching the draft', () => {
+    frameWidth = 390
+    const { connection, reconnect, getByRole, queryByRole } = mountFrame()
+    const draft = getByRole('textbox', { name: 'Message' }) as HTMLTextAreaElement
+    fireEvent.change(draft, { target: { value: 'Send once when ready' } })
+    act(() => { connection.set('disconnected') })
+    fireEvent.click(getByRole('button', { name: 'Disconnected, reconnect now' }))
+    expect(reconnect).toHaveBeenCalledTimes(1)
+    act(() => { connection.set('connecting') })
+    fireEvent.click(getByRole('button', { name: 'Reconnecting, reconnect now' }))
+    expect(reconnect).toHaveBeenCalledTimes(2)
+    act(() => { connection.set('connected') })
+    expect(queryByRole('dialog')).toBeNull()
+    expect(draft.value).toBe('Send once when ready')
+  })
+
+  it.each(['darwin', 'windows', 'preload'] as const)('preserves narrow %s Desktop chrome without a phone navigator', (platform) => {
+    frameWidth = 390
+    if (platform === 'preload') replaceProperty(window as Window & { dshDesktop?: unknown }, 'dshDesktop', {})
+    else document.documentElement.dataset.platform = platform
+    const { frame, queryByRole } = mountFrame()
+    expect(queryByRole('button', { name: 'Toggle sidebar' })).toBeNull()
+    expect(tracks(frame)[0]).toBe(platform === 'darwin' ? 0 : 56)
+  })
+
+  it('restores the browser rail above the phone breakpoint without resetting the message draft', () => {
+    frameWidth = 390
+    const { frame, getByRole, queryByRole } = mountFrame()
+    const draft = getByRole('textbox', { name: 'Message' }) as HTMLTextAreaElement
+    fireEvent.change(draft, { target: { value: 'Continue on a wider screen' } })
+    resize(600)
+    expect(queryByRole('button', { name: 'Toggle sidebar' })).toBeNull()
+    expect(tracks(frame)).toEqual([56, 0])
+    expect(getByRole('textbox', { name: 'Message' })).toBe(draft)
+    expect(draft.value).toBe('Continue on a wider screen')
+  })
+})
+
 describe('AppFrame normal width concessions', () => {
   it('measures the frame, not the window, before choosing the first-open preference', () => {
     frameWidth = 1000
@@ -340,7 +454,7 @@ describe('AppFrame normal width concessions', () => {
     expect(instance.getSnapshot().layoutInfo).toMatchObject({ rightbarShown: true, rightbar: 864 })
     act(() => { instance.actions.closeRightbar() })
     resize(455)
-    expect(tracks(frame)).toEqual([56, 0])
+    expect(tracks(frame)).toEqual([0, 0])
     resize(1920)
     expect(tracks(frame)).toEqual([420, 0])
   })

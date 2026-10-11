@@ -46,6 +46,8 @@ export const DESKTOP_IPC = {
   websiteRequestsChanged: 'dsh-desktop:website-requests-changed',
   directoryPick: 'dsh-desktop:directory-pick',
   deviceInfo: 'dsh-desktop:device-info',
+  phoneConnectionDescribe: 'dsh-desktop:phone-connection-describe',
+  phoneConnectionCopyPairingUrl: 'dsh-desktop:phone-connection-copy-pairing-url',
   taskbarDocument: 'dsh-desktop:taskbar-document',
   taskbarSetUnread: 'dsh-desktop:taskbar-set-unread',
   localeBootstrap: 'dsh-desktop:locale-bootstrap',
@@ -155,6 +157,9 @@ export interface DesktopUpdatePresentation {
   readonly failure?: DesktopUpdateFailureKind
 }
 
+/** Credential-free description of the current Desktop Host's private phone entry. */
+export type DesktopPhoneConnectionState = { readonly enabled: false } | { readonly enabled: true; readonly remoteRoot: string }
+
 /** Product documents cannot supply update versions, package URLs, or installation authorization. */
 export interface DshDesktopProductApi {
   readonly protocolVersion: 1
@@ -169,6 +174,13 @@ export interface DshDesktopProductApi {
      * @returns completion of state acceptance and best-effort native painting, not evidence of Windows presentation.
      */
     setUnread(unread: boolean): Promise<void>
+  }
+  /** Optional PC-only pairing capability; never returns a credential-bearing URL. */
+  readonly phoneConnection?: {
+    /** @returns Enabled status and clean private HTTPS root; no authentication credential. */
+    describe(): Promise<DesktopPhoneConnectionState>
+    /** Copy a full-operator login link to the native clipboard; rejects when the Host is unavailable. */
+    copyPairingUrl(): Promise<void>
   }
   readonly browser: DesktopBrowserBridge
   readonly preview: DesktopDevicePreviewBridge

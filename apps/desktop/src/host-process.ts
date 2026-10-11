@@ -4,6 +4,7 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { join } from 'node:path'
 import type { PlatformSession } from '@deepseek-ai/dsh-deepseek-account'
 import { desktopNodeEnvironment } from './node-environment.ts'
+import { isDesktopRemoteRoot } from './phone-connection.ts'
 import type { DesktopWebsiteMcpBinding } from './website-profiles.ts'
 import type {
   DesktopWebsiteHostCommand, DesktopWebsiteHostSnapshot, DesktopWebsiteOperationCommand, DesktopWebsitePageInfo,
@@ -16,6 +17,8 @@ import type { DevicePreviewHostRequest, DevicePreviewId, DevicePreviewProjectId,
 interface ReadyEvent {
   readonly type: 'ready'
   readonly url: string
+  /** Canonical credential-free private HTTPS entry, when explicitly enabled. */
+  readonly remoteRoot?: string
   readonly injections?: readonly unknown[] | undefined
 }
 
@@ -102,6 +105,7 @@ function isDesktopHostEvent(message: unknown): message is DesktopHostEvent {
       return true
     case 'ready':
       return typeof candidate.url === 'string'
+        && (candidate.remoteRoot === undefined || isDesktopRemoteRoot(candidate.remoteRoot))
     case 'platform-session': {
       const session = candidate.session
       if (session === null) return true
@@ -170,6 +174,8 @@ async function exitsWithin(exit: Promise<void>, milliseconds: number): Promise<b
 /** Browser authentication URL reported by the running Web application. */
 export interface DesktopHostReady {
   readonly url: string
+  /** Canonical credential-free private HTTPS entry, when explicitly enabled. */
+  readonly remoteRoot?: string
   readonly injections?: readonly unknown[] | undefined
 }
 
@@ -325,7 +331,10 @@ export class DesktopHostProcess {
         return
       }
       if (message.type === 'website-operation' || message.type === 'website-operation-cancel') operations.receive(message)
-      else if (message.type === 'ready') this.readyResolve({ url: message.url, injections: message.injections })
+      else if (message.type === 'ready') {
+        if (!this.stopping && !this.failureReported) this.readyResolve({ url: message.url, injections: message.injections,
+          ...(message.remoteRoot === undefined ? {} : { remoteRoot: message.remoteRoot }) })
+      }
       else if (message.type === 'platform-session') this.publishPlatformSession(message.session)
       else if (message.type === 'website-check') {
         let error: string | undefined

@@ -18,10 +18,15 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { ReactNode } from 'react'
 import { IconPanelLeftOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {
-  PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore,
+  InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore,
 } from '@deepseek-ai/dsh-client-ui-slots'
 import { CENTER_MIN, clampWidth, computeColumns, RIGHTBAR_DEFAULT_RATIO, RIGHTBAR_MAX_RATIO, RIGHTBAR_MIN, SIDEBAR_AUTO_COLLAPSE, SIDEBAR_COLLAPSED, SIDEBAR_DEFAULT } from './columns.ts'
 import { DocumentTitle } from './DocumentTitle.tsx'
+import { MobileNavigation } from './MobileNavigation.tsx'
+import type { AppFrameInjected } from './index.ts'
+
+/** Visual breakpoint for a single-canvas browser presentation. */
+const PHONE_MAX_WIDTH = 600
 import type { createLayoutStore } from './stores.ts'
 import css from './AppFrame.module.css'
 
@@ -57,7 +62,7 @@ function ArrowIcon({ direction }: { direction: 'back' | 'forward' }) {
 function DesktopTitlebar({ bridge, t, toggleSidebar }: {
   readonly bridge: DesktopTitlebarBridge
   readonly toggleSidebar: () => void
-  readonly t: PropsLocale<'common'>['t']
+  readonly t: PropsLocale<'layout'>['t']
 }) {
   return (
     <header className={css.desktopTitlebar} data-desktop-titlebar>
@@ -86,7 +91,8 @@ export type AppFrameProps =
   & PropsRuntime<'root'>
   & PropsRenderSlots<'sidebar' | 'main' | 'rightbar' | 'shell.bottom' | 'shell.overlay' | 'shell.leading'>
   & PropsStore<ReturnType<typeof createLayoutStore>>
-  & PropsLocale<'common'>
+  & PropsLocale<'layout'>
+  & InjectFace<AppFrameInjected>
 
 /** Center column grid item (session-body building block). */
 function CenterColumn(props: { children?: ReactNode }) {
@@ -181,6 +187,8 @@ export function AppFrame({
   usePanelInfo,
   actions,
   renderSlot,
+  useConnectionState,
+  reconnect,
   t,
 }: AppFrameProps) {
   const layoutInfo = useStore(state => state.layoutInfo)
@@ -214,6 +222,10 @@ export function AppFrame({
     }
   }, [actions])
 
+  const platform = document.documentElement.dataset.platform
+  const desktop = 'dshDesktop' in window || platform === 'darwin' || platform === 'windows'
+    || document.documentElement.hasAttribute('data-windows-titlebar')
+  const phone = !desktop && viewport < PHONE_MAX_WIDTH
   const narrow = viewport < SIDEBAR_AUTO_COLLAPSE
   const sidebarCollapsed = narrow ? !layoutInfo.narrowExpanded : layoutInfo.sidebar === 0
   const sidebarPreference = sidebarCollapsed
@@ -296,10 +308,10 @@ export function AppFrame({
   // whole and was corrected two frames later — visible jitter. cols keeps only
   // the discrete decisions (track present, collapse state) and the drag base.
   const rightbarMax = cols.rightbar === 0 ? 0 : clampWidth(rightbarPreference, RIGHTBAR_MIN, viewport * RIGHTBAR_MAX_RATIO)
-  const sidebar = useMemo(() => renderSlot('sidebar', {
+  const sidebar = useMemo(() => phone ? null : renderSlot('sidebar', {
     collapsed: sidebarCollapsed,
     width: cols.sidebar,
-  }), [renderSlot, sidebarCollapsed, cols.sidebar])
+  }), [phone, renderSlot, sidebarCollapsed, cols.sidebar])
   const main = useMemo(() => (
     <MainPanel usePanelInfo={usePanelInfo} renderSlot={renderSlot} />
   ), [usePanelInfo, renderSlot])
@@ -320,8 +332,10 @@ export function AppFrame({
         ...(document.documentElement.hasAttribute('data-windows-titlebar')
           ? { '--dsh-windows-sidebar-width': `${cols.sidebar}px` } : {}),
         gridTemplateColumns:
-          `${cols.sidebar}px minmax(${cols.rightbar === 0 ? 0 : CENTER_MIN}px, 1fr) minmax(0px, ${rightbarMax}px)`,
+          phone ? '0px minmax(0px, 1fr) 0px'
+            : `${cols.sidebar}px minmax(${cols.rightbar === 0 ? 0 : CENTER_MIN}px, 1fr) minmax(0px, ${rightbarMax}px)`,
       }}
+      data-phone={phone || undefined}
       data-sidebar-collapsed={sidebarCollapsed || undefined}
       data-rightbar-collapsed={cols.rightbar === 0 || undefined}
       data-rightbar-fullscreen={layoutInfo.rightbarFullscreen || undefined}
@@ -338,7 +352,12 @@ export function AppFrame({
         {sidebar}
       </div>
       <>
-        <CenterColumn>{main}</CenterColumn>
+        <CenterColumn>
+          {phone && <MobileNavigation useSessions={useSessions} usePanelInfo={usePanelInfo}
+            useConnectionState={useConnectionState} reconnect={reconnect} renderSlot={renderSlot}
+            actions={actions} t={t} open={layoutInfo.narrowExpanded} width={viewport} productTitle={productTitle} />}
+          {main}
+        </CenterColumn>
         <RightbarColumn>
           {renderSlot('rightbar', { width: normal.rightbar, viewportWidth: viewport, canShow: normal.rightbar > 0 })}
         </RightbarColumn>
@@ -355,8 +374,8 @@ export function AppFrame({
         </div>
       )}
       {/* The collapsed rail is fixed-width: no resize handle while closed. */}
-      {!sidebarCollapsed && <DragHandle side="sidebar" left={cols.sidebar} onStart={onSidebarStart} onDrag={onSidebarDrag} onEnd={onDragEnd} />}
-      {layoutInfo.rightbarShown && !layoutInfo.rightbarFullscreen && normal.rightbar > 0 && (
+      {!phone && !sidebarCollapsed && <DragHandle side="sidebar" left={cols.sidebar} onStart={onSidebarStart} onDrag={onSidebarDrag} onEnd={onDragEnd} />}
+      {!phone && layoutInfo.rightbarShown && !layoutInfo.rightbarFullscreen && normal.rightbar > 0 && (
         <DragHandle side="rightbar" left={viewport - normal.rightbar} onStart={onRightbarStart} onDrag={onRightbarDrag} onEnd={onDragEnd} />
       )}
     </div>

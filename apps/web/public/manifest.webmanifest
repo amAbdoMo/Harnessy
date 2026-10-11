@@ -3,8 +3,20 @@
   "short_name": "DSH",
   "start_url": "./",
   "scope": "./",
-  "display": "fullscreen",
+  "display": "standalone",
   "icons": [
+    {
+      "src": "dsh-mobile-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "dsh-mobile-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
     {
       "src": "favicon.svg",
       "sizes": "any",

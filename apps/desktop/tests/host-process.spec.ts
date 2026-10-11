@@ -148,6 +148,22 @@ afterEach(async () => {
 })
 
 describe('desktop host process', () => {
+  it('carries the clean remote root privately without replacing the authenticated loopback ready URL', async () => {
+    const source = HTTP_HOST.replace("{ type: 'ready', url:", "{ type: 'ready', remoteRoot: 'https://pc.tailnet.ts.net/', url:")
+    const ready = await hostProcess(projectWithHost(source)).start()
+    expect(ready.remoteRoot).toBe('https://pc.tailnet.ts.net/')
+    expect(new URL(ready.url).hostname).toBe('127.0.0.1')
+    expect(new URL(ready.url).searchParams.get('token')).toBe('fixture')
+  })
+
+  it.each(['https://pc.tailnet.ts.net/?token=secret', 'https://user:secret@pc.tailnet.ts.net/',
+    'https://pc.example.net/', 'https://pc.tailnet.ts.net:443/', 'https://pc.tailnet.ts.net/\n'])
+  ('rejects a non-canonical or credential-bearing remote root on ready IPC (%s)', async (remoteRoot) => {
+    const source = HTTP_HOST.replace("{ type: 'ready', url:", `{ type: 'ready', remoteRoot: ${JSON.stringify(remoteRoot)}, url:`)
+    const host = hostProcess(projectWithHost(source))
+    await expect(host.start()).rejects.toThrow('invalid IPC event')
+  })
+
   it('refuses private observation without a captured owner and disallows late registration', async () => {
     const host = hostProcess(projectWithHost(OPERATION_HOST))
     const native = vi.fn(async () => ({ origin: 'https://portal.example.test', title: 'never', titleTruncated: false }))

@@ -9,6 +9,7 @@ import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-deepseek-account'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import * as desktopOffice from './office.ts'
+import { assertDesktopRemoteConnection, desktopWebArguments, resolveDesktopRemoteConnection } from './remote-connection.ts'
 
 import { installDesktopUpdateTaskControl } from './update-tasks.ts'
 import { installDesktopQuitInspection } from './quit-inspection.ts'
@@ -24,6 +25,7 @@ import { installDevicePreviewParentChannel } from './device-preview-parent.ts'
 import { installDevicePreviewTools } from './device-preview-tools.ts'
 
 async function main(): Promise<void> {
+  const remote = resolveDesktopRemoteConnection(process.env)
   const runtimeDir = process.argv[2] as string
   const projectDir = process.argv[3] as string
   installOfficeEngineResolution(runtimeDir)
@@ -51,7 +53,7 @@ async function main(): Promise<void> {
     profile: 'desktop',
     resolvedProfile: { profile, installAnchor },
     patchFiles: [],
-    args: ['--no-open', '--port', '0'],
+    args: desktopWebArguments(remote),
     prepare(ctx) {
       control.websiteMcp = installWebsiteMcpInspector(ctx, projectDir)
       const parent = control.websiteParent = installWebsiteParentChannel(ctx, send)
@@ -166,8 +168,15 @@ async function main(): Promise<void> {
   installPlatformSessionPublisher(ctx, (session) => {
     if (process.connected) process.send?.({ type: 'platform-session', session })
   })
+  if (remote !== undefined) {
+    try { assertDesktopRemoteConnection(ctx, remote) }
+    catch (error) { await ctx.fiber.dispose(); throw error }
+  }
+  if (stopping !== undefined) return
   const url = ctx.connection.authenticatedUrl(`http://127.0.0.1:${String(ctx.webServer.port)}`)
-  if (process.connected) process.send?.({ type: 'ready', url, injections: ctx.webServer.collectIndexInjections() }, (error) => { if (error !== null) console.error(error) })
+  if (process.connected) process.send?.({ type: 'ready', url,
+    ...(remote === undefined ? {} : { remoteRoot: remote.remoteRoot }),
+    injections: ctx.webServer.collectIndexInjections() }, (error) => { if (error !== null) console.error(error) })
 }
 
 /** Upper bound of the startup diagnostic carried over IPC; the head holds the message and stack. */

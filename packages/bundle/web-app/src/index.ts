@@ -28,6 +28,7 @@ import type {} from '@deepseek-ai/cordis-plugin-loader'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-shell-env'
 import { parsePublicUrl } from './public-url.ts'
+import { WEB_STARTUP_SERVICE } from './startup.ts'
 
 /** Stable Cordis plugin name. */
 export const name = 'web-app'
@@ -246,6 +247,8 @@ export function apply(ctx: Context, config: Config): void {
   // The loopback URL belongs to this host. Under SSH, the operator reaches it
   // through a local forwarding address that this process cannot derive.
   const handoffBrowser = config.openBrowser && !launchedThroughSsh(launchEnvironmentOf(ctx))
+  // Invocation-level suppression cannot be reversed by a profile or home config override.
+  const printUrl = config.printUrl && ctx.get(WEB_STARTUP_SERVICE)?.printUrl !== false
   // Release dependent rows only after bind-dependent trust has been sampled once.
   ctx.provide(WEB_RUNTIME_SERVICE, runtime)
   ctx.plugin(FrontendStatic, { distIndex: internals.resolveDistIndex() })
@@ -268,7 +271,7 @@ export function apply(ctx: Context, config: Config): void {
       })
     })
   }
-  if (config.printUrl || handoffBrowser) {
+  if (printUrl || handoffBrowser) {
     ctx.inject(['connection'], (connectionCtx) => {
       // The URL line and browser handoff are readiness signals: supervisors RPC
       // as soon as they observe the line, while a browser requests the page as
@@ -286,7 +289,7 @@ export function apply(ctx: Context, config: Config): void {
           ? undefined
           : connectionCtx.connection.authenticatedUrl(`http://${lanCandidate}:${String(port)}`)
         ANNOUNCED_ROOTS.add(connectionCtx.root)
-        if (config.printUrl) {
+        if (printUrl) {
           console.log(`dsh web: ${authenticatedUrl}${lanUrl === undefined ? '' : ` (LAN: ${lanUrl})`}`)
         }
         if (handoffBrowser) {

@@ -1,6 +1,6 @@
 /**
  * The web app's command-line provider: it parses the `dsh --profile web` flag
- * family (`--host`, `--port`, `--public-url`, `--trusted-host`, `--no-open`)
+ * family (`--host`, `--port`, `--public-url`, `--trusted-host`, `--no-open`, `--no-print-url`)
  * and its `--help` text, then provides the immutable values as
  * {@link WEB_STARTUP_SERVICE}. Ordinary rows inject that service before
  * reading it from lazy config.
@@ -25,6 +25,8 @@ export const WEB_STARTUP_SERVICE = 'webStartup'
 export interface WebStartupValues {
   /** Whether this invocation opens the default browser after startup. */
   openBrowser: boolean
+  /** Whether this invocation prints the credential-bearing startup URL. */
+  printUrl: boolean
   /** `--host`, absent when the invocation did not name one. */
   host?: string
   /** `--port`, absent when the invocation did not name one. */
@@ -38,10 +40,18 @@ export interface WebStartupValues {
   trustedHosts: string[]
 }
 
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    /** Immutable invocation options provided before flag-configured Web rows load. */
+    webStartup: WebStartupValues
+  }
+}
+
 /** The web flag family, as commander parsed it. */
 interface WebOptions {
   host?: string
   open: boolean
+  printUrl: boolean
   port?: string
   publicUrl?: string
   trustedHost?: string[]
@@ -69,6 +79,7 @@ function webCommand(config: Config): Command {
     .helpOption('-h, --help', 'show this help')
     .option('--host <host>', 'bind host')
     .option('--no-open', 'do not open the Web UI in the default browser')
+    .option('--no-print-url', 'do not print the credential-bearing startup URL')
     .option('--port <port>', 'listen port; pass 0 to let the OS pick a free one')
     .option('--public-url <url>', 'advertise this HTTP(S) root in the printed, opened, web-surface, and DSH_WEB_URL forms; grants no trust')
     .option('--trusted-host <authority...>', 'extra authority the /api browser-trust fence accepts (host or host:port; repeatable)')
@@ -109,6 +120,7 @@ export function apply(ctx: Context, config: Config = {}): void {
     }
     ctx.provide(WEB_STARTUP_SERVICE, {
       openBrowser: options.open,
+      printUrl: options.printUrl,
       ...options.host !== undefined && { host: options.host },
       ...options.port !== undefined && { port: Number(options.port) },
       ...options.publicUrl !== undefined && { publicUrl: options.publicUrl },

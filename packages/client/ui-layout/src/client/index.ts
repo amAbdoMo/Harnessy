@@ -13,6 +13,8 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 import type { HostObservable, SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots'
+import type { ConnectionHandle, ConnectionStateSource } from '@deepseek-ai/dsh-client-connection/client'
+import { en as mobileEn, zh as mobileZh } from './mobile-locales.ts'
 import type { PanelInfo } from './service.ts'
 import { AppFrame } from './AppFrame.tsx'
 import { createLayoutStore } from './stores.ts'
@@ -29,6 +31,13 @@ import { ThemePresenter } from './theme-presenter.ts'
 export { LayoutController } from './service.ts'
 export type { ILayout, MainPanelId, PanelInfo } from './service.ts'
 
+/** Private connection feedback supplied through framework-bound hooks. */
+export interface AppFrameInjected {
+  /** Restart the existing connection attempt; no message replay. */
+  reconnect: () => void
+  hooks: { connectionState: ConnectionStateSource }
+}
+
 /** Selector hook over root-scoped panel selection. */
 export type UsePanelInfo = SnapshotSelectorHook<PanelInfo>
 
@@ -41,6 +50,8 @@ declare module '@deepseek-ai/cordis' {
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
+    /** Phone connection feedback. */
+    layout: keyof typeof mobileEn
     /** Layout keyboard command labels. */
     'shortcuts.layout': keyof typeof zh
   }
@@ -147,7 +158,7 @@ export interface RightbarOwnerProps {
 }
 
 /** Required services (cordis fiber inject — the loader passes all module exports as an object plugin). */
-export const inject = ['slots', 'theme', 'locale', 'shortcuts']
+export const inject = ['slots', 'theme', 'locale', 'shortcuts', 'connection']
 
 /**
  * Client plugin body: provide ctx.layout, then one register() call — AppFrame
@@ -156,7 +167,9 @@ export const inject = ['slots', 'theme', 'locale', 'shortcuts']
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
+  const connection = ctx.get('connection') as ConnectionHandle
   ctx.effect(() => ctx.locale.register('shortcuts.layout', { zh, en }), 'layout: command labels')
+  ctx.effect(() => ctx.locale.register('layout', { zh: mobileZh, en: mobileEn }), 'layout: phone feedback')
   const t = ctx.locale.bind('shortcuts.layout')
 
   ctx.effect(() => {
@@ -177,7 +190,11 @@ export function apply(ctx: ClientContext): void {
     const disposeService = ctx.reflect.provide('layout', layout)
     const disposeRegistration = ctx.slots.register({
       name: 'root',
-      locale: 'common',
+      locale: 'layout',
+      inject: (): AppFrameInjected => ({
+        reconnect: () => { connection.reconnect() },
+        hooks: { connectionState: connection.state },
+      }),
       children: {
         'sidebar': { kind: 'single', scope: 'root' },
         'main': { kind: 'keyed', scope: 'root' },

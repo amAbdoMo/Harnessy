@@ -31,6 +31,10 @@ import { notificationPresentation, shouldShowNativeNotification } from './notifi
 import { showNativeNotification, subscribeNativeNotificationActivation, type NativeNotifications } from './native-notifications.ts'
 import { subscribeNativeTaskbar, type NativeTaskbar } from './native-taskbar.ts'
 import { SharedSkillsRow, type SharedSkillsRowInjected } from './SharedSkillsRow.tsx'
+import { PhoneConnectionController, type NativePhoneConnection } from './phone-connection.ts'
+import {
+  PhoneConnectionRow, PhoneConnectionToast, type PhoneConnectionRowInjected, type PhoneConnectionToastInjected,
+} from './PhoneConnectionRow.tsx'
 import {
   McpServersSection, type McpManagerOperations, type McpServersInjected,
 } from './McpServersSection.tsx'
@@ -138,8 +142,35 @@ export function apply(ctx: ClientContext): void {
 
   const notifications = new NotificationHistoryController()
   const desktop = (globalThis as typeof globalThis & {
-    dshDesktop?: { notifications?: NativeNotifications; taskbar?: NativeTaskbar }
+    dshDesktop?: {
+      notifications?: NativeNotifications
+      taskbar?: NativeTaskbar
+      phoneConnection?: NativePhoneConnection
+    }
   }).dshDesktop
+  const nativePhoneConnection = desktop?.phoneConnection
+  if (nativePhoneConnection !== undefined) {
+    const phoneConnection = new PhoneConnectionController(nativePhoneConnection)
+    ctx.effect(() => {
+      void phoneConnection.describe()
+      return () => { phoneConnection.dispose() }
+    }, 'custom-harness: phone connection lifecycle')
+    ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+      name: 'settings.general.item', id: 'custom-harness-phone-connection', order: 40, locale: LOCALE_NS,
+      inject: (): PhoneConnectionRowInjected => ({
+        hooks: { phoneConnection: phoneConnection.state },
+        describe: () => phoneConnection.describe(),
+        copy: () => phoneConnection.copy(),
+      }),
+    }, PhoneConnectionRow))
+    ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+      name: 'shell.overlay', id: 'custom-harness-phone-connection-result', locale: LOCALE_NS,
+      inject: (): PhoneConnectionToastInjected => ({
+        hooks: { phoneConnectionNotice: phoneConnection.notice },
+        dismiss: (id) => { phoneConnection.dismiss(id) },
+      }),
+    }, PhoneConnectionToast))
+  }
   const taskbar = desktop?.taskbar
   if (taskbar !== undefined) ctx.effect(() => subscribeNativeTaskbar(taskbar, {
     sessions: ctx.sessions.list,

@@ -72,6 +72,7 @@ import { DesktopQuitConfirmation } from './quit-confirmation.ts'
 import { DesktopTray } from './tray.ts'
 import { DesktopTaskbarUnread, installDesktopTaskbarIpc } from './taskbar-unread.ts'
 import { DesktopBackgroundNotice } from './background-notice.ts'
+import { DesktopPhoneConnection, installDesktopPhoneConnectionIpc } from './phone-connection.ts'
 import { windowsNotificationApplicationId, windowsNotificationShortcut } from './windows-notifications.ts'
 import { registerWindowsToastIdentity, type LegacyWindowsToastShortcut } from './windows-notification-registration.ts'
 import { DesktopNotificationActivation, NOTIFICATION_ACTIVATION_SCHEME, parseNotificationActivationArguments, parseNotificationActivationUri, windowsNotificationToastXml } from './notification-activation.ts'
@@ -610,6 +611,12 @@ async function main(): Promise<void> {
       throw new Error('dsh desktop: rejected IPC from an unowned renderer')
     }
   }
+  const phoneConnection = new DesktopPhoneConnection(
+    () => isQuitting() || shuttingDown ? undefined : backend.host?.phoneOwner,
+    text => clipboard.writeText(text),
+  )
+  const detachPhoneConnectionIpc = installDesktopPhoneConnectionIpc(ipcMain, assertProductSender, phoneConnection)
+  app.once('will-quit', detachPhoneConnectionIpc)
   const detachTaskbarIpc = installDesktopTaskbarIpc(ipcMain, assertProductSender, () => taskbar)
   app.once('will-quit', () => { detachTaskbarIpc(); taskbar?.dispose() })
   const detachWebsiteRequestIpc = installWebsiteRequestIpc(ipcMain, assertProductSender, websiteAuthority)
@@ -661,8 +668,11 @@ async function main(): Promise<void> {
     () => locale.id === 'zh-CN' ? 'zh_CN' : 'en_US', process.platform === 'win32' ? 'win32' : 'darwin')
   const backend = new DesktopBackendController((onFailure) => {
     const hostInspectPort = developmentHostInspectPort(development)
+    let active = true
     const host = new DesktopHostProcess(resources.node, resources.dsh, activeProject,
       hostInspectPort, { ...hostEnvironment, DSH_CLIENT_VERSION: desktopClientVersion() }, (error) => {
+        active = false
+        phoneConnection.retire(host)
         void websiteAuthority.requests.revokeHost(host).catch((_failure: unknown) => { /* Captured failed transactions stay locked. */ })
         if (previewHost === host) previewHost = undefined
         void devicePreviews.retireHost(host).catch((failure: unknown) => { console.error('Device preview Host retirement failed', failure) })
@@ -670,11 +680,13 @@ async function main(): Promise<void> {
       },
       primaryRuntime,
       resources, (next) => { platformView.setSession(next) })
+    phoneConnection.begin(host)
     websiteHost = host
     previewHost = host
     const detachPreviewHost = host.onDevicePreviewRequest(request => devicePreviews.request(host, request))
     const detachWebsiteHost = websiteAuthority.attachHost(host)
     return {
+      phoneOwner: host,
       start: async () => {
         const ready = await host.start()
         await websiteAuthority.synchronize(host)
@@ -721,8 +733,12 @@ async function main(): Promise<void> {
             if (welcomeWindow !== undefined && !welcomeWindow.isDestroyed()) welcomeWindow.webContents.send(WELCOME_IPC.state, state)
           }).catch(() => undefined)
         })
+        if (!active || isQuitting() || shuttingDown) throw new Error('Desktop Host retired during startup')
+        phoneConnection.ready(host, ready)
       },
       stop: async () => {
+        active = false
+        phoneConnection.retire(host)
         detachPreviewHost()
         if (previewHost === host) previewHost = undefined
         const previewDraining = devicePreviews.retireHost(host)

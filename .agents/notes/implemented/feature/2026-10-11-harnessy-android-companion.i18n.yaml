@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-10-11-harnessy-android-companion.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-11-harnessy-android-companion.md
+/agent-note-private-android-access-to-the-desktop-host:
+  en: 76c9316f68459b5e
+  zh: f618419dd2ec51e8
+/agent-note-private-android-access-to-the-desktop-host/problem:
+  en: 97965d855d9271ad
+  zh: 9b3d6629bf7ac0f7
+/agent-note-private-android-access-to-the-desktop-host/decision:
+  en: 2449f51e1741ed50
+  zh: 5a378144301df806
+/agent-note-private-android-access-to-the-desktop-host/alternatives-considered:
+  en: 59fc4bbb64191aa0
+  zh: 6140e85a82cd2602
+/agent-note-private-android-access-to-the-desktop-host/consequences:
+  en: 26dd5914596876f8
+  zh: 83e13c25ec667846

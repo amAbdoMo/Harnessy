@@ -1,4 +1,4 @@
-// The built shared Web/Electron composer hides guidance as soon as a draft contains whitespace.
+/** Built composer guidance and draft retention through phone navigation. */
 import { fileURLToPath } from 'node:url'
 import { chromium, type Page } from 'playwright'
 import { expect, it } from 'vitest'
@@ -62,6 +62,60 @@ it('hides the placeholder for typed and pasted spaces and restores it after dele
       )
     } catch (error) {
       if (failurePage !== undefined) await saveFailureShot(failurePage, 'web-e2e-composer-placeholder')
+      throw error
+    } finally {
+      await browser.close()
+    }
+  } finally {
+    await scaffold.close()
+  }
+})
+
+it('keeps a phone draft mounted while opening and dismissing the shipped Session navigator', async () => {
+  const scaffold = await launchWebScaffold({})
+  try {
+    const browser = await chromium.launch()
+    let failurePage: Page | undefined
+    try {
+      const page = await newEnglishPage(browser)
+      failurePage = page
+      await page.setViewportSize({ width: 390, height: 844 })
+      const tripwire = watchConsole(page)
+      await page.goto(scaffold.authenticatedUrl)
+      await connectFreshWorkspace(page, scaffold.workspaceCwd, 'phone-composer-draft')
+      const input = page.locator('[data-composer-input][contenteditable="true"]').first()
+      await input.fill('Keep this phone draft')
+      const editor = await input.elementHandle()
+      if (editor === null) throw new Error('Phone composer did not mount')
+      try {
+        const toggle = page.getByRole('button', { name: 'Toggle sidebar', exact: true })
+        await toggle.click()
+        const dialog = page.getByRole('dialog', { name: 'Toggle sidebar', exact: true })
+        await dialog.waitFor({ state: 'visible' })
+        const bounds = await dialog.boundingBox()
+        if (bounds === null) throw new Error('Phone navigator did not mount')
+        expect(bounds.x).toBeGreaterThanOrEqual(0)
+        expect(bounds.x + bounds.width).toBeLessThanOrEqual(390)
+        const sidebarBounds = await dialog.locator('[data-slot="sidebar"] > *').boundingBox()
+        if (sidebarBounds === null) throw new Error('Phone sidebar did not mount')
+        expect(sidebarBounds.x).toBeGreaterThanOrEqual(bounds.x)
+        expect(sidebarBounds.x + sidebarBounds.width).toBeLessThanOrEqual(bounds.x + bounds.width)
+        await dialog.getByRole('button', { name: 'Close', exact: true }).click()
+        await dialog.waitFor({ state: 'hidden' })
+        expect(await editor.evaluate(element => element.isConnected)).toBe(true)
+        expect(await input.textContent()).toBe('Keep this phone draft')
+        expect(await toggle.evaluate(element => document.activeElement === element)).toBe(true)
+        await page.setViewportSize({ width: 800, height: 600 })
+        await toggle.waitFor({ state: 'hidden' })
+        expect(await editor.evaluate(element => element.isConnected)).toBe(true)
+        expect(await input.textContent()).toBe('Keep this phone draft')
+        expect(tripwire.pageErrors).toEqual([])
+        expect(tripwire.warnings).toEqual([])
+      } finally {
+        await editor.dispose()
+      }
+    } catch (error) {
+      if (failurePage !== undefined) await saveFailureShot(failurePage, 'web-e2e-phone-composer-draft')
       throw error
     } finally {
       await browser.close()

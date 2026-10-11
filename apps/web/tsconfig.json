@@ -15,7 +15,8 @@
   },
   "include": [
     "src",
-    "tests"
+    "tests",
+    "client-document-identity.ts"
   ],
   // The web e2e lane (scaffold + replay specs) boots the host spine and reads
   // its Context merges — host-plane programs, checked in tsconfig.host.json;

@@ -155,6 +155,12 @@ Windows 使用 40 DIP 顶栏，保留原生窗口按钮，颜色随应用调色�
 
 macOS 上自定义菜单保留 Electron 的标准 Window 菜单及应用隐藏命令，包括 Minimize（⌘M）和 Hide（⌘H）。Linux 保留应用菜单和 Edit 菜单。
 
+### Android companion
+
+同时配置 `DSH_DESKTOP_REMOTE_URL` 和 `DSH_DESKTOP_LISTEN_PORT` 后，同一个 Desktop Host 可通过用户自行管理的私有 Tailscale HTTPS 代理提供经过认证的 Web 前端。监听器仍绑定 loopback，使用显式指定的端口，并保留 Desktop renderer 独立的 loopback 登录。两个设置均未配置时，启动仍仅供本机访问。无效或不完整的设置会使启动失败；所选端口已被占用时不会回退到另一端口。
+
+远端 URL 必须是 PC 的 Tailscale DNS 主机名上的 HTTPS 根地址，不含凭据、路径前缀、查询、片段或非标准 HTTPS 端口。Desktop 不打印含凭据的 Web 启动 URL。通用设置中的“电脑与手机连接”只显示不含凭据的私有地址；所属应用顶层 frame 的 IPC 操作在 Main 中复制当前 Host 的配对链接，不把链接返回给 renderer。手机访问保留浏览器会话认证和 Host/Origin 校验，授予现有操作者的权限，而非仅限会话的角色。Desktop 不负责安装、登录或配置 Tailscale。由所有者按 [Android companion 设置指南](../../HARNESSY-ANDROID-COMPANION.md)验证启用与移除步骤。
+
 ### 运行时与插件激活
 
 签名资源中的 `resources/app.asar/dsh/desktop-runtime.json` 绑定 shell 版本、Electron 的 Node 版本、平台、架构、共享包版本和最终文件清单。启动读取元数据，并检查共享包记录。发布 schema、shell 版本、目标兼容性和文件完整性在打包时验证。只有出现打包校验与实际 Host 诊断无法充分解释的具体安装故障，才重新引入启动时的发布信息比较。首次启动不会把核心包复制到 profile 存储或通过 pnpm 安装核心包。

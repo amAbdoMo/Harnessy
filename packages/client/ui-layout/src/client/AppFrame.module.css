@@ -375,3 +375,123 @@
 .overlayLayer > * {
   pointer-events: auto;
 }
+
+/* Browser phones reserve no navigation rail or resize track. */
+.frame[data-phone] {
+  height: 100dvh;
+  box-sizing: border-box;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  transition: none;
+}
+
+.frame[data-phone] .sidebarCol {
+  border: 0;
+}
+
+.mobileHeader {
+  flex: none;
+  min-width: 0;
+  padding: 0 8px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l3);
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-base);
+}
+
+.mobileTitleRow,
+.mobileDialogHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+
+.mobileTitle {
+  min-width: 0;
+  overflow: hidden;
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobileIconButton {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--dsw-radius-sm);
+  color: var(--dsw-alias-label-secondary);
+  background: transparent;
+  cursor: pointer;
+}
+
+.mobileIconButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.mobileIconButton:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: -2px;
+}
+
+.mobileConnection {
+  display: flex;
+  align-items: center;
+}
+
+.mobileConnection:empty {
+  display: none;
+}
+
+.mobileConnection > button {
+  min-height: 44px;
+}
+
+/* The shared Modal owns the portal, viewport margins, mask, and focus lifetime. */
+.mobileDialog {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  box-sizing: border-box;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  border: 0;
+  background: var(--dsw-specific-sidebar-fill);
+  box-shadow: var(--dsw-elevation-prominent);
+}
+
+.mobileDialog:focus {
+  outline: none;
+}
+
+.mobileDialogHeader {
+  flex: none;
+  justify-content: flex-end;
+  padding: 0 8px;
+}
+
+.mobileSidebar {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+/* The sidebar's inline pixel width belongs to desktop column geometry. */
+.mobileSidebar [data-slot='sidebar'] > * {
+  width: 100% !important;
+}
+
+.mobileSidebar :is(button, input, [role='button'], [role='treeitem']) {
+  min-width: 44px;
+  min-height: 44px;
+}

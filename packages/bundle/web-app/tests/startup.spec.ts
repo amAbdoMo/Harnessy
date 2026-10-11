@@ -62,6 +62,7 @@ export const apply = ctx => globalThis.__webStartupApply(ctx)
     '  config:',
     "    host: !!js ctx.webStartup.host ?? '127.0.0.1'",
     '    openBrowser: !!js ctx.webStartup.openBrowser',
+    '    printUrl: !!js ctx.webStartup.printUrl',
     '    port: !!js ctx.webStartup.port ?? 3080',
     '    publicUrl: !!js ctx.webStartup.publicUrl',
     '    trustedHosts: !!js ctx.webStartup.trustedHosts',
@@ -87,7 +88,7 @@ export const apply = ctx => globalThis.__webStartupApply(ctx)
   await ctx.loader.await()
   disposers.push(async () => { await ctx.fiber.dispose() })
   return {
-    values: ctx.get(WEB_STARTUP_SERVICE) as WebStartupValues | undefined,
+    values: ctx.get(WEB_STARTUP_SERVICE),
     observed,
   }
 }
@@ -104,6 +105,7 @@ describe('web command-line provider', () => {
     expect(values).toEqual({
       host: '127.0.0.1',
       openBrowser: false,
+      printUrl: true,
       port: 8080,
       trustedHosts: ['lab.internal', 'lab-2.internal', '10.0.0.9'],
     })
@@ -113,13 +115,21 @@ describe('web command-line provider', () => {
 
   it('leaves deployment values to each consumer when flags omit them', async () => {
     const { values, observed } = await bootProvider([])
-    expect(values).toEqual({ openBrowser: true, trustedHosts: [] })
+    expect(values).toEqual({ openBrowser: true, printUrl: true, trustedHosts: [] })
     expect(observed.readerConfig).toEqual({
       host: '127.0.0.1',
       openBrowser: true,
+      printUrl: true,
       port: 3080,
       trustedHosts: [],
     })
+  })
+
+  it('suppresses credential URL printing independently of browser handoff', async () => {
+    const { values, observed } = await bootProvider(['--no-open', '--no-print-url', '--port', '0'])
+    expect(values).toEqual({ openBrowser: false, printUrl: false, port: 0, trustedHosts: [] })
+    expect(observed.readerConfig).toEqual({ host: '127.0.0.1', ...values })
+    expect(observed.out).toBe('')
   })
 
   it('prints its own help and leaves the consumer pending', async () => {
@@ -156,12 +166,14 @@ describe('web command-line provider', () => {
     ])
     expect(values).toEqual({
       openBrowser: true,
+      printUrl: true,
       publicUrl: 'https://web.example/ui',
       trustedHosts: ['lab.internal'],
     })
     expect(observed.readerConfig).toEqual({
       host: '127.0.0.1',
       openBrowser: true,
+      printUrl: true,
       port: 3080,
       publicUrl: 'https://web.example/ui',
       trustedHosts: ['lab.internal'],

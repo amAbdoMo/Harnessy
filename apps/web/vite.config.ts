@@ -6,48 +6,13 @@ import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { clientBuildEnvironmentDefines, resolveClientBundlerEnvironment } from '../../scripts/client-build-environment.ts'
 import { productWebBundleIsolation } from './product-isolation.ts'
+import { clientDocumentIdentity } from './client-document-identity.ts'
 
 const src = (rel: string): string => fileURLToPath(new URL(rel, import.meta.url))
 const clientEnvironment = resolveClientBundlerEnvironment(src('../../'), process.env)
 const STANDALONE_ERROR = 'apps/web is not a standalone application: bare Vite cannot inject window.__DSH_BOOT__. '
   + 'From a repository checkout, run `pnpm dsh web`; an installed package uses `dsh web`. '
   + 'For client-plugin HMR, run `pnpm run dev:web`, which starts `dsh web` and the rebuild watchers together.'
-const DEFAULT_CLIENT_TITLE = 'DSH Local Build'
-
-/** Escape build-time text before placing it in the HTML title element. */
-function escapeHtmlText(value: string): string {
-  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-}
-
-/** Project the public build identity into the initial HTML and install metadata. */
-function clientDocumentIdentity(): Plugin {
-  const title = escapeHtmlText(clientEnvironment.DSH_CLIENT_TITLE ?? DEFAULT_CLIENT_TITLE)
-  const productName = clientEnvironment.DSH_CLIENT_PRODUCT_NAME
-  const shortName = clientEnvironment.DSH_CLIENT_MANIFEST_SHORT_NAME
-  const iconPath = clientEnvironment.DSH_CLIENT_ICON_PATH
-  return {
-    name: 'dsh-client-document-identity',
-    transformIndexHtml(html) {
-      const titled = html.replace('<title>DSH Local Build</title>', `<title>${title}</title>`)
-      if (iconPath === undefined) return titled
-      const branded = titled.replace(/href=["']\.?\/favicon\.svg["']/, `href="${escapeHtmlText(iconPath)}"`)
-      return iconPath.endsWith('.png')
-        ? branded.replace(/(<link\s+rel=["']icon["']\s+type=["'])image\/svg\+xml/u, '$1image/png')
-        : branded
-    },
-    async closeBundle() {
-      if (productName === undefined && shortName === undefined && iconPath === undefined) return
-      const path = src('./dist/manifest.webmanifest')
-      const manifest = JSON.parse(await readFile(path, 'utf8')) as Record<string, unknown>
-      if (productName !== undefined) manifest.name = productName
-      if (shortName !== undefined) manifest.short_name = shortName
-      if (iconPath !== undefined) {
-        manifest.icons = [{ src: iconPath, sizes: '1254x1254', type: 'image/png', purpose: 'any' }]
-      }
-      await writeFile(path, `${JSON.stringify(manifest, null, 2)}\n`)
-    },
-  }
-}
 
 /** Keep the redistribution license beside the bundled brand font. */
 function brandFontLicense(): Plugin {
@@ -190,7 +155,7 @@ export default defineConfig({
   // directory, and the served index resolves identically from the site root.
   base: './',
   plugins: [
-    rejectStandaloneServe(), clientDocumentIdentity(), brandFontLicense(), react(), emitPreviewPage(),
+    rejectStandaloneServe(), clientDocumentIdentity(clientEnvironment), brandFontLicense(), react(), emitPreviewPage(),
     productWebBundleIsolation(src('../..'), src('.')),
   ],
   build: {

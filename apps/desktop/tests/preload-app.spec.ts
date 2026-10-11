@@ -58,6 +58,25 @@ it('exposes onboarding size activation to the application document', async () =>
   expect(electron.ipcRenderer.send.mock.calls).toEqual([[DESKTOP_IPC.onboardingActive, true], [DESKTOP_IPC.onboardingActive, false]])
 })
 
+it.each([{ enabled: false }, { enabled: true, remoteRoot: 'https://pc.tailnet.ts.net/' }])
+('exposes credential-free phone state and a void copy action only to the primary product frame (%j)', async (state) => {
+  vi.stubGlobal('location', new URL('dsh-app://app/'))
+  responses.set(DESKTOP_IPC.phoneConnectionDescribe, state)
+  responses.set(DESKTOP_IPC.phoneConnectionCopyPairingUrl, 'must-not-return-clipboard-data')
+  await import('../src/preload-app.ts')
+  const api = electron.contextBridge.exposeInMainWorld.mock.calls.find(([name]) => name === 'dshDesktop')?.[1] as DshDesktopProductApi
+  if (api.phoneConnection === undefined) throw new Error('Phone connection capability missing')
+  await expect(api.phoneConnection.describe()).resolves.toEqual(state)
+  await expect(api.phoneConnection.copyPairingUrl()).resolves.toBeUndefined()
+  expect(electron.ipcRenderer.invoke).toHaveBeenCalledWith(DESKTOP_IPC.phoneConnectionDescribe)
+  expect(electron.ipcRenderer.invoke).toHaveBeenCalledWith(DESKTOP_IPC.phoneConnectionCopyPairingUrl)
+  vi.resetModules()
+  electron.contextBridge.exposeInMainWorld.mockClear()
+  vi.stubGlobal('process', { ...process, isMainFrame: false })
+  await import('../src/preload-app.ts')
+  expect(electron.contextBridge.exposeInMainWorld).toHaveBeenCalledWith('dshDesktop', { protocolVersion: 1 })
+})
+
 it('exposes update controls and native notifications only to the product document', async () => {
   vi.stubGlobal('location', new URL('dsh-app://app/index.html'))
   await import('../src/preload-app.ts')

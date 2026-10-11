@@ -60,7 +60,10 @@ async function bench() {
   // seam for persistence; model this bench as a remote, memory-only browser.
   ctx.provide('locale', new LocaleRuntime(ctx))
   await ctx.plugin(ShortcutsService).await()
-  ctx.provide('connection', { api: { settings: {} }, isLoopback: false } as never)
+  ctx.provide('connection', {
+    api: { settings: {} }, isLoopback: false,
+    state: createSnapshotStore('connected'), reconnect: () => {},
+  } as never)
   // ui-theme's Appearance row binds a durable scope through these two.
   ctx.provide('remote', { $on: () => () => {} } as never)
   ctx.provide('configForms', { developerTools: { enabled: createSnapshotStore(true) }, get: () => stubConfigForm().scope } as never)
@@ -79,7 +82,7 @@ async function bench() {
 
 describe('ui-layout client apply', () => {
   it('declares its service dependencies', () => {
-    expect(inject).toEqual(['slots', 'theme', 'locale', 'shortcuts'])
+    expect(inject).toEqual(['slots', 'theme', 'locale', 'shortcuts', 'connection'])
   })
 
   it('provides ctx.layout and declares the root-scoped frame slots', async () => {
@@ -101,7 +104,7 @@ describe('ui-layout client apply', () => {
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
     const entry = slots.entries('root')[0]!
-    expect(entry.inject).toBeUndefined()
+    expect(entry.inject).toBeDefined()
     const handle = entry.store as ReturnType<typeof createLayoutStore>
     const instance = handle.create()
     expect(handle.create()).toBe(instance)

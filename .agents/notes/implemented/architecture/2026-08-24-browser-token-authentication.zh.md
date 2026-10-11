@@ -36,7 +36,7 @@ HMAC 密钥是 `ctx.credentials` 中位于 `client-connection/browser-session` �
 
 **每次重启都轮换签名密钥。** 这会阻止既有浏览器在普通 DSH 重启后重连。只持久化签名密钥既保留该工作流，又由进程令牌轮换把启动 URL 限定在一个进程生命周期。
 
-**增加 logout、TLS 代理和转发 header 配置。** loopback Web 应用与已报告认证缺口都不需要这些能力；加入它们会在没有当前 consumer 时定义部署约定。浏览器站点数据控制会撤销单个浏览器会话；删除凭据记录并重启进程会撤销全部会话。
+**为 Connection 增加 logout、TLS 代理和转发 header 配置。** loopback 应用认证调用者不需要这些能力。[Android companion](../feature/2026-10-11-harnessy-android-companion.zh.md)负责 Desktop 的私有代理部署，但不向转发 header 授予身份，也不改变 Connection 的凭据语义。浏览器站点数据控制会撤销单个浏览器会话；删除凭据记录并重启进程会撤销全部会话。
 
 ## 后果
 

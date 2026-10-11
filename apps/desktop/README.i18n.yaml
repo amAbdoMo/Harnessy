@@ -35,6 +35,9 @@
 /harnessy-desktop/installation-ownership:
   en: 52391504db6dbeff
   zh: 7f41f6d1f40cf0db
+/harnessy-desktop/installation-ownership/android-companion:
+  en: 4c64db475c31bf3f
+  zh: 235e99fa87ac6150
 /harnessy-desktop/installation-ownership/runtime-and-plugin-activation:
   en: 7639f1c02edb2c0c
   zh: cd4c8759ca70e8f8

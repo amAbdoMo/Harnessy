@@ -155,6 +155,12 @@ Windows uses a 40-DIP caption with native window controls and colors synchronize
 
 On macOS the custom menu retains Electron's standard Window menu and application hide commands, including Minimize (⌘M) and Hide (⌘H). Linux keeps the application and Edit menus.
 
+### Android companion
+
+With both `DSH_DESKTOP_REMOTE_URL` and `DSH_DESKTOP_LISTEN_PORT` configured, the same Desktop Host serves its authenticated Web frontend through a user-owned private Tailscale HTTPS proxy. The listener remains on loopback, uses the explicitly selected port, and retains the Desktop renderer's separate loopback login. Without either setting, startup stays local-only. Invalid or incomplete settings fail startup; an occupied selected port does not fall back to another port.
+
+The remote URL is a root HTTPS address on the PC's Tailscale DNS hostname, without credentials, a prefix, query, fragment, or nonstandard HTTPS port. Desktop suppresses the credential-bearing Web startup URL. PC–phone connection in General settings displays only the clean private address; an owned top-frame application IPC action copies the current Host's pairing link in Main without returning it to the renderer. Phone access retains browser-session authentication and Host/Origin checks and grants the existing operator's authority, not a sessions-only role. Desktop does not install, sign in to, or configure Tailscale. Follow the [Android companion setup](../../HARNESSY-ANDROID-COMPANION.md) for owner-verified activation and removal.
+
 ### Runtime and plugin activation
 
 The signed `resources/app.asar/dsh/desktop-runtime.json` binds the shell version, Electron's Node version, platform, architecture, shared package versions, and final file inventory. Startup reads the metadata and checks shared package records. Release schema, shell version, target compatibility, and file integrity are verified during packaging. Reintroducing startup release comparisons requires a concrete installation failure that packaging validation and actual Host diagnostics cannot adequately explain. Core packages are never copied into profile storage or installed by pnpm at first launch.
