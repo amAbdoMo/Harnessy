@@ -130,7 +130,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: '@Remote async setManualBillingDate(provider: AccountProviderId, accountId: string, date: string | null): Promise<AccountsState>',
-        description: 'Save or clear a user-entered billing reminder for exactly one saved membership. The date is never inferred, advanced, or copied to another membership.',
+        description: 'Save or clear a user-entered monthly billing reminder anchor for one saved membership. Clients derive monthly occurrences; the stored anchor is never inferred, advanced, or copied.',
         parameters: [{ name: 'provider', description: 'provider owning the saved membership.' }, { name: 'accountId', description: 'saved membership to edit, independent of the active selection.' }, { name: 'date', description: 'exact Gregorian YYYY-MM-DD (years 0001–9999), including past dates; null clears it.' }],
         returns: 'the redacted state after persistence commits and accounts/changed is published.',
         throws: ['RemoteError when the date is invalid, the membership is absent, or storage is unavailable; credential-provider write failures propagate without publishing a changed snapshot.'],

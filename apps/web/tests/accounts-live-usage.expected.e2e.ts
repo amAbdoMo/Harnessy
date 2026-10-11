@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 /** Built account surfaces consume the same pushed Host snapshot without a manual refresh. */
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
-import { expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import { ok } from '@deepseek-ai/dsh-remote-mock'
 import type { AccountsState, McpManagerState } from '@deepseek-ai/dsh-api-settings-controller/types'
 import { installAssembledBootEnv, mountAssembledApp } from './assembled-boot.ts'
 
 installAssembledBootEnv()
+afterEach(() => { vi.restoreAllMocks() })
 
 const buildEnvironmentModulePath = '../../../scripts/client-build-environment.ts'
 const buildEnvironmentModule: unknown = await import(buildEnvironmentModulePath)
@@ -30,12 +31,13 @@ const initial: AccountsState = {
   }],
   accounts: [{
     id: 'codex-1', ownerId: 'owner-1', provider: 'openai-codex', name: 'Fixture Account', initials: 'FA',
-    detail: 'fixture@example.invalid · PLUS', active: true, authMode: 'oauth',
+    detail: 'fixture@example.invalid · PLUS', active: true, authMode: 'oauth', manualBillingDate: '2026-10-17',
     usage: { windows: [{ id: 'primary', label: '5h', usedPercent: 28 }] },
   }],
 }
 
 it.skipIf(!custom)('updates sidebar and open Accounts together on a pushed usage snapshot', async () => {
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(new Date(2026, 9, 16, 12).getTime())
   const { mock } = mountAssembledApp({ profile: 'custom-harness' })
   mock.unary('accounts/describe', () => ok(initial))
   mock.unary('accounts/refreshUsage', () => ok(initial))
@@ -65,12 +67,40 @@ it.skipIf(!custom)('updates sidebar and open Accounts together on a pushed usage
   expect(await within(dialog).findByText('79% used')).toBeTruthy()
   expect(screen.getByRole('button', { name: /Fixture Account.*79% used/ })).toBeTruthy()
   expect(mock.log.calls('accounts/refreshUsage')).toHaveLength(reads)
+  const reminder = within(dialog).getByRole('group', { name: 'Billing reminder (user-entered)' })
+  expect(reminder.textContent).toBe('17/10/2026')
+  clock.mockReturnValue(new Date(2026, 9, 17, 12).getTime())
+  fireEvent(window, new Event('focus'))
+  expect(await within(reminder).findByText('17/11/2026')).toBeTruthy()
+  expect(mock.log.calls('accounts/setManualBillingDate')).toHaveLength(0)
+  const edit = within(reminder).getByRole('button', { name: 'Edit date' })
+  fireEvent.click(edit)
+  const popup = screen.getByRole('dialog', { name: 'Billing reminder (user-entered)' })
+  const input = within(popup).getByLabelText('Monthly billing start date')
+  expect(input.getAttribute('value')).toBe('2026-10-17')
+  expect(popup.parentElement).toBe(document.body)
+  fireEvent.keyDown(input, { key: 'Escape' })
+  expect(screen.queryByRole('dialog', { name: 'Billing reminder (user-entered)' })).toBeNull()
+  expect(document.activeElement).toBe(edit)
+  const [account] = updated.accounts
+  if (account === undefined) throw new Error('fixture account is missing')
+  const saved: AccountsState = { ...updated, accounts: [{ ...account, manualBillingDate: '2026-10-31' }] }
+  mock.unary('accounts/setManualBillingDate', () => ok(saved))
+  fireEvent.click(edit)
+  fireEvent.change(screen.getByLabelText('Monthly billing start date'), { target: { value: '2026-10-31' } })
+  fireEvent.click(within(screen.getByRole('dialog', { name: 'Billing reminder (user-entered)' })).getByRole('button', { name: 'Save' }))
+  expect(await within(reminder).findByText('31/10/2026')).toBeTruthy()
+  expect(mock.log.calls('accounts/setManualBillingDate')).toHaveLength(1)
+  expect(mock.log.calls('accounts/setManualBillingDate')[0]?.args).toEqual(['openai-codex', 'codex-1', '2026-10-31'])
+  expect(await screen.findByText('Billing reminder saved.')).toBeTruthy()
   expect({
     sidebar: screen.getByRole('button', { name: /Fixture Account.*79% used/ }).getAttribute('aria-label'),
     manager: within(dialog).getByText('79% used').textContent,
+    billingReminder: reminder.textContent,
     refreshButton: within(dialog).queryByRole('button', { name: /refresh/i }),
   }).toMatchInlineSnapshot(`
     {
+      "billingReminder": "31/10/2026",
       "manager": "79% used",
       "refreshButton": null,
       "sidebar": "Fixture Account, PLUS · Codex, 5h 79% used",

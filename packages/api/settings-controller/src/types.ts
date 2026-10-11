@@ -172,7 +172,7 @@ export interface ManagedAccountView {
   readonly usage?: AccountUsageView
   readonly usageUpdatedAt?: number
   readonly usageError?: string
-  /** User-entered Gregorian YYYY-MM-DD reminder for this membership; never inferred or advanced. */
+  /** User-entered Gregorian YYYY-MM-DD monthly reminder anchor; display advances, this stored date does not. */
   readonly manualBillingDate?: string
 }
 

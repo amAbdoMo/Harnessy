@@ -382,8 +382,8 @@ export class AccountsController extends TypertRemoteService {
   }
 
   /**
-   * Save or clear a user-entered billing reminder for exactly one saved membership.
-   * The date is never inferred, advanced, or copied to another membership.
+   * Save or clear a user-entered monthly billing reminder anchor for one saved membership.
+   * Clients derive monthly occurrences; the stored anchor is never inferred, advanced, or copied.
    * @param provider - provider owning the saved membership.
    * @param accountId - saved membership to edit, independent of the active selection.
    * @param date - exact Gregorian YYYY-MM-DD (years 0001–9999), including past dates; null clears it.

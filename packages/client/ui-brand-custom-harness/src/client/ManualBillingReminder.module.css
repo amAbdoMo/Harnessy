@@ -1,33 +1,53 @@
 .reminder {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin-top: 4px;
   color: var(--dsw-alias-label-secondary);
   font-size: 12px;
   line-height: 18px;
 }
 
-.row,
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
+.trigger {
+  width: 28px;
+  padding: 0;
+  color: var(--dsw-alias-label-secondary);
 }
 
-.reminder .label,
-.reminder .date { color: var(--dsw-alias-label-secondary); }
-.reminder .overdue { color: var(--dsw-alias-state-warn-label); }
+.date { font-variant-numeric: tabular-nums; }
+
+.popup {
+  position: fixed;
+  z-index: 1100;
+  box-sizing: border-box;
+  width: min(300px, calc(100vw - 24px));
+  max-height: calc(100dvh - max(12px, var(--dsh-frame-overlay-top, 12px)) - 12px);
+  padding: 12px;
+  overflow: auto;
+  box-shadow: var(--dsw-elevation-prominent);
+}
 
 .editor {
   display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.actions {
+  display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  justify-content: flex-end;
   gap: 6px;
-  margin-top: 4px;
 }
 
 .hint,
 .failure {
-  flex-basis: 100%;
   margin: 0;
   font-size: 12px;
   line-height: 18px;
