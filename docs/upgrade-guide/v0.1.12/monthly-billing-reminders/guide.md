@@ -11,7 +11,7 @@ English | [中文](guide.zh.md)
 
 The Accounts manager replaces the fixed manual billing date and overdue label with a reminder icon and the next monthly date. On the entered date's local calendar day, the display advances to the first occurrence strictly after today. Months without the original day use their last day, then restore the original day in longer months. The display catches up when the application reopens.
 
-The protected `manualBillingDate` remains the original user-entered `YYYY-MM-DD` anchor; Remote reads and `accounts/changed` still return that anchor, not the computed future occurrence. Automatic rollover performs no credential-store writes or provider requests. Dates are reminders, not confirmed provider invoices. The account row displays `DD/MM/YYYY`; the popup edits the original anchor.
+The protected `manualBillingDate` remains the original user-entered `YYYY-MM-DD` anchor; Remote reads and `accounts/changed` still return that anchor, not the computed future occurrence. Automatic rollover performs no credential-store writes or provider requests. Dates are reminders, not confirmed provider invoices. The icon and date sit beside the email and plan, vertically centered. The row displays a short month and day (`Oct 17` in English or `10月17日` in Chinese), without a year or timezone shift; the popup edits the original anchor.
 
 ## Migration
 

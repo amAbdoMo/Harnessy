@@ -4,15 +4,42 @@ import { describe, expect, it } from 'vitest'
 const styles = readFileSync(new URL('../src/client/AccountsManagerCard.module.css', import.meta.url), 'utf8')
 const launcherStyles = readFileSync(new URL('../src/client/AccountLauncher.module.css', import.meta.url), 'utf8')
 const declarationText = styles.replace(/\/\*[\s\S]*?\*\//g, ' ')
+const reminderDeclarations = readFileSync(new URL('../src/client/ManualBillingReminder.module.css', import.meta.url), 'utf8')
+  .replace(/\/\*[\s\S]*?\*\//g, ' ')
 
 /** Declarations of one top-level rule, comments stripped. */
-function declarations(selector: string): string {
-  const rule = new RegExp(`(?:^|\\})\\s*${selector.replace(/[.[\]():*+^$\\]/g, '\\$&')}\\s*\\{([^{}]*)\\}`).exec(declarationText)
-  if (rule === null) throw new Error(`AccountsManagerCard.module.css has no \`${selector}\` rule`)
+function declarations(selector: string, source = declarationText): string {
+  const rule = new RegExp(`(?:^|\\})\\s*${selector.replace(/[.[\]():*+^$\\]/g, '\\$&')}\\s*\\{([^{}]*)\\}`).exec(source)
+  if (rule === null) throw new Error(`stylesheet has no \`${selector}\` rule`)
   return rule[1] ?? ''
 }
 
 describe('Harnessy account usage styles', () => {
+  it('keeps billing metadata on one centered row with matching icon and date heights', () => {
+    const metadata = declarations('.accountMetadata')
+    expect(metadata).toMatch(/display:\s*(?:inline-)?flex;/u)
+    expect(metadata).toContain('align-items: center;')
+    expect(metadata).not.toMatch(/flex-direction:\s*column|flex-wrap:\s*wrap/u)
+    const detail = declarations('.accountDetail')
+    expect(detail).toContain('min-width: 0;')
+    expect(detail).toContain('overflow: hidden;')
+    expect(detail).toContain('text-overflow: ellipsis;')
+    expect(detail).toContain('white-space: nowrap;')
+    const reminder = declarations('.reminder', reminderDeclarations)
+    expect(reminder).toContain('display: inline-flex;')
+    expect(reminder).toContain('align-items: center;')
+    expect(reminder).toContain('flex: none;')
+    expect(reminder).toContain('white-space: nowrap;')
+    expect(reminder).not.toContain('margin-top:')
+    const trigger = declarations('.trigger', reminderDeclarations)
+    expect(trigger).toContain('width: 24px;')
+    expect(trigger).toContain('height: 24px;')
+    const date = declarations('.date', reminderDeclarations)
+    expect(date).toContain('display: inline-flex;')
+    expect(date).toContain('align-items: center;')
+    expect(date).toContain('min-height: 24px;')
+  })
+
   it('presents quota windows and banked resets as equal bordered panels', () => {
     expect(styles).toContain(`.usagePanels:has(> .bankedReset) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .usagePanels:has(> .bankedReset) > .usageGrid { grid-column: span 2; }`)

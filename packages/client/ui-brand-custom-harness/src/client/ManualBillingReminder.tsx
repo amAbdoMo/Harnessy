@@ -85,7 +85,7 @@ export function ManualBillingReminder({ account, writable, saveDate, t }: {
           setEditing(true)
         }}><IconAlarmClockOutlineRegular size={16} /></Button>
     </Tooltip>
-    {date === undefined ? null : <time dateTime={date} className={css.date}>{billingDateLabel(date)}</time>}
+    {date === undefined ? null : <time dateTime={date} className={css.date}>{billingDateLabel(date, t('accountsBillingDateLocale'))}</time>}
     {editing ? createPortal(<MenuSurface ref={panel} compact id={popupId} className={css.popup}
       role="dialog" aria-modal="true" aria-label={t('accountsBillingReminder')} tabIndex={-1}
       style={position ?? { visibility: 'hidden', left: 0, top: 0 }}>

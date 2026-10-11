@@ -1,20 +1,29 @@
 .reminder {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 4px;
+  flex: none;
+  gap: 4px;
+  white-space: nowrap;
   color: var(--dsw-alias-label-secondary);
   font-size: 12px;
   line-height: 18px;
 }
 
 .trigger {
-  width: 28px;
+  flex: none;
+  width: 24px;
+  height: 24px;
   padding: 0;
   color: var(--dsw-alias-label-secondary);
 }
 
-.date { font-variant-numeric: tabular-nums; }
+.trigger > svg { display: block; flex: none; }
+.date {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  font-variant-numeric: tabular-nums;
+}
 
 .popup {
   position: fixed;

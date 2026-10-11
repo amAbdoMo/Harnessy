@@ -47,10 +47,13 @@ export function nextBillingDate(anchor: string | undefined, today: string): stri
 }
 
 /**
- * Display a validated date as day/month/year without locale-dependent timestamp conversion.
- * @param date - YYYY-MM-DD occurrence.
- * @returns DD/MM/YYYY.
+ * Display a Gregorian date as a localized short month and day, without a year or timezone shift.
+ * @param date - validated YYYY-MM-DD occurrence.
+ * @param locale - formatting locale supplied by the UI dictionary.
+ * @returns compact month/day label, such as Oct 17 in English.
  */
-export function billingDateLabel(date: string): string {
-  return `${date.slice(8, 10)}/${date.slice(5, 7)}/${date.slice(0, 4)}`
+export function billingDateLabel(date: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    month: 'short', day: 'numeric', timeZone: 'UTC', calendar: 'gregory',
+  }).format(new Date(`${date}T00:00:00Z`))
 }

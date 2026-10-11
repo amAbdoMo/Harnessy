@@ -68,10 +68,15 @@ it.skipIf(!custom)('updates sidebar and open Accounts together on a pushed usage
   expect(screen.getByRole('button', { name: /Fixture Account.*79% used/ })).toBeTruthy()
   expect(mock.log.calls('accounts/refreshUsage')).toHaveLength(reads)
   const reminder = within(dialog).getByRole('group', { name: 'Billing reminder (user-entered)' })
-  expect(reminder.textContent).toBe('17/10/2026')
+  const detail = within(dialog).getByText('fixture@example.invalid · PLUS')
+  expect(detail.parentElement).toBe(reminder.parentElement)
+  expect(detail.nextElementSibling).toBe(reminder)
+  expect(detail.getAttribute('title')).toBe('fixture@example.invalid · PLUS')
+  expect(reminder.textContent).toBe('Oct 17')
+  expect(within(reminder).getByText('Oct 17').getAttribute('datetime')).toBe('2026-10-17')
   clock.mockReturnValue(new Date(2026, 9, 17, 12).getTime())
   fireEvent(window, new Event('focus'))
-  expect(await within(reminder).findByText('17/11/2026')).toBeTruthy()
+  expect(await within(reminder).findByText('Nov 17')).toBeTruthy()
   expect(mock.log.calls('accounts/setManualBillingDate')).toHaveLength(0)
   const edit = within(reminder).getByRole('button', { name: 'Edit date' })
   fireEvent.click(edit)
@@ -89,7 +94,7 @@ it.skipIf(!custom)('updates sidebar and open Accounts together on a pushed usage
   fireEvent.click(edit)
   fireEvent.change(screen.getByLabelText('Monthly billing start date'), { target: { value: '2026-10-31' } })
   fireEvent.click(within(screen.getByRole('dialog', { name: 'Billing reminder (user-entered)' })).getByRole('button', { name: 'Save' }))
-  expect(await within(reminder).findByText('31/10/2026')).toBeTruthy()
+  expect(await within(reminder).findByText('Oct 31')).toBeTruthy()
   expect(mock.log.calls('accounts/setManualBillingDate')).toHaveLength(1)
   expect(mock.log.calls('accounts/setManualBillingDate')[0]?.args).toEqual(['openai-codex', 'codex-1', '2026-10-31'])
   expect(await screen.findByText('Billing reminder saved.')).toBeTruthy()
@@ -100,7 +105,7 @@ it.skipIf(!custom)('updates sidebar and open Accounts together on a pushed usage
     refreshButton: within(dialog).queryByRole('button', { name: /refresh/i }),
   }).toMatchInlineSnapshot(`
     {
-      "billingReminder": "31/10/2026",
+      "billingReminder": "Oct 31",
       "manager": "79% used",
       "refreshButton": null,
       "sidebar": "Fixture Account, PLUS · Codex, 5h 79% used",

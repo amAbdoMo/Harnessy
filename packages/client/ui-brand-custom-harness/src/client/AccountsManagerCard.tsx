@@ -453,10 +453,12 @@ function AccountCard({ account, contexts, provider, busy, writable, saveBillingD
           {editing
             ? <Input value={editName} onChange={(event) => { onEditName(event.currentTarget.value) }} aria-label={t('accountsName')} />
             : <strong>{account.name}</strong>}
-          <span>{account.detail ?? `${provider?.label ?? ''} ${account.authMode === 'oauth'
-            ? t('accountsOAuthAccount') : t('accountsApiKeyAccount')}`}</span>
-          <ManualBillingReminder key={JSON.stringify([account.provider, account.id])} account={account}
-            writable={writable && !busy} saveDate={saveBillingDate} t={t} />
+          <div className={css.accountMetadata}>
+            <span className={css.accountDetail} title={account.detail}>{account.detail ?? `${provider?.label ?? ''} ${account.authMode === 'oauth'
+              ? t('accountsOAuthAccount') : t('accountsApiKeyAccount')}`}</span>
+            <ManualBillingReminder key={JSON.stringify([account.provider, account.id])} account={account}
+              writable={writable && !busy} saveDate={saveBillingDate} t={t} />
+          </div>
           {account.active && <span className={css.activePill}>{t('accountsActive')}</span>}
         </div>
         <div className={css.accountActions}>

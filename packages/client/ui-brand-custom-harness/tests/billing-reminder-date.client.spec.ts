@@ -39,10 +39,21 @@ describe('monthly billing reminder dates', () => {
     'rejects %s rather than normalizing it', (date) => { expect(validBillingDate(date)).toBe(false) },
   )
 
-  it('uses the local calendar sample and displays a date without timestamp conversion', () => {
+  it('uses the local calendar sample', () => {
     const local = new Date(2026, 9, 17, 0, 0).getTime()
     expect(billingToday(local)).toBe('2026-10-17')
-    expect(billingDateLabel('2026-11-17')).toBe('17/11/2026')
-    expect(billingDateLabel('0001-02-03')).toBe('03/02/0001')
+  })
+
+  it.each([
+    ['2026-10-17', 'en-US', 'Oct 17'],
+    ['2026-02-28', 'en-US', 'Feb 28'],
+    ['0001-01-01', 'en-US', 'Jan 1'],
+    ['0099-02-28', 'en-US', 'Feb 28'],
+    ['2026-10-17', 'zh-CN', '10月17日'],
+    ['2026-02-28', 'zh-CN', '2月28日'],
+    ['0001-01-01', 'zh-CN', '1月1日'],
+    ['0099-02-28', 'zh-CN', '2月28日'],
+  ])('displays %s in %s as %s without a year or timezone shift', (date, locale, expected) => {
+    expect(billingDateLabel(date, locale)).toBe(expected)
   })
 })
