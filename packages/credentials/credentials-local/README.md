@@ -136,7 +136,7 @@ This section explains the design decisions behind the provider and points at the
 - **One honest precedence.** The inherited environment wins because it is this run's explicit intent and cannot be edited from inside; everything below it loses to the managed store, so a stored key is never displaced by a stale `.env`.
 - **The document holds only credentials.** A versioned document with `refs` and `records` sections rather than a dotenv file: a store the harness owns and never materializes into the environment cannot also serve as the user's environment layer, which would shadow non-secret entries behind its precedence.
 - **Writes patch, reloads replace.** Line edits preserve comments and untouched entries under the cross-process writer lock; reloads swap the parsed snapshot wholesale so a deleted entry never lingers in memory.
-- **Fail loud where trust is at stake.** Boot and reload reject a document that is unreadable, invalid, or readable beyond its owner; a live reload that fails keeps the last good snapshot and warns rather than taking the process down.
+- **Fail loud where trust is at stake.** Boot rejects unreadable or invalid storage. A failed live reconciliation keeps the last-good snapshot and warns, but permanently marks this provider's `sourceFailureSignal` and emits payload-free `credentials/source-failed`; a watcher error marks the same failure. Stored-grant authority consumers must withdraw even while cached reads remain available. Repair and restart the provider before restoring that authority.
 
 ### Source map
 

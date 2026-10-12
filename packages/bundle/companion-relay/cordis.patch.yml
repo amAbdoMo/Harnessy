@@ -1,0 +1,46 @@
+# Complete standalone tree. Never stack dsh-base, application agents, or a generic gateway here.
+- insert:
+    - id: companion-relay-startup
+      name: '@deepseek-ai/dsh-companion-relay-bundle/startup'
+      config:
+        profile: companion-relay
+
+    - id: companion-relay-webserver
+      name: '@deepseek-ai/dsh-host-webserver'
+      inject: [companionRelayStartup]
+      config:
+        host: !!js ctx.companionRelayStartup.host
+        port: !!js ctx.companionRelayStartup.port
+        compression: none
+
+    - id: companion-relay
+      name: '@deepseek-ai/dsh-companion-relay'
+      inject: [companionRelayStartup]
+      config:
+        httpsOrigin: !!js process.env.DSH_COMPANION_RELAY_HTTPS_ORIGIN
+        maxConnections: !!js Number(process.env.DSH_COMPANION_RELAY_MAX_CONNECTIONS)
+        maxConnectionsPerIp: !!js Number(process.env.DSH_COMPANION_RELAY_MAX_CONNECTIONS_PER_IP)
+        maxPending: !!js Number(process.env.DSH_COMPANION_RELAY_MAX_PENDING)
+        maxPendingPerIp: !!js Number(process.env.DSH_COMPANION_RELAY_MAX_PENDING_PER_IP)
+        maxRoutes: !!js Number(process.env.DSH_COMPANION_RELAY_MAX_ROUTES)
+        maxRoutesPerIp: !!js Number(process.env.DSH_COMPANION_RELAY_MAX_ROUTES_PER_IP)
+        maxPhones: !!js Number(process.env.DSH_COMPANION_RELAY_MAX_PHONES)
+        maxPhonesPerIp: !!js Number(process.env.DSH_COMPANION_RELAY_MAX_PHONES_PER_IP)
+        maxPhonesPerPc: !!js Number(process.env.DSH_COMPANION_RELAY_MAX_PHONES_PER_PC)
+        maxIpBuckets: !!js Number(process.env.DSH_COMPANION_RELAY_MAX_IP_BUCKETS)
+        maxFrameBytes: !!js Number(process.env.DSH_COMPANION_RELAY_MAX_FRAME_BYTES)
+        maxOutboundQueueBytes: !!js Number(process.env.DSH_COMPANION_RELAY_MAX_OUTBOUND_QUEUE_BYTES)
+        maxChannelQueueBytes: !!js Number(process.env.DSH_COMPANION_RELAY_MAX_CHANNEL_QUEUE_BYTES)
+        bytesPerSecond: !!js Number(process.env.DSH_COMPANION_RELAY_BYTES_PER_SECOND)
+        bytesPerSecondPerIp: !!js Number(process.env.DSH_COMPANION_RELAY_BYTES_PER_SECOND_PER_IP)
+        bytesPerSecondPerSocket: !!js Number(process.env.DSH_COMPANION_RELAY_BYTES_PER_SECOND_PER_SOCKET)
+        upgradesPerWindow: !!js Number(process.env.DSH_COMPANION_RELAY_UPGRADES_PER_WINDOW)
+        upgradesPerWindowPerIp: !!js Number(process.env.DSH_COMPANION_RELAY_UPGRADES_PER_WINDOW_PER_IP)
+        upgradeWindowMs: !!js Number(process.env.DSH_COMPANION_RELAY_UPGRADE_WINDOW_MS)
+        ipBucketTtlMs: !!js Number(process.env.DSH_COMPANION_RELAY_IP_BUCKET_TTL_MS)
+        registrationTimeoutMs: !!js Number(process.env.DSH_COMPANION_RELAY_REGISTRATION_TIMEOUT_MS)
+        challengeTimeoutMs: !!js Number(process.env.DSH_COMPANION_RELAY_CHALLENGE_TIMEOUT_MS)
+        channelHandshakeTimeoutMs: !!js Number(process.env.DSH_COMPANION_RELAY_CHANNEL_HANDSHAKE_TIMEOUT_MS)
+        idleTimeoutMs: !!js Number(process.env.DSH_COMPANION_RELAY_IDLE_TIMEOUT_MS)
+        maxConnectionLifetimeMs: !!js Number(process.env.DSH_COMPANION_RELAY_MAX_CONNECTION_LIFETIME_MS)
+        sweepIntervalMs: !!js Number(process.env.DSH_COMPANION_RELAY_SWEEP_INTERVAL_MS)

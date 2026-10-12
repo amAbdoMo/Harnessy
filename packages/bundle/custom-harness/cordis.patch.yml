@@ -62,7 +62,7 @@
     # Product-wide guidance remains visible when presets or delegated roles
     # replace the deployment persona.
     - id: custom-harness-policy
-      name: '@deepseek-ai/dsh-custom-harness'
+      name: './lib/index.js'
 
     # Interactive account authorization is product-visible only in Custom
     # Harness. llm-pi-ai discovers its OpenAI ChatGPT OAuth flow through this

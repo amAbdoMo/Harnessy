@@ -5,6 +5,8 @@ import { join } from 'node:path'
 import type { PlatformSession } from '@deepseek-ai/dsh-deepseek-account'
 import { desktopNodeEnvironment } from './node-environment.ts'
 import { isDesktopRemoteRoot } from './phone-connection.ts'
+import type { CompanionControlCommand, CompanionControlResult } from '@deepseek-ai/dsh-companion-host/types'
+import { parseCompanionControlResult } from '@deepseek-ai/dsh-companion-host/desktop-control'
 import type { DesktopWebsiteMcpBinding } from './website-profiles.ts'
 import type {
   DesktopWebsiteHostCommand, DesktopWebsiteHostSnapshot, DesktopWebsiteOperationCommand, DesktopWebsitePageInfo,
@@ -35,6 +37,11 @@ interface PlatformSessionEvent {
 }
 
 type DesktopHostEvent = DesktopWebsiteOperationCommand | ReadyEvent | FatalEvent | PlatformSessionEvent | { readonly type: 'shutdown-complete' } | {
+  readonly type: 'companion-control'
+  readonly requestId: number
+  readonly result?: CompanionControlResult
+  readonly error?: 'unavailable' | 'limit'
+} | {
   readonly type: 'update-tasks'
   readonly requestId: number
   readonly active: boolean
@@ -124,6 +131,15 @@ function isDesktopHostEvent(message: unknown): message is DesktopHostEvent {
         return url.origin === session.origin && !url.username && !url.password
           && (url.protocol === 'https:' || (url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)))
       } catch { return false }
+    }
+    case 'companion-control': {
+      if (typeof candidate.requestId !== 'number' || !Number.isSafeInteger(candidate.requestId) || candidate.requestId < 1) return false
+      const keys = Object.keys(candidate)
+      if (keys.length !== 3 || !keys.includes('type') || !keys.includes('requestId')) return false
+      if ('error' in candidate) return candidate.error === 'unavailable' || candidate.error === 'limit'
+      if (!('result' in candidate)) return false
+      try { parseCompanionControlResult(candidate.result, Date.now()); return true }
+      catch (_error) { return false /* Invalid private results are never delivered to native controls or clipboard. */ }
     }
     case 'fatal':
       return typeof candidate.message === 'string' && (candidate.diagnostic === undefined || typeof candidate.diagnostic === 'string')
@@ -499,6 +515,21 @@ export class DesktopHostProcess {
     return snapshot
   }
 
+  /**
+   * Dispatch one native management operation to this exact Host process.
+   * @param command - Closed Main-only command; never accept it from a renderer or remote phone.
+   * @returns Validated private response; a timed-out mutation has an unknown management outcome.
+   */
+  async companionControl(command: CompanionControlCommand): Promise<CompanionControlResult> {
+    const response = await this.control({ type: 'companion-control', command }, 10_000, 'Companion control outcome is unknown')
+    if (response.type !== 'companion-control' || response.error !== undefined || response.result === undefined) {
+      throw new Error('Companion native control is unavailable')
+    }
+    const expected = command.kind === 'describe' ? 'status' : command.kind === 'createInvitation' ? 'invitation' : 'completed'
+    if (response.result.kind !== expected) throw new Error('Companion Host returned a different operation result')
+    return response.result
+  }
+
   /** @param listener - sole same-preview native handler installed before startup. @returns registration disposer. */
   onDevicePreviewRequest(listener: (request: DevicePreviewHostRequest) => Promise<DevicePreviewResponse | undefined>): () => void {
     if (this.child !== undefined) throw new Error('Device preview native owner must register before Host startup')
@@ -516,7 +547,8 @@ export class DesktopHostProcess {
   private async control(
     request: { readonly type: 'update-tasks'; readonly action: 'inspect' | 'lock' | 'unlock' } | { readonly type: 'quit-inspection' }
       | { readonly type: 'website-mcp'; readonly serverName: string }
-      | { readonly type: 'website-control'; readonly command: DesktopWebsiteHostCommand },
+      | { readonly type: 'website-control'; readonly command: DesktopWebsiteHostCommand }
+      | { readonly type: 'companion-control'; readonly command: CompanionControlCommand },
     deadlineMs: number, deadlineMessage: string,
   ): Promise<DesktopHostControlResponse> {
     const child = this.child
@@ -524,6 +556,11 @@ export class DesktopHostProcess {
       const operation = request.type === 'website-mcp' ? 'Website MCP registry'
         : request.type === 'website-control' ? 'Website request' : request.type === 'update-tasks' ? 'desktop update' : 'desktop quit'
       throw new Error(`${operation}: Host is unavailable`)
+    }
+    if (!Number.isSafeInteger(this.nextControlId) || this.nextControlId < 1) throw new Error('Desktop control id exhausted')
+    if (request.type === 'companion-control'
+      && [...this.controlRequests.values()].filter(value => value.type === 'companion-control').length >= 16) {
+      throw new Error('Companion native control queue limit')
     }
     const requestId = this.nextControlId++
     let timer: ReturnType<typeof setTimeout> | undefined

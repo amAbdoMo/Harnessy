@@ -118,11 +118,13 @@ apiKeyEnv: DEEPSEEK_API_KEY
 - **记录是持久化的，存在即事实。** 记录按 `<scope>/<id>` 存储并跨重启保留；空值规则不适用，因此一条既无 key 也无环境值的 `api-key` 记录是有意陈述，而不是空白。
 - **监听器失败受到隔离。** `notifyUpdated` 扇出 `credentials/reference-updated`，保证每个监听器都会运行；同步抛出与异步拒绝都会被记录，不改变已提交操作的结果。
 
-### credentials/reference-updated 事件
+### 提供方通知
 
 `credentials/reference-updated (ref)` 在提供方管理的来源发生已提交变更后触发——`set`、`unset` 或在存储中观察到的外部编辑。进程环境变量的变化不可观测，永不触发。消费方不需要该事件（它们按操作重新解析）；它服务于配置界面刷新「已配置」徽标。
 
 `credentials/record-updated (key)` 在存储记录发生已提交变更后触发——一次确实写入的 `modifyRecord`、一次确实移除的 `deleteRecord`，或在存储中观察到的外部编辑。它保持独立事件，因为两个键文法互斥：一个监听器若在同一事件上同时收到两个空间，将无法分辨主体属于哪一边。
+
+`notifySourceFailure()` 报告存储不可再信任或来源监听失效时，`sourceFailureSignal` 对本次提供方实例永久中止。无负载的 `credentials/source-failed` 事件只触发一次，监听器失败受到隔离。提供方可以继续提供最后有效的缓存值；将存储授权用作访问依据的消费方必须在初次准入前检查信号，并在失败通知中同步撤回权限。修复底层文档不会重置信号；修复后须重新挂载提供方。
 
 ### 记录写入与读取路径
 

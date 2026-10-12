@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- reconnect/read/heartbeat/mutation ms; pending reads/page/session window/text rows/text bytes/watch ms -->
+    <integer-array name="controller_budgets">
+        <item>5000</item><item>10000</item><item>20000</item><item>15000</item>
+        <item>8</item><item>64</item><item>256</item><item>256</item><item>262144</item><item>60000</item>
+    </integer-array>
+    <integer name="io_queue">32</integer>
+    <integer name="frame_bytes">98304</integer>
+    <integer name="retained_frames">16</integer>
+    <integer name="retained_bytes">1048576</integer>
+    <integer name="socket_queue_bytes">262144</integer>
+    <integer name="connect_ms">10000</integer>
+    <integer name="handshake_ms">60000</integer>
+    <integer name="write_ms">10000</integer>
+    <integer name="idle_ms">60000</integer>
+    <integer name="lifetime_ms">900000</integer>
+    <integer name="tick_ms">1000</integer>
+</resources>

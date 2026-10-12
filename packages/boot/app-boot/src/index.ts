@@ -752,6 +752,9 @@ const requiredStartupEntryIds = new Set<string>([
   'headless-runner',
   'acp',
   'sdk-jsonrpc-server',
+  'companion-relay-startup',
+  'companion-relay-webserver',
+  'companion-relay',
 ])
 
 /** Render plugin stacks, nested causes, and aggregate member failures once per error. */

@@ -169,6 +169,13 @@ declare module '@deepseek-ai/cordis' {
  */
 export abstract class CredentialProvider extends Service {
   private recordsTail: Promise<void> = Promise.resolve()
+  private readonly sourceFailure = new AbortController()
+
+  /**
+   * Source health cannot recover within this provider incarnation; authorization consumers must withdraw on failure.
+   * @returns Permanent source-failure signal; cached values may remain readable after failure.
+   */
+  get sourceFailureSignal(): AbortSignal { return this.sourceFailure.signal }
 
   constructor(ctx: Context) {
     super(ctx, 'credentials')
@@ -298,15 +305,22 @@ export abstract class CredentialProvider extends Service {
     this.fanOut('credentials/record-updated', key)
   }
 
+  /** Report untrustworthy storage or lost source observation once, without disclosing paths, values or failure details. */
+  protected notifySourceFailure(): void {
+    if (this.sourceFailure.signal.aborted) return
+    this.sourceFailure.abort()
+    this.fanOut('credentials/source-failed')
+  }
+
   /* jscpd:ignore-start -- deliberate symmetry with the settings seam's commit
      fan-out: the contained-dispatch shape is the reviewed listener-lifecycle
      contract, and extracting it would couple the two seams' event semantics. */
-  /** The contained dispatch both notifications run through; see {@link notifyUpdated}. */
-  private fanOut(event: 'credentials/reference-updated' | 'credentials/record-updated', subject: string): void {
-    const args = [event, subject]
+  /** Contained dispatch for committed updates and provider-owned source failure. */
+  private fanOut(...args: ['credentials/reference-updated' | 'credentials/record-updated', string] | ['credentials/source-failed']): void {
+    const [event, subject = 'source'] = args
     for (const listener of this.ctx.events.dispatch('emit', args) as Array<(...listenerArgs: unknown[]) => unknown>) {
       try {
-        const returned = listener(subject)
+        const returned = listener(...args.slice(1))
         if (returned != null && typeof (returned as PromiseLike<unknown>).then === 'function') {
           void Promise.resolve(returned as PromiseLike<unknown>).then(undefined, (error: unknown) => {
             this.warnListenerFailure(event, subject, error)

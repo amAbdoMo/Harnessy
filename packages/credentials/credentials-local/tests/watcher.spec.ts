@@ -3,7 +3,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { credentialRef } from '@deepseek-ai/dsh-credentials'
+import { credentialKey, credentialRef } from '@deepseek-ai/dsh-credentials'
 import { LocalCredentialProvider } from '../src/index.ts'
 
 const fsHarness = vi.hoisted(() => ({
@@ -95,20 +95,45 @@ describe('watcher pipeline', () => {
     expect(instance!.options.awaitWriteFinish).toEqual({ stabilityThreshold: 0, pollInterval: 1 })
   })
 
-  it('survives a watcher error and keeps publishing later edits', async () => {
+  it('permanently aborts source authority before once-only payload-free fanout while later writes remain readable', async () => {
     const dir = await tempDir()
     const path = join(dir, '.credentials.yaml')
     const ctx = await boot({ path, debounceMs: 5 })
-    const [instance] = await fakeInstances()
-
-    instance!.watcher.emit('error', new Error('watch backend failure'))
-    expect(await ctx.credentials.resolve(KEY)).toBeUndefined()
-
-    await writeCredentials(path, 'version: 1\nrefs:\n  DSH_CRED_PIPE: arrived\n')
-    instance!.watcher.emit('all', 'change', path)
-    await vi.waitFor(async () => {
-      expect(await ctx.credentials.resolve(KEY)).toEqual({ value: 'arrived', source: 'file' })
+    const recordKey = credentialKey('watcher-test', 'grant')
+    const lastGood = { kind: 'grant' as const, payload: { token: 'last-good' } }
+    await ctx.credentials.modifyRecord(recordKey, () => Promise.resolve(lastGood))
+    const signal = ctx.credentials.sourceFailureSignal
+    const seen: { listener: string; aborted: boolean; args: unknown[] }[] = []
+    ctx.on('credentials/source-failed', (...args: unknown[]) => {
+      seen.push({ listener: 'throwing', aborted: signal.aborted, args })
+      throw new Error('source observer failed')
     })
+    ctx.on('credentials/source-failed', (...args: unknown[]) => {
+      seen.push({ listener: 'later', aborted: signal.aborted, args })
+    })
+    const [instance] = await fakeInstances()
+    expect(signal.aborted).toBe(false)
+
+    expect(() => instance!.watcher.emit('error', new Error('watch backend failure'))).not.toThrow()
+    expect(signal.aborted).toBe(true)
+    expect(seen).toEqual([
+      { listener: 'throwing', aborted: true, args: [] },
+      { listener: 'later', aborted: true, args: [] },
+    ])
+    expect(await ctx.credentials.readRecord(recordKey)).toEqual(lastGood)
+
+    await ctx.credentials.set(KEY, 'arrived')
+    const replacement = { kind: 'grant' as const, payload: { token: 'replacement' } }
+    await ctx.credentials.modifyRecord(recordKey, () => Promise.resolve(replacement))
+    expect(await ctx.credentials.resolve(KEY)).toEqual({ value: 'arrived', source: 'file' })
+    expect(await ctx.credentials.readRecord(recordKey)).toEqual(replacement)
+    expect(ctx.credentials.sourceFailureSignal).toBe(signal)
+    expect(signal.aborted).toBe(true)
+    instance!.watcher.emit('error', new Error('second watch backend failure'))
+    expect(seen).toEqual([
+      { listener: 'throwing', aborted: true, args: [] },
+      { listener: 'later', aborted: true, args: [] },
+    ])
   })
 
   it('keeps the last good snapshot when the file turns unreadable at runtime', async () => {
@@ -197,24 +222,29 @@ describe('watcher pipeline', () => {
       seen.push(ref)
     })
 
-    // A key the seam cannot address is a rejection, not preserved content:
-    // this document holds nothing but credentials. A live reload must warn
-    // and keep serving the last good snapshot rather than take the process
-    // down or silently drop the entry it could not validate.
+    const failed = Promise.withResolvers<undefined>()
+    const failures: boolean[] = []
+    ctx.on('credentials/source-failed', () => {
+      failures.push(ctx.credentials.sourceFailureSignal.aborted)
+      failed.resolve(undefined)
+    })
     await writeCredentials(path, 'version: 1\nrefs:\n  BAD-KEY: 2\n  DSH_CRED_PIPE: b\n')
     const [instance] = await fakeInstances()
     instance!.watcher.emit('all', 'change', path)
-    await new Promise(resolve => setTimeout(resolve, 50))
+    await failed.promise
     expect(await ctx.credentials.resolve(KEY)).toEqual({ value: 'a', source: 'file' })
     expect(seen).toEqual([])
+    expect(failures).toEqual([true])
 
-    // Repairing the document resumes publishing.
+    // Repair restores cached values, not source authority.
     await writeCredentials(path, 'version: 1\nrefs:\n  DSH_CRED_PIPE: b\n')
     instance!.watcher.emit('all', 'change', path)
     await vi.waitFor(async () => {
       expect(await ctx.credentials.resolve(KEY)).toEqual({ value: 'b', source: 'file' })
     })
     expect(seen).toEqual([KEY])
+    expect(ctx.credentials.sourceFailureSignal.aborted).toBe(true)
+    expect(failures).toEqual([true])
   })
 
   it('treats an event for a still-absent file as a no-op', async () => {

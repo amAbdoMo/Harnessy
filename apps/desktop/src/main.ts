@@ -73,6 +73,7 @@ import { DesktopTray } from './tray.ts'
 import { DesktopTaskbarUnread, installDesktopTaskbarIpc } from './taskbar-unread.ts'
 import { DesktopBackgroundNotice } from './background-notice.ts'
 import { DesktopPhoneConnection, installDesktopPhoneConnectionIpc } from './phone-connection.ts'
+import { DesktopCompanion, installDesktopCompanionIpc } from './companion-native.ts'
 import { windowsNotificationApplicationId, windowsNotificationShortcut } from './windows-notifications.ts'
 import { registerWindowsToastIdentity, type LegacyWindowsToastShortcut } from './windows-notification-registration.ts'
 import { DesktopNotificationActivation, NOTIFICATION_ACTIVATION_SCHEME, parseNotificationActivationArguments, parseNotificationActivationUri, windowsNotificationToastXml } from './notification-activation.ts'
@@ -611,6 +612,26 @@ async function main(): Promise<void> {
       throw new Error('dsh desktop: rejected IPC from an unowned renderer')
     }
   }
+  const companion = new DesktopCompanion(() => {
+    const window = mainWindow
+    const host = backend.host?.phoneOwner
+    if (isQuitting() || shuttingDown || window === undefined || window.isDestroyed() || host === undefined) return undefined
+    return { host, window }
+  }, () => locale.id, {
+    show(owner, options) {
+      const window = mainWindow
+      if (window === undefined || window !== owner.window || window.isDestroyed()) {
+        return Promise.reject(new Error('Companion native window retired'))
+      }
+      return dialog.showMessageBox(window, options)
+    },
+    copy(text) { return clipboard.writeText(text) },
+  })
+  const detachCompanionIpc = installDesktopCompanionIpc(ipcMain, assertProductSender, companion)
+  app.once('will-quit', () => {
+    detachCompanionIpc()
+    void companion.close().catch((error: unknown) => { console.warn('Companion native teardown failed', error) })
+  })
   const phoneConnection = new DesktopPhoneConnection(
     () => isQuitting() || shuttingDown ? undefined : backend.host?.phoneOwner,
     text => clipboard.writeText(text),
@@ -673,6 +694,7 @@ async function main(): Promise<void> {
       hostInspectPort, { ...hostEnvironment, DSH_CLIENT_VERSION: desktopClientVersion() }, (error) => {
         active = false
         phoneConnection.retire(host)
+        companion.retire(host)
         void websiteAuthority.requests.revokeHost(host).catch((_failure: unknown) => { /* Captured failed transactions stay locked. */ })
         if (previewHost === host) previewHost = undefined
         void devicePreviews.retireHost(host).catch((failure: unknown) => { console.error('Device preview Host retirement failed', failure) })
@@ -739,6 +761,7 @@ async function main(): Promise<void> {
       stop: async () => {
         active = false
         phoneConnection.retire(host)
+        companion.retire(host)
         detachPreviewHost()
         if (previewHost === host) previewHost = undefined
         const previewDraining = devicePreviews.retireHost(host)

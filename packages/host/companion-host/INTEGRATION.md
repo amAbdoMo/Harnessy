@@ -1,0 +1,52 @@
+# Companion Host integration reference
+
+English | [中文](INTEGRATION.zh.md)
+
+## Source-only delivery
+
+Desktop mounts the optional service with a private owner capability and real deployment configuration. Runtime security, Windows ownership and physical Android interoperability require acceptance before activation; static checks do not supply that evidence. Source preparation changes no installed credential data and supplies no hosted relay origin.
+
+## Desktop ownership and native control
+
+The default export is `CompanionHost`, registered as `ctx.companionHost`; it is not a Typert Remote service and does not register HTTP routes. Desktop Host's `runProfile.prepare` calls `installDesktopCompanionOwner(ctx, { home, signal })` with the actual credential home and a signal aborted synchronously on parent loss or Host retirement. The capability is attached to that application's root context; YAML cannot supply it. Mounting the configured service without the capability fails. The service holds a kernel lock at `<canonical-home>/.companion-host-owner` until quiescent disposal: Windows keeps a `CreateFileW` handle with zero sharing; POSIX holds an exclusive `flock` and verifies the current inode. Duplicate owners are refused without heartbeat expiry, PID probing or stale-file deletion. Process death closes the kernel handle; release retains the POSIX lock inode.
+
+Main-only native consumers call `describe()`, `createInvitation()`, `approveCandidate(candidateId, confirmFingerprint)`, `cancelInvitation()`, and `revokeGrant(grantId)`. `describe()` supplies Main with `available`, `connected`, public `pcId`, paired labels, invitation id/expiry, and candidate ids/fingerprints/empty display names. Main projects only availability, connection and paired count to the renderer; candidate and grant identifiers stay private to native management. `createInvitation()` returns `{ invitationId, expiresAt, pairingUrl }` exclusively to authenticated Desktop main. Main copies `pairingUrl` through its clipboard capability and returns no secret-bearing value to the renderer. Main authorizes the owned primary top-frame caller, validates IPC parameters, and keeps correlated replies tied to one current Host incarnation. No old PC launch token is used.
+
+Approval requires the exact locally displayed candidate id and exact lowercase SHA-256 fingerprint. Cancellation immediately aborts a committing candidate before awaiting queued management work. Revocation immediately aborts all affected channel authorization signals, then removes the stored row and awaits teardown. A failed credential write rejects withdrawal completion while leaving the old signals withdrawn. Local UI must explain that follow-ups can execute existing PC task/tool authority, and must not imply phone tool-approval capability.
+
+## Frozen native link encoding
+
+The version-one native link is exactly `harnessy://pair#<base64url>`, with no path suffix, query parameters or web JavaScript requirement. The fragment is canonical unpadded base64url of UTF-8 `JSON.stringify` for the public field order shown below. JSON object member order is not cryptographic authority; Android must validate the exact member set, value types, canonical origin/public key/id encodings and expiry before storing an invitation.
+
+```json
+{"v":1,"httpsOrigin":"<actual canonical HTTPS origin>","pcIdentityKey":"<canonical public SPKI DER base64url>","pcId":"<SHA-256 PC id base64url>","invitationId":"<32 random bytes base64url>","expiresAt":0,"secret":"<32 random bytes base64url>"}
+```
+
+`expiresAt` is an integer Unix timestamp in milliseconds, not the example zero. `secret` is a fresh 256-bit invitation secret, never the PC private key or launch credential. The entire fragment is secret-bearing until expiry/consumption; Android must not log it, include it in telemetry or forward it to a website. Paste support is sufficient; this package neither uses a QR library nor claims QR output.
+
+## Actual relay and endpoint wire
+
+The connector opens only `wss://<actual-authority>/companion/pc` with the actual canonical HTTPS `Origin`, no query, no redirects and no compression. Native phones use `/companion/phone`. Both send shared-version `relay-register` with `role`, `identityKey` and `targetPcId`; the fresh server `relay-challenge` is signed with the shared `signRelayChallenge` helper. The client accepts `relay-ready` only for its role, target and captured socket generation.
+
+PC outgoing envelopes are `{ v: 1, type: 'relay-data', channelId, socketGeneration, phoneSocketGeneration, payload }`; PC closes use `{ v: 1, type: 'relay-close', channelId, socketGeneration, phoneSocketGeneration }`. Incoming open/data/close notices use the exact current fields in [connector parsing](src/connector.ts) and [relay forwarding](../companion-relay/src/relay.ts). Relay source assertions are routing checks only. The Host independently verifies the shared signed hello against the pinned PC public key and origin, verifies phone key possession and the invitation HMAC or current grant generation, and uses shared `acceptClientHello` for ECDH/welcome/channel derivation. It sends no welcome before local approval and credential commit.
+
+Both parties exchange shared encrypted key confirmations before application bytes. The signed welcome binds the full signed hello and PC-issued grant id/generation; Android stores these public values with its own identity key. The shared protocol currently has no independent persistent signed grant-proof message. This consumer does not invent one: Android must support the current welcome-bound enrollment format or coordinate an explicit shared-protocol variant with the protocol owner. A restored phone copy never replaces PC grant rows.
+
+Application requests/results use the shared [application types](../../util/companion-protocol/src/application-types.ts) and parser/encoder, not operator RPC. Closed operations are `listSessions`, `readHistory`, `watchProgress`, `submitText`, and `cancelRead`. No receipt endpoint exists. Phone submission ids are namespaced to the authenticated grant and Session before mapping to the existing Session request id. Complete UTF-8 request/result/wire sizes, queued send bytes, channel attempts, candidates, grants, watches and pending operations are bounded by explicit config.
+
+## Credential storage
+
+The existing credential key is exactly `companion-host/identity`, with record wrapper `{ kind: 'grant', payload }`. The payload member set is `{ v: 1, httpsOrigin, pcId, identityPublicKey, identityPkcs8, grants }`. `identityPkcs8` is canonical unpadded base64url PKCS#8 DER for the P-256 private key; `identityPublicKey` is canonical public SPKI DER base64url. Each grant is `{ grantId, generation, phoneIdentityKey, displayName, pairedAt }`, where `pairedAt` is integer Unix milliseconds and `displayName` is currently empty. This payload is private and must not cross public IPC or renderer bridges.
+
+[Records](src/records.ts) reject extra members, version/key/id/curve/origin mismatch, oversized records, invalid generations and duplicate phone keys/grant ids. First boot absence alone permits identity generation. Running-record deletion, corruption or identity replacement never silently regenerates; the feature withdraws and requires local intervention. Endpoint changes require local reset and re-pairing. Reset is local maintenance: retire the old Host and withdraw all phone authority before deleting the old identity record, then boot under the new origin. Copying credentials clones identity, including across different homes where the local lock cannot help.
+
+Writes use `CredentialProvider.modifyRecord`, whose local implementation re-reads under its existing cross-process file lock. No new database is introduced. Any record-update event synchronously aborts enrolled channel signals before asynchronous reload. The sole committing candidate has no application authority during its own store commit and must re-read current records before welcome; after its grant assignment, every record change also aborts it. Credentials-local keeps its last-good read cache after backing-source failure but permanently aborts `sourceFailureSignal` and emits payload-free `credentials/source-failed`; companion checks initial health and withdraws synchronously on that event. Its atomic writer also lacks fsync and Windows ACL verification; do not advertise stronger persistence or permission guarantees.
+
+## Parent integration requirements
+
+- Add the new package and shared protocol to root dependency resolution, source `paths`, host/test compiler aggregates and build/package discovery; install dependencies only under parent authority. Package-local references and dependency classifications are declared in [the manifest](package.json) and [compiler configuration](tsconfig.json).
+- Provide `ws` 8.21.0 and its declared type package, `koffi` 3.1.1 for Windows handles, and the workspace native system package for POSIX `flock`. Protocol/brand/config helpers are runtime dependencies; existing Cordis capability owners are peer dependencies with development counterparts. Test composition dependencies must be reconciled after the test source is reviewed.
+- Mount only in the Desktop-owned Host, supply every validated budget and the real deployed origin, keep old public-PC/operator access out of the companion feature, and wire native control/private clipboard IPC plus localized public status/warnings.
+- Use the Host-only `SessionController.admitPrompt(request, admissionCheck)` method. Its callback is checked synchronously after asynchronous resolution and immediately before inbox insertion. The callback must check the revocable channel signal and current grant authority and reject with `RemoteError('gateway/cancelled', ...)`; a superficial pre-await read is insufficient.
+- Android must implement this exact link, relay framing, shared domain-separated crypto, key confirmation, current-grant reconnect and closed application operation/result sets. Add signed display-name metadata or local-PC-action status only in the shared protocol, never by copying an undeclared schema here.
+- Validate native Windows ACL behavior, lock compromise/duplicate ownership, slow sender teardown, replay/malformed UTF-8 rejection, grant deletion/generation races, cold history without activation, full byte budgets, and delivery-unknown handling. Add assembled transcript and Desktop/Android end-to-end evidence. This delivery runs none of those operations.

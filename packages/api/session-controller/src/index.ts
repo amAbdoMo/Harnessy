@@ -433,13 +433,24 @@ export class SessionController extends TypertRemoteService {
   /**
    * Admit one prompt after explicitly resuming its Session.
    * @param request - Session identity, prompt content, source metadata, and delivery mode.
-   * @param signal - caller cancellation before prompt admission begins.
-   * @returns acknowledgement that the Agent accepted the prompt.
+   * @param signal - caller cancellation until synchronous inbox admission; already admitted work continues.
+   * @returns acknowledgement of in-memory inbox admission, not durable checkpoint or task completion.
    */
   @Remote('prompt')
   prompt(request: SessionPromptRequest, signal: AbortSignal): Promise<SessionPromptValue> {
-    signal.throwIfAborted()
-    return this.commands.prompt(request)
+    return this.admitPrompt(request, () => {
+      if (signal.aborted) throw new RemoteError('gateway/cancelled', 'prompt admission was cancelled', {})
+    })
+  }
+
+  /**
+   * Admit a Host-owned prompt while rechecking its caller's current authority.
+   * @param request - Session identity, prompt content, source metadata, and delivery mode.
+   * @param checkAdmission - synchronous authorization and cancellation check through inbox insertion.
+   * @returns acknowledgement of in-memory admission; an already admitted prompt continues after cancellation.
+   */
+  admitPrompt(request: SessionPromptRequest, checkAdmission: () => void): Promise<SessionPromptValue> {
+    return this.commands.prompt(request, checkAdmission)
   }
 
   /**

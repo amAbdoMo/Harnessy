@@ -563,6 +563,9 @@ describe('auditStartupEntries', () => {
     'headless-runner',
     'acp',
     'sdk-jsonrpc-server',
+    'companion-relay-startup',
+    'companion-relay-webserver',
+    'companion-relay',
   ]
 
   interface FakeEntry {

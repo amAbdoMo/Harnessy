@@ -1,0 +1,43 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/host/companion-host/README.md
+/:
+  en: 6e5ffa098da012d4
+  zh: b01796356196ee43
+/deepseek-ai-dsh-companion-host:
+  en: 11291b7b615a362c
+  zh: b39ce600611676ae
+/deepseek-ai-dsh-companion-host/summary:
+  en: 5d1f2c0ac00717ae
+  zh: 8f24ed8525895303
+/deepseek-ai-dsh-companion-host/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 0cd57b7b8d8c9b59
+/deepseek-ai-dsh-companion-host/use-this-package:
+  en: 07e6e21e7a29a5a6
+  zh: 79b18c9b44ecfc5a
+/deepseek-ai-dsh-companion-host/use-this-package/configuration:
+  en: d77ef8a1cc600c07
+  zh: a46e3ef506f29b14
+/deepseek-ai-dsh-companion-host/use-this-package/pairing-and-follow-up-authority:
+  en: f60ff29c4f3a5681
+  zh: f75a25d709e9e1f9
+/deepseek-ai-dsh-companion-host/understand-the-implementation:
+  en: 378e8b7d52b8ed85
+  zh: 7ccf37abc8ce513d
+/deepseek-ai-dsh-companion-host/further-exploration:
+  en: 9d3a4f460f077e83
+  zh: 18b64ac8ce25dfaf
+/deepseek-ai-dsh-companion-host/model-experience:
+  en: 7f29c89c34e8d349
+  zh: ad0662fa72426896
+/deepseek-ai-dsh-companion-host/model-experience/kv-cache-effect:
+  en: e93a0b7552c8e825
+  zh: e9859648dc672e4c
+/deepseek-ai-dsh-companion-host/known-limitations-and-deferred-work:
+  en: ad8acba525d511a5
+  zh: dc8a8821726d49c6
+/deepseek-ai-dsh-companion-host/dev-note:
+  en: 5de1d6304e00c58f
+  zh: e58fc8dda0bea8d5

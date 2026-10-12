@@ -118,11 +118,13 @@ One doctrine and four consequences:
 - **Records are durable, and presence is the fact.** A record is stored per `<scope>/<id>` and survives restarts; the empty-value rule does not apply, so an `api-key` record carrying neither a key nor environment values is a deliberate statement, not a blank.
 - **Listener failures are contained.** `notifyUpdated` fans `credentials/reference-updated` out so every listener runs; a sync throw or async rejection is logged without changing the committed operation's outcome.
 
-### The credentials/reference-updated event
+### Provider notifications
 
 `credentials/reference-updated (ref)` fires after a committed change to a provider-managed source — a `set`, an `unset`, or an external edit observed in storage. Ambient process-environment changes are not observable and never emit. Consumers do not need the event (they re-resolve per operation); it exists for configuration UIs refreshing a "configured" badge.
 
 `credentials/record-updated (key)` fires after a committed change to a stored record — a `modifyRecord` that wrote, a `deleteRecord` that removed, or an external edit observed in storage. It stays a separate event because the two key grammars are disjoint: a listener receiving both spaces on one event could not tell which one a subject belongs to.
+
+`sourceFailureSignal` is permanently aborted for this provider incarnation when `notifySourceFailure()` reports untrustworthy storage or lost source observation. The payload-free `credentials/source-failed` event is emitted once with contained listener failures. Providers may keep last-good cached values readable; consumers using stored grants as authorization must check the signal before initial admission and synchronously withdraw on the failure notification. Repairing the backing document does not reset the signal; remount the provider after repair.
 
 ### Record write and read paths
 

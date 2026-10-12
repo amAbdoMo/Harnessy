@@ -95,6 +95,8 @@ The global shared root composes with each preset's scoped filesystem provider. P
 <a id="agent-behavior-policy"></a>
 ## Agent behavior policy
 
+The bundle loads its policy plugin from its own `lib/index.js` through a patch-relative entry, so Desktop can activate the policy without a separately installed bundle package in the profile.
+
 Harnessy applies the same policy to every agent entry path: a global prompt section covers ordinary in-process agents, the complete Minimal persona includes it directly, and Command Code prepends it to each external CLI brief. Agents do not create or synthesize a new image unless the user explicitly requests that image in the current task. They may inspect supplied images, capture verification screenshots, and edit supplied assets when the task requires it.
 
 When required application or website access, permission, MCP access, authentication, or login is unavailable or broken, the agent stops after the first failed access check, reports the exact blocker and required user action, and waits. It does not keep retrying, bypass the missing access, or continue with alternatives that cannot complete the requested result. Available tools, ordinary repository inspection, and already-authorized checks remain available without an extra confirmation.

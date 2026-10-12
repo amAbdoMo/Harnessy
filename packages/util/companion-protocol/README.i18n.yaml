@@ -1,0 +1,58 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/util/companion-protocol/README.md
+/:
+  en: b518e0a3f3a0e4c8
+  zh: fb8b9fe98a4ec5ee
+/dsh-companion-protocol:
+  en: 3b0a3a4d8942decc
+  zh: 839cf64d164e48fb
+/dsh-companion-protocol/summary:
+  en: ded32459d73259d4
+  zh: 13fd42e1f22ca815
+/dsh-companion-protocol/table-of-contents:
+  en: 3935b880c9933829
+  zh: a052fd5425e44213
+/dsh-companion-protocol/use-this-package:
+  en: 91beae13ecdd27d0
+  zh: c08d14bd19e74645
+/dsh-companion-protocol/wire-reference:
+  en: b5a0cdbb91194378
+  zh: ba67e58ef3fa5a8c
+/dsh-companion-protocol/wire-reference/primitive-encoding:
+  en: 10d7e3dd84f12a1a
+  zh: 17bcf94adc43b194
+/dsh-companion-protocol/wire-reference/exact-json-fields:
+  en: 068c6b705536746c
+  zh: f910f139e86c8bd8
+/dsh-companion-protocol/wire-reference/handshake-transcripts:
+  en: 615de7e3410c1429
+  zh: 3bf7eb56a4fb03b8
+/dsh-companion-protocol/wire-reference/ecdh-and-hkdf:
+  en: e039417f810d378a
+  zh: 1526848884351df9
+/dsh-companion-protocol/wire-reference/aes-gcm-counters-and-confirmation:
+  en: ec4f7918c4240a45
+  zh: 12e517ac5ecf9705
+/dsh-companion-protocol/wire-reference/relay-authentication:
+  en: 25cebff8508656ed
+  zh: 526937d85f10f782
+/dsh-companion-protocol/understand-the-implementation:
+  en: 040f2c1ca608432d
+  zh: a86d5715181ca482
+/dsh-companion-protocol/further-exploration:
+  en: c2477872713481d8
+  zh: 9f639804d798c74d
+/dsh-companion-protocol/model-experience:
+  en: d8d68ef550df1bcd
+  zh: 6ef5f605a052eb9a
+/dsh-companion-protocol/model-experience/kv-cache-effect:
+  en: 91db8835854bd084
+  zh: 65d0cd07ba3ad082
+/dsh-companion-protocol/known-limitations-and-deferred-work:
+  en: 5882eb7c3560a7fc
+  zh: 7886e628412a026e
+/dsh-companion-protocol/known-limitations-and-deferred-work/dev-note:
+  en: 5d834aa6fdd0ba87
+  zh: 1d159a97c376adac

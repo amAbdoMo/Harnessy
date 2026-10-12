@@ -594,6 +594,8 @@ export class LocalCredentialProvider extends CredentialProvider {
       this.queueRefresh()
     })
     watcher.on('error', (error) => {
+      if (this.closed) return
+      this.notifySourceFailure()
       this.ctx.logger.warn('credentials-local: watcher error on %s', this.spec.filename)
       this.ctx.logger.warn(error)
     })
@@ -859,6 +861,14 @@ export class LocalCredentialProvider extends CredentialProvider {
    * overwriting a document it could not understand.
    */
   private async reconcileFromDisk(): Promise<void> {
+    try { await this.reconcileVerifiedSource() }
+    catch (error) {
+      if (!this.closed) this.notifySourceFailure()
+      throw error
+    }
+  }
+
+  private async reconcileVerifiedSource(): Promise<void> {
     // Re-checked on every reload and before every write: an external editor or
     // a restored backup can loosen the mode after boot.
     await assertOwnerOnly(this.spec.filename)

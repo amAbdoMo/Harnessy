@@ -8,6 +8,7 @@
     "src"
   ],
   "references": [
+    { "path": "../../packages/host/companion-host" },
     {
       "path": "../../packages/boot/app-boot"
     },

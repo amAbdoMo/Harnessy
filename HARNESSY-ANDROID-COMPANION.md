@@ -1,111 +1,100 @@
 ---
-description: "Connect an Android phone to the same Harnessy Desktop sessions through private Tailscale HTTPS, with explicit pairing and offline activation."
+description: "Native Android companion source, one-time PC approval, secure relay deployment prerequisites, and explicit delivery-unknown recovery."
 ---
 
 # Cookbook: connect Android to Harnessy
 
 ## Summary
 
-Use your Android phone to check the PC's sessions and progress, send messages, and start another task. Harnessy and its agents run on the PC; the phone opens the authenticated Web interface. The PC must remain running, awake, and connected to Tailscale.
+The native Android companion is designed to monitor existing PC sessions and queue text follow-up tasks through a built-in encrypted relay connection. Agents, tools and session storage remain on the running PC. The phone does not need Tailscale, a browser installation or a second Harnessy server on the PC.
 
-This setup requires the PC owner's verification on both devices. Static source checks do not confirm Tailscale routing, Android installation, or the rebuilt Desktop window. Follow the [safe build workflow](HARNESSY-STAGING-DELIVERY.md#safe-builds) before activating source changes.
+**This delivery prepares source, not an installable APK or a live hosted relay.** Android compilation/signing, deployment at a real HTTPS origin and physical-device verification remain owner operations. Source changes do not activate a running Desktop app. Follow the [safe build workflow](HARNESSY-STAGING-DELIVERY.md#safe-builds) before building or activating Desktop changes.
 
 ## Table of Contents
 
-- [Prerequisites and access limits](#prerequisites)
-- [Configure the private connection](#configure)
-- [Pair and install on Android](#pair)
-- [Verify and recover](#verify)
-- [Disable access](#disable)
-- [Dev Note](#dev-note)
+- [Supported access](#supported-access)
+- [Deployment and build prerequisites](#prerequisites)
+- [Pair once](#pair)
+- [Reconnect and delivery unknown](#recovery)
+- [Remove phone access](#remove-access)
+- [Acceptance checklist](#acceptance)
+
+-----
+
+<a id="supported-access"></a>
+## Supported access
+
+The first version supports existing ordinary sessions: list sessions, read approved text history, observe progress and submit a queued text follow-up. It does not create sessions, transfer attachments, answer tool approvals, expose terminals/files/settings, guarantee background notifications or retain an offline task queue. A running session can receive a queued follow-up; running status alone is not a reason to resend a task.
+
+An approved phone can cause the existing PC Agent to execute tasks with that session's existing tools and permissions. This is task-submission authority, not remote tool-approval authority. Protect the phone and approve only its complete fingerprint. The relay receives routing identities, ciphertext sizes and timing, not session plaintext or the PC operator login token; Android, the PC and their application publishers remain trusted endpoints.
+
+Keep the PC awake with Desktop running and Internet access available. Leaving the Android app disconnects its foreground transport; reopening it reconnects using the saved phone key and pinned PC identity. No PC router forwarding or public operator listener is required.
 
 -----
 
 <a id="prerequisites"></a>
-## Prerequisites and access limits
+## Deployment and build prerequisites
 
-Install [Tailscale](https://tailscale.com/download) on Windows and Android and sign in to the same private network. Follow Tailscale's [Serve documentation](https://tailscale.com/kb/1242/tailscale-serve) for private HTTPS and its certificate prerequisites. Restrict the network's access rules to your intended devices. Do not enable Funnel, router port forwarding, or an Internet-facing listener.
+These are release/operator operations, not repeated end-user pairing steps:
 
-The phone uses the same Desktop Host, agents, workspaces, and sessions. Do not start a second `dsh web` process against Desktop's data. Installing the Web interface does not install an Android agent, copy PC files to an offline cache, or keep tasks running on the phone.
+1. Deploy the [standalone relay profile](packages/bundle/companion-relay/README.md) behind a same-host managed TLS proxy at an actual canonical HTTPS origin. Supply all validated relay budgets, preserve the public Host header, restrict the upstream to loopback and apply external HTTP/upgrade/traffic limits. The profile does not include agents, tools, an operator Gateway or session storage. No available hostname is supplied by this checkout.
+2. Configure Desktop's launch environment with `DSH_DESKTOP_COMPANION_HTTPS_ORIGIN` and `DSH_DESKTOP_COMPANION_BUDGETS`, a complete JSON budget object matching [the PC schema](packages/host/companion-host/src/config.ts). With neither value, the feature is unavailable and creates no identity or socket. Partial or invalid configuration fails; changing the stored origin requires local retirement/reset and re-pairing. [PC integration](packages/host/companion-host/INTEGRATION.md) owns the private management and storage details.
+3. Fully quit the active staging and installed Desktop applications before browser/Desktop builds. Compile and activate through [Desktop's documented workflow](apps/desktop/README.md), not a replacement Web server. The normal pre-push hook also invokes a Desktop welcome-UI build; it cannot run safely underneath an active staging app.
+4. Build and sign [the Android project](apps/android/README.md) with its pinned toolchain and declared dependencies. Verify the signing certificate and install the resulting APK on the intended phone. Android tooling/dependency setup and APK signing have not been performed here.
 
-Pairing grants the phone the existing operator's access, not a sessions-only permission tier. Protect the phone and the pairing link. The link can be reused while its Host process runs; it is not a one-time code. It contains a login credential; messaging services, clipboard synchronization, browser history, and link previews can disclose it. Transfer it only through a trusted private channel, do not publish it, and do not include it in screenshots or diagnostics.
-
-Reserve the PC's private HTTPS root for Harnessy. An existing Serve mapping must not be overwritten without checking its owner and purpose.
-
------
-
-<a id="configure"></a>
-## Configure the private connection
-
-Choose an unused, fixed loopback port and obtain the PC's full Tailscale DNS name. The examples below use `19488` and `my-pc.my-network.ts.net`; replace the hostname with your own. They follow Tailscale's [Serve CLI](https://raw.githubusercontent.com/tailscale/tailscale/main/cmd/tailscale/cli/serve_v2.go). The PC owner must verify the installed client's syntax and resulting mapping against the linked documentation.
-
-1. Fully quit staging through its application menu or tray, and quit the installed Harnessy app. Closing a window to the tray is not sufficient. Never rebuild beneath an active staging window.
-2. On this PC, the machine-local [Start-Harnessy-Staging-App.cmd](Start-Harnessy-Staging-App.cmd) can build and start Desktop with the connection settings. This convenience launcher is not part of a clean checkout; the environment-variable alternative below works with the normal Desktop launch workflow:
-
-   ```powershell
-   .\Start-Harnessy-Staging-App.cmd -RemoteUrl "https://my-pc.my-network.ts.net/" -ListenPort 19488
-   ```
-
-3. Configure private Tailscale Serve HTTPS to proxy its root to the same loopback port:
-
-   ```powershell
-   tailscale serve --bg http://127.0.0.1:19488
-   tailscale serve status
-   ```
-
-4. Check that the displayed HTTPS hostname matches `RemoteUrl`, the backend is `http://127.0.0.1:19488`, and access is private to the intended network. Do not proceed if Funnel is enabled or the mapping targets another application.
-
-For other Desktop launch arrangements, supply both `DSH_DESKTOP_REMOTE_URL` and `DSH_DESKTOP_LISTEN_PORT` in the launch environment. With neither configured, Desktop retains its ordinary local-only startup. The remote URL must be an HTTPS root on the PC's Tailscale DNS hostname, without credentials, a path prefix, query, fragment, or a nonstandard HTTPS port. The listener stays on `127.0.0.1`; Tailscale supplies the private HTTPS entry, not Harnessy.
-
-For a normal Desktop launch from PowerShell, set the pair in that same shell, then use the documented [Desktop development or production workflow](apps/desktop/README.md):
-
-```powershell
-$env:DSH_DESKTOP_REMOTE_URL = 'https://my-pc.my-network.ts.net/'
-$env:DSH_DESKTOP_LISTEN_PORT = '19488'
-```
-
-Restart Desktop after changing these settings. The launcher does not reconfigure an already-running Host or install, sign in to, or manage Tailscale. If the selected port is occupied, choose another unused port and update both settings and the Serve target; do not start another Harnessy instance.
+The PC connector makes an outbound WSS connection. Do not configure the old `DSH_DESKTOP_REMOTE_URL`/`DSH_DESKTOP_LISTEN_PORT` operator-access pair as part of native companion setup. That optional legacy private-network feature grants broader operator access and is not the native companion's security model.
 
 -----
 
 <a id="pair"></a>
-## Pair and install on Android
+## Pair once
 
-1. In Desktop, open **Settings → General → PC–phone connection** and copy the pairing link. Check the clean HTTPS address shown there before copying.
-2. On Android, connect Tailscale, paste the pairing link into Chrome's address bar, and wait for Harnessy to remove the login token from the address through its authentication redirect. Keep the tokenized link private.
-3. Confirm that an existing PC session appears and its recent messages match Desktop. Open that session to inspect progress or send a task message. Use the existing new-session action for a separate task.
-4. From Chrome's menu, use **Install app** or **Add to home screen**, according to the browser's available action. Install from the clean address, not a URL containing the pairing token.
+After the operator has deployed the relay, built both applications and completed acceptance:
 
-The home-screen interface connects to the PC each time it opens. The browser retains an authority-bound authentication cookie; Tailscale membership alone does not log another device into Harnessy. After authentication expires or the browser cookie is cleared, copy a current pairing link from Desktop again.
+1. In Desktop, open **Settings → General → Android phone companion → Open native phone settings**. Choose **Pair Android phone**. Main copies a short-lived invitation to the native clipboard; the renderer never receives its secret.
+2. Paste the invitation into the Harnessy Android app and explicitly choose **Pair with this invitation**. Importing alone does not enroll. The app creates its own non-exportable AndroidKeyStore signing key and presents its complete phone fingerprint while waiting for PC approval. The invitation uses `harnessy://pair#` with a versioned fragment; it is not a website to visit.
+3. On the PC, choose **Approve pairing request**. Compare the complete fingerprint with the one displayed on the phone, then explicitly approve that exact request. Possessing an invitation alone does not authorize session access.
+4. Confirm the Android app connects and shows the same existing PC session. Keep the invitation private and clear clipboard history/sync copies after transfer. Expired or cancelled invitations require a new invitation, not disabling authentication.
 
------
-
-<a id="verify"></a>
-## Verify and recover
-
-The PC owner verifies these outcomes before relying on remote access:
-
-- Desktop still opens normally and keeps the same existing sessions.
-- An unpaired browser visiting the private root cannot access sessions or send commands without Harnessy authentication.
-- The paired Android phone shows an existing session's progress and can send a message to that same session. Verify the message in Desktop rather than trusting only the phone's display.
-- With phone Wi-Fi disabled and mobile data enabled, the connection still works through Tailscale.
-- Losing the connection shows disconnected or reconnecting state; restoring it refreshes the live session without sending a task twice.
-- The Android keyboard leaves the composer usable, session navigation fits the viewport, and the installed home-screen entry opens the clean address.
-
-If the phone cannot connect, check that the PC is awake, Desktop is running, both devices are connected to Tailscale, and Serve points to the configured port. A stale mapping can reach the wrong service. A sign-in rejection requires a current pairing link pasted into the address bar; do not disable authentication or request-trust checks. If sending reports a connection failure, inspect the session after reconnecting before resending: the PC may already have received the task. A blank rebuilt Desktop window requires captured renderer errors and launcher diagnostics before closing it, as described in the [safe build workflow](HARNESSY-STAGING-DELIVERY.md#safe-builds).
-
-For a lost phone, remove or disable that device in your Tailscale network immediately. Clearing a cookie only on another browser does not revoke the lost phone's existing cookie.
+The phone stores public pairing metadata and its private key remains in AndroidKeyStore. Reopening the foreground app reconnects without pasting the invitation again. Missing keys, corrupt pairing metadata or a changed PC identity require explicit repair/re-pairing; the app must not silently generate a replacement identity for an existing pairing.
 
 -----
 
-<a id="disable"></a>
-## Disable access
+<a id="recovery"></a>
+## Reconnect and delivery unknown
 
-Fully quit Desktop, remove both remote launch settings, and reopen it normally. Remove the Harnessy-owned Serve mapping through Tailscale's documented controls without resetting unrelated mappings. Do not leave a private proxy targeting a port that another application could later occupy. A previously paired browser must no longer reach the private entry after the mapping is removed.
+Reads and subscriptions can restart after reconnect with fresh channel keys and a current history baseline. Task submissions are never automatically retried, replayed from an offline queue or restored as queued work after process restart.
+
+A matching `submitted` acknowledgement means **in-memory PC inbox admission**, not checkpoint durability, task execution or completion. If the connection, foreground owner or acknowledgement is lost after a possible write, delivery is unknown: the PC may already have admitted the task. Inspect the PC session and explicitly resolve the phone's uncertainty warning before deciding whether to send a new task. Missing visible history is not a durable receipt proving non-delivery.
+
+A credential-source failure or failed grant withdrawal disables that PC Host's companion authority rather than re-authorizing from cached rows. Repair the source and restart its provider/Host before restoring access. Do not clear phone keys or disable identity/origin checks merely to resolve a connection failure.
 
 -----
 
-<a id="dev-note"></a>
-## Dev Note
+<a id="remove-access"></a>
+## Remove phone access
 
-Real Tailscale proxy compatibility, Android installation, keyboard behavior, and away-from-home access require the manual verification above; they are not established by source inspection or successful compilation.
+On the PC, open native phone settings, choose **Paired phones**, identify the phone by its fingerprint and choose **Remove access**. Completion requires the provider commit and affected channel teardown. A failed or timed-out operation has an unconfirmed outcome; refresh the roster and repair any source failure rather than assuming removal was undone or succeeded.
+
+Removal prevents new access and submissions not yet admitted. Already admitted PC work continues, and previously delivered data is not erased. Forgetting a pairing only on Android does not revoke the PC grant; remove access on the PC for a lost phone.
+
+To disable the optional feature, fully quit Desktop, remove its two companion launch values and restart normally. Retire the old Host before any local identity reset. Copying a credential home clones its PC identity; the local kernel lock does not protect another copied home or another PC.
+
+-----
+
+<a id="acceptance"></a>
+## Acceptance checklist
+
+Before relying on the feature, verify these outcomes on the deployed relay and signed APK:
+
+- The PC retains its existing sessions and ordinary local-only operator endpoint; unpaired phones cannot read or submit tasks.
+- Invitation possession without exact native PC approval gains no session authority; expiry, cancellation, mismatched fingerprints and replayed/wrong-origin handshakes are denied.
+- Node and Android agree on DER/SPKI, transcript/HKDF bytes, AES-GCM tags, direction bindings and fixed-width counters. Application messages are rejected before both encrypted confirmations.
+- Cold history reads do not activate agents; tool arguments/results, reasoning and raw filesystem metadata are not exported by mobile projections.
+- Mobile data away from home can connect to the deployed relay; reconnect refreshes reads without duplicating submissions or subscriptions.
+- Lost acknowledgements and process restart retain an uncertainty fence without storing task text or automatically resending it.
+- Revocation and credential-source failure prevent fresh authorization and final inbox admission; already admitted work continues.
+- Multiple PC owners, slow readers, oversized frames, queue saturation and stale socket callbacks remain bounded and cannot retire unrelated phones.
+- Foreground teardown joins owned resources; keyboard/insets, tablet layout, accessibility, backup exclusions and AndroidKeyStore behavior work on the supported Android versions.
+
+These are deferred runtime/security acceptance operations, not results inferred from source compilation. No relay deployment, APK build/install, physical-device run or application restart is represented as completed.

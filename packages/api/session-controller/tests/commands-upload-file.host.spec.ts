@@ -16,13 +16,14 @@ import type { FileUploadReceiptId } from '@deepseek-ai/dsh-client-file-upload/ty
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import type { ApiSessionAgentController } from '../src/agent.ts'
 import { SessionCommandController } from '../src/commands.ts'
+import { promptCommandTestAdapter, type PromptCommandTestAdapter } from './prompt-admission.ts'
 import type { SessionRequestId } from '../src/types.ts'
 
 const SESSION = SessionId('upload-session')
 
 async function uploadHarness(origin?: 'subagent'): Promise<{
   ctx: Context
-  controller: SessionCommandController
+  controller: PromptCommandTestAdapter
   uploads: FileUploads
   agent: Agent
   followup: ReturnType<typeof vi.fn>
@@ -101,7 +102,7 @@ async function uploadHarness(origin?: 'subagent'): Promise<{
   if (uploadRoute === undefined) throw new Error('file upload route was not registered')
   return {
     ctx,
-    controller: new SessionCommandController(ctx, agents, '/workspace'),
+    controller: promptCommandTestAdapter(new SessionCommandController(ctx, agents, '/workspace')),
     uploads,
     agent,
     followup,

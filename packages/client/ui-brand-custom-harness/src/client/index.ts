@@ -31,6 +31,8 @@ import { notificationPresentation, shouldShowNativeNotification } from './notifi
 import { showNativeNotification, subscribeNativeNotificationActivation, type NativeNotifications } from './native-notifications.ts'
 import { subscribeNativeTaskbar, type NativeTaskbar } from './native-taskbar.ts'
 import { SharedSkillsRow, type SharedSkillsRowInjected } from './SharedSkillsRow.tsx'
+import { CompanionController, type NativeCompanion } from './companion.ts'
+import { CompanionRow, type CompanionRowInjected } from './CompanionRow.tsx'
 import { PhoneConnectionController, type NativePhoneConnection } from './phone-connection.ts'
 import {
   PhoneConnectionRow, PhoneConnectionToast, type PhoneConnectionRowInjected, type PhoneConnectionToastInjected,
@@ -145,11 +147,27 @@ export function apply(ctx: ClientContext): void {
     dshDesktop?: {
       notifications?: NativeNotifications
       taskbar?: NativeTaskbar
+      companion?: NativeCompanion
       phoneConnection?: NativePhoneConnection
     }
   }).dshDesktop
   const nativePhoneConnection = desktop?.phoneConnection
-  if (nativePhoneConnection !== undefined) {
+  const nativeCompanion = desktop?.companion
+  if (nativeCompanion !== undefined) {
+    const companion = new CompanionController(nativeCompanion)
+    ctx.effect(() => {
+      void companion.describe()
+      return () => { companion.dispose() }
+    }, 'custom-harness: native companion lifecycle')
+    ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+      name: 'settings.general.item', id: 'custom-harness-companion', order: 40, locale: LOCALE_NS,
+      inject: (): CompanionRowInjected => ({
+        hooks: { companion: companion.state },
+        describe: () => companion.describe(),
+        open: () => companion.open(),
+      }),
+    }, CompanionRow))
+  } else if (nativePhoneConnection !== undefined) {
     const phoneConnection = new PhoneConnectionController(nativePhoneConnection)
     ctx.effect(() => {
       void phoneConnection.describe()

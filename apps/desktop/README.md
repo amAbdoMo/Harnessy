@@ -157,9 +157,16 @@ On macOS the custom menu retains Electron's standard Window menu and application
 
 ### Android companion
 
+The native companion uses `DSH_DESKTOP_COMPANION_HTTPS_ORIGIN` and `DSH_DESKTOP_COMPANION_BUDGETS` together: a real canonical relay origin and complete validated JSON budgets. With neither value, the optional feature creates no identity or socket. Partial or invalid configuration fails. The PC connects outbound while its operator endpoint remains local-only; approved phones can inspect existing ordinary sessions and queue text follow-ups using those sessions' existing tool permissions, without remote tool approvals.
+
+General settings opens Main-owned pairing and removal dialogs. Main copies the expiring invitation, compares the complete phone fingerprint and approves the exact candidate; the renderer receives only availability, connection state and paired count. Hosted TLS/proxy configuration, the signed Android app and runtime acceptance are release/operator responsibilities documented in the [native setup guide](../../HARNESSY-ANDROID-COMPANION.md). Source changes require a safe offline rebuild before activation.
+
+<a id="legacy-private-browser-access"></a>
+### Legacy private browser access
+
 With both `DSH_DESKTOP_REMOTE_URL` and `DSH_DESKTOP_LISTEN_PORT` configured, the same Desktop Host serves its authenticated Web frontend through a user-owned private Tailscale HTTPS proxy. The listener remains on loopback, uses the explicitly selected port, and retains the Desktop renderer's separate loopback login. Without either setting, startup stays local-only. Invalid or incomplete settings fail startup; an occupied selected port does not fall back to another port.
 
-The remote URL is a root HTTPS address on the PC's Tailscale DNS hostname, without credentials, a prefix, query, fragment, or nonstandard HTTPS port. Desktop suppresses the credential-bearing Web startup URL. PC–phone connection in General settings displays only the clean private address; an owned top-frame application IPC action copies the current Host's pairing link in Main without returning it to the renderer. Phone access retains browser-session authentication and Host/Origin checks and grants the existing operator's authority, not a sessions-only role. Desktop does not install, sign in to, or configure Tailscale. Follow the [Android companion setup](../../HARNESSY-ANDROID-COMPANION.md) for owner-verified activation and removal.
+The remote URL is a root HTTPS address on the PC's Tailscale DNS hostname, without credentials, a prefix, query, fragment, or nonstandard HTTPS port. Desktop suppresses the credential-bearing Web startup URL. The legacy PC–phone row is shown only when the native companion bridge is absent and displays the clean private address; its owned top-frame IPC action copies the current Host's browser pairing link in Main without returning it to the renderer. Phone access retains browser-session authentication and Host/Origin checks and grants the existing operator's authority, not a sessions-only role. Desktop does not install, sign in to, or configure Tailscale. This optional browser feature is separate from native companion pairing and revocation.
 
 ### Runtime and plugin activation
 

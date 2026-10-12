@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:fillViewport="true" android:background="@color/harnessy_base">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:padding="20dp">
+        <TextView style="@style/Harnessy.Title" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="@string/pairing_title" />
+        <TextView style="@style/Harnessy.Body" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:paddingTop="16dp"
+            android:paddingBottom="24dp" android:text="@string/pairing_explanation" />
+        <TextView style="@style/Harnessy.Caption" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:labelFor="@+id/pairing_link"
+            android:text="@string/pairing_link_label" />
+        <EditText android:id="@id/pairing_link" style="@style/Harnessy.Input"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:hint="@string/pairing_link_hint" android:inputType="textUri|textNoSuggestions"
+            android:maxLines="4" android:maxLength="4096" android:imeOptions="flagNoExtractUi"
+            android:importantForAutofill="no" android:saveEnabled="false" />
+        <Button android:id="@+id/import_pairing" style="@style/Harnessy.Action"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/pairing_import" />
+        <TextView android:id="@+id/fingerprint_hint" style="@style/Harnessy.Caption"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/fingerprint_hint" android:visibility="gone" />
+        <TextView android:id="@+id/phone_fingerprint" style="@style/Harnessy.Body"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textIsSelectable="true" android:fontFamily="monospace"
+            android:accessibilityLiveRegion="polite" android:visibility="gone" />
+        <Button android:id="@+id/cancel_pairing" style="@style/Harnessy.Action"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/cancel" />
+        <TextView android:id="@+id/pairing_feedback" style="@style/Harnessy.Caption"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:paddingTop="12dp" android:accessibilityLiveRegion="polite" />
+        <TextView style="@style/Harnessy.Caption" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:paddingTop="24dp"
+            android:text="@string/pairing_limits" />
+    </LinearLayout>
+</ScrollView>

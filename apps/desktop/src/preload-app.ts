@@ -3,6 +3,7 @@
 import type { DesktopShortcutInput, ShortcutConfigSnapshot, ShortcutSaveResult } from '@deepseek-ai/dsh-client-shortcuts/protocol'
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { DESKTOP_IPC, SCHEME, type DesktopNotificationPayload, type DshDesktopProductApi, type DesktopUpdatePresentation, type DesktopPhoneConnectionState } from './ipc.ts'
+import type { DesktopCompanionState } from './ipc.ts'
 import { PLATFORM_IPC } from './platform-ipc.ts'
 import { markDocumentPlatform, syncWindowFullscreen } from './preload-platform.ts'
 import { syncNativeTheme } from './preload-theme.ts'
@@ -46,6 +47,10 @@ function createProductApi(): DshDesktopProductApi {
     browser: createDesktopBrowserBridge(),
     preview: createDesktopDevicePreviewBridge(),
     deviceInfo: () => ipcRenderer.invoke(DESKTOP_IPC.deviceInfo) as Promise<string>,
+    companion: {
+      describe: () => ipcRenderer.invoke(DESKTOP_IPC.companionDescribe) as Promise<DesktopCompanionState>,
+      open: async () => { await ipcRenderer.invoke(DESKTOP_IPC.companionOpen) },
+    },
     phoneConnection: {
       describe: () => ipcRenderer.invoke(DESKTOP_IPC.phoneConnectionDescribe) as Promise<DesktopPhoneConnectionState>,
       copyPairingUrl: async () => { await ipcRenderer.invoke(DESKTOP_IPC.phoneConnectionCopyPairingUrl) },

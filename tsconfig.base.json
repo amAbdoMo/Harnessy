@@ -28,6 +28,13 @@
     // not declaration path aliases, keep each package/vendor source compiled
     // under its own tsconfig boundary.
     "paths": {
+      "@deepseek-ai/dsh-companion-host": ["./packages/host/companion-host/src/index.ts"],
+      "@deepseek-ai/dsh-companion-host/types": ["./packages/host/companion-host/src/types.ts"],
+      "@deepseek-ai/dsh-companion-host/desktop-control": ["./packages/host/companion-host/src/desktop-control.ts"],
+      "@deepseek-ai/dsh-companion-protocol": ["./packages/util/companion-protocol/src/index.ts"],
+      "@deepseek-ai/dsh-companion-relay": ["./packages/host/companion-relay/src/index.ts"],
+      "@deepseek-ai/dsh-companion-relay-bundle": ["./packages/bundle/companion-relay/src/index.ts"],
+      "@deepseek-ai/dsh-companion-relay-bundle/startup": ["./packages/bundle/companion-relay/src/startup.ts"],
       "@deepseek-ai/dsh-client-product-analytics": ["./packages/client/product-analytics/src/index.ts"],
       "@deepseek-ai/dsh-client-product-analytics/types": ["./packages/client/product-analytics/src/events.ts"],
       "@deepseek-ai/dsh-client-product-analytics/client": ["./packages/client/product-analytics/src/client/index.ts"],

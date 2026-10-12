@@ -326,9 +326,11 @@ export class SessionCommandController {
   /**
    * Reject empty content, then admit one prompt after Agent and attachment validation.
    * @param request - Session identity, prompt content, source metadata, and delivery mode.
-   * @returns acknowledgement that the Agent accepted the prompt.
+   * @param checkAdmission - synchronous caller authorization check, including cancellation; no check follows inbox insertion.
+   * @returns acknowledgement of in-memory inbox admission, not durable checkpoint or task completion.
    */
-  async prompt(request: SessionPromptRequest): Promise<SessionPromptValue> {
+  async prompt(request: SessionPromptRequest, checkAdmission: () => void): Promise<SessionPromptValue> {
+    checkAdmission()
     if (!hasPromptContent(request.content)) {
       throw new RemoteError(
         'gateway/bad-request',
@@ -347,6 +349,7 @@ export class SessionCommandController {
       )
     }
     const agent = await this.resolveAgent(request.sessionId)
+    checkAdmission()
     if (hasPromptRequest(agent, request.requestId)) return { accepted: true }
     const source: MessageSource = {
       kind: 'user',
@@ -356,9 +359,11 @@ export class SessionCommandController {
     const hasImage = request.content.some(part => part.type === 'image')
     const admit = async (): Promise<SessionPromptValue> => {
       try {
+        checkAdmission()
         if (hasImage) {
           const current = this.agents.selectionFor(agent).current
           const model = await this.ctx.llm.resolveModelInfo(current.provider, current.model)
+          checkAdmission()
           if (model.inputModalities !== undefined && !model.inputModalities.includes('image')) {
             throw new RemoteError(
               'session/attachment-invalid',
@@ -372,6 +377,7 @@ export class SessionCommandController {
           receiptId => this.ctx.fileUploads.resolve(agent, receiptId),
         )
         const content = await this.ctx.attachments.admitPromptContent(admission.content)
+        checkAdmission()
         const message: UserMessage = createUserMessage({ content, source })
         if (this.ctx.agents.get(agent.id) !== agent) {
           throw new RemoteError(
@@ -381,6 +387,7 @@ export class SessionCommandController {
           )
         }
         using binding = this.ctx.fileUploads.bindPrompt(agent, admission.receiptIds, request.requestId)
+        checkAdmission()
         if (request.mode === 'steer') agent.steer(message)
         else agent.followup(message)
         binding.commit()

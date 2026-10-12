@@ -46,6 +46,8 @@ export const DESKTOP_IPC = {
   websiteRequestsChanged: 'dsh-desktop:website-requests-changed',
   directoryPick: 'dsh-desktop:directory-pick',
   deviceInfo: 'dsh-desktop:device-info',
+  companionDescribe: 'dsh-desktop:companion-describe',
+  companionOpen: 'dsh-desktop:companion-open',
   phoneConnectionDescribe: 'dsh-desktop:phone-connection-describe',
   phoneConnectionCopyPairingUrl: 'dsh-desktop:phone-connection-copy-pairing-url',
   taskbarDocument: 'dsh-desktop:taskbar-document',
@@ -157,6 +159,13 @@ export interface DesktopUpdatePresentation {
   readonly failure?: DesktopUpdateFailureKind
 }
 
+/** Public native companion status; no identity, grant, candidate or invitation data. */
+export interface DesktopCompanionState {
+  readonly available: boolean
+  readonly connected: boolean
+  readonly pairedCount: number
+}
+
 /** Credential-free description of the current Desktop Host's private phone entry. */
 export type DesktopPhoneConnectionState = { readonly enabled: false } | { readonly enabled: true; readonly remoteRoot: string }
 
@@ -175,7 +184,14 @@ export interface DshDesktopProductApi {
      */
     setUnread(unread: boolean): Promise<void>
   }
-  /** Optional PC-only pairing capability; never returns a credential-bearing URL. */
+  /** Native companion controls; decisions and clipboard secrets remain in Main. */
+  readonly companion?: {
+    /** @returns Availability and paired-device count only. */
+    describe(): Promise<DesktopCompanionState>
+    /** @returns Completion of native management dialogs; never a private Host result. */
+    open(): Promise<void>
+  }
+  /** Optional advanced private-network operator access; distinct from the narrow native companion. */
   readonly phoneConnection?: {
     /** @returns Enabled status and clean private HTTPS root; no authentication credential. */
     describe(): Promise<DesktopPhoneConnectionState>

@@ -1,0 +1,43 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/host/companion-relay/README.md
+/:
+  en: 47ba003ca0c241f6
+  zh: 98afb46ef8037fca
+/deepseek-ai-dsh-companion-relay:
+  en: 6f205dabd966752f
+  zh: e17feba5c50528d3
+/deepseek-ai-dsh-companion-relay/summary:
+  en: 83ba7299bf703b8e
+  zh: 946cf2f6e96a4853
+/deepseek-ai-dsh-companion-relay/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 7ba8a9440c7de021
+/deepseek-ai-dsh-companion-relay/use-this-package:
+  en: 74c83fc951d0c8c3
+  zh: e2be12241b9ac3b5
+/deepseek-ai-dsh-companion-relay/use-this-package/deployment-configuration:
+  en: 65bef3f24cc4ecf0
+  zh: 4b2254e25928fb52
+/deepseek-ai-dsh-companion-relay/use-this-package/manual-deployment-acceptance-not-executed:
+  en: 7a67247614b5f44b
+  zh: 0d8df1f54e86819d
+/deepseek-ai-dsh-companion-relay/understand-the-implementation:
+  en: 7c81cea40a0d1a87
+  zh: f7470e18ceb28812
+/deepseek-ai-dsh-companion-relay/further-exploration:
+  en: be8b0883365f07f4
+  zh: 283713df5dfc7eb0
+/deepseek-ai-dsh-companion-relay/model-experience:
+  en: 02792081f2e4758f
+  zh: 35b1e6cf111f6b49
+/deepseek-ai-dsh-companion-relay/model-experience/kv-cache-effect:
+  en: ca41a19e71e16a20
+  zh: 8fc5adabc090d55d
+/deepseek-ai-dsh-companion-relay/known-limitations-and-deferred-work:
+  en: 30b8460b8ebb2e08
+  zh: eb062a5faec57ace
+/deepseek-ai-dsh-companion-relay/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: fd71ba5e495ef0ef

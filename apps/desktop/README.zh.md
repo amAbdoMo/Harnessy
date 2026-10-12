@@ -157,9 +157,16 @@ macOS 上自定义菜单保留 Electron 的标准 Window 菜单及应用隐藏�
 
 ### Android companion
 
+原生 companion 同时使用 `DSH_DESKTOP_COMPANION_HTTPS_ORIGIN` 与 `DSH_DESKTOP_COMPANION_BUDGETS`：真实规范中继来源和完整验证的 JSON 预算。两个值均未配置时，可选功能不创建身份或套接字。部分或无效配置会失败。PC 主动出站连接，操作者端点仍仅供本机访问；已批准手机可查看已有普通会话，并按这些会话的现有工具权限排队追加文本任务，不增加远程工具批准权限。
+
+通用设置打开 Main 拥有的配对与移除对话框。Main 复制限时邀请、比较手机完整指纹并批准准确候选；renderer 仅接收可用性、连接状态和配对数量。托管 TLS／代理配置、已签名 Android 应用与运行验收属于[原生设置指南](../../HARNESSY-ANDROID-COMPANION.md)规定的发布／运营责任。源码变更需先安全离线重建，再启用。
+
+<a id="legacy-private-browser-access"></a>
+### 传统私有浏览器访问
+
 同时配置 `DSH_DESKTOP_REMOTE_URL` 和 `DSH_DESKTOP_LISTEN_PORT` 后，同一个 Desktop Host 可通过用户自行管理的私有 Tailscale HTTPS 代理提供经过认证的 Web 前端。监听器仍绑定 loopback，使用显式指定的端口，并保留 Desktop renderer 独立的 loopback 登录。两个设置均未配置时，启动仍仅供本机访问。无效或不完整的设置会使启动失败；所选端口已被占用时不会回退到另一端口。
 
-远端 URL 必须是 PC 的 Tailscale DNS 主机名上的 HTTPS 根地址，不含凭据、路径前缀、查询、片段或非标准 HTTPS 端口。Desktop 不打印含凭据的 Web 启动 URL。通用设置中的“电脑与手机连接”只显示不含凭据的私有地址；所属应用顶层 frame 的 IPC 操作在 Main 中复制当前 Host 的配对链接，不把链接返回给 renderer。手机访问保留浏览器会话认证和 Host/Origin 校验，授予现有操作者的权限，而非仅限会话的角色。Desktop 不负责安装、登录或配置 Tailscale。由所有者按 [Android companion 设置指南](../../HARNESSY-ANDROID-COMPANION.md)验证启用与移除步骤。
+远端 URL 必须是 PC 的 Tailscale DNS 主机名上的 HTTPS 根地址，不含凭据、路径前缀、查询、片段或非标准 HTTPS 端口。Desktop 不打印含凭据的 Web 启动 URL。仅当原生 companion bridge 不存在时才显示传统“电脑与手机连接”行，且只显示不含凭据的私有地址；其所属应用顶层 frame 的 IPC 操作在 Main 中复制当前 Host 的浏览器配对链接，不把链接返回给 renderer。手机访问保留浏览器会话认证和 Host/Origin 校验，授予现有操作者的权限，而非仅限会话的角色。Desktop 不负责安装、登录或配置 Tailscale。此可选浏览器功能与原生 companion 配对及撤权相互独立。
 
 ### 运行时与插件激活
 

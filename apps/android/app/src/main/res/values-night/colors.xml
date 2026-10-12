@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="harnessy_base">#06151D</color>
+    <color name="harnessy_surface">#091C25</color>
+    <color name="harnessy_layer">#0D2731</color>
+    <color name="harnessy_selected">#164D59</color>
+    <color name="harnessy_accent">#37C4C9</color>
+    <color name="harnessy_primary">#F1FBFC</color>
+    <color name="harnessy_secondary">#B7CCD1</color>
+    <color name="harnessy_border">#48646D</color>
+    <color name="harnessy_warning">#FFCF78</color>
+    <color name="harnessy_warning_bg">#352C18</color>
+</resources>

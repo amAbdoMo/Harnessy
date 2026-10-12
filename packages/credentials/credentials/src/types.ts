@@ -97,5 +97,13 @@ declare module '@deepseek-ai/cordis' {
      * @mode emit
      */
     'credentials/record-updated'(key: CredentialKey): void
+
+    /**
+     * The provider cannot verify its stored source or observe further source changes.
+     * Cached reads may remain available; source-derived authorization must withdraw.
+     * Emitted once per provider incarnation, with contained listener failures and no payload.
+     * @mode emit
+     */
+    'credentials/source-failed'(): void
   }
 }

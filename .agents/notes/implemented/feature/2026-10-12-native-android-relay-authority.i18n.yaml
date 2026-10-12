@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-10-12-native-android-relay-authority.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-12-native-android-relay-authority.md
+/agent-note-native-android-relay-authority:
+  en: f41ec126f9dd0653
+  zh: 6627788ed4e4b440
+/agent-note-native-android-relay-authority/problem:
+  en: 65f93b4a2e1ae32c
+  zh: de27ee5625595dcc
+/agent-note-native-android-relay-authority/decision:
+  en: f7003af2b96e90e6
+  zh: aa1a1afad4a5afb3
+/agent-note-native-android-relay-authority/alternatives-considered:
+  en: c2915304c7bd9959
+  zh: a4dd3a4ded9aec7c
+/agent-note-native-android-relay-authority/consequences:
+  en: 25f35a288c546911
+  zh: 59e3835240a5e3af

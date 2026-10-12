@@ -1,0 +1,40 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/bundle/companion-relay/README.md
+/:
+  en: 14edf985ac2359a8
+  zh: dbc88bc2ce4bb79b
+/deepseek-ai-dsh-companion-relay-bundle:
+  en: ad151c7a913af024
+  zh: dbda259463562c5a
+/deepseek-ai-dsh-companion-relay-bundle/summary:
+  en: 45e50cbf22a91c36
+  zh: c6423bc8d5bb55e7
+/deepseek-ai-dsh-companion-relay-bundle/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 7ba8a9440c7de021
+/deepseek-ai-dsh-companion-relay-bundle/use-this-package:
+  en: 4abd8567cab0abc0
+  zh: ea1e31f67ec2e411
+/deepseek-ai-dsh-companion-relay-bundle/use-this-package/manual-profile-deployment-acceptance-not-executed:
+  en: dc218295e65f979c
+  zh: 5391760bd3d50721
+/deepseek-ai-dsh-companion-relay-bundle/understand-the-implementation:
+  en: a44836b649fd1e1a
+  zh: e6557b3147defa1f
+/deepseek-ai-dsh-companion-relay-bundle/further-exploration:
+  en: 8e33637bde4cd4ef
+  zh: 928b6b2c2710bc37
+/deepseek-ai-dsh-companion-relay-bundle/model-experience:
+  en: cd7106eeaf4744b0
+  zh: 57d1276a2cc20664
+/deepseek-ai-dsh-companion-relay-bundle/model-experience/kv-cache-effect:
+  en: 0d61ec3f5306dbe9
+  zh: 31b9427074c8b65a
+/deepseek-ai-dsh-companion-relay-bundle/known-limitations-and-deferred-work:
+  en: 8c11805b47302bee
+  zh: 6d4c253ff89a2b2e
+/deepseek-ai-dsh-companion-relay-bundle/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: fd71ba5e495ef0ef

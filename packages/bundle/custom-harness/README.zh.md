@@ -95,6 +95,8 @@ Windows 默认位置为 `%LOCALAPPDATA%\CustomHarness\Harness`、`%LOCALAPPDATA%
 <a id="agent-behavior-policy"></a>
 ## Agent 行为策略
 
+该 bundle 通过相对于补丁文件的入口加载自身 `lib/index.js` 中的策略插件，因此 Desktop 无需在 profile 中另行安装 bundle 包即可启用该策略。
+
 Harnessy 将同一策略应用于每个 Agent 入口：全局 prompt 分区覆盖普通进程内 Agent，完整的 Minimal persona 直接包含该策略，Command Code 则将其放在每个外部 CLI 简报开头。除非用户在当前任务中明确请求该图片，否则 Agent 不会创建或合成新图片。任务需要时，Agent 可以检查用户提供的图片、截取验证截图以及编辑用户提供的素材。
 
 当所需的应用或网站访问、权限、MCP 访问、身份验证或登录不可用或发生故障时，Agent 会在第一次访问检查失败后停止，报告确切阻塞项和所需的用户操作，然后等待。Agent 不会持续重试、绕过缺失的访问，也不会继续尝试无法完成所请求结果的替代方案。可用工具、普通仓库检查和已授权的检查无需额外确认即可继续使用。

@@ -58,3 +58,7 @@
 .error {
   color: var(--dsw-alias-state-error-primary);
 }
+
+.companionFeedback {
+  min-height: 20px;
+}

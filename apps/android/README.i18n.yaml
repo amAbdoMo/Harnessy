@@ -1,0 +1,31 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write apps/android/README.md
+/:
+  en: 01ca8df35c699913
+  zh: 9e3ed9c6eae24045
+/harnessy-android-companion:
+  en: e5eb1e1c0e61f812
+  zh: 604c1723a603db1b
+/harnessy-android-companion/summary:
+  en: 4f4f28d72173dbdb
+  zh: ed3689fb0be830b9
+/harnessy-android-companion/table-of-contents:
+  en: 32cf16c90884049a
+  zh: 4311aca72381b27c
+/harnessy-android-companion/application-assembly:
+  en: bb0d28d3fd7966e3
+  zh: 6cc4f012beae0adf
+/harnessy-android-companion/pairing-and-storage:
+  en: a2e068d5244c78f8
+  zh: 6814041053b66ac3
+/harnessy-android-companion/reads-and-delivery:
+  en: 815472bb992b65c0
+  zh: 4d8b70cc7b78f36e
+/harnessy-android-companion/limits-and-verification:
+  en: 27b341217dc0c5e4
+  zh: 7e993cddc646c32f
+/harnessy-android-companion/dev-note:
+  en: b75c8458928b72b9
+  zh: 003ba4e17b4b5269
