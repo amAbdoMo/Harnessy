@@ -54,6 +54,8 @@ Desktop Main 通过私有 IPC 复制一次性原生 URL，并拥有指纹批准�
 
 冷文本历史使用调用者拥有的查询租约，不激活 Agent。手机结果包含有界摘要、批准的纯文本和经过净化的实时活动，不包含原始工具参数或结果、推理、文件系统元数据或任意投影。完整编码消息计入 UTF-8 预算。分派器签发绑定上下文的认证读取游标，不保留无界游标映射。
 
+[构建配置](tsdown.config.ts)将提供方与 `/desktop-control` 编解码器输出为独立 Node 入口。Desktop 的[打包配置](../../../apps/desktop/tsdown.config.ts)内联编解码器及其协议依赖，不保留未随包提供的运行时导入；Main 不加载 Host 提供方。
+
 [服务](src/index.ts)、[连接器](src/connector.ts)、[记录](src/records.ts)、[桌面所有权](src/desktop-owner.ts)和[应用分派](src/application-dispatch.ts)拥有精确实现。
 
 </details>

@@ -54,6 +54,8 @@ A boot-installed Desktop capability and a non-expiring kernel lock restrict this
 
 Cold text history uses caller-owned query leases without Agent activation. Mobile results contain bounded summaries, approved literal text and sanitized live activity, never raw tool arguments/results, reasoning, filesystem metadata or arbitrary projections. Complete encoded messages pay the UTF-8 budget. The dispatcher issues context-bound authenticated read cursors rather than retaining an unbounded cursor map.
 
+The [build configuration](tsdown.config.ts) emits the provider and `/desktop-control` codec as independent Node entries. Desktop's [bundle configuration](../../../apps/desktop/tsdown.config.ts) inlines the codec and its protocol dependency rather than leaving an unpackaged runtime import; Main does not load the Host provider.
+
 [Service](src/index.ts), [connector](src/connector.ts), [records](src/records.ts), [Desktop ownership](src/desktop-owner.ts), and [application dispatch](src/application-dispatch.ts) own the exact implementation.
 
 </details>
