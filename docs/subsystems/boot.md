@@ -26,6 +26,14 @@ The [boot package group](../../packages/boot/README.md) owns launcher-provided p
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxcompanionrelaystartup--companionrelaystartup"></a>
+
+### `ctx.companionRelayStartup` — `CompanionRelayStartup`
+
+Accepted loopback bind values read by the webserver row.
+
+Source: [`packages/bundle/companion-relay/src/startup.ts`](../../packages/bundle/companion-relay/src/startup.ts)
+
 <a id="ctxconfigeditor--configeditor"></a>
 
 ### `ctx.configEditor` — `ConfigEditor`
@@ -205,6 +213,14 @@ Source: [`packages/client/ui-plugin-manager/src/index.ts`](../../packages/client
 Current profile facts; scheduling and mutation belong to their callers.
 
 Source: [`packages/boot/app-boot/src/profile-context.ts`](../../packages/boot/app-boot/src/profile-context.ts)
+
+<a id="ctxwebstartup--webstartupvalues"></a>
+
+### `ctx.webStartup` — `WebStartupValues`
+
+What the web rows read from WEB_STARTUP_SERVICE.
+
+Source: [`packages/bundle/web-app/src/startup.ts`](../../packages/bundle/web-app/src/startup.ts)
 
 <a id="app-boot-events"></a>
 

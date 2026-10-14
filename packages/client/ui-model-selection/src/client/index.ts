@@ -26,7 +26,7 @@ import { IconDataOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ModelDirectoryState } from './directory.ts'
 import { ModelDirectoryResolver } from './service.ts'
 import type { ModelSelectInjected } from './slots.ts'
-import { ModelSelect } from './ModelSelect.tsx'
+import { ModelSelectSeat } from './ModelSelectSeat.tsx'
 import { en, zh, type ModelKey } from './locales.ts'
 import { orderModelProviders } from './provider-order.ts'
 
@@ -186,6 +186,6 @@ export function apply(ctx: ClientContext): void {
             : Promise.resolve(undefined),
         }
       },
-    }, ModelSelect))
+    }, ModelSelectSeat))
   })
 }

@@ -63,9 +63,9 @@ export class WebsiteRequestPage implements HostObservable<WebsiteRequestPageStat
   constructor(private readonly owner: WebsiteRequestPageOwner, private readonly profile: DesktopWebsiteProfileId) {}
 
   /** @returns stable request-only render state. */
-  getSnapshot = (): WebsiteRequestPageState => this.store.getSnapshot()
+  getSnapshot: () => WebsiteRequestPageState = () => this.store.getSnapshot()
   /** @param listener - render invalidation. @returns unsubscribe callback. */
-  subscribe = (listener: () => void): (() => void) => this.store.subscribe(listener)
+  subscribe: (listener: () => void) => () => void = listener => this.store.subscribe(listener)
 
   /**
    * Refresh this page's requests and revoke admissions absent from the usable Session roster.

@@ -748,6 +748,139 @@ export interface ToolResultPruneConfig {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-compaction-tool-result-pruner -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-companion-host -->
+<a id="deepseek-aidsh-companion-host"></a>
+
+## `@deepseek-ai/dsh-companion-host`
+
+- `inject`: `credentials` · `sessionController` · `sessionQuery` · `sessions` · `agents`
+- `refs`: [`ApplicationBudget`](../packages/util/companion-protocol/src/index.ts) · [`ChannelBudget`](../packages/util/companion-protocol/src/index.ts)
+- `source`: [`packages/host/companion-host/src/config.ts:51`](../packages/host/companion-host/src/config.ts)
+
+```ts config-catalog
+/** Omitted origin disables the optional product without creating keys or sockets. */
+export interface Config {
+  /** Canonical public HTTPS relay origin, pinned in stored identity; omission disables the feature. */
+  readonly httpsOrigin?: string
+  /** Complete explicit limits, required with httpsOrigin and rejected without it; no defaults are supplied. */
+  readonly budgets?: HostBudgets | undefined
+}
+
+/** All limits are required when an actual origin is configured. */
+export interface HostBudgets {
+  /** Application UTF-8 byte, result-count, per-grant operation and read/subscription time limits. */
+  readonly application: ApplicationBudget
+  /** Cryptographic send/receive queue limits and transport write deadline. */
+  readonly channel: ChannelBudget
+  /** Concurrent phone channels, including channels still completing teardown. */
+  readonly maxChannels: number
+  /** Total admitted channel opens per ready relay connection; closing a channel does not restore an attempt. */
+  readonly maxChannelAttempts: number
+  /** Pending locally approvable pairing candidates; at most 64 and no more than maxChannels. */
+  readonly maxCandidates: number
+  /** Persisted phone grants; at most 64. Enrollment fails when the record is full. */
+  readonly maxGrants: number
+  /** UTF-8 JSON bytes in the private identity/grant payload, excluding its credential wrapper; at most 1 MiB. */
+  readonly maxRecordBytes: number
+  /** Complete relay JSON receive/send limit; at least 96 KiB so valid phone traffic cannot close shared ws preassembly. */
+  readonly maxFrameBytes: number
+  /** Shared relay write-byte limit, checked against both retained writes and WebSocket bufferedAmount. */
+  readonly maxSendQueuedBytes: number
+  /** Count limit applied separately to management work, shared relay work/writes and each channel's application requests. */
+  readonly maxPendingMessages: number
+  /** Queued progress results per live subscription; overflow terminates that subscription with a limit error. */
+  readonly maxProgressBuffer: number
+  /** Shared relay receive/send token-bucket capacity in bytes, refilled at this many bytes per second. */
+  readonly bytesPerSecond: number
+  /** Milliseconds from invitation creation until expiry; expiry withdraws its pending candidates. */
+  readonly invitationLifetimeMs: number
+  /** Milliseconds from channel open through mutual encrypted key confirmation, including local pairing approval. */
+  readonly handshakeTimeoutMs: number
+  /** Millisecond deadline for WSS establishment and relay authentication, measured from connection creation. */
+  readonly connectionTimeoutMs: number
+  /** Absolute relay socket lifetime in milliseconds from connection creation. */
+  readonly maxConnectionLifetimeMs: number
+  /** Milliseconds without rate-admitted relay receive/send traffic before the shared socket retires. */
+  readonly idleTimeoutMs: number
+  /** Initial retry delay in milliseconds within a reconnect burst; subsequent delays double up to reconnectMaxMs. */
+  readonly reconnectInitialMs: number
+  /** Maximum within-burst retry delay and the pause between reconnect bursts, in milliseconds. */
+  readonly reconnectMaxMs: number
+  /** Attempts per backoff burst; bursts repeat after reconnectMaxMs until the Host owner retires. */
+  readonly reconnectAttempts: number
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-companion-host -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-companion-relay -->
+<a id="deepseek-aidsh-companion-relay"></a>
+
+## `@deepseek-ai/dsh-companion-relay`
+
+- `inject`: `webServer`
+- `source`: [`packages/host/companion-relay/src/config.ts:6`](../packages/host/companion-relay/src/config.ts)
+
+```ts config-catalog
+/** Relay deployment identity and admission, retention, byte and time budgets. */
+export interface Config {
+  /** Canonical public HTTPS origin; the managed reverse proxy owns TLS. */
+  httpsOrigin: string
+  /** Total admitted sockets, including anonymous sockets. */
+  maxConnections: number
+  /** Admitted sockets from one transport-source IP. */
+  maxConnectionsPerIp: number
+  /** Global sockets awaiting registration or identity-key proof. */
+  maxPending: number
+  /** Sockets awaiting registration or identity-key proof from one transport-source IP. */
+  maxPendingPerIp: number
+  /** Global PC sockets, including pending identities. */
+  maxRoutes: number
+  /** PC sockets from one transport-source IP, including pending identities. */
+  maxRoutesPerIp: number
+  /** Global phone sockets, including pending identities. */
+  maxPhones: number
+  /** Phone sockets from one transport-source IP, including pending identities. */
+  maxPhonesPerIp: number
+  /** Non-stopping phones targeting one PC, including phones awaiting identity-key proof. */
+  maxPhonesPerPc: number
+  /** Maximum retained IP buckets, including recently disconnected anonymous clients. */
+  maxIpBuckets: number
+  /** Maximum complete UTF-8 JSON frame bytes; at most 2147483647 for ws preassembly enforcement. */
+  maxFrameBytes: number
+  /** In-flight send-byte limit per socket, also checked against WebSocket bufferedAmount. */
+  maxOutboundQueueBytes: number
+  /** In-flight send bytes per channel direction; saturation retires the phone, not its shared PC socket. */
+  maxChannelQueueBytes: number
+  /** Global receive/send token-bucket capacity in bytes and refill rate in bytes per second. */
+  bytesPerSecond: number
+  /** Receive/send token-bucket capacity and bytes-per-second refill rate for one transport-source IP. */
+  bytesPerSecondPerIp: number
+  /** Receive/send token-bucket capacity and bytes-per-second refill rate for one socket. */
+  bytesPerSecondPerSocket: number
+  /** Global upgrade-attempt token capacity, refilled over upgradeWindowMs; charged before header and admission checks. */
+  upgradesPerWindow: number
+  /** Upgrade-attempt token capacity for one transport-source IP, refilled over upgradeWindowMs. */
+  upgradesPerWindowPerIp: number
+  /** Milliseconds to refill an empty upgrade token bucket to its configured capacity. */
+  upgradeWindowMs: number
+  /** Milliseconds since the last upgrade attempt or disconnect before a socket-free IP bucket expires. */
+  ipBucketTtlMs: number
+  /** Milliseconds from socket admission to completion of registration and identity-key proof. */
+  registrationTimeoutMs: number
+  /** Milliseconds from challenge creation to receipt of its identity-key proof, also bounded by registrationTimeoutMs. */
+  challengeTimeoutMs: number
+  /** Separate millisecond limits after phone authentication for hello and after channel creation for PC welcome. */
+  channelHandshakeTimeoutMs: number
+  /** Milliseconds without accepted inbound JSON before a socket expires; native ping/pong does not extend it. */
+  idleTimeoutMs: number
+  /** Absolute socket lifetime in milliseconds from admission, regardless of activity. */
+  maxConnectionLifetimeMs: number
+  /** Millisecond interval for retiring expired sockets and removing inactive IP buckets. */
+  sweepIntervalMs: number
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-companion-relay -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-cordis-host-runner -->
 <a id="deepseek-aidsh-cordis-host-runner"></a>
 
@@ -4369,7 +4502,7 @@ export interface WebRuntimeConfig {
 ## `@deepseek-ai/dsh-web-app`
 
 - `inject`: `webServer`
-- `source`: [`packages/bundle/web-app/src/index.ts:46`](../packages/bundle/web-app/src/index.ts)
+- `source`: [`packages/bundle/web-app/src/index.ts:47`](../packages/bundle/web-app/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config: composed deployment settings plus per-invocation command-line values. */
@@ -4741,6 +4874,8 @@ export interface Config {
 | `@deepseek-ai/dsh-client-ui-slots` | — | [`packages/client/ui-slots/src/index.ts`](../packages/client/ui-slots/src/index.ts) |
 | `@deepseek-ai/dsh-client-web` | — | [`packages/client/web/src/index.ts`](../packages/client/web/src/index.ts) |
 | `@deepseek-ai/dsh-cmdline` | — | [`packages/boot/cmdline/src/index.ts`](../packages/boot/cmdline/src/index.ts) |
+| `@deepseek-ai/dsh-companion-protocol` | — | [`packages/util/companion-protocol/src/index.ts`](../packages/util/companion-protocol/src/index.ts) |
+| `@deepseek-ai/dsh-companion-relay-bundle` | — | [`packages/bundle/companion-relay/src/index.ts`](../packages/bundle/companion-relay/src/index.ts) |
 | `@deepseek-ai/dsh-deque` | — | [`packages/util/deque/src/index.ts`](../packages/util/deque/src/index.ts) |
 | `@deepseek-ai/dsh-experimental-agent-team-profile` | — | [`packages/experimental/agent-team-profile/src/index.ts`](../packages/experimental/agent-team-profile/src/index.ts) |
 | `@deepseek-ai/dsh-experimental-browser-use-runtime` | — | [`packages/experimental/browser-use-runtime/src/index.ts`](../packages/experimental/browser-use-runtime/src/index.ts) |

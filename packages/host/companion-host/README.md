@@ -81,21 +81,22 @@ Indirectly, through ordinary Session user-text admission and Agent request assem
 
 Admitted follow-up text affects context and KV-cache reuse exactly as ordinary queued PC user text; reads and pairing do not add model requests.
 
-<a id="known-limitations-and-deferred-work"></a>
 ## Known Limitations and Deferred Work
+
+<a id="known-limitations-and-deferred-work"></a>
 
 The following integration and verification constraints remain explicit.
 
-- Tests, physical Android interoperability and native Windows behavior have not been exercised; static compilation is not runtime security evidence.
+- Physical Android interoperability and native Windows security acceptance require separate validation; keyless tests and static compilation do not establish them.
 - Activation requires a real deployed relay origin, explicit budgets and an offline Desktop build. No running application or installed credential data is changed by editing source.
 - The signed hello has no display-name metadata; candidate and device names remain empty. Shared application status has no local-PC-action state. Partial assistant deltas require a separate bounded protocol representation and are not exported.
 - Windows credential ACL verification remains deferred. Copying a PC credentials home clones its private identity; the local-home lock does not prevent ownership on another PC or another copied home.
 - The credentials provider retains its last-good read cache after a source failure. Companion checks its permanent source-failure signal before initial admission and withdraws on `credentials/source-failed`; restoring storage requires provider and Host restart before phone authority returns.
 - The credentials provider uses atomic replacement without fsync. Withdrawal completion means provider commit and channel quiescence, not power-loss durability stronger than that provider offers.
-- Native interoperability, adversarial relay/channel tests, application transcript snapshots, and assembled Desktop/Android end-to-end evidence remain integration gates, not claims of this source review.
+- Native interoperability, adversarial relay/channel behavior, application transcript snapshots, and assembled Desktop/Android end-to-end evidence remain required for deployment acceptance.
 
 <a id="dev-note"></a>
-## Dev Note
+### Dev Note
 
 <details>
 <summary>Working context for maintainers — click to expand</summary>

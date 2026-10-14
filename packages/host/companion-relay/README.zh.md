@@ -7,7 +7,7 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-## 概要
+## 概述
 
 PC 与手机可通过同一个部署源交换实时加密的 companion 消息。每条连接使用新鲜、限时且绑定 socket 的挑战证明其 P-256 身份密钥的持有权。手机只能连接所选的在线 PC；该 PC 负责配对、授权记录、撤销及应用授权。运维人员必须提供托管 TLS 反向代理，以及全部准入、字节、队列和时间预算。
 
@@ -18,7 +18,7 @@ PC 与手机可通过同一个部署源交换实时加密的 companion 消息。
 - [进一步探索](#further-exploration)
 - [模型体验](#model-experience)
 - [已知限制与后续工作](#known-limitations-and-deferred-work)
-- [开发笔记](#dev-note)
+- [开发备注](#dev-note)
 
 -----
 
@@ -106,7 +106,7 @@ relay 只使用 `request.socket.remoteAddress`，忽略转发 IP 头。因此同
 - 已提供源代码组合回归，但尚未执行。实时 HTTPS 验收、类型检查、文档配对/检查、包解析及构建产物仍未验证；不声明已部署或生产就绪。
 
 <a id="dev-note"></a>
-### 开发笔记
+### 开发备注
 
 <details>
 <summary>维护者工作上下文 — 点击展开</summary>

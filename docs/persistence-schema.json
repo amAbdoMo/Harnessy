@@ -10306,6 +10306,76 @@
       }
     },
     {
+      "key": "event:llm-pi-ai/fast-mode",
+      "kind": "event",
+      "event": "llm-pi-ai/fast-mode",
+      "surface": false,
+      "digest": "37ae0f7c37ae4f1a01b65fde2ec9f3047ec2f39b1ebed3982d3d66eda5e80deb",
+      "schema": {
+        "root": 0,
+        "nodes": [
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "data",
+                "type": 1,
+                "optional": false
+              },
+              {
+                "name": "ignorable",
+                "type": 3,
+                "optional": true
+              },
+              {
+                "name": "seq",
+                "type": 4,
+                "optional": false
+              },
+              {
+                "name": "time",
+                "type": 4,
+                "optional": false
+              },
+              {
+                "name": "type",
+                "type": 5,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "enabled",
+                "type": 2,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "primitive",
+            "type": "boolean"
+          },
+          {
+            "kind": "literal",
+            "value": true
+          },
+          {
+            "kind": "primitive",
+            "type": "number"
+          },
+          {
+            "kind": "literal",
+            "value": "llm-pi-ai/fast-mode"
+          }
+        ]
+      }
+    },
+    {
       "key": "event:llm/retry",
       "kind": "event",
       "event": "llm/retry",
@@ -22621,6 +22691,11 @@
       "sources": []
     },
     {
+      "digest": "37ae0f7c37ae4f1a01b65fde2ec9f3047ec2f39b1ebed3982d3d66eda5e80deb",
+      "names": [],
+      "sources": []
+    },
+    {
       "digest": "37cbc9cf06d494cfe5c67f078af1605eacb8e4c2c853e9e26455b73de0ee7ccf",
       "names": [],
       "sources": []
@@ -24114,6 +24189,11 @@
       "sources": []
     },
     {
+      "digest": "a0163f9e6b395646c657c0e138414e2534b6279ab8d8de65e875865aefb75b6b",
+      "names": [],
+      "sources": []
+    },
+    {
       "digest": "a0a2e5c42e1c929445ecd1cd70f49be6b66441894ec72c08e8ae332821d4a3cb",
       "names": [],
       "sources": []
@@ -24699,6 +24779,13 @@
       "digest": "c219efbdfd53b836786202ab4532913d555798f0a8615a4e9629736e3799fb70",
       "names": [],
       "sources": []
+    },
+    {
+      "digest": "c2a13242efc3bea4b36a843ddf1524ff4d33c765a71b582fa1fdbfa4fa148434",
+      "names": [],
+      "sources": [
+        "packages/llm/llm-pi-ai/src/types.ts:11"
+      ]
     },
     {
       "digest": "c2deb7c9183735d4e0fffddf5c623f4e34daa1c8e96b111982e957dfcbbcf896",

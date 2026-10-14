@@ -24,6 +24,18 @@ export const ICON_REGULAR_STROKE = 1
 /** Medium stroke width used by emphasized product icons. */
 export const ICON_MEDIUM_STROKE = 1.3
 
+const IconLightningFilledArtwork = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+    <path d="M9.5 1.5 3.5 9H7l-1 5.5L12.5 7H9z" />
+  </svg>
+)
+
+/** Regular filled lightning marker for a priority request preference. */
+export const IconLightningFilledRegular = (props: IconProps) => <IconLightningFilledArtwork {...props} />
+
+/** Medium filled lightning marker; fill-only weights share the same artwork. */
+export const IconLightningFilledMedium = (props: IconProps) => <IconLightningFilledArtwork {...props} />
+
 /** Regular one-pixel IconNewChatOutline artwork. */
 export const IconNewChatOutlineRegular = (props: IconProps) => (
   <NewChatOutlineArtwork {...props} strokeWidth={ICON_REGULAR_STROKE} />

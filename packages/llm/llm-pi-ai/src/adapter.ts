@@ -37,6 +37,7 @@ import type {
   SimpleStreamOptions,
   ThinkingLevel,
 } from '@earendil-works/pi-ai'
+import type { OpenAICodexResponsesOptions } from '@earendil-works/pi-ai/api/openai-codex-responses'
 import {
   attributionHeaders,
   contentHasImage,
@@ -70,7 +71,7 @@ interface PiAiSnapshot {
   models: Models
 }
 
-/** Constructor options for {@link PiAiAdapter}: the two resolution hooks the plugin owns. */
+/** Constructor options for {@link PiAiAdapter}: plugin-owned request resolution and observation hooks. */
 export interface PiAiAdapterOptions {
   /** Current validated profiles by provider route; called once per operation. */
   profiles: () => ReadonlyMap<string, ResolvedPiAiProviderProfile>
@@ -92,6 +93,11 @@ export interface PiAiAdapterOptions {
    * every request no matter how often the human signed in.
    */
   auth: PiAiAuthInjection
+  /**
+   * Read one live chat's priority preference before credential resolution.
+   * Only ordinary Codex conversation calls consult it; absence requests no priority.
+   */
+  resolveFastMode?: (sessionId: NonNullable<GenerateOptions['sessionId']>) => boolean
   /** Resolve the optional durable attachment service at request time. */
   resolveAttachments?: () => AttachmentStore | undefined
   /** Bridge one attachment reference into the current model-tool execution world. */
@@ -351,6 +357,8 @@ export class PiAiAdapter extends LlmAdapter {
       model,
       options.reasoningEffort ?? profile.reasoning,
     )
+    const fastMode = model.api === 'openai-codex-responses' && options.purpose === undefined && options.sessionId !== undefined
+      && this.config.resolveFastMode?.(options.sessionId) === true
     const apiKey = await this.config.resolveApiKey(options.provider, profile)
 
     const consumer = new AbortController()
@@ -383,7 +391,7 @@ export class PiAiAdapter extends LlmAdapter {
             maxBytes: profile.requestImageMaxBytes,
           },
         }, onReplayDegrade)
-      const events = snapshot.models.streamSimple(model, context, {
+      const streamOptions: SimpleStreamOptions = {
         ...profileOptions(profile, reasoning, apiKey),
         ...options.temperature === undefined ? {} : { temperature: options.temperature },
         ...options.maxTokens === undefined ? {} : { maxTokens: options.maxTokens },
@@ -392,7 +400,15 @@ export class PiAiAdapter extends LlmAdapter {
         // Profile headers are deployment-owned; attribution names are
         // Harness-owned and therefore win collisions.
         headers: requestHeaders(profile.headers),
-      })
+      }
+      // streamSimple reconstructs protocol options and drops serviceTier.
+      const events = fastMode
+        ? snapshot.models.stream(model, context, {
+          ...streamOptions,
+          serviceTier: 'priority',
+          ...reasoning === undefined || reasoning === 'off' ? {} : { reasoningEffort: reasoning },
+        } satisfies OpenAICodexResponsesOptions)
+        : snapshot.models.streamSimple(model, context, streamOptions)
       const iterator = toStreamChunks(events, model.contextWindow, options.signal, model.id)[Symbol.asyncIterator]()
       let exhausted = false
       try {

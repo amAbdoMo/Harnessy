@@ -39,7 +39,9 @@ The dialog initially focuses its search field, traps Tab navigation, closes on E
 
 Models stay grouped by provider, with DeepSeek Account first and DeepSeek second; third-party providers retain their catalog order. Search ranks case-insensitive ordered-subsequence matches of model names within each provider group, while retaining substring matches of provider names and identifiers plus model identifiers and descriptions. The `/model` popup shows provider names and catalog descriptions; it localizes the two built-in DeepSeek descriptions and leaves external provider descriptions verbatim. Selecting a model applies its default effort, and the dialog offers every effort advertised for the selected model. An adapter without reasoning metadata shows an unavailable explanation instead of an arbitrary effort input.
 
-The composer replaces the model and effort text with the Models icon when the expanded controls cannot share one line, and restores the text when space permits. The full selection remains available in the trigger's accessible name, tooltip, and menu.
+A lightning marker before the model name shows the saved Codex fast-mode preference for this chat only when that preference is on and the selected provider is `openai-codex`, including when its catalog model is absent. The standard Session projection supplies restored and live preferences independently for each chat. Other routes hide the marker without clearing the saved preference; switching back restores it. The marker adds no action and does not guarantee that the provider or model accepts priority service or responds faster. The button's localized accessible name and tooltip announce the enabled preference.
+
+The composer replaces the model and effort text with the Models icon when the expanded controls cannot share one line, and restores the text when space permits. When fast mode is shown, the lightning marker replaces that compact Models icon instead of adding a second glyph. The full selection remains available in the trigger's accessible name, tooltip, and menu.
 
 ### Unroutable sessions
 

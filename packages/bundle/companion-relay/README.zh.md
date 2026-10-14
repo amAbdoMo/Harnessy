@@ -7,7 +7,7 @@ kind: "package-bundle"
 
 [English](README.md) | 中文
 
-## 概要
+## 概述
 
 专用 profile 可在托管 TLS 反向代理后提供有界的实时 companion 密文转发。PC 使用规范身份自行注册，手机只能到达其所选的在线 PC。此层不包含 agent、session、provider 配置、PC 登录 token 或通用 gateway。部署身份及每项 relay 预算都必须显式提供。
 
@@ -18,7 +18,7 @@ kind: "package-bundle"
 - [进一步探索](#further-exploration)
 - [模型体验](#model-experience)
 - [已知限制与后续工作](#known-limitations-and-deferred-work)
-- [开发笔记](#dev-note)
+- [开发备注](#dev-note)
 
 -----
 
@@ -91,7 +91,7 @@ profile 只负责 `--host`、`--port` 和 `--help`。`--host` 必须显式为 `1
 - profile 注册及仓库级集成属于父级修改。本任务没有执行安装、应用、服务器、测试、构建、文档配对/检查、网络操作或实时部署验收。
 
 <a id="dev-note"></a>
-### 开发笔记
+### 开发备注
 
 <details>
 <summary>维护者工作上下文 — 点击展开</summary>

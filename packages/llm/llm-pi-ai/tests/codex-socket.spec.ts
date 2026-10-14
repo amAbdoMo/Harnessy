@@ -3,12 +3,23 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { zstdDecompressSync } from 'node:zlib'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { brandString, type Branded } from '@deepseek-ai/dsh-brand'
 import Loader, { type ModuleLoaderV2 } from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
-import LlmRuntime, { type StreamChunk } from '@deepseek-ai/dsh-llm'
+import LlmRuntime, {
+  createAssistantMessage, createSystemMessage, createUserMessage, ReasoningEffortId, type StreamChunk,
+} from '@deepseek-ai/dsh-llm'
+import JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
+import AgentRegistry from '@deepseek-ai/dsh-agent'
+import AgentLoop from '@deepseek-ai/dsh-agent-loop'
+import Commands from '@deepseek-ai/dsh-commands'
+import SessionStore, { SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
+import Projections from '@deepseek-ai/dsh-session-projection'
+import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
+import Tools from '@deepseek-ai/dsh-tools'
 import LocalCredentialProvider from '@deepseek-ai/dsh-credentials-local'
 import type { OAuthCredential } from '@earendil-works/pi-ai'
 import { getBuiltinModels } from '@earendil-works/pi-ai/providers/all'
@@ -17,6 +28,9 @@ import * as LlmPiAi from '../src/index.ts'
 import { recordKeyFor } from '../src/auth.ts'
 import { profileComposition } from '../../../settings/settings/tests/profile-composition.ts'
 import { assemble } from './assemble.ts'
+import { memoryAuth } from './auth-double.ts'
+import { resolveProfiles } from '../src/config.ts'
+import { textEvents } from './mock-server.ts'
 
 /** Mock only the external WebSocket transport; the SDK owns auth, framing, parsing, and its real cache. */
 class CodexSocket extends EventTarget {
@@ -67,20 +81,22 @@ function grant(person: string, workspace: string): OAuthCredential {
 let ctx: Context | undefined
 let root: string | undefined
 const streams: Promise<unknown>[] = []
+const credentialReleases: Array<() => void> = []
 
 function track<T>(stream: Promise<T>): Promise<T> {
   streams.push(stream)
-  void stream.catch(() => {}) // Teardown joins failed streams even when an earlier assertion stops the scenario.
+  void stream.catch((_error) => {}) // Teardown joins failed streams even when an earlier assertion stops the scenario.
   return stream
 }
 
 afterEach(async () => {
   try {
+    for (const release of credentialReleases.splice(0)) release()
     closeOpenAICodexWebSocketSessions()
     for (const socket of CodexSocket.connections) socket.close()
     await Promise.allSettled(streams.splice(0))
-    await ctx?.fiber.dispose()
-    if (root !== undefined) await rm(root, { recursive: true, force: true })
+    try { await ctx?.fiber.dispose() }
+    finally { if (root !== undefined) await rm(root, { recursive: true, force: true }) }
   } finally {
     resetOpenAICodexWebSocketDebugStats()
     ctx = undefined
@@ -90,13 +106,25 @@ afterEach(async () => {
   }
 })
 
-async function load(): Promise<Context> {
-  root = await mkdtemp(join(tmpdir(), 'dsh-codex-sockets-'))
+async function load(options: { fastMode?: boolean; transport?: 'sse' | 'websocket'; persistence?: boolean } = {}): Promise<Context> {
+  root ??= await mkdtemp(join(tmpdir(), 'dsh-codex-sockets-'))
   const configPath = join(root, 'cordis.yml')
   await writeFile(configPath, [
     '- id: llm\n  name: test-llm',
     `- id: credentials\n  name: test-credentials\n  config:\n    path: ${JSON.stringify(join(root, '.credentials.yaml'))}\n    watch: false`,
-    '- id: llm-pi-ai\n  name: test-pi-ai\n  config:\n    providers:\n      openai-codex:\n        transport: websocket',
+    ...options.fastMode !== true ? [] : [
+      '- id: sessions\n  name: test-sessions',
+      '- id: projections\n  name: test-projections',
+      '- id: commands\n  name: test-commands',
+      '- id: agents\n  name: test-agents',
+      '- id: system-prompt\n  name: test-system-prompt',
+      '- id: tools\n  name: test-tools',
+      ...options.persistence !== true ? [] : [
+        `- id: persistence\n  name: test-jsonl\n  config:\n    root: ${JSON.stringify(join(root, 'sessions'))}\n    compression: none`,
+      ],
+      '- id: agent-loop\n  name: test-agent-loop\n  config:\n    agents: []',
+    ],
+    `- id: llm-pi-ai\n  name: test-pi-ai\n  config:\n    providers:\n      openai-codex:\n        transport: ${options.transport ?? 'websocket'}`,
     '',
   ].join('\n'))
   const context = new Context()
@@ -104,7 +132,12 @@ async function load(): Promise<Context> {
   context.baseUrl = pathToFileURL(root).href + '/'
   await context.plugin(Loader)
   context.loader.builtins.include = Include
-  const modules = new Map<string, unknown>([['test-llm', LlmRuntime], ['test-credentials', LocalCredentialProvider], ['test-pi-ai', LlmPiAi]])
+  const modules = new Map<string, unknown>([
+    ['test-llm', LlmRuntime], ['test-credentials', LocalCredentialProvider], ['test-pi-ai', LlmPiAi],
+    ['test-sessions', SessionStore], ['test-projections', Projections], ['test-commands', Commands],
+    ['test-agents', AgentRegistry], ['test-agent-loop', AgentLoop],
+    ['test-system-prompt', SystemPrompt], ['test-tools', Tools], ['test-jsonl', JsonlSessionPersistence],
+  ])
   const internal: ModuleLoaderV2 = {
     version: 'v2', loadCache: new Map(),
     import: (specifier) => {
@@ -253,5 +286,260 @@ describe('Codex dispatch identity', () => {
     expect((await work).message.content).toEqual([{ type: 'text', text: 'work again' }])
     expect(CodexSocket.connections).toHaveLength(3)
     expect(second.requests.join('')).not.toContain(grant('second-person', 'shared-work').access)
+  })
+})
+
+interface CodexWireRequest {
+  model: string
+  service_tier?: string
+  reasoning?: { effort: string }
+  instructions?: string
+  input?: unknown[]
+  tools?: unknown[]
+}
+
+function sseCompletion(): Response {
+  return new Response(completionEvents('reply').map(event => `data: ${JSON.stringify(event)}\n\n`).join(''), {
+    headers: { 'content-type': 'text/event-stream' },
+  })
+}
+
+async function codexRequest(input: Parameters<typeof fetch>[0], init: Parameters<typeof fetch>[1]): Promise<CodexWireRequest> {
+  const request = new Request(input, init)
+  if (request.url !== 'https://chatgpt.com/backend-api/codex/responses') throw new Error(`unexpected HTTP request: ${request.url}`)
+  const payload = Buffer.from(await request.arrayBuffer())
+  const decoded = request.headers.get('content-encoding') === 'zstd' ? zstdDecompressSync(payload) : payload
+  return JSON.parse(decoded.toString())
+}
+
+describe('Codex current-chat priority in real Loader composition', () => {
+  it.each(['websocket', 'sse'] as const)('dispatches /fast over %s without lowering reasoning or affecting another chat', async (transport) => {
+    const requests: CodexWireRequest[] = []
+    class CompletingSocket extends CodexSocket {
+      override send(body: string): void {
+        super.send(body)
+        requests.push(JSON.parse(body))
+        queueMicrotask(() => this.complete('reply'))
+      }
+    }
+    vi.stubGlobal('WebSocket', CompletingSocket)
+    const fetch = vi.fn<typeof globalThis.fetch>(async (input, init) => {
+      if (transport !== 'sse') throw new Error('unexpected SSE fallback')
+      requests.push(await codexRequest(input, init))
+      return sseCompletion()
+    })
+    vi.stubGlobal('fetch', fetch)
+    const context = await load({ fastMode: true, transport })
+    const model = getBuiltinModels('openai-codex')[0]!
+    await context.credentials.modifyRecord(recordKeyFor('openai-codex'), () => Promise.resolve({ kind: 'grant', payload: grant('person', 'work') }))
+    const receiving = await context.agents.create({ sessionId: SessionId('priority-chat') })
+    const other = await context.agents.create({ sessionId: SessionId('standard-chat') })
+    const events: SessionEvent[] = []
+    context.on('session/event', (session, event) => { if (session === receiving.agent.session) events.push(event) })
+    const command = async (line: string) => {
+      const execution = await context.commands.execute(receiving.agent, line, [], new AbortController().signal)
+      if (execution === undefined) throw new Error('fast command was not registered by Loader')
+      return execution.result
+    }
+    const commands = [await command('/fast status'), await command('/fast on'), await command('/fast status')]
+    const options = {
+      provider: 'openai-codex', model: model.id, reasoningEffort: ReasoningEffortId('high'),
+      messages: [
+        createSystemMessage('Keep the response concise.'),
+        createUserMessage({ source: { kind: 'user' }, content: [{ type: 'text', text: 'Earlier question' }] }),
+        createAssistantMessage({ source: { provider: 'openai-codex', model: model.id }, content: [{ type: 'text', text: 'Earlier answer' }] }),
+        createUserMessage({ source: { kind: 'user' }, content: [{ type: 'text', text: 'Follow-up question' }] }),
+      ],
+      tools: [{ name: 'lookup', description: 'Look up a query.', parameters: { type: 'object', properties: { query: { type: 'string' } } } }],
+    }
+    const enabled = await track(assemble(context, { ...options, sessionId: receiving.agent.id }))
+    expect(enabled.message.content).toEqual([{ type: 'text', text: 'reply' }])
+    expect(requests[0]).toMatchObject({ model: model.id, service_tier: 'priority', reasoning: { effort: 'high' } })
+    const standard = await track(assemble(context, { ...options, sessionId: other.agent.id }))
+    expect(standard.message.content).toEqual([{ type: 'text', text: 'reply' }])
+    expect(requests[1]).not.toHaveProperty('service_tier')
+    commands.push(await command('/fast off'))
+    const disabled = await track(assemble(context, { ...options, sessionId: receiving.agent.id }))
+    expect(disabled.message.content).toEqual([{ type: 'text', text: 'reply' }])
+    expect(requests[2]).not.toHaveProperty('service_tier')
+    expect(requests).toHaveLength(3)
+    for (const request of requests) expect(request.reasoning).toMatchObject({ effort: 'high' })
+    expect(requests[0]).toMatchObject({
+      instructions: 'Keep the response concise.',
+      input: [
+        expect.objectContaining({ role: 'user', content: [{ type: 'input_text', text: 'Earlier question' }] }),
+        expect.objectContaining({ role: 'assistant', content: [{ type: 'output_text', text: 'Earlier answer', annotations: [] }] }),
+        expect.objectContaining({ role: 'user', content: [{ type: 'input_text', text: 'Follow-up question' }] }),
+      ],
+      tools: [expect.objectContaining({ type: 'function', name: 'lookup', description: 'Look up a query.', parameters: options.tools[0]!.parameters })],
+    })
+    const { service_tier: tier, ...priorityRequest } = requests[0]!
+    expect(tier).toBe('priority')
+    expect(requests[1]).toMatchObject({
+      model: priorityRequest.model, reasoning: priorityRequest.reasoning,
+      instructions: priorityRequest.instructions, input: priorityRequest.input, tools: priorityRequest.tools,
+    })
+    expect(requests[2]).toEqual(priorityRequest)
+    expect(context.sessionProjections.stateOf(other.agent.session, 'codexFastMode')).toBe(false)
+    expect(receiving.agent.session.deriveMessages()).toEqual([])
+    const outcome = {
+      commands,
+      events: events.flatMap(event => event.type === 'llm-pi-ai/fast-mode'
+        ? [{ type: event.type, data: event.data, ignorable: event.ignorable }] : []),
+      requests: requests.map(request => ({ serviceTier: request.service_tier ?? null, reasoningEffort: request.reasoning?.effort })),
+    }
+    await expect(JSON.stringify(outcome, null, 2) + '\n').toMatchFileSnapshot('./expected/codex-fast-mode.json')
+    if (transport === 'websocket') {
+      expect(CodexSocket.connections).toHaveLength(2)
+      expect(CodexSocket.connections[0]?.requests).toHaveLength(2)
+      expect(CodexSocket.connections[1]?.requests).toHaveLength(1)
+      for (const socket of CodexSocket.connections) expect(socket.options.headers.authorization).toBe(`Bearer ${grant('person', 'work').access}`)
+      expect(fetch).not.toHaveBeenCalled()
+    } else {
+      expect(CodexSocket.connections).toEqual([])
+      expect(fetch).toHaveBeenCalledTimes(3)
+    }
+  })
+
+  it.each([true, false])('restores persisted fast=%s into the live Session after JSONL close/reopen and dispatches its tier', async (enabled) => {
+    const requests: CodexWireRequest[] = []
+    vi.stubGlobal('WebSocket', CodexSocket)
+    vi.stubGlobal('fetch', vi.fn<typeof globalThis.fetch>(async (input, init) => {
+      requests.push(await codexRequest(input, init))
+      return sseCompletion()
+    }))
+    const options = { fastMode: true, transport: 'sse', persistence: true } as const
+    const first = await load(options)
+    await first.credentials.modifyRecord(recordKeyFor('openai-codex'), () => Promise.resolve({ kind: 'grant', payload: grant('person', 'work') }))
+    const sessionId = SessionId('persisted-priority-chat')
+    const receiving = await first.agents.create({ sessionId, meta: { delegationDepth: 0 } })
+    const defaultId = SessionId('persisted-default-chat')
+    const defaultChat = await first.agents.create({ sessionId: defaultId })
+    defaultChat.agent.session.append('session/end-seed', {})
+    await first.sessions.flush(defaultChat.agent.session)
+    for (const line of enabled ? ['/fast on'] : ['/fast on', '/fast off']) {
+      const execution = await first.commands.execute(receiving.agent, line, [], new AbortController().signal)
+      expect(execution?.result.kind).toBe('success')
+    }
+    await first.sessions.flush(receiving.agent.session)
+    const firstStore = first.sessions
+    await first.fiber.dispose()
+    expect(firstStore.get(sessionId)).toBeUndefined()
+
+    const restored = await load(options)
+    expect(restored).not.toBe(first)
+    expect(restored.sessions.get(sessionId)).toBeUndefined()
+    const reopened = await restored.agents.resume({ resumeSessionId: sessionId })
+    const standard = await restored.agents.resume({ resumeSessionId: defaultId })
+    expect(reopened.agent.session).not.toBe(receiving.agent.session)
+    expect(reopened.agent.session.header).toEqual(receiving.agent.session.header)
+    expect(restored.sessions.get(sessionId)).toBe(reopened.agent.session)
+    expect(restored.sessionProjections.stateOf(reopened.agent.session, 'codexFastMode')).toBe(enabled)
+    expect(restored.sessionProjections.stateOf(standard.agent.session, 'codexFastMode')).toBe(false)
+    const stored = await restored.sessionPersistence.open(sessionId, 'read')
+    try {
+      const { events } = await stored.read()
+      expect(events.filter(event => event.type === 'llm-pi-ai/fast-mode')).toMatchObject(
+        (enabled ? [true] : [true, false]).map(value => ({ data: { enabled: value }, ignorable: true })),
+      )
+    } finally {
+      await stored.close()
+    }
+    const request = {
+      provider: 'openai-codex', model: getBuiltinModels('openai-codex')[0]!.id,
+      reasoningEffort: ReasoningEffortId('high'), messages: [],
+    }
+    for (const agent of [reopened.agent, standard.agent]) {
+      const result = await track(assemble(restored, { ...request, sessionId: agent.id }))
+      expect(result.finish).toEqual({ kind: 'stop' })
+      expect(result.message.content).toEqual([{ type: 'text', text: 'reply' }])
+    }
+    expect(requests).toHaveLength(2)
+    expect(requests[0]).toMatchObject({ model: request.model, reasoning: { effort: 'high' } })
+    if (enabled) expect(requests[0]).toHaveProperty('service_tier', 'priority')
+    else expect(requests[0]).not.toHaveProperty('service_tier')
+    expect(requests[1]).not.toHaveProperty('service_tier')
+    expect(CodexSocket.connections).toEqual([])
+  })
+
+  it('freezes priority before awaiting a credential, so toggles only affect later requests', async () => {
+    const requests: CodexWireRequest[] = []
+    vi.stubGlobal('WebSocket', CodexSocket)
+    vi.stubGlobal('fetch', vi.fn<typeof globalThis.fetch>(async (input, init) => {
+      requests.push(await codexRequest(input, init))
+      return sseCompletion()
+    }))
+    let enabled = true
+    const entered = Promise.withResolvers<undefined>()
+    const credential = Promise.withResolvers<string | undefined>()
+    const access = grant('person', 'work').access
+    credentialReleases.push(() => { credential.resolve(access) })
+    const profiles = resolveProfiles({ 'openai-codex': { apiKeyEnv: 'FROZEN_CODEX_TEST_KEY', transport: 'sse' } })
+    const adapter = new LlmPiAi.PiAiAdapter({
+      profiles: () => profiles,
+      auth: memoryAuth(),
+      resolveFastMode: () => enabled,
+      resolveApiKey: () => { entered.resolve(undefined); return credential.promise },
+    })
+    const options = {
+      provider: 'openai-codex', model: getBuiltinModels('openai-codex')[0]!.id,
+      sessionId: SessionId('frozen-priority'), reasoningEffort: ReasoningEffortId('high'), messages: [],
+    }
+    const consume = async () => {
+      const chunks: StreamChunk[] = []
+      for await (const chunk of adapter.stream(options)) chunks.push(chunk)
+      return chunks
+    }
+    const running = track(consume())
+    try {
+      await entered.promise
+      enabled = false
+    } finally {
+      credential.resolve(access)
+    }
+    expect(await running).toContainEqual(expect.objectContaining({ type: 'finish', reason: { kind: 'stop' } }))
+    expect(requests[0]).toMatchObject({ service_tier: 'priority', reasoning: { effort: 'high' } })
+    expect(await track(consume())).toContainEqual(expect.objectContaining({ type: 'finish', reason: { kind: 'stop' } }))
+    expect(requests[1]).not.toHaveProperty('service_tier')
+    expect(requests[1]?.reasoning).toMatchObject({ effort: 'high' })
+  })
+
+  it.each(['codex-without-session', 'non-codex-with-session', 'session-title', 'compaction'] as const)('keeps %s on its unchanged simple path without reading the preference', async (scenario) => {
+    const requests: Record<string, unknown>[] = []
+    vi.stubGlobal('WebSocket', CodexSocket)
+    const codex = scenario !== 'non-codex-with-session'
+    vi.stubGlobal('fetch', vi.fn<typeof globalThis.fetch>(async (input, init) => {
+      if (codex) {
+        requests.push({ ...await codexRequest(input, init) })
+        return sseCompletion()
+      }
+      const request = new Request(input, init)
+      if (request.url !== 'https://fixture.invalid/chat/completions') throw new Error(`unexpected HTTP request: ${request.url}`)
+      requests.push(await request.json())
+      return new Response(textEvents.map(event => `data: ${event}\n\n`).join(''), { headers: { 'content-type': 'text/event-stream' } })
+    }))
+    const provider = codex ? 'openai-codex' : 'deepseek'
+    const profiles = resolveProfiles({ [provider]: {
+      apiKeyEnv: 'IGNORED_FAST_TEST_KEY', transport: 'sse',
+      ...codex ? {} : { baseURL: 'https://fixture.invalid' },
+    } })
+    const adapter = new LlmPiAi.PiAiAdapter({
+      profiles: () => profiles,
+      auth: memoryAuth(),
+      resolveApiKey: () => Promise.resolve(grant('person', 'work').access),
+      resolveFastMode: () => { throw new Error('this request must not read a chat preference') },
+    })
+    const chunks: StreamChunk[] = []
+    for await (const chunk of adapter.stream({
+      provider, model: codex ? getBuiltinModels('openai-codex')[0]!.id : 'deepseek-flash',
+      messages: [], ...scenario === 'codex-without-session' ? {} : { sessionId: SessionId('ignored-fast-chat') },
+      ...scenario === 'session-title' || scenario === 'compaction' ? { purpose: scenario } : {},
+      reasoningEffort: ReasoningEffortId('high'),
+    })) chunks.push(chunk)
+    expect(chunks).toContainEqual(expect.objectContaining({ type: 'finish', reason: { kind: 'stop' } }))
+    expect(requests).toHaveLength(1)
+    expect(requests[0]).not.toHaveProperty('service_tier')
+    if (codex) expect(requests[0]).toMatchObject({ reasoning: { effort: 'high' } })
+    else expect(requests[0]).toMatchObject({ reasoning_effort: 'high' })
   })
 })

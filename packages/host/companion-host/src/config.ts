@@ -5,26 +5,43 @@ import type { ApplicationBudget, ChannelBudget, HttpsOrigin } from '@deepseek-ai
 
 /** All limits are required when an actual origin is configured. */
 export interface HostBudgets {
+  /** Application UTF-8 byte, result-count, per-grant operation and read/subscription time limits. */
   readonly application: ApplicationBudget
   /** Cryptographic send/receive queue limits and transport write deadline. */
   readonly channel: ChannelBudget
+  /** Concurrent phone channels, including channels still completing teardown. */
   readonly maxChannels: number
+  /** Total admitted channel opens per ready relay connection; closing a channel does not restore an attempt. */
   readonly maxChannelAttempts: number
+  /** Pending locally approvable pairing candidates; at most 64 and no more than maxChannels. */
   readonly maxCandidates: number
+  /** Persisted phone grants; at most 64. Enrollment fails when the record is full. */
   readonly maxGrants: number
+  /** UTF-8 JSON bytes in the private identity/grant payload, excluding its credential wrapper; at most 1 MiB. */
   readonly maxRecordBytes: number
   /** Complete relay JSON receive/send limit; at least 96 KiB so valid phone traffic cannot close shared ws preassembly. */
   readonly maxFrameBytes: number
+  /** Shared relay write-byte limit, checked against both retained writes and WebSocket bufferedAmount. */
   readonly maxSendQueuedBytes: number
+  /** Count limit applied separately to management work, shared relay work/writes and each channel's application requests. */
   readonly maxPendingMessages: number
+  /** Queued progress results per live subscription; overflow terminates that subscription with a limit error. */
   readonly maxProgressBuffer: number
+  /** Shared relay receive/send token-bucket capacity in bytes, refilled at this many bytes per second. */
   readonly bytesPerSecond: number
+  /** Milliseconds from invitation creation until expiry; expiry withdraws its pending candidates. */
   readonly invitationLifetimeMs: number
+  /** Milliseconds from channel open through mutual encrypted key confirmation, including local pairing approval. */
   readonly handshakeTimeoutMs: number
+  /** Millisecond deadline for WSS establishment and relay authentication, measured from connection creation. */
   readonly connectionTimeoutMs: number
+  /** Absolute relay socket lifetime in milliseconds from connection creation. */
   readonly maxConnectionLifetimeMs: number
+  /** Milliseconds without rate-admitted relay receive/send traffic before the shared socket retires. */
   readonly idleTimeoutMs: number
+  /** Initial retry delay in milliseconds within a reconnect burst; subsequent delays double up to reconnectMaxMs. */
   readonly reconnectInitialMs: number
+  /** Maximum within-burst retry delay and the pause between reconnect bursts, in milliseconds. */
   readonly reconnectMaxMs: number
   /** Attempts per backoff burst; bursts repeat after reconnectMaxMs until the Host owner retires. */
   readonly reconnectAttempts: number
@@ -32,7 +49,9 @@ export interface HostBudgets {
 
 /** Omitted origin disables the optional product without creating keys or sockets. */
 export interface Config {
+  /** Canonical public HTTPS relay origin, pinned in stored identity; omission disables the feature. */
   readonly httpsOrigin?: string
+  /** Complete explicit limits, required with httpsOrigin and rejected without it; no defaults are supplied. */
   readonly budgets?: HostBudgets | undefined
 }
 

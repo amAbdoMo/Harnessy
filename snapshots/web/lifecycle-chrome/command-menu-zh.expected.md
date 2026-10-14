@@ -8,4 +8,5 @@
   - option "压缩 compact 压缩以上对话内容"
   - option "权限 permission 切换权限预设（沙箱模式与审批策略）"
   - option "模型 model 选择本会话使用的模型"
+  - option "快速模式 fast 切换本会话的 Codex 快速模式（用量更高）"
   - option "下载日志 export 将当前会话内容导出为 ZIP"

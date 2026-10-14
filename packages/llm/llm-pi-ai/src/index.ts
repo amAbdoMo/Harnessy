@@ -77,6 +77,8 @@ import type { ResolvedPiAiProviderProfile } from './config.ts'
 import { discoverModels } from './discovery.ts'
 import type { StoredModelDiscoveryProfile } from './discovery.ts'
 import { registerPiAiFlows } from './login.ts'
+import './types.ts'
+import { registerFastMode } from './fast-mode.ts'
 
 export { PiAiAdapter } from './adapter.ts'
 export type { PiAiAdapterOptions } from './adapter.ts'
@@ -174,6 +176,7 @@ export function apply(ctx: Context, config: Config): void {
     return next
   }
   profiles()
+  registerFastMode(ctx, profiles)
   ctx.on('internal/config', function (this: import('@deepseek-ai/cordis').Fiber, _raw, next) {
     const raw: unknown = next()
     if (this !== ctx.fiber) return raw
@@ -218,6 +221,14 @@ export function apply(ctx: Context, config: Config): void {
     profiles,
     resolveApiKey,
     auth,
+    resolveFastMode: (id) => {
+      const session = ctx.get('sessions')?.get(id)
+      const projections = ctx.get('sessionProjections')
+      if (session === undefined || projections === undefined) return false
+      const enabled = projections.stateOf(session, 'codexFastMode')
+      if (enabled === undefined) throw new Error('llm-pi-ai: required codexFastMode projection is unavailable')
+      return enabled
+    },
     resolveAttachments: () => ctx.get('attachments'),
     resolveImageAccess: (attachments, ref) => resolveImageAttachmentAccess(
       attachments,

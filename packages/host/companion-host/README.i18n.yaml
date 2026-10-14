@@ -10,7 +10,7 @@
   zh: b39ce600611676ae
 /deepseek-ai-dsh-companion-host/summary:
   en: 5d1f2c0ac00717ae
-  zh: 8f24ed8525895303
+  zh: f9ed7474c71c4ed9
 /deepseek-ai-dsh-companion-host/table-of-contents:
   en: d152484eb41ac6b4
   zh: 0cd57b7b8d8c9b59
@@ -33,11 +33,11 @@
   en: 7f29c89c34e8d349
   zh: ad0662fa72426896
 /deepseek-ai-dsh-companion-host/model-experience/kv-cache-effect:
-  en: e93a0b7552c8e825
-  zh: e9859648dc672e4c
+  en: c435b00c6c410ea7
+  zh: 76437302f2ae482f
 /deepseek-ai-dsh-companion-host/known-limitations-and-deferred-work:
-  en: ad8acba525d511a5
-  zh: dc8a8821726d49c6
-/deepseek-ai-dsh-companion-host/dev-note:
-  en: 5de1d6304e00c58f
-  zh: e58fc8dda0bea8d5
+  en: 53eefda757e25fc1
+  zh: dde8be64761149c9
+/deepseek-ai-dsh-companion-host/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: 8ec3e73528ddb1a6

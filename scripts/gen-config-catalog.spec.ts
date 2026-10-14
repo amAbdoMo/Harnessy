@@ -57,6 +57,29 @@ export function apply(ctx: unknown, config: Config): void {}
   return { root, write }
 }
 
+const localSchema = `
+import Schema from '@deepseek-ai/schemastery'
+export interface Config {
+  /** Relay address. */
+  endpoint: string
+}
+export const Config = Schema.object({ endpoint: Schema.string() })
+`
+
+function localFixture(schema = localSchema, specifier = './config.ts') {
+  const { root, write } = fixture()
+  write('packages/test/provider/src/config.ts', schema)
+  write('packages/test/provider/src/index.ts', `
+import type { Config } from './config.ts'
+import { Config as RuntimeConfig } from '${specifier}'
+export default class Provider {
+  static Config = RuntimeConfig
+  constructor(ctx: unknown, config: Config) {}
+}
+`)
+  return { root, write }
+}
+
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
@@ -137,6 +160,68 @@ export const Shared = makeSchema()
 export const Shared = Schema.union([MissingSchema])
 `)
     expect(() => collectConfigCatalog(root)).toThrow("schema alias 'MissingSchema' must name a const or named value import")
+  })
+})
+
+describe('package-local config schema catalog', () => {
+  it('collects a class static schema from a renamed named import in its own src', () => {
+    const { root } = localFixture()
+    const provider = collectConfigCatalog(root).find(entry => entry.pkg === '@test/provider')
+    expect(provider?.schemaKeys).toEqual(['endpoint'])
+    expect(provider?.schemaComposes).toEqual([])
+    expect(provider?.pastes?.[0]?.source).toBe('packages/test/provider/src/config.ts:3')
+  })
+
+  it('follows relative schema aliases between nested src files without cycling on repeated branches', () => {
+    const { root, write } = localFixture(localSchema.replace(
+      'export const Config = Schema.object({ endpoint: Schema.string() })',
+      "import { Shared } from './nested/schema.ts'\nexport const Config = Schema.union([Shared, Shared])",
+    ))
+    write('packages/test/provider/src/nested/schema.ts', `
+import { Base as ImportedBase } from '../base.ts'
+export const Shared = BaseSchema
+const BaseSchema = ImportedBase
+`)
+    write('packages/test/provider/src/base.ts', "import Schema from '@deepseek-ai/schemastery'\nexport const Base = Schema.object({ endpoint: Schema.string() })\n")
+    const provider = collectConfigCatalog(root).find(entry => entry.pkg === '@test/provider')
+    expect(provider?.schemaKeys).toEqual(['endpoint', 'endpoint'])
+  })
+
+  it('rejects a local schema field absent from the config declaration', () => {
+    const { root } = localFixture(localSchema.replace('endpoint: Schema.string()', 'endpoint: Schema.string(), hidden: Schema.string()'))
+    expect(() => collectConfigCatalog(root)).toThrow("schema validates key 'hidden' but config type 'Config' declares no such member")
+  })
+
+  it.each([
+    '../config.ts',
+    '../../runtime/src/config.ts',
+    '../src-other/config.ts',
+    './config',
+    './config.js',
+    './schema.d.ts',
+  ])('rejects relative schema target %s outside the owning src or without a source .ts extension', (specifier) => {
+    const { root, write } = localFixture(localSchema, specifier)
+    write(join('packages/test/provider/src', specifier), localSchema)
+    expect(() => collectConfigCatalog(root)).toThrow(`schema import '${specifier}' must resolve inside packages/test/provider/src to a TypeScript source file`)
+  })
+
+  it('rejects a missing relative schema source', () => {
+    const { root } = localFixture(localSchema, './missing.ts')
+    expect(() => collectConfigCatalog(root)).toThrow("schema import './missing.ts' does not exist")
+  })
+
+  it.each(['const Config', 'export let Config', 'export const Other'])('rejects a local imported schema declared as %s instead of an exported const Config', (declaration) => {
+    const { root } = localFixture(localSchema.replace('export const Config', declaration))
+    expect(() => collectConfigCatalog(root)).toThrow("schema import './config.ts' has no exported const 'Config'")
+  })
+
+  it('rejects cyclic schema aliases across relative imports', () => {
+    const { root, write } = localFixture(localSchema.replace(
+      'export const Config = Schema.object({ endpoint: Schema.string() })',
+      "import { Shared } from './nested/schema.ts'\nexport const Config = Shared",
+    ))
+    write('packages/test/provider/src/nested/schema.ts', "import { Config } from '../config.ts'\nexport const Shared = Config\n")
+    expect(() => collectConfigCatalog(root)).toThrow('cyclic schema alias')
   })
 })
 

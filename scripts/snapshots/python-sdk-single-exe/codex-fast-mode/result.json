@@ -1,0 +1,96 @@
+{
+  "final_response": "FAST_MODE_OK",
+  "finish_reason": "completed",
+  "events": [
+    {
+      "type": "command/run",
+      "data": {
+        "commandId": "{{command:1}}",
+        "name": "fast",
+        "args": " on",
+        "source": {
+          "kind": "user"
+        }
+      }
+    },
+    {
+      "type": "llm-pi-ai/fast-mode",
+      "data": {
+        "enabled": true
+      },
+      "ignorable": true
+    },
+    {
+      "type": "command/done",
+      "data": {
+        "commandId": "{{command:1}}",
+        "kind": "success",
+        "text": "Fast mode enabled for this chat only: subsequent Codex conversation requests ask for priority service. Usage may be higher; other providers are unchanged."
+      }
+    },
+    {
+      "type": "command/run",
+      "data": {
+        "commandId": "{{command:2}}",
+        "name": "fast",
+        "args": " status",
+        "source": {
+          "kind": "user"
+        }
+      }
+    },
+    {
+      "type": "command/done",
+      "data": {
+        "commandId": "{{command:2}}",
+        "kind": "success",
+        "text": "Fast mode enabled for this chat only: subsequent Codex conversation requests ask for priority service. Usage may be higher; other providers are unchanged."
+      }
+    },
+    {
+      "type": "command/run",
+      "data": {
+        "commandId": "{{command:3}}",
+        "name": "fast",
+        "args": " invalid",
+        "source": {
+          "kind": "user"
+        }
+      }
+    },
+    {
+      "type": "command/done",
+      "data": {
+        "commandId": "{{command:3}}",
+        "kind": "error",
+        "text": "Usage: /fast [on|off|status]"
+      }
+    },
+    {
+      "type": "command/run",
+      "data": {
+        "commandId": "{{command:4}}",
+        "name": "fast",
+        "args": " off",
+        "source": {
+          "kind": "user"
+        }
+      }
+    },
+    {
+      "type": "llm-pi-ai/fast-mode",
+      "data": {
+        "enabled": false
+      },
+      "ignorable": true
+    },
+    {
+      "type": "command/done",
+      "data": {
+        "commandId": "{{command:4}}",
+        "kind": "success",
+        "text": "Fast mode disabled for this chat only: subsequent Codex conversation requests do not ask for priority service. Enabling it may increase usage; other providers are unchanged."
+      }
+    }
+  ]
+}

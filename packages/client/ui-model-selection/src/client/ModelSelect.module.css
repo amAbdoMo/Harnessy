@@ -38,6 +38,11 @@
   flex: 0 0 auto;
 }
 
+.fastIcon {
+  flex: 0 0 auto;
+  color: var(--dsw-alias-label-primary);
+}
+
 .chevron {
   flex: 0 0 auto;
   color: var(--dsw-alias-label-caption);

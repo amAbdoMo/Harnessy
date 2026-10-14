@@ -12,7 +12,11 @@ export interface NativeBrowserPageRequest {
 }
 /** Desktop-only provider; consumers own returned page disposal, not native transport objects. */
 export interface NativeBrowser {
-  /** @param request - captured Session, page options and exact guest notifications. @returns an idle page awaiting explicit navigation. */
+  /**
+   * Create a retained page whose frame is disposed by the consumer.
+   * @param request - captured Session, page options and exact guest notifications.
+   * @returns an idle page awaiting explicit navigation.
+   */
   createPage(request: NativeBrowserPageRequest): BrowserPage
 }
 

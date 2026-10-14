@@ -1,0 +1,28 @@
+[
+  {
+    "method": "session.event",
+    "params": {
+      "sessionId": "main",
+      "event": {
+        "type": "llm-pi-ai/fast-mode",
+        "seq": 1,
+        "time": 0,
+        "data": { "enabled": true },
+        "ignorable": true
+      }
+    }
+  },
+  {
+    "method": "session.event",
+    "params": {
+      "sessionId": "main",
+      "event": {
+        "type": "llm-pi-ai/fast-mode",
+        "seq": 2,
+        "time": 0,
+        "data": { "enabled": false },
+        "ignorable": true
+      }
+    }
+  }
+]

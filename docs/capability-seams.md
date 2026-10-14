@@ -7,6 +7,13 @@ A service can be a core spine service, a swappable capability seam, a bundle/com
 
 ```mermaid
 flowchart LR
+  pkg_companion_host["companion-host"]
+  svc_companionHost["ctx.companionHost<br/>Private native companion management"]
+  pkg_desktop_host["desktop-host"]
+  pkg_companion_relay_bundle["companion-relay-bundle"]
+  svc_companionRelayStartup["ctx.companionRelayStartup<br/>Standalone relay invocation values"]
+  pkg_web_app["web-app"]
+  svc_webStartup["ctx.webStartup<br/>Web profile invocation values"]
   pkg_hmr["hmr"]
   svc_hmr["ctx.hmr<br/>Serialized module and configuration reloads"]
   pkg_app_boot["app-boot"]
@@ -320,6 +327,8 @@ flowchart LR
   pkg_compaction --> svc_compaction
   pkg_compaction_basic --> svc_compaction
   pkg_compaction_tool_result_pruner --> svc_toolResultPruner
+  pkg_companion_host --> svc_companionHost
+  pkg_companion_relay_bundle --> svc_companionRelayStartup
   pkg_computer_use --> svc_computerUse
   pkg_config_editor --> svc_configEditor
   pkg_cordis_host_runner --> svc_cordisInspect
@@ -431,6 +440,7 @@ flowchart LR
   pkg_user_approval --> svc_approval
   pkg_user_questions --> svc_userQuestions
   pkg_web --> svc_web
+  pkg_web_app --> svc_webStartup
   pkg_web_fetch_http --> svc_web
   pkg_web_search_deepseek --> svc_web
   pkg_web_search_exa --> svc_web
@@ -462,6 +472,8 @@ flowchart LR
   svc_clientModules --> pkg_client_hmr
   svc_commandCodeController --> pkg_api_remotes
   svc_compaction --> pkg_compaction_basic
+  svc_companionHost --> pkg_desktop_host
+  svc_companionRelayStartup --> pkg_companion_relay_bundle
   svc_computerUse --> pkg_experimental_computer_use_cua_driver_mcp
   svc_computerUse --> pkg_experimental_computer_use_cua_driver_native
   svc_configEditor --> pkg_agent_default_model
@@ -580,6 +592,7 @@ flowchart LR
   svc_webServer --> pkg_client_connection
   svc_webServer --> pkg_client_hmr
   svc_webServer --> pkg_client_modules
+  svc_webStartup --> pkg_web_app
   svc_webhookRuntime --> pkg_webhook_github
   svc_workflowEngine --> pkg_tool_ralph
   svc_workflowEngine --> pkg_tool_workflow
@@ -590,6 +603,9 @@ flowchart LR
 
 | ctx key | Role | Owner | Implementations | Direct consumers | Companion plugins | Note |
 | --- | --- | --- | --- | --- | --- | --- |
+| `ctx.companionHost` | `service` | [`companion-host`](../packages/host/companion-host) | - | `desktop-host` | - | Owns Desktop-native pairing controls and revocable authenticated phone Session access; management and invitation secrets are not renderer RPC operations. |
+| `ctx.companionRelayStartup` | `core` | [`companion-relay-bundle`](../packages/bundle/companion-relay) | - | [`companion-relay-bundle`](../packages/bundle/companion-relay) | - | Admits explicit loopback bind values before relay rows mount; help and invalid invocations release no server rows. |
+| `ctx.webStartup` | `core` | [`web-app`](../packages/bundle/web-app) | - | [`web-app`](../packages/bundle/web-app) | - | Parses Web invocation flags before dependent carrier and startup rows mount. |
 | `ctx.hmr` | `core` | [`hmr`](../packages/boot/hmr) | - | [`app-boot`](../packages/boot/app-boot) | - | Owns module and exact configuration watchers; application mutations share its queue and automatic reloads await the application file lock. |
 | `ctx.pluginRegistryProbe` | `core` | [`client-ui-plugin-manager`](../packages/client/ui-plugin-manager) | - | [`client-ui-plugin-manager`](../packages/client/ui-plugin-manager) | - | Races public registry responses on the Host; the Client owns the initial registry recommendation. |
 | `ctx.pluginManager` | `core` | [`plugin-manager`](../packages/boot/plugin-manager) | - | [`plugin-manager`](../packages/boot/plugin-manager), `ui-settings-plugin-inventory` | - | Shares profile package operations with the CLI and reports persisted and running state to Web and agent callers. |

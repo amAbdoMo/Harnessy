@@ -7,11 +7,11 @@ kind: "package-library"
 
 [English](README.md) | 中文
 
-## Summary
+## 概述
 
 调用方可以认证 PC/手机握手、交换完成密钥确认的加密字节，并向中继证明身份密钥的持有权。Node 原生加密提供 P-256、SHA-256、HMAC、HKDF 和 AES-GCM，不依赖第三方加密库。线协议参考定义 Android Java 实现必须复现的字节。调用方负责配对、授权记录、身份存储、传输以及所有应用授权决策。
 
-## Table of Contents
+## 目录
 
 - [使用此包](#use-this-package)
 - [线协议参考](#wire-reference)

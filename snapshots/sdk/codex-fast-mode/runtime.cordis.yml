@@ -1,0 +1,11 @@
+# Enable the real command owner without sending any request to its dummy route.
+- id: llm-pi-ai
+  name: '@deepseek-ai/dsh-llm-pi-ai'
+  config:
+    providers:
+      openai-codex:
+        baseURL: https://codex.invalid
+
+- insert:
+    - id: snapshot-codex-fast-probe
+      name: './probe.mjs'

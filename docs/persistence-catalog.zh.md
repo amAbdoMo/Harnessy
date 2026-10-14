@@ -44,6 +44,7 @@
 | `event:hook/invoked` | event | `8a6e1ec9e8db346b0e02f027db73c07a94f067a26d40c1aef1abd09c47ce7ba0` | [`{ type: "hook/invoked" }`](#persistence-type-sha256-8a6e1ec9e8db346b0e02f027db73c07a94f067a26d40c1aef1abd09c47ce7ba0) |
 | `event:hook/result` | event | `e75916628f3f10c2d50658bd143052a46285fbf1a9a700ba54947614603d26b4` | [`{ type: "hook/result" }`](#persistence-type-sha256-e75916628f3f10c2d50658bd143052a46285fbf1a9a700ba54947614603d26b4) |
 | `event:image/offload` | event | `b222069eea2d768065161c1147b1f2c78c1b54328c84b3586ae5c8f91b8ed35e` | [`{ type: "image/offload" }`](#persistence-type-sha256-b222069eea2d768065161c1147b1f2c78c1b54328c84b3586ae5c8f91b8ed35e) |
+| `event:llm-pi-ai/fast-mode` | event | `37ae0f7c37ae4f1a01b65fde2ec9f3047ec2f39b1ebed3982d3d66eda5e80deb` | [`{ type: "llm-pi-ai/fast-mode" }`](#persistence-type-sha256-37ae0f7c37ae4f1a01b65fde2ec9f3047ec2f39b1ebed3982d3d66eda5e80deb) |
 | `event:llm/retry` | event | `525254db03b1d1e6b74cf55aced52817568331ac1f96c0818728910b6692e336` | [`{ type: "llm/retry" }`](#persistence-type-sha256-525254db03b1d1e6b74cf55aced52817568331ac1f96c0818728910b6692e336) |
 | `event:llm/retry-started` | event | `48e5c9861f16ac07e78cb7b5ae9dabdf7bb85c58baed5a51b4ad275050ea58e3` | [`{ type: "llm/retry-started" }`](#persistence-type-sha256-48e5c9861f16ac07e78cb7b5ae9dabdf7bb85c58baed5a51b4ad275050ea58e3) |
 | `event:model/selection` | event | `35203ba7ad5ef6f97d556b85df20ae98f04f09c65748cecdf8eefdb8b6405ffc` | [`{ type: "model/selection" }`](#persistence-type-sha256-35203ba7ad5ef6f97d556b85df20ae98f04f09c65748cecdf8eefdb8b6405ffc) |
@@ -649,6 +650,23 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 ```
 
 来源：[`packages/llm/llm-retry/src/types.ts:11`](../packages/llm/llm-retry/src/types.ts)
+
+### `llm-pi-ai/*`
+
+<a id="llm-pi-aifast-mode--log-only"></a>
+
+#### `llm-pi-ai/fast-mode` — log-only
+
+```ts persistence-catalog
+/**
+ * Whole current-chat Codex priority preference; log-only QoS, never model history.
+ * Producers append with `ignorable: true` so readers without this plugin can reopen the chat.
+ * @param enabled - whether subsequent Codex conversation requests ask for priority service.
+ */
+'llm-pi-ai/fast-mode': { enabled: boolean }
+```
+
+来源：[`packages/llm/llm-pi-ai/src/types.ts:11`](../packages/llm/llm-pi-ai/src/types.ts)
 
 ### `model/*`
 
@@ -1980,6 +1998,14 @@ SHA-256: `69d238a6e9b08d67f601b1825962963d8d3523cb69ebf6208c697dc5d058c199`
 SHA-256: `ad3b56aa2fc1ad4250e7399295d34a8eae592e1907e85852e2291b2e498a30bc`
 
 `"legacy"`
+
+<a id="persistence-type-sha256-a0163f9e6b395646c657c0e138414e2534b6279ab8d8de65e875865aefb75b6b"></a>
+
+### `"llm-pi-ai/fast-mode"`
+
+SHA-256: `a0163f9e6b395646c657c0e138414e2534b6279ab8d8de65e875865aefb75b6b`
+
+`"llm-pi-ai/fast-mode"`
 
 <a id="persistence-type-sha256-611cae9a3539733aa0c42f66035a7d90f19dcbbdfb5d9e3b628b13705253942d"></a>
 
@@ -5896,6 +5922,18 @@ SHA-256: `119abe2b9c0b2f46ecb31d82b9acba4d4b30e049f655e2475e8b4ae12d5a9e25`
 | `point` | 必需 | `string` |
 | `turn` | 必需 | `number` |
 
+<a id="persistence-type-sha256-c2a13242efc3bea4b36a843ddf1524ff4d33c765a71b582fa1fdbfa4fa148434"></a>
+
+### `{ enabled }`
+
+SHA-256: `c2a13242efc3bea4b36a843ddf1524ff4d33c765a71b582fa1fdbfa4fa148434`
+
+来源：[`packages/llm/llm-pi-ai/src/types.ts:11`](../packages/llm/llm-pi-ai/src/types.ts)
+
+| 属性 | 存在性 | 类型 |
+|---|---|---|
+| `enabled` | 必需 | `boolean` |
+
 <a id="persistence-type-sha256-9e41386b3a0c9572b0d63078492ebb3997da7d3a830d44e0259418bd02f4bcb2"></a>
 
 ### `{ end, start }`
@@ -8039,6 +8077,22 @@ SHA-256: `b222069eea2d768065161c1147b1f2c78c1b54328c84b3586ae5c8f91b8ed35e`
 | `seq` | 必需 | `number` |
 | `time` | 必需 | `number` |
 | `type` | 必需 | `"image/offload"` |
+
+<a id="persistence-type-sha256-37ae0f7c37ae4f1a01b65fde2ec9f3047ec2f39b1ebed3982d3d66eda5e80deb"></a>
+
+<a id="persistence-type-eventllm-pi-aifast-mode"></a>
+
+### `{ type: "llm-pi-ai/fast-mode" }`
+
+SHA-256: `37ae0f7c37ae4f1a01b65fde2ec9f3047ec2f39b1ebed3982d3d66eda5e80deb`
+
+| 属性 | 存在性 | 类型 |
+|---|---|---|
+| `data` | 必需 | [`{ enabled }`](#persistence-type-sha256-c2a13242efc3bea4b36a843ddf1524ff4d33c765a71b582fa1fdbfa4fa148434) |
+| `ignorable` | 可选 | `true` |
+| `seq` | 必需 | `number` |
+| `time` | 必需 | `number` |
+| `type` | 必需 | `"llm-pi-ai/fast-mode"` |
 
 <a id="persistence-type-sha256-525254db03b1d1e6b74cf55aced52817568331ac1f96c0818728910b6692e336"></a>
 

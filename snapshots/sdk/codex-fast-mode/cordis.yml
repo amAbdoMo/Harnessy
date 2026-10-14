@@ -1,0 +1,33 @@
+# Platform-neutral SDK command transcript: no OS-specific shell schemas.
+- id: skill-filesystem
+  name: '@deepseek-ai/dsh-skill-filesystem'
+  config:
+    includeDefaultRoots: false
+
+- id: session-persistence-jsonl
+  name: '@deepseek-ai/dsh-session-persistence-jsonl'
+  config:
+    root: !!js dshHomePath('sessions')
+    compression: none
+
+# This replay makes no tool calls; omit host-path and installed-skill context.
+- id: sandbox-policy
+  config:
+    mode: danger-full-access
+
+- id: approval
+  config:
+    policy: never
+
+- id: tool-skill
+  disabled: true
+
+- id: tool-bash
+  disabled: true
+
+- id: tool-pwsh
+  disabled: true
+
+- id: session-log-deepseek
+  config:
+    enabled: false

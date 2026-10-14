@@ -1,0 +1,50 @@
+{
+  "commands": [
+    {
+      "kind": "success",
+      "text": "Fast mode disabled for this chat only: subsequent Codex conversation requests do not ask for priority service. Enabling it may increase usage; other providers are unchanged."
+    },
+    {
+      "kind": "success",
+      "text": "Fast mode enabled for this chat only: subsequent Codex conversation requests ask for priority service. Usage may be higher; other providers are unchanged."
+    },
+    {
+      "kind": "success",
+      "text": "Fast mode enabled for this chat only: subsequent Codex conversation requests ask for priority service. Usage may be higher; other providers are unchanged."
+    },
+    {
+      "kind": "success",
+      "text": "Fast mode disabled for this chat only: subsequent Codex conversation requests do not ask for priority service. Enabling it may increase usage; other providers are unchanged."
+    }
+  ],
+  "events": [
+    {
+      "type": "llm-pi-ai/fast-mode",
+      "data": {
+        "enabled": true
+      },
+      "ignorable": true
+    },
+    {
+      "type": "llm-pi-ai/fast-mode",
+      "data": {
+        "enabled": false
+      },
+      "ignorable": true
+    }
+  ],
+  "requests": [
+    {
+      "serviceTier": "priority",
+      "reasoningEffort": "high"
+    },
+    {
+      "serviceTier": null,
+      "reasoningEffort": "high"
+    },
+    {
+      "serviceTier": null,
+      "reasoningEffort": "high"
+    }
+  ]
+}

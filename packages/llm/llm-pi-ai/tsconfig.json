@@ -49,6 +49,15 @@
     },
     {
       "path": "../../settings/settings"
+    },
+    {
+      "path": "../../interaction/commands"
+    },
+    {
+      "path": "../../core/session"
+    },
+    {
+      "path": "../../session/session-projection"
     }
   ]
 }

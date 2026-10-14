@@ -23,6 +23,17 @@ declare module '@deepseek-ai/dsh-llm' {
 }
 
 describe('Session', () => {
+  it('preserves optional skip markers on log-only appends without adding model history', () => {
+    const session = Session.create(SessionId('optional-context'))
+    const marked = session.append('request/context', { provider: 'mock', model: 'mock' }, { ignorable: true })
+    expect(marked).toMatchObject({ type: 'request/context', data: { provider: 'mock', model: 'mock' }, ignorable: true })
+    expect(Session.create(session.id, [marked]).deriveMessages()).toEqual([])
+    const required = session.append('request/context', { provider: 'mock', model: 'other' })
+    expect(required).not.toHaveProperty('ignorable')
+    expect(() => Session.create(session.id, [{ ...marked, surfaceOp: 'append' } as never])).toThrow(/not surface-eligible/)
+    expect(session.seq).toBe(2)
+  })
+
   it('exposes one stable readonly surface view', () => {
     const session = Session.create(SessionId('surface-view'))
     const surface = session.surface

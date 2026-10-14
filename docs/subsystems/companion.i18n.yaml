@@ -1,0 +1,7 @@
+# Bilingual-pair consistency record for companion.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/subsystems/companion.md
+/native-companion:
+  en: 73e2347e7a84f8ac
+  zh: 8c75702f82d73bf0

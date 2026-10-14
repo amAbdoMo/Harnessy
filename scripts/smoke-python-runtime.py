@@ -778,7 +778,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--scenario",
-        choices=("all", "sdk-default", "sdk-custom", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-fs-search", "sdk-spawn-node", "sdk-mcp", "sdk-snapshot", "sdk-recovery", "sdk-restart", "sdk-profile-plugin", "sdk-office", "sdk-authoring", "sdk-live", "runner", "direct"),
+        choices=("all", "sdk-default", "sdk-custom", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-fs-search", "sdk-spawn-node", "sdk-mcp", "sdk-snapshot", "sdk-recovery", "sdk-fast-mode", "sdk-restart", "sdk-profile-plugin", "sdk-office", "sdk-authoring", "sdk-live", "runner", "direct"),
         default="all",
     )
     parser.add_argument("--exe", type=Path)
@@ -797,12 +797,19 @@ def main() -> None:
         parser.error("--scenario sdk-profile-plugin requires --installed-wheel")
     if args.installed_wheel:
         args.exe = assert_installed_wheel_environment()
-    if args.scenario in {"all", "sdk-custom", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-fs-search", "sdk-spawn-node", "sdk-snapshot", "sdk-recovery", "sdk-restart", "sdk-office", "sdk-authoring", "runner", "direct"} and args.exe is None:
-        parser.error("--exe is required for custom, minimal, dynamic-tools, fs-search, spawn-node, snapshot, recovery, restart, office, runner, and direct scenarios")
-    if args.update_snapshots and args.scenario not in {"all", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-snapshot", "sdk-recovery", "sdk-restart", "sdk-authoring"}:
-        parser.error("--update-snapshots requires --scenario sdk-minimal, sdk-minimal-in-history, sdk-dynamic-tools, sdk-snapshot, sdk-recovery, sdk-restart, sdk-authoring, or all")
+    if args.scenario in {"all", "sdk-custom", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-fs-search", "sdk-spawn-node", "sdk-snapshot", "sdk-recovery", "sdk-fast-mode", "sdk-restart", "sdk-office", "sdk-authoring", "runner", "direct"} and args.exe is None:
+        parser.error("--exe is required for custom, minimal, dynamic-tools, fs-search, spawn-node, snapshot, recovery, fast-mode, restart, office, runner, and direct scenarios")
+    if args.update_snapshots and args.scenario not in {"all", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-snapshot", "sdk-recovery", "sdk-fast-mode", "sdk-restart", "sdk-authoring"}:
+        parser.error("--update-snapshots requires --scenario sdk-minimal, sdk-minimal-in-history, sdk-dynamic-tools, sdk-snapshot, sdk-recovery, sdk-fast-mode, sdk-restart, sdk-authoring, or all")
     if args.exe is not None and not args.exe.is_file():
         parser.error(f"runtime executable does not exist: {args.exe}")
+
+    if args.scenario in {"all", "sdk-fast-mode"}:
+        assert args.exe is not None
+        smoke_sdk_codex_fast_mode(args.exe.resolve(), args.update_snapshots)
+    if args.scenario == "sdk-fast-mode":
+        print("smoke-python-runtime: sdk-fast-mode passed")
+        return
 
     if args.scenario in {"all", "sdk-office"}:
         assert args.exe is not None
@@ -866,6 +873,102 @@ def main() -> None:
         if not MockModelHandler.requests:
             raise AssertionError("mock model endpoint received no requests")
     print(f"smoke-python-runtime: {args.scenario} passed")
+
+
+def smoke_sdk_codex_fast_mode(executable: Path, update_snapshots: bool) -> None:
+    """Project real chat-local commands through Python and compare their durable events."""
+    from deepseek_harness import DeepSeekHarness
+
+    repository = Path(__file__).resolve().parent.parent
+    scenario = repository / "snapshots/sdk/codex-fast-mode"
+    fixture = selected_snapshot_session_files(scenario)[0]
+    recorded = [json.loads(line) for line in fixture.read_text(encoding="utf-8").splitlines()]
+    prompt = next(
+        event["data"]["content"] for event in recorded
+        if event["type"] == "user/message" and event["data"]["source"]["kind"] == "user"
+    )
+    selected_types = {"command/run", "command/done", "llm-pi-ai/fast-mode"}
+    with tempfile.TemporaryDirectory(prefix="dsh-sdk-codex-fast-") as temporary:
+        root = Path(temporary).resolve()
+        replay = root / fixture.name
+        replay.write_text(fixture.read_text(encoding="utf-8").replace("{{cwd}}", json.dumps(str(root))[1:-1]), encoding="utf-8")
+        seen = []
+        replay_patch = root / "replay.cordis.yml"
+        replay_patch.write_text(
+            (scenario / "cordis.snapshot.yml").read_text(encoding="utf-8").replace(
+                "'@deepseek-ai/dsh-llm-replay'",
+                json.dumps((repository / "packages/test-support/llm-replay/lib/index.js").as_uri()),
+            ), encoding="utf-8",
+        )
+        runtime_patch = root / "runtime.cordis.yml"
+        runtime_patch.write_text(
+            (scenario / "runtime.cordis.yml").read_text(encoding="utf-8").replace(
+                "'./probe.mjs'", json.dumps((scenario / "probe.mjs").as_uri()),
+            ), encoding="utf-8",
+        )
+        patches = (str(scenario / "cordis.yml"), str(replay_patch), str(runtime_patch))
+        launch_args = None
+        if executable.suffix == ".js":
+            node = shutil.which("node")
+            if node is None:
+                raise AssertionError("the built dsh JavaScript carrier requires Node on PATH")
+            launch_args = (node, str(executable), "--profile", "sdk", *(
+                argument for patch in patches for argument in ("--patch", patch)
+            ))
+        with DeepSeekHarness(
+            dsh_bin=str(executable),
+            dsh_home=str(root / "home"),
+            cwd=str(root),
+            profile="sdk",
+            patches=patches,
+            _launch_args=launch_args,
+            provider="deepseek-official",
+            model="deepseek-v4-flash",
+            env={"DSH_TELEMETRY_DISABLED": "1", "DSH_SNAPSHOT": "replay", "DSH_SNAPSHOT_FILE": str(replay),
+                 "DSH_HOME": str(root / "home")},
+            request_timeout_seconds=110,
+        ) as harness:
+            result = harness.run(prompt, session_id="fast-mode", on_notification=seen.append)
+        events = [event for event in result.events if event["type"] in selected_types]
+        for notifications in (result.notifications, seen):
+            delivered = [
+                notification.payload["event"] for notification in notifications
+                if notification.method == "session.event"
+                and notification.payload["event"]["type"] in selected_types
+            ]
+            if delivered != events:
+                raise AssertionError("Python fast-mode notifications differ from the run events")
+        logs = latest_persisted_session_paths(root / "home/sessions")
+        if len(logs) != 1:
+            raise AssertionError(f"fast-mode expected one persisted Session, found {len(logs)}")
+        persisted_content = logs[0].read_text(encoding="utf-8")
+        assert_persisted_session_version(logs[0], persisted_content)
+        persisted = [json.loads(line) for line in persisted_content.splitlines()]
+        if [event for event in persisted if event.get("type") in selected_types] != events:
+            raise AssertionError("Python fast-mode events differ from the durable Session")
+        command_ids: dict[str, str] = {}
+        normalized = []
+        for event in events:
+            data = dict(event["data"])
+            if "commandId" in data:
+                identity = data["commandId"]
+                if event["type"] == "command/run":
+                    command_ids[identity] = "{{command:" + str(len(command_ids) + 1) + "}}"
+                data["commandId"] = command_ids[identity]
+            normalized.append({
+                "type": event["type"], "data": data,
+                **({"ignorable": event["ignorable"]} if "ignorable" in event else {}),
+            })
+        actual = {"final_response": result.final_response, "finish_reason": result.finish_reason, "events": normalized}
+        if result.final_response != "FAST_MODE_OK" or result.finish_reason != "completed" or len(events) != 10:
+            raise AssertionError(f"fast-mode runtime did not complete its command sequence: {actual}; "
+                                 f"turn endings: {[event['data'] for event in result.events if event['type'] == 'turn/end']}")
+        compare_snapshot_files(
+            {"result.json": json.dumps(actual, indent=2, ensure_ascii=False) + "\n"},
+            update_snapshots,
+            repository / "scripts/snapshots/python-sdk-single-exe/codex-fast-mode",
+            ("result.json",),
+        )
 
 
 def smoke_sdk_authoring(base_url: str, executable: Path, update_snapshots: bool) -> None:

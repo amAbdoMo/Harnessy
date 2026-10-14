@@ -10,40 +10,53 @@ export interface Config {
   maxConnections: number
   /** Admitted sockets from one transport-source IP. */
   maxConnectionsPerIp: number
-  /** Anonymous sockets globally and per transport-source IP. */
+  /** Global sockets awaiting registration or identity-key proof. */
   maxPending: number
+  /** Sockets awaiting registration or identity-key proof from one transport-source IP. */
   maxPendingPerIp: number
-  /** PC sockets, including pending identities, globally and per IP. */
+  /** Global PC sockets, including pending identities. */
   maxRoutes: number
+  /** PC sockets from one transport-source IP, including pending identities. */
   maxRoutesPerIp: number
-  /** Phone sockets, including pending identities, globally, per IP and per PC. */
+  /** Global phone sockets, including pending identities. */
   maxPhones: number
+  /** Phone sockets from one transport-source IP, including pending identities. */
   maxPhonesPerIp: number
+  /** Non-stopping phones targeting one PC, including phones awaiting identity-key proof. */
   maxPhonesPerPc: number
   /** Maximum retained IP buckets, including recently disconnected anonymous clients. */
   maxIpBuckets: number
   /** Maximum complete UTF-8 JSON frame bytes; at most 2147483647 for ws preassembly enforcement. */
   maxFrameBytes: number
-  /** Maximum in-flight send bytes per socket and per channel direction. */
+  /** In-flight send-byte limit per socket, also checked against WebSocket bufferedAmount. */
   maxOutboundQueueBytes: number
+  /** In-flight send bytes per channel direction; saturation retires the phone, not its shared PC socket. */
   maxChannelQueueBytes: number
-  /** Token-bucket byte capacities and refill rates per second. */
+  /** Global receive/send token-bucket capacity in bytes and refill rate in bytes per second. */
   bytesPerSecond: number
+  /** Receive/send token-bucket capacity and bytes-per-second refill rate for one transport-source IP. */
   bytesPerSecondPerIp: number
+  /** Receive/send token-bucket capacity and bytes-per-second refill rate for one socket. */
   bytesPerSecondPerSocket: number
-  /** Upgrade token-bucket capacities; refill over upgradeWindowMs. */
+  /** Global upgrade-attempt token capacity, refilled over upgradeWindowMs; charged before header and admission checks. */
   upgradesPerWindow: number
+  /** Upgrade-attempt token capacity for one transport-source IP, refilled over upgradeWindowMs. */
   upgradesPerWindowPerIp: number
+  /** Milliseconds to refill an empty upgrade token bucket to its configured capacity. */
   upgradeWindowMs: number
-  /** Inactive IP rate buckets expire after this interval. */
+  /** Milliseconds since the last upgrade attempt or disconnect before a socket-free IP bucket expires. */
   ipBucketTtlMs: number
-  /** Registration, challenge, channel handshake, inactivity and absolute lifetime deadlines. */
+  /** Milliseconds from socket admission to completion of registration and identity-key proof. */
   registrationTimeoutMs: number
+  /** Milliseconds from challenge creation to receipt of its identity-key proof, also bounded by registrationTimeoutMs. */
   challengeTimeoutMs: number
+  /** Separate millisecond limits after phone authentication for hello and after channel creation for PC welcome. */
   channelHandshakeTimeoutMs: number
+  /** Milliseconds without accepted inbound JSON before a socket expires; native ping/pong does not extend it. */
   idleTimeoutMs: number
+  /** Absolute socket lifetime in milliseconds from admission, regardless of activity. */
   maxConnectionLifetimeMs: number
-  /** Deadline and IP expiry scan interval. */
+  /** Millisecond interval for retiring expired sockets and removing inactive IP buckets. */
   sweepIntervalMs: number
 }
 

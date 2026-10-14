@@ -448,6 +448,24 @@ Committed change to a provider-managed credential source: a `set`, an `unset`, o
 
 Source: [`packages/credentials/credentials/src/types.ts`](../../packages/credentials/credentials/src/types.ts)
 
+<a id="credentialssource-failed--emit"></a>
+
+#### `credentials/source-failed` — emit
+
+The provider cannot verify its stored source or observe further source changes. Cached reads may remain available; source-derived authorization must withdraw. Emitted once per provider incarnation, with contained listener failures and no payload.
+
+```ts cordis-catalog
+/**
+ * The provider cannot verify its stored source or observe further source changes.
+ * Cached reads may remain available; source-derived authorization must withdraw.
+ * Emitted once per provider incarnation, with contained listener failures and no payload.
+ * @mode emit
+ */
+'credentials/source-failed'(): void
+```
+
+Source: [`packages/credentials/credentials/src/types.ts`](../../packages/credentials/credentials/src/types.ts)
+
 <a id="deepseek-account-events"></a>
 
 ### `deepseek-account/*` events

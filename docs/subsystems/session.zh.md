@@ -590,7 +590,9 @@ declare class Session {
    *   declare how it joins the surface, the sole source of derived model
    *   history) and
    *   rejected by the compiler for non-surface types like `turn/start` or
-   *   `assistant/attempt`. Assistant messages embed their exact provider
+   *   `assistant/attempt`. Log-only events may instead pass `ignorable: true`
+   *   when skipping them cannot change model-history reconstruction.
+   *   Assistant messages embed their exact provider
    *   stream and cannot cite top-level source events.
    * @returns the logged event — its assigned `seq`/`time` plus the SNAPSHOT of
    *   `data` that entered the log, so reading `event.data` back sees the logged
@@ -613,7 +615,7 @@ declare class Session {
   append<T extends SessionEventType>(
     type: T,
     data: SessionEventMap[T],
-    ...opts: T extends SurfaceEventType ? [opts: SurfaceIntent<T>] : []
+    ...opts: T extends SurfaceEventType ? [opts: SurfaceIntent<T>] : [opts?: { ignorable?: true }]
     ): SessionEvent<T>;
   /**
    * The {@link EpochHeader} in force after the log's last header event — the
@@ -891,10 +893,18 @@ workspaceDesktop(): { name: string; available: boolean; fileManager: 'finder' | 
 /**
  * Admit one prompt after explicitly resuming its Session.
  * @param request - Session identity, prompt content, source metadata, and delivery mode.
- * @param signal - caller cancellation before prompt admission begins.
- * @returns acknowledgement that the Agent accepted the prompt.
+ * @param signal - caller cancellation until synchronous inbox admission; already admitted work continues.
+ * @returns acknowledgement of in-memory inbox admission, not durable checkpoint or task completion.
  */
 @Remote('prompt') prompt(request: SessionPromptRequest, signal: AbortSignal): Promise<SessionPromptValue>
+
+/**
+ * Admit a Host-owned prompt while rechecking its caller's current authority.
+ * @param request - Session identity, prompt content, source metadata, and delivery mode.
+ * @param checkAdmission - synchronous authorization and cancellation check through inbox insertion.
+ * @returns acknowledgement of in-memory admission; an already admitted prompt continues after cancellation.
+ */
+admitPrompt(request: SessionPromptRequest, checkAdmission: () => void): Promise<SessionPromptValue>
 
 /**
  * Read one image proven reachable from the addressed Session log.

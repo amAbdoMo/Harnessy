@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ComponentProps } from 'react'
 import type { ModelSelection } from '@deepseek-ai/dsh-api-remotes/client'
-import { RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
+import { makeTranslate, RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { SessionId } from '@deepseek-ai/dsh-session/types'
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
@@ -57,6 +57,7 @@ function mount(overrides: Partial<ComponentProps<typeof ModelSelect>> = {}) {
   const select = overrides.select ?? vi.fn().mockResolvedValue({ ok: true, value: undefined })
   render(<ModelSelect
     locked={false}
+    fastEnabled={false}
     available
     directory={directory}
     load={load}
@@ -365,6 +366,58 @@ it.each([en, zh])('localizes the account provider while preserving external name
   fireEvent.click(screen.getByRole('button', { name: copy['trigger.selectAria'] }))
   expect(screen.getByRole('group', { name: copy['provider.account'] })).toBeTruthy()
   expect(screen.getByRole('group', { name: 'My Gateway' })).toBeTruthy()
+})
+
+it.each([
+  ['Codex on', 'openai-codex', true, true],
+  ['Codex off', 'openai-codex', false, false],
+  ['GPT on another provider', 'openai', true, false],
+  ['another provider on', 'deepseek-official', true, false],
+] as const)('shows the saved fast preference only on the Codex route: %s', (_scenario, provider, fastEnabled, visible) => {
+  mount({ fastEnabled, directory: createSnapshotStore(state({
+    current: { provider, model: 'gpt-5', reasoningEffort: 'high' },
+    groups: [{ id: provider, name: provider, models: [{ id: 'gpt-5', name: 'GPT-5', reasoning }] }],
+  })) })
+  const trigger = screen.getByRole('button', { name: /选择模型/ })
+  expect(trigger.getAttribute('aria-label')?.includes('本会话已开启 Codex 快速模式')).toBe(visible)
+  expect(trigger.title.includes('本会话已开启 Codex 快速模式')).toBe(visible)
+  expect(trigger.firstElementChild?.getAttribute('fill')).toBe(visible ? 'currentColor' : 'none')
+  expect(trigger.querySelectorAll('svg')).toHaveLength(2)
+  expect(trigger.textContent).toBe('GPT-5High')
+})
+
+it.each([en, zh])('localizes the fast state without adding an action or replacing pending feedback', (copy) => {
+  const translate: ComponentProps<typeof ModelSelect>['t'] = makeTranslate(copy)
+  mount({ t: translate, fastEnabled: true, directory: createSnapshotStore(state({
+    current: { provider: 'openai-codex', model: 'custom-model' },
+    groups: [{ id: 'openai-codex', name: 'Codex', models: [{ id: 'custom-model', name: 'Custom model' }] }],
+    status: 'selecting',
+    pending: { provider: 'openai-codex', model: 'next-model' },
+  })) })
+  const trigger = screen.getByRole('button')
+  const stateLabel = copy['trigger.fast'].replace('{selection} · ', '')
+  expect(trigger.getAttribute('aria-label')).toContain(stateLabel)
+  expect(trigger.title).toBe(`Custom model · ${stateLabel}`)
+  expect(trigger.getAttribute('aria-busy')).toBe('true')
+  expect(trigger.querySelector('[data-state="ongoing"]')).not.toBeNull()
+  expect(trigger.firstElementChild?.getAttribute('fill')).toBe('currentColor')
+})
+
+it('keeps the saved fast preference visible when the Codex catalog model is absent', () => {
+  mount({ fastEnabled: true, directory: createSnapshotStore(state({
+    current: { provider: 'openai-codex', model: 'removed-model', reasoningEffort: 'high' },
+    groups: [], routable: false, retainedEffort: 'High',
+  })) })
+  const trigger = screen.getByRole('button', { name: /openai-codex\/removed-model/ })
+  expect(trigger.title).toBe('openai-codex/removed-model · High · 本会话已开启 Codex 快速模式')
+  expect(trigger.firstElementChild?.getAttribute('fill')).toBe('currentColor')
+})
+
+it('hides fast mode without a selected route even when the saved preference is on', () => {
+  mount({ fastEnabled: true, directory: createSnapshotStore(state({ current: null })) })
+  const trigger = screen.getByRole('button', { name: zh['trigger.selectAria'] })
+  expect(trigger.title).toBe(zh['trigger.fallback'])
+  expect(trigger.firstElementChild?.getAttribute('fill')).toBe('none')
 })
 
 it('restores the catalog name after account login without changing the saved route', () => {

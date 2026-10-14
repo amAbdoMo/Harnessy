@@ -9,8 +9,8 @@
   en: e7c80d1de4d328b4
   zh: d9f368c27fd9f998
 /session-persistence-event-catalog/persistence-type-fingerprints:
-  en: 33dd28b1c768cd8b
-  zh: 7256442baf2faed1
+  en: 63903d6d16214153
+  zh: 4de80ab400dc298d
 /session-persistence-event-catalog/event-envelope:
   en: 7ebb1a2e0dd1f916
   zh: 8946f415dda5c1b8
@@ -128,6 +128,12 @@
 /session-persistence-event-catalog/events/llm/llm-retry-started-log-only:
   en: a2f8cab2fa650793
   zh: b0425971d17cf10c
+/session-persistence-event-catalog/events/llm-pi-ai:
+  en: 301a8c02ff8c912d
+  zh: 301a8c02ff8c912d
+/session-persistence-event-catalog/events/llm-pi-ai/llm-pi-ai-fast-mode-log-only:
+  en: 4fcce50f35823623
+  zh: 08c377cfb598f180
 /session-persistence-event-catalog/events/model:
   en: 9edf4ef31e60e880
   zh: 9edf4ef31e60e880
@@ -549,8 +555,11 @@
   en: 69a7a30a4e43ff35
   zh: 69a7a30a4e43ff35
 /session-persistence-event-catalog/resolved-persistence-types/legacy:
-  en: 1fc6c6420d6eb307
-  zh: 1fc6c6420d6eb307
+  en: 7c776d5741f99f7d
+  zh: 7c776d5741f99f7d
+/session-persistence-event-catalog/resolved-persistence-types/llm-pi-ai-fast-mode:
+  en: 3d6a549eeaf0fbb7
+  zh: 3d6a549eeaf0fbb7
 /session-persistence-event-catalog/resolved-persistence-types/llm-retry:
   en: 4a95312d3d196240
   zh: 4a95312d3d196240
@@ -1407,8 +1416,11 @@
   en: a07969828eed2e6f
   zh: e06893743af544b5
 /session-persistence-event-catalog/resolved-persistence-types/dialect-handlerid-matcher-point:
-  en: afb33a900f77ddf6
-  zh: 90edc32643550430
+  en: e9ab9b25e699d5fe
+  zh: 232289414de7f39d
+/session-persistence-event-catalog/resolved-persistence-types/enabled:
+  en: b7bfd27abec7047f
+  zh: d74a02a9e5a5f912
 /session-persistence-event-catalog/resolved-persistence-types/end-start:
   en: 4b7a8793663d3fef
   zh: 249459c825d330c3
@@ -1920,8 +1932,11 @@
   en: 8b523e0be5327519
   zh: 86ec891087b8bf24
 /session-persistence-event-catalog/resolved-persistence-types/type-image-offload:
-  en: 06230b6290fa9826
-  zh: 11930bfa355b70fa
+  en: afee4d92d966afc9
+  zh: 6ff1543f1e26aaca
+/session-persistence-event-catalog/resolved-persistence-types/type-llm-pi-ai-fast-mode:
+  en: 02f4e9cdd7535644
+  zh: b119737971cae8a6
 /session-persistence-event-catalog/resolved-persistence-types/type-llm-retry:
   en: 6d026baeac30a0f1
   zh: 55131683e3d5ed27

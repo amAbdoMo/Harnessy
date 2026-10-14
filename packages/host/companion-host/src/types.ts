@@ -14,7 +14,7 @@ export interface PairedDevice {
   readonly pairedAt: number
 }
 
-/** Renderer-safe status; no pairing link, identity private key, or credential payload. */
+/** Main-only status; no pairing link, identity private key, or credential payload. */
 export interface CompanionStatus {
   readonly available: boolean
   readonly connected: boolean

@@ -801,6 +801,49 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'companionHost',
+    summary: 'No Typert Remote decorations: this API is callable only by trusted same-process native controls.',
+    description: 'No Typert Remote decorations: this API is callable only by trusted same-process native controls.',
+    methods: [
+      {
+        signature: 'describe(): CompanionStatus',
+        description: 'Report public management metadata without the one-time invitation secret or private signing key.',
+        parameters: [],
+        returns: 'Fresh native-management status; the renderer receives only availability, connection and count.',
+      },
+      {
+        signature: 'createInvitation(): Promise<PrivateInvitation>',
+        description: 'Create one ephemeral invitation; only Desktop main may receive its fragment secret for clipboard use.',
+        parameters: [],
+        returns: 'A one-time harnessy://pair link; no existing PC launch token or durable identity secret.',
+      },
+      {
+        signature: 'cancelInvitation(): Promise<void>',
+        description: 'Abort candidate authority immediately, then remove any grant committed by its in-flight approval.',
+        parameters: [],
+        returns: 'Provider commit and teardown; failures disable this Host incarnation.',
+      },
+      {
+        signature: 'approveCandidate(candidateId: CandidateId, confirmFingerprint: string): Promise<PairedDevice>',
+        description: 'Enroll exactly the candidate whose locally displayed fingerprint the operator confirmed.',
+        parameters: [{ name: 'candidateId', description: 'Current main-owned candidate, not a phone or relay-selected grant id.' }, { name: 'confirmFingerprint', description: 'Exact SHA-256 hex shown by describe().' }],
+        returns: 'Committed public device; failed welcome delivery does not undo enrollment or imply a safe retry.',
+      },
+      {
+        signature: 'revokeGrant(grantId: GrantId): Promise<void>',
+        description: 'Withdraw the channel authorization capability synchronously, then remove the durable current row.',
+        parameters: [{ name: 'grantId', description: 'PC-issued current record identifier.' }],
+        returns: 'Completion after provider commit and affected application teardown; any failure disables this Host incarnation.',
+      },
+    ],
+  },
+  {
+    key: 'companionRelayStartup',
+    summary: 'Accepted loopback bind values read by the webserver row.',
+    description: 'Accepted loopback bind values read by the webserver row.',
+    methods: [],
+  },
+  {
     key: 'computerUse',
     summary: 'Owns one optional provider registration in the shared computer-use service.',
     description: 'Owns one optional provider registration in the shared computer-use service.',
@@ -2212,8 +2255,14 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       {
         signature: '@Remote(\'prompt\') prompt(request: SessionPromptRequest, signal: AbortSignal): Promise<SessionPromptValue>',
         description: 'Admit one prompt after explicitly resuming its Session.',
-        parameters: [{ name: 'request', description: 'Session identity, prompt content, source metadata, and delivery mode.' }, { name: 'signal', description: 'caller cancellation before prompt admission begins.' }],
-        returns: 'acknowledgement that the Agent accepted the prompt.',
+        parameters: [{ name: 'request', description: 'Session identity, prompt content, source metadata, and delivery mode.' }, { name: 'signal', description: 'caller cancellation until synchronous inbox admission; already admitted work continues.' }],
+        returns: 'acknowledgement of in-memory inbox admission, not durable checkpoint or task completion.',
+      },
+      {
+        signature: 'admitPrompt(request: SessionPromptRequest, checkAdmission: () => void): Promise<SessionPromptValue>',
+        description: 'Admit a Host-owned prompt while rechecking its caller\'s current authority.',
+        parameters: [{ name: 'request', description: 'Session identity, prompt content, source metadata, and delivery mode.' }, { name: 'checkAdmission', description: 'synchronous authorization and cancellation check through inbox insertion.' }],
+        returns: 'acknowledgement of in-memory admission; an already admitted prompt continues after cancellation.',
       },
       {
         signature: '@Remote(\'attachment\') attachment(request: SessionAttachmentRequest): Promise<SessionAttachmentValue>',
@@ -3792,6 +3841,43 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'webStartup',
+    summary: 'What the web rows read from WEB_STARTUP_SERVICE.',
+    description: 'What the web rows read from WEB_STARTUP_SERVICE.',
+    methods: [
+      {
+        signature: 'openBrowser: boolean',
+        description: 'Whether this invocation opens the default browser after startup.',
+        parameters: [],
+      },
+      {
+        signature: 'printUrl: boolean',
+        description: 'Whether this invocation prints the credential-bearing startup URL.',
+        parameters: [],
+      },
+      {
+        signature: 'host?: string',
+        description: '`--host`, absent when the invocation did not name one.',
+        parameters: [],
+      },
+      {
+        signature: 'port?: number',
+        description: '`--port`, absent when the invocation did not name one.',
+        parameters: [],
+      },
+      {
+        signature: 'publicUrl?: string',
+        description: '`--public-url`, absent when not specified: the advertised HTTP(S) root. See [public deployments](../README.md#public-deployments).',
+        parameters: [],
+      },
+      {
+        signature: 'trustedHosts: string[]',
+        description: 'Explicit `--trusted-host` authorities, in argument order.',
+        parameters: [],
+      },
+    ],
+  },
+  {
     key: 'workflowEngine',
     summary: 'Workflow Service Definition contract.',
     description: 'Workflow Service Definition contract. Invalid requests throw before publication; a live run is holder-owned, its result never rejects, and disposal waits for script and child cleanup. Lifecycle listener failures are contained, and `workflow/end` fires exactly once as the result settles.',
@@ -4291,6 +4377,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     summary: 'Committed change to a provider-managed credential source: a `set`, an `unset`, or an external edit observed in storage.',
     description: 'Committed change to a provider-managed credential source: a `set`, an `unset`, or an external edit observed in storage. Ambient process-environment changes are not observable and never emit. Listener failures are contained and logged — a sync throw and an async rejection alike — without changing the committed operation\'s outcome.',
     parameters: [{ name: 'ref', description: 'the reference whose stored value changed.' }],
+  },
+  {
+    name: 'credentials/source-failed',
+    mode: 'emit',
+    signature: '\'credentials/source-failed\'(): void',
+    summary: 'The provider cannot verify its stored source or observe further source changes.',
+    description: 'The provider cannot verify its stored source or observe further source changes. Cached reads may remain available; source-derived authorization must withdraw. Emitted once per provider incarnation, with contained listener failures and no payload.',
+    parameters: [],
   },
   {
     name: 'deepseek-account/model-sign-in-required',
@@ -5077,6 +5171,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ButtonProps {\n    readonly label: string;\n    readonly hotkey?: string | undefined;\n    readonly disabled?: boolean | undefined;\n    readonly onPress?: (() => unknown) | undefined;\n}',
   },
   {
+    name: 'CandidateId',
+    declaration: 'export type CandidateId = Branded<\'CompanionCandidateId\'>;',
+  },
+  {
     name: 'ChangeResult',
     declaration: 'export interface ChangeResult {\n    changed: boolean;\n    application: \'applied\' | \'restart-required\' | \'overridden\' | \'failed\' | \'cancelled\';\n    stage: \'install\' | \'enable\' | \'remove\';\n    target: string;\n    enabled?: boolean;\n    error?: ManagementError;\n    warnings?: string[];\n    packageResult?: PackageResult;\n    bundle?: string;\n    version?: string;\n    pendingBuilds?: string[];\n    approvedBuilds?: string[];\n    registries?: Registry[];\n    failedAt?: \'registry\' | \'spec-host\';\n}',
   },
@@ -5191,6 +5289,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'CompactionTrigger',
     declaration: 'export type CompactionTrigger = \'pressure\' | \'context-overflow\';',
+  },
+  {
+    name: 'CompanionStatus',
+    declaration: 'export interface CompanionStatus {\n    readonly available: boolean;\n    readonly connected: boolean;\n    readonly pcId?: PcId;\n    readonly paired: readonly PairedDevice[];\n    readonly invitation?: {\n        readonly invitationId: InvitationId;\n        readonly expiresAt: number;\n    };\n    readonly candidates: readonly {\n        readonly candidateId: CandidateId;\n        readonly fingerprint: string;\n        readonly displayName: string;\n        readonly expiresAt: number;\n    }[];\n}',
   },
   {
     name: 'CompositionRowEnablement',
@@ -5725,6 +5827,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface GoalView extends GoalSnapshot {\n    readonly roundsStarted: number;\n    readonly createdAt: number;\n    readonly updatedAt: number;\n    readonly activation: GoalActivation;\n}',
   },
   {
+    name: 'GrantId',
+    declaration: 'export type GrantId = Branded<\'CompanionGrantId\'>;',
+  },
+  {
     name: 'GrantRecord',
     declaration: 'export interface GrantRecord {\n    readonly kind: \'grant\';\n    readonly payload: unknown;\n}',
   },
@@ -5843,6 +5949,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'InvalidTimeZoneError',
     declaration: 'export interface InvalidTimeZoneError {\n    readonly code: \'invalid_time_zone\';\n    readonly message: string;\n}',
+  },
+  {
+    name: 'InvitationId',
+    declaration: 'export type InvitationId = Branded<\'CompanionInvitationId\'>;',
   },
   {
     name: 'InvocationDescriptor',
@@ -6417,12 +6527,20 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface PackageResult {\n    exitCode: number;\n    output: string;\n    truncated: boolean;\n    logPath: string;\n    kind?: PluginInstallFailureKind;\n    timedOut?: boolean;\n    incompatible?: IncompatiblePlugin[];\n}',
   },
   {
+    name: 'PairedDevice',
+    declaration: 'export interface PairedDevice {\n    readonly grantId: GrantId;\n    readonly generation: number;\n    readonly fingerprint: string;\n    readonly displayName: string;\n    readonly pairedAt: number;\n}',
+  },
+  {
     name: 'PaneOpenArgs',
     declaration: 'export interface PaneOpenArgs {\n    id: string;\n    title?: string;\n    focus?: true;\n    closeOnEscape?: true;\n    holdToasts?: true;\n    rows?: number;\n    columns?: number;\n}',
   },
   {
     name: 'PaneOpenResult',
     declaration: 'export interface PaneOpenResult {\n    id: string;\n    isPlaced: boolean;\n    reason?: string;\n}',
+  },
+  {
+    name: 'PcId',
+    declaration: 'export type PcId = Branded<\'CompanionPcId\'>;',
   },
   {
     name: 'PeerAdmission',
@@ -6555,6 +6673,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'PreToolDecision',
     declaration: 'export type PreToolDecision = {\n    kind: \'allow\';\n} | {\n    kind: \'deny\';\n    reason: string;\n    info?: ToolErrorInfo;\n} | {\n    kind: \'cancel\';\n} | {\n    kind: \'ask\';\n    reason?: string;\n    displayReason?: {\n        readonly en: string;\n        readonly [locale: string]: string;\n    };\n};',
+  },
+  {
+    name: 'PrivateInvitation',
+    declaration: 'export interface PrivateInvitation {\n    readonly invitationId: InvitationId;\n    readonly expiresAt: number;\n    readonly pairingUrl: string;\n}',
   },
   {
     name: 'ProductEvent',
@@ -6821,6 +6943,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ResumeAgentOptions {\n    readonly resumeSessionId: SessionId;\n    readonly parentAgent?: Agent;\n    readonly agentOptions?: AgentOptions;\n    readonly signal?: AbortSignal;\n    readonly setup?: AgentSetup;\n}',
   },
   {
+    name: 'Role',
+    declaration: 'export type Role = \'pc\' | \'phone\';',
+  },
+  {
     name: 'RpcId',
     declaration: 'export type RpcId = Branded<\'rpc-id\'>;',
   },
@@ -6990,7 +7116,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'Session',
-    declaration: 'export class Session {\n    get surface(): SessionSurface;\n    readonly header: SessionHeader;\n    readonly inheritedEventCount: SessionLogOffset;\n    get id(): SessionId;\n    readonly firstLiveSeq: SessionLogOffset;\n    readonly firstLifecycleSeq: SessionLogOffset;\n    static create(id: SessionId, seed?: readonly SessionEvent[], header?: SessionHeader, inheritedEventCount?: SessionLogOffset, projections?: readonly SessionMessageProjection[]): Session;\n    static fromRestore(id: SessionId, seed: readonly SessionEvent[], header: SessionHeader, inheritedEventCount: SessionLogOffset, eventState: SessionSeedEventState, projections?: readonly SessionMessageProjection[]): Session;\n    eventAt(seq: SessionSeq): SessionEvent | undefined;\n    snapshotEvents(fromSeq: SessionLogOffset = SessionLogOffset(0), toSeqExclusive: SessionLogOffset = this.seq): readonly SessionEvent[];\n    ownEvents(): readonly SessionEvent[];\n    isOwnSeq(seq: SessionSeq): boolean;\n    get seq(): SessionLogOffset;\n    append<T extends SessionEventType>(type: T, data: SessionEventMap[T], ...opts: T extends SurfaceEventType ? [\n        opts: SurfaceIntent<T>\n    ] : [\n    ]): SessionEvent<T>;\n    requestHeader(): EpochHeader | undefined;\n    requestContext(): RequestContext | undefined;\n    toolHistory(): ToolHistory;\n    deriveMessages(): Message[];\n    deriveEventMessage(event: SessionEvent): Message | null;\n}',
+    declaration: 'export class Session {\n    get surface(): SessionSurface;\n    readonly header: SessionHeader;\n    readonly inheritedEventCount: SessionLogOffset;\n    get id(): SessionId;\n    readonly firstLiveSeq: SessionLogOffset;\n    readonly firstLifecycleSeq: SessionLogOffset;\n    static create(id: SessionId, seed?: readonly SessionEvent[], header?: SessionHeader, inheritedEventCount?: SessionLogOffset, projections?: readonly SessionMessageProjection[]): Session;\n    static fromRestore(id: SessionId, seed: readonly SessionEvent[], header: SessionHeader, inheritedEventCount: SessionLogOffset, eventState: SessionSeedEventState, projections?: readonly SessionMessageProjection[]): Session;\n    eventAt(seq: SessionSeq): SessionEvent | undefined;\n    snapshotEvents(fromSeq: SessionLogOffset = SessionLogOffset(0), toSeqExclusive: SessionLogOffset = this.seq): readonly SessionEvent[];\n    ownEvents(): readonly SessionEvent[];\n    isOwnSeq(seq: SessionSeq): boolean;\n    get seq(): SessionLogOffset;\n    append<T extends SessionEventType>(type: T, data: SessionEventMap[T], ...opts: T extends SurfaceEventType ? [\n        opts: SurfaceIntent<T>\n    ] : [\n        opts?: {\n            ignorable?: true;\n        }\n    ]): SessionEvent<T>;\n    requestHeader(): EpochHeader | undefined;\n    requestContext(): RequestContext | undefined;\n    toolHistory(): ToolHistory;\n    deriveMessages(): Message[];\n    deriveEventMessage(event: SessionEvent): Message | null;\n}',
   },
   {
     name: 'SessionAccess',
@@ -7317,10 +7443,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SessionProjectionBaseline {\n    readonly asOfSeq: number;\n    readonly values: SessionProjectionValues;\n}',
   },
   {
-    name: 'SessionProjectionHints',
-    declaration: 'export interface SessionProjectionHints {\n    readonly kind: \'cached\' | \'sequenced\';\n    readonly asOfSeq: number;\n    readonly values: SessionProjectionValues;\n}',
-  },
-  {
     name: 'SessionProjectionMap',
     declaration: 'export interface SessionProjectionMap {\n}',
   },
@@ -7451,10 +7573,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SessionStorageMetadata',
     declaration: 'export interface SessionStorageMetadata {\n    readonly meta: SessionHeader;\n    readonly inheritedEventCount: SessionLogOffset;\n}',
-  },
-  {
-    name: 'SessionSummary',
-    declaration: 'export interface SessionSummary {\n    readonly agentAvailable: boolean;\n    readonly sessionId: SessionId;\n    readonly updatedAt: number;\n    readonly running: boolean;\n    readonly blank: boolean;\n    readonly parentSessionId?: SessionId;\n    readonly origin?: \'subagent\';\n    readonly cwd?: string;\n    readonly projections?: SessionProjectionHints;\n}',
   },
   {
     name: 'SessionSurface',

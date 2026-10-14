@@ -97,6 +97,9 @@ export const SERVICE_PAGE: Record<string, string> = {
   schedule: 'schedule.md',
   inspector: 'extensions.md',
   webServer: 'web-server.md',
+  companionHost: 'companion.md',
+  companionRelayStartup: 'boot.md',
+  webStartup: 'boot.md',
   llm: 'llm-streaming.md',
   lsp: 'lsp.md',
   messageFeedback: 'feedback.md',
@@ -855,6 +858,11 @@ export const FOUNDATION_TYPE_NAMES: ReadonlySet<string> = new Set([
 
 /** Project types deliberately documented outside the subsystems catalog. */
 export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
+  CompanionStatus: 'native companion management status is owned by packages/host/companion-host/INTEGRATION.md',
+  PrivateInvitation: 'Main-only pairing output is owned by packages/host/companion-host/INTEGRATION.md',
+  CandidateId: 'native companion approval identity is owned by packages/host/companion-host/INTEGRATION.md',
+  PairedDevice: 'native paired-device metadata is owned by packages/host/companion-host/src/types.ts',
+  GrantId: 'companion authorization identity is owned by packages/util/companion-protocol/src/types.ts',
   ProductEvent: 'Desktop event fields are owned by packages/client/product-analytics/README.md and src/events.ts',
   ConnectionFetchHandler: 'shared Fetch dispatch is owned by packages/client/connection/src/rpc.ts',
   ConnectionRequestRejection: 'transport rejection status is owned by packages/client/connection/src/rpc.ts',

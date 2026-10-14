@@ -9,10 +9,10 @@ import { useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import clsx from 'clsx'
 import type { ModelReasoningEffort, ModelSelection } from '@deepseek-ai/dsh-api-remotes/client'
 import {
-  IconCheckOutlineRegular, IconChevronDownOutlineRegular, IconDataOutlineRegular,
+  IconCheckOutlineRegular, IconChevronDownOutlineRegular, IconDataOutlineRegular, IconLightningFilledRegular,
   IconSearchOutlineRegular, IconWarningOutlineRegular, Input, Modal, rankByName, StateDot, Toast,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
+import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ModelSelectInjected } from './slots.ts'
 import css from './ModelSelect.module.css'
 import { orderModelProviders } from './provider-order.ts'
@@ -26,12 +26,13 @@ interface EffortChoice {
 
 /**
  * Render the composer model control and its searchable model picker.
- * @param props - owner lock, shared directory operations, and locale.
+ * @param props - owner lock, shared directory operations, saved Codex preference, and locale.
  * @returns the trigger, dialog while open, and selection-error toast.
  */
 export function ModelSelect(
-  { locked, available, directory, load, select, t }:
-  ModelSelectInjected & { locked: boolean } & PropsLocale<'model'>,
+  { locked, available, directory, load, select, t, fastEnabled }:
+  ModelSelectInjected & Pick<PropsRuntime<'conversation.input.model'>, 'locked'>
+    & { fastEnabled: boolean } & PropsLocale<'model'>,
 ) {
   const state = useSyncExternalStore(
     fn => directory.subscribe(fn),
@@ -175,6 +176,7 @@ export function ModelSelect(
     ? t('trigger.loading')
     : currentChoice?.model.name
       ?? (state.current === null ? t('trigger.fallback') : `${state.current.provider}/${state.current.model}`)
+  const showFast = fastEnabled && state.current?.provider === 'openai-codex'
   const triggerLabel = effortLabel === undefined ? modelLabel : `${modelLabel} · ${effortLabel}`
   const triggerAria = waiting
     ? t('trigger.loading')
@@ -189,15 +191,17 @@ export function ModelSelect(
       <button
         type="button"
         className={css.trigger}
-        aria-label={triggerAria}
+        aria-label={showFast ? t('trigger.fast', { selection: triggerAria }) : triggerAria}
         aria-haspopup="dialog"
         aria-expanded={open}
-        title={triggerLabel}
+        title={showFast ? t('trigger.fast', { selection: triggerLabel }) : triggerLabel}
         aria-busy={busy}
         disabled={locked}
         onClick={() => { if (open) close(); else show() }}
       >
-        <IconDataOutlineRegular className={css.triggerIcon} size={16} />
+        {showFast
+          ? <IconLightningFilledRegular className={css.fastIcon} size={14} />
+          : <IconDataOutlineRegular className={css.triggerIcon} size={16} />}
         <span className={css.triggerLabel}>{modelLabel}</span>
         {effortLabel !== undefined && <span className={css.triggerEffort}>{effortLabel}</span>}
         {busy

@@ -274,6 +274,20 @@ function loadWorkspaceSource(world: World, from: FileCtx, specifier: string): Fi
   return loadFile(resolved.resolvedFileName, rel, world.cache)
 }
 
+/** Load a relative schema import only from the importing package's src directory. */
+function loadLocalSchemaSource(world: World, from: FileCtx, specifier: string): FileCtx {
+  const dir = relative(world.scanRoot, from.abs).split(sep).slice(0, 3).join('/')
+  const abs = resolve(dirname(from.abs), specifier)
+  const sourcePath = relative(resolve(world.scanRoot, dir, 'src'), abs)
+  if (isAbsolute(sourcePath) || sourcePath === '..' || sourcePath.startsWith(`..${sep}`)
+    || !sourcePath.endsWith('.ts') || sourcePath.endsWith('.d.ts')) {
+    throw new Error(`schema import '${specifier}' must resolve inside ${dir}/src to a TypeScript source file`)
+  }
+  if (!existsSync(abs)) throw new Error(`schema import '${specifier}' does not exist`)
+  const rel = relative(world.scanRoot, abs).split(sep).join('/')
+  return loadFile(abs, rel, world.cache)
+}
+
 /** Find a directly declared const schema, requiring public exports at imported entries. */
 function schemaConst(ctx: FileCtx, name: string, exported: boolean): ts.Expression | null {
   for (const statement of ctx.sf.statements) {
@@ -293,7 +307,9 @@ function schemaAlias(world: World, ctx: FileCtx, name: string): { ctx: FileCtx; 
   if (imported === undefined || imported.typeOnly || imported.imported === '*' || imported.imported === 'default') {
     throw new Error(`schema alias '${name}' must name a const or named value import`)
   }
-  const target = loadWorkspaceSource(world, ctx, imported.specifier)
+  const target = imported.specifier.startsWith('.')
+    ? loadLocalSchemaSource(world, ctx, imported.specifier)
+    : loadWorkspaceSource(world, ctx, imported.specifier)
   const expr = schemaConst(target, imported.imported, true)
   if (expr === null) throw new Error(`schema import '${imported.specifier}' has no exported const '${imported.imported}'`)
   return { ctx: target, expr }
@@ -502,7 +518,8 @@ function unwrapExpr(expr: ts.Expression): ts.Expression {
  * packages whose schemas an intersect composes. A key path is the top-level
  * key or a nested path through object/array compositions (`agents[].id`).
  * Handles object/union calls, chained refinements, named const schema imports
- * through public workspace source paths, and `z.intersect([X.Config, …])`; errors on
+ * within the owning package's src or through public workspace source paths,
+ * and `z.intersect([X.Config, …])`; errors on
  * anything else, so a schema the walk cannot see fails the gate instead of
  * silently thinning it. Nested values that are neither `object` nor `array`
  * compositions (primitives, unions, dynamic-key dicts) contribute no paths.

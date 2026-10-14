@@ -15,7 +15,7 @@ import { scopeOf } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { RemoteError, TestRemote, TestSessions } from '@deepseek-ai/dsh-client-test-runtime'
 import type { SessionFixture } from '@deepseek-ai/dsh-client-test-runtime'
-import { IconGoalOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconClockOutlineRegular, IconGoalOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ClientSessionContext, ConsumeTokenRequest, InputTriggerPick, InputTriggerSource, SubmitAttachment } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import type { CommandContribution, CommandDecoration, PopupSelectSpec, SelectOption } from '../src/client/contract.ts'
 import type { CommandDescriptor } from '../src/client/directory.ts'
@@ -365,6 +365,7 @@ describe('candidates', () => {
       { definitionId: CommandDefinitionId('@deepseek-ai/dsh-command-goal'), name: 'goal', description: 'Set or view the goal for a long-running task', input: { hint: '<objective>', attachments: true } },
       { definitionId: CommandDefinitionId('@deepseek-ai/dsh-permission-presets'), name: 'permission', description: 'Switch the permission preset (sandbox mode + approval policy)', input: { hint: '<preset>' } },
       { definitionId: CommandDefinitionId('@deepseek-ai/dsh-plan-mode'), name: 'plan', description: 'Enter or leave plan mode', input: { hint: '[off|message]', attachments: true } },
+      { definitionId: CommandDefinitionId('@deepseek-ai/dsh-llm-pi-ai/fast'), name: 'fast', description: 'Toggle Codex fast mode', input: { hint: '[on|off|status]' } },
       { name: 'deploy', description: 'third-party command' },
     ]
     const Glyph = () => null
@@ -390,11 +391,11 @@ describe('candidates', () => {
       command.register(fileContribution())
       const rows = await source.candidates(proj('s1'), req(''))
       expect(rows.map(row => row.name)).toEqual([
-        'file', 'goal', 'plan', 'feedback', 'compact', 'permission', 'model', 'export', 'deploy',
+        'file', 'goal', 'plan', 'feedback', 'compact', 'permission', 'model', 'fast', 'export', 'deploy',
       ])
       expect(rows.map(row => row.section)).toEqual([
         ...Array<string>(4).fill('command:section.add'),
-        ...Array<string>(5).fill('command:section.commands'),
+        ...Array<string>(6).fill('command:section.commands'),
       ])
       expect(rows[1]).toEqual({
         name: 'goal',
@@ -407,7 +408,31 @@ describe('candidates', () => {
       expect(rows[0]).toEqual({ name: 'file', label: 'command:label.file', icon: Glyph, section: 'command:section.add' })
       expect(rows[6]).toMatchObject({ name: 'model', label: '模型', description: '选择本会话使用的模型', icon: Glyph })
       // A third-party command keeps its catalog text and gets no glyph.
-      expect(rows[8]).toEqual({ name: 'deploy', description: 'third-party command', section: 'command:section.commands' })
+      expect(rows[9]).toEqual({ name: 'deploy', description: 'third-party command', section: 'command:section.commands' })
+    })
+
+    it.each([['en', en], ['zh', zh]] as const)('offers the localized Codex fast command and submits either spelling under %s', async (_locale, dictionary) => {
+      const { source, warm, executeCalls } = await bench({
+        commands: () => Promise.resolve({ commands: SHIPPED }),
+        translate: (_namespace, key) => dictionary[key as CommandKey],
+      })
+      await warm(proj('s1'))
+      const rows = await source.candidates(proj('s1'), req(''))
+      expect(rows.find(row => row.name === 'fast')).toMatchObject({
+        label: dictionary['label.fast'],
+        description: dictionary['description.fast'],
+        hint: '[on|off|status]',
+        icon: IconClockOutlineRegular,
+      })
+      for (const spelling of [en['token.fast'], zh['token.fast']]) {
+        const claim = source.matchSpace!(proj('s1'), `/${spelling}`)
+        if (claim === undefined || claim === 'handled' || !('claim' in claim)) throw new Error('expected the fast command claim')
+        await claim.claim.submit('off', new Context(), [])
+      }
+      expect(executeCalls).toEqual([
+        { sessionId: sid('s1'), line: '/fast off', images: [] },
+        { sessionId: sid('s1'), line: '/fast off', images: [] },
+      ])
     })
 
     it('a same-name override keeps its own presentation even when it copies the first-party description', async () => {

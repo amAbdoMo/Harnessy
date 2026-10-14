@@ -8,4 +8,5 @@
   - option "Compact Compact older conversation history"
   - option "Permission Switch the permission preset (sandbox mode + approval policy)"
   - option "Model Select the model for this conversation"
+  - option "Fast mode fast Toggle Codex fast mode for this chat (higher usage)"
   - option "Export Download this Session log as a ZIP archive"

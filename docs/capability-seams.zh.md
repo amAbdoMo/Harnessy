@@ -9,6 +9,13 @@
 
 ```mermaid
 flowchart LR
+  pkg_companion_host["companion-host"]
+  svc_companionHost["ctx.companionHost<br/>Private native companion management"]
+  pkg_desktop_host["desktop-host"]
+  pkg_companion_relay_bundle["companion-relay-bundle"]
+  svc_companionRelayStartup["ctx.companionRelayStartup<br/>Standalone relay invocation values"]
+  pkg_web_app["web-app"]
+  svc_webStartup["ctx.webStartup<br/>Web profile invocation values"]
   pkg_hmr["hmr"]
   svc_hmr["ctx.hmr<br/>Serialized module and configuration reloads"]
   pkg_app_boot["app-boot"]
@@ -322,6 +329,8 @@ flowchart LR
   pkg_compaction --> svc_compaction
   pkg_compaction_basic --> svc_compaction
   pkg_compaction_tool_result_pruner --> svc_toolResultPruner
+  pkg_companion_host --> svc_companionHost
+  pkg_companion_relay_bundle --> svc_companionRelayStartup
   pkg_computer_use --> svc_computerUse
   pkg_config_editor --> svc_configEditor
   pkg_cordis_host_runner --> svc_cordisInspect
@@ -433,6 +442,7 @@ flowchart LR
   pkg_user_approval --> svc_approval
   pkg_user_questions --> svc_userQuestions
   pkg_web --> svc_web
+  pkg_web_app --> svc_webStartup
   pkg_web_fetch_http --> svc_web
   pkg_web_search_deepseek --> svc_web
   pkg_web_search_exa --> svc_web
@@ -464,6 +474,8 @@ flowchart LR
   svc_clientModules --> pkg_client_hmr
   svc_commandCodeController --> pkg_api_remotes
   svc_compaction --> pkg_compaction_basic
+  svc_companionHost --> pkg_desktop_host
+  svc_companionRelayStartup --> pkg_companion_relay_bundle
   svc_computerUse --> pkg_experimental_computer_use_cua_driver_mcp
   svc_computerUse --> pkg_experimental_computer_use_cua_driver_native
   svc_configEditor --> pkg_agent_default_model
@@ -582,6 +594,7 @@ flowchart LR
   svc_webServer --> pkg_client_connection
   svc_webServer --> pkg_client_hmr
   svc_webServer --> pkg_client_modules
+  svc_webStartup --> pkg_web_app
   svc_webhookRuntime --> pkg_webhook_github
   svc_workflowEngine --> pkg_tool_ralph
   svc_workflowEngine --> pkg_tool_workflow
@@ -592,6 +605,9 @@ flowchart LR
 
 | ctx 键 | 角色 | 所属包 | 实现 | 直接消费方 | 配套插件 | 说明 |
 | --- | --- | --- | --- | --- | --- | --- |
+| `ctx.companionHost` | `service` | [`companion-host`](../packages/host/companion-host) | - | `desktop-host` | - | 负责 Desktop 原生配对控制及可撤销的认证手机 Session 访问；管理与邀请密钥不属于渲染器 RPC 操作。 |
+| `ctx.companionRelayStartup` | `core` | [`companion-relay-bundle`](../packages/bundle/companion-relay) | - | [`companion-relay-bundle`](../packages/bundle/companion-relay) | - | 在中继条目挂载前接收显式回环绑定值；帮助与无效调用不会放行服务器条目。 |
+| `ctx.webStartup` | `core` | [`web-app`](../packages/bundle/web-app) | - | [`web-app`](../packages/bundle/web-app) | - | 在依赖它的载体与启动条目挂载前解析 Web 调用参数。 |
 | `ctx.hmr` | `core` | [`hmr`](../packages/boot/hmr) | - | [`app-boot`](../packages/boot/app-boot) | - | 负责模块和精确配置监听；应用修改共用其队列，自动重载等待应用文件锁。 |
 | `ctx.pluginRegistryProbe` | `core` | [`client-ui-plugin-manager`](../packages/client/ui-plugin-manager) | - | [`client-ui-plugin-manager`](../packages/client/ui-plugin-manager) | - | 在 Host 上并发比较公共安装源响应；初始安装源推荐由 Client 负责。 |
 | `ctx.pluginManager` | `core` | [`plugin-manager`](../packages/boot/plugin-manager) | - | [`plugin-manager`](../packages/boot/plugin-manager), `ui-settings-plugin-inventory` | - | 与 CLI 共享 profile 包操作，并向 Web 和 Agent 调用方分别报告持久状态与运行状态。 |

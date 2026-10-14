@@ -108,6 +108,21 @@ const GROUP_ORDER = [
 
 const SERVICE_ROLES: ServiceRole[] = [
   {
+    key: 'companionHost', pkg: 'companion-host', title: 'Private native companion management',
+    mode: 'service', consumers: ['desktop-host'],
+    note: 'Owns Desktop-native pairing controls and revocable authenticated phone Session access; management and invitation secrets are not renderer RPC operations.',
+  },
+  {
+    key: 'companionRelayStartup', pkg: 'companion-relay-bundle', title: 'Standalone relay invocation values',
+    mode: 'core', consumers: ['companion-relay-bundle'],
+    note: 'Admits explicit loopback bind values before relay rows mount; help and invalid invocations release no server rows.',
+  },
+  {
+    key: 'webStartup', pkg: 'web-app', title: 'Web profile invocation values',
+    mode: 'core', consumers: ['web-app'],
+    note: 'Parses Web invocation flags before dependent carrier and startup rows mount.',
+  },
+  {
     key: 'hmr',
     pkg: 'hmr',
     title: 'Serialized module and configuration reloads',
@@ -1070,6 +1085,7 @@ function renderAppComposition(example: AppExample): string {
   return lines.join('\n')
 }
 
+type DispatchHelper = ts.FunctionDeclaration | (ts.MethodDeclaration & { readonly name: ts.Identifier })
 type CallSiteIndex = Map<ts.SignatureDeclaration | ts.JSDocSignature, ts.CallExpression[]>
 
 /**
@@ -1093,7 +1109,7 @@ const EVENT_API_METHODS = new Set(['on', 'once', 'emit', 'parallel', 'serial', '
 export class EventRelationCollector {
   private readonly relations = new Map<string, EventRelation>()
   private readonly fileCallSites = new Map<ts.SourceFile, CallSiteIndex>()
-  private readonly localCalleeProofs = new Map<ts.FunctionDeclaration, boolean>()
+  private readonly localCalleeProofs = new Map<DispatchHelper, boolean>()
   private globalCallSites: CallSiteIndex | null = null
   private readonly contextType: ts.Type
   private readonly agentDispatchType: ts.Type
@@ -1147,13 +1163,12 @@ export class EventRelationCollector {
 
   /**
    * Return every indexed call resolving to one local helper declaration.
-   * Fast path: when every same-file reference to the non-exported helper is
-   * provably a direct callee, module scoping confines all of its calls to that
-   * file, so only that file is indexed. Any other reference form may alias
-   * the function value outward, so the original full package-source index
-   * decides instead.
+   * Fast path: when every same-file reference to the non-exported function or
+   * private class method is a direct callee, its calls stay in that file.
+   * Other references may alias the helper outward, requiring the full
+   * package-source index.
    */
-  private callSitesFor(owner: ts.FunctionDeclaration): ts.CallExpression[] {
+  private callSitesFor(owner: DispatchHelper): ts.CallExpression[] {
     if (!this.globalCallSites && !this.provenLocalCallee(owner)) {
       this.globalCallSites = this.buildCallSiteIndex(this.packageSourceFiles)
     }
@@ -1169,21 +1184,21 @@ export class EventRelationCollector {
 
   /**
    * Prove every same-file reference to one helper is a direct callee. The
-   * proof owns its premises: an exported helper or a helper in a global
+   * proof owns its premises: an exported function or a helper in a global
    * script file (no import/export means program-wide scope, callable from
    * another file with no same-file reference at all) fails immediately.
    * Alias escapes (re-export statements, default exports, value reads)
    * resolve back to the owner symbol at a non-callee position and fail the
    * proof, as does anything the scan cannot positively classify.
    */
-  private provenLocalCallee(owner: ts.FunctionDeclaration): boolean {
+  private provenLocalCallee(owner: DispatchHelper): boolean {
     const cached = this.localCalleeProofs.get(owner)
     if (cached !== undefined) return cached
     if (hasExportModifier(owner) || !ts.isExternalModule(owner.getSourceFile())) {
       this.localCalleeProofs.set(owner, false)
       return false
     }
-    const name = owner.name
+    const name = owner.name && ts.isIdentifier(owner.name) ? owner.name : undefined
     const ownerSymbol = name && this.project.checker.getSymbolAtLocation(name)
     let proven = !!ownerSymbol
     const refersToOwner = (identifier: ts.Identifier): boolean => {
@@ -1283,14 +1298,14 @@ export class EventRelationCollector {
     return new Set()
   }
 
-  /** Recover the event slot from the argument array handed to EventsService.dispatch(). */
-  private eventNamesFromArgumentList(expression: ts.Expression, seen: Set<ts.Node>): Set<string> {
+  /** Recover event names from dispatch arrays; private-helper inference accepts event-first tuples. */
+  private eventNamesFromArgumentList(expression: ts.Expression, seen: Set<ts.Node>, eventSlots: 1 | 2 = 2): Set<string> {
     const current = unwrapExpression(expression)
     if (seen.has(current)) return new Set()
     seen.add(current)
 
     if (ts.isArrayLiteralExpression(current)) {
-      for (const element of current.elements.slice(0, 2)) {
+      for (const element of current.elements.slice(0, eventSlots)) {
         if (ts.isOmittedExpression(element) || ts.isSpreadElement(element)) continue
         const values = this.finiteStringValues(element)
         if (values) return values
@@ -1299,8 +1314,8 @@ export class EventRelationCollector {
     }
     if (ts.isConditionalExpression(current)) {
       return unionSets(
-        this.eventNamesFromArgumentList(current.whenTrue, new Set(seen)),
-        this.eventNamesFromArgumentList(current.whenFalse, new Set(seen)),
+        this.eventNamesFromArgumentList(current.whenTrue, new Set(seen), eventSlots),
+        this.eventNamesFromArgumentList(current.whenFalse, new Set(seen), eventSlots),
       )
     }
     if (!ts.isIdentifier(current)) return new Set()
@@ -1310,26 +1325,40 @@ export class EventRelationCollector {
     const events = new Set<string>()
     for (const declaration of symbol.declarations ?? []) {
       if (ts.isVariableDeclaration(declaration) && declaration.initializer && isConstDeclaration(declaration)) {
-        addAll(events, this.eventNamesFromArgumentList(declaration.initializer, new Set(seen)))
+        addAll(events, this.eventNamesFromArgumentList(declaration.initializer, new Set(seen), eventSlots))
       } else if (ts.isParameter(declaration)) {
-        addAll(events, this.eventNamesFromParameter(declaration, seen))
+        addAll(events, this.eventNamesFromParameter(declaration, seen, eventSlots))
       }
     }
     return events
   }
 
-  /** Follow a non-exported local helper parameter back to every resolved call site. */
-  private eventNamesFromParameter(parameter: ts.ParameterDeclaration, seen: Set<ts.Node>): Set<string> {
+  /** Infer names only from actual calls to local functions or supported private class methods. */
+  private eventNamesFromParameter(parameter: ts.ParameterDeclaration, seen: Set<ts.Node>, eventSlots: 1 | 2): Set<string> {
     const owner = parameter.parent
-    if (!ts.isFunctionDeclaration(owner) || hasExportModifier(owner)) return new Set()
+    if (!isDispatchHelper(owner)) return new Set()
+    if (parameter.dotDotDotToken && !this.isTupleParameter(parameter)) return new Set()
     const index = owner.parameters.indexOf(parameter)
-    if (index < 0) return new Set()
     const events = new Set<string>()
     for (const call of this.callSitesFor(owner)) {
       const argument = call.arguments[index]
-      if (argument) addAll(events, this.eventNamesFromArgumentList(argument, new Set(seen)))
+      if (!argument) continue
+      if (!parameter.dotDotDotToken) {
+        addAll(events, this.eventNamesFromArgumentList(argument, new Set(seen), ts.isMethodDeclaration(owner) ? 1 : eventSlots))
+      } else if (ts.isSpreadElement(argument)) {
+        addAll(events, this.eventNamesFromArgumentList(argument.expression, new Set(seen), 1))
+      } else {
+        addAll(events, this.finiteStringValues(argument) ?? new Set())
+      }
     }
     return events
+  }
+
+  /** Rest inference requires tuple positions, never an open array of event names. */
+  private isTupleParameter(parameter: ts.ParameterDeclaration): boolean {
+    const type = this.project.checker.getTypeAtLocation(parameter)
+    const members = type.isUnion() ? type.types : [type]
+    return members.every(member => this.project.checker.isTupleType(member))
   }
 
   /** Return a finite string-literal value set, rejecting widened and generic strings. */
@@ -1372,9 +1401,21 @@ export class EventRelationCollector {
   }
 }
 
-/** Return whether an identifier is the callee of a call, seen through value-preserving wrappers. */
+/** Admit local functions and explicitly private non-generic class methods. */
+function isDispatchHelper(node: ts.Node): node is DispatchHelper {
+  if (!ts.isFunctionDeclaration(node) && !ts.isMethodDeclaration(node)) return false
+  if (ts.isFunctionDeclaration(node)) return !hasExportModifier(node)
+  if (node.typeParameters?.length) return false
+  return (ts.isClassDeclaration(node.parent) || ts.isClassExpression(node.parent))
+    && ts.isIdentifier(node.name)
+    && (ts.getModifiers(node)?.some(modifier => modifier.kind === ts.SyntaxKind.PrivateKeyword) ?? false)
+}
+
+/** Return whether an identifier names a direct function or method callee through value-preserving wrappers. */
 function isDirectCallee(identifier: ts.Identifier): boolean {
-  let current: ts.Node = identifier
+  let current: ts.Node = ts.isPropertyAccessExpression(identifier.parent) && identifier.parent.name === identifier
+    ? identifier.parent
+    : identifier
   while (
     ts.isParenthesizedExpression(current.parent)
     || ts.isAsExpression(current.parent)

@@ -135,6 +135,10 @@ const SDK_ASSERTIONS: Readonly<Record<string, SdkAssertions>> = {
     patches: [fileURLToPath(new URL('./tool-error-details/runtime.cordis.yml', import.meta.url))],
     expectedFinalResponse: 'ERROR_DETAILS_OK',
   },
+  'codex-fast-mode': {
+    patches: [fileURLToPath(new URL('./codex-fast-mode/runtime.cordis.yml', import.meta.url))],
+    expectedFinalResponse: 'FAST_MODE_OK',
+  },
   'ptc-turn': {
     patches: [fileURLToPath(new URL('./ptc-turn/runtime.cordis.yml', import.meta.url))],
     expectedFinalResponse: 'CODE_ONE+CODE_TWO',
@@ -352,7 +356,7 @@ async function hydrateReplayFixtures(scenario: CorpusScenario, cwd: string): Pro
   await mkdir(root, { recursive: true })
   return Promise.all((await fixtureFiles(scenario)).map(async (source) => {
     const destination = join(root, basename(source))
-    await writeFile(destination, (await readFile(source, 'utf8')).replaceAll('{{cwd}}', cwd))
+    await writeFile(destination, (await readFile(source, 'utf8')).replaceAll('{{cwd}}', JSON.stringify(cwd).slice(1, -1)))
     return destination
   }))
 }
@@ -881,6 +885,75 @@ describe('TypeScript SDK snapshots over the jsonrpc runtime', () => {
         expect(events.filter(event => event.type === 'tool/result').at(-1)).toMatchObject({ data: { message: {
           toolCallId: 'call_dynamic_ping', isError: false, content: [{ type: 'text', text: 'pong' }],
         } } })
+      }
+      if (scenario.name === 'codex-fast-mode') {
+        const selectedTypes = new Set(['command/run', 'command/done', 'llm-pi-ai/fast-mode'])
+        const events = results.flatMap(result => result.events).filter(event => selectedTypes.has(event.type))
+        const subscribed = notifications.flatMap(notification => {
+          const event = notificationEvent(notification)
+          return event !== undefined && typeof event.type === 'string' && selectedTypes.has(event.type) ? [event] : []
+        })
+        expect(subscribed, 'SDK notifications retain command outcomes and ignorable preferences').toEqual(events)
+        expect(records(ordered[0]!.content).filter(event => typeof event.type === 'string' && selectedTypes.has(event.type)),
+          'SDK events agree with the durable fast-mode log').toEqual(events)
+        expect(events.map(event => event.type)).toEqual([
+          'command/run', 'llm-pi-ai/fast-mode', 'command/done',
+          'command/run', 'command/done',
+          'command/run', 'command/done',
+          'command/run', 'llm-pi-ai/fast-mode', 'command/done',
+        ])
+        const preferences = events.filter(event => event.type === 'llm-pi-ai/fast-mode')
+        expect(preferences).toMatchObject([
+          { data: { enabled: true }, ignorable: true },
+          { data: { enabled: false }, ignorable: true },
+        ])
+        for (const event of events) {
+          expect(event).not.toHaveProperty('surfaceOp')
+          expect(event).not.toHaveProperty('sourceEventSeqs')
+        }
+        expect(events.filter(event => event.type === 'command/run').map(event => event.data))
+          .toMatchObject([' on', ' status', ' invalid', ' off'].map(args => ({ name: 'fast', args })))
+        const outcomes = events.filter(event => event.type === 'command/done').map(event => event.data)
+        expect(outcomes.map(data => data['kind'])).toEqual(['success', 'success', 'error', 'success'])
+        expect(outcomes[1]?.['text']).toBe(outcomes[0]?.['text'])
+        expect(outcomes[2]?.['text']).toBe('Usage: /fast [on|off|status]')
+        expect(outcomes[3]?.['text']).not.toBe(outcomes[0]?.['text'])
+        const wireEvents = notifications.flatMap(notification => {
+          const event = notificationEvent(notification)
+          return event === undefined ? [] : [event]
+        })
+        // Preserve command pairing ids without enabling unrelated feedback fixtures.
+        const redacted = redactSessionSnapshotIds([
+          [JSON.stringify(ordered[0]!.header), ...wireEvents.map(event => JSON.stringify(event))].join('\n') + '\n',
+        ])[0]!
+        const normalizedEvents = records(scrubModelRequestBulk(normalizeSessionLog(
+          redacted, actualContext, { identityMode: 'preserve' },
+        ))).slice(1)
+        let wireIndex = 0
+        const wire = notifications.map(notification => ({
+          method: notification.method,
+          params: {
+            ...notification.params,
+            ...notification.method === 'session.event' ? { event: normalizedEvents[wireIndex++] } : {},
+          },
+        }))
+        const normalizedWire = normalizeStdout(
+          (wire.map(frame => JSON.stringify(frame)).join('\n') + '\n')
+            .replaceAll(String(ordered[0]!.header.id), '{{session:1}}'),
+          actualContext, { identityMode: 'preserve' },
+        )
+        const wirePath = join(scenarioDir, 'typescript.notifications.expected.jsonl')
+        const resultPath = join(scenarioDir, 'typescript.result.expected.json')
+        const normalizedRun = normalizeStdout((JSON.stringify({
+          sessionId: results.at(-1)?.sessionId, finalResponse: results.at(-1)?.finalResponse,
+        }) + '\n').replaceAll(String(ordered[0]!.header.id), '{{session:1}}'),
+        actualContext, { identityMode: 'preserve' })
+        if (refreshing) {
+          await writeFile(wirePath, normalizedWire)
+          await writeFile(resultPath, normalizedRun)
+        }
+        expect(records(normalizedWire), 'complete fast-mode SDK notifications').toEqual(records(await readFile(wirePath, 'utf8')))
+        expect(normalizedRun, 'fast-mode SDK result').toBe(await readFile(resultPath, 'utf8'))
       }
       if (scenario.name === 'tool-scheduler-recovery') {
         expect(results).toHaveLength(2)
