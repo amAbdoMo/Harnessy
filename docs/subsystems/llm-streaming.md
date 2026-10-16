@@ -789,6 +789,8 @@ The loop builds each request from logged state. `EpochHeader` records call confi
 
 On the wire, a loop-built request is the derived history alone: the rendered prompt travels as the leading `system`-role message (surface node 0, a `system/message` event) and, when the prepared call declares `systemPromptUpdate: 'in-history'`, a non-empty changed prompt may follow the cached history as a later `system`-role message that the model reads as the effective prompt; the request's `system` field is unset — `GenerateOptions.system` serves direct one-shot callers such as title providers. An empty rendering leaves no system messages in derived history, even when earlier requests retained several prompt versions. The logged request ends with the newest `user/message` on a turn's first step and the previous step's tool results on later steps.
 
+`LlmRuntime.prepareCall(config, signal?, configure?)` detaches the proposal before asynchronous lookup and captures one adapter registration. The optional `ConfigureCall` callback runs once, synchronously, with detached, deeply frozen proposed controls and exact-model metadata from that adapter generation, before defaults and validation. It cannot change the captured provider/model route; callback failure or cancellation rejects preparation before dispatch. Omitted controls receive the route's defaults; absent reasoning choices remain unknown rather than inferred.
+
 FIXME(call-config-shape): revisit which remaining fields are genuinely epoch-level for cache purposes (`model` and the model-owned reasoning effort are explicit; the sampling scalars sit here out of caution).
 
 ```ts type-equiv
@@ -798,14 +800,34 @@ FIXME(call-config-shape): revisit which remaining fields are genuinely epoch-lev
  * the loop builds requests from the logged header rather than accepting these
  * per call.
  */
-interface LlmCallConfig {
+interface LlmCallConfig extends LlmCallControls {
   provider: string
   model: string
+}
+```
+
+```ts type-equiv
+/** Concrete generation settings; omitted controls use the selected route's defaults. */
+interface LlmCallControls {
   reasoningEffort?: ReasoningEffortId
   temperature?: number
   maxTokens?: number
   stop?: string[]
 }
+```
+
+```ts type-equiv
+/**
+ * Synchronous, pure control selection before defaults and validation. The
+ * captured route cannot change; failures reject preparation before dispatch.
+ * @param controls - detached, deeply frozen proposed controls, without defaults.
+ * @param model - detached, deeply frozen metadata from the captured adapter generation.
+ * @returns concrete controls; omitted fields receive the route's defaults.
+ */
+type ConfigureCall = (
+  controls: Readonly<LlmCallControls>,
+  model: Readonly<LlmResolvedModelInfo>,
+) => LlmCallControls
 ```
 
 ```ts type-equiv
@@ -1113,11 +1135,16 @@ async resolveCallConfig(config: LlmCallConfig, signal?: AbortSignal): Promise<Ll
  * Resolve one call under its current adapter registration. The returned
  * one-shot handle keeps that registration across header logging and dispatch,
  * so HMR cannot combine one adapter's capability result with another adapter.
+ * Proposed config is detached before asynchronous lookup. An optional synchronous
+ * callback selects concrete controls using captured metadata before defaults and
+ * validation. Callback failures and cancellation
+ * reject preparation before dispatch.
  * @param config - provider/model route and optional request controls.
  * @param signal - optional cancellation for adapter-owned capability lookup.
+ * @param configure - pure control selection, called once before defaults and validation.
  * @returns a prepared config and its registration-bound stream entry point.
  */
-async prepareCall(config: LlmCallConfig, signal?: AbortSignal): Promise<PreparedLlmCall>
+async prepareCall( config: LlmCallConfig, signal?: AbortSignal, configure?: ConfigureCall, ): Promise<PreparedLlmCall>
 
 /**
  * Stream one model call as raw chunks (token-level deltas). Replay state is

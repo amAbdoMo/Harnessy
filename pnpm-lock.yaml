@@ -12218,6 +12218,9 @@ importers:
       '@deepseek-ai/dsh-session-title':
         specifier: workspace:*
         version: link:../session-title
+      '@deepseek-ai/dsh-session-title-all-prompts-llm':
+        specifier: workspace:*
+        version: link:../session-title-all-prompts-llm
       '@deepseek-ai/dsh-session-title-llm':
         specifier: workspace:*
         version: link:../session-title-llm

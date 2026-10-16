@@ -1731,9 +1731,9 @@ export type Config = ProtocolConfig
 - `source`: [`packages/llm/llm-deepseek-api-key/src/config.ts:10`](../packages/llm/llm-deepseek-api-key/src/config.ts)
 
 ```ts config-catalog
-/** Messages configuration with a per-request API-key reference. */
+/** Messages configuration with an operation-local API-key reference. */
 export interface Config extends ProtocolConfig {
-  /** Credential reference resolved per request; defaults to DEEPSEEK_API_KEY. */
+  /** Credential reference resolved per request and model discovery; defaults to DEEPSEEK_API_KEY. */
   apiKeyEnv: Volatile<string>
 }
 ```

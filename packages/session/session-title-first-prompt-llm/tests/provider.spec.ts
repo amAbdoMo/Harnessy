@@ -86,6 +86,8 @@ describe('first-prompt LLM title provider', () => {
       const content = options.messages[0]?.content[0]
       expect(content?.type === 'text' && content.text).toContain('first input')
       expect(content?.type === 'text' && content.text).not.toContain('second input must be ignored')
+      expect(content?.type === 'text' && content.text).not.toContain('currentTitle')
+      expect(options.system).not.toContain('An existing title is supplied')
     }
     expect(ctx.sessionTitle.get(session)).toMatchObject({ messageSeqs: [first.seq] })
   })

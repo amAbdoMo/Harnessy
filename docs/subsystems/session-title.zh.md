@@ -64,7 +64,7 @@ interface SessionTitleSnapshot extends SessionTitleEventData {
 
 ## 辅助请求记录
 
-共享 LLM 辅助组件会在调用模型前，记录每一项已经过验证且可分发的标题请求。即使后续生成失败，载荷仍会复现模型可见的系统输入与消息输入、路由、输出上限、提供方归属和源消息归因。
+共享 LLM 辅助组件会在绑定注册的分派之前，记录每一项已经过验证和准备的标题请求。即使后续生成失败，载荷仍会复现模型可见的系统输入与消息输入、路由、输出上限、完整的已准备调用配置、提供方归属和源消息归因。`config` 是可选字段，因此旧记录仍然有效；该字段缺失时，未记录的控制项无法重建，也不得推断。
 
 ```ts type-equiv
 /** Exact model-visible request recorded before one auxiliary title dispatch. */
@@ -81,6 +81,8 @@ interface SessionTitleLlmRequestEventData {
   readonly messages: Message[]
   /** Exact auxiliary output-token cap. */
   readonly maxTokens: number
+  /** Exact prepared generation controls; absent in legacy request records. */
+  readonly config?: LlmCallConfig
 }
 ```
 
@@ -112,6 +114,8 @@ interface SessionTitleProviderRequest {
   readonly messages: readonly SessionTitleUserMessage[]
   /** Exact current logged main-request route, when one has been recorded. */
   readonly route?: SessionTitleModelIdentity
+  /** Latest accepted title captured at invocation, including fallback titles; absent before any acceptance. */
+  readonly currentTitle?: SessionTitleSnapshot
   /** Cancellation for supersession, disposal, timeout composition, or the explicit caller. */
   readonly signal: AbortSignal
 }
@@ -138,7 +142,7 @@ interface SessionTitleProvider {
   readonly automatic: SessionTitleAutomaticMode
   /**
    * Produce one title revision.
-   * @param request - message snapshot, current route, session, and cancellation.
+   * @param request - message snapshot, current title, current route, session, and cancellation.
    * @returns proposed title plus exact input seqs and the optional provider/model route used to generate it.
    */
   generate(request: SessionTitleProviderRequest): Promise<SessionTitleProviderResult>

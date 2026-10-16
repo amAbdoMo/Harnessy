@@ -142,6 +142,16 @@
       "source": "packages/llm/llm/src/call-config.ts"
     },
     {
+      "doc": "docs/subsystems/llm-streaming.md",
+      "symbol": "LlmCallControls",
+      "source": "packages/llm/llm/src/call-config.ts"
+    },
+    {
+      "doc": "docs/subsystems/llm-streaming.md",
+      "symbol": "ConfigureCall",
+      "source": "packages/llm/llm/src/call-config.ts"
+    },
+    {
       "doc": "docs/subsystems/core.md",
       "symbol": "Inbox",
       "source": "packages/core/agent/src/runtime-types.ts"

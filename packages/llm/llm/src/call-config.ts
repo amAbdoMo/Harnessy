@@ -6,7 +6,7 @@
  * @module dsh-llm/call-config
  */
 
-import type { GenerateOptions } from './types.ts'
+import type { GenerateOptions, LlmResolvedModelInfo } from './types.ts'
 import type { ReasoningEffortId } from './brand.ts'
 
 /** Process-local identities of request objects assembled by dsh-agent-loop. */
@@ -20,14 +20,30 @@ const AGENT_LOOP_REQUESTS = new WeakSet<GenerateOptions>()
  * the loop builds requests from the logged header rather than accepting these
  * per call.
  */
-export interface LlmCallConfig {
+export interface LlmCallConfig extends LlmCallControls {
   provider: string
   model: string
+}
+
+/** Concrete generation settings; omitted controls use the selected route's defaults. */
+export interface LlmCallControls {
   reasoningEffort?: ReasoningEffortId
   temperature?: number
   maxTokens?: number
   stop?: string[]
 }
+
+/**
+ * Synchronous, pure control selection before defaults and validation. The
+ * captured route cannot change; failures reject preparation before dispatch.
+ * @param controls - detached, deeply frozen proposed controls, without defaults.
+ * @param model - detached, deeply frozen metadata from the captured adapter generation.
+ * @returns concrete controls; omitted fields receive the route's defaults.
+ */
+export type ConfigureCall = (
+  controls: Readonly<LlmCallControls>,
+  model: Readonly<LlmResolvedModelInfo>,
+) => LlmCallControls
 
 /**
  * Effective config fields supplied by exact-model adapter resolution rather

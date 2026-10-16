@@ -86,7 +86,7 @@ Read these pages when the provider contract is not enough. They move from the sh
 
 #### What the model sees
 
-The title model receives the shared title instruction and a JSON array of all eligible human messages through the current revision, in log order with exact seqs. Seeded history is included.
+The title model receives the shared title instruction and a JSON array of all eligible human messages through the current revision, in log order with exact seqs. Seeded history is included. When the latest accepted title is provider-generated, the JSON object also includes `currentTitle`; the instruction asks the model to return its exact wording while it still describes the main topic. Follow-ups, acknowledgements, and requests to continue alone do not justify rewording. Fallback and user titles are not supplied as anchors; explicit refresh remains the deliberate way to unpin a user title.
 
 #### Token effect
 

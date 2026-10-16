@@ -64,7 +64,7 @@ interface SessionTitleSnapshot extends SessionTitleEventData {
 
 ## Auxiliary request record
 
-The shared LLM helper records each validated, dispatchable title request before calling the model. The payload reproduces the model-visible system and message input, routing, output limit, provider ownership, and source-message attribution even when generation later fails.
+The shared LLM helper records each validated, prepared title request before registration-bound dispatch. The payload reproduces the model-visible system and message input, routing, output limit, full prepared call config, provider ownership, and source-message attribution even when generation later fails. `config` is optional so legacy records remain valid; when it is absent, unrecorded controls cannot be reconstructed or inferred.
 
 ```ts type-equiv
 /** Exact model-visible request recorded before one auxiliary title dispatch. */
@@ -81,6 +81,8 @@ interface SessionTitleLlmRequestEventData {
   readonly messages: Message[]
   /** Exact auxiliary output-token cap. */
   readonly maxTokens: number
+  /** Exact prepared generation controls; absent in legacy request records. */
+  readonly config?: LlmCallConfig
 }
 ```
 
@@ -112,6 +114,8 @@ interface SessionTitleProviderRequest {
   readonly messages: readonly SessionTitleUserMessage[]
   /** Exact current logged main-request route, when one has been recorded. */
   readonly route?: SessionTitleModelIdentity
+  /** Latest accepted title captured at invocation, including fallback titles; absent before any acceptance. */
+  readonly currentTitle?: SessionTitleSnapshot
   /** Cancellation for supersession, disposal, timeout composition, or the explicit caller. */
   readonly signal: AbortSignal
 }
@@ -138,7 +142,7 @@ interface SessionTitleProvider {
   readonly automatic: SessionTitleAutomaticMode
   /**
    * Produce one title revision.
-   * @param request - message snapshot, current route, session, and cancellation.
+   * @param request - message snapshot, current title, current route, session, and cancellation.
    * @returns proposed title plus exact input seqs and the optional provider/model route used to generate it.
    */
   generate(request: SessionTitleProviderRequest): Promise<SessionTitleProviderResult>

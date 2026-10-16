@@ -795,6 +795,8 @@ type LlmModelCapabilityLookup = (
 
 在协议中，循环构建的请求只有派生历史：渲染后的提示词作为开头的 `system` 角色消息（surface 第 0 号节点，即一个 `system/message` 事件）传输，并且当已准备调用声明 `systemPromptUpdate: 'in-history'` 时，变化后的非空提示词可以作为后续的 `system` 角色消息跟在已缓存历史之后，由模型读作有效提示词；请求的 `system` 字段不设置——`GenerateOptions.system` 服务于标题提供方等直接单次调用方。空渲染文本使派生历史不包含任何系统消息，即使先前请求保留了多个提示词版本。已记录的请求会以最新的 `user/message`（轮次首步）或上一步的工具结果（后续步骤）结尾。
 
+`LlmRuntime.prepareCall(config, signal?, configure?)` 会在异步查找前分离提议，并捕获一项适配器注册。可选的 `ConfigureCall` 回调在默认值填入和校验之前同步执行一次，接收已分离且深度冻结的提议控制项，以及来自该适配器代次的确切模型元数据。它不能更改已捕获的提供方／模型路由；回调失败或取消会在分派前使准备过程拒绝。省略的控制项使用路由默认值；缺失的推理选项仍表示未知，不会被推断。
+
 FIXME(call-config-shape)：重新审视其余哪些字段出于缓存目的确实属于 epoch 层级（`model` 和模型持有的推理强度已明确属于；采样标量目前出于谨慎保留在此）。
 
 ```ts type-equiv
@@ -804,14 +806,34 @@ FIXME(call-config-shape)：重新审视其余哪些字段出于缓存目的确�
  * the loop builds requests from the logged header rather than accepting these
  * per call.
  */
-interface LlmCallConfig {
+interface LlmCallConfig extends LlmCallControls {
   provider: string
   model: string
+}
+```
+
+```ts type-equiv
+/** Concrete generation settings; omitted controls use the selected route's defaults. */
+interface LlmCallControls {
   reasoningEffort?: ReasoningEffortId
   temperature?: number
   maxTokens?: number
   stop?: string[]
 }
+```
+
+```ts type-equiv
+/**
+ * Synchronous, pure control selection before defaults and validation. The
+ * captured route cannot change; failures reject preparation before dispatch.
+ * @param controls - detached, deeply frozen proposed controls, without defaults.
+ * @param model - detached, deeply frozen metadata from the captured adapter generation.
+ * @returns concrete controls; omitted fields receive the route's defaults.
+ */
+type ConfigureCall = (
+  controls: Readonly<LlmCallControls>,
+  model: Readonly<LlmResolvedModelInfo>,
+) => LlmCallControls
 ```
 
 ```ts type-equiv
@@ -1119,11 +1141,16 @@ async resolveCallConfig(config: LlmCallConfig, signal?: AbortSignal): Promise<Ll
  * Resolve one call under its current adapter registration. The returned
  * one-shot handle keeps that registration across header logging and dispatch,
  * so HMR cannot combine one adapter's capability result with another adapter.
+ * Proposed config is detached before asynchronous lookup. An optional synchronous
+ * callback selects concrete controls using captured metadata before defaults and
+ * validation. Callback failures and cancellation
+ * reject preparation before dispatch.
  * @param config - provider/model route and optional request controls.
  * @param signal - optional cancellation for adapter-owned capability lookup.
+ * @param configure - pure control selection, called once before defaults and validation.
  * @returns a prepared config and its registration-bound stream entry point.
  */
-async prepareCall(config: LlmCallConfig, signal?: AbortSignal): Promise<PreparedLlmCall>
+async prepareCall( config: LlmCallConfig, signal?: AbortSignal, configure?: ConfigureCall, ): Promise<PreparedLlmCall>
 
 /**
  * Stream one model call as raw chunks (token-level deltas). Replay state is

@@ -147,6 +147,9 @@ describe('SessionTitleService Provider lifecycle', () => {
     await settle()
 
     expect(requests).toHaveLength(1)
+    expect(requests[0]?.currentTitle).toEqual(expect.objectContaining({ source: { kind: 'fallback' } }))
+    expect(Object.isFrozen(requests[0]?.currentTitle)).toBe(true)
+    expect(Object.isFrozen(requests[0]?.currentTitle?.messageSeqs)).toBe(true)
     expect(requests[0]).toMatchObject({
       session,
       messages: [{ seq: first.seq, text: 'Explain asynchronous title generation' }],
@@ -167,8 +170,11 @@ describe('SessionTitleService Provider lifecycle', () => {
     await settle()
     expect(requests).toHaveLength(1)
 
+    const accepted = ctx.sessionTitle.get(session)
     await ctx.sessionTitle.refresh(session)
     expect(requests).toHaveLength(2)
+    expect(requests[1]?.currentTitle).toEqual(accepted)
+    expect(requests[0]?.currentTitle?.source.kind).toBe('fallback')
     expect(requests[1]?.messages.map(message => message.seq)).toEqual([first.seq, second.seq])
   })
 

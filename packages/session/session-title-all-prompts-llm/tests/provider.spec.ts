@@ -1,5 +1,5 @@
 import { Context } from '@deepseek-ai/cordis'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import LlmRuntime, { createUserMessage, LlmAdapter  } from '@deepseek-ai/dsh-llm'
 import type { GenerateOptions, StreamChunk } from '@deepseek-ai/dsh-llm'
 import SessionStore, { Session, SessionId } from '@deepseek-ai/dsh-session'
@@ -17,6 +17,13 @@ class RecordingAdapter extends LlmAdapter {
     yield { type: 'finish', reason: { kind: 'stop' } }
   }
 }
+
+let context: Context | undefined
+
+afterEach(async () => {
+  await context?.fiber.dispose()
+  context = undefined
+})
 
 const TITLE_CONFIG = { fallbackMaxWords: 5, fallbackMaxBytes: 40, maxTitleBytes: 80 } as const
 const LLM_CONFIG = {
@@ -44,6 +51,7 @@ describe('all-messages LLM title provider', () => {
     seeded.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
 
     const ctx = new Context()
+    context = ctx
     await ctx.plugin(LlmRuntime)
     await ctx.plugin(SessionStore)
     await ctx.plugin(SessionProjectionRegistry)
@@ -74,5 +82,30 @@ describe('all-messages LLM title provider', () => {
     expect(ctx.sessionTitle.get(session)).toMatchObject({
       messageSeqs: [inherited.seq, latest.seq],
     })
+    expect(content?.type === 'text' && content.text).not.toContain('currentTitle')
+
+    const followup = session.append('user/message', createUserMessage({
+      content: [{ type: 'text', text: 'thanks' }], source: { kind: 'user' },
+    }), { surfaceOp: 'append' })
+    await settle()
+    session.append('request/header', {
+      header: { config: { provider: 'current-route', model: 'current-model' } }, reason: 'change',
+    })
+    await settle()
+    const anchored = adapter.requests[1]?.messages[0]?.content[0]
+    expect(anchored?.type === 'text' && anchored.text).toBe(`Update the session title from this JSON object:\n${JSON.stringify({
+      currentTitle: 'All messages model title',
+      messages: [
+        { seq: inherited.seq, text: 'inherited prompt' }, { seq: latest.seq, text: 'latest prompt' },
+        { seq: followup.seq, text: 'thanks' },
+      ],
+    })}`)
+    expect(adapter.requests[1]?.system).toContain('return it exactly unchanged')
+    expect(ctx.sessionTitle.get(session)?.title).toBe('All messages model title')
+
+    ctx.sessionTitle.rename(session, 'Pinned user title')
+    await ctx.sessionTitle.refresh(session)
+    const unpinned = adapter.requests[2]?.messages[0]?.content[0]
+    expect(unpinned?.type === 'text' && unpinned.text).not.toContain('currentTitle')
   })
 })

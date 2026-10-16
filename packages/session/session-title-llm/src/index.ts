@@ -14,7 +14,7 @@ declare module '@deepseek-ai/dsh-llm' {
   }
 }
 
-import type { FinishReason, GenerateOptions, Message } from '@deepseek-ai/dsh-llm'
+import type { FinishReason, GenerateOptions, LlmCallConfig, LlmResolvedModelInfo, Message, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import { deadline, MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import { deepFreeze } from '@deepseek-ai/dsh-util-values'
 import type { SessionSeq } from '@deepseek-ai/dsh-session'
@@ -44,6 +44,8 @@ export interface SessionTitleLlmRequestEventData {
   readonly messages: Message[]
   /** Exact auxiliary output-token cap. */
   readonly maxTokens: number
+  /** Exact prepared generation controls; absent in legacy request records. */
+  readonly config?: LlmCallConfig
 }
 
 declare module '@deepseek-ai/dsh-session/types' {
@@ -172,7 +174,10 @@ export function registerSessionTitleLlmProvider(
     id: titleProvider,
     automatic,
     async generate(request) {
-      return generateSessionTitleWithLlm(ctx, resolved, request, selectMessages(request.messages), titleProvider)
+      const anchor = automatic === 'all-prompts' && request.currentTitle?.source.kind === 'provider'
+        ? request.currentTitle.title
+        : undefined
+      return generateSessionTitleWithLlm(ctx, resolved, request, selectMessages(request.messages), titleProvider, anchor)
     },
   })
 }
@@ -192,18 +197,46 @@ function resolveRoute(
 }
 
 /** Stable language-aware system instruction shared by both provider plugins. */
-function systemPrompt(config: ResolvedSessionTitleLlmConfig): string {
+function systemPrompt(config: ResolvedSessionTitleLlmConfig, hasCurrentTitle: boolean): string {
   return [
     'Create a concise title for an AI coding-assistant session from the supplied human messages.',
     'Return only the title on one line, **in plain text of natural language**, with no quotes, prefix, explanation, Markdown, XML, or terminal control codes. No code is allowed.',
     'Use the language of the messages.',
     `Aim for about ${config.targetWords} words in non-CJK languages or ${config.targetCjkCharacters} CJK characters.`,
+    'If the messages give little to name, still return a short best-effort title, such as Greeting, instead of explaining.',
+    ...hasCurrentTitle ? [
+      'An existing title is supplied as currentTitle. If it still accurately describes the main topic or task, return it exactly unchanged.',
+      'Follow-up questions, additional details within the same topic, acknowledgements such as "thanks", and requests to continue do not by themselves justify a title change.',
+      'Do not reword, polish, shorten, or replace synonyms in an adequate title. Keeping its exact wording takes priority over the target length.',
+      'Change the title only when the messages materially change or expand the main topic or task so that the existing title is no longer accurate.',
+    ] : [],
   ].join('\n')
 }
 
 /** Frame exact messages as JSON so user text cannot break structural delimiters. */
-function frameMessages(messages: readonly SessionTitleUserMessage[]): string {
+function frameMessages(messages: readonly SessionTitleUserMessage[], currentTitle?: string): string {
+  if (currentTitle !== undefined) {
+    return `Update the session title from this JSON object:\n${JSON.stringify({ currentTitle, messages })}`
+  }
   return `Generate the session title from this JSON array of human messages:\n${JSON.stringify(messages)}`
+}
+
+/** Prefer supported low reasoning; otherwise use the adapter's first advertised effort. */
+function selectTitleReasoningEffort(model: Readonly<LlmResolvedModelInfo>): ReasoningEffortId | undefined {
+  const efforts = model.reasoning?.efforts
+  return (efforts?.find(effort => effort.id === 'low') ?? efforts?.[0])?.id
+}
+
+/** Asterisk emphasis wrapping an entire title line. */
+const EMPHASIS_WRAPPER = /^(?<marker>\*{1,3})(?<inner>\S(?:.*\S)?)\k<marker>$/u
+
+/** Use the first non-empty line and remove only whole-line asterisk emphasis. */
+function titleFromOutput(text: string): string {
+  const line = text.split(/\r?\n/u).map(item => item.trim()).find(item => item.length > 0) ?? ''
+  const groups = EMPHASIS_WRAPPER.exec(line)?.groups
+  const marker = groups?.['marker']
+  const inner = groups?.['inner']
+  return marker === undefined || inner === undefined || inner.includes(marker) ? line : inner
 }
 
 /** Translate terminal finish reasons into an auxiliary-call failure. */
@@ -233,7 +266,8 @@ function finishError(finish: FinishReason): Error | undefined {
  * @param request - service-owned session, route, message snapshot, and cancellation.
  * @param selectedMessages - exact provider-selected subset to frame and attribute.
  * @param titleProvider - registered title-provider identity recorded with the request.
- * @returns normalized non-empty title, exact source seqs, and used model route.
+ * @param currentTitle - optional provider-generated title to retain when it still describes the messages.
+ * @returns normalized first-line title, exact source seqs, and used model route.
  */
 export async function generateSessionTitleWithLlm(
   ctx: Context,
@@ -241,12 +275,13 @@ export async function generateSessionTitleWithLlm(
   request: SessionTitleProviderRequest,
   selectedMessages: readonly SessionTitleUserMessage[],
   titleProvider: SessionTitleProviderId,
+  currentTitle?: string,
 ): Promise<SessionTitleProviderResult> {
   request.signal.throwIfAborted()
   if (selectedMessages.length === 0) {
     throw new Error('session-title-llm: at least one source message is required')
   }
-  const framedInput = frameMessages(selectedMessages)
+  const framedInput = frameMessages(selectedMessages, currentTitle)
   const inputBytes = Buffer.byteLength(framedInput, 'utf8')
   if (inputBytes > config.maxInputBytes) {
     throw new Error(`session-title-llm: input is ${inputBytes} bytes, exceeding maxInputBytes ${config.maxInputBytes}`)
@@ -256,14 +291,17 @@ export async function generateSessionTitleWithLlm(
     content: [{ type: 'text', text: framedInput }],
     source: { kind: 'dsh-session-title-llm' },
   })]
-  const system = systemPrompt(config)
+  const system = systemPrompt(config, currentTitle !== undefined)
   using callDeadline = deadline(request.signal, config.timeoutMs, SESSION_TITLE_TIMEOUT_CODE)
+  const call = await ctx.llm.prepareCall({ ...route, maxTokens: config.maxOutputTokens }, callDeadline.signal, (controls, model) => {
+    const effort = selectTitleReasoningEffort(model)
+    return { ...controls, ...effort === undefined ? {} : { reasoningEffort: effort } }
+  })
+  callDeadline.signal.throwIfAborted()
   const options: GenerateOptions = deepFreeze({
-    provider: route.provider,
-    model: route.model,
+    ...call.config,
     messages,
     system,
-    maxTokens: config.maxOutputTokens,
     sessionId: request.session.id,
     purpose: 'session-title',
     signal: callDeadline.signal,
@@ -275,10 +313,11 @@ export async function generateSessionTitleWithLlm(
     system,
     messages,
     maxTokens: config.maxOutputTokens,
+    config: call.config,
   })
   callDeadline.signal.throwIfAborted()
   const assembler = new BlockAssembler()
-  for await (const chunk of ctx.llm.stream(options)) {
+  for await (const chunk of call.stream(options)) {
     callDeadline.signal.throwIfAborted()
     assembler.push(chunk)
   }
@@ -293,7 +332,7 @@ export async function generateSessionTitleWithLlm(
     .filter((block): block is Extract<(typeof blocks)[number], { type: 'text' }> => block.type === 'text')
     .map(block => block.text)
     .join(' ')
-  const title = normalizeSessionTitle(text, Number.MAX_SAFE_INTEGER)
+  const title = normalizeSessionTitle(titleFromOutput(text), Number.MAX_SAFE_INTEGER)
   if (title.length === 0) throw new Error('session-title-llm: title model produced no text')
   return {
     title,

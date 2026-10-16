@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use `dsh-session-title` to give each session a client-visible title from the first eligible human message, an optional asynchronous generator, or an explicit user rename. Accepted titles persist through replay, resume, and paging but never enter model input. Automatic generation never delays the main agent response, and newer title requests supersede older work. Choose the package when clients need durable titles with configurable length limits and a deliberate `refresh()` path for regenerating them.
+Use `dsh-session-title` to give each session a client-visible title from the first eligible human message, an optional asynchronous generator, or an explicit user rename. Accepted titles persist through replay, resume, and paging but never enter the main agent's model input. Automatic generation never delays the main agent response, and newer title requests supersede older work. Choose the package when clients need durable titles with configurable length limits and a deliberate `refresh()` path for regenerating them.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ Use `dsh-session-title` to give each session a client-visible title from the fir
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount the service to give sessions titles that clients can display and that never reach the model. The common path is explicit: load the session store, mount the service with its required limits, and optionally mount one provider plugin.
+Mount the service to give sessions titles that clients can display and that never reach the main agent's model. The common path is explicit: load the session store, mount the service with its required limits, and optionally mount one provider plugin.
 
 ### Choosing a title source
 
@@ -76,7 +76,7 @@ This section explains the title design; the observable behavior is fully covered
 
 ### Design concept
 
-Titles are durable, log-only state: every accepted revision is a `session/title` event, and `foldSessionTitle()` selects the latest, so a title survives replay, resume, and paging exactly like any other session event. The service owns scheduling, supersession, and acceptance; providers own generation.
+Titles are durable, log-only state: every accepted revision is a `session/title` event, and `foldSessionTitle()` selects the latest, so a title survives replay, resume, and paging exactly like any other session event. The service owns scheduling, supersession, and acceptance; providers own generation. Each provider invocation receives the latest accepted title as an immutable `currentTitle` snapshot, including an existing fallback; this process-local input adds no persisted fields.
 
 ### Source map
 
@@ -118,7 +118,7 @@ Read these pages when the service contract is not enough. They move from the sub
 
 #### What the model sees
 
-Nothing. `session/title` is log-only and never enters the session surface, `deriveMessages()`, system prompt, tool schemas, or request prefix.
+Nothing in the main agent request. `session/title` is log-only and never enters the session surface, `deriveMessages()`, system prompt, tool schemas, or request prefix. A provider may use the captured title in its separate auxiliary request.
 
 #### Token effect
 

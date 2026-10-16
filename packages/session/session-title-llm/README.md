@@ -62,7 +62,7 @@ This section explains the generation path; the observable behavior is fully cove
 
 ### Design concept
 
-One shared policy so provider plugins cannot drift: config validation, route resolution, prompt framing, budget enforcement, cancellation, and output validation all live here, parameterized only by the provider's cadence and message selector.
+The shared policy owns config validation, route resolution, prompt framing, budget enforcement, cancellation, and output validation. Each auxiliary call binds model metadata and dispatch to one adapter generation, selecting advertised `low` reasoning when available or the first advertised effort otherwise; routes without reasoning metadata receive no explicit effort. This does not change the main conversation's controls. Output uses the first non-empty line, removes whole-line asterisk emphasis, then applies the title service's text normalization.
 
 ### Source map
 
@@ -72,7 +72,7 @@ One shared policy so provider plugins cannot drift: config validation, route res
 
 ### Request flow
 
-A generation validates the config once at registration; each revision frames the selected messages as JSON, measures the framed prompt's UTF-8 bytes against `maxInputBytes`, resolves the route (the explicit pair or the logged `request/header`), appends a log-only `session/title-llm-request` event carrying the exact dispatchable request, then streams through `ctx.llm` under a composed timeout and cancellation deadline. The dispatched envelope carries `purpose: 'session-title'` and deliberately lacks the agent loop's process-local request identity; the DeepSeek adapter maps that purpose to thinking-disabled so the small output budget is reserved for visible title text, and other adapters own their purpose-specific behavior. Output assembles into text blocks only; tool calls, malformed or empty output, and non-stop finish reasons reject, and a later model failure leaves the request record intact.
+The helper validates the config once at registration. Each revision frames the selected messages as JSON, measures the framed prompt's UTF-8 bytes against `maxInputBytes`, resolves the route (the explicit pair or the logged `request/header`), and prepares one call through `ctx.llm.prepareCall` under a composed timeout and cancellation deadline. Its synchronous control callback selects reasoning from the captured model metadata before defaults and validation. Before dispatch through `call.stream`, the helper appends a log-only `session/title-llm-request` event carrying the route, prompts, source seqs, output cap, and full prepared `call.config`, including any selected reasoning effort and materialized defaults. The dispatched envelope carries `purpose: 'session-title'` and deliberately lacks the agent loop's process-local request identity; the DeepSeek adapter maps that purpose to thinking-disabled so the small output budget is reserved for visible title text, and other adapters own their purpose-specific behavior. Output assembles into text blocks only; tool calls, malformed or empty output, and non-stop finish reasons reject, and a later model failure leaves the request record intact.
 
 </details>
 
@@ -98,7 +98,7 @@ Read these pages when the generation policy is not enough. They move from the se
 
 #### What the model sees
 
-The title model receives a fixed system instruction to return one concise unadorned title in the input language, including the configured word and CJK-character targets. Its one user message contains a JSON array of the exact selected human messages and their seqs.
+The title model receives a fixed system instruction to return one concise unadorned title in the input language, including the configured word and CJK-character targets. Its one user message contains a JSON array of the exact selected human messages and their seqs. Only the optional all-prompts strategy supplies an existing provider-generated title in a JSON object and asks the model to retain adequate wording exactly; first-prompt generation and explicit first-prompt refresh do not anchor to an existing title.
 
 #### Token effect
 
@@ -116,6 +116,7 @@ No main-request invalidation. Auxiliary cache reuse is provider-specific; the fi
 These limits define the accepted generation shapes. They are current package constraints.
 
 - **Text output only** — the helper accepts text output and rejects tool calls; structured-output adapters and provider-specific prompt variants are not exposed.
+- **Legacy request controls are incomplete** — `config` is absent in legacy auxiliary request records, which remain valid; unrecorded reasoning effort and other controls cannot be reconstructed or inferred.
 - **Whole-prompt byte ceiling** — it enforces a byte ceiling for the whole framed user prompt rather than clipping individual messages or applying a retention policy.
 
 <a id="dev-note"></a>

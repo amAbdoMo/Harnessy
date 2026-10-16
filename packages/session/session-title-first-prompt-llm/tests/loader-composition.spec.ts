@@ -11,7 +11,9 @@ import type { GenerateOptions, StreamChunk } from '@deepseek-ai/dsh-llm'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import SessionTitleService from '@deepseek-ai/dsh-session-title'
-import * as providerPlugin from '@deepseek-ai/dsh-session-title-first-prompt-llm'
+import * as firstPromptProvider from '@deepseek-ai/dsh-session-title-first-prompt-llm'
+import * as allPromptsProvider from '@deepseek-ai/dsh-session-title-all-prompts-llm'
+import { turnBoundaryProjectionDefinition } from '@deepseek-ai/dsh-agent-loop'
 
 let root: string | undefined
 let context: Context | undefined
@@ -33,7 +35,7 @@ afterEach(async () => {
   root = undefined
 })
 
-async function loadComposition(): Promise<Context> {
+async function loadComposition(cadence: 'first-prompt' | 'all-prompts'): Promise<Context> {
   root = await mkdtemp(join(tmpdir(), 'dsh-title-loader-'))
   const configPath = join(root, 'cordis.yml')
   await writeFile(configPath, [
@@ -45,7 +47,7 @@ async function loadComposition(): Promise<Context> {
     '    fallbackMaxWords: 5',
     '    fallbackMaxBytes: 40',
     '    maxTitleBytes: 80',
-    "- name: '@deepseek-ai/dsh-session-title-first-prompt-llm'",
+    `- name: '@deepseek-ai/dsh-session-title-${cadence}-llm'`,
     '  config:',
     '    targetWords: 5',
     '    targetCjkCharacters: 10',
@@ -66,7 +68,8 @@ async function loadComposition(): Promise<Context> {
     ['@deepseek-ai/dsh-session', SessionStore],
     ['@deepseek-ai/dsh-session-projection', SessionProjectionRegistry],
     ['@deepseek-ai/dsh-session-title', SessionTitleService],
-    ['@deepseek-ai/dsh-session-title-first-prompt-llm', providerPlugin],
+    ['@deepseek-ai/dsh-session-title-first-prompt-llm', firstPromptProvider],
+    ['@deepseek-ai/dsh-session-title-all-prompts-llm', allPromptsProvider],
   ])
   context.loader.internal = {
     version: 'v2',
@@ -80,12 +83,13 @@ async function loadComposition(): Promise<Context> {
     config: { path: pathToFileURL(configPath).href },
   })
   await context.loader.await()
+  context.sessionProjections.register(turnBoundaryProjectionDefinition)
   return context
 }
 
 describe('session-title Loader composition', () => {
-  it('loads the service and one model provider with required deployment policy', async () => {
-    const ctx = await loadComposition()
+  it.each(['first-prompt', 'all-prompts'] as const)('loads the %s provider and retains its configured anchoring policy', async (cadence) => {
+    const ctx = await loadComposition(cadence)
     const unloaded = [...ctx.loader.entries()]
       .filter(entry => entry.fiber === undefined && !entry.disabled)
       .map(entry => entry.options.name)
@@ -114,9 +118,24 @@ describe('session-title Loader composition', () => {
       messageSeqs: [message.seq],
       source: {
         kind: 'provider',
-        provider: 'session-title-first-prompt-llm',
+        provider: `session-title-${cadence}-llm`,
         model: { provider: 'title-route', model: 'title-model' },
       },
+    })
+    await ctx.sessionTitle.refresh(session)
+    expect(adapter.requests).toHaveLength(2)
+    const input = adapter.requests[1]?.messages[0]?.content[0]
+    if (input?.type !== 'text') throw new Error('expected title input')
+    const messages = [{ seq: message.seq, text: 'Compose a title through Loader' }]
+    expect(input.text).toBe(cadence === 'all-prompts'
+      ? `Update the session title from this JSON object:\n${JSON.stringify({ currentTitle: 'Loader composed title', messages })}`
+      : `Generate the session title from this JSON array of human messages:\n${JSON.stringify(messages)}`)
+    expect(adapter.requests[1]?.system?.includes('An existing title is supplied')).toBe(cadence === 'all-prompts')
+    const recorded = session.snapshotEvents().filter(event => event.type === 'session/title-llm-request').at(-1)
+    expect(recorded?.data).toMatchObject({
+      config: { provider: 'title-route', model: 'title-model', maxTokens: 32 },
+      messages: adapter.requests[1]?.messages,
+      system: adapter.requests[1]?.system,
     })
   })
 })

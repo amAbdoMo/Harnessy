@@ -1,0 +1,28 @@
+# Bilingual-pair consistency record for 2026-10-16-title-prepared-call-config.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/persistence-changes/2026-10-16-title-prepared-call-config.md
+/:
+  en: 3d5a424ae7d7e46b
+  zh: c22a8e4a62d8cc1a
+/2026-10-16-title-prepared-call-config:
+  en: da780e0e64628c61
+  zh: d48026f2545ab682
+/2026-10-16-title-prepared-call-config/summary:
+  en: ece3ceb8f96d4702
+  zh: 54ec1fcf9c220a80
+/2026-10-16-title-prepared-call-config/table-of-contents:
+  en: 6cf314a069ceb451
+  zh: 9adff678e9ecab3b
+/2026-10-16-title-prepared-call-config/declaration:
+  en: 6907136f28e48c90
+  zh: 02f8298485f3d8e7
+/2026-10-16-title-prepared-call-config/compatibility:
+  en: 1494e4e38cbf9325
+  zh: 5f92ead03c4f33c9
+/2026-10-16-title-prepared-call-config/verification:
+  en: 8f379a246c5d7348
+  zh: b131f08b225120cd
+/2026-10-16-title-prepared-call-config/dev-note:
+  en: b75c8458928b72b9
+  zh: 003ba4e17b4b5269
