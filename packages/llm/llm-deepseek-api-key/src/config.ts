@@ -6,9 +6,9 @@ import type { LaunchEnvironmentSnapshot } from '@deepseek-ai/dsh-launch-environm
 import { deepSeekConfigFields, type Config as ProtocolConfig, plainOptions as protocolOptions, resolveAdapterOptions as resolveProtocolOptions } from '@deepseek-ai/dsh-llm-deepseek'
 import type { Options as ProtocolOptions, DeepSeekConnectionOptions } from '@deepseek-ai/dsh-llm-deepseek'
 
-/** Messages configuration with a per-request API-key reference. */
+/** Messages configuration with an operation-local API-key reference. */
 export interface Config extends ProtocolConfig {
-  /** Credential reference resolved per request; defaults to DEEPSEEK_API_KEY. */
+  /** Credential reference resolved per request and model discovery; defaults to DEEPSEEK_API_KEY. */
   apiKeyEnv: Volatile<string>
 }
 export const Config = z.object({
