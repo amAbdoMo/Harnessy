@@ -1,5 +1,6 @@
 /** Composes viewport operations, reading policy, and history navigation for Chat. */
 import { useCallback, useLayoutEffect, useMemo, useRef, type RefObject } from 'react'
+import type { TranscriptViewMode } from '../../chat-settings.ts'
 import type { ChatSnapshot } from '../contract/snapshot.ts'
 import type { ChatViewSlotProps } from '../contract/slots.ts'
 import { useChatNavigation, type ChatNavigation, type ChatNavigationInput } from './use-chat-navigation.ts'
@@ -16,6 +17,8 @@ export interface ChatScrollInput extends ChatNavigationInput {
   readonly steeringId: string | null
   readonly submissionId: string | null
   readonly running: boolean
+  /** Work-details preference identity for geometry and follow reconciliation. */
+  readonly transcriptView: TranscriptViewMode
   readonly loadedTurns: ReturnType<ChatSnapshot['navigation']['items']>
 }
 
@@ -29,7 +32,8 @@ interface ChatScrollState extends ChatReadingState {
 }
 
 /**
- * Coordinate scroll policy after Chat content commits.
+ * Coordinate scroll policy after Chat content commits. Automatic reading updates
+ * wait for initial history before restoring position or following the tail.
  * New submitted input supersedes pending reader sampling.
  * @param input - current Chat content, scroll memory, and history operations.
  * @returns element refs, visible reading state, and navigation callbacks.
@@ -37,7 +41,7 @@ interface ChatScrollState extends ChatReadingState {
 export function useChatScroll(input: ChatScrollInput): ChatScrollState {
   const {
     ready, order, firstSeq, lastKey, lastIsUser, steeringId, submissionId, running,
-    loadedTurns, chatScroll, hasMore, loadingOlder, loadOlder, loadThrough,
+    loadedTurns, chatScroll, hasMore, loadingOlder, loadOlder, loadThrough, transcriptView,
   } = input
   const { viewport, listRef, columnRef } = useChatViewport()
   const { reading, state } = useChatReading(viewport, chatScroll, loadedTurns.at(-1)?.turn ?? null)
@@ -51,6 +55,7 @@ export function useChatScroll(input: ChatScrollInput): ChatScrollState {
 
   const processContent = useCallback(() => {
     const current = content.current.input
+    if (!current.ready && !content.current.opened) return
     const previous = content.current.applied
     const ownInput = (current.lastIsUser && current.lastKey !== previous?.lastKey)
       || (current.steeringId !== null && current.steeringId !== previous?.steeringId
@@ -78,6 +83,7 @@ export function useChatScroll(input: ChatScrollInput): ChatScrollState {
       || current.firstSeq !== previous.firstSeq || current.lastKey !== previous.lastKey
       || current.order.length !== previous.order.length || current.running !== previous.running
       || current.steeringId !== previous.steeringId || current.submissionId !== previous.submissionId
+      || current.transcriptView !== previous.transcriptView
     if (tipChanged && reading.followingTail) {
       navigation.cancel()
       reading.followTail()
@@ -86,13 +92,17 @@ export function useChatScroll(input: ChatScrollInput): ChatScrollState {
 
   useLayoutEffect(() => {
     const disconnectViewport = viewport.connect({
-      scroll: reading.onScroll,
+      scroll: (event) => {
+        if (content.current.opened) reading.onScroll(event)
+      },
       scrollEnd: () => {
+        if (!content.current.opened) return
         reading.onScrollEnd()
         navigation.readerSettled()
       },
       interact: () => { navigation.cancel() },
       resize: () => {
+        if (!content.current.opened) return
         if (!navigation.contentCommitted()) reading.onResize()
         navigation.reconcile()
       },
@@ -112,16 +122,17 @@ export function useChatScroll(input: ChatScrollInput): ChatScrollState {
   useLayoutEffect(() => {
     const previous = content.current.input
     content.current.input = {
-      ready, order, lastKey, lastIsUser, steeringId, submissionId, running, loadedTurns, chatScroll, ...navigationInput,
+      ready, order, lastKey, lastIsUser, steeringId, submissionId, running, loadedTurns, chatScroll,
+      transcriptView, ...navigationInput,
     }
     viewport.updateTurns(loadedTurns)
-    const layoutChanged = previous.order !== order || previous.ready !== ready
+    const layoutChanged = previous.order !== order || previous.ready !== ready || previous.transcriptView !== transcriptView
     if (layoutChanged) viewport.invalidate()
     processContent()
-    if (layoutChanged) reading.refreshActiveTurn()
+    if (layoutChanged && content.current.opened) reading.refreshActiveTurn()
   }, [
     viewport, reading, processContent, navigationInput, ready, order, lastKey, lastIsUser,
-    steeringId, submissionId, running, loadedTurns, chatScroll,
+    steeringId, submissionId, running, loadedTurns, chatScroll, transcriptView,
   ])
 
   const returnToBottom = useCallback(() => {

@@ -1,15 +1,11 @@
-/**
- * Runtime vocabulary derived from the persisted work-details mode. Renderers
- * and seats select single fields of this policy; none of them compares the
- * mode enum, so adding a mode changes only the table below.
- */
+/** Work-details capabilities for renderers and preference identity for scroll layout. */
 
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { TranscriptViewMode } from '../chat-settings.ts'
 
 /** Presentation capabilities that one work-details mode enables. */
 export interface ChatPresentationPolicy {
-  /** Mode this policy was derived from; for diagnostics, never for branching in renderers. */
+  /** Preference identity for layout invalidation; renderers select the capabilities below. */
   readonly mode: TranscriptViewMode
   /** Whether a normally completed Turn folds its process rows behind the whole-Turn control. */
   readonly foldCompletedTurns: boolean

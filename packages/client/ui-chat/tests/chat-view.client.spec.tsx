@@ -3517,6 +3517,75 @@ describe('ChatView', () => {
     expect(h.chatScroll.read()).toBeNull()
   })
 
+  it.each(['resize', 'scroll', 'history', 'input', 'preference'] as const)(
+    'waits for initial history when returning to a running Session after %s', (change) => {
+      let resize = () => {}
+      class Observer implements ResizeObserver {
+        constructor(private readonly callback: ResizeObserverCallback) {}
+        observe(element: Element): void {
+          if (element.hasAttribute('data-chat-flow')) resize = () => { this.callback([], this) }
+        }
+        unobserve(): void {}
+        disconnect(): void { resize = () => {} }
+      }
+      vi.stubGlobal('ResizeObserver', Observer)
+      const h = makeHarness({ nodes: [user(1, 'q'), assistant(2, 'a')] }, { openState: 'loading', running: true })
+      const view = render(<h.ChatView {...h.props} />)
+      const scroller = view.container.querySelector('[data-chat-flow]')!.parentElement!
+      const metrics = installScrollMetrics(scroller, 1_000, 300)
+      if (change === 'resize') act(() => { resize() })
+      else if (change === 'scroll') fireEvent.scroll(scroller)
+      else if (change === 'history') act(() => { h.setChat({ nodes: [user(1, 'q'), assistant(2, 'updated')] }) })
+      else if (change === 'input') act(() => {
+        h.setSession({ pendingSubmissions: [{
+          requestId: 'loading-input' as never, placement: 'transcript', time: 5_000, text: 'pending', attachments: [],
+        }] })
+      })
+      else act(() => { h.setTranscriptView('verbose') })
+      expect(scroller.scrollTop).toBe(0)
+      act(() => { h.setSession({ openState: 'open' }) })
+      expect(scroller.scrollTop).toBe(700)
+      metrics.setHeight(1_200)
+      act(() => { resize() })
+      expect(scroller.scrollTop).toBe(900)
+      expect(view.queryByLabelText('回到底部')).toBeNull()
+    },
+  )
+
+  it('keeps saved reading memory through loading events before restoring a running Session', () => {
+    const h = makeHarness({ nodes: [user(1, 'q'), assistant(2, 'a')] }, { openState: 'loading', running: true })
+    const saved = { anchorKey: 'unloaded-row', anchorTop: 0, scrollTop: 100 }
+    h.chatScroll.save(saved)
+    const view = render(<h.ChatView {...h.props} />)
+    const scroller = view.container.querySelector('[data-chat-flow]')!.parentElement!
+    installScrollMetrics(scroller, 1_000, 300)
+    fireEvent.scroll(scroller)
+    fireEvent(scroller, new Event('scrollend'))
+    expect(h.chatScroll.read()).toEqual(saved)
+    act(() => { h.setSession({ openState: 'open' }) })
+    expect(scroller.scrollTop).toBe(100)
+    expect(view.getByLabelText('回到底部')).toBeTruthy()
+  })
+
+  it.each(['following', 'away', 'pending'] as const)(
+    'reconciles Work details layout without overriding a %s reader', (position) => {
+      const h = makeHarness({ nodes: [user(1, 'q'), assistant(2, 'a')] })
+      const view = render(<h.ChatView {...h.props} />)
+      const scroller = view.container.querySelector('[data-chat-flow]')!.parentElement!
+      const metrics = installScrollMetrics(scroller, 1_000, 300)
+      readerScroll(scroller, position === 'away' ? 100 : 700)
+      if (position === 'pending') {
+        scroller.scrollTop = 650
+        fireEvent.scroll(scroller)
+      }
+      metrics.setHeight(1_200)
+      act(() => { h.setTranscriptView('verbose') })
+      expect(scroller.scrollTop).toBe(position === 'following' ? 900 : position === 'away' ? 100 : 650)
+      if (position === 'pending') fireEvent(scroller, new Event('scrollend'))
+      expect(view.queryByLabelText('回到底部') !== null).toBe(position !== 'following')
+    },
+  )
+
   it('scrolling away disables follow and shows the back-to-bottom button; clicking returns', () => {
     const h = makeHarness({ nodes: [user(1, 'q'), assistant(2, 'a')] })
     const view = render(<h.ChatView {...h.props} />)
@@ -3653,7 +3722,7 @@ describe('ChatView', () => {
     expect(scroller.scrollTop).toBe(680)
   })
 
-  it('keeps following when reader input reaches the floor before growth and scrollend', () => {
+  it.each([0, 0.4, 0.9, 1])('handles reader input %s px from the floor before growth and scrollend', (distance) => {
     const h = makeHarness({ nodes: [user(1, 'q'), assistant(2, 'a')] })
     const view = render(<h.ChatView {...h.props} />)
     const scroller = view.container.querySelector('[data-chat-flow]')!.parentElement as HTMLDivElement
@@ -3661,15 +3730,15 @@ describe('ChatView', () => {
     readerScroll(scroller, 100)
     expect(view.getByLabelText('回到底部')).toBeTruthy()
 
-    scroller.scrollTop = 700
+    scroller.scrollTop = 700 - distance
     fireEvent.scroll(scroller)
     metrics.setHeight(1_030)
     act(() => { h.setSession({ running: true }) })
     fireEvent(scroller, new Event('scrollend'))
 
-    expect(scroller.scrollTop).toBe(730)
-    expect(view.queryByLabelText('回到底部')).toBeNull()
-    expect(h.chatScroll.read()).toBeNull()
+    expect(scroller.scrollTop).toBe(distance < 1 ? 730 : 699)
+    expect(view.queryByLabelText('回到底部') !== null).toBe(distance >= 1)
+    expect(h.chatScroll.read() === null).toBe(distance < 1)
   })
 
   it('follows a new submission immediately while an earlier scroll sample is pending', () => {
