@@ -46,6 +46,16 @@ it('invalidates payload identity for shared wheels, package versions and package
   expect(primaryRuntimePayloadDigest('mac-arm64', lock, '11.7.1')).not.toBe(original)
 })
 
+it.each([undefined, '11.7.0'])('invalidates pre-pruning payload identity with pnpm %s', (pnpmVersion) => {
+  const { pythonVersion, pythonRelease, nodeVersion, wheels, pythonPackages } = lock
+  const target = 'win-x64'
+  const beforePruning = createHash('sha256').update(JSON.stringify({
+    format: 4, target, pythonVersion, pythonRelease, nodeVersion: pnpmVersion === undefined ? undefined : nodeVersion,
+    artifact: lock.targets[target], wheels, pythonPackages, pnpm: pnpmVersion,
+  })).digest('hex')
+  expect(primaryRuntimePayloadDigest(target, lock, pnpmVersion)).not.toBe(beforePruning)
+})
+
 it('reports missing distribution metadata before trying to execute a stale native payload', async () => {
   const root = await mkdtemp(join(tmpdir(), 'desktop-stale-runtime-'))
   try {
