@@ -504,7 +504,7 @@ describe('PluginManagerPage', () => {
     expect(cards.map(card => card.getAttribute('data-plugin-status'))).toEqual(['disabled', 'running', 'problem', 'running', 'disabled', 'problem'])
     // Each group heads with its title and its bare count; the official bundle carries its beta tag, no official tag.
     expect(screen.getByRole('heading', { name: en.bundlesTitle })).toBeTruthy()
-    expect(screen.getByRole('heading', { name: en.officialTitle })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: en.extensionsTitle })).toBeTruthy()
     expect([...document.querySelectorAll('[data-plugin-count]')].map(count => count.textContent)).toEqual(['1', '5'])
     expect(screen.getAllByText(en.statusBeta)).toHaveLength(1)
     expect(screen.getByRole('switch', { name: en.enableToggle.replace('{name}', '@acme/dsh-tool') })).toHaveProperty('disabled', false)
@@ -856,19 +856,26 @@ describe('PluginManagerPage', () => {
       'plugins.row.config:dsh-better-sidebar#sidebar': view => view === 'summary' ? 'The sidebar row.' : <form aria-label="row form" />,
     }
 
-    it('lists an official plugin after the official bundles with its summary, and opens its page', () => {
-      renderTab(
-        { packages: [pkg({ name: '@deepseek-ai/dsh-experimental-agent-team-profile', installed: false, optional: true, removable: false, enabled: false })] },
+    it('lists built-in configuration before optional bundles without enabling either, and opens its page', () => {
+      const { actions } = renderTab(
+        { packages: [
+          pkg({ name: '@deepseek-ai/dsh-experimental-agent-team-profile', installed: false, optional: true, removable: false, enabled: false }),
+          pkg(),
+        ] },
         { items: [{ id: 'bash', label: 'Shell' }] },
         bodies,
       )
-      const official = document.querySelector('[data-plugin-group="official"]') as HTMLElement
-      expect(within(official).getAllByRole('listitem').map(card => card.getAttribute('data-plugin-item') ?? card.getAttribute('data-plugin-package')))
-        .toEqual(['@deepseek-ai/dsh-experimental-agent-team-profile', 'bash'])
-      expect(document.querySelector('[data-plugin-count]')?.textContent).toBe('2')
-      expect(within(official).getByText('Limits every command.')).toBeTruthy()
-      // An official plugin has no switch of its own: the Host composes it.
-      expect(within(official).queryByRole('switch', { name: en.enableToggle.replace('{name}', 'Shell') })).toBeNull()
+      const basic = document.querySelector('[data-plugin-group="basic"]') as HTMLElement
+      expect(screen.getAllByRole('heading', { level: 3 }).map(heading => heading.textContent))
+        .toEqual([en.basicTitle, en.extensionsTitle, en.bundlesTitle])
+      expect(within(basic).getAllByRole('listitem').map(card => card.getAttribute('data-plugin-item'))).toEqual(['bash'])
+      expect([...document.querySelectorAll('[data-plugin-count]')].map(count => count.textContent)).toEqual(['1', '1', '1'])
+      expect(within(basic).getByText('Limits every command.')).toBeTruthy()
+      expect(within(basic).queryByRole('switch')).toBeNull()
+      expect(screen.getByRole('switch', { name: en.enableToggle.replace('{name}', '@deepseek-ai/dsh-experimental-agent-team-profile') })
+        .getAttribute('aria-checked')).toBe('false')
+      expect(actions.setEnabled).not.toHaveBeenCalled()
+      expect(actions.runInstall).not.toHaveBeenCalled()
       fireEvent.click(screen.getByRole('button', { name: en.openDetail.replace('{name}', 'Shell') }))
       const detail = document.querySelector('[data-plugin-item-detail="bash"]') as HTMLElement
       expect(within(detail).getByRole('heading', { level: 3 }).textContent).toBe('Shell')
@@ -876,7 +883,7 @@ describe('PluginManagerPage', () => {
       expect(within(detail).getByRole('form', { name: 'bash form' })).toBeTruthy()
       fireEvent.click(within(detail).getByRole('button', { name: en.backToList }))
       expect(document.querySelector('[data-plugin-item-detail]')).toBeNull()
-      expect(screen.getByRole('heading', { name: en.officialTitle })).toBeTruthy()
+      expect(screen.getByRole('heading', { name: en.basicTitle })).toBeTruthy()
     })
 
     it('counts an official plugin as content: the empty line waits for a page with nothing at all', () => {

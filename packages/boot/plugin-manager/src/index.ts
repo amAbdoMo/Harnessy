@@ -302,7 +302,7 @@ export class PluginManager extends TypertRemoteService {
       try {
         const info = bundleManifest(name, this.profile.dir, this.profile.installAnchor)
         if (info === undefined) {
-          if (enabled) bundles.push({ name, ...sourceOf(), enabled, installed, optional,
+          if (enabled || (optional && shipped)) bundles.push({ name, ...sourceOf(), enabled, installed, optional,
             removable: removable && readOnlyReason === undefined,
             ...(readOnlyReason === undefined ? {} : { readOnlyReason }), error: { code: 'not-bundle' }, rows: [], overrides: [] })
           continue
@@ -318,7 +318,7 @@ export class PluginManager extends TypertRemoteService {
           ...(readOnlyReason === undefined ? {} : { readOnlyReason }),
           ...this.declaredRows(name, info) })
       } catch (error) {
-        if (enabled || installed) {
+        if (enabled || installed || (optional && shipped)) {
           bundles.push({ name, ...sourceOf(), enabled, installed, optional, removable: removable && readOnlyReason === undefined,
             ...(readOnlyReason === undefined ? {} : { readOnlyReason }), error: managementError(error), rows: [], overrides: [] })
         }

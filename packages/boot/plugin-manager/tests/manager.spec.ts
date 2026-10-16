@@ -1092,6 +1092,29 @@ it.each(OPTIONAL_BUNDLES)('offers %s switched off and never removable', async (o
   expect(await manager.removeBundle(offered)).toMatchObject({ changed: false, application: 'failed' })
 })
 
+it.each(['invalid manifest', 'not a bundle', 'missing patch'])(
+  'reports an unavailable installation-owned optional bundle with %s without activating or installing it', async (failure) => {
+    const { manager, profile } = await fixture()
+    const offered = OPTIONAL_BUNDLES[0]!
+    const supplied = join(profile.home, 'node_modules', offered)
+    writeFileSync(profile.installAnchor, JSON.stringify({ name: 'installation', dependencies: { [offered]: '1.0.0' } }))
+    mkdirSync(supplied, { recursive: true })
+    writeFileSync(join(supplied, 'package.json'), failure === 'invalid manifest' ? '{' : JSON.stringify({
+      name: offered, version: '1.0.0',
+      ...failure === 'not a bundle' ? {} : { dsh: { bundle: { patch: './missing.patch.yml' } } },
+    }))
+    const before = readFileSync(join(profile.dir, 'package.json'), 'utf8')
+    const pnpm = vi.spyOn(operations, 'runProfilePnpm')
+    onTestFinished(() => { pnpm.mockRestore() })
+    expect((await manager.listBundles()).find(row => row.name === offered)).toMatchObject({
+      enabled: false, installed: false, optional: true, removable: false, rows: [], overrides: [],
+      error: { code: failure === 'not a bundle' ? 'not-bundle' : 'operation-error' },
+    })
+    expect(readFileSync(join(profile.dir, 'package.json'), 'utf8')).toBe(before)
+    expect(pnpm).not.toHaveBeenCalled()
+  },
+)
+
 it('removes a selected bundle no dependency holds by deselecting it without pnpm', async () => {
   const { manager, dir } = await fixture()
   const manifest = readProfileManifest('test', dir)
