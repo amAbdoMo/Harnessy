@@ -1,12 +1,12 @@
 import { ToolCallId, createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { ContextFormed } from '@deepseek-ai/dsh-llm'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, onTestFinished } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { type Agent, type AgentOptions } from '@deepseek-ai/dsh-agent'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
-import SubagentRuntime, { snapshotSubagentDescriptor } from '@deepseek-ai/dsh-subagent'
+import SubagentRuntime, { settleRun, snapshotSubagentDescriptor } from '@deepseek-ai/dsh-subagent'
 import { defineContentToolFixture } from '@deepseek-ai/dsh-tools'
 import { maxTokensResponse, MockAdapter, textResponse, toolCallResponse } from '../../../core/agent-loop/tests/mock-adapter.ts'
 import { startInProcessRun } from '../src/index.ts'
@@ -340,6 +340,34 @@ describe('startInProcessRun', () => {
     await expect(run.result).resolves.toMatchObject({ stopReason: 'error' })
     await run.dispose()
   })
+
+  it.each(['error', 'max-tokens', 'refusal', 'completed'] as const)(
+    'preserves a recorded %s when cancellation arrives at the idle notification', async (reason) => {
+      const script = reason === 'max-tokens' ? [maxTokensResponse('partial answer')]
+        : reason === 'completed' ? [textResponse('finished answer')] : []
+      const { ctx, parent } = await setup(script)
+      onTestFinished(async () => { await ctx.fiber.dispose() })
+      const beforeAgents = ctx.agents.list().length
+      const beforeSessions = ctx.sessions.list().length
+      const controller = new AbortController()
+      if (reason === 'refusal') {
+        ctx.on('agent/pre-step', async ({ agent: subject }, next) => subject === parent
+          ? next() : { kind: 'reject' as const })
+      }
+      ctx.on('agent/status', ({ agent: subject, status }) => {
+        if (subject !== parent && status === 'idle') controller.abort('late cancellation')
+      })
+      const run = await startInProcessRun(request(parent, controller.signal), {})
+      await expect(run.result).resolves.toMatchObject({ stopReason: reason })
+      expect(controller.signal.aborted).toBe(true)
+      const terminal = ctx.agents.get(run.id)!.session.snapshotEvents().findLast(event => event.type === 'turn/end')
+      expect(terminal?.type === 'turn/end' && terminal.data.reason.kind).toBe(reason === 'refusal' ? 'blocked' : reason)
+      expect((await settleRun(run)).status).toBe(reason === 'completed' ? 'completed' : 'failed')
+      expect(ctx.agents.get(run.id)).toBeUndefined()
+      expect(ctx.agents.list()).toHaveLength(beforeAgents)
+      expect(ctx.sessions.list()).toHaveLength(beforeSessions)
+    },
+  )
 
   it('uses the request signal after publication and dispose as cancellation paths', async () => {
     const { parent, adapter } = await setup(['hang', 'hang'])
