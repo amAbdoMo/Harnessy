@@ -123,6 +123,7 @@ export async function promptAdmissionComposition() {
     }
   })
   let commands: SessionCommandController | undefined
+  let agentController: ApiSessionAgentController | undefined
   let control: SessionControlController | undefined
   let storage: AdmissionStorage | undefined
   const externalTransport = {
@@ -139,6 +140,7 @@ export async function promptAdmissionComposition() {
     apply(ownerContext: Context) {
       installModelSelectionProjection(ownerContext)
       const agents = new ApiSessionAgentController(ownerContext)
+      agentController = agents
       commands = new SessionCommandController(ownerContext, agents, root)
       control = new SessionControlController(ownerContext)
       ownerContext.effect(() => ownerContext.llm.registerAdapter(['fixture'], model))
@@ -182,14 +184,14 @@ export async function promptAdmissionComposition() {
   await ctx.loader.await()
   const inactive = [...ctx.loader.entries()].filter(entry => entry.fiber === undefined && !entry.disabled)
   if (inactive.length > 0) throw new Error(`unloaded fixture entries: ${inactive.map(entry => entry.options.name).join(', ')}`)
-  if (commands === undefined || control === undefined || storage === undefined) throw new Error('admission owner did not load')
+  if (commands === undefined || control === undefined || storage === undefined || agentController === undefined) throw new Error('admission owner did not load')
   const commandOwner = commands
   const { agent } = await ctx.agents.create({
     sessionId: SessionId('admission-session'), meta: { cwd: root },
     agentOptions: { provider: 'fixture', model: 'fixture-model' },
   })
   return {
-    ctx, agent, control, model, storage,
+    ctx, agent, agents: agentController, control, model, storage,
     barrier: () => {
       const barrier = new AdmissionBarrier()
       barriers.push(barrier)

@@ -1,3 +1,6 @@
+import { brandString } from '@deepseek-ai/dsh-brand'
+import type { SessionRequestId } from '../src/types.ts'
+import { promptAdmissionComposition } from './prompt-admission-composition.ts'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -483,5 +486,43 @@ describe('ApiSession create or adoption', () => {
     writeFileSync(file, 'not a directory')
     await expect(agents.ensureSession(SessionId('mkdir-failure'), join(file, 'child'), false))
       .rejects.toThrow('failed to ensure project directory')
+  })
+})
+
+describe('runtime ownership through source Loader composition', () => {
+  it('rejects ordinary routing to a live owned Agent with no durable lineage', async () => {
+    const b = await promptAdmissionComposition()
+    const { agent: child } = await b.agent.ctx.agents.create({
+      sessionId: SessionId('owned-without-lineage'), parentAgent: b.agent,
+      meta: { cwd: b.agent.session.header.cwd }, agentOptions: { provider: 'fixture', model: 'fixture-model' },
+    })
+    expect(child.session.header.origin).toBeUndefined()
+    expect(child.session.header.parentSession).toBeUndefined()
+    const before = child.session.snapshotEvents()
+    const stream = vi.spyOn(b.model, 'stream')
+    const resolved = await b.agents.resolveAgent(child.id)
+    if ('agent' in resolved) throw new Error('Ordinary routing admitted a runtime-owned child')
+    expect(resolved.error.code).toBe('session/agent-busy')
+    await expect(b.prompt({ sessionId: child.id, requestId: brandString<SessionRequestId>('reject-owned-route'), mode: 'queue',
+      content: [{ type: 'text', text: 'Do not deliver through the ordinary namespace' }],
+    }, () => {})).rejects.toMatchObject({ code: 'session/agent-busy' })
+    expect(child.session.snapshotEvents()).toEqual(before)
+    expect(stream).not.toHaveBeenCalled()
+  })
+
+  it('keeps a runtime root routable when its durable header names a parent', async () => {
+    const b = await promptAdmissionComposition()
+    const { agent: fork } = await b.ctx.agents.create({
+      sessionId: SessionId('ordinary-runtime-fork'),
+      meta: { cwd: b.agent.session.header.cwd, parentSession: b.agent.id },
+      agentOptions: { provider: 'fixture', model: 'fixture-model' },
+    })
+    expect(b.ctx.agents.roots()).toContain(fork)
+    await expect(b.agents.resolveAgent(fork.id)).resolves.toEqual({ agent: fork })
+    await b.prompt({ sessionId: fork.id, requestId: brandString<SessionRequestId>('route-ordinary-fork'), mode: 'queue',
+      content: [{ type: 'text', text: 'Continue this ordinary fork' }],
+    }, () => {})
+    await fork.whenIdle()
+    expect(fork.session.deriveMessages().some(message => message.role === 'assistant')).toBe(true)
   })
 })

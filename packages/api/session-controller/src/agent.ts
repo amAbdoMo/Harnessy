@@ -74,7 +74,7 @@ type InstalledSelection = ModelSelectionRef & {
  * Test whether generic Session routing must leave an identity to subagent routing.
  * @param ctx - Host context carrying the Agent ownership registry.
  * @param session - attached or live Session whose ownership is tested.
- * @param agent - live Agent when one exists for the Session.
+ * @param agent - creation or resume result whose durable origin is checked when available.
  * @returns whether subagent routing owns the Session identity.
  */
 export function hasApiSessionSubagentOwner(
@@ -82,11 +82,9 @@ export function hasApiSessionSubagentOwner(
   session: Pick<Session, 'header'>,
   agent: Agent | undefined,
 ): boolean {
-  if (session.header.origin === 'subagent') return true
-  const parentId = session.header.parentSession
-  if (parentId === undefined || agent === undefined) return false
-  const parent = ctx.agents.get(parentId)
-  return parent !== undefined && ctx.agents.isOwnedBy(agent.id, parent)
+  if (session.header.origin === 'subagent' || agent?.session.header.origin === 'subagent') return true
+  const live = ctx.agents.get(session.header.id)
+  return live !== undefined && (live.session.header.origin === 'subagent' || !ctx.agents.roots().includes(live))
 }
 
 /**
