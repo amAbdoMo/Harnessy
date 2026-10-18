@@ -9,6 +9,7 @@ import { createDevelopmentProjectMetadata, createPluginProfile } from '../src/pr
 import { removeOwnedDirectory } from '../src/owned-directory.ts'
 import { DESKTOP_HOST_PROTOCOL_VERSION } from '../src/host-protocol.ts'
 import { desktopTargetPlatform, developmentRuntimeDirectory, resolveDesktopBuildTarget } from './desktop-build-paths.mjs'
+import { resolveWorkspacePnpm } from '../../../scripts/primary-runtime/workspace-pnpm.ts'
 
 const repo = resolve(import.meta.dirname, '../../..')
 const interactive = process.argv.includes('--interactive')
@@ -20,7 +21,7 @@ const application = join(root, 'app')
 const project = join(application, '.desktop-build/development/project')
 const profile = join(root, 'home/profiles/desktop')
 const manifest = JSON.parse(await readFile(join(repo, 'apps/desktop/package.json'), 'utf8')) as { version: string }
-const pnpm = JSON.parse(await readFile(join(repo, 'apps/desktop/node_modules/pnpm/package.json'), 'utf8')) as { version: string }
+const pnpm = resolveWorkspacePnpm(repo)
 try {
   const require = createRequire(import.meta.url)
   const electron = require('electron') as string

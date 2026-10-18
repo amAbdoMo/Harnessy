@@ -180,6 +180,7 @@ const harness = await vi.hoisted(async () => {
     readonly onWebsiteRevoked = vi.fn((_listener: (snapshot: DesktopWebsiteHostSnapshot) => void) => () => undefined)
     readonly onWebsiteCheck = vi.fn((_listener: (snapshot: DesktopWebsiteHostSnapshot) => void) => () => undefined)
     readonly onWebsitePageInfo = vi.fn<DesktopHostProcess['onWebsitePageInfo']>(() => async () => {})
+    readonly onDevicePreviewRequest = vi.fn<DesktopHostProcess['onDevicePreviewRequest']>(() => () => {})
     readonly websiteControl = vi.fn(
       async (_command: DesktopWebsiteHostCommand): Promise<DesktopWebsiteHostSnapshot | undefined> => undefined,
     )
@@ -544,6 +545,31 @@ afterEach(async () => {
 })
 
 describe('desktop main startup', () => {
+  it('uses the prepared primary-runtime package manager when development has no explicit override', async () => {
+    harness.app.isPackaged = false
+    vi.stubEnv('DSH_DESKTOP_PNPM_ENTRY', undefined)
+    await readyForUpdate()
+    expect(harness.hosts[0]!.packageManager?.pnpm)
+      .toBe(join('test-primary-runtime', 'dependencies', 'pnpm', 'bin', 'pnpm.mjs'))
+  })
+
+  it.each([true, false])('selects the package manager before Host startup (packaged=%s)', async (packaged) => {
+    harness.app.isPackaged = packaged
+    await readyForUpdate()
+    const host = harness.hosts[0]!
+    expect(host.node).toBe(process.execPath)
+    expect(host.primaryRuntime).toBe(packaged
+      ? join('desktop-test-resources', 'runtime', 'primary-runtime') : 'test-primary-runtime')
+    expect(host.packageManager).toEqual({
+      node: process.execPath,
+      dsh: packaged ? join('desktop-test-app', 'dsh') : 'test-runtime',
+      pnpm: packaged
+        ? join('desktop-test-resources', 'runtime', 'primary-runtime', 'dependencies', 'pnpm', 'bin', 'pnpm.mjs')
+        : 'test-pnpm',
+      nodeBin: packaged ? join('desktop-test-resources', 'runtime', 'bin') : join('desktop-test-app', 'scripts', 'node-bin'),
+    })
+  })
+
   it('routes shell update documents and assets through the registered main protocol handler', async () => {
     const root = join(import.meta.dirname, '..')
     vi.spyOn(harness.app, 'getAppPath').mockReturnValue(root)

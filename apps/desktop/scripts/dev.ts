@@ -13,6 +13,7 @@ import { prepareDevelopmentProject } from './development-project.ts'
 import { prepareDevelopmentApp } from './development-app.ts'
 import { preparePrimaryRuntime } from './prepare-primary-runtime.ts'
 import { resolveCustomHarnessPaths } from '../../../scripts/run-custom-harness.ts'
+import { resolveWorkspacePnpm } from '../../../scripts/primary-runtime/workspace-pnpm.ts'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
@@ -146,7 +147,7 @@ async function main(): Promise<void> {
     if (!existsSync(path)) throw new Error(`desktop development: missing built artifact ${path}`)
   }
   const version = packageVersion(join(APP_ROOT, 'package.json'), 'desktop package')
-  const pnpmVersion = packageVersion(join(APP_ROOT, 'node_modules', 'pnpm', 'package.json'), 'pnpm package')
+  const { version: pnpmVersion } = resolveWorkspacePnpm(REPOSITORY_ROOT)
   const release: DesktopRelease = {
     schemaVersion: 1,
     version,

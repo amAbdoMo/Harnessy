@@ -13,6 +13,7 @@ import { x as extractTar } from 'tar'
 import { parsePrimaryRuntime, workspaceDependencyPaths, type PrimaryRuntimeManifest } from '../../packages/skill/tool-workspace-dependencies/src/index.ts'
 import lock from './lock.json' with { type: 'json' }
 import { prunePrimaryRuntimePythonTests } from './prune-python-tests.ts'
+import { resolveWorkspacePnpm } from './workspace-pnpm.ts'
 
 /**
  * Download or reuse an archive only when its bytes match the release lock.
@@ -137,10 +138,9 @@ export async function preparePrimaryRuntime(options: PreparePrimaryRuntimeOption
       cpSync(join(nodeSource, ...(target === 'win-x64' ? ['node.exe'] : ['bin', 'node'])),
         join(dependencies, 'node', 'bin', target === 'win-x64' ? 'node.exe' : 'node'))
       cpSync(join(nodeSource, 'LICENSE'), join(dependencies, 'node', 'LICENSE'))
-      const require = createRequire(import.meta.url)
-      const pnpmManifest = require.resolve('pnpm')
-      pnpmVersion = (JSON.parse(readFileSync(pnpmManifest, 'utf8')) as { version: string }).version
-      await cp(dirname(pnpmManifest), join(dependencies, 'pnpm'), { recursive: true, dereference: true })
+      const pnpm = resolveWorkspacePnpm(resolve(import.meta.dirname, '../..'))
+      pnpmVersion = pnpm.version
+      await cp(pnpm.directory, join(dependencies, 'pnpm'), { recursive: true, dereference: true })
     }
     await extractTar({ file: await pythonArchive(target, paths.downloads), cwd: dependencies })
     const manifest: PrimaryRuntimeManifest = {

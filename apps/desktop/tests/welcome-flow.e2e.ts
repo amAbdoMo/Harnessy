@@ -14,6 +14,7 @@ import { desktopClientMetadata } from '../src/client-metadata.ts'
 import { connectDesktopWelcome, type DesktopWelcomeBackend } from '../src/welcome-backend.ts'
 import { DESKTOP_HOST_PROTOCOL_VERSION } from '../src/host-protocol.ts'
 import { prepareDevelopmentProject } from '../scripts/development-project.ts'
+import { resolveWorkspacePnpm } from '../../../scripts/primary-runtime/workspace-pnpm.ts'
 
 const repository = fileURLToPath(new URL('../../../', import.meta.url))
 const builtHost = join(repository, 'apps/desktop-host/lib/index.js')
@@ -104,7 +105,7 @@ describe.skipIf(!existsSync(builtHost))('built Desktop welcome flow', () => {
         release: {
           schemaVersion: 1,
           version: version(join(repository, 'apps/desktop/package.json')),
-          pnpmVersion: version(join(repository, 'apps/desktop/node_modules/pnpm/package.json')),
+          pnpmVersion: resolveWorkspacePnpm(repository).version,
           nodeVersion: process.versions.node,
           hostProtocolVersion: DESKTOP_HOST_PROTOCOL_VERSION,
         },

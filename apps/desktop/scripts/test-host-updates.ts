@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { createDevelopmentProjectMetadata } from '../src/project-manager.ts'
 import { removeOwnedDirectory } from '../src/owned-directory.ts'
 import { DESKTOP_HOST_PROTOCOL_VERSION } from '../src/host-protocol.ts'
+import { resolveWorkspacePnpm } from '../../../scripts/primary-runtime/workspace-pnpm.ts'
 
 const repo = resolve(import.meta.dirname, '../../..')
 const evidenceRoot = join(repo, 'apps/desktop/.desktop-build/qualification')
@@ -13,7 +14,7 @@ await mkdir(evidenceRoot, { recursive: true })
 const root = await mkdtemp(join(evidenceRoot, 'host-updates-'))
 const project = join(root, 'project')
 const manifest = JSON.parse(await readFile(join(repo, 'apps/desktop/package.json'), 'utf8')) as { version: string }
-const pnpm = JSON.parse(await readFile(join(repo, 'apps/desktop/node_modules/pnpm/package.json'), 'utf8')) as { version: string }
+const pnpm = resolveWorkspacePnpm(repo)
 try {
   createDevelopmentProjectMetadata(project, {
     schemaVersion: 1, version: manifest.version, nodeVersion: process.versions.node,
