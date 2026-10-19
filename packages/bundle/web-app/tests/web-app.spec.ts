@@ -18,6 +18,7 @@ import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import * as AppBoot from '@deepseek-ai/dsh-app-boot'
 import { createLaunchEnvironmentSnapshot, DSH_LAUNCH_ENVIRONMENT_KEY } from '@deepseek-ai/dsh-launch-environment'
+import SessionProjections from '@deepseek-ai/dsh-session-projection'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import type { WebServer } from '@deepseek-ai/dsh-host-webserver'
 import { apply, Config, internals } from '../src/index.ts'
@@ -141,6 +142,7 @@ describe('web-app runtime glue', () => {
     const openBrowser = vi.fn(async (url: string) => { lifecycle.push(`open:${url}`) })
     internals.openBrowser = openBrowser
     apply(ctx, new Config({ openBrowser: true, printUrl: true, surfaceContext: true, trustedHosts: ['lab.internal'] }))
+    await ctx.plugin(SessionProjections)
     await ctx.plugin(SystemPrompt, { personaPrefix: '' })
     // Settle the injected registrations.
     await new Promise(resolve => setTimeout(resolve, 0))
@@ -161,7 +163,11 @@ describe('web-app runtime glue', () => {
     const assembly = await ctx.systemPrompt.assemble()
     expect(assembly.sections.find(entry => entry.name === 'harness:source')?.text).toContain('DeepSeek Harness implementation checkout')
     const section = assembly.sections.find(entry => entry.name === 'app:web-surface')
-    expect(section?.text).toContain('http://127.0.0.1:4567')
+    // The section names the surface without its URL; the runtime context carries the current one.
+    expect(section?.text).not.toContain('http://127.0.0.1:4567')
+    expect(section?.text).toContain('whose URL the runtime context names')
+    expect(assembly.contexts.find(entry => entry.name === 'app:web-surface')?.text)
+      .toBe('Current DeepSeek Harness Web GUI URL: "http://127.0.0.1:4567".')
     // The single update contract: the receiver is always on; no-refresh
     // reloads additionally need the rebuild watcher.
     expect(section?.text).toContain('pnpm run dev:web')
@@ -196,6 +202,7 @@ describe('web-app runtime glue', () => {
       publicUrl: 'https://proxy.example:8443/web',
       trustedHosts: ['proxy.example:8443'],
     }))
+    await ctx.plugin(SessionProjections)
     await ctx.plugin(SystemPrompt, { personaPrefix: '' })
     await vi.waitFor(() => { expect(openBrowser).toHaveBeenCalled() })
 
@@ -206,8 +213,9 @@ describe('web-app runtime glue', () => {
     ])
     const assembly = await ctx.systemPrompt.assemble()
     const section = assembly.sections.find(entry => entry.name === 'app:web-surface')
-    expect(section?.text).toContain('https://proxy.example:8443/web/')
-    expect(section?.text).not.toContain('127.0.0.1')
+    expect(section?.text).not.toContain('proxy.example')
+    expect(assembly.contexts.find(entry => entry.name === 'app:web-surface')?.text)
+      .toBe('Current DeepSeek Harness Web GUI URL: "https://proxy.example:8443/web/".')
     const urlContribution = contributions.find(contribution => contribution.name === 'web-runtime')
     expect(urlContribution?.resolve()).toEqual({ DSH_WEB_URL: 'https://proxy.example:8443/web/' })
   })
@@ -221,6 +229,7 @@ describe('web-app runtime glue', () => {
     const openBrowser = vi.fn(async () => {})
     internals.openBrowser = openBrowser
     apply(ctx, new Config({ openBrowser: false, printUrl: false, surfaceContext: true, trustedHosts: [] }))
+    await ctx.plugin(SessionProjections)
     await ctx.plugin(SystemPrompt, { personaPrefix: '' })
     await new Promise(resolve => setTimeout(resolve, 0))
     expect(log).not.toHaveBeenCalled()
@@ -262,6 +271,7 @@ describe('web-app runtime glue', () => {
       },
     } as never)
     apply(ctx, new Config({ openBrowser: false, printUrl: false, surfaceContext: false, trustedHosts: [] }))
+    await ctx.plugin(SessionProjections)
     await ctx.plugin(SystemPrompt, { personaPrefix: '' })
     await new Promise(resolve => setTimeout(resolve, 0))
     const assembly = await ctx.systemPrompt.assemble()
@@ -428,12 +438,13 @@ describe('web-app runtime glue', () => {
     stageDist()
     const ctx = new Context()
     // A webserver whose bound port is gone (torn down mid-request): the
-    // section must throw, never render a URL with an undefined port.
+    // prompt assembly must throw, never render a URL with an undefined port.
     const { server } = fakeHttpServer()
     Object.defineProperty(server, 'port', { get: () => undefined })
     ctx.provide('webServer', server)
     provideConnection(ctx)
     apply(ctx, new Config({ openBrowser: false, printUrl: false, surfaceContext: true, trustedHosts: [] }))
+    await ctx.plugin(SessionProjections)
     await ctx.plugin(SystemPrompt, { personaPrefix: '' })
     await new Promise(resolve => setTimeout(resolve, 0))
     await expect(ctx.systemPrompt.assemble()).rejects.toThrow('webServer service missing')

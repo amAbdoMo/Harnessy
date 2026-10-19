@@ -140,15 +140,15 @@ URL 行与浏览器交接都是就绪信号：监督方一观察到该行就发�
 
 #### 模型看到什么
 
-当 `surfaceContext` 为 true 时，`harness:source` 段落标明磁盘上的 Harness 实现，但不会声称它就是工作目录；全局段落 `app:web-surface`（first-party 顺序 10100，位于可复用指令之后）则向模型说明 GUI：公告应用 URL（定义见上文「监听、信任与公开部署」）、「this page」指代什么、更新约定（重载接收端始终开启；无刷新重载还需要 `pnpm run dev:web` watcher），以及不要启动替代服务器的指令。`DSH_WEB_URL` 还会连同描述出现在受管 bash 环境中，每次调用时从运行中的服务器解析。当它为 false 时，这两个段落和该变量都不会注册。
+当 `surfaceContext` 为 true 时，`harness:source` 段落标明磁盘上的 Harness 实现，但不会声称它就是工作目录；全局段落 `app:web-surface`（first-party 顺序 10100，位于可复用指令之后）则向模型说明 GUI：「this page」指代什么、更新约定（重载接收端始终开启；无刷新重载还需要 `pnpm run dev:web` watcher），以及不要启动替代服务器的指令。两个段落都不携带进程相关取值：checkout 路径与公告应用 URL（定义见上文「监听、信任与公开部署」）作为 runtime context 送达，因此重启后恢复的会话保持同一请求前缀。已经接纳过旧版带值段落的会话会原样保留它们，其前缀完全不变。`DSH_WEB_URL` 还会连同描述出现在受管 bash 环境中，每次调用时从运行中的服务器解析。当它为 false 时，这两个段落、这些 runtime context 与该变量都不会注册。
 
 #### Token 影响
 
-每个会话一行源码说明和一段提示词，外加两行受管环境变量；每个进程内保持恒定。
+每个会话一行源码说明和一段提示词、会话 runtime-context 快照中的两段 runtime context 段落，外加两行受管环境变量；每个进程内保持恒定。
 
 #### KV Cache 影响
 
-源码与 Web 段落位于第一方可复用指令之后。工具与配置一致时，不同 checkout 路径或应用 URL 不会改变前置前缀；不保证提供方复用缓存。
+源码与 Web 段落位于第一方可复用指令之后，且不携带进程相关取值，因此工具与配置一致时，不同 checkout 路径或应用 URL 不会改变前置前缀；不保证提供方复用缓存。
 
 ## 已知限制与延期工作
 

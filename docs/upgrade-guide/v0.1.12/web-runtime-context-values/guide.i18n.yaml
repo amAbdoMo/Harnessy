@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.1.12/web-runtime-context-values/guide.md
+/:
+  en: 491cf6cd150d4d20
+  zh: 5e5d2831a4008e2f
+/keep-the-web-prompt-values-in-runtime-context:
+  en: 31ce3e39c8d8f3c5
+  zh: 2837bb49380dd9b0
+/keep-the-web-prompt-values-in-runtime-context/change:
+  en: b761b619770fc391
+  zh: 514a988ac916601e
+/keep-the-web-prompt-values-in-runtime-context/migration:
+  en: a1ae7dfbe3aba7c7
+  zh: 13ad818279f4b3a0
