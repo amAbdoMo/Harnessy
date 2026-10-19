@@ -8,6 +8,7 @@ import { streamMethod } from '@deepseek-ai/dsh-remote-mock'
 import type {} from '@deepseek-ai/dsh-api-terminal-controller/remote'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { TerminalView, type TerminalRemote } from '../src/client/model.ts'
+import { TerminalInventory } from '../src/client/inventory.ts'
 import type { TerminalEnvironment, TerminalFrame, WebTerminalId, WebTerminalInfo } from '../src/types.ts'
 
 const sessionId = 'session' as SessionId
@@ -62,7 +63,9 @@ function fixture(prepareStream?: <Item>(stream: RemoteStream<Item>) => void) {
     },
   }
   cleanups.push(async () => { await Promise.all(streams.map(stream => stream.dispose())) })
-  const model = new TerminalView(sessionId, remote, gateway, info.id)
+  const inventory = new TerminalInventory(() => remote.list(sessionId))
+  cleanups.push(() => inventory.dispose())
+  const model = new TerminalView(sessionId, remote, gateway, inventory, info.id)
   cleanups.push(() => model.dispose())
   return { model, remote, gateway, options, streams, generation }
 }
