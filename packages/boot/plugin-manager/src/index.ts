@@ -165,6 +165,32 @@ function parsedForRegistry(spec: string): ParsedInstallSpec {
   }
 }
 
+/**
+ * The package an installation spec names before pnpm runs: a registry name, a local directory's manifest name, or the
+ * dependency saved with this git or tarball spec, compared as the plugin list shows saved specs.
+ * @param spec The installation spec.
+ * @param dependencies The profile's saved dependencies.
+ * @param profileDir The profile directory saved local paths are relative to.
+ * @returns The package name, or `undefined` when only the installation tells it.
+ */
+function specPackageName(spec: string, dependencies: Readonly<Record<string, string>>, profileDir: string): string | undefined {
+  const parsed = parsedForRegistry(spec)
+  if (parsed.kind === 'registry') return parsed.name
+  if (parsed.kind === 'path') return packageName(parsed.path)
+  const specs = parsed.kind === 'tarball' && parsed.path !== undefined ? [spec, `file:${parsed.path}`] : [spec]
+  return Object.entries(dependencies).find(([dependency, saved]) => specs.includes(dependencySpec(dependency, saved, profileDir)))?.[0]
+}
+
+/** The package name a local directory declares, or `undefined` without a readable manifest. */
+function packageName(dir: string): string | undefined {
+  try {
+    return readProfileManifest('dsh', dir).name
+  } catch (_error) {
+    // pnpm reports the unreadable directory itself.
+    return undefined
+  }
+}
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     /** Persistent management of the current profile's composition and packages. */
@@ -187,6 +213,11 @@ export class PluginManager extends TypertRemoteService {
   })
   /** Management bundles remain protected if their files become unreadable. */
   private readonly managementBundles = new Set<string>()
+  /**
+   * The registry each package was last installed from by this manager in this process. pnpm verifies lockfile tarball
+   * URLs against its default registry unless they belong to a named registry, so a later removal names it again.
+   */
+  private readonly installedFrom = new Map<string, Registry>()
   private readonly ownerEntryId: string | undefined
   private readonly packageOperations = new Set<Promise<unknown>>()
   private readonly profile: ProfileContext
@@ -509,11 +540,13 @@ export class PluginManager extends TypertRemoteService {
         // The last run is the result's; the registries asked stay listed whatever the outcome.
         const plan = registryPlan(options?.registry, await this.registries())
         let run: PackageResult | undefined
+        let used: Registry = null
         for (const [index, registry] of plan.entries()) {
           if (index > 0) await this.restoreFiles(files)
           // A stop that landed while the files went back, or before the first run, starts no run with a dead signal.
           if (stopped()) throw new InstallCancelledError()
           result.registries.push(registry)
+          used = registry
           announce('installing', { registry, index: index + 1, total: plan.length })
           run = await this.runPnpm(['add', spec, ...registryArguments(registry)], control.abort.signal, requestId)
           result.packageResult = run
@@ -547,8 +580,12 @@ export class PluginManager extends TypertRemoteService {
         }
         const after = readProfileManifest('dsh', this.profile.dir).dependencies ?? {}
         const installed = Object.keys(after).filter(name => before[name] !== after[name])
-        // Registry retries can retain the saved range after a partial installation.
-        if (installed.length === 0) installed.push(...Object.keys(after).filter(name => spec === name || spec.startsWith(`${name}@`)))
+        // Registry retries can retain the saved range after a partial installation; a repeated local link leaves the
+        // saved dependency as it was, so the spec names the package instead.
+        if (installed.length === 0) {
+          const local = specPackageName(spec, after, this.profile.dir)
+          if (local !== undefined && Object.hasOwn(after, local)) installed.push(local)
+        }
         const target = installed[0]
         if (installed.length !== 1 || target === undefined) throw new ManagementFailure('ambiguous-install')
         name = target
@@ -559,6 +596,7 @@ export class PluginManager extends TypertRemoteService {
         if (compatibility !== undefined && !compatibility.exempted) throw new ManagementFailure('incompatible-version', [incompatiblePlugin(compatibility)])
         for (const file of bundlePatchPaths(dir, manifest.dsh.bundle)) loadOverlayPatches('dsh', file)
         version = manifest.version
+        this.installedFrom.set(name, used)
       } catch (error) {
         // pnpm has exited by now, so the files it rewrote go back as they were.
         await this.restoreFiles(files)
@@ -636,10 +674,14 @@ export class PluginManager extends TypertRemoteService {
         return bundle.installed
       })
       if (!installed) return
-      result.packageResult = await this.runPnpm(['remove', name])
+      // `pnpm remove` takes no `--registry` option; the generic configuration flag sets the same setting. A package
+      // installed before this process started is removed with the registry an installation asks first.
+      const registry = this.installedFrom.has(name) ? this.installedFrom.get(name) : this.configuredRegistries.registry
+      result.packageResult = await this.runPnpm(['remove', name, ...typeof registry === 'string' ? [`--config.registry=${registry}`] : []])
       if (result.packageResult.exitCode !== 0 || result.packageResult.timedOut === true) {
         throw new Error(result.packageResult.output)
       }
+      this.installedFrom.delete(name)
       await this.configure(() => this.refreshPackages())
     }, { stage: 'remove', target: name }, 'remove')
   }

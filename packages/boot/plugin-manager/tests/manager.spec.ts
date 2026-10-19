@@ -868,6 +868,48 @@ it('reports repeated installs as requiring restart and ambiguous package changes
   expect(readProfileManifest('test', dir).dependencies).toEqual({ extra: '1.0.0' })
 })
 
+it('names a repeated local link install from the directory it points at', async () => {
+  const { manager, dir } = await fixture()
+  // A local directory that declares the package the link installs.
+  const local = join(dir, 'local-link')
+  mkdirSync(local, { recursive: true })
+  writeFileSync(join(local, 'package.json'), JSON.stringify({ name: 'extra', version: '1.0.0' }))
+  const install = vi.spyOn(operations, 'runProfilePnpm').mockImplementation(async (_context, args) => {
+    // The saved dependency already names the linked package, so the manifest does not change.
+    expect(args[0]).toBe('add')
+    return { exitCode: 0, output: 'installed', truncated: false, logPath: join(dir, 'pnpm.log') }
+  })
+  onTestFinished(() => { install.mockRestore() })
+  expect(await manager.installBundle(local, { enabled: false })).toMatchObject({ changed: false, application: 'restart-required' })
+})
+
+it('removes a package with the registry it was installed from', async () => {
+  const { manager, dir, bundle } = await fixture()
+  const pnpm = vi.spyOn(operations, 'runProfilePnpm')
+    .mockImplementationOnce(async () => ({
+      exitCode: 1, output: 'ERR_PNPM_META_FETCH_FAIL', truncated: false, logPath: join(dir, 'pnpm.log'),
+    }))
+    .mockImplementationOnce(async (_context, args) => {
+      const name = String(args[1])
+      bundle(name, [{ id: name, name: './plugin.mjs', config: { service: name } }])
+      const manifest = readProfileManifest('test', dir)
+      manifest.dependencies = { ...manifest.dependencies, [name]: '1.0.0' }
+      writeFileSync(join(dir, 'package.json'), JSON.stringify(manifest))
+      return { exitCode: 0, output: 'installed', truncated: false, logPath: join(dir, 'pnpm.log') }
+    })
+    .mockImplementationOnce(async () => {
+      const manifest = readProfileManifest('test', dir)
+      delete manifest.dependencies?.fallen
+      writeFileSync(join(dir, 'package.json'), JSON.stringify(manifest))
+      return { exitCode: 0, output: 'removed', truncated: false, logPath: join(dir, 'pnpm.log') }
+    })
+  onTestFinished(() => { pnpm.mockRestore() })
+  expect(await manager.installBundle('fallen', { enabled: false })).toMatchObject({ application: 'applied', bundle: 'fallen' })
+  expect(await manager.removeBundle('fallen')).toMatchObject({ application: 'applied' })
+  // The package came from the mirror, so its removal names the mirror.
+  expect(pnpm.mock.calls.at(-1)?.[1]).toEqual(['remove', 'fallen', `--config.registry=${MIRROR}`])
+})
+
 it('streams pnpm output, reports the installation phases, and names the installed bundle', async () => {
   const { ctx, manager, dir, bundle } = await fixture()
   const chunks: PluginInstallLogChunk[] = []
