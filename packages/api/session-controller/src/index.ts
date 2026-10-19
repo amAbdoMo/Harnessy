@@ -12,6 +12,7 @@ import type {} from '@deepseek-ai/dsh-client-file-upload'
 import { canOpenNativePath, nativeFileManager, nativeFileApplications, openNativeFileApplication, openNativeAssociatedPath, revealNativePath } from '@deepseek-ai/dsh-native-command'
 import type { SessionId } from '@deepseek-ai/dsh-session'
 import type { SessionInspection } from '@deepseek-ai/dsh-session-persistence'
+import type {} from '@deepseek-ai/dsh-session-projection-cache'
 import { SessionQueryError, type SessionObservation } from '@deepseek-ai/dsh-session-query'
 import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import {
@@ -507,10 +508,10 @@ export class SessionController extends TypertRemoteService {
   }
 
   /**
-   * Read all registered projections without activating an Agent.
+   * Read projections without activating an Agent or migrating a stored Session.
    * @param request - Session whose current values are required.
-   * @param signal - cancellation for the Session observation.
-   * @returns complete baseline, or null when the Session does not exist.
+   * @param signal - cancellation for the Session read.
+   * @returns a sequenced baseline, cached hints when migration is deferred, or null when absent.
    */
   @Remote('projections')
   async projections(request: SessionProjectionsRequest, signal: AbortSignal): Promise<SessionProjectionsValue> {
@@ -519,21 +520,43 @@ export class SessionController extends TypertRemoteService {
       throw new RemoteError('gateway/bad-request', 'sessionId must not be empty', {})
     }
     try {
+      signal.throwIfAborted()
+      const live = this.liveProjections(sessionId)
+      if (live !== undefined) return live
+      const stored = await this.ctx.get('sessionPersistence')?.stat(sessionId, { signal })
+      signal.throwIfAborted()
+      const attached = this.liveProjections(sessionId)
+      if (attached !== undefined) return attached
+      if (stored === undefined) return null
+      if (stored.formatStatus === 'migration-required') {
+        const cached = this.ctx.get('sessionProjectionCache')?.cachedSnapshot(stored.header)
+        return { kind: 'migration-required', values: { ...cached?.values } as SessionProjectionValues }
+      }
       using observation = await this.ctx.sessionQuery.observeSession(sessionId, { signal })
       const projections = observation.projections
       if (projections === undefined) {
         throw new RemoteError('session/projections-unavailable', 'Session projections are unavailable', {})
       }
-      return { asOfSeq: projections.asOfSeq, values: projections.values as SessionProjectionValues }
+      return { kind: 'sequenced', asOfSeq: projections.asOfSeq, values: projections.values as SessionProjectionValues }
     } catch (error: unknown) {
-      if (error instanceof SessionQueryError && error.code === 'SESSION_QUERY_SESSION_NOT_FOUND') return null
-      if (signal.aborted
-        || (error instanceof SessionQueryError && error.code === 'SESSION_QUERY_ABORTED')) {
+      if (signal.aborted || (error instanceof SessionQueryError && error.code === 'SESSION_QUERY_ABORTED')) {
         throw new RemoteError('gateway/cancelled', 'Session projection read was cancelled', {}, { cause: error })
+      }
+      if (error instanceof SessionQueryError && error.code === 'SESSION_QUERY_SESSION_NOT_FOUND') {
+        return this.liveProjections(sessionId) ?? null
       }
       if (error instanceof RemoteError) throw error
       throw new RemoteError('gateway/internal', 'Session projection read failed', {}, { cause: error })
     }
+  }
+
+  private liveProjections(
+    sessionId: SessionId,
+  ): Extract<SessionProjectionsValue, { readonly kind: 'sequenced' }> | undefined {
+    const session = this.ctx.sessions.get(sessionId)
+    if (session === undefined) return undefined
+    const snapshot = this.ctx.sessionProjections.snapshot(session)
+    return { kind: 'sequenced', asOfSeq: snapshot.asOfSeq, values: snapshot.values as SessionProjectionValues }
   }
 
   /**

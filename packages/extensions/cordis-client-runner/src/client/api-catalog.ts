@@ -202,7 +202,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'refreshProjections(sessionId: SessionId): Promise<void>',
-        description: 'Load all Session projections once per connection; retry an unsuccessful initial read.',
+        description: 'Read projections without starting migration; retry failed or migration-deferred reads.',
         parameters: [{ name: 'sessionId', description: 'Session to inspect without opening its conversation.' }],
         returns: 'completion of the current or newly started refresh.',
       },

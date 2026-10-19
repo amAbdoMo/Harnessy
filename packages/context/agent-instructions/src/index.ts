@@ -9,8 +9,10 @@
  * @module @deepseek-ai/dsh-agent-instructions
  */
 
+import type {} from '@deepseek-ai/dsh-working-directory'
 import type { Context } from '@deepseek-ai/cordis'
 import { isDeepStrictEqual } from 'node:util'
+import { resolve } from 'node:path'
 import type { Agent, PreStepDecision } from '@deepseek-ai/dsh-agent'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { Session, UserMessage } from '@deepseek-ai/dsh-session'
@@ -91,10 +93,12 @@ export function apply(ctx: Context, config: Config): void {
   const projectionLifecycle = new AbortController()
   type ProjectionTouch = { agent: Agent; path: string }
   const executionTouches = new Map<ToolExecutionToken, ProjectionTouch[]>()
+  const executionPaths = new Map<ToolExecutionToken, string>()
   ctx.effect(
     () => () => {
       projectionLifecycle.abort(new Error('agent-instructions disposed'))
       executionTouches.clear()
+      executionPaths.clear()
     },
     'agent-instructions.projectionLifecycle',
   )
@@ -118,15 +122,17 @@ export function apply(ctx: Context, config: Config): void {
     }
     const fileSystem = ctx.get('fs')
     if (fileSystem === undefined) return undefined
-    if (touchedPaths.length === 0 && pending.length > 0) return pending[0]
     const content: UserMessage['content'][number][] = []
     const changes: AgentInstructionChange[] = []
     let desiredBaseline = false
     const authorityMessages = [...claimed]
-    /* v8 ignore next -- normal agents carry an absolute session cwd. */
-    const cwd = agent.session.header.cwd ?? process.cwd()
+    const workingDirectory = ctx.get('workingDirectory')
+    if (workingDirectory === undefined) throw new Error('agent-instructions requires the working-directory service when a filesystem is present')
+    const cwd = workingDirectory.get(agent.session)
     const projectRoot = await findProjectRoot(cwd, resolved.projectRootMarkers, fileSystem, signal)
     const identity = workspaceBaselineIdentity(resolved, cwd, projectRoot)
+    if (touchedPaths.length === 0 && pending.length > 0
+      && baselinePreparations.get(agent.session)?.identity === identity) return pending[0]
     const visibleBaseline = visibleBaselineSource(agent, authorityMessages)
     const baselinePresent = visibleBaseline !== undefined
     const keepVisibleBaseline = visibleBaseline?.baselineIdentity === identity
@@ -193,6 +199,7 @@ export function apply(ctx: Context, config: Config): void {
       instructionVersions,
       fileSystem,
       {
+        cwd,
         authorityMessages,
         scopeMessages: pending,
         includeBaselineScopes: keepVisibleBaseline,
@@ -340,11 +347,21 @@ export function apply(ctx: Context, config: Config): void {
     return { ...decision, messages: entered }
   })
 
+  ctx.on('tools/execute', (exec, next) => {
+    const path = filePathFromExecution(exec)
+    if (path !== undefined && exec.agent !== undefined) {
+      const directory = ctx.get('workingDirectory')
+      if (directory !== undefined) executionPaths.set(exec.token, resolve(directory.get(exec.agent.session), path))
+    }
+    return next()
+  })
+
   ctx.on('tools/result', (exec: ToolExecution, result: ToolExecutionResult) => {
+    const ownPath = executionPaths.get(exec.token) ?? filePathFromExecution(exec)
+    executionPaths.delete(exec.token)
     const touches = executionTouches.get(exec.token) ?? []
     executionTouches.delete(exec.token)
     if (!result.isError && exec.agent !== undefined && !exec.signal.aborted) {
-      const ownPath = filePathFromExecution(exec)
       if (ownPath !== undefined) touches.push({ agent: exec.agent, path: ownPath })
     }
     if (exec.parent !== undefined) {

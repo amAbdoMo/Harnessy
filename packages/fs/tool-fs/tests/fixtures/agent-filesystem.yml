@@ -1,0 +1,10 @@
+- name: '@deepseek-ai/dsh-fs-local'
+- name: '@deepseek-ai/dsh-working-directory'
+- name: '@deepseek-ai/dsh-tool-working-directory'
+- name: '@deepseek-ai/dsh-subprocess-local'
+- name: '@deepseek-ai/dsh-fs-observation-policy'
+- name: '@deepseek-ai/dsh-tool-fs'
+- name: '@deepseek-ai/dsh-tool-fs-search'
+  config:
+    sampleOverCapGlobResults: false
+- name: '@deepseek-ai/dsh-tool-present'

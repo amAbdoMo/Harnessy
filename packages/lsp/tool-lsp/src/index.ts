@@ -1,10 +1,9 @@
 /**
  * Model-facing `lsp` tool over `ctx.lsp`. One read-only tool with four operations
  * (`goToDefinition`/`findReferences`/`goToImplementation`/`hover`); it converts one-based UTF-16
- * cursor coordinates to the seam's zero-based positions, requires the session workspace with no
- * fallback, caps and renders results, and attaches a configurable timeout budget for
- * `dsh-tool-call-timeout-policy` to enforce. It runtime-injects only `tools`, `lsp`, and `systemPrompt` and
- * imports no provider.
+ * cursor coordinates to zero-based positions, resolves queries in the Session's current directory,
+ * caps and renders results, and attaches a configurable timeout budget for
+ * `dsh-tool-call-timeout-policy` to enforce. It imports no provider.
  *
  * Namespace plugin (named exports, no default export).
  * @module @deepseek-ai/dsh-tool-lsp
@@ -44,7 +43,7 @@ export { sessionCwd } from './session-cwd.ts'
 export const name = 'tool-lsp'
 
 /** Services required by this plugin. */
-export const inject = ['tools', 'lsp', 'systemPrompt']
+export const inject = ['tools', 'lsp', 'systemPrompt', 'workingDirectory']
 
 /** Default tool-call timeout budget (ms), covering the queued open/query/close lifecycle. */
 export const DEFAULT_LSP_TOOL_TIMEOUT_MS = 60_000
@@ -91,7 +90,7 @@ const LSP_RANGE_OUTPUT_SCHEMA = {
 
 /**
  * Register the `lsp` tool and its system-prompt guidance.
- * @param ctx - the plugin context (must inject `tools`, `lsp`, `systemPrompt`).
+ * @param ctx - the plugin context injecting tools, LSP, prompt assembly, and working directories.
  * @param config - the resolved plugin configuration.
  */
 export function apply(ctx: Context, config: Config): void {
@@ -182,7 +181,7 @@ export function apply(ctx: Context, config: Config): void {
     timeoutMs: resolved.timeoutMs,
     async execute(args, exec) {
       const input = parseLspArgs(args)
-      const workspaceRoot = sessionCwd(exec)
+      const workspaceRoot = sessionCwd(ctx, exec)
       if (workspaceRoot === undefined) {
         throw new LspError('the lsp tool requires a session workspace cwd', 'LSP_WORKSPACE_REQUIRED')
       }

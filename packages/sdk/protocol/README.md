@@ -33,12 +33,14 @@ Wire one JSON-RPC 2.0 message per `\n`-terminated line over byte streams you own
 
 ### The SDK methods
 
-Both wire ends share one method set: three client-to-server requests and four server-to-client notifications.
+Both wire ends share one method set: five client-to-server requests and four server-to-client notifications.
 
 | Direction | Method | Payload types |
 |---|---|---|
 | client→server | `initialize` | `InitializeParams` → `InitializeResult` |
 | client→server | `session/prompt` | `SessionPromptParams` → `SessionPromptResult` (durable enqueue receipt) |
+| client→server | `session/working-directory/get` | `SessionWorkingDirectoryParams` → `SessionWorkingDirectoryResult` |
+| client→server | `session/working-directory/set` | `SessionWorkingDirectorySetParams` → `SessionWorkingDirectoryResult` |
 | client→server | `shutdown` | no params → `{}` |
 | server→client | `session.event` | `SessionEventNotification` (every session in the runtime, unfiltered) |
 | server→client | `session.status` | `SessionStatusNotification` (whole-agent `running`/`idle` transition) |
@@ -46,6 +48,46 @@ Both wire ends share one method set: three client-to-server requests and four se
 | server→client | `subagent.finished` | `SubagentFinishedNotification` (in-process runs only) |
 
 `HarnessSdkRequestMap` and `HarnessSdkNotificationMap` index these shapes by method name; the package root exports them together with the transport.
+
+<a id="working-directory-payloads"></a>
+### Working-directory payloads
+
+Both directory requests require successful initialization and the runtime's optional working-directory service. Wire parameters require a non-empty `sessionId`; set also requires a non-empty `path`. Validation precedes Session allocation. An explicit request creates an unknown Session. Get validates the selected directory and can commit recovery to the original project; it is not the service's read-only `get(session)`. Set resolves relative paths from the current directory. Neither operation changes original project metadata, permissions or existing process directories.
+
+```ts type-equiv
+/** Session whose effective directory is requested; an unknown identity creates the Session. */
+interface SessionWorkingDirectoryParams {
+  /** SDK-side Session identity. */
+  sessionId: string
+}
+```
+
+```ts type-equiv
+/** Directory change affecting future operations, not origin or permissions. */
+interface SessionWorkingDirectorySetParams extends SessionWorkingDirectoryParams {
+  /** Absolute path or a path relative to the Session's effective directory. */
+  path: string
+}
+```
+
+```ts type-equiv
+/** Effective directory after an explicit read, change, or missing-directory recovery. */
+interface SessionWorkingDirectoryResult {
+  /** Absolute directory for subsequent independent operations and new processes. */
+  cwd: string
+}
+```
+
+```ts type-equiv
+/** Client-to-server request methods with their param and result shapes. */
+interface HarnessSdkRequestMap {
+  'initialize': { params: InitializeParams; result: InitializeResult }
+  'session/prompt': { params: SessionPromptParams; result: SessionPromptResult }
+  'session/working-directory/get': { params: SessionWorkingDirectoryParams; result: SessionWorkingDirectoryResult }
+  'session/working-directory/set': { params: SessionWorkingDirectorySetParams; result: SessionWorkingDirectoryResult }
+  'shutdown': { params: undefined; result: Record<string, never> }
+}
+```
 
 ### Payload semantics
 

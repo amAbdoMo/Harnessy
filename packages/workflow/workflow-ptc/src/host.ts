@@ -1,6 +1,7 @@
 /** Workflow child ownership and progress over the shared sandboxed PTC executor. */
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
+import type {} from '@deepseek-ai/dsh-working-directory'
 import type { PtcBindingFunction, PtcJsonValue, PtcRuntime } from '@deepseek-ai/dsh-ptc-runtime'
 import type { SandboxExecutionPolicy } from '@deepseek-ai/dsh-sandbox'
 import { SessionId } from '@deepseek-ai/dsh-session'
@@ -120,6 +121,7 @@ export class PtcWorkflowRun implements WorkflowRun {
   private cancelReason: string | undefined
   private disposed: Promise<void> | undefined
   private readonly externalAbort: () => void
+  private readonly workingDirectory: Context['workingDirectory']
 
   constructor(
     private readonly ctx: Context,
@@ -134,6 +136,7 @@ export class PtcWorkflowRun implements WorkflowRun {
     private readonly observer: ExecutionObserver,
     private readonly signal?: AbortSignal,
   ) {
+    this.workingDirectory = ctx.workingDirectory
     this.externalAbort = () => { this.cancel('workflow signal aborted') }
     if (signal?.aborted) this.externalAbort()
     else signal?.addEventListener('abort', this.externalAbort, { once: true })
@@ -273,10 +276,12 @@ export class PtcWorkflowRun implements WorkflowRun {
   private async drive(): Promise<WorkflowResult> {
     let result: WorkflowResult
     try {
+      const cwd = await this.workingDirectory.ensure(this.parent, this.controller.signal)
+      this.requireActive()
       const outcome = await this.runtime.run(this.runtime.resolve({
         program: PROGRAM,
         bindings: [{ global: 'workflowHost', functions: this.bindings() }],
-        cwd: this.policy.workspaceRoot,
+        cwd,
         sandboxPolicy: this.policy,
         timeoutMs: null,
         signal: this.controller.signal,

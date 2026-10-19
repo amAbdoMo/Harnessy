@@ -24,7 +24,12 @@ import LocalBashExecutor from '@deepseek-ai/dsh-bash-local'
 import * as BashEnvPlugin from '@deepseek-ai/dsh-shell-env'
 import { PwshLocalExecutor } from '@deepseek-ai/dsh-pwsh-local'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
+import LocalSandbox from '@deepseek-ai/dsh-sandbox-local'
 import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
+import WorkingDirectory from '@deepseek-ai/dsh-working-directory'
+import * as ToolWorkingDirectory from '@deepseek-ai/dsh-tool-working-directory'
+import Worktrees from '@deepseek-ai/dsh-experimental-worktree'
+import * as ToolWorktree from '@deepseek-ai/dsh-experimental-tool-worktree'
 import { AttachmentStore } from '@deepseek-ai/dsh-attachment'
 import type { ImageAttachmentLimits, ImageAttachmentRef, SaveImageAttachment, StoredImageAttachment } from '@deepseek-ai/dsh-attachment'
 import UserQuestionService from '@deepseek-ai/dsh-user-questions'
@@ -275,7 +280,7 @@ const TOOL_PACKAGES: ToolPackage[] = [
     pkg: '@deepseek-ai/dsh-tool-bash',
     dir: 'tool-bash',
     source: 'packages/shell/tool-bash/src/index.ts',
-    requires: ['ctx.tools', 'ctx.shell', 'ctx.systemPrompt', 'ctx.shellEnv', 'ctx.jobs for run_in_background and the job-backed foreground path'],
+    requires: ['ctx.tools', 'ctx.shell', 'ctx.systemPrompt', 'ctx.workingDirectory', 'ctx.shellEnv', 'ctx.jobs for run_in_background and the job-backed foreground path'],
     writes: ['tool/call', 'tool/result'],
     async mount(ctx) {
       await ctx.plugin(LocalSubprocessRuntime)
@@ -293,10 +298,9 @@ const TOOL_PACKAGES: ToolPackage[] = [
     pkg: '@deepseek-ai/dsh-tool-present',
     dir: 'tool-present',
     source: 'packages/deliverables/tool-present/src/index.ts',
-    requires: ['ctx.tools', 'ctx.fs', 'ctx.sessionProjections'],
+    requires: ['ctx.tools', 'ctx.fs', 'ctx.sessionProjections', 'ctx.workingDirectory'],
     writes: ['tool/call', 'deliverables/presented after a successful final result', 'tool/result'],
     async mount(ctx) {
-      await ctx.plugin(LocalFileSystem)
       await ctx.plugin(ToolPresent)
     },
     note: 'Deliveries belong to the calling Session; Web ui-deliverables supplies source-file opening and cards.',
@@ -305,7 +309,7 @@ const TOOL_PACKAGES: ToolPackage[] = [
     pkg: '@deepseek-ai/dsh-tool-pwsh',
     dir: 'tool-pwsh',
     source: 'packages/shell/tool-pwsh/src/index.ts',
-    requires: ['ctx.tools', 'ctx.shell', 'ctx.systemPrompt', 'ctx.shellEnv', 'ctx.jobs for run_in_background and the job-backed foreground path'],
+    requires: ['ctx.tools', 'ctx.shell', 'ctx.systemPrompt', 'ctx.workingDirectory', 'ctx.shellEnv', 'ctx.jobs for run_in_background and the job-backed foreground path'],
     writes: ['tool/call', 'tool/result'],
     async mount(ctx) {
       // The pwsh tool consumes the bash executor seam; the schema harvest
@@ -338,7 +342,7 @@ const TOOL_PACKAGES: ToolPackage[] = [
     pkg: '@deepseek-ai/dsh-tool-bash-persistent',
     dir: 'tool-bash-persistent',
     source: 'packages/shell/tool-bash-persistent/src/index.ts',
-    requires: ['ctx.tools', 'ctx.terminals', 'an owning Agent at execution time'],
+    requires: ['ctx.tools', 'ctx.terminals', 'ctx.workingDirectory', 'an owning Agent at execution time'],
     writes: ['tool/call', 'PTY shell state', 'tool/result'],
     async mount(ctx) {
       await ctx.plugin(TerminalSessionService)
@@ -351,7 +355,7 @@ const TOOL_PACKAGES: ToolPackage[] = [
     pkg: '@deepseek-ai/dsh-tool-pwsh-persistent',
     dir: 'tool-pwsh-persistent',
     source: 'packages/shell/tool-pwsh-persistent/src/index.ts',
-    requires: ['ctx.tools', 'ctx.terminals', 'an owning Agent at execution time'],
+    requires: ['ctx.tools', 'ctx.terminals', 'ctx.workingDirectory', 'an owning Agent at execution time'],
     writes: ['tool/call', 'PTY shell state', 'tool/result'],
     async mount(ctx) {
       await ctx.plugin(TerminalSessionService)
@@ -367,7 +371,6 @@ const TOOL_PACKAGES: ToolPackage[] = [
     requires: ['ctx.tools', 'ctx.fs'],
     writes: ['tool/call', 'fs/observed after view presence/absence, edit absence, or successful mutation', 'tool/result'],
     async mount(ctx) {
-      await ctx.plugin(LocalFileSystem)
       await ctx.plugin(ToolStrReplaceEditor)
     },
     note:
@@ -377,13 +380,12 @@ const TOOL_PACKAGES: ToolPackage[] = [
     pkg: '@deepseek-ai/dsh-tool-fs',
     dir: 'tool-fs',
     source: 'packages/fs/tool-fs/src/index.ts',
-    requires: ['ctx.tools', 'ctx.fs', 'ctx.systemPrompt', 'ctx.attachments (image-tool registration)', 'ctx.llm + an image-capable route (image-tool execution)'],
+    requires: ['ctx.tools', 'ctx.fs', 'ctx.systemPrompt', 'ctx.workingDirectory', 'ctx.attachments (image-tool registration)', 'ctx.llm + an image-capable route (image-tool execution)'],
     writes: ['tool/call', 'fs/write-intent or fs/edit-intent for mutations', 'fs/observed after read presence/absence or successful file operation', 'durable attachment (read_image)', 'tool/result'],
     async mount(ctx) {
       // The tool needs `fs`; the bare provider is sufficient because policy
       // changes behavior, not schema shape. The catalog seam marker opts into
       // the attachments-conditional image schema without attachment I/O.
-      await ctx.plugin(LocalFileSystem)
       await ctx.plugin(CatalogAttachmentStore)
       await ctx.plugin(ToolFs)
     },
@@ -394,7 +396,7 @@ const TOOL_PACKAGES: ToolPackage[] = [
     pkg: '@deepseek-ai/dsh-tool-fs-search',
     dir: 'tool-fs-search',
     source: 'packages/fs/tool-fs-search/src/index.ts',
-    requires: ['ctx.tools', 'ctx.subprocess', 'ctx.systemPrompt'],
+    requires: ['ctx.tools', 'ctx.subprocess', 'ctx.systemPrompt', 'ctx.workingDirectory'],
     writes: ['tool/call', 'tool/result'],
     async mount(ctx) {
       // The tools inject `subprocess` (search spawns the packaged ripgrep
@@ -412,7 +414,7 @@ const TOOL_PACKAGES: ToolPackage[] = [
     pkg: '@deepseek-ai/dsh-tool-terminal',
     dir: 'tool-terminal',
     source: 'packages/terminal/tool-terminal/src/index.ts',
-    requires: ['ctx.tools', 'ctx.terminals', 'ctx.systemPrompt', 'ctx.jobs at call time for run_in_background'],
+    requires: ['ctx.tools', 'ctx.terminals', 'ctx.systemPrompt', 'ctx.workingDirectory', 'ctx.jobs at call time for run_in_background'],
     writes: ['tool/call', 'tool/result'],
     async mount(ctx) {
       await ctx.plugin(TerminalSessionService)
@@ -458,7 +460,7 @@ const TOOL_PACKAGES: ToolPackage[] = [
     pkg: '@deepseek-ai/dsh-tool-lsp',
     dir: 'tool-lsp',
     source: 'packages/lsp/tool-lsp/src/index.ts',
-    requires: ['ctx.tools', 'ctx.lsp', 'ctx.systemPrompt'],
+    requires: ['ctx.tools', 'ctx.lsp', 'ctx.systemPrompt', 'ctx.workingDirectory'],
     writes: ['tool/call', 'tool/result'],
     async mount(ctx) {
       // The tool registers from the seam alone; the schema does not depend on any provider.
@@ -487,7 +489,7 @@ const TOOL_PACKAGES: ToolPackage[] = [
     pkg: '@deepseek-ai/dsh-tool-skill',
     dir: 'tool-skill',
     source: 'packages/skill/tool-skill/src/index.ts',
-    requires: ['ctx.tools', 'ctx.agents', 'ctx.skills'],
+    requires: ['ctx.tools', 'ctx.agents', 'ctx.skills', 'ctx.workingDirectory'],
     writes: ['tool/call', 'tool/result', 'user/message replacement catalogs via agent.inject()'],
     async mount(ctx) {
       await ctx.plugin(AgentRegistry)
@@ -658,6 +660,34 @@ const TOOL_PACKAGES: ToolPackage[] = [
     note:
       'web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps.',
   },
+  {
+    pkg: '@deepseek-ai/dsh-tool-working-directory',
+    dir: 'tool-working-directory',
+    source: 'packages/session/tool-working-directory/src/index.ts',
+    requires: ['ctx.tools', 'ctx.workingDirectory', 'a calling Agent'],
+    writes: ['tool/call', 'working-directory/change on a transition', 'agent/inbox/spliced for queued notices', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(ToolWorkingDirectory)
+    },
+  },
+  {
+    pkg: '@deepseek-ai/dsh-experimental-tool-worktree',
+    dir: 'tool-worktree',
+    source: 'packages/experimental/tool-worktree/src/index.ts',
+    requires: ['ctx.tools', 'ctx.worktrees', 'a calling Agent'],
+    writes: ['tool/call', 'new retained local Git branch and checkout', 'working-directory/change after creation', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(LocalSubprocessRuntime)
+      await ctx.plugin(LocalSandbox)
+      await ctx.plugin(SandboxPolicy)
+      await ctx.plugin(Worktrees, {
+        directory: '.agents/worktrees', namePrefix: 'worktree-', gitCommand: 'git', nodeCommand: process.execPath,
+        timeoutMs: 60000, graceMs: 3000, maxOutputBytes: 65536,
+      })
+      await ctx.plugin(ToolWorktree)
+    },
+    note: 'Opt-in only. Creates from a local revision without fetching or moving original project authority; new artifacts are retained on failure.',
+  },
 ]
 
 /** One package's contribution to the catalog: its schemas plus attribution. */
@@ -737,6 +767,8 @@ export async function collectToolCatalog(packages: ToolPackage[] = TOOL_PACKAGES
     try {
       await ctx.plugin(SessionProjectionRegistry)
       await ctx.plugin(SystemPrompt)
+      await ctx.plugin(LocalFileSystem)
+      await ctx.plugin(WorkingDirectory, {})
       await ctx.plugin(ToolRuntime, entry.toolsConfig ?? {})
       await entry.mount(ctx)
       const schemas = ctx.tools.schemas(entry.scope?.(ctx)).sort((a, b) => a.name.localeCompare(b.name))

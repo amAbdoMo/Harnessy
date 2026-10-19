@@ -6,6 +6,22 @@ The in-memory, event-sourced model of [dsh-session](../../packages/core/session)
 
 Source: [`packages/core/session/src/types.ts`](../../packages/core/session/src/types.ts)
 
+## Effective working directory
+
+The [working-directory service](../../packages/session/working-directory/README.md) projects `working-directory/change` events containing an absolute `cwd`. `Session.header.cwd` remains the immutable original project for settings, workspace association and sandbox authority. The effective directory applies to future directory-based operations and new processes; existing processes keep their startup directory.
+
+The service's `get(session)` performs no filesystem access or mutation. `ensure(agent)` validates the effective directory and recovers a missing changed selection to the original root when available. Headerless Sessions use the deployment fallback without an initial durable append. Unchanged reads, first assembly and listing do not migrate historical files merely to record a fallback. Only actual changes or recoveries append the required event; readers that do not recognize it must refuse the log. Headers and historical files remain unchanged.
+
+Required model context and admitted transition notices are logged. Assembly refreshes the legacy `{{cwd}}` variable without replacing custom prompt text or enabling optional features. SDK get requests call `ensure`, so unlike the service's `get`, they can commit recovery; the [protocol reference](../../packages/sdk/protocol/README.md#working-directory-payloads) owns the request types.
+
+```ts type-equiv
+/** Deployment default for Sessions without an original project directory. */
+interface Config {
+  /** Absolute execution-world fallback directory; omitted values use the launch directory. */
+  defaultDirectory?: string
+}
+```
+
 ## `SessionEventMap` — the event vocabulary
 
 The append-only event types. Merge-extensible: a plugin declares extra event types via declaration merging — e.g. the [compaction seam](compaction.md) adds `compaction/start` / `compaction/summary` / `compaction/end`, and `@deepseek-ai/dsh-hook-protocol` adds log-only `hook/invoked` / `hook/result` records for a hook bridge. Like `compaction/*`, these are NOT `SurfaceEventType`s (no `surfaceOp`). The generated [persistence log event catalog](../persistence-catalog.md) enumerates every member — core and merged — with its payload, surface badge, and declaration site.
@@ -941,10 +957,10 @@ admitPrompt(request: SessionPromptRequest, checkAdmission: () => void): Promise<
 @Remote({ mode: 'stream' }) follow(request: SessionFollowRequest, signal: AbortSignal): AsyncIterable<SessionFollowFrame>
 
 /**
- * Read all registered projections without activating an Agent.
+ * Read projections without activating an Agent or migrating a stored Session.
  * @param request - Session whose current values are required.
- * @param signal - cancellation for the Session observation.
- * @returns complete baseline, or null when the Session does not exist.
+ * @param signal - cancellation for the Session read.
+ * @returns a sequenced baseline, cached hints when migration is deferred, or null when absent.
  */
 @Remote('projections') async projections(request: SessionProjectionsRequest, signal: AbortSignal): Promise<SessionProjectionsValue>
 
@@ -1105,6 +1121,46 @@ fork(source: SessionForkSource, boundary?: SessionSeq, childSessionId?: SessionI
 Types: [CreateSessionOptions](persistence.md) · [PrepareSessionOptions](persistence.md) · [SessionId](core.md)
 
 Source: [`packages/core/session/src/index.ts`](../../packages/core/session/src/index.ts)
+
+<a id="ctxworkingdirectory--workingdirectoryservice"></a>
+
+### `ctx.workingDirectory` — `WorkingDirectoryService`
+
+One owner for each Session's effective directory and its model-visible changes.
+
+```ts cordis-catalog
+/**
+ * Read the committed directory without filesystem I/O.
+ * @param session - Session whose directory is requested.
+ * @returns its effective absolute directory.
+ */
+get(session: Session): string
+
+/**
+ * Validate the current directory and restore the original project when it disappeared.
+ * @param agent - live or unpublished Agent owning the Session.
+ * @param signal - cancellation for filesystem inspection.
+ * @returns the existing directory; recovery is committed before fulfillment.
+ * A notice failure is warned without reverting the committed state.
+ * @throws when the original project is unavailable or a synchronous policy refuses recovery.
+ */
+ensure(agent: Agent, signal?: AbortSignal): Promise<string>
+
+/**
+ * Change one Session's directory without changing existing processes or permissions.
+ * @param agent - live or unpublished Agent owning the Session.
+ * @param path - absolute path or a path relative to its current directory.
+ * @param signal - cancellation before the durable change.
+ * @returns the canonical absolute directory, committed before fulfillment.
+ * A notice failure is warned; the next request still receives the committed directory.
+ * @throws when the requested directory is unavailable or a synchronous Session policy refuses it.
+ */
+set(agent: Agent, path: string, signal?: AbortSignal): Promise<string>
+```
+
+Types: [Agent](core.md)
+
+Source: [`packages/session/working-directory/src/index.ts`](../../packages/session/working-directory/src/index.ts)
 
 <a id="api-session-events"></a>
 
@@ -1301,4 +1357,32 @@ Awaited parallel durability checkpoint: every listener runs and the caller await
 Types: [Scoped](scope.md)
 
 Source: [`packages/core/session/src/index.ts`](../../packages/core/session/src/index.ts)
+
+<a id="working-directory-events"></a>
+
+### `working-directory/*` events
+
+<a id="working-directorybefore-change--waterfall"></a>
+
+#### `working-directory/before-change` — waterfall
+
+Synchronously authorize a proposed directory, including preflight before it exists. Checks may repeat; permission is rechecked at commit and does not publish state or reserve access.
+
+```ts cordis-catalog
+/**
+ * Synchronously authorize a proposed directory, including preflight before it exists.
+ * Checks may repeat; permission is rechecked at commit and does not publish state or reserve access.
+ * @param agent - Agent owning the Session.
+ * @param directory - absolute proposed target directory.
+ * @param signal - cancellation of the owning operation.
+ * @param next - delegate to the remaining synchronous policies.
+ * @returns true to permit publication; false or a thrown error leaves the Session unchanged.
+ * @mode waterfall
+ */
+'working-directory/before-change'(agent: Agent, directory: string, signal: AbortSignal, next: () => boolean): boolean
+```
+
+Types: [Agent](core.md)
+
+Source: [`packages/session/working-directory/src/index.ts`](../../packages/session/working-directory/src/index.ts)
 <!-- END GENERATED cordis-surface -->

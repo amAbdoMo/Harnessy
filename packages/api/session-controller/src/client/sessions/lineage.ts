@@ -16,6 +16,8 @@ export interface TitledSessionSummary extends SessionSummary {
 /** One flattened session-list row with lineage depth. */
 export interface SessionListEntry {
   sessionId: SessionId
+  /** Reported Host readiness; absence means the provider did not report it. */
+  formatStatus?: SessionSummary['formatStatus']
   title?: string
   updatedAt: number
   running: boolean

@@ -10,7 +10,7 @@
  */
 
 import { existsSync } from 'node:fs'
-import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { cp, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, delimiter, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -125,6 +125,9 @@ interface SdkAssertions {
 }
 
 const SDK_ASSERTIONS: Readonly<Record<string, SdkAssertions>> = {
+  'directory-change': {
+    expectedFinalResponse: 'DIRECTORY_CHANGED',
+  },
   'dynamic-tool-updates': {
     expectedFinalResponse: 'DONE',
   },
@@ -552,7 +555,9 @@ async function runScenario(scenario: CorpusScenario): Promise<{
   finalWorkspace: WorkspaceSnapshotEntry[]
   cwd: string
 }> {
-  const cwd = await mkdtemp(join(tmpdir(), `sdk-snapshot-${scenario.name}-`))
+  const temporaryRoot = await mkdtemp(join(tmpdir(), `sdk-snapshot-${scenario.name}-`))
+  // Directory tools canonicalize paths; give this fixture one filesystem spelling on Windows.
+  const cwd = scenario.name === 'directory-change' ? await realpath(temporaryRoot) : temporaryRoot
   const dshHome = join(cwd, '.dsh')
   const sessionsRoot = join(dshHome, 'sessions')
   const replayFixtures = recording ? [] : await hydrateReplayFixtures(scenario, cwd)
@@ -684,6 +689,25 @@ async function runScenario(scenario: CorpusScenario): Promise<{
     await harness.close()
     await rm(cwd, { recursive: true, force: true })
   }
+}
+
+/** Encode only this fixture's two asserted directory literals, including JSON-quoted model text. */
+function portableDirectoryLog(content: string, cwd: string): string {
+  const paths = [[join(cwd, 'selected'), '{{cwd}}/selected'], [cwd, '{{cwd}}']] as const
+  const encode = (value: unknown): unknown => {
+    if (typeof value === 'string') {
+      for (const [native, portable] of paths) {
+        value = value.replaceAll(JSON.stringify(native).slice(1, -1), portable).replaceAll(native, portable)
+      }
+      return value
+    }
+    if (Array.isArray(value)) return value.map(encode)
+    if (value !== null && typeof value === 'object') {
+      return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, encode(item)]))
+    }
+    return value
+  }
+  return content.trimEnd().split('\n').map(line => JSON.stringify(encode(JSON.parse(line)))).join('\n') + '\n'
 }
 
 /** Order logs parent-first, children by creation time (fixture layout order). */
@@ -849,9 +873,14 @@ describe('TypeScript SDK snapshots over the jsonrpc runtime', () => {
         logs,
         recording ? logs.length : files.length,
         assertions.dshSdkChild !== undefined,
-      )
+      ).map(log => scenario.name === 'directory-change'
+        ? { ...log, content: portableDirectoryLog(log.content, cwd) } : log)
       reconcileCatalogCreationTimes(ordered.map(log => log.content), 'validate')
       const actualContext = contextOf(ordered, cwd)
+      if (scenario.name === 'directory-change') {
+        expect(results.at(-1)?.finalResponse, JSON.stringify(results.flatMap(result => result.events)
+          .filter(event => event.type === 'turn/end' || event.type === 'tool/result'))).toBe('DIRECTORY_CHANGED')
+      }
       if (scenario.name === 'dynamic-tool-updates') {
         const selectedTypes = new Set(['request/header', 'request/context', 'developer/message', 'tool/call', 'tool/result'])
         const events = results.flatMap(result => result.events).filter(event => selectedTypes.has(event.type))
@@ -1070,7 +1099,9 @@ describe('TypeScript SDK snapshots over the jsonrpc runtime', () => {
       const finalResult = results.at(-1)
       if (hasWireGoldens) {
         if (finalResult === undefined) throw new Error(`${scenario.name}: SDK wire golden has no run result`)
-        const normalizedNotifications = normalizeNotifications(notifications, actualContext)
+        const wireNotifications = normalizeNotifications(notifications, actualContext)
+        const normalizedNotifications = scenario.name === 'directory-change'
+          ? portableDirectoryLog(wireNotifications, cwd) : wireNotifications
         const normalizedResult = normalizeResult(finalResult, actualContext)
         if (recording || refreshing) {
           await writeFile(notificationsExpectedPath, normalizedNotifications)

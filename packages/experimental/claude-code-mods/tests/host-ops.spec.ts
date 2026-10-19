@@ -134,13 +134,11 @@ describe('services a deployment did not compose', () => {
 })
 
 describe('session facts from the agent', () => {
-  it('falls back from the logged route to the agent option to an empty model, and from the session cwd to the process cwd', async () => {
+  it('falls back through model sources and retains the original project root', async () => {
     const { call, ctx } = setup()
     expect(await call('session.model', {}, fakeAgent(ctx, { requestModel: 'logged', model: 'opt' }))).toBe('logged')
     expect(await call('session.model', {}, fakeAgent(ctx, { model: 'opt' }))).toBe('opt')
     expect(await call('session.model', {}, fakeAgent(ctx))).toBe('')
-    expect(await call('session.cwd', {}, fakeAgent(ctx))).toBe(process.cwd())
-    expect(await call('session.cwd', {}, fakeAgent(ctx, { cwd: '/work' }))).toBe('/work')
     expect(await call('session.root', {}, fakeAgent(ctx))).toBe(process.cwd())
     expect(await call('session.root', {}, fakeAgent(ctx, { cwd: '/work' }))).toBe('/work')
     expect(await call('session.id', {}, fakeAgent(ctx))).toBe('fake')
@@ -149,7 +147,7 @@ describe('session facts from the agent', () => {
 })
 
 describe('files through the filesystem seam', () => {
-  it('resolves against the session cwd or the filesystem cwd, enforces the size limits, and reports links', async () => {
+  it('uses the filesystem cwd, enforces the size limits, and reports links', async () => {
     const root = mkdtempSync(join(tmpdir(), 'dsh-cc-mods-fs-'))
     dirs.push(root)
     const ctx = new Context()
@@ -160,13 +158,12 @@ describe('files through the filesystem seam', () => {
     symlinkSync(join(root, 'small.txt'), join(root, 'link.txt'))
     symlinkSync(join(root, 'gone.txt'), join(root, 'dangling.txt'))
     expect(await call('fs.read', { path: 'small.txt' })).toBe('small')
-    expect(await call('fs.read', { path: 'small.txt' }, fakeAgent(ctx, { cwd: root }))).toBe('small')
     await expect(call('fs.read', { path: 'big.txt' })).rejects.toThrow(/larger than/)
     await expect(call('fs.write', { path: 'out.txt', text: 'x'.repeat(FS_MAX_BYTES + 1) })).rejects.toThrow(/larger than/)
     await expect(call('fs.write', { path: 1, text: 'x' })).rejects.toThrow('$.fs.write path must be a string')
     expect(await call('fs.stat', { path: 'link.txt' })).toEqual({ kind: 'file', size: 5, mtimeMs: 0, isLink: true })
     expect(await call('fs.stat', { path: 'dangling.txt' })).toEqual({ kind: 'other', size: 0, mtimeMs: 0, isLink: true })
-    expect(await call('fs.stat', { path: 'small.txt' }, fakeAgent(ctx, { cwd: root }))).toMatchObject({ kind: 'file', isLink: false })
+    expect(await call('fs.stat', { path: 'small.txt' })).toMatchObject({ kind: 'file', isLink: false })
     expect(await call('fs.stat', { path: '.' })).toMatchObject({ kind: 'dir', isLink: false })
     const listed = await call('fs.list', { path: '.' }) as { name: string; kind: string }[]
     expect(listed.map(entry => entry.kind)).toContain('file')
@@ -187,8 +184,6 @@ describe('processes through the subprocess seam', () => {
     }) as { exitCode: number; stdout: string }
     expect(run.exitCode).toBe(0)
     expect(run.stdout.endsWith('|set')).toBe(true)
-    const viaAgent = await call('process.run', { argv: ['node', '-e', 'process.stdout.write(process.cwd())'] }, fakeAgent(ctx, { cwd })) as { stdout: string }
-    expect(viaAgent.stdout.length).toBeGreaterThan(0)
     const bare = await call('process.run', { argv: ['node', '-e', 'process.stdout.write(process.cwd())'] }) as { exitCode: number; stdout: string }
     expect(bare).toEqual({ exitCode: 0, stdout: process.cwd(), stderr: '' })
     // A Windows child that kills itself still reports an exit code, so the signal branch is POSIX evidence.

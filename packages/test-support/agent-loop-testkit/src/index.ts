@@ -16,9 +16,21 @@ import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import type { Config as SystemPromptConfig } from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
+import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
+import WorkingDirectory from '@deepseek-ai/dsh-working-directory'
 import type { Config as ToolRuntimeConfig } from '@deepseek-ai/dsh-tools'
 
 export { createInboxStub, unsupportedInbox } from './inbox.ts'
+
+/**
+ * Register real local filesystem and working-directory services for hook and tool tests.
+ * The directory service activates when the standard prerequisites are mounted.
+ * @param ctx - test context owning both plugins and their disposal.
+ */
+export function provideWorkingDirectoryFixture(ctx: Context): void {
+  ctx.plugin(LocalFileSystem)
+  ctx.plugin(WorkingDirectory, {})
+}
 
 interface DriverInbox extends Inbox {
   claim(target: InboxTarget, turn: number): UserMessage[]

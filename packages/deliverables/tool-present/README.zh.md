@@ -29,6 +29,8 @@ kind: "package-reference"
 
 在 Agent 的 Cordis 组合中挂载，并提供 `tools`、`fs` 和 `turnBoundary` Session 投影：
 
+文件验证使用本插件中注入的文件系统与工作目录服务。调用方 Agent 拥有 Session 与交付记录；其上下文无需注入这些服务。
+
 ```yaml
 - name: '@deepseek-ai/dsh-tool-present'
   config:

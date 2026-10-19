@@ -25,6 +25,8 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
+New child processes and protocol sessions use the parent Session’s current directory from `ctx.workingDirectory`, including its configured fallback. A configured `cwd` override, when supported, still takes precedence; existing children keep their startup directory.
+
 Mount this provider when a delegation should run as a complete Harness runtime in its own process. The common path is explicit: mount the seam, mount this provider, configure `dshBin` when needed, and select the child `profile` and ordered `patches`.
 
 ### When to choose it

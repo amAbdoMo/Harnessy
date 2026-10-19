@@ -27,6 +27,8 @@ Use `dsh-tool-fs` to let a model read UTF-8 files with line numbers, read suppor
 
 Mount the tools after a `ctx.fs` backend and, for read-before-write/edit behavior, the policy plugin. The model then gets line-numbered reads, atomic writes and edits, and — with an attachment store mounted — image reads; every result is capped, and failures carry stable codes with recovery instructions.
 
+Filesystem operations use the services injected into the tool plugin. The calling Agent supplies its Session directory and cancellation; its context does not need filesystem service injections.
+
 ### Minimal composition
 
 A backend, the policy plugin, then the tools; the attachment store is optional and enables `read_image`.
@@ -102,7 +104,7 @@ The tools are the executor; policy is an event gate. The tools inject no policy 
 
 ### Per-tool flow
 
-All four tools share one flow shape: resolve the path with the calling session's cwd, run the applicable gate, perform exactly one provider operation, and emit `fs/observed` only after success. `read` and `read_image` pay one `stat` for type and size routing; `write` and `edit` pay none because their guard comes from the intent slot, and provider failures surface as typed `FsError` results. The per-tool executors live in `src/read.ts`, `src/read-image.ts`, `src/write.ts`, and `src/edit.ts`.
+All four tools validate the calling Agent's current directory through the [working-directory service](../../session/working-directory/README.md), resolve the requested path, run the applicable gate, perform exactly one provider operation, and emit `fs/observed` only after success. Calls without an Agent retain the filesystem provider's directory default. `read` and `read_image` pay one target `stat` for type and size routing; `write` and `edit` pay none because their guard comes from the intent slot, and provider failures surface as typed `FsError` results. The per-tool executors live in `src/read.ts`, `src/read-image.ts`, `src/write.ts`, and `src/edit.ts`.
 
 ### Observation and concurrency
 

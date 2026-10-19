@@ -2,6 +2,41 @@
   "comment": "Maps each primary ` ```ts type-equiv ` or ` ```ts public-api ` block (by doc + declared symbol + projection) to the source declaration and original JSDoc it must match. Paired `.zh.md` blocks are byte-identical derivatives checked through their unsuffixed sibling and have no duplicate entry. Omit projection for the complete declaration; use public-api with a ` ```ts public-api ` block for a body-stripped public class declaration. verify-type-equiv.ts enforces a 1:1 correspondence between primary blocks and entries. Add an entry when you add a primary source-equivalence block; remove it when you remove the block.",
   "entries": [
     {
+      "doc": "packages/sdk/protocol/README.md",
+      "symbol": "SessionWorkingDirectoryParams",
+      "source": "packages/sdk/protocol/src/types.ts"
+    },
+    {
+      "doc": "packages/sdk/protocol/README.md",
+      "symbol": "SessionWorkingDirectorySetParams",
+      "source": "packages/sdk/protocol/src/types.ts"
+    },
+    {
+      "doc": "packages/sdk/protocol/README.md",
+      "symbol": "SessionWorkingDirectoryResult",
+      "source": "packages/sdk/protocol/src/types.ts"
+    },
+    {
+      "doc": "packages/sdk/protocol/README.md",
+      "symbol": "HarnessSdkRequestMap",
+      "source": "packages/sdk/protocol/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/session.md",
+      "symbol": "Config",
+      "source": "packages/session/working-directory/src/index.ts"
+    },
+    {
+      "doc": "docs/subsystems/worktrees.md",
+      "symbol": "CreateWorktreeRequest",
+      "source": "packages/experimental/worktree/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/worktrees.md",
+      "symbol": "CreatedWorktree",
+      "source": "packages/experimental/worktree/src/types.ts"
+    },
+    {
       "doc": "docs/subsystems/compaction.md",
       "symbol": "ImageOffloadTarget",
       "source": "packages/compaction/compaction-image-offload/src/projection.ts"

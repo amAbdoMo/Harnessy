@@ -6,6 +6,22 @@
 
 源码：[`packages/core/session/src/types.ts`](../../packages/core/session/src/types.ts)
 
+## 有效工作目录
+
+[工作目录服务](../../packages/session/working-directory/README.zh.md)投影包含绝对 `cwd` 的 `working-directory/change` 事件。`Session.header.cwd` 仍是不可变的原始项目，用于设置、工作区关联及沙箱权限依据。有效目录应用于后续基于目录的操作与新进程；现有进程保留其启动目录。
+
+服务的 `get(session)` 不访问文件系统或修改状态。`ensure(agent)` 会校验有效目录，并在已变更的选择消失时恢复到仍可用的原始根目录。没有头部目录的 Session 使用部署回退目录，而不追加初始持久记录。目录未变的读取、首次组装和列表查询不会仅为记录回退值而迁移历史文件。只有实际变更或恢复才追加该必读事件；不识别它的读取方必须拒绝日志。头部与历史文件保持不变。
+
+必需模型上下文与被接纳的转换通知会记录到日志。组装会刷新旧有的 `{{cwd}}` 变量，而不替换自定义提示词文本或启用可选功能。SDK get 请求调用 `ensure`，因此与服务的 `get` 不同，它可能提交恢复变更；请求类型由[协议参考](../../packages/sdk/protocol/README.zh.md#working-directory-payloads)持有。
+
+```ts type-equiv
+/** Deployment default for Sessions without an original project directory. */
+interface Config {
+  /** Absolute execution-world fallback directory; omitted values use the launch directory. */
+  defaultDirectory?: string
+}
+```
+
 ## `SessionEventMap`：事件词汇
 
 仅追加的事件类型。可通过声明合并扩展：插件通过 declaration merging 声明额外的事件类型。例如[压缩（compaction） seam](compaction.zh.md) 添加了 `compaction/start` / `compaction/summary` / `compaction/end`，`@deepseek-ai/dsh-hook-protocol` 为钩子桥接添加了仅记录日志的 `hook/invoked` / `hook/result` 记录。与 `compaction/*` 一样，这些都不是 `SurfaceEventType`（没有 `surfaceOp`）。生成的[持久化日志事件目录](../persistence-catalog.zh.md)列举了所有成员（核心与合并扩展的），包含其 payload、surface 标记与声明位置。
@@ -945,10 +961,10 @@ admitPrompt(request: SessionPromptRequest, checkAdmission: () => void): Promise<
 @Remote({ mode: 'stream' }) follow(request: SessionFollowRequest, signal: AbortSignal): AsyncIterable<SessionFollowFrame>
 
 /**
- * Read all registered projections without activating an Agent.
+ * Read projections without activating an Agent or migrating a stored Session.
  * @param request - Session whose current values are required.
- * @param signal - cancellation for the Session observation.
- * @returns complete baseline, or null when the Session does not exist.
+ * @param signal - cancellation for the Session read.
+ * @returns a sequenced baseline, cached hints when migration is deferred, or null when absent.
  */
 @Remote('projections') async projections(request: SessionProjectionsRequest, signal: AbortSignal): Promise<SessionProjectionsValue>
 
@@ -1109,6 +1125,46 @@ fork(source: SessionForkSource, boundary?: SessionSeq, childSessionId?: SessionI
 Types: [CreateSessionOptions](persistence.zh.md) · [PrepareSessionOptions](persistence.zh.md) · [SessionId](core.zh.md)
 
 Source: [`packages/core/session/src/index.ts`](../../packages/core/session/src/index.ts)
+
+<a id="ctxworkingdirectory--workingdirectoryservice"></a>
+
+### `ctx.workingDirectory` — `WorkingDirectoryService`
+
+One owner for each Session's effective directory and its model-visible changes.
+
+```ts cordis-catalog
+/**
+ * Read the committed directory without filesystem I/O.
+ * @param session - Session whose directory is requested.
+ * @returns its effective absolute directory.
+ */
+get(session: Session): string
+
+/**
+ * Validate the current directory and restore the original project when it disappeared.
+ * @param agent - live or unpublished Agent owning the Session.
+ * @param signal - cancellation for filesystem inspection.
+ * @returns the existing directory; recovery is committed before fulfillment.
+ * A notice failure is warned without reverting the committed state.
+ * @throws when the original project is unavailable or a synchronous policy refuses recovery.
+ */
+ensure(agent: Agent, signal?: AbortSignal): Promise<string>
+
+/**
+ * Change one Session's directory without changing existing processes or permissions.
+ * @param agent - live or unpublished Agent owning the Session.
+ * @param path - absolute path or a path relative to its current directory.
+ * @param signal - cancellation before the durable change.
+ * @returns the canonical absolute directory, committed before fulfillment.
+ * A notice failure is warned; the next request still receives the committed directory.
+ * @throws when the requested directory is unavailable or a synchronous Session policy refuses it.
+ */
+set(agent: Agent, path: string, signal?: AbortSignal): Promise<string>
+```
+
+Types: [Agent](core.zh.md)
+
+Source: [`packages/session/working-directory/src/index.ts`](../../packages/session/working-directory/src/index.ts)
 
 <a id="api-session-events"></a>
 
@@ -1305,4 +1361,32 @@ Awaited parallel durability checkpoint: every listener runs and the caller await
 Types: [Scoped](scope.zh.md)
 
 Source: [`packages/core/session/src/index.ts`](../../packages/core/session/src/index.ts)
+
+<a id="working-directory-events"></a>
+
+### `working-directory/*` events
+
+<a id="working-directorybefore-change--waterfall"></a>
+
+#### `working-directory/before-change` — waterfall
+
+Synchronously authorize a proposed directory, including preflight before it exists. Checks may repeat; permission is rechecked at commit and does not publish state or reserve access.
+
+```ts cordis-catalog
+/**
+ * Synchronously authorize a proposed directory, including preflight before it exists.
+ * Checks may repeat; permission is rechecked at commit and does not publish state or reserve access.
+ * @param agent - Agent owning the Session.
+ * @param directory - absolute proposed target directory.
+ * @param signal - cancellation of the owning operation.
+ * @param next - delegate to the remaining synchronous policies.
+ * @returns true to permit publication; false or a thrown error leaves the Session unchanged.
+ * @mode waterfall
+ */
+'working-directory/before-change'(agent: Agent, directory: string, signal: AbortSignal, next: () => boolean): boolean
+```
+
+Types: [Agent](core.zh.md)
+
+Source: [`packages/session/working-directory/src/index.ts`](../../packages/session/working-directory/src/index.ts)
 <!-- END GENERATED cordis-surface -->

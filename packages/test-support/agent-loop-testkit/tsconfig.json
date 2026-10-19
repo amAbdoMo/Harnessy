@@ -8,6 +8,8 @@
     "src"
   ],
   "references": [
+    { "path": "../../fs/fs-local" },
+    { "path": "../../session/working-directory" },
     {
       "path": "../../../vendor/cosmokit"
     },

@@ -32,6 +32,8 @@ kind: "package-reference"
   name: '@deepseek-ai/dsh-subagent-commandcode'
 ```
 
+新 CLI 运行使用 Session 当前执行目录。通道与角色覆盖仍以不可变的原始项目（`header.cwd`）为键，因此改变目录不能选用其他项目的访问或路由策略。
+
 ### 前置条件
 
 CLI 由用户自行提供。本包不会内置、安装或再分发 Command Code，也不会读取、复制或保存其凭据。用户自行安装 CLI、登录，并在设置中选择通道。

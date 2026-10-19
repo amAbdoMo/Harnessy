@@ -27,6 +27,8 @@ kind: "package-reference"
 
 在 `ctx.fs` 后端之后挂载工具，并在需要先读后写/编辑行为时挂载策略插件。模型随后获得带行号的读取、原子的写入与编辑，以及——挂载附件存储时——图像读取；每个结果都有上限，失败携带稳定错误码与恢复指令。
 
+文件系统操作使用工具插件中注入的服务。调用方 Agent 提供其 Session 目录与取消信号；其上下文无需注入文件系统服务。
+
 ### 最小组合
 
 一个后端、策略插件，然后是工具；附件存储为可选，用于启用 `read_image`。
@@ -102,7 +104,7 @@ kind: "package-reference"
 
 ### 各工具流程
 
-四个工具共享同一种流程形态：用调用会话的 cwd 解析路径、运行适用的门禁、恰好执行一次提供方操作，并且只在成功后发出 `fs/observed`。`read` 与 `read_image` 为类型与大小路由付出一次 `stat`；`write` 与 `edit` 不执行 stat，因为防护来自意图槽位，提供方失败以类型化 `FsError` 结果呈现。各工具执行器位于 `src/read.ts`、`src/read-image.ts`、`src/write.ts` 与 `src/edit.ts`。
+四个工具通过[工作目录服务](../../session/working-directory/README.zh.md)校验调用 Agent 的当前目录，再解析请求路径、运行适用的门禁、恰好执行一次提供方操作，并且只在成功后发出 `fs/observed`。没有 Agent 的调用保留文件系统提供方的默认目录。`read` 与 `read_image` 为目标的类型与大小路由付出一次 `stat`；`write` 与 `edit` 不执行目标 stat，因为防护来自意图槽位，提供方失败以类型化 `FsError` 结果呈现。各工具执行器位于 `src/read.ts`、`src/read-image.ts`、`src/write.ts` 与 `src/edit.ts`。
 
 ### 观察与并发
 

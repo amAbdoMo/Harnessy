@@ -63,6 +63,23 @@ async function tempDir(prefix: string): Promise<string> {
 }
 
 describe('DeepSeekHarness', () => {
+  it('reads and changes each Session directory independently through the SDK wire', async () => {
+    const harness = harnessWith()
+    const origin = resolvePath(process.cwd())
+    const first = harness.session('directory-first')
+    const second = harness.session('directory-second')
+    expect(await first.getWorkingDirectory()).toBe(origin)
+    expect(await first.setWorkingDirectory('selected')).toBe(join(origin, 'selected'))
+    expect(await second.getWorkingDirectory()).toBe(origin)
+    expect(await harness.client.getWorkingDirectory(first.id)).toBe(join(origin, 'selected'))
+    expect(await first.setWorkingDirectory('..')).toBe(origin)
+  })
+
+  it.each([{}, { cwd: null }, { cwd: 12 }, { cwd: '' }])('rejects malformed working-directory response %j', async (response) => {
+    const harness = harnessWith({ FAKE_DIRECTORY_RESPONSE_JSON: JSON.stringify(response) })
+    await expect(harness.session('directory-invalid').getWorkingDirectory()).rejects.toBeInstanceOf(SdkProtocolError)
+  })
+
   it('ignores notifications that precede the submitted message receipt', async () => {
     const notifications = [
       { method: 'session.status', params: { sessionId: 'owned', status: 'running' } },

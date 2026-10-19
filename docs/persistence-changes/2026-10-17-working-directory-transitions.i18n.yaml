@@ -1,0 +1,28 @@
+# Bilingual-pair consistency record for 2026-10-17-working-directory-transitions.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/persistence-changes/2026-10-17-working-directory-transitions.md
+/:
+  en: 3d5a424ae7d7e46b
+  zh: c22a8e4a62d8cc1a
+/2026-10-17-working-directory-transitions:
+  en: d6d00d38f889e7a5
+  zh: b13dd2bb0c2ae037
+/2026-10-17-working-directory-transitions/summary:
+  en: a3002b34080e701d
+  zh: 7089ea834bacf39e
+/2026-10-17-working-directory-transitions/table-of-contents:
+  en: 6cf314a069ceb451
+  zh: 9adff678e9ecab3b
+/2026-10-17-working-directory-transitions/declaration:
+  en: 6907136f28e48c90
+  zh: 02f8298485f3d8e7
+/2026-10-17-working-directory-transitions/compatibility:
+  en: 2a7616c687bfb002
+  zh: 68e98118a4593028
+/2026-10-17-working-directory-transitions/verification:
+  en: 9a4060084090ed48
+  zh: f37b091abf1828ce
+/2026-10-17-working-directory-transitions/dev-note:
+  en: b75c8458928b72b9
+  zh: 003ba4e17b4b5269

@@ -27,6 +27,8 @@ Use `dsh-tool-fs-search` to give models `glob` file discovery and `grep` content
 
 Mount the tools after a `ctx.subprocess` backend; no host `rg` install is needed, and no filesystem provider is required. The model then gets modification-time-ordered file discovery and line-oriented content search, each bounded and timeout-guarded.
 
+Searches use the subprocess and working-directory services injected into the tool plugin. The calling Agent supplies its Session directory and cancellation; its context does not need those service injections.
+
 ### Minimal composition
 
 A subprocess backend, then the tools; the spill backend is optional and makes capped results fully recoverable.

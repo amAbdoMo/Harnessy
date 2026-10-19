@@ -51,7 +51,7 @@ agent.inbox.append('next-turn', message)
 const admitted = harness.claim(agent, 'next-turn', 1)
 ```
 
-依赖辅助函数通过 `options` 转发系统提示词与工具注册表配置，除这些服务自有的默认值外不提供测试默认值。插件加载失败会使辅助函数调用被拒绝；顺序中较早激活的服务仍归上下文所有，并在上下文释放时一并解除。
+依赖辅助函数通过 `options` 转发系统提示词与工具注册表配置，除这些服务自有的默认值外不提供测试默认值。插件加载失败会使辅助函数调用被拒绝；顺序中较早激活的服务仍归上下文所有，并在上下文释放时一并解除。钩子和文件系统测试可在挂载前置服务前调用 `provideWorkingDirectoryFixture(ctx)`，注册真实的本地文件系统和目录服务；两个插件均由上下文管理。
 
 ### 构造结构化 Agent 桩
 
@@ -108,7 +108,7 @@ harness 不会挂载任何 LLM（大语言模型）适配器。若测试发送�
 <a id="model-experience"></a>
 ## 模型体验
 
-无。这些测试专用辅助工具既不组装也不修改模型请求。
+无，因为这些测试工具将模型可见行为交由所挂载的生产插件负责，包括可选的[工作目录服务](../../session/working-directory/README.zh.md#model-experience)。
 
 #### KV Cache 影响
 

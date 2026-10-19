@@ -1,10 +1,14 @@
-import { describe, expect, it, vi } from 'vitest'
+import { mkdtemp, mkdir, realpath, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
+import { mountAgentLoopTestDependencies, mountAgentLoopTestHarness } from '@deepseek-ai/dsh-agent-loop-testkit'
+import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
+import WorkingDirectory from '@deepseek-ai/dsh-working-directory'
 import { Context } from '@deepseek-ai/cordis'
 import { createUserMessage, ToolCallId  } from '@deepseek-ai/dsh-llm'
 import type { ContextFormed } from '@deepseek-ai/dsh-llm'
 import type { ToolSchema } from '@deepseek-ai/dsh-llm'
-import { createScope } from '@deepseek-ai/dsh-scope'
-import type { Scope } from '@deepseek-ai/dsh-scope'
 import SystemPrompt, { renderPrompt } from '@deepseek-ai/dsh-system-prompt'
 import { PtcRuntime } from '@deepseek-ai/dsh-ptc-runtime'
 import type { PtcRunRequest, PtcRunResult } from '@deepseek-ai/dsh-ptc-runtime'
@@ -16,7 +20,6 @@ import ApprovalService, { type ApprovalOutcome, type ApprovalRequest } from '@de
 import type { SessionEventMap } from '@deepseek-ai/dsh-session'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import SandboxPolicy from '@deepseek-ai/dsh-sandbox-policy'
-import SessionProjections from '@deepseek-ai/dsh-session-projection'
 
 declare module '@deepseek-ai/dsh-llm' {
   interface MessageSourceMap {
@@ -64,8 +67,14 @@ interface SetupOptions {
 
 async function setup(options: SetupOptions = {}) {
   const ctx = new Context()
-  await ctx.plugin(SystemPrompt, { ...options.toolOrder ? { toolOrder: options.toolOrder } : {} })
-  await ctx.plugin(ToolRuntime, { mode: options.mode ?? 'ptc', ...options.maxParallelSubCalls !== undefined ? { maxParallelSubCalls: options.maxParallelSubCalls } : {} })
+  onTestFinished(async () => { await ctx.fiber.dispose() })
+  await mountAgentLoopTestDependencies(ctx, {
+    systemPrompt: { ...options.toolOrder ? { toolOrder: options.toolOrder } : {} },
+    tools: { mode: options.mode ?? 'ptc', ...options.maxParallelSubCalls !== undefined ? { maxParallelSubCalls: options.maxParallelSubCalls } : {} },
+  })
+  await ctx.plugin(LocalFileSystem)
+  await ctx.plugin(WorkingDirectory, {})
+  await mountAgentLoopTestHarness(ctx)
   let runtime: FakeRuntime | undefined
   if (options.runtime !== false) {
     await ctx.plugin(FakeRuntime, options.runtime ?? {})
@@ -75,12 +84,9 @@ async function setup(options: SetupOptions = {}) {
 }
 
 /** Mint an agent scope configured like production that can register scoped tool policy. */
-async function mintAgentScope(ctx: Context, name = 'scoped'): Promise<{ scope: Scope; agent: Agent }> {
-  const agent = { id: SessionId(name), session: { header: {}, append: () => {} } } as unknown as Agent
-  let scope!: Scope
-  await ctx.plugin(Object.assign((inner: Context) => { scope = createScope(inner, agent) },
-    { inject: ['tools', 'systemPrompt'] }))
-  return { scope, agent }
+async function mintAgentScope(ctx: Context, name = 'scoped') {
+  const agent = await ctx.agentLoop.create(SessionId(name), {}, { cwd: process.cwd() })
+  return { scope: { ctx: agent.ctx }, agent }
 }
 
 /** Register a trivial echo tool; returns the calls it received. */
@@ -102,15 +108,13 @@ function registerEcho(ctx: Context, name = 'echo'): unknown[] {
   return calls
 }
 
-/** A structural fake of the owning agent: captures session appends. */
-function fakeAgent(): { agent: Agent; events: { type: string; data: unknown }[] } {
+/** Create a production Agent and observe its real Session appends. */
+async function realAgent(ctx: Context) {
+  const agent = await ctx.agentLoop.create(SessionId('ptc-owner'), {}, { cwd: process.cwd() })
   const events: { type: string; data: unknown }[] = []
-  const agent = {
-    session: {
-      header: { cwd: '/workspace' },
-      append: (type: string, data: unknown) => { events.push({ type, data }) },
-    },
-  } as unknown as Agent
+  ctx.on('session/event', (session, event) => {
+    if (session === agent.session) events.push({ type: event.type, data: event.data })
+  })
   return { agent, events }
 }
 
@@ -139,7 +143,8 @@ describe('mode-aware wire contribution', () => {
   ] as const)('preserves literal braces in the $language SDK under $mode', async ({ mode, language }) => {
     const { ctx, systemPrompt } = await setup({ mode, runtime: { language } })
     try {
-      systemPrompt.variable('model', () => 'actual-model')
+      const { scope, agent } = await mintAgentScope(ctx)
+      scope.ctx.systemPrompt.variable('model', () => 'actual-model')
       const description = 'Expand {{item}} with {{model}} or {{ model }}.'
       ctx.tools.register(defineTool({
         name: 'template',
@@ -151,7 +156,7 @@ describe('mode-aware wire contribution', () => {
         },
         execute: args => Promise.resolve(args.value),
       }))
-      const assembly = await systemPrompt.assemble()
+      const assembly = await systemPrompt.assemble({ scope: agent })
       const sdk = assembly.sections.find(section => section.name === 'tools:sdk')
       expect(sdk).toBeDefined()
       const prompt = renderPrompt(assembly)
@@ -594,7 +599,7 @@ describe('the sub-dispatch scheduler (native concurrency contract)', () => {
   it('overlaps concurrency-safe calls under Promise.all and logs a start event per dispatch', async () => {
     const { ctx, runtime } = await setup({ mode: 'ptc' })
     const gated = registerGated(ctx, 'safe_read', true)
-    const { agent, events } = fakeAgent()
+    const { agent, events } = await realAgent(ctx)
     runtime.behavior = async (request) => {
       const tools = request.bindings[0]!.functions
       const all = Promise.all([
@@ -652,7 +657,7 @@ describe('the sub-dispatch scheduler (native concurrency contract)', () => {
   it('holds later dispatches while settled results await log storage', async () => {
     const { ctx, runtime } = await setup({ maxParallelSubCalls: 1 })
     const calls = registerEcho(ctx)
-    const { agent } = fakeAgent()
+    const { agent } = await realAgent(ctx)
     const release = Promise.withResolvers<undefined>()
     const blocked = Promise.withResolvers<undefined>()
     let pendingLogs = 0
@@ -809,7 +814,7 @@ describe('the sub-dispatch scheduler (native concurrency contract)', () => {
   it('run settlement drains a commit already in progress: the settle event is appended inside the turn', async () => {
     const { ctx, runtime } = await setup({ mode: 'ptc' })
     const gated = registerGated(ctx, 'safe_read', true)
-    const { agent, events } = fakeAgent()
+    const { agent, events } = await realAgent(ctx)
     let releasePost: (() => void) | undefined
     ctx.on('tools/post-execute', async (postExec, _result, next): Promise<PostToolDecision> => {
       if (postExec.name === 'safe_read') {
@@ -879,7 +884,7 @@ describe('the sub-dispatch scheduler (native concurrency contract)', () => {
   it('a queued-unstarted call abandoned by run settlement logs no start event', async () => {
     const { ctx, runtime } = await setup({ mode: 'ptc' })
     const gated = registerGated(ctx, 'writer', false)
-    const { agent, events } = fakeAgent()
+    const { agent, events } = await realAgent(ctx)
     const abandoned: string[] = []
     runtime.behavior = async (request) => {
       const tools = request.bindings[0]!.functions
@@ -908,6 +913,49 @@ describe('the sub-dispatch scheduler (native concurrency contract)', () => {
 })
 
 describe('the run_code dispatch bridge', () => {
+  it('captures the current Session directory per program without moving running programs or workspace authority', async () => {
+    const { ctx, runtime } = await setup()
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-ptc-directory-')))
+    const started = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    let running: Promise<ToolExecutionResult> | undefined
+    try {
+      const selected = join(root, 'selected')
+      const later = join(root, 'later')
+      await mkdir(selected)
+      await mkdir(later)
+      await ctx.plugin(SandboxPolicy, { mode: 'workspace-write' })
+      Object.defineProperty(runtime, 'sandboxMode', { get: () => 'workspace-write' })
+      const agent = await ctx.agentLoop.create(SessionId('directory-capture'), {}, { cwd: root })
+      const firstCwd = await ctx.workingDirectory.set(agent, selected)
+      runtime.behavior = async (request) => {
+        if (request.program === 'ongoing') {
+          started.resolve(undefined)
+          await release.promise
+        }
+        expect(request.sandboxPolicy?.workspaceRoot).toBe(root)
+        return { logs: [], ...(request.cwd === undefined ? {} : { value: request.cwd }) }
+      }
+      running = runCode(ctx, 'ongoing', { agent })
+      await started.promise
+      const secondCwd = await ctx.workingDirectory.set(agent, later)
+      const subsequent = await runCode(ctx, 'subsequent', { agent })
+      expect(subsequent.isError).toBe(false)
+      expect(subsequent.value).toEqual({ logs: [], result: secondCwd })
+      release.resolve(undefined)
+      const ongoing = await running
+      expect(ongoing.isError).toBe(false)
+      expect(ongoing.value).toEqual({ logs: [], result: firstCwd })
+      expect(agent.session.header.cwd).toBe(root)
+      expect(ctx.workingDirectory.get(agent.session)).toBe(secondCwd)
+    } finally {
+      release.resolve(undefined)
+      await running
+      await ctx.fiber.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
   it('keeps each concurrent run bound to its own immutable schema snapshot', async () => {
     const { ctx, runtime } = await setup({ mode: 'ptc' })
     let description = 'original description'
@@ -958,7 +1006,7 @@ describe('the run_code dispatch bridge', () => {
   it('bridges tool calls, returns only the curated output, and logs one event per dispatch', async () => {
     const { ctx, runtime } = await setup({ mode: 'ptc' })
     const calls = registerEcho(ctx)
-    const { agent, events } = fakeAgent()
+    const { agent, events } = await realAgent(ctx)
     runtime.behavior = async (request) => {
       const tools = request.bindings[0]!.functions
       const first = await tools.echo!({ value: 'one' })
@@ -1114,7 +1162,7 @@ describe('the run_code dispatch bridge', () => {
   it('bounds pending log writes without withholding settled values from the program', async () => {
     const { ctx, runtime } = await setup({ mode: 'ptc', maxParallelSubCalls: 1 })
     const calls = registerEcho(ctx)
-    const { agent, events } = fakeAgent()
+    const { agent, events } = await realAgent(ctx)
     const firstLog = Promise.withResolvers<undefined>()
     const secondLog = Promise.withResolvers<undefined>()
     let logs = 0
@@ -1152,7 +1200,7 @@ describe('the run_code dispatch bridge', () => {
     const { ctx, runtime } = await setup({ mode: 'ptc' })
     registerEcho(ctx)
     ctx.on('tools/ptc-dispatch-log', () => { throw new Error('log-content listener failed') })
-    const { agent, events } = fakeAgent()
+    const { agent, events } = await realAgent(ctx)
     runtime.behavior = async (request) => {
       const value = await request.bindings[0]!.functions.echo!({ value: 'x' })
       return { logs: [], value: value as string }
@@ -1175,7 +1223,7 @@ describe('the run_code dispatch bridge', () => {
       if (exec.name === 'echo') postExecuted.push(exec.name)
       return next()
     })
-    const { agent, events } = fakeAgent()
+    const { agent, events } = await realAgent(ctx)
     runtime.behavior = async (request) => {
       const message = await request.bindings[0]!.functions.echo!({ value: 'x' })
         .then(() => 'resolved', (error: unknown) => error instanceof Error ? error.message : String(error))
@@ -1211,7 +1259,7 @@ describe('the run_code dispatch bridge', () => {
       }
       return next()
     })
-    const { agent, events } = fakeAgent()
+    const { agent, events } = await realAgent(ctx)
     runtime.behavior = async (request) => {
       try {
         await request.bindings[0]!.functions.echo!({ value: 'x' })
@@ -1263,7 +1311,7 @@ describe('the run_code dispatch bridge', () => {
       }
       return next()
     })
-    const { agent, events } = fakeAgent()
+    const { agent, events } = await realAgent(ctx)
     runtime.behavior = async (request) => {
       await request.bindings[0]!.functions.echo!({ value: 'x' })
       return { logs: [], value: 'unreachable' }
@@ -1290,7 +1338,7 @@ describe('the run_code dispatch bridge', () => {
     const calls = registerEcho(ctx)
     ctx.on('tools/pre-execute', (exec, next) =>
       exec.name === 'echo' ? Promise.resolve({ kind: 'cancel' as const }) : next())
-    const { agent, events } = fakeAgent()
+    const { agent, events } = await realAgent(ctx)
     runtime.behavior = async (request) => {
       try {
         await request.bindings[0]!.functions.echo!({ value: 'x' })
@@ -1316,7 +1364,7 @@ describe('the run_code dispatch bridge', () => {
   it('rejects a binding argument that is not lossless JSON, dispatching nothing', async () => {
     const { ctx, runtime } = await setup({ mode: 'ptc' })
     const calls = registerEcho(ctx)
-    const { agent, events } = fakeAgent()
+    const { agent, events } = await realAgent(ctx)
     runtime.behavior = async (request) => {
       try {
         await request.bindings[0]!.functions.echo!({ value: 'x', big: 1n })
@@ -1334,7 +1382,7 @@ describe('the run_code dispatch bridge', () => {
   it('dispatches and logs independent snapshots of the same lossless JSON value', async () => {
     const { ctx, runtime } = await setup({ mode: 'ptc' })
     const calls = registerEcho(ctx)
-    const { agent, events } = fakeAgent()
+    const { agent, events } = await realAgent(ctx)
     runtime.behavior = async (request) => {
       const args = Object.assign(Object.create(null) as Record<string, unknown>, { value: 'x', nested: ['same'] })
       await request.bindings[0]!.functions.echo!(args)
@@ -1535,7 +1583,7 @@ describe('the run_code dispatch bridge', () => {
 
   it('a runtime that starts a binding call and then REJECTS still reaches quiescence before returning', async () => {
     const { ctx, runtime } = await setup({ mode: 'ptc' })
-    const { agent, events } = fakeAgent()
+    const { agent, events } = await realAgent(ctx)
     let sawAbort = false
     let started!: () => void
     const inFlight = new Promise<void>((resolve) => { started = resolve })
@@ -1664,7 +1712,7 @@ describe('the run_code dispatch bridge', () => {
 
   it('logs the complete sub-result content verbatim, non-text blocks and long text included', async () => {
     const { ctx, runtime } = await setup({ mode: 'ptc' })
-    const { agent, events } = fakeAgent()
+    const { agent, events } = await realAgent(ctx)
     const long = 'x'.repeat(300)
     ctx.tools.register(defineTool({
       name: 'mixed',
@@ -1698,7 +1746,7 @@ describe('the run_code dispatch bridge', () => {
   it('rejects undefined, getter-throwing, exotic, and unrepresentable binding arguments before dispatch', async () => {
     const { ctx, runtime } = await setup({ mode: 'ptc' })
     const calls = registerEcho(ctx)
-    const { agent, events } = fakeAgent()
+    const { agent, events } = await realAgent(ctx)
     runtime.behavior = async (request) => {
       const echo = request.bindings[0]!.functions.echo!
       const catchMessage = (promise: Promise<unknown>) => promise.then(() => 'resolved', (error: unknown) => error instanceof Error ? error.message : String(error))
@@ -1751,8 +1799,8 @@ describe('the run_code dispatch bridge', () => {
         return Promise.resolve(observedDepth)
       },
     }))
-    const session = Session.create(SessionId('deep-code-arguments'))
-    const agent = { session } as Agent
+    const agent = await ctx.agentLoop.create(SessionId('deep-code-arguments'), {}, { cwd: process.cwd() })
+    const { session } = agent
     runtime.behavior = async (request) => {
       let nested: JsonValue = 'leaf'
       for (let index = 0; index < depth; index++) nested = [nested]
@@ -1780,7 +1828,7 @@ describe('the run_code dispatch bridge', () => {
 
   it('gives the tool and durable log the same immutable argument value', async () => {
     const { ctx, runtime } = await setup({ mode: 'ptc' })
-    const { agent, events } = fakeAgent()
+    const { agent, events } = await realAgent(ctx)
     let mutationSucceeded: boolean | undefined
     ctx.tools.register(defineContentToolFixture({
       name: 'mutator',
@@ -2178,7 +2226,6 @@ describe('PTC standing file policy and sandbox outcomes', () => {
   it('resolves deployment policy for an agentless program', async () => {
     const { ctx } = await setup({ runtime: false })
     try {
-      await ctx.plugin(SessionProjections)
       await ctx.plugin(SandboxPolicy, { mode: 'read-only', workspaceRoot: process.cwd() })
       await ctx.plugin(ConfinedFakeRuntime)
       const result = await runCode(ctx, 'return 1')
@@ -2217,7 +2264,6 @@ describe('PTC standing file policy and sandbox outcomes', () => {
 describe('per-program execution controls', () => {
   async function controlledSetup(approval = true) {
     const state = await setup()
-    await state.ctx.plugin(SessionProjections)
     await state.ctx.plugin(SandboxPolicy, { mode: 'read-only', workspaceRoot: process.cwd() })
     if (approval) await state.ctx.plugin(ApprovalService, { policy: 'ask' })
     Object.defineProperties(state.runtime, {
@@ -2225,9 +2271,9 @@ describe('per-program execution controls', () => {
       executionInstructions: { get: () => 'Programs start with an empty environment.' },
       timeout: { get: () => ({ defaultMs: 120_000, maxMs: 600_000 }) },
     })
-    const session = Session.create(SessionId('program-controls'))
+    const agent = await state.ctx.agentLoop.create(SessionId('program-controls'), {}, { cwd: process.cwd() })
+    const { session } = agent
     session.append('turn/start', { turn: 1 })
-    const agent = { session } as unknown as Agent
     const execute = (args: Record<string, unknown>, signal = testToolSignal) => state.tools.execute({
       callId: ToolCallId('program-controls'), name: RUN_CODE_NAME,
       arguments: { code: 'program', description: 'Test execution controls', ...args }, agent, signal,
@@ -2243,7 +2289,7 @@ describe('per-program execution controls', () => {
       expect(JSON.stringify(schema.parameters)).toContain('sandbox_permissions')
       expect(schema.description).toContain('Nested tools retain their own policies')
       expect(schema.description).toContain('Programs start with an empty environment.')
-      expect(schema.description).toContain("The working directory is the Session's current directory.")
+      expect(schema.description).toContain("Each program starts in the Session's current directory. Running programs keep their initial directory.")
     } finally { await ctx.fiber.dispose() }
     const python = await setup({ runtime: { language: 'python' } })
     try {
@@ -2251,7 +2297,7 @@ describe('per-program execution controls', () => {
       expect(JSON.stringify(schema.parameters)).not.toContain('timeoutMs')
       expect(JSON.stringify(schema.parameters)).not.toContain('sandbox_permissions')
       expect(schema.description).not.toContain('Programs start with an empty environment.')
-      expect(schema.description).toContain("The working directory is the Session's current directory.")
+      expect(schema.description).toContain("Each program starts in the Session's current directory. Running programs keep their initial directory.")
       const rejected = await python.tools.execute({
         callId: ToolCallId('hidden-timeout'), name: RUN_CODE_NAME, signal: testToolSignal,
         arguments: { code: 'pass', description: 'Try unsupported timeout', timeoutMs: 5 },

@@ -50,6 +50,9 @@
     },
     {
       "path": "../subagent"
+    },
+    {
+      "path": "../../session/working-directory"
     }
   ]
 }

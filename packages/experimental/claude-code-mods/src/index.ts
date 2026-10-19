@@ -17,6 +17,7 @@ import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import type { AssistantMessage, ContentBlock, TokenUsage } from '@deepseek-ai/dsh-llm'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import type { UserMessage } from '@deepseek-ai/dsh-session'
+import type {} from '@deepseek-ai/dsh-working-directory'
 import { scopeOf } from '@deepseek-ai/dsh-scope'
 import { validateJsonSchemaValue } from '@deepseek-ai/dsh-tools'
 import type { PostToolDecision, ToolExecutionResult, ToolExecutionToken } from '@deepseek-ai/dsh-tools'
@@ -303,12 +304,14 @@ export class ClaudeCodeMods extends TypertRemoteService {
 
     ctx.on('agent/created', async ({ agent, signal }) => {
       if (!isRoot(agent)) return
-      startedRoots.add(agent.session.id)
+      const directory = ctx.get('workingDirectory')
+      if (directory === undefined) throw new Error('claude-code-mods: session.start needs dsh-working-directory, which this deployment did not compose')
       const input: SessionStartInput = {
-        cwd: agent.session.header.cwd ?? process.cwd(),
+        cwd: directory.get(agent.session),
         surface: null,
         isInteractive: ctx.get('userQuestions') !== undefined,
       }
+      startedRoots.add(agent.session.id)
       // Cancelling the agent's creation abandons a hook still waiting, such as one inside `$.ui.ask`.
       /* v8 ignore next -- the loop always supplies an initialization signal; the payload type keeps it optional */
       const abandon = signal === undefined ? detached.controller.signal : AbortSignal.any([signal, detached.controller.signal])

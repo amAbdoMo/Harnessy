@@ -1,0 +1,11 @@
+- id: llm-deepseek
+  disabled: true
+- insert:
+    - id: llm-replay
+      name: '@deepseek-ai/dsh-llm-replay'
+      config:
+        providers:
+          - id: directory-recorded
+            name: DeepSeek
+            models:
+              - id: deepseek-v4-flash

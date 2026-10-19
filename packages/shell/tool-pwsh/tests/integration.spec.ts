@@ -10,14 +10,16 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { Context } from '@deepseek-ai/cordis'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
-import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import ToolRuntime, { TOOL_ABORTED } from '@deepseek-ai/dsh-tools'
+import { mountAgentLoopTestDependencies, mountAgentLoopTestHarness, provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
+import type { Agent } from '@deepseek-ai/dsh-agent'
+import { SessionId } from '@deepseek-ai/dsh-session'
+import { TOOL_ABORTED } from '@deepseek-ai/dsh-tools'
 import LocalJobRegistry from '@deepseek-ai/dsh-jobs-local'
 import * as ToolJobs from '@deepseek-ai/dsh-tool-jobs'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
@@ -36,15 +38,16 @@ const lf = (text: string): string => text.replace(/\r\n/g, '\n')
 
 let dir: string
 let ctx: Context
+let testAgent: Agent
 
 let callCounter = 0
-function call(name: string, args: unknown, agentObj?: object, signal?: AbortSignal) {
+function call(name: string, args: unknown, agentObj?: Agent, signal?: AbortSignal) {
   return ctx.tools.execute({
     signal: signal ?? testToolSignal,
     callId: ToolCallId(`it-${++callCounter}`),
     name,
     arguments: args,
-    ...agentObj ? { agent: agentObj as never } : {},
+    ...agentObj ? { agent: agentObj } : {},
   })
 }
 
@@ -54,12 +57,14 @@ function text(result: { content: { type: string; text?: string }[] }): string {
 
 describe.skipIf(!hasPwsh)('pwsh tool over the real pwsh executor', () => {
   beforeEach(async () => {
+    ctx = new Context()
     dir = await mkdtemp(join(tmpdir(), 'dsh-tool-pwsh-'))
     await writeFile(join(dir, 'greeting.txt'), 'hello pwsh\n')
 
-    ctx = new Context()
-    await ctx.plugin(SystemPrompt)
-    await ctx.plugin(ToolRuntime)
+    await mountAgentLoopTestDependencies(ctx)
+    provideWorkingDirectoryFixture(ctx)
+    const harness = await mountAgentLoopTestHarness(ctx)
+    testAgent = await harness.create(SessionId('session-int'), {}, { cwd: dir })
     await ctx.plugin(LocalJobRegistry)
     await ctx.plugin(ToolJobs)
     await ctx.plugin(LocalSubprocessRuntime)
@@ -71,13 +76,15 @@ describe.skipIf(!hasPwsh)('pwsh tool over the real pwsh executor', () => {
   })
 
   afterEach(async () => {
-    await rm(dir, { recursive: true, force: true })
+    try {
+      await ctx?.fiber.dispose()
+    } finally {
+      if (dir !== undefined) await rm(dir, { recursive: true, force: true })
+    }
   })
 
-  const agent = () => ({ session: { header: { id: 'session-int', cwd: dir } } })
-
   it('runs a command and returns stdout with no marker on a clean exit', async () => {
-    const result = await call('pwsh', { command: 'Write-Output hi', description: 'say hi' }, agent())
+    const result = await call('pwsh', { command: 'Write-Output hi', description: 'say hi' }, testAgent)
     expect(result.isError).toBe(false)
     if (result.isError) throw new Error('expected pwsh success')
     expect(result.value).toMatchObject({ kind: 'foreground', exitCode: 0 })
@@ -88,7 +95,7 @@ describe.skipIf(!hasPwsh)('pwsh tool over the real pwsh executor', () => {
     const result = await call('pwsh', {
       command: '[Console]::Error.WriteLine("boom"); exit 3',
       description: 'fail loudly',
-    }, agent())
+    }, testAgent)
     expect(result.isError).toBe(false)
     expect(lf(text(result))).toBe('[stderr]\nboom\n[exit code: 3]')
   })
@@ -97,9 +104,23 @@ describe.skipIf(!hasPwsh)('pwsh tool over the real pwsh executor', () => {
     const result = await call('pwsh', {
       command: 'Get-Content greeting.txt',
       description: 'read greeting',
-    }, agent())
+    }, testAgent)
     expect(result.isError).toBe(false)
     expect(lf(text(result))).toBe('hello pwsh\n')
+  })
+
+  it('runs relative file reads from a committed directory without rewriting the original header', async () => {
+    const selected = join(dir, 'selected')
+    await mkdir(selected)
+    await writeFile(join(selected, 'greeting.txt'), 'selected greeting\n')
+    await ctx.workingDirectory.set(testAgent, selected)
+    const result = await call('pwsh', {
+      command: 'Get-Content greeting.txt', description: 'read selected greeting',
+    }, testAgent)
+    expect(result.isError).toBe(false)
+    expect(lf(text(result))).toBe('selected greeting\n')
+    expect(testAgent.session.header.cwd).toBe(dir)
+    expect(testAgent.session.snapshotEvents().filter(event => event.type === 'working-directory/change')).toHaveLength(1)
   })
 
   it('a per-call timeout kills the run and reports the timed-out marker, not an error', async () => {
@@ -107,7 +128,7 @@ describe.skipIf(!hasPwsh)('pwsh tool over the real pwsh executor', () => {
       command: 'Start-Sleep -Seconds 60',
       description: 'sleep forever',
       timeoutMs: 100,
-    }, agent())
+    }, testAgent)
     expect(result.isError).toBe(false)
     if (result.isError) throw new Error('expected a timed-out foreground result')
     expect(result.value).toMatchObject({ kind: 'foreground', timedOut: true, aborted: false })
@@ -121,7 +142,7 @@ describe.skipIf(!hasPwsh)('pwsh tool over the real pwsh executor', () => {
     const pending = call('pwsh', {
       command: 'Start-Sleep -Seconds 60',
       description: 'sleep forever',
-    }, agent(), controller.signal)
+    }, testAgent, controller.signal)
     setTimeout(() => { controller.abort() }, 50)
     const result = await pending
     expect(result.isError).toBe(true)
@@ -139,18 +160,9 @@ describe.skipIf(!hasPwsh)('pwsh tool over the real pwsh executor', () => {
     expect(started.value).toMatchObject({ kind: 'background' })
     const jobId = (started.value as { jobId: string }).jobId
 
-    // The output delta and the terminal status can land in separate reads
-    // (Windows flushes the child pipe at exit), so collect incrementally —
-    // the same two-step shape as the bash background suite.
-    const deadline = Date.now() + 10_000
-    let output = ''
-    while (Date.now() < deadline) {
-      const read = await call('job_output', { job_id: jobId })
-      output += text(read)
-      if (output.includes('bg-done') && output.includes('[status: completed, exit code: 0]')) break
-      await new Promise(resolve => setTimeout(resolve, 50))
-    }
-    expect(output).toContain('bg-done')
-    expect(output).toContain('[status: completed, exit code: 0]')
+    const read = await call('job_output', { job_id: jobId, wait: true, timeout_ms: 3000 })
+    expect(read.isError, text(read)).toBe(false)
+    expect(text(read)).toContain('bg-done')
+    expect(text(read)).toContain('[status: completed, exit code: 0]')
   })
 })

@@ -1,11 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
-import { Session, SessionId } from '@deepseek-ai/dsh-session'
-import AgentRegistry from '@deepseek-ai/dsh-agent'
+import { SessionId } from '@deepseek-ai/dsh-session'
 import type { Agent } from '@deepseek-ai/dsh-agent'
-import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import ToolRuntime, { renderToolsSdk } from '@deepseek-ai/dsh-tools'
+import { renderToolsSdk } from '@deepseek-ai/dsh-tools'
 import type { ToolSdkSchema } from '@deepseek-ai/dsh-tools/src/ts-types.ts'
 import TerminalSessionService, { TerminalSessionId } from '@deepseek-ai/dsh-terminal'
 import type { TerminalBackend, TerminalBackendSession, TerminalSendOperation, TerminalSendRead, TerminalSendRequest, TerminalSessionStatus, TerminalSignal } from '@deepseek-ai/dsh-terminal'
@@ -13,23 +11,16 @@ import LocalJobRegistry from '@deepseek-ai/dsh-jobs-local'
 import * as ToolJobs from '@deepseek-ai/dsh-tool-jobs'
 import * as ToolPty from '@deepseek-ai/dsh-tool-terminal'
 import { sendSource } from '../src/background.ts'
-import { unsupportedInbox } from '@deepseek-ai/dsh-agent-loop-testkit'
+import { mountAgentLoopTestDependencies, mountAgentLoopTestHarness, provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
 
-async function fakeAgent(ctx: Context, rawId: string): Promise<Agent> {
-  const scope = ctx.plugin(() => {})
-  const id = SessionId(rawId)
-  const session = Session.create(id)
-  const agent: Agent = {
-    id, options: {}, session, inbox: unsupportedInbox(),
-    status: 'idle',
-    ctx: scope.ctx,
-    send: () => {},
-    followup: () => {}, steer: () => {}, inject: () => {}, cancel() {},
-    runMaintenance: job => job(new AbortController().signal),
-    whenIdle: () => Promise.resolve(),
-  }
-  await ctx.agents.register(agent)
-  return agent
+const contexts: Context[] = []
+
+afterEach(async () => {
+  for (const ctx of contexts.splice(0)) await ctx.fiber.dispose()
+})
+
+async function realAgent(ctx: Context, rawId: string): Promise<Agent> {
+  return ctx.agentLoop.create(SessionId(rawId))
 }
 
 class StubSession implements TerminalBackendSession {
@@ -111,9 +102,10 @@ async function setup(jobs: boolean, config: ToolPty.Config = {}) {
 
 async function setupBase(jobs: boolean) {
   const ctx = new Context()
-  await ctx.plugin(SystemPrompt)
-  await ctx.plugin(ToolRuntime)
-  await ctx.plugin(AgentRegistry)
+  contexts.push(ctx)
+  await mountAgentLoopTestDependencies(ctx)
+  provideWorkingDirectoryFixture(ctx)
+  await mountAgentLoopTestHarness(ctx)
   await ctx.plugin(TerminalSessionService)
   const stub = stubBackend()
   ctx.terminals.registerBackend(stub.backend)
@@ -121,7 +113,7 @@ async function setupBase(jobs: boolean) {
     await ctx.plugin(LocalJobRegistry)
     await ctx.plugin(ToolJobs)
   }
-  return { ctx, stub, agent: await fakeAgent(ctx, jobs ? 'with-tasks' : 'foreground') }
+  return { ctx, stub, agent: await realAgent(ctx, jobs ? 'with-tasks' : 'foreground') }
 }
 
 let callNumber = 0
@@ -509,6 +501,6 @@ describe('tool-terminal plugin shape', () => {
   it('is a named function plugin with no default export', () => {
     expect('default' in ToolPty).toBe(false)
     expect(ToolPty.name).toBe('tool-terminal')
-    expect(ToolPty.inject).toEqual(['terminals', 'tools', 'systemPrompt'])
+    expect(ToolPty.inject).toEqual(['terminals', 'tools', 'systemPrompt', 'workingDirectory'])
   })
 })

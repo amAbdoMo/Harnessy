@@ -99,11 +99,12 @@ export function applyWriteTool(ctx: Context, sandbox: FsSandboxController): void
         },
       },
       render: (_args, value) => [{ type: 'text', text: formatWriteOutput(value.path, value) }],
-      presentationMeta: (args, value) => ({
+      presentationMeta: (_args, value) => ({
         operation: value.operation,
+        path: value.path,
         diffs: value.before === null
           ? []
-          : computeHunkDiffs(args.file_path, value.before, value.after)
+          : computeHunkDiffs(value.path, value.before, value.after)
             .map(({ path, oldText, newText }) => ({ path, oldText, newText })),
       }),
     },
@@ -113,7 +114,7 @@ export function applyWriteTool(ctx: Context, sandbox: FsSandboxController): void
       // > backend default, plus the session cwd root) BEFORE anything executes;
       // an escalating call throws its distinct text on any non-grant.
       const sandboxPolicy = await sandbox.resolvePolicy('write', args, exec)
-      const target = await ctx.fs.resolve(input.filePath, sessionResolveOptions(exec, sandboxPolicy?.workspaceRoot))
+      const target = await ctx.fs.resolve(input.filePath, await sessionResolveOptions(ctx, exec))
       // Single-slot decision: the policy plugin produces createIfAbsent/
       // replaceIfVersion; the bare default is undefined (unconditional). No stat.
       const intent = await ctx.waterfall('fs/write-intent', target, exec, () => undefined)

@@ -96,7 +96,7 @@ export interface ISessions {
   subagentAddress(id: SessionId): SubagentAddress | undefined
 
   /**
-   * Load all Session projections once per connection; retry an unsuccessful initial read.
+   * Read projections without starting migration; retry failed or migration-deferred reads.
    * @param sessionId - Session to inspect without opening its conversation.
    * @returns completion of the current or newly started refresh.
    */

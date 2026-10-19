@@ -13,6 +13,7 @@ import { admitEncodedImages, type EncodedImageAttachment, type ImageAttachmentRe
 import { createUserMessage, ReasoningEffortId, type ContentBlock, type LlmRuntime } from '@deepseek-ai/dsh-llm'
 import { carrierKeyOf, type Scoped } from '@deepseek-ai/dsh-scope'
 import type { SessionId } from '@deepseek-ai/dsh-session'
+import type {} from '@deepseek-ai/dsh-working-directory'
 import type SubagentRuntime from '@deepseek-ai/dsh-subagent'
 import type { SubagentRunEndInfo } from '@deepseek-ai/dsh-subagent'
 import * as LlmDeepSeek from '@deepseek-ai/dsh-llm-deepseek-api-key'
@@ -23,6 +24,9 @@ import type {
   SessionEventNotification,
   SessionPromptParams,
   SessionPromptResult,
+  SessionWorkingDirectoryParams,
+  SessionWorkingDirectorySetParams,
+  SessionWorkingDirectoryResult,
   SdkEncodedImageBlock,
   SubagentFinishedNotification,
   SubagentStartedNotification,
@@ -82,6 +86,8 @@ export class HarnessSdkJsonRpcServer {
   private readonly sessions = new Map<string, SessionRecord>()
   private readonly sessionCreations = new Map<string, Promise<SessionRecord>>()
   private readonly disposers: (() => void)[] = []
+  private readonly directoryOperations = new Set<Promise<SessionWorkingDirectoryResult>>()
+  private readonly directoryLifetime = new AbortController()
   private shutdownTask: Promise<Record<string, never>> | undefined
   private shuttingDown = false
   private initialized = false
@@ -194,6 +200,49 @@ export class HarnessSdkJsonRpcServer {
     return { messageId: message.id }
   }
 
+  /**
+   * Read the effective directory, recovering a missing selection to the original directory.
+   * @param params - target Session; an unknown identity creates it.
+   * @returns the absolute directory for subsequent independent operations.
+   */
+  getWorkingDirectory(params: SessionWorkingDirectoryParams): Promise<SessionWorkingDirectoryResult> {
+    return this.workingDirectoryRequest(params.sessionId)
+  }
+
+  /**
+   * Change the directory without changing original project metadata or permissions.
+   * @param params - target Session and absolute or current-directory-relative path.
+   * @returns the validated absolute directory after its durable transition.
+   */
+  setWorkingDirectory(params: SessionWorkingDirectorySetParams): Promise<SessionWorkingDirectoryResult> {
+    return this.workingDirectoryRequest(params.sessionId, params.path)
+  }
+
+  private workingDirectoryRequest(sessionId: string, path?: string): Promise<SessionWorkingDirectoryResult> {
+    const operation = (async () => {
+      if (!this.initialized) throw new Error('SDK server is not initialized')
+      this.directoryLifetime.signal.throwIfAborted()
+      const directories = this.ctx.get('workingDirectory')
+      if (directories === undefined) throw new Error('SDK working-directory operations require the directory service')
+      const rec = await this.getOrCreateSession(sessionId)
+      this.assertLiveAgent(rec, sessionId)
+      const agent = rec.handle.agent
+      return this.ctx.agents.withInitiator(agent, async () => {
+        const cwd = path === undefined
+          ? await directories.ensure(agent, this.directoryLifetime.signal)
+          : await directories.set(agent, path, this.directoryLifetime.signal)
+        this.assertLiveAgent(rec, sessionId)
+        return { cwd }
+      })
+    })()
+    this.directoryOperations.add(operation)
+    void operation.then(
+      () => { this.directoryOperations.delete(operation) },
+      () => { this.directoryOperations.delete(operation) },
+    )
+    return operation
+  }
+
   private assertLiveAgent(rec: SessionRecord, sessionId: string): void {
     if (this.ctx.agents.get(rec.handle.agent.id) !== rec.handle.agent) {
       throw new Error(`session agent was disposed outside the server: ${sessionId}`)
@@ -212,8 +261,9 @@ export class HarnessSdkJsonRpcServer {
 
   private async performShutdown(): Promise<Record<string, never>> {
     this.shuttingDown = true
+    this.directoryLifetime.abort(new Error('SDK server is shutting down'))
     const pendingCreations = [...this.sessionCreations.values()]
-    await Promise.allSettled(pendingCreations)
+    await Promise.allSettled([...pendingCreations, ...this.directoryOperations])
     this.sessionCreations.clear()
     const records = [...this.sessions.values()]
     this.sessions.clear()
@@ -251,6 +301,17 @@ export class HarnessSdkJsonRpcServer {
         return this.initialize(params as unknown as InitializeParams)
       case 'session/prompt':
         return this.prompt(params as unknown as SessionPromptParams)
+      case 'session/working-directory/get':
+      case 'session/working-directory/set': {
+        if (typeof params?.sessionId !== 'string' || params.sessionId.length === 0) {
+          throw new TypeError('working-directory requests require a non-empty sessionId')
+        }
+        if (method === 'session/working-directory/get') return this.getWorkingDirectory({ sessionId: params.sessionId })
+        if (typeof params.path !== 'string' || params.path.length === 0) {
+          throw new TypeError('working-directory set requires a non-empty path')
+        }
+        return this.setWorkingDirectory({ sessionId: params.sessionId, path: params.path })
+      }
       case 'shutdown':
         return this.shutdown()
       default:

@@ -1,8 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
-import { SESSION_FORMAT_VERSION, Session, SessionId } from '@deepseek-ai/dsh-session'
-import AgentRegistry from '@deepseek-ai/dsh-agent'
+import { SessionId } from '@deepseek-ai/dsh-session'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import TerminalSessionService from '@deepseek-ai/dsh-terminal'
 import type {
@@ -15,10 +14,8 @@ import type {
   TerminalSignal,
   TerminalWaitReason,
 } from '@deepseek-ai/dsh-terminal'
-import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import ToolRegistry from '@deepseek-ai/dsh-tools'
 import * as ToolPwshPersistent from '@deepseek-ai/dsh-tool-pwsh-persistent'
-import { unsupportedInbox } from '@deepseek-ai/dsh-agent-loop-testkit'
+import { mountAgentLoopTestDependencies, mountAgentLoopTestHarness, provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
 
 const contexts: Context[] = []
 let callNumber = 0
@@ -30,31 +27,7 @@ afterEach(async () => {
 
 async function agent(ctx: Context, cwd: string | undefined): Promise<Agent> {
   const id = SessionId(`persistent-pwsh-owner-${callNumber}`)
-  const scope = ctx.plugin(() => {})
-  const session = Session.create(id, [], {
-    version: SESSION_FORMAT_VERSION,
-    id,
-    createdAt: 0,
-    isSeeded: false,
-    ...cwd === undefined ? {} : { cwd },
-  })
-  const value: Agent = {
-    id,
-    options: {},
-    session,
-    inbox: unsupportedInbox(),
-    status: 'idle',
-    ctx: scope.ctx,
-    send: () => {},
-    followup: () => {},
-    steer: () => ({ outcome: Promise.resolve({ status: 'rejected' as const }) }),
-    inject: () => {},
-    cancel() {},
-    runMaintenance: task => task(new AbortController().signal),
-    whenIdle: () => Promise.resolve(),
-  }
-  await ctx.agents.register(value)
-  return value
+  return ctx.agentLoop.create(id, {}, cwd === undefined ? {} : { cwd })
 }
 
 function text(result: { content: { type: string; text?: string }[] }): string {
@@ -318,14 +291,14 @@ async function setup(
 ) {
   const ctx = new Context()
   contexts.push(ctx)
-  await ctx.plugin(SystemPrompt)
-  await ctx.plugin(ToolRegistry)
-  await ctx.plugin(AgentRegistry)
+  await mountAgentLoopTestDependencies(ctx)
+  provideWorkingDirectoryFixture(ctx)
+  await mountAgentLoopTestHarness(ctx)
   await ctx.plugin(TerminalSessionService)
   const stub = stubBackend(initialMode)
   ctx.terminals.registerBackend(stub.backend)
   const fiber = await ctx.plugin(ToolPwshPersistent, config)
-  return { ctx, stub, fiber, owner: await agent(ctx, '/workspace') }
+  return { ctx, stub, fiber, owner: await agent(ctx, process.cwd()) }
 }
 
 describe('tool-pwsh-persistent', () => {
@@ -788,9 +761,9 @@ describe('tool-pwsh-persistent', () => {
   it('cancels and awaits a pending shell spawn when the plugin is disposed', async () => {
     const ctx = new Context()
     contexts.push(ctx)
-    await ctx.plugin(SystemPrompt)
-    await ctx.plugin(ToolRegistry)
-    await ctx.plugin(AgentRegistry)
+    await mountAgentLoopTestDependencies(ctx)
+    provideWorkingDirectoryFixture(ctx)
+    await mountAgentLoopTestHarness(ctx)
     await ctx.plugin(TerminalSessionService)
     const spawnStarted = Promise.withResolvers<undefined>()
     const spawnAborted = Promise.withResolvers<undefined>()
@@ -808,7 +781,7 @@ describe('tool-pwsh-persistent', () => {
       }),
     })
     const fiber = await ctx.plugin(ToolPwshPersistent, { backendType: 'slow' })
-    const owner = await agent(ctx, '/workspace')
+    const owner = await agent(ctx, process.cwd())
     const running = call(ctx, owner, 'pwd')
     await spawnStarted.promise
     await fiber.dispose()

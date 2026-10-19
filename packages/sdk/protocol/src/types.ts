@@ -1,6 +1,6 @@
 /**
- * Named wire types for the DeepSeek Harness SDK runtime protocol: the three
- * request/result pairs and the four server-to-client notification payloads
+ * Named wire types for the DeepSeek Harness SDK runtime protocol: its
+ * request/result pairs and server-to-client notification payloads
  * exchanged over the newline-delimited JSON-RPC stdio transport. The server
  * plugin (`@deepseek-ai/dsh-sdk-jsonrpc-server`) and SDK clients share these shapes;
  * `serverInfo.name` stays the wire-stable `deepseek-harness-sdk-runtime`.
@@ -56,6 +56,24 @@ export type SdkPromptContentBlock = ContentBlock | SdkEncodedImageBlock
 export interface SessionPromptResult {
   /** Identity of the queued user message. */
   messageId: string
+}
+
+/** Session whose effective directory is requested; an unknown identity creates the Session. */
+export interface SessionWorkingDirectoryParams {
+  /** SDK-side Session identity. */
+  sessionId: string
+}
+
+/** Directory change affecting future operations, not origin or permissions. */
+export interface SessionWorkingDirectorySetParams extends SessionWorkingDirectoryParams {
+  /** Absolute path or a path relative to the Session's effective directory. */
+  path: string
+}
+
+/** Effective directory after an explicit read, change, or missing-directory recovery. */
+export interface SessionWorkingDirectoryResult {
+  /** Absolute directory for subsequent independent operations and new processes. */
+  cwd: string
 }
 
 /** Deployment-mapped SDK outcome: `ok` for an accepted result, `error` otherwise. */
@@ -115,5 +133,7 @@ export interface HarnessSdkNotificationMap {
 export interface HarnessSdkRequestMap {
   'initialize': { params: InitializeParams; result: InitializeResult }
   'session/prompt': { params: SessionPromptParams; result: SessionPromptResult }
+  'session/working-directory/get': { params: SessionWorkingDirectoryParams; result: SessionWorkingDirectoryResult }
+  'session/working-directory/set': { params: SessionWorkingDirectorySetParams; result: SessionWorkingDirectoryResult }
   'shutdown': { params: undefined; result: Record<string, never> }
 }

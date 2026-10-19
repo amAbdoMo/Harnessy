@@ -15,7 +15,10 @@ import AgentRegistry, { agentEvents, type Agent, type PreStepDecision } from '@d
 import SkillRegistry from '@deepseek-ai/dsh-skill'
 import * as SkillFileSystem from '@deepseek-ai/dsh-skill-filesystem'
 import * as toolSkill from '@deepseek-ai/dsh-tool-skill'
-import { unsupportedInbox } from '@deepseek-ai/dsh-agent-loop-testkit'
+import { provideWorkingDirectoryFixture, unsupportedInbox } from '@deepseek-ai/dsh-agent-loop-testkit'
+import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
+import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
+import WorkingDirectory from '@deepseek-ai/dsh-working-directory'
 
 declare module '@deepseek-ai/dsh-llm' {
   interface MessageSourceMap {
@@ -53,7 +56,10 @@ async function writeSkill(root: string, name: string, description: string, body:
 
 async function setup(home: string, config: toolSkill.Config = {}): Promise<Context> {
   const ctx = new Context()
+  await ctx.plugin(LocalFileSystem)
+  await ctx.plugin(SessionProjectionRegistry)
   await ctx.plugin(SystemPrompt)
+  await ctx.plugin(WorkingDirectory, { defaultDirectory: home })
   await ctx.plugin(ToolRuntime)
   await ctx.plugin(AgentRegistry)
   await ctx.plugin(SkillRegistry)
@@ -186,8 +192,34 @@ async function mintAgentScope(ctx: Context, subject: string | Agent): Promise<{ 
 }
 
 describe('dsh-tool-skill', () => {
+  it('refreshes project skills and tool loading after a directory change while retaining the original project', async () => {
+    const home = await tempDir('skill-current-home')
+    const first = await tempDir('skill-original-project')
+    const second = await tempDir('skill-current-project')
+    await mkdir(join(first, '.git'))
+    await mkdir(join(second, '.git'))
+    await writeSkill(join(first, '.dsh/skills'), 'original-skill', 'Original', 'Original body')
+    await writeSkill(join(second, '.dsh/skills'), 'current-skill', 'Current', 'Current body')
+    const ctx = await setup(home)
+    try {
+      const agent = agentForCwd(first)
+      expect(JSON.stringify(await composePrefixForAgent(ctx, agent))).toContain('original-skill')
+      agent.session.append('working-directory/change', { cwd: second })
+      const catalog = JSON.stringify((await composePrefixForAgent(ctx, agent)).at(-1))
+      expect(catalog).toContain('current-skill')
+      expect(catalog).not.toContain('original-skill')
+      const result = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('current-skill'),
+        name: 'skill', arguments: { name: 'current-skill' }, agent })
+      expect(result).toMatchObject({ isError: false, value: { name: 'current-skill', content: 'Current body' } })
+      expect(agent.session.header.cwd).toBe(first)
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
   it('registers the skill tool schema and removes it on dispose', async () => {
     const ctx = new Context()
+    provideWorkingDirectoryFixture(ctx)
+    await ctx.plugin(SessionProjectionRegistry)
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(AgentRegistry)
@@ -328,7 +360,7 @@ describe('dsh-tool-skill', () => {
     expect(rendered).not.toContain('/secret/path')
     expect(rendered).not.toContain('Secret body')
     expect(rendered).not.toContain('user-only-skill')
-    expect(renderPrompt(await ctx.systemPrompt.assemble({ agent: agentForCwd('/workspace') }))).not.toContain('<available_skills>')
+    expect(renderPrompt(await ctx.systemPrompt.assemble({ agent: agentForCwd(home) }))).not.toContain('<available_skills>')
   })
 
   it('does not inject a catalog when no model-invocable skills are available', async () => {
@@ -789,6 +821,8 @@ describe('dsh-tool-skill', () => {
   it('validates the catalog description cap', async () => {
     const home = await tempDir('tool-invalid-catalog-cap')
     const ctx = new Context()
+    provideWorkingDirectoryFixture(ctx)
+    await ctx.plugin(SessionProjectionRegistry)
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(AgentRegistry)
@@ -810,7 +844,7 @@ describe('dsh-tool-skill', () => {
       callId: ToolCallId('c1'),
       name: 'skill',
       arguments: { name: 'project-skill' },
-      agent: { session: { header: { cwd: project } } } as never,
+      agent: agentForCwd(project),
     })
 
     expect(result.isError).toBe(false)

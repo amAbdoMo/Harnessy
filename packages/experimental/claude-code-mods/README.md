@@ -85,14 +85,16 @@ The band is one instance per session, drawn by the first mod in load order whose
 | `$.command` | `register`, `run`, `list` | `ctx.commands`, scoped to the agent whose event is running |
 | `$.tool` | `register`, `call`, `list` | `ctx.tools`; a registered tool is named `mcp__<plugin>__<tool>`; contexts a tool defers to the next request are injected into the session |
 | `$.prompt` | `submit` | `agent.followup()` as a `user`-sourced message, framed as a message from the mod unless `asUser`; the `prompt.submit` it raises carries `origin: { kind: 'plugin', name }` |
-| `$.session` | `id`, `cwd`, `root`, `model`, `turns`, `messages`, `usage`, `version` | the agent's Session and the `turnBoundary` and `contextPressure` projections; `cwd` and `root` both report the session workspace, the harness's one directory per session |
+| `$.session` | `id`, `cwd`, `root`, `model`, `turns`, `messages`, `usage`, `version` | the agent's Session and projections; `cwd` reads the committed execution directory through `ctx.get('workingDirectory')`, including after Agent disposal; `root` stays at the original header directory or process fallback |
 | `$.state` | `get`, `set` | memory held for the session, addressed by the `{ plugin, key }` a mod names; a read during `ui.render` subscribes the band |
 | `$.store` | `get`, `set`, `delete`, `keys` | the `claude_code_mods` storage domain, one JSON object per plugin, 4 MiB |
 | `$.clock` | `now`, `sleep`, `after`, `every` | timers owned by the session whose event scheduled them; `sleep` rejects when the event is cancelled |
-| `$.fs` | `read`, `write`, `list`, `exists`, `stat` | `ctx.fs`, relative to the session workspace, 4 MiB per file |
-| `$.process` | `run` | `ctx.subprocess`, argv without a shell |
+| `$.fs` | `read`, `write`, `list`, `exists`, `stat` | `ctx.fs`, relative to the validated session execution directory, 4 MiB per file |
+| `$.process` | `run` | `ctx.subprocess`, argv without a shell; defaults to the validated session execution directory, preserving explicit `cwd` |
 | `$.http` | `fetch` | the process's `fetch`, bodies up to 4 MiB |
 | `$.env` | `get`, `set` | this process's environment, shared by every session and plugin |
+
+`session.start` reports the committed execution directory. Agent-backed `$.session.cwd`, filesystem calls, and default process directories require `dsh-working-directory`; execution validates the directory with the operation's cancellation signal. Agentless calls retain filesystem/process defaults. Directory selection never changes the original project, settings, workspace, or sandbox authority and never changes the host process directory.
 
 A call whose service is not composed rejects with the missing service's package name; a namespace or method outside this table rejects with `no implementation for <namespace>.<method>`. A mod runs in this process with its full authority: `$.env` reads and writes the harness environment, `$.http.fetch` reaches any URL, `$.fs` and `$.tool.call` act as the session does.
 

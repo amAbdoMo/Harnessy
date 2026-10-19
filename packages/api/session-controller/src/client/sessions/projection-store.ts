@@ -6,8 +6,8 @@
  * (`{ value, seq }`) comes from the connected Host — a follow opening
  * baseline, a Session Controller `projection` frame, a list block the Host
  * computed for an attached Session — and merges under **higher seq wins**
- * against other sequenced rows. A `cached` row (`{ value }`) comes from the
- * session list's view of the persisted checkpoint, carries no comparable
+ * against other sequenced rows. A `cached` row (`{ value }`) comes from a
+ * Host view of the persisted checkpoint, carries no comparable
  * seq, and yields to every sequenced write. No client-side domain folding
  * exists: a domain ships projection support with zero client code. Per-key
  * bare observable faces feed `useProjection` (ui-renderer binds them).
@@ -80,9 +80,9 @@ interface Channel {
  * key. Sequenced writes (a baseline seeds rows at its cut, a push frame
  * updates one row) compare seqs among themselves: a lower-or-equal seq within
  * the Host generation loses, so a replayed frame cannot regress a value and a
- * stale baseline cannot overwrite a newer frame. Cached writes (the session
- * list's zero-I/O block) only fill keys no sequenced row holds, and a baseline
- * discards every cached row before it seeds, regardless of seq: the connected
+ * stale baseline cannot overwrite a newer frame. Before a complete baseline,
+ * cached writes only fill keys no sequenced row holds; afterward they are
+ * ignored. A baseline discards cached rows regardless of seq: the connected
  * Session is the truth and a cached value never outranks it. A key the store
  * has never seen reads `undefined` (capability absent). Faces are identity-stable
  * per key (create-on-demand, cached) so the React side binds each exactly
@@ -93,6 +93,8 @@ export class ProjectionValueStore {
   private readonly rows = new Map<string, Row>()
   private readonly channels = new Map<string, Channel>()
   private valuesCache: Readonly<Partial<SessionProjectionMap>> | undefined
+  /** A complete Host baseline establishes absent keys for this generation too. */
+  private hasBaseline = false
   /** Coarse any-key channel (no snapshot cache to rebuild: reads hit rows directly). */
   private readonly anyNotifier = new Notifier(() => {})
 
@@ -166,14 +168,13 @@ export class ProjectionValueStore {
   }
 
   /**
-   * Fill keys from a session-list block the Host labeled `cached`: a zero-I/O
-   * view of the persisted checkpoint. A cached value lands only where no
-   * sequenced row exists: a connected Session has already answered for such
-   * a key, and the list's view of the persisted checkpoint cannot be newer
-   * than it.
+   * Fill keys from a Host block labeled `cached`: a zero-I/O view of the
+   * persisted checkpoint. Cached values fill only keys without sequenced rows
+   * until a complete baseline arrives; afterward they cannot restore absent keys.
    * @param values - whole values by key viewed from the persisted checkpoint.
    */
   applyCached(values: Readonly<Record<string, unknown>>): void {
+    if (this.hasBaseline) return
     for (const key of Object.keys(values)) {
       if (this.rows.get(key)?.kind === 'sequenced') continue
       this.rows.set(key, { kind: 'cached', value: values[key] })
@@ -192,6 +193,7 @@ export class ProjectionValueStore {
    * @param baseline - the response's projections block.
    */
   seed(baseline: ProjectionsBaseline): void {
+    this.hasBaseline = true
     for (const [key, row] of this.rows) {
       if (row.kind !== 'cached') continue
       this.rows.delete(key)
@@ -213,6 +215,7 @@ export class ProjectionValueStore {
 
   /** Discard one Host generation's values and watermarks while preserving subscribed faces. */
   clear(): void {
+    this.hasBaseline = false
     for (const key of this.rows.keys()) {
       this.rows.delete(key)
       this.changed(key)

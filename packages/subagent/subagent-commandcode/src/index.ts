@@ -153,7 +153,7 @@ function joinProbe(pending: Promise<CommandCodeHealth>, signal: AbortSignal): Pr
  * to the next delegation from an existing Session.
  */
 export class CommandCodeController extends TypertRemoteService {
-  static inject = ['typert', 'tools', 'subprocess']
+  static inject = ['typert', 'tools', 'subprocess', 'workingDirectory']
 
   static Config = Config
 
@@ -202,7 +202,7 @@ export class CommandCodeController extends TypertRemoteService {
     // Mounted through `inject` rather than this plugin's static list, so a
     // profile that composes the plugin without the subagent registry keeps the
     // two tools it already had.
-    ctx.inject(['subagents'], (registryCtx) => {
+    ctx.inject(['subagents', 'workingDirectory'], (registryCtx) => {
       registryCtx.effect(
         () => registerCommandCodeBackend(registryCtx, this.delegationApi(), config.instructionsPrefix ?? ''),
         'commandcode delegation: subagent backend',

@@ -90,7 +90,8 @@ export class WorkspaceFileSearch {
   private disposed = false
 
   constructor(
-    private readonly root: string,
+    /** Absolute directory whose paths this index returns. */
+    readonly root: string,
     private readonly config: FileSearchConfig,
   ) {
     if (!Number.isSafeInteger(config.maxResults) || config.maxResults <= 0) {

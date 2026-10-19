@@ -5,7 +5,7 @@ import { expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import type { AnonymousUserId } from '@deepseek-ai/dsh-anonymous-user-id'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
-import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
+import { mountAgentLoopTestDependencies, provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import { DeepSeekAdapter, resolveAdapterOptions } from '@deepseek-ai/dsh-llm-deepseek'
 import { SessionId } from '@deepseek-ai/dsh-session'
@@ -42,6 +42,7 @@ it('continues the parent through default Messages after a reasoning-bearing cont
       prepareExtensions: () => Promise.resolve({ fields: {}, accept: () => Promise.resolve() }),
     })
     await mountAgentLoopTestDependencies(ctx)
+    provideWorkingDirectoryFixture(ctx)
     await ctx.plugin(JsonlSessionPersistence, { root })
     await ctx.plugin(AgentLoop, { agents: [] })
     await ctx.plugin(SubagentRuntime)
@@ -75,12 +76,17 @@ it('continues the parent through default Messages after a reasoning-bearing cont
     expect(requests).toHaveLength(2)
     expect(requests.map(request => request.path)).toEqual(['/anthropic/v1/messages', '/anthropic/v1/messages'])
     const notice = parent.session.deriveMessages().find(message => message.source.kind === 'subagent-settled')
-    expect(notice?.content).toEqual([
+    const noticeContent = [
       { type: 'text', text: `Background subagent ${started.childId} finished and will do no further work unless you send it more.` },
       { type: 'text', text: 'Its closing message:' },
       { type: 'text', text: 'child answer' },
-    ])
-    expect(requests[1]?.body).toMatchObject({ messages: [{ role: 'user', content: notice?.content }] })
+    ]
+    expect(notice?.content).toEqual(noticeContent)
+    const initialUserContent = [...noticeContent, {
+      type: 'text',
+      text: `Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\n\nCurrent working directory: ${JSON.stringify(process.cwd())}.`,
+    }]
+    expect(requests[1]?.body).toMatchObject({ messages: [{ role: 'user', content: initialUserContent }] })
 
     parent.followup(createUserMessage({ source: { kind: 'user' }, content: [{ type: 'text', text: 'continue' }] }))
     await parent.whenIdle()
@@ -88,7 +94,7 @@ it('continues the parent through default Messages after a reasoning-bearing cont
       .toMatchObject([{ data: { reason: { kind: 'completed' } } }, { data: { reason: { kind: 'completed' } } }])
     expect(requests).toHaveLength(3)
     expect(requests[2]?.body).toMatchObject({ messages: [
-      { role: 'user', content: notice?.content },
+      { role: 'user', content: initialUserContent },
       { role: 'assistant', content: [{ type: 'text', text: 'parent answer' }] },
       { role: 'user', content: [{ type: 'text', text: 'continue' }] },
     ] })

@@ -45,7 +45,7 @@ kind: "package-reference"
 |---|---|---|
 | `configPath` | 必填 | `hooks.json` 或 `hooks` key 存放配置的 settings 文件路径 |
 | `pluginRoot` | — | 替换命令字符串中的 `${CLAUDE_PLUGIN_ROOT}` |
-| `projectDir` | 会话工作区 | 替换 `${CLAUDE_PROJECT_DIR}` 并设置 `CLAUDE_PROJECT_DIR` 环境变量 |
+| `projectDir` | Session 执行目录 | 替换 `${CLAUDE_PROJECT_DIR}` 并设置 `CLAUDE_PROJECT_DIR` 环境变量 |
 | `defaultTimeoutMs` | `600,000` | hook 未设置时的每 hook 超时（即 Claude Code 默认值） |
 | `stderrSummaryMaxChars` | `500` | 持久化 `hook/result` stderr 摘要的字符上限 |
 
@@ -65,7 +65,7 @@ kind: "package-reference"
 
 ### 钩子如何运行与失败
 
-- 钩子在你的项目目录（agent 的会话工作区）中运行，因此钩子里的 `pwd` 与相对路径指向你的项目，而非服务器启动目录。
+- 绑定 Agent 的钩子使用 Session 当前执行目录，不改变原始工作区、设置或沙箱权限。`SubagentStop` 在 child 释放后读取其最后提交的目录，不恢复 child 或写入目录恢复事件。
 - 命令字符串中的 `${CLAUDE_PLUGIN_ROOT}` 与 `${CLAUDE_PROJECT_DIR}` 会按你的配置替换，且每个钩子进程都会设置 `CLAUDE_PROJECT_DIR`。
 - 一份配置应用于整个进程：启动时只读取一次，相对 `configPath` 从启动进程的目录解析。
 - 同一事件上的钩子按配置顺序逐个运行。

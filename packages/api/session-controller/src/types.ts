@@ -177,6 +177,8 @@ export type QueueAction =
 export interface SessionSummary {
   /** Whether this Session currently owns a live Agent. */
   readonly agentAvailable: boolean
+  /** Current for attached Sessions; otherwise the persistence format status when reported. */
+  readonly formatStatus?: 'current' | 'migration-required'
   readonly sessionId: SessionId
   readonly updatedAt: number
   readonly running: boolean
@@ -419,8 +421,11 @@ export interface SessionProjectionsRequest {
   readonly sessionId: SessionId
 }
 
-/** Complete Session projection baseline; null when the Session does not exist. */
-export type SessionProjectionsValue = SessionProjectionBaseline | null
+/** Exact projections carry their event cut; deferred migration returns sequence-free cache hints. Null means absent. */
+export type SessionProjectionsValue =
+  | (SessionProjectionBaseline & { readonly kind: 'sequenced' })
+  | { readonly kind: 'migration-required'; readonly values: SessionProjectionValues }
+  | null
 
 /** One raw Session event in the Remote journal. */
 export interface SessionEventEntry {

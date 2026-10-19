@@ -8,6 +8,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/dsh-working-directory'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { GenericCallView, ToolExecution } from '@deepseek-ai/dsh-tools'
 import type { SubagentRun } from '@deepseek-ai/dsh-subagent'
@@ -201,15 +202,11 @@ export function installCommandCodeTools(ctx: Context, api: CommandCodeDelegation
       if (parent === undefined) {
         throw new Error('commandcode_delegate requires a calling agent (exec.agent was undefined)')
       }
+      const cwd = ctx.workingDirectory.get(parent.session)
       const workspace = workspaceOf(exec)
-      if (workspace === undefined) {
-        throw new Error(
-          'commandcode_delegate needs a session workspace: this session has no working directory',
-        )
-      }
       // Lane policy is resolved here, from the live settings document, and is
       // the only authority this delegation carries.
-      const view = api.viewFor(workspace)
+      const view = api.viewFor(workspace ?? null)
       const lane = requireEnabledLane(view, args.lane)
       const spec: CommandCodeRunSpec = {
         laneName: lane.name,
@@ -232,7 +229,7 @@ export function installCommandCodeTools(ctx: Context, api: CommandCodeDelegation
         const release = await api.acquire(exec.signal)
         let run: SubagentRun
         try {
-          run = api.start({ brief, cwd: workspace, signal: exec.signal }, spec, () => {})
+          run = api.start({ brief, cwd, signal: exec.signal }, spec, () => {})
         } catch (error: unknown) {
           release()
           throw error
@@ -254,7 +251,7 @@ export function installCommandCodeTools(ctx: Context, api: CommandCodeDelegation
         run: job => startCommandCodeJob({
           api,
           brief,
-          workspace,
+          workspace: cwd,
           spec,
           label,
           onError: (error) => { api.onStartError(error) },

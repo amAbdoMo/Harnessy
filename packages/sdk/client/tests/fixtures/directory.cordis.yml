@@ -1,0 +1,24 @@
+- id: system-prompt
+  config:
+    includeRuntimeContext: false
+- id: llm-deepseek
+  disabled: true
+- id: skill-filesystem
+  config:
+    includeDefaultRoots: false
+- id: session-persistence-jsonl
+  config:
+    root: !!js dshHomePath('sessions')
+    compression: none
+- id: session-log-deepseek
+  config:
+    enabled: false
+- id: sandbox-policy
+  config:
+    mode: danger-full-access
+- id: approval
+  config:
+    policy: never
+- insert:
+    - id: sdk-directory-model
+      name: './directory-model.mjs'

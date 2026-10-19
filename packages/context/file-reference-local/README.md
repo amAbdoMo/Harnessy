@@ -25,7 +25,7 @@ Agents and host UIs can complete `@file` mentions with ranked paths from each ag
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this provider when `@file` completion should discover the Harness host's own filesystem — the namespace the shipped `read` tool operates on. Each agent's workspace is indexed from its session working directory, falling back to the host process directory when the session has none.
+Mount this provider when `@file` completion should discover the Harness host's own filesystem — the namespace the shipped `read` tool operates on. Each agent's index uses the working-directory service's current Session directory, including its configured fallback. Changing that directory disposes the old index before the next completion; the immutable project header is unchanged.
 
 ### Enabling the provider
 

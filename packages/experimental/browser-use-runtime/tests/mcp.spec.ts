@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -19,6 +19,8 @@ import Agents from '@deepseek-ai/dsh-agent'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import Projections from '@deepseek-ai/dsh-session-projection'
+import FsLocal from '@deepseek-ai/dsh-fs-local'
+import WorkingDirectory from '@deepseek-ai/dsh-working-directory'
 import { bindScopeParent } from '@deepseek-ai/dsh-scope'
 import { BrowserMcpConfig, mountSessionMcp, validateBrowserMcpConfig } from '../src/mcp.ts'
 
@@ -68,6 +70,7 @@ async function load(exclusive = false, mode?: string, toolCallTimeoutMs?: number
   const modules = new Map<string, unknown>([
     ['browserUse', BrowserUse], ['prompt', SystemPrompt], ['tools', Tools], ['llm', Llm],
     ['sessions', Sessions], ['agents', Agents], ['loop', AgentLoop], ['projections', Projections],
+    ['fs', FsLocal], ['workingDirectory', WorkingDirectory],
     ['model', { inject: ['llm'], apply(ctx: Context) { ctx.effect(() => ctx.llm.registerAdapter(['fixture'], model)) } }],
     ['browser', { inject: ['browserUse', 'agents', 'tools', 'systemPrompt'], apply(ctx: Context) {
       mountSessionMcp(ctx, { name: 'browser-fixture', exclusive, command: process.execPath, args: [fixture, root, ...mode === undefined ? [] : [mode]], ...toolCallTimeoutMs === undefined ? {} : { toolCallTimeoutMs, env: {} } })
@@ -125,7 +128,7 @@ function registerIndependentTool(ctx: Context) {
 }
 
 async function events(root: string) {
-  return (await readFile(join(root, 'events.ndjson'), 'utf8')).trim().split('\n').map(line => JSON.parse(line) as { event: string; pid: number; name?: string })
+  return (await readFile(join(root, 'events.ndjson'), 'utf8')).trim().split('\n').map(line => JSON.parse(line) as { event: string; pid: number; name?: string; cwd: string })
 }
 
 it('requires a browser mode and validates launch and attachment settings', () => {
@@ -161,6 +164,55 @@ it('waits for SystemPrompt and ToolRuntime before reserving the provider', async
 })
 
 describe('Session MCP Loader composition', () => {
+  it('rejects startup without the directory service before spawning an MCP process', async () => {
+    const { ctx, root } = await load()
+    await [...ctx.loader.entries()].find(entry => entry.options.id === 'workingDirectory')!.fiber!.dispose()
+    await expect(ctx.agents.create({ sessionId: SessionId('missing-directory') }))
+      .rejects.toThrow('browser MCP startup requires the working-directory service')
+    expect(ctx.agents.get(SessionId('missing-directory'))).toBeUndefined()
+    expect(ctx.sessions.get(SessionId('missing-directory'))).toBeUndefined()
+    await expect(readFile(join(root, 'events.ndjson'))).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('captures each Session directory at startup without moving an already running MCP process', async () => {
+    const { ctx, root, browser } = await load()
+    const canonicalRoot = await realpath(root)
+    const selected = join(canonicalRoot, 'selected')
+    const later = join(canonicalRoot, 'later')
+    const independent = join(canonicalRoot, 'independent')
+    await Promise.all([selected, later, independent].map(directory => mkdir(directory)))
+    const first = await ctx.agents.create({
+      sessionId: SessionId('directory-first'), meta: { cwd: root },
+      setup: (inner, agent) => {
+        inner.on('agent/created', async () => {
+          await ctx.workingDirectory.set(agent, selected)
+        }, { prepend: true })
+      },
+    })
+    expect(first.agent.session.header.cwd).toBe(root)
+    expect(ctx.workingDirectory.get(first.agent.session)).toBe(selected)
+    const started = await events(root)
+    expect(started.filter(event => event.event === 'start').map(event => event.cwd)).toEqual([selected, selected])
+    const firstPid = started.find(event => event.event === 'initialize')!.pid
+    await ctx.workingDirectory.set(first.agent, later)
+    await warm(ctx, first.agent)
+    expect((await execute(ctx, first.agent)).isError).toBe(false)
+    expect(ctx.workingDirectory.get(first.agent.session)).toBe(later)
+    expect(first.agent.session.header.cwd).toBe(root)
+    const second = await ctx.agents.create({ sessionId: SessionId('directory-second'), meta: { cwd: independent } })
+    expect((await execute(ctx, second.agent)).isError).toBe(false)
+    const observed = await events(root)
+    expect(observed.filter(event => event.event === 'start').map(event => event.cwd))
+      .toEqual([selected, selected, independent, independent])
+    expect(observed.filter(event => event.event === 'call').map(event => ({ pid: event.pid, cwd: event.cwd })))
+      .toEqual([{ pid: firstPid, cwd: selected }, { pid: observed.find(event => event.event === 'initialize' && event.pid !== firstPid)!.pid, cwd: independent }])
+    expect(second.agent.session.header.cwd).toBe(independent)
+    await browser.dispose()
+    for (const { pid } of observed.filter(event => event.event === 'start')) {
+      expect(() => process.kill(pid, 0)).toThrow(expect.objectContaining({ code: 'ESRCH' }))
+    }
+  })
+
   it('discovers schemas before the first model request and retains distinct state across turns', async () => {
     const { ctx, root, model, browser } = await load(false, undefined, 5000, [TOOL, '<unlisted-tools>'])
     const first = await ctx.agents.create({ sessionId: SessionId('first'), meta: { cwd: root }, agentOptions: { provider: 'fixture', model: 'fixture' } })

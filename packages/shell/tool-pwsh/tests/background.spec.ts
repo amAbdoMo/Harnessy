@@ -1,13 +1,9 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
-import { Session, SessionId } from '@deepseek-ai/dsh-session'
-import { SESSION_FORMAT_VERSION } from '@deepseek-ai/dsh-session/types'
-import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import ToolRuntime, { TOOL_ABORTED } from '@deepseek-ai/dsh-tools'
-import AgentRegistry from '@deepseek-ai/dsh-agent'
-import type { Agent } from '@deepseek-ai/dsh-agent'
-import { unsupportedInbox } from '@deepseek-ai/dsh-agent-loop-testkit'
+import { SessionId } from '@deepseek-ai/dsh-session'
+import { TOOL_ABORTED } from '@deepseek-ai/dsh-tools'
+import { mountAgentLoopTestDependencies, mountAgentLoopTestHarness, provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
 import LocalJobRegistry from '@deepseek-ai/dsh-jobs-local'
 import * as ToolTasks from '@deepseek-ai/dsh-tool-jobs'
 import { ShellExecutor } from '@deepseek-ai/dsh-shell'
@@ -16,6 +12,13 @@ import { renderPwshPromoted } from '../src/render.ts'
 import * as ToolPwsh from '@deepseek-ai/dsh-tool-pwsh'
 import * as BashEnvPlugin from '@deepseek-ai/dsh-shell-env'
 import { processSources, ringDelta } from '../src/background.ts'
+
+const contexts: Context[] = []
+
+afterEach(async () => {
+  for (const ctx of contexts.splice(0)) await ctx.fiber.dispose()
+  vi.restoreAllMocks()
+})
 
 const testToolSignal = new AbortController().signal
 
@@ -83,9 +86,10 @@ class FakePwsh extends ShellExecutor {
 
 async function setup() {
   const ctx = new Context()
-  await ctx.plugin(SystemPrompt)
-  await ctx.plugin(ToolRuntime)
-  await ctx.plugin(AgentRegistry)
+  contexts.push(ctx)
+  await mountAgentLoopTestDependencies(ctx)
+  provideWorkingDirectoryFixture(ctx)
+  await mountAgentLoopTestHarness(ctx)
   await ctx.plugin(LocalJobRegistry, { pumpPollMs: 5 })
   await ctx.plugin(ToolTasks)
   await ctx.plugin(BashEnvPlugin)
@@ -202,24 +206,7 @@ describe('owned background output (pwsh)', () => {
   it('keeps an owned background run under the owning session', async () => {
     const { ctx, pwsh } = await setup()
     const ownerId = SessionId('pwsh-background-owner')
-    const owner: Agent = {
-      id: ownerId,
-      options: {},
-      session: Session.create(ownerId, undefined, {
-        version: SESSION_FORMAT_VERSION, id: ownerId, createdAt: 0, cwd: process.cwd(), isSeeded: false,
-      }),
-      inbox: unsupportedInbox(),
-      status: 'idle',
-      ctx,
-      send: () => {},
-      followup: () => {},
-      steer: () => {},
-      inject: () => {},
-      cancel: () => {},
-      runMaintenance: task => task(new AbortController().signal),
-      whenIdle: () => Promise.resolve(),
-    }
-    ctx.agents.register(owner)
+    const owner = await ctx.agentLoop.create(ownerId, {}, { cwd: process.cwd() })
     const scripted = observableProcess()
     pwsh.backgroundHandler = () => scripted.proc
     await ctx.tools.execute({
@@ -402,24 +389,7 @@ describe('foreground commands as jobs (pwsh)', () => {
   it('registers the job under the calling agent and stops it through the registry kill', async () => {
     const { ctx, pwsh } = await setup()
     const ownerId = SessionId('pwsh-promote-owner')
-    const owner: Agent = {
-      id: ownerId,
-      options: {},
-      session: Session.create(ownerId, undefined, {
-        version: SESSION_FORMAT_VERSION, id: ownerId, createdAt: 0, cwd: process.cwd(), isSeeded: false,
-      }),
-      inbox: unsupportedInbox(),
-      status: 'idle',
-      ctx,
-      send: () => {},
-      followup: () => {},
-      steer: () => {},
-      inject: () => {},
-      cancel: () => {},
-      runMaintenance: task => task(new AbortController().signal),
-      whenIdle: () => Promise.resolve(),
-    }
-    ctx.agents.register(owner)
+    const owner = await ctx.agentLoop.create(ownerId, {}, { cwd: process.cwd() })
     const scripted = runningExecution('')
     pwsh.backgroundHandler = () => scripted.proc
 
@@ -450,9 +420,10 @@ describe('foreground commands as jobs (pwsh)', () => {
     // job-backed variant is registered, but admission refuses at the start
     // and the call runs under the executor's deadline instead.
     const ctx = new Context()
-    await ctx.plugin(SystemPrompt)
-    await ctx.plugin(ToolRuntime)
-    await ctx.plugin(AgentRegistry)
+    contexts.push(ctx)
+    await mountAgentLoopTestDependencies(ctx)
+    provideWorkingDirectoryFixture(ctx)
+    await mountAgentLoopTestHarness(ctx)
     await ctx.plugin(LocalJobRegistry)
     await ctx.plugin(BashEnvPlugin)
     await ctx.plugin(FakePwsh)
@@ -487,9 +458,10 @@ describe('foreground commands as jobs (pwsh)', () => {
 
   it('keeps the kill deadline and the plain timeout parameter when keeping timed-out commands is off', async () => {
     const ctx = new Context()
-    await ctx.plugin(SystemPrompt)
-    await ctx.plugin(ToolRuntime)
-    await ctx.plugin(AgentRegistry)
+    contexts.push(ctx)
+    await mountAgentLoopTestDependencies(ctx)
+    provideWorkingDirectoryFixture(ctx)
+    await mountAgentLoopTestHarness(ctx)
     await ctx.plugin(LocalJobRegistry)
     await ctx.plugin(ToolTasks)
     await ctx.plugin(BashEnvPlugin)

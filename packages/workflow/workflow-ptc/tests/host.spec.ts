@@ -1,14 +1,13 @@
 import { Context } from '@deepseek-ai/cordis'
 import { PtcRuntime } from '@deepseek-ai/dsh-ptc-runtime'
 import type { PtcBindingFunction, PtcRunRequest, PtcRunResult, PtcRunSpec } from '@deepseek-ai/dsh-ptc-runtime'
-import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
-import SessionProjections from '@deepseek-ai/dsh-session-projection'
+import { SessionId } from '@deepseek-ai/dsh-session'
 import SandboxPolicy from '@deepseek-ai/dsh-sandbox-policy'
 import SubagentRuntime from '@deepseek-ai/dsh-subagent'
 import type { SubagentResult } from '@deepseek-ai/dsh-subagent'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import PtcWorkflowEngine from '../src/index.ts'
-import { fakeParent } from './setup.ts'
+import { realParent, mountWorkflowDirectoryFixture } from './setup.ts'
 
 const completed: PtcRunResult = { logs: [], value: { value: null, stopReason: 'completed', agentsStarted: 0 } }
 type HostBindings = Record<string, PtcBindingFunction>
@@ -28,8 +27,7 @@ class ControlledRuntime extends PtcRuntime {
 async function setup(execute?: (bindings: HostBindings, spec: PtcRunSpec) => Promise<PtcRunResult>, language = 'typescript') {
   const ctx = new Context()
   onTestFinished(async () => { await ctx.fiber.dispose() })
-  await ctx.plugin(SessionStore)
-  await ctx.plugin(SessionProjections)
+  await mountWorkflowDirectoryFixture(ctx)
   await ctx.plugin(SandboxPolicy, { mode: 'read-only' })
   await ctx.plugin(SubagentRuntime)
   ctx.subagents.registerProvider({
@@ -51,7 +49,7 @@ async function setup(execute?: (bindings: HostBindings, spec: PtcRunSpec) => Pro
   runtime.language = language
   if (execute !== undefined) runtime.execute = spec => execute(spec.bindings[0]!.functions, spec)
   await ctx.plugin(PtcWorkflowEngine, { provider: 'stub' })
-  const parent = fakeParent(ctx)
+  const parent = await realParent(ctx)
   const start = () => ctx.workflowEngine.start({
     script: 'return null', meta: { name: 'host-test', description: 'workflow callbacks' }, parent,
   })
@@ -166,14 +164,10 @@ describe('workflow runtime outcomes', () => {
       id: SessionId('output-pending'), localAgent: undefined, result: childResult.promise, dispose: disposed,
     })
     const handle = start()
-    let settled = false
-    void handle.result.then(() => { settled = true })
     try {
-      await new Promise(resolve => setImmediate(resolve))
-      expect(settled).toBe(true)
+      expect((await handle.result).stopReason).toBe('completed')
       expect(disposed).toHaveBeenCalledOnce()
       await expect(outputWait).rejects.toBe('workflow settled')
-      expect((await handle.result).stopReason).toBe('completed')
     } finally {
       childResult.resolve({ output: [], stopReason: 'aborted' })
       await handle.dispose()

@@ -6,7 +6,7 @@ import { Context } from '@deepseek-ai/cordis'
 import SubagentRuntime from '@deepseek-ai/dsh-subagent'
 import type { SandboxMode } from '@deepseek-ai/dsh-sandbox'
 import PtcWorkflowEngine from '../src/index.ts'
-import { fakeParent, mountPtcRuntime } from './setup.ts'
+import { realParent, mountPtcRuntime } from './setup.ts'
 
 async function setup(mode: SandboxMode) {
   const ctx = new Context()
@@ -22,7 +22,7 @@ async function setup(mode: SandboxMode) {
     start: () => Promise.reject(new Error('source runtime smoke must not start a child')),
   })
   await ctx.plugin(PtcWorkflowEngine, {})
-  return { ctx, parent: fakeParent(ctx), ...files }
+  return { ctx, parent: await realParent(ctx), ...files }
 }
 
 it('runs the default workflow config through the source PTC runtime', async () => {

@@ -13,6 +13,7 @@ import type { Agent } from '@deepseek-ai/dsh-agent'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
 import SandboxedFileSystem from '@deepseek-ai/dsh-fs-sandbox'
+import WorkingDirectory from '@deepseek-ai/dsh-working-directory'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import SandboxPolicyService, { setSandboxMode } from '@deepseek-ai/dsh-sandbox-policy'
 import { Session, SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
@@ -43,6 +44,7 @@ async function setupWalled(script: Script): Promise<{ ctx: Context; parent: Agen
   await mountAgentLoopTestDependencies(ctx)
   await ctx.plugin(SandboxPolicyService, { mode: 'workspace-write', workspaceRoot: workspace })
   await ctx.plugin(SandboxedFileSystem, { cwd: workspace })
+  await ctx.plugin(WorkingDirectory, {})
   await ctx.plugin(ToolFs)
   await ctx.plugin(ApprovalService)
   await ctx.plugin(AgentLoop, { agents: [] })

@@ -3,6 +3,9 @@ import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { Context } from '@deepseek-ai/cordis'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
+import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
+import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
+import { provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import Lsp, { LspProviderId, type LspProvider, type LspProviderQuery, type LspQueryResult } from '@deepseek-ai/dsh-lsp'
 import * as ToolLsp from '@deepseek-ai/dsh-tool-lsp'
@@ -32,6 +35,9 @@ async function mount(
   config: ToolLsp.Config = {},
 ): Promise<{ ctx: Context }> {
   const ctx = new Context()
+  await ctx.plugin(SessionStore)
+  await ctx.plugin(SessionProjectionRegistry)
+  provideWorkingDirectoryFixture(ctx)
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
   await ctx.plugin(Lsp)
@@ -53,7 +59,7 @@ function call(ctx: Context, args: unknown, cwd: string | null = workspaceRoot) {
     callId: `c-${++seq}` as never,
     name: 'lsp',
     arguments: args,
-    ...cwd !== null ? { agent: { session: { header: { cwd } } } as never } : {},
+    ...cwd !== null ? { agent: { session: ctx.sessions.create(SessionId(`lsp-${seq}`), { meta: { cwd } }) } as never } : {},
   })
 }
 
@@ -110,6 +116,24 @@ describe('tool-lsp registration', () => {
 })
 
 describe('tool-lsp execution', () => {
+  it('queries from the committed directory through the consumer injection, not the Agent context', async () => {
+    const provider = stubProvider(() => okLocations)
+    const { ctx } = await mount(provider)
+    try {
+      const session = ctx.sessions.create(SessionId('lsp-current'), { meta: { cwd: workspaceRoot } })
+      session.append('working-directory/change', { cwd: resolvedWorkspaceRoot })
+      const result = await ctx.tools.execute({
+        signal: testToolSignal, callId: 'current' as never, name: 'lsp',
+        arguments: { operation: 'hover', file_path: 'a.ts', line: 1, character: 1 },
+        agent: { ctx: new Context(), session } as never,
+      })
+      expect(result.isError).toBe(false)
+      expect(provider.seen[0]?.workspaceRoot).toBe(resolvedWorkspaceRoot)
+      expect(session.header.cwd).toBe(workspaceRoot)
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
   it('converts one-based coordinates and passes the session cwd as workspaceRoot', async () => {
     const provider = stubProvider(() => okLocations)
     const { ctx } = await mount(provider)

@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, TypeAlias, TypeVar
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .errors import JsonRpcError, TransportClosedError
 from .models import IncomingRequest, InitializeResponse, JsonObject, JsonValue, Notification
@@ -187,6 +187,24 @@ class HarnessClient:
             notification_subscription=notification_subscription,
         )
         return response.messageId
+
+    def get_working_directory(self, session_id: str) -> str:
+        """Read the effective directory, recovering a missing selection to its origin."""
+        response = self.request(
+            "session/working-directory/get",
+            {"sessionId": session_id},
+            response_model=_WorkingDirectoryResponse,
+        )
+        return response.cwd
+
+    def set_working_directory(self, session_id: str, path: str) -> str:
+        """Change execution directory without changing origin or permissions."""
+        response = self.request(
+            "session/working-directory/set",
+            {"sessionId": session_id, "path": path},
+            response_model=_WorkingDirectoryResponse,
+        )
+        return response.cwd
 
     def request(
         self,
@@ -579,6 +597,10 @@ class NotificationSubscription:
 
 class _SessionPromptResponse(BaseModel):
     messageId: str
+
+
+class _WorkingDirectoryResponse(BaseModel):
+    cwd: str = Field(min_length=1)
 
 
 class _ShutdownResponse(BaseModel):

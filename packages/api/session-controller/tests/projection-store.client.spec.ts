@@ -102,6 +102,20 @@ describe('Session projection value semantics', () => {
     expect(store.get('test/marks')).toEqual({ marks: ['cached late'] })
   })
 
+  it('does not restore cached keys after a complete baseline until the generation clears', () => {
+    const store = new ProjectionValueStore()
+    store.applyCached({ title: 'hint' })
+    store.seed({ asOfSeq: SessionSeq(2), values: {} })
+    const absent = store.values()
+    store.applyCached({ title: 'late hint', 'test/marks': { marks: ['late'] } })
+    expect(store.values()).toBe(absent)
+    expect(store.values()).toEqual({})
+    store.clear()
+    store.applyCached({ title: 'next generation' })
+    expect(store.values()).toEqual({ title: 'next generation' })
+    expect(store.seqOf('title')).toBeUndefined()
+  })
+
   it('every sequenced write outranks a cached row regardless of seq', () => {
     const store = new ProjectionValueStore()
     store.applyCached({ 'test/marks': { marks: ['cached'] }, title: 'Cached title', schedule: [] })
@@ -289,7 +303,7 @@ describe('manager frame routing', () => {
     // sequenced value, whatever watermark the block claims.
     await manager.refreshList()
     expect(manager.getListSnapshot().items[0]?.title).toBe('Connected title')
-    expect(manager.get(sid('s1')).projections.get('test/marks')).toEqual({ marks: ['cached'] })
+    expect(manager.get(sid('s1')).projections.get('test/marks')).toBeUndefined()
   })
 
   it('merges a sequenced list block under higher-seq-wins: a lower-cut baseline neither overwrites nor clears it', async ({ mock, remote }) => {

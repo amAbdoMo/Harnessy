@@ -61,6 +61,7 @@ export interface SessionListSnapshot {
 /** Shared projection values and the lifecycle of their explicit baseline read. */
 export interface SessionProjectionSnapshot {
   readonly values: Readonly<Partial<SessionProjectionMap>>
+  /** Idle includes migration-deferred hints; only a completed exact read is ready. */
   readonly state: 'idle' | 'loading' | 'ready' | 'error'
   readonly error: RemoteFailure | null
 }
@@ -332,7 +333,7 @@ export class SessionManager {
   }
 
   /**
-   * Load a complete projection baseline once per connection; retry unsuccessful reads.
+   * Read projections once per connection; retry failed or migration-deferred reads without activation.
    * @param sessionId - Session to inspect without opening its conversation.
    * @returns completion of the current or newly started read.
    */
@@ -350,6 +351,11 @@ export class SessionManager {
         const result = await this.remote.session.projections({ sessionId }, controller.signal)
         if (controller.signal.aborted) return
         if (result.ok) {
+          if (result.value?.kind === 'migration-required') {
+            store.applyCached(result.value.values)
+            this.projectionLoads.set(sessionId, { state: 'idle', error: null })
+            return
+          }
           if (result.value !== null) {
             store.seed({ ...result.value, asOfSeq: sessionSeqCursor(result.value.asOfSeq) })
           } else if (store.values() === initialValues) {
@@ -771,7 +777,7 @@ export class SessionManager {
       const prev = this.entryCache.get(entry.sessionId)
       if (
         prev !== undefined && prev.updatedAt === entry.updatedAt && prev.running === entry.running
-        && prev.blank === entry.blank
+        && prev.blank === entry.blank && prev.formatStatus === entry.formatStatus
         && prev.parentSessionId === entry.parentSessionId && prev.cwd === entry.cwd
         && prev.origin === entry.origin && prev.title === entry.title && prev.depth === entry.depth
         && prev.projectionValues === entry.projectionValues
@@ -812,6 +818,7 @@ function applyMutation(summaries: readonly SessionSummary[], mutation: SessionLi
         blank: existing.blank && mutation.summary.blank,
         ...(mutation.kind === 'upsert' ? {
           agentAvailable: mutation.summary.agentAvailable,
+          formatStatus: mutation.summary.formatStatus,
           running: mutation.summary.running,
         } : {}),
         ...(existing.cwd === undefined && mutation.summary.cwd !== undefined ? { cwd: mutation.summary.cwd } : {}),
@@ -822,7 +829,8 @@ function applyMutation(summaries: readonly SessionSummary[], mutation: SessionLi
       }
       if (filled.cwd === existing.cwd && filled.parentSessionId === existing.parentSessionId
         && filled.origin === existing.origin && filled.blank === existing.blank
-        && filled.agentAvailable === existing.agentAvailable && filled.running === existing.running
+        && filled.agentAvailable === existing.agentAvailable && filled.formatStatus === existing.formatStatus
+        && filled.running === existing.running
       ) return [...summaries]
       return summaries.map(summary => summary.sessionId === mutation.summary.sessionId ? filled : summary)
     }
@@ -832,8 +840,10 @@ function applyMutation(summaries: readonly SessionSummary[], mutation: SessionLi
       // Running converts display state; it does not establish durable history.
       return summaries.map(summary => summary.sessionId === mutation.sessionId
         && (summary.running !== mutation.running
-          || summary.agentAvailable !== mutation.agentAvailable || (mutation.running && summary.blank))
-        ? { ...summary, running: mutation.running, agentAvailable: mutation.agentAvailable, blank: summary.blank && !mutation.running }
+          || summary.agentAvailable !== mutation.agentAvailable
+          || (mutation.agentAvailable && summary.formatStatus !== 'current') || (mutation.running && summary.blank))
+        ? { ...summary, running: mutation.running, agentAvailable: mutation.agentAvailable,
+          ...mutation.agentAvailable ? { formatStatus: 'current' as const } : {}, blank: summary.blank && !mutation.running }
         : summary)
     case 'activity':
       return summaries.map(summary => summary.sessionId === mutation.sessionId

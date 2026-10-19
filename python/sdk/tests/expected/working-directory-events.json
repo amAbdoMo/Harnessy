@@ -1,0 +1,86 @@
+[
+  {
+    "type": "user/message",
+    "data": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\n\nCurrent working directory: \"{{cwd}}\".\n\nCurrent DSH file policy: danger-full-access. The DSH file sandbox does not restrict file modifications by available operations.\n\nApproval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`)."
+        }
+      ],
+      "source": {
+        "kind": "runtime-context",
+        "form": "snapshot",
+        "sections": [
+          {
+            "name": "working-directory:current",
+            "text": "Current working directory: \"{{cwd}}\"."
+          },
+          {
+            "name": "sandbox:policy",
+            "text": "Current DSH file policy: danger-full-access. The DSH file sandbox does not restrict file modifications by available operations."
+          },
+          {
+            "name": "approval:policy",
+            "text": "Approval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`)."
+          }
+        ]
+      },
+      "role": "user",
+      "id": "{{sessionId}}"
+    }
+  },
+  {
+    "type": "working-directory/change",
+    "data": {
+      "cwd": "{{cwd}}/selected"
+    }
+  },
+  {
+    "type": "user/message",
+    "data": {
+      "content": [
+        {
+          "type": "text",
+          "text": "The working directory changed from \"{{cwd}}\" to \"{{cwd}}/selected\"."
+        }
+      ],
+      "source": {
+        "kind": "working-directory"
+      },
+      "role": "user",
+      "id": "{{sessionId}}"
+    }
+  },
+  {
+    "type": "user/message",
+    "data": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\n\nCurrent working directory: \"{{cwd}}/selected\".\n\nCurrent DSH file policy: danger-full-access. The DSH file sandbox does not restrict file modifications by available operations.\n\nApproval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`)."
+        }
+      ],
+      "source": {
+        "kind": "runtime-context",
+        "form": "snapshot",
+        "sections": [
+          {
+            "name": "working-directory:current",
+            "text": "Current working directory: \"{{cwd}}/selected\"."
+          },
+          {
+            "name": "sandbox:policy",
+            "text": "Current DSH file policy: danger-full-access. The DSH file sandbox does not restrict file modifications by available operations."
+          },
+          {
+            "name": "approval:policy",
+            "text": "Approval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`)."
+          }
+        ]
+      },
+      "role": "user",
+      "id": "{{sessionId}}"
+    }
+  }
+]

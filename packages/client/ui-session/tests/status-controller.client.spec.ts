@@ -14,7 +14,7 @@ it('preserves unlisted child status through metadata updates and main view ackno
     sessionId: parentId, updatedAt: 1, running: false, blank: false, agentAvailable: true,
   }] }))
   mock.remote.session.projections.mockResolvedValue(ok({
-    asOfSeq: 0,
+    kind: 'sequenced', asOfSeq: 0,
     values: { subagentCatalog: [{ id: childId, createdAt: 1, mode: 'continuable', label: 'Child' }] },
   }))
   mock.stream('session/follow', (_request, stream) => {

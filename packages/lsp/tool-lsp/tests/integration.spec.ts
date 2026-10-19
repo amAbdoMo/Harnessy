@@ -7,6 +7,9 @@ import { Context } from '@deepseek-ai/cordis'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
+import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
+import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
+import WorkingDirectory from '@deepseek-ai/dsh-working-directory'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
 import Lsp from '@deepseek-ai/dsh-lsp'
 import * as LspLocal from '@deepseek-ai/dsh-lsp-stdio'
@@ -48,10 +51,13 @@ function serverScript(hang: boolean): string {
 
 async function mount(hang: boolean, timeoutMs?: number): Promise<Context> {
   const ctx = new Context()
+  await ctx.plugin(SessionStore)
+  await ctx.plugin(SessionProjectionRegistry)
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
   await ctx.plugin(Lsp)
   await ctx.plugin(LocalFileSystem, { cwd: process.cwd() })
+  await ctx.plugin(WorkingDirectory, {})
   await ctx.plugin(LocalSubprocessRuntime)
   await ctx.plugin(LspLocal, {
     servers: {
@@ -77,7 +83,7 @@ function call(ctx: Context, args: unknown) {
     callId: `int-${++seq}` as never,
     name: 'lsp',
     arguments: args,
-    agent: { session: { header: { cwd: ws } } } as never,
+    agent: { session: ctx.sessions.create(SessionId(`lsp-int-${seq}`), { meta: { cwd: ws } }) } as never,
   })
 }
 

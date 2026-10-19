@@ -112,6 +112,7 @@ Reviewer 使用最新 `request/header.config` 的 provider 与模型，并沿用
 
 - Auto 需要开启此 Web 层；默认 Web、Headless、通用设置与新会话默认值都不包含它。
 - Auto 不提供文件沙箱。外层 `run_code` transport 及PTC 程序内直接 Node 效果不经过 inner-tool review。
+- Auto 仅在 Session 原始目录下审查。切换目录前须退出 Auto，并等待已审查调用完成。即使权限模式改变，审查开始至工具结果发布期间，直接通过目录服务移动目录仍被阻止。已位于其他目录的 Session 会在审查或工具执行前失败，直到恢复原始目录或退出 Auto。不能将待完成的审查改为面向其他目录。
 - 模型分类可能出错。不提供确定性工具豁免、持久 grant、可配置策略或重试层。
 - 进程内 Auto child 独立审查自身调用。进程外 child 在父委派调用获准后保留原生权限系统。
 - reviewer 在带行级豁免的情况下，通过已废弃的同步 `snapshotEvents()` 读取 Session 动作历史。此前的调用、PTC start 与直接父级的初始 prompt 目前都没有投影或分页读取方，因此迁移按[同步读取决策](../../../.agents/notes/implemented/architecture/2026-09-09-deprecate-synchronous-session-event-reads.zh.md)继续延期。

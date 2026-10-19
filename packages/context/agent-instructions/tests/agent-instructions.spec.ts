@@ -23,6 +23,7 @@ import type {
   FsWriteOutcome,
 } from '@deepseek-ai/dsh-fs'
 import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
+import WorkingDirectory from '@deepseek-ai/dsh-working-directory'
 import { symlinksUsable } from '@deepseek-ai/dsh-platform-probe'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime, { defineContentToolFixture } from '@deepseek-ai/dsh-tools'
@@ -129,7 +130,13 @@ class RecordingFileSystem extends FileSystem {
     signal?.throwIfAborted()
     if (this.throwOnStat.has(target.targetKey)) throw new Error(`stat failed: ${target.displayPath}`)
     const entry = this.entries.get(target.targetKey)
-    if (entry === undefined) return undefined
+    if (entry === undefined) {
+      const hasChildren = [...this.entries.keys()].some((path) => {
+        const child = relative(String(target.targetKey), path)
+        return child.length > 0 && !child.startsWith('..') && !isAbsolute(child)
+      })
+      return hasChildren ? { type: 'directory', version: FsVersion('fixture-directory') } : undefined
+    }
     const info: FsInfo = {
       version: entry.version ?? FsVersion(`v:${target.targetKey}:${entry.type}:${entry.content ?? ''}`),
       type: entry.type,
@@ -211,9 +218,17 @@ class BlockingReadFileSystem extends RecordingFileSystem {
   }
 }
 
+async function mountWorkingDirectory(ctx: Context): Promise<void> {
+  if (ctx.get('workingDirectory') !== undefined) return
+  if (ctx.get('sessionProjections') === undefined) await ctx.plugin(SessionProjectionRegistry)
+  if (ctx.get('systemPrompt') === undefined) await ctx.plugin(SystemPrompt)
+  await ctx.plugin(WorkingDirectory, {})
+}
+
 async function mountAgentInstructionsPlugin(ctx: Context, config: AgentInstructions.Config): Promise<Awaited<ReturnType<Context['plugin']>>> {
   if (ctx.get('sessionProjections') === undefined) await ctx.plugin(SessionProjectionRegistry)
   ctx.sessionProjections.register(turnBoundaryProjectionDefinition)
+  if (ctx.get('fs') !== undefined) await mountWorkingDirectory(ctx)
   return ctx.plugin(AgentInstructions, config)
 }
 
@@ -226,6 +241,9 @@ async function mountFileToolsAndAgentInstructions(ctx: Context, config: AgentIns
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
   await ctx.plugin(LocalFileSystem, { cwd: '/' })
+  if (ctx.get('sessionProjections') === undefined) await ctx.plugin(SessionProjectionRegistry)
+  await ctx.plugin(WorkingDirectory, {})
+  await mountWorkingDirectory(ctx)
   await ctx.plugin(ToolFs)
   return mountAgentInstructionsPlugin(ctx, config)
 }
@@ -1040,6 +1058,28 @@ describe('workspace context rendering', () => {
 })
 
 describe('workspace context request injection', () => {
+  it('replaces the instruction baseline for the current execution project without rewriting the original header', async () => {
+    const original = await tempRepo()
+    const current = await tempRepo()
+    const home = await tempRepo()
+    const ctx = new Context()
+    try {
+      await mkdir(join(original, '.git'))
+      await mkdir(join(current, '.git'))
+      await write(join(original, 'AGENTS.md'), 'Original instruction')
+      await write(join(current, 'AGENTS.md'), 'Current instruction')
+      await mountAgentInstructions(ctx, { dshHome: home, maxBytes: 65536 })
+      const agent = await stubAgent(original)
+      expect(JSON.stringify(await composeBaselinePrefix(ctx, agent))).toContain('Original instruction')
+      agent.session.append('working-directory/change', { cwd: current })
+      const messages = await composeBaselinePrefix(ctx, agent)
+      expect(JSON.stringify(messages.at(-1))).toContain('Current instruction')
+      expect(agent.session.header.cwd).toBe(original)
+    } finally {
+      await ctx.fiber.dispose()
+      await Promise.all([original, current, home].map(path => rm(path, { recursive: true, force: true })))
+    }
+  })
   it('requires an explicit maxBytes configuration', async () => {
     const ctx = new Context()
 
@@ -2654,6 +2694,7 @@ describe('dynamic nested workspace context injection', () => {
       await ctx.plugin(ToolRuntime)
       await ctx.plugin(AgentRegistry)
       await ctx.plugin(LocalFileSystem, { cwd: '/' })
+      await mountWorkingDirectory(ctx)
       await ctx.plugin(ToolFs)
       await mountAgentInstructionsPlugin(ctx, { dshHome: home, maxBytes: 65536 })
       await ctx.plugin(AgentLoop, { agents: [] })
@@ -2672,13 +2713,13 @@ describe('dynamic nested workspace context injection', () => {
       agent.followup(createUserMessage({ content: [{ type: 'text', text: 'read and abort' }], source: { kind: 'user' } }))
       await agent.whenIdle()
       expect(agent.session.snapshotEvents().filter(event =>
-        event.type === 'user/message' && event.data.source.kind !== 'user',
+        event.type === 'user/message' && event.data.source.kind === 'agent-instructions',
       )).toHaveLength(0)
 
       agent.followup(createUserMessage({ content: [{ type: 'text', text: 'retry the read' }], source: { kind: 'user' } }))
       await agent.whenIdle()
 
-      const contexts = agent.session.snapshotEvents().filter(event => event.type === 'user/message' && event.data.source.kind !== 'user')
+      const contexts = agent.session.snapshotEvents().filter(event => event.type === 'user/message' && event.data.source.kind === 'agent-instructions')
       expect(contexts).toHaveLength(1)
       expect(adapter.requests).toHaveLength(3)
       expect(adapter.requests.at(-1)?.messages.map(blocks => blocksText(blocks.content)).join('\n'))
@@ -2993,6 +3034,7 @@ describe('dynamic nested workspace context injection', () => {
       fs.entries.set(instructionPath, { type: 'file', content: 'nested package rule' })
       fs.omitSizes.add(instructionPath)
       fs.entries.set(join(root, 'pkg/file.txt'), { type: 'file', content: 'hello' })
+      await mountWorkingDirectory(ctx)
       await ctx.plugin(ToolFs)
       await mountAgentInstructionsPlugin(ctx, { dshHome: home, maxBytes: 65536 })
       const agent = await stubAgent(root)
@@ -3030,6 +3072,7 @@ describe('dynamic nested workspace context injection', () => {
       fs.entries.set(join(root, '.git'), { type: 'directory' })
       fs.entries.set(instructionPath, { type: 'file', content: 'same package rule', version: FsVersion('revision-1') })
       fs.entries.set(join(root, 'pkg/file.txt'), { type: 'file', content: 'hello' })
+      await mountWorkingDirectory(ctx)
       await ctx.plugin(ToolFs)
       await mountAgentInstructionsPlugin(ctx, { dshHome: home, maxBytes: 65536 })
       const agent = await stubAgent(root)
@@ -3075,6 +3118,7 @@ describe('dynamic nested workspace context injection', () => {
       fs.entries.set(join(root, '.git'), { type: 'directory' })
       fs.entries.set(instructionPath, { type: 'file', content: 'shared path, separate sessions' })
       fs.entries.set(join(root, 'pkg/file.txt'), { type: 'file', content: 'hello' })
+      await mountWorkingDirectory(ctx)
       await ctx.plugin(ToolFs)
       await mountAgentInstructionsPlugin(ctx, { dshHome: home, maxBytes: 65536 })
 
@@ -3256,6 +3300,7 @@ describe('dynamic nested workspace context injection', () => {
           const warmCache: InstructionVersionCache = new WeakMap()
           warmCache.set(agent.session, new Map(loaded.versions))
           const options = {
+            cwd: root,
             authorityMessages,
             scopeMessages: [createUserMessage({
               content: [{ type: 'text', text: 'pending baseline duplicate' }],
@@ -3312,6 +3357,7 @@ describe('dynamic nested workspace context injection', () => {
       const cache: InstructionVersionCache = new WeakMap()
       cache.set(agent.session, new Map(loaded.versions))
       const options = {
+        cwd: root,
         authorityMessages: [],
         scopeMessages: [],
         touchedPaths: [],
@@ -3355,6 +3401,7 @@ describe('dynamic nested workspace context injection', () => {
       })
 
       const result = await reconcileInstructionContext(agent, resolved, new WeakMap(), fs, {
+        cwd: root,
         authorityMessages: [],
         scopeMessages: [],
         touchedPaths: [],
@@ -3387,6 +3434,7 @@ describe('dynamic nested workspace context injection', () => {
       })
 
       const result = await reconcileInstructionContext(agent, resolved, new WeakMap(), fs, {
+        cwd: root,
         authorityMessages: [],
         scopeMessages: [],
         touchedPaths: [],
@@ -3612,6 +3660,7 @@ describe('dynamic nested workspace context injection', () => {
       fs.entries.set(join(root, '.git'), { type: 'directory' })
       fs.entries.set(join(root, 'pkg/AGENTS.md'), { type: 'file', content: 'provider package rule' })
       fs.entries.set(join(root, 'pkg/file.txt'), { type: 'file', content: 'hello' })
+      await mountWorkingDirectory(ctx)
       await ctx.plugin(ToolFs)
       await mountAgentInstructionsPlugin(ctx, { dshHome: home, maxBytes: 65536 })
       const agent = await stubAgent(root)
@@ -3991,6 +4040,7 @@ describe('dynamic nested workspace context injection', () => {
       fs.entries.set(nested, { type: 'file', content: 'nested package rule' })
       fs.entries.set(join(root, 'pkg/deep/file.txt'), { type: 'file', content: 'hello' })
       fs.throwOnRead.add(nested)
+      await mountWorkingDirectory(ctx)
       await ctx.plugin(ToolFs)
       await mountAgentInstructionsPlugin(ctx, { dshHome: home, maxBytes: 65536 })
       const agent = await stubAgent(root)
@@ -4125,6 +4175,7 @@ describe('dynamic nested workspace context injection', () => {
       await ctx.plugin(SystemPrompt)
       await ctx.plugin(ToolRuntime)
       await ctx.plugin(LocalFileSystem, { cwd: '/' })
+      await mountWorkingDirectory(ctx)
       await ctx.plugin(ToolFs)
       let shouldBlock = true
       ctx.on('tools/post-execute', async (_exec, _result, next) => {
@@ -4177,6 +4228,7 @@ describe('dynamic nested workspace context injection', () => {
       await ctx.plugin(SystemPrompt)
       await ctx.plugin(ToolRuntime)
       await ctx.plugin(LocalFileSystem, { cwd: '/' })
+      await mountWorkingDirectory(ctx)
       await ctx.plugin(ToolFs)
       ctx.tools.register(defineContentToolFixture({
         name: 'composite-read',
@@ -4438,6 +4490,7 @@ describe('dynamic nested workspace context injection', () => {
       fs.entries.set(join(root, '.git'), { type: 'directory' })
       fs.entries.set(instructionPath, { type: 'file', content: 'x'.repeat(1000) })
       fs.entries.set(join(root, 'pkg/file.txt'), { type: 'file', content: 'hello' })
+      await mountWorkingDirectory(ctx)
       await ctx.plugin(ToolFs)
       await mountAgentInstructionsPlugin(ctx, { dshHome: home, maxBytes: 20 })
       const agent = await stubAgent(root)

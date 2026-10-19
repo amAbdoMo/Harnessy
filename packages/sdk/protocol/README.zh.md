@@ -33,12 +33,14 @@ kind: "package-library"
 
 ### SDK 方法
 
-两个协议端共享同一套方法：三个客户端到服务端请求与四个服务端到客户端通知。
+两个协议端共享同一套方法：五个客户端到服务端请求与四个服务端到客户端通知。
 
 | 方向 | 方法 | 载荷类型 |
 |---|---|---|
 | client→server | `initialize` | `InitializeParams` → `InitializeResult` |
 | client→server | `session/prompt` | `SessionPromptParams` → `SessionPromptResult`（持久入队回执） |
+| client→server | `session/working-directory/get` | `SessionWorkingDirectoryParams` → `SessionWorkingDirectoryResult` |
+| client→server | `session/working-directory/set` | `SessionWorkingDirectorySetParams` → `SessionWorkingDirectoryResult` |
 | client→server | `shutdown` | 无参数 → `{}` |
 | server→client | `session.event` | `SessionEventNotification`（运行时内每个会话，不过滤） |
 | server→client | `session.status` | `SessionStatusNotification`（整个 agent（智能体）的 `running`/`idle` 转换） |
@@ -46,6 +48,46 @@ kind: "package-library"
 | server→client | `subagent.finished` | `SubagentFinishedNotification`（仅进程内运行） |
 
 `HarnessSdkRequestMap` 与 `HarnessSdkNotificationMap` 按方法名索引这些结构；包根与传输一起导出它们。
+
+<a id="working-directory-payloads"></a>
+### 工作目录载荷
+
+两种目录请求均要求初始化成功，并需要运行时可选的工作目录服务。线协议参数要求非空 `sessionId`；set 还要求非空 `path`。校验先于 Session 分配。显式请求会创建未知 Session。Get 会校验所选目录，并可提交恢复到原始项目的变更；它并非服务只读的 `get(session)`。Set 基于当前目录解析相对路径。两种操作均不改变原始项目元数据、权限或现有进程目录。
+
+```ts type-equiv
+/** Session whose effective directory is requested; an unknown identity creates the Session. */
+interface SessionWorkingDirectoryParams {
+  /** SDK-side Session identity. */
+  sessionId: string
+}
+```
+
+```ts type-equiv
+/** Directory change affecting future operations, not origin or permissions. */
+interface SessionWorkingDirectorySetParams extends SessionWorkingDirectoryParams {
+  /** Absolute path or a path relative to the Session's effective directory. */
+  path: string
+}
+```
+
+```ts type-equiv
+/** Effective directory after an explicit read, change, or missing-directory recovery. */
+interface SessionWorkingDirectoryResult {
+  /** Absolute directory for subsequent independent operations and new processes. */
+  cwd: string
+}
+```
+
+```ts type-equiv
+/** Client-to-server request methods with their param and result shapes. */
+interface HarnessSdkRequestMap {
+  'initialize': { params: InitializeParams; result: InitializeResult }
+  'session/prompt': { params: SessionPromptParams; result: SessionPromptResult }
+  'session/working-directory/get': { params: SessionWorkingDirectoryParams; result: SessionWorkingDirectoryResult }
+  'session/working-directory/set': { params: SessionWorkingDirectorySetParams; result: SessionWorkingDirectoryResult }
+  'shutdown': { params: undefined; result: Record<string, never> }
+}
+```
 
 ### 载荷语义
 

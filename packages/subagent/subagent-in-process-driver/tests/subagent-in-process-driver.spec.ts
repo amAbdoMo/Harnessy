@@ -1,11 +1,14 @@
 import { ToolCallId, createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { ContextFormed } from '@deepseek-ai/dsh-llm'
-import { describe, expect, it, onTestFinished } from 'vitest'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
+import { mkdtemp, realpath, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { type Agent, type AgentOptions } from '@deepseek-ai/dsh-agent'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
-import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
+import { mountAgentLoopTestDependencies, provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
 import SubagentRuntime, { settleRun, snapshotSubagentDescriptor } from '@deepseek-ai/dsh-subagent'
 import { defineContentToolFixture } from '@deepseek-ai/dsh-tools'
 import { maxTokensResponse, MockAdapter, textResponse, toolCallResponse } from '../../../core/agent-loop/tests/mock-adapter.ts'
@@ -21,7 +24,9 @@ type Script = ConstructorParameters<typeof MockAdapter>[0]
 
 async function setup(script: Script, parentOptions: Partial<AgentOptions> = {}) {
   const ctx = new Context()
+  onTestFinished(() => ctx.fiber.dispose())
   await mountAgentLoopTestDependencies(ctx)
+  provideWorkingDirectoryFixture(ctx)
   await ctx.plugin(AgentLoop, { agents: [] })
   await ctx.plugin(SubagentRuntime)
   const adapter = new MockAdapter(script)
@@ -49,6 +54,27 @@ function text(blocks: readonly { type: string; text?: string }[]): string {
 }
 
 describe('startInProcessRun', () => {
+  it('captures the parent execution directory without replacing original project authority or following later changes', async () => {
+    const { ctx } = await setup([textResponse('directory inherited')])
+    const selected = await realpath(await mkdtemp(join(tmpdir(), 'subagent-directory-')))
+    onTestFinished(() => rm(selected, { recursive: true, force: true }))
+    const origin = process.cwd()
+    const parent = await ctx.agentLoop.create(SessionId('directory-parent'), { provider: 'mock', model: 'mock' }, { cwd: origin })
+    await ctx.workingDirectory.set(parent, selected)
+    const run = await startInProcessRun(request(parent), {})
+    try {
+      const child = ctx.agents.get(run.id)!
+      expect(child.session.header.cwd).toBe(origin)
+      expect(ctx.workingDirectory.get(child.session)).toBe(selected)
+      await ctx.workingDirectory.set(parent, origin)
+      expect(ctx.workingDirectory.get(child.session)).toBe(selected)
+      expect(parent.session.header.cwd).toBe(origin)
+      await expect(run.result).resolves.toMatchObject({ stopReason: 'completed' })
+    } finally {
+      await run.dispose()
+    }
+  })
+
   it('returns only after publication, drives a fresh child, and disposes it', async () => {
     const { ctx, parent } = await setup([textResponse('driver answer')])
     const run = await startInProcessRun(request(parent), {})
@@ -64,7 +90,7 @@ describe('startInProcessRun', () => {
 
   it('uses explicit child model selectors when the parent has none and preserves its cwd', async () => {
     const { ctx } = await setup([textResponse('driver answer')])
-    const parent = await ctx.agentLoop.create(SessionId('bare-parent'), {}, { cwd: '/workspace' })
+    const parent = await ctx.agentLoop.create(SessionId('bare-parent'), {}, { cwd: process.cwd() })
     const run = await startInProcessRun({
       ...request(parent),
       agentOptions: { provider: 'mock', model: 'mock' },
@@ -72,7 +98,7 @@ describe('startInProcessRun', () => {
 
     const child = ctx.agents.get(run.id)!
     expect(child.options).toMatchObject({ provider: 'mock', model: 'mock' })
-    expect(child.session.header.cwd).toBe('/workspace')
+    expect(child.session.header.cwd).toBe(process.cwd())
     await expect(run.result).resolves.toMatchObject({ stopReason: 'completed' })
     await run.dispose()
   })
@@ -112,28 +138,21 @@ describe('startInProcessRun', () => {
     const disposalError = new Error('published handle disposal failed')
     const beforeAgents = ctx.agents.list().length
     const beforeSessions = ctx.sessions.list().length
-    const parentWithFailedDisposal = {
-      options: parent.options,
-      session: parent.session,
-      ctx: {
-        get: () => undefined,
-        agents: {
-          create: async (options: Parameters<typeof ctx.agents.create>[0]) => {
-            const handle = await ctx.agents.create(options)
-            handle.agent.followup = () => { throw runError }
-            return {
-              ...handle,
-              dispose: async () => {
-                await handle.dispose()
-                throw disposalError
-              },
-            }
-          },
+    const create = ctx.agents.create.bind(ctx.agents)
+    const creation = vi.spyOn(ctx.agents, 'create').mockImplementation(async (options) => {
+      const handle = await create(options)
+      handle.agent.followup = () => { throw runError }
+      return {
+        ...handle,
+        dispose: async () => {
+          await handle.dispose()
+          throw disposalError
         },
-      },
-    } as unknown as Agent
+      }
+    })
+    onTestFinished(() => { creation.mockRestore() })
 
-    const run = await startInProcessRun(request(parentWithFailedDisposal), {})
+    const run = await startInProcessRun(request(parent), {})
     expect(ctx.agents.get(run.id)).toBeDefined()
     await expect(run.result).rejects.toBe(runError)
     await expect(run.dispose()).rejects.toBe(disposalError)
@@ -231,10 +250,8 @@ describe('startInProcessRun', () => {
     expect(child.session.surface.nodes[0]).toBe(systemNodes[1]?.seq)
     const childRequest = adapter.requests.at(-1)!
     expect(childRequest.system).toBeUndefined()
-    expect(childRequest.messages[0]).toMatchObject({
-      role: 'system',
-      content: [{ type: 'text', text: expect.stringContaining('Registered after the fork seed.') as unknown }],
-    })
+    expect(childRequest.messages[0]?.role).toBe('system')
+    expect(text(childRequest.messages[0]?.content ?? [])).toContain('Registered after the fork seed.')
     await run.dispose()
   })
 
@@ -300,17 +317,18 @@ describe('startInProcessRun', () => {
   })
 
   it('rejects invalid and exceeded depth before publication', async () => {
-    const { parent } = await setup([])
+    const { ctx, parent } = await setup([])
     await expect(startInProcessRun({ ...request(parent), maxDepth: -1 }, {}))
       .rejects.toThrow('non-negative safe integer')
     await expect(startInProcessRun({ ...request(parent), maxDepth: 0 }, {}))
       .rejects.toMatchObject({ name: 'SubagentDepthError' })
-    for (const value of [Number.NaN, 1.5, -1, -0, Number.MAX_SAFE_INTEGER + 1]) {
-      const malformed = { options: { subagentDepth: value }, session: { header: {} } } as unknown as Agent
+    const invalidDepths = [Number.NaN, 1.5, -1, -0, Number.MAX_SAFE_INTEGER + 1]
+    for (const [index, value] of invalidDepths.entries()) {
+      const malformed = await ctx.agentLoop.create(SessionId(`invalid-depth-${index}`), { subagentDepth: value })
       await expect(startInProcessRun(request(malformed), {}))
         .rejects.toThrow('agent subagentDepth must be a non-negative safe integer')
     }
-    const maxParent = { options: { subagentDepth: Number.MAX_SAFE_INTEGER }, session: { header: {} } } as unknown as Agent
+    const maxParent = await ctx.agentLoop.create(SessionId('max-depth'), { subagentDepth: Number.MAX_SAFE_INTEGER })
     await expect(startInProcessRun(request(maxParent), {})).rejects.toBeInstanceOf(RangeError)
   })
 
@@ -410,25 +428,15 @@ describe('startInProcessRun', () => {
     const controller = new AbortController()
     const beforeAgents = ctx.agents.list().length
     const beforeSessions = ctx.sessions.list().length
-    const parentWithAbortAtHandoff = {
-      options: parent.options,
-      session: parent.session,
-      ctx: {
-        // The driver's synchronous inheritance capture probes both policy
-        // services opportunistically; this stub composes neither.
-        get: () => undefined,
-        agents: {
-          create: async (options: Parameters<typeof ctx.agents.create>[0]) => {
-            const handle = await ctx.agents.create(options)
-            // `create()` has detached its creation-only listener, but the
-            // published run has not installed its live listener yet.
-            controller.abort('handoff race')
-            return handle
-          },
-        },
-      },
-    } as unknown as Agent
-    const run = await startInProcessRun(request(parentWithAbortAtHandoff, controller.signal), {})
+    const create = ctx.agents.create.bind(ctx.agents)
+    const creation = vi.spyOn(ctx.agents, 'create').mockImplementation(async (options) => {
+      const handle = await create(options)
+      // Publication has detached its creation-only listener; the run has not yet installed its live listener.
+      controller.abort('handoff race')
+      return handle
+    })
+    onTestFinished(() => { creation.mockRestore() })
+    const run = await startInProcessRun(request(parent, controller.signal), {})
     expect(ctx.agents.get(run.id)).toBeDefined()
     await expect(run.result).resolves.toEqual({ output: [], stopReason: 'aborted' })
     await run.dispose()

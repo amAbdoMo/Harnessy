@@ -10,18 +10,18 @@
 import { accessSync, constants, statSync } from 'node:fs'
 import { isAbsolute, resolve } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/dsh-working-directory'
 import z from '@deepseek-ai/schemastery'
 import type {
   ResolvedSubagentStartRequest,
   SubagentCapabilities,
   SubagentProvider,
-  SubagentStartRequest,
 } from '@deepseek-ai/dsh-subagent'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import { acpConfigurationFailure, type AcpRunSpec, DEFAULT_DISPOSE_EOF_GRACE_MS, DEFAULT_DISPOSE_GRACE_MS, type PermissionPolicy, startAcpRun } from './run.ts'
 
 export const name = 'subagent-acp'
-export const inject = ['subagents', 'subprocess']
+export const inject = ['subagents', 'subprocess', 'workingDirectory']
 
 /** Config: how to spawn and drive the child ACP agent process. */
 export interface Config {
@@ -35,8 +35,8 @@ export interface Config {
    * Working directory override for the child process and its ACP session.
    * Must be non-empty; a relative path resolves against the harness launch
    * directory at load, and the result must be an existing directory. When
-   * omitted, each child inherits its delegating parent session's cwd — and
-   * starting one from a parent session that has no cwd fails.
+   * omitted, each child uses its delegating Session's current directory,
+   * including the working-directory service's configured fallback.
    */
   cwd?: string
   /**
@@ -123,18 +123,11 @@ function assertUsableCwd(label: string, cwd: string): string {
 
 /**
  * Resolve the child's working directory: the deployment `cwd` override when
- * configured (already validated at load), else the parent session's workspace
- * cwd (validated here, its earliest resolvable point). Fails loud when neither
- * exists — falling back to the harness process cwd would silently bind the
- * child to the server's launch directory instead of the delegating session's
- * workspace (one server process serves many sessions, each with its own cwd).
+ * configured (already validated at load), else the working-directory service's
+ * current Session directory, validated before spawning.
  */
-function resolveCwd(configured: string | undefined, request: SubagentStartRequest): string {
+function resolveCwd(configured: string | undefined, parentCwd: string): string {
   if (configured !== undefined) return configured
-  const parentCwd = request.parent.session.header.cwd
-  if (parentCwd === undefined) {
-    throw new Error('subagent-acp: no working directory for the child — configure `cwd` or delegate from a parent session that has one')
-  }
   return assertUsableCwd('parent session cwd', parentCwd)
 }
 
@@ -165,7 +158,7 @@ class AcpProvider implements SubagentProvider {
     }
     let cwd: string
     try {
-      cwd = resolveCwd(this.config.cwd, request)
+      cwd = resolveCwd(this.config.cwd, this.ctx.workingDirectory.get(request.parent.session))
     } catch (error: unknown) {
       const failure = acpConfigurationFailure(error)
       this.ctx.logger.warn(`subagent-acp "${this.name}": child start failed: %o`, error)

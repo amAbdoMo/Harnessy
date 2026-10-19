@@ -17,23 +17,28 @@ export const MODULES_PACKAGE = '@deepseek-ai/dsh-client-modules'
  * Resolve each roster row to its plugin module: `plan.provide[name]` when
  * present, otherwise a `/client` import resolved by the repository's tsconfig
  * path aliases under Vitest. The bootstrap row is the
- * statically imported `@deepseek-ai/dsh-client-modules/client` namespace.
+ * statically imported `@deepseek-ai/dsh-client-modules/client` namespace. Imports
+ * arrive concurrently; failures drain all arrivals before rejection, and the
+ * returned table retains roster order. Plugin activation follows the Loader.
  * @param plan - validated plan.
  * @returns package name → module, in roster order.
  * @throws {Error} when an import fails (the package name prefixes the original message) or the bootstrap row is provided.
  */
 export async function loadPluginModules(plan: AssemblyPlan): Promise<ReadonlyMap<string, ClientPluginModule>> {
+  if (plan.roster.rows.some(row => row.name === MODULES_PACKAGE) && plan.provide?.[MODULES_PACKAGE] !== undefined) {
+    throw new Error(`client-test-runtime: ${MODULES_PACKAGE} is the bootstrap module and cannot be provided`)
+  }
+  const arrivals = await Promise.allSettled(plan.roster.rows.map(async ({ name }) => {
+    const namespace = name === MODULES_PACKAGE ? modulesClient : plan.provide?.[name] ?? await importClient(name)
+    return [name, namespace] as const
+  }))
   const modules = new Map<string, ClientPluginModule>()
-  for (const { name } of plan.roster.rows) {
-    const provided = plan.provide?.[name]
-    if (name === MODULES_PACKAGE) {
-      if (provided !== undefined) {
-        throw new Error(`client-test-runtime: ${MODULES_PACKAGE} is the bootstrap module and cannot be provided`)
-      }
-      modules.set(name, modulesClient)
-      continue
+  for (const arrival of arrivals) {
+    if (arrival.status === 'rejected') {
+      const error: unknown = arrival.reason
+      throw error
     }
-    modules.set(name, provided ?? await importClient(name))
+    modules.set(...arrival.value)
   }
   return modules
 }

@@ -47,7 +47,7 @@ kind: "package-reference"
 
 ### 失败与恢复
 
-该工具要求会话工作区根目录（`header.cwd`），没有回退值；缺失时会在任何查询前以 `LSP_WORKSPACE_REQUIRED` 失败。当没有提供方处理该文件扩展名时，查询以 `LSP_UNAVAILABLE` 失败；格式错误的提供方载荷仍保持为结构化 `LSP_MALFORMED_RESPONSE` 错误。这些会呈现为模型可读、可路由的错误工具结果。
+每次查询使用工作目录服务提供的 Session 当前目录，包括服务配置的默认目录。没有 agent 的调用会在任何查询前以 `LSP_WORKSPACE_REQUIRED` 失败；目录改变只影响后续查询，不改变原始项目权限。当没有提供方处理该文件扩展名时，查询以 `LSP_UNAVAILABLE` 失败；格式错误的提供方载荷仍保持为结构化 `LSP_MALFORMED_RESPONSE` 错误。这些会呈现为模型可读、可路由的错误工具结果。
 
 -----
 
@@ -61,7 +61,7 @@ kind: "package-reference"
 
 ### 设计说明
 
-- **只做消费方。** 工具运行时只注入 `tools`、`lsp` 与 `systemPrompt`，不导入任何提供方，并且只把 `exec.signal` 传给 seam。
+- **只做消费方。** 工具运行时注入 `tools`、`lsp`、`systemPrompt` 与 `workingDirectory`，不导入任何提供方，并且只把 `exec.signal` 传给 seam。
 - **坐标转换。** `parseLspArgs` 验证 `line` 与 `character` 是正整数，并转换为 seam 从零开始的位置；渲染出的位置再转回从 1 开始的形式。
 - **规范结果透传。** 工具返回 seam 的封闭联合（`{ kind: 'locations', locations, resolvedWorkspaceUri }` 或 `{ kind: 'hover', hover }`），原生渲染器可以直接检查每个已取得的位置与从零开始的范围。
 - **执行世界 URI 渲染。** `renderUri` 以提供方的规范工作区 URI 为基准解析 `file:` URI——在其内为工作区相对路径，在其外为从 URI 派生的绝对路径，格式错误或非 `file:` 时原样保留——绝不把宿主平台路径规则应用到会话 cwd。

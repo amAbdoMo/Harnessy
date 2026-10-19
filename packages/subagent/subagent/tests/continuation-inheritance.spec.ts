@@ -7,13 +7,13 @@
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
-import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
+import { mountAgentLoopTestDependencies, provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import SandboxPolicyService, { setSandboxMode } from '@deepseek-ai/dsh-sandbox-policy'
 import { Session, SessionId } from '@deepseek-ai/dsh-session'
@@ -42,6 +42,7 @@ async function setup(script: Script) {
   const ctx = new Context()
   contexts.push(ctx)
   await mountAgentLoopTestDependencies(ctx)
+  provideWorkingDirectoryFixture(ctx)
   const root = mkdtempSync(join(tmpdir(), 'dsh-continuation-inherit-'))
   roots.push(root)
   await ctx.plugin(JsonlSessionPersistence, { root })
@@ -86,6 +87,30 @@ function foldedApprovalPolicy(ctx: Context, id: SessionId, events: readonly Sess
 }
 
 describe('continuable policy inheritance', () => {
+  it('captures the selected directory on fresh creation and retains it after parent changes and cold resume', async () => {
+    const { ctx } = await setup([textResponse('first child turn'), textResponse('resumed child turn')])
+    const selected = realpathSync(mkdtempSync(join(tmpdir(), 'continuable-selected-')))
+    roots.push(selected)
+    const later = realpathSync(mkdtempSync(join(tmpdir(), 'continuable-parent-later-')))
+    roots.push(later)
+    const origin = process.cwd()
+    const parent = await ctx.agentLoop.create(SessionId('directory-parent'), { provider: 'mock', model: 'mock' }, { cwd: origin })
+    const captured = await ctx.workingDirectory.set(parent, selected)
+    const started = await ctx.subagents.startContinuable(startSpec(parent))
+    await waitNoActivation(ctx, started.childId)
+    const first = await loadStoredSession(ctx.sessionPersistence, started.childId)
+    expect(first.meta.cwd).toBe(origin)
+    expect(ctx.workingDirectory.get(Session.create(started.childId, first.events))).toBe(captured)
+    const parentLater = await ctx.workingDirectory.set(parent, later)
+    await queueHostSubagentPrompt(ctx.subagents, parent, started.childId,
+      [{ type: 'text', text: 'continue' }], { kind: 'user' }, new AbortController().signal)
+    await waitNoActivation(ctx, started.childId)
+    const resumed = await loadStoredSession(ctx.sessionPersistence, started.childId)
+    expect(resumed.meta.cwd).toBe(origin)
+    expect(ctx.workingDirectory.get(Session.create(started.childId, resumed.events))).toBe(captured)
+    expect(ctx.workingDirectory.get(parent.session)).toBe(parentLater)
+  })
+
   it.each(['auto', 'danger-full-access'] as const)(
     'persists the delegated %s identity across cold resume without reading the parent again',
     { timeout: 20_000 },

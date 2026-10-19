@@ -29,6 +29,8 @@ The `standard`, `ptc`, and `cordis` agent presets mount this plugin. Call `prese
 
 Mount it in an agent's Cordis composition with `tools`, `fs`, and the `turnBoundary` Session projection available:
 
+File validation uses the filesystem and working-directory services injected into this plugin. The calling Agent owns the Session and delivery record; its context does not need those service injections.
+
 ```yaml
 - name: '@deepseek-ai/dsh-tool-present'
   config:

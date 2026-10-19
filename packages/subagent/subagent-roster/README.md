@@ -78,7 +78,7 @@ A role's `model` policy defaults to `fixed`, so the user owns the child's model 
 
 ### Workspace overrides
 
-`overrides` is keyed by the canonical workspace path that `path.resolve` produces for the session's `cwd` (lower-cased on Windows). An entry is a field patch on a global role: every field it omits inherits, every field it names replaces, and a `removed` list drops a role for that workspace alone. A patch naming half of a route is a patch on the whole route field.
+`overrides` is keyed by the canonical workspace path that `path.resolve` produces for the Session's immutable `header.cwd` (lower-cased on Windows), not its mutable execution directory. An entry is a field patch on a global role: every field it omits inherits, every field it names replaces, and a `removed` list drops a role for that workspace alone. A patch naming half of a route is a patch on the whole route field.
 
 ### Background runs
 

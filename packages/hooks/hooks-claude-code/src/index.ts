@@ -8,6 +8,7 @@
  * @module @deepseek-ai/dsh-hooks-claude-code
  */
 
+import type {} from '@deepseek-ai/dsh-working-directory'
 import { readFileSync } from 'node:fs'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
@@ -45,7 +46,7 @@ import { parseClaudeCodeConfig, type ClaudeCodeHookConfig } from './config.ts'
 export const name = 'hooks-claude-code'
 // `shell` runs hooks and `sessionProjections` supplies turn numbers; the rest
 // are read opportunistically via ctx.get so a deployment can omit them.
-export const inject = ['shell', 'sessionProjections']
+export const inject = ['shell', 'sessionProjections', 'workingDirectory']
 
 /** Plugin config: where the CC hook config lives + substitution roots. */
 export interface Config {
@@ -64,7 +65,7 @@ export interface Config {
   /**
    * Replaces `${CLAUDE_PROJECT_DIR}` in command strings AND is exported as the
    * `CLAUDE_PROJECT_DIR` env var for hook processes. When omitted, the env var
-   * defaults per-run to the agent's session workspace (`session.header.cwd`, the
+   * defaults per-run to the agent's current execution directory (the
    * same dir the hook runs in) — Claude Code always exports this var, and common
    * unmodified hooks reference `$CLAUDE_PROJECT_DIR` for project-relative paths.
    */
@@ -143,20 +144,18 @@ export function apply(ctx: Context, config: Config): void {
   async function runPoint(
     point: string,
     matchQuery: string,
-    payload: unknown,
-    opts: { agent?: Agent; turn?: number; readonly signal: AbortSignal },
+    payload: Record<string, unknown>,
+    opts: { agent?: Agent; turn?: number; readonly signal: AbortSignal; readonly directory?: string },
   ): Promise<MergedHookOutcome> {
-    const groups: MatcherGroup[] = parsed[point] ?? []
+    const groups: MatcherGroup[] = (parsed[point] ?? []).filter(group =>
+      group.hooks.length > 0 && matchesMatcher(group.matcher, matchQuery, 'claude-code'))
+    if (groups.length === 0) return mergeHookOutputs([])
     const outputs: HookOutput[] = []
-    // Run the hook in the agent's session workspace (the `session/new` cwd on the session
-    // header), not the executor or entry-point process's launch dir.
-    const workdir = opts.agent?.session.header.cwd
-    // CLAUDE_PROJECT_DIR: an explicit config value wins; otherwise default it to the session
-    // workspace (the same dir the hook runs in).
+    const workdir = opts.directory ?? (opts.agent === undefined ? undefined : await ctx.workingDirectory.ensure(opts.agent, opts.signal))
+    // An explicit projectDir wins over the hook point's execution directory.
     const projectDir = config.projectDir ?? workdir
     const hookEnv = projectDir !== undefined ? { CLAUDE_PROJECT_DIR: projectDir } : undefined
     for (const group of groups) {
-      if (!matchesMatcher(group.matcher, matchQuery, 'claude-code')) continue
       for (const hook of group.hooks) {
         const handlerId = nextHandlerId(point)
         const session = opts.agent?.session
@@ -166,8 +165,8 @@ export function apply(ctx: Context, config: Config): void {
             ...group.matcher !== undefined ? { matcher: group.matcher } : {},
           })
         }
-        const { output, durationMs } = await runHook(ctx.shell, hook, {
-          payload,
+        const { output, durationMs } = await runHook(opts.agent?.ctx.get('shell') ?? ctx.shell, hook, {
+          payload: { ...payload, cwd: workdir ?? process.cwd() },
           defaultTimeoutMs,
           ...hookEnv ? { env: hookEnv } : {},
           ...workdir !== undefined ? { cwd: workdir } : {},
@@ -282,8 +281,8 @@ export function apply(ctx: Context, config: Config): void {
     }
   })
 
-  // SubagentStart may inject child context; SubagentStop only observes. Both
-  // use the live child's workspace and the generic agent-type matcher subject.
+  // SubagentStart may inject child context; SubagentStop observes its last
+  // committed execution directory even after the child leaves the registry.
   ctx.on('subagent/start', (info) => {
     const child = ctx.get('agents')?.get(info.id)
     if (child !== undefined) subagentChildren.set(info.runId, child)
@@ -297,7 +296,9 @@ export function apply(ctx: Context, config: Config): void {
   ctx.on('subagent/end', (info) => {
     const child = subagentChildren.get(info.runId) ?? ctx.get('agents')?.get(info.id)
     subagentChildren.delete(info.runId)
-    detached.track(runPoint('SubagentStop', SUBAGENT_TYPE, subagentPayload('SubagentStop', info, child), { ...child ? { agent: child } : {}, signal: detached.signal }))
+    detached.track(runPoint('SubagentStop', SUBAGENT_TYPE, subagentPayload('SubagentStop', info, child), {
+      ...child ? { agent: child, directory: ctx.workingDirectory.get(child.session) } : {}, signal: detached.signal,
+    }))
   })
 }
 
@@ -330,7 +331,6 @@ function base(agent: Agent | undefined, event: string): Record<string, unknown> 
     // The persistence seam exposes no artifact path; the field stays empty
     // (a durable consumer gap recorded in this package's README).
     transcript_path: '',
-    cwd: agent?.session.header.cwd ?? process.cwd(),
     hook_event_name: event,
   }
 }

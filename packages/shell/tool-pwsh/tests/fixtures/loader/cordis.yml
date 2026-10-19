@@ -6,6 +6,15 @@
 - id: tools
   name: '@deepseek-ai/dsh-tools'
 
+- id: projections
+  name: '@deepseek-ai/dsh-session-projection'
+
+- id: filesystem
+  name: '@deepseek-ai/dsh-fs-local'
+
+- id: directory
+  name: '@deepseek-ai/dsh-working-directory'
+
 - id: subprocess
   name: '@deepseek-ai/dsh-subprocess-local'
 

@@ -11,6 +11,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/dsh-working-directory'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import type {
   ResolvedSubagentStartRequest,
@@ -166,22 +167,21 @@ class CommandCodeSubagentProvider implements SubagentProvider {
   readonly inheritsParentContext = false
 
   constructor(
+    private readonly ctx: Context,
     private readonly api: CommandCodeDelegationApi,
     private readonly instructionsPrefix: string,
   ) {}
 
   /**
-   * Run one delegation to completion of its publication boundary. The route,
-   * the access, and the prompt are resolved before any slot or process is
-   * taken, so a request this backend cannot express refuses the start; a
-   * failure after the slot is taken returns it before rejecting.
+   * Publish one delegation with its route, access, prompt, and execution
+   * directory captured before preflight or admission awaits. Header cwd
+   * remains settings authority. Unsupported requests fail before taking a
+   * slot or process; a failure after taking the slot returns it before rejecting.
    */
   async start(request: ResolvedSubagentStartRequest): Promise<SubagentRun> {
     const workspace = request.parent.session.header.cwd
-    if (workspace === undefined) {
-      throw new Error('commandcode: the delegating session has no working directory to run in')
-    }
-    const spec = backendRunSpec(request, this.api.viewFor(workspace))
+    const cwd = this.ctx.workingDirectory.get(request.parent.session)
+    const spec = backendRunSpec(request, this.api.viewFor(workspace ?? null))
     const roleInstructions = request.persona ?? ''
     const instructions = [this.instructionsPrefix.trim(), roleInstructions.trim()].filter(Boolean).join('\n\n')
     const brief = composeCommandCodeBrief(instructions, promptText(request.prompt))
@@ -194,7 +194,7 @@ class CommandCodeSubagentProvider implements SubagentProvider {
     const release = await this.api.acquire(request.signal)
     let run: SubagentRun
     try {
-      run = this.api.start({ brief, cwd: workspace, signal: request.signal }, spec, () => {})
+      run = this.api.start({ brief, cwd, signal: request.signal }, spec, () => {})
     } catch (error: unknown) {
       // Nothing was published, so the slot this start took goes back.
       release()
@@ -217,5 +217,5 @@ export function registerCommandCodeBackend(
   api: CommandCodeDelegationApi,
   instructionsPrefix = '',
 ): () => void {
-  return ctx.subagents.registerProvider(new CommandCodeSubagentProvider(api, instructionsPrefix))
+  return ctx.subagents.registerProvider(new CommandCodeSubagentProvider(ctx, api, instructionsPrefix))
 }

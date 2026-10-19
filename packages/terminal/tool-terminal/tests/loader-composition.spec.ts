@@ -7,7 +7,7 @@ import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
-import { Session, SessionId } from '@deepseek-ai/dsh-session'
+import { SessionId } from '@deepseek-ai/dsh-session'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
@@ -20,7 +20,11 @@ import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
 import * as TerminalLocal from '@deepseek-ai/dsh-terminal-bash'
 import * as ToolPty from '@deepseek-ai/dsh-tool-terminal'
-import { unsupportedInbox } from '@deepseek-ai/dsh-agent-loop-testkit'
+import AgentLoop from '@deepseek-ai/dsh-agent-loop'
+import LlmRuntime from '@deepseek-ai/dsh-llm'
+import SessionStore from '@deepseek-ai/dsh-session'
+import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
+import WorkingDirectory from '@deepseek-ai/dsh-working-directory'
 
 let root: string | undefined
 let context: Context | undefined
@@ -39,20 +43,7 @@ class PassthroughSandbox extends SandboxProvider {
 }
 
 async function agent(ctx: Context): Promise<Agent> {
-  const scope = ctx.plugin(() => {})
-  const id = SessionId('pty-loader-agent')
-  const session = Session.create(id)
-  const value: Agent = {
-    id, options: {}, session, inbox: unsupportedInbox(),
-    status: 'idle',
-    ctx: scope.ctx,
-    send: () => {},
-    followup: () => {}, steer: () => {}, inject: () => {}, cancel() {},
-    runMaintenance: job => job(new AbortController().signal),
-    whenIdle: () => Promise.resolve(),
-  }
-  await ctx.agents.register(value)
-  return value
+  return ctx.agentLoop.create(SessionId('pty-loader-agent'))
 }
 
 function resultText(result: { content: { type: string; text?: string }[] }): string {
@@ -66,6 +57,13 @@ suite('terminal real Loader composition through cordis.yml', () => {
     root = await mkdtemp(join(tmpdir(), 'dsh-pty-loader-'))
     const configPath = join(root, 'cordis.yml')
     await writeFile(configPath, [
+      "- name: '@deepseek-ai/dsh-llm'",
+      "- name: '@deepseek-ai/dsh-session'",
+      "- name: '@deepseek-ai/dsh-fs-local'",
+      "- name: '@deepseek-ai/dsh-working-directory'",
+      "- name: '@deepseek-ai/dsh-agent-loop'",
+      '  config:',
+      '    agents: []',
       "- name: '@deepseek-ai/dsh-agent'",
       "- name: '@deepseek-ai/dsh-system-prompt'",
       "- name: '@deepseek-ai/dsh-tools'",
@@ -94,6 +92,11 @@ suite('terminal real Loader composition through cordis.yml', () => {
     await context.plugin(Loader)
     context.loader.builtins.include = Include
     const modules = new Map<string, unknown>([
+      ['@deepseek-ai/dsh-llm', LlmRuntime],
+      ['@deepseek-ai/dsh-session', SessionStore],
+      ['@deepseek-ai/dsh-fs-local', LocalFileSystem],
+      ['@deepseek-ai/dsh-working-directory', WorkingDirectory],
+      ['@deepseek-ai/dsh-agent-loop', AgentLoop],
       ['@deepseek-ai/dsh-agent', AgentRegistry],
       ['@deepseek-ai/dsh-system-prompt', SystemPrompt],
       ['@deepseek-ai/dsh-tools', ToolRuntime],

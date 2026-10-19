@@ -51,7 +51,7 @@ agent.inbox.append('next-turn', message)
 const admitted = harness.claim(agent, 'next-turn', 1)
 ```
 
-The dependency helper forwards system-prompt and tool-registry configuration through `options` and provides no test defaults beyond those services' own defaults. A plugin-load failure rejects the helper call; services activated earlier in the sequence remain context-owned and unwind when the context is disposed.
+The dependency helper forwards system-prompt and tool-registry configuration through `options` and provides no test defaults beyond those services' own defaults. A plugin-load failure rejects the helper call; services activated earlier in the sequence remain context-owned and unwind when the context is disposed. Hook and filesystem tests can call `provideWorkingDirectoryFixture(ctx)` before mounting prerequisites to register the real local filesystem and directory service; the context owns both plugins.
 
 ### Build a structural Agent stub
 
@@ -108,7 +108,7 @@ Read these pages when the package-level behavior is not enough. They move from t
 <a id="model-experience"></a>
 ## Model Experience
 
-None, as these test-only utilities neither assemble nor modify model requests.
+None, as these test utilities delegate model-visible behavior to the mounted production plugins, including the optional [working-directory service](../../session/working-directory/README.md#model-experience).
 
 #### KV Cache effect
 

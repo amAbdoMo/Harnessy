@@ -25,6 +25,8 @@ Use this package to delegate a task to an ACP-compatible agent running in a fres
 <a id="use-this-package"></a>
 ## Use this package
 
+New child processes and protocol sessions use the parent Session’s current directory from `ctx.workingDirectory`, including its configured fallback. A configured `cwd` override, when supported, still takes precedence; existing children keep their startup directory.
+
 Mount this provider when a composition needs a fully isolated, out-of-process child that speaks the Agent Client Protocol. The common path is explicit: mount the seam, mount this provider, and give it a command that starts an ACP agent.
 
 ### When to choose it

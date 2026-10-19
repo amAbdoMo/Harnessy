@@ -61,6 +61,12 @@ with DeepSeekHarness(
 
 The shipped `sdk-minimal` profile is a standalone explicit tree rather than an overlay on `dsh-base`. Select it with `profile="sdk-minimal"`; the ordinary `model` argument is the sole runtime model selection, including for model ids outside the adapter's advisory catalog. It provides only a platform-selected persistent shell, local execution, and JSONL sessions; filesystem tools, settings, managed credentials, telemetry, Web tools, and the full default tool roster remain available through the separate full `sdk` and `web` profiles.
 
+## Session working directories
+
+`Session.get_working_directory()` and `set_working_directory(path)` start the harness if needed and return the effective absolute directory. The lower-level `HarnessClient.get_working_directory(session_id)` and `set_working_directory(session_id, path)` expose the same operations after initialization. An explicit request creates an unknown Session; constructing a handle alone does not. A read validates the directory and can recover a missing selection to the original project. A set accepts an absolute path or one relative to the Session's current directory. The Pydantic response model rejects a missing, non-string or empty `cwd`.
+
+The selected runtime composition must provide the [working-directory service](../../packages/session/working-directory/README.md). Changes affect future filesystem operations and new subprocess or terminal invocations, not running processes, original project metadata or permissions. These APIs require a runtime containing the matching wire methods; source changes alone do not update an installed runtime wheel.
+
 ## Results and notifications
 
 `Session.run()` owns an activity interval from its prompt's durable inbox receipt through the next whole-agent idle and returns `RunResult(session_id, final_response, finish_reason, events, notifications)`. `final_response` is the last committed root-session assistant text in the interval. `finish_reason` is the `kind` of the last root-session `turn/end`, such as `completed`, `max-tokens`, or `error`, and is `None` when no turn ended. A `turn/end` without a string `data.reason.kind` violates the protocol and raises `SdkProtocolError`.

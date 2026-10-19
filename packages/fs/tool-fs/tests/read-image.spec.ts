@@ -13,10 +13,16 @@ import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import { PtcRuntime } from '@deepseek-ai/dsh-ptc-runtime'
 import type { PtcRunRequest, PtcRunResult } from '@deepseek-ai/dsh-ptc-runtime'
-import { ToolCallId, LlmAdapter, LlmRuntime } from '@deepseek-ai/dsh-llm'
-import type { GenerateOptions, LlmModelInfo, LlmResolvedModelInfo, Message, StreamChunk } from '@deepseek-ai/dsh-llm'
+import { ToolCallId, LlmAdapter } from '@deepseek-ai/dsh-llm'
+import type { GenerateOptions, LlmModelInfo, LlmResolvedModelInfo, StreamChunk } from '@deepseek-ai/dsh-llm'
+import AgentRegistry, { type Agent } from '@deepseek-ai/dsh-agent'
+import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import ToolRuntime, { RUN_CODE_NAME } from '@deepseek-ai/dsh-tools'
+import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
+import ToolRuntime from '@deepseek-ai/dsh-tools'
+import WorkingDirectory from '@deepseek-ai/dsh-working-directory'
+import { mountAgentLoopTestDependencies, mountAgentLoopTestHarness } from '@deepseek-ai/dsh-agent-loop-testkit'
+import { RUN_CODE_NAME } from '@deepseek-ai/dsh-tools'
 import type { Config as ToolConfig } from '@deepseek-ai/dsh-tools'
 import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
 import * as FsPolicy from '@deepseek-ai/dsh-fs-observation-policy'
@@ -82,6 +88,7 @@ class FakeRuntime extends PtcRuntime {
   }
 }
 
+const contexts: Context[] = []
 let dir: string
 let home: string
 
@@ -90,6 +97,7 @@ beforeEach(async () => {
   home = await mkdtemp(join(tmpdir(), 'dsh-read-image-home-'))
 })
 afterEach(async () => {
+  for (const ctx of contexts.splice(0).reverse()) await ctx.fiber.dispose()
   await rm(dir, { recursive: true, force: true })
   await rm(home, { recursive: true, force: true })
 })
@@ -105,18 +113,26 @@ interface SetupOptions {
 
 async function setup(options: SetupOptions = {}) {
   const ctx = new Context()
-  await ctx.plugin(SystemPrompt)
-  await ctx.plugin(ToolRuntime, { mode: options.toolMode ?? 'native' })
+  contexts.push(ctx)
+  if (options.llm === false) {
+    await ctx.plugin(SessionStore)
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SystemPrompt)
+    await ctx.plugin(ToolRuntime, { mode: options.toolMode ?? 'native' })
+    await ctx.plugin(AgentRegistry)
+  } else {
+    await mountAgentLoopTestDependencies(ctx, { tools: { mode: options.toolMode ?? 'native' } })
+  }
   if (options.toolMode === 'ptc' || options.toolMode === 'both') {
     await ctx.plugin(FakeRuntime)
   }
   await ctx.plugin(LocalFileSystem, { cwd: dir })
+  await ctx.plugin(WorkingDirectory, { defaultDirectory: dir })
   await ctx.plugin(FsPolicy)
   if (options.attachments !== false) {
     await ctx.plugin(LocalAttachmentStore, { dshHome: home, ...options.storeConfig })
   }
   if (options.llm !== false) {
-    await ctx.plugin(LlmRuntime)
     ctx.llm.registerAdapter(['visual'], new CatalogAdapter(options.models ?? [
       { provider: 'visual', id: 'vision-model', name: 'Vision', inputModalities: ['text', 'image'] },
       { provider: 'visual', id: 'text-model', name: 'Text', inputModalities: ['text'] },
@@ -124,34 +140,34 @@ async function setup(options: SetupOptions = {}) {
     ], options.resolvedModels))
   }
   await ctx.plugin(ToolFs)
+  if (options.llm !== false) harnesses.set(ctx, await mountAgentLoopTestHarness(ctx))
   return ctx
 }
 
-/** A fake calling agent pinned to one routed provider/model. */
-function agentOn(model: string | undefined, provider = 'visual', messages: readonly Message[] = []): object {
-  return {
-    options: {},
-    session: {
-      header: { cwd: dir },
-      requestHeader: () => (model === undefined ? undefined : { config: { provider, model } }),
-      deriveMessages: () => [...messages],
-      append: () => undefined,
-    },
-  }
+const harnesses = new WeakMap<Context, Awaited<ReturnType<typeof mountAgentLoopTestHarness>>>()
+
+/** A production Agent with a committed request route. */
+async function agentOn(ctx: Context, model: string | undefined, provider = 'visual'): Promise<Agent> {
+  const harness = harnesses.get(ctx)!
+  const agent = await harness.create(SessionId(`image-agent-${++callCounter}`), {}, { cwd: dir })
+  if (model !== undefined) agent.session.append('request/header', {
+    header: { config: { provider, model } }, reason: 'initial',
+  })
+  return agent
 }
 
 let callCounter = 0
-function call(ctx: Context, name: string, args: unknown, agent?: object) {
+function call(ctx: Context, name: string, args: unknown, agent?: Agent) {
   return ctx.tools.execute({
     signal: testToolSignal,
     callId: ToolCallId(`img-call-${++callCounter}`),
     name,
     arguments: args,
-    ...agent ? { agent: agent as never } : {},
+    ...agent ? { agent } : {},
   })
 }
 
-function readImage(ctx: Context, args: unknown, agent?: object) {
+function readImage(ctx: Context, args: unknown, agent?: Agent) {
   return call(ctx, 'read_image', args, agent)
 }
 
@@ -209,7 +225,7 @@ describe('read_image happy path', () => {
   it('commits the bytes durably and renders the envelope beside an image block', async () => {
     await writeFile(join(dir, 'red.png'), PNG_1X1)
     const ctx = await setup()
-    const result = await readImage(ctx, { file_path: 'red.png' }, agentOn('vision-model'))
+    const result = await readImage(ctx, { file_path: 'red.png' }, await agentOn(ctx, 'vision-model'))
 
     expect(result.isError).toBe(false)
     expect(result.content).toHaveLength(2)
@@ -239,7 +255,7 @@ describe('read_image happy path', () => {
   it('commits a GIF durably and renders the normalized envelope beside an image block', async () => {
     await writeFile(join(dir, 'red.gif'), GIF_1X1)
     const ctx = await setup()
-    const result = await readImage(ctx, { file_path: 'red.gif' }, agentOn('vision-model'))
+    const result = await readImage(ctx, { file_path: 'red.gif' }, await agentOn(ctx, 'vision-model'))
 
     expect(result.isError).toBe(false)
     expect(result.content).toHaveLength(2)
@@ -272,17 +288,14 @@ describe('read_image happy path', () => {
     const ctx = await setup()
     const observed: string[] = []
     ctx.on('fs/observed', target => void observed.push(target.displayPath))
-    await readImage(ctx, { file_path: 'red.png' }, agentOn('vision-model'))
+    await readImage(ctx, { file_path: 'red.png' }, await agentOn(ctx, 'vision-model'))
     expect(observed).toEqual([join(dir, 'red.png')])
   })
 
   it('falls back to agent options when no request header exists yet', async () => {
     await writeFile(join(dir, 'red.png'), PNG_1X1)
     const ctx = await setup()
-    const agent = {
-      options: { provider: 'visual', model: 'vision-model' },
-      session: { header: { cwd: dir }, requestHeader: () => undefined },
-    }
+    const agent = await harnesses.get(ctx)!.create(SessionId('image-options'), { provider: 'visual', model: 'vision-model' }, { cwd: dir })
     const result = await readImage(ctx, { file_path: 'red.png' }, agent)
     expect(result.isError).toBe(false)
   })
@@ -299,7 +312,7 @@ describe('read_image happy path', () => {
     const result = await call(ctx, RUN_CODE_NAME, {
       code: 'return await tools.read_image({ file_path: "red.png" })',
       description: 'Read the image through PTC mode',
-    }, agentOn('vision-model'))
+    }, await agentOn(ctx, 'vision-model'))
 
     expect(result.isError).toBe(false)
     expect(result.content.every(block => block.type === 'text')).toBe(true)
@@ -333,13 +346,13 @@ describe('extension-less paths', () => {
   it('reads a normalized attachment object path directly and dedups to the stored reference', async () => {
     await writeFile(join(dir, 'red.png'), PNG_1X1)
     const ctx = await setup()
-    const first = await readImage(ctx, { file_path: 'red.png' }, agentOn('vision-model'))
+    const first = await readImage(ctx, { file_path: 'red.png' }, await agentOn(ctx, 'vision-model'))
     expect(first.isError).toBe(false)
     const ref = (first.content[1] as { attachment: ImageAttachmentRef }).attachment
     const attachments = mountedStore(ctx)
     const objectPath = objectPathOf(attachments, ref)
 
-    const second = await readImage(ctx, { file_path: objectPath }, agentOn('vision-model'))
+    const second = await readImage(ctx, { file_path: objectPath }, await agentOn(ctx, 'vision-model'))
     expect(second.isError).toBe(false)
     const reread = (second.content[1] as { attachment: ImageAttachmentRef }).attachment
     expect(reread.attachmentId).toBe(ref.attachmentId)
@@ -350,7 +363,7 @@ describe('extension-less paths', () => {
   it('reads an ordinary extension-less image file by sniffing its content', async () => {
     await writeFile(join(dir, 'avatar'), PNG_1X1)
     const ctx = await setup()
-    const result = await readImage(ctx, { file_path: 'avatar' }, agentOn('vision-model'))
+    const result = await readImage(ctx, { file_path: 'avatar' }, await agentOn(ctx, 'vision-model'))
     expect(result.isError).toBe(false)
     const image = result.content[1] as { attachment: ImageAttachmentRef }
     expect(image.attachment.mediaType).toBe('image/png')
@@ -360,11 +373,11 @@ describe('extension-less paths', () => {
   it('pins the trailing-dot refusal and reads a dotfile through sniffing', async () => {
     await writeFile(join(dir, '.hidden'), PNG_1X1)
     const ctx = await setup()
-    const trailingDot = await readImage(ctx, { file_path: 'foo.' }, agentOn('vision-model'))
+    const trailingDot = await readImage(ctx, { file_path: 'foo.' }, await agentOn(ctx, 'vision-model'))
     expect(trailingDot.isError).toBe(true)
     expect(text(trailingDot)).toContain('cannot read "foo.": the . extension does not declare a supported image format')
 
-    const dotfile = await readImage(ctx, { file_path: '.hidden' }, agentOn('vision-model'))
+    const dotfile = await readImage(ctx, { file_path: '.hidden' }, await agentOn(ctx, 'vision-model'))
     expect(dotfile.isError).toBe(false)
     const image = dotfile.content[1] as { attachment: ImageAttachmentRef }
     expect(image.attachment.mediaType).toBe('image/png')
@@ -374,7 +387,7 @@ describe('extension-less paths', () => {
   it('refuses extension-less bytes that are not a supported image', async () => {
     await writeFile(join(dir, 'notes'), 'plain text, not an image')
     const ctx = await setup()
-    const result = await readImage(ctx, { file_path: 'notes' }, agentOn('vision-model'))
+    const result = await readImage(ctx, { file_path: 'notes' }, await agentOn(ctx, 'vision-model'))
     expect(result.isError).toBe(true)
     expect(text(result)).toContain(`cannot read "${join(dir, 'notes')}": the file content is not a supported image format`)
   })
@@ -382,7 +395,7 @@ describe('extension-less paths', () => {
   it('explains extension-less bytes that sniff as an image but do not decode', async () => {
     await writeFile(join(dir, 'broken'), PNG_1X1.subarray(0, 16))
     const ctx = await setup()
-    const result = await readImage(ctx, { file_path: 'broken' }, agentOn('vision-model'))
+    const result = await readImage(ctx, { file_path: 'broken' }, await agentOn(ctx, 'vision-model'))
     expect(result.isError).toBe(true)
     expect(text(result)).toContain('do not decode as a supported PNG/JPEG/WebP/GIF image')
   })
@@ -414,7 +427,7 @@ describe('extension-less paths', () => {
     await writeFile(join(dir, 'avatar'), PNG_1X1)
     const ctx = await setup({ attachments: false })
     await ctx.plugin(JpegOnlySniffStore)
-    const result = await readImage(ctx, { file_path: 'avatar' }, agentOn('vision-model'))
+    const result = await readImage(ctx, { file_path: 'avatar' }, await agentOn(ctx, 'vision-model'))
     expect(result.isError).toBe(true)
     expect(text(result)).toContain('image/png images are not accepted by this deployment')
   })
@@ -446,7 +459,7 @@ describe('extension-less paths', () => {
     await writeFile(join(dir, 'sniffed'), PNG_1X1)
     const ctx = await setup({ attachments: false })
     await ctx.plugin(MismatchStore)
-    const result = await readImage(ctx, { file_path: 'sniffed' }, agentOn('vision-model'))
+    const result = await readImage(ctx, { file_path: 'sniffed' }, await agentOn(ctx, 'vision-model'))
     expect(result.isError).toBe(true)
     expect(text(result)).toContain('the file signature claims image/png, but the bytes decode as a different image format')
   })
@@ -461,7 +474,7 @@ describe('strict image-modality gate', () => {
         { provider: 'visual', id: 'hidden-vision', name: 'Hidden Vision', inputModalities: ['text', 'image'] },
       ],
     })
-    const result = await readImage(ctx, { file_path: 'red.png' }, agentOn('hidden-vision'))
+    const result = await readImage(ctx, { file_path: 'red.png' }, await agentOn(ctx, 'hidden-vision'))
     expect(result.isError).toBe(false)
   })
 
@@ -472,7 +485,7 @@ describe('strict image-modality gate', () => {
   ])('refuses on %s', async (_label, model) => {
     await writeFile(join(dir, 'red.png'), PNG_1X1)
     const ctx = await setup()
-    const result = await readImage(ctx, { file_path: 'red.png' }, agentOn(model))
+    const result = await readImage(ctx, { file_path: 'red.png' }, await agentOn(ctx, model))
     expect(result.isError).toBe(true)
     expect(text(result)).toContain('does not declare image input')
   })
@@ -484,15 +497,17 @@ describe('strict image-modality gate', () => {
     expect(noAgent.isError).toBe(true)
     expect(text(noAgent)).toContain('route could not be resolved')
 
-    const noRoute = await readImage(ctx, { file_path: 'red.png' }, agentOn(undefined))
+    const noRoute = await readImage(ctx, { file_path: 'red.png' }, await agentOn(ctx, undefined))
     expect(noRoute.isError).toBe(true)
     expect(text(noRoute)).toContain('route could not be resolved')
   })
 
   it('refuses when no llm service is mounted', async () => {
     await writeFile(join(dir, 'red.png'), PNG_1X1)
+    const source = await setup()
+    const agent = await agentOn(source, 'vision-model')
     const ctx = await setup({ llm: false })
-    const result = await readImage(ctx, { file_path: 'red.png' }, agentOn('vision-model'))
+    const result = await readImage(ctx, { file_path: 'red.png' }, agent)
     expect(result.isError).toBe(true)
     expect(text(result)).toContain('route could not be resolved')
   })
@@ -501,11 +516,11 @@ describe('strict image-modality gate', () => {
 describe('argument and service preconditions', () => {
   it('rejects an empty path and a non-image extension', async () => {
     const ctx = await setup()
-    const empty = await readImage(ctx, { file_path: '   ' }, agentOn('vision-model'))
+    const empty = await readImage(ctx, { file_path: '   ' }, await agentOn(ctx, 'vision-model'))
     expect(empty.isError).toBe(true)
     expect(text(empty)).toContain('non-empty')
 
-    const nonImage = await readImage(ctx, { file_path: 'notes.txt' }, agentOn('vision-model'))
+    const nonImage = await readImage(ctx, { file_path: 'notes.txt' }, await agentOn(ctx, 'vision-model'))
     expect(nonImage.isError).toBe(true)
     expect(text(nonImage)).toContain('the .txt extension does not declare a supported image format')
   })
@@ -515,7 +530,7 @@ describe('argument and service preconditions', () => {
     const ctx = await setup({ attachments: false })
     expect(ctx.tools.get('read_image')).toBeUndefined()
     expect(ctx.tools.schemas().map(schema => schema.name)).not.toContain('read_image')
-    const result = await readImage(ctx, { file_path: 'red.png' }, agentOn('vision-model'))
+    const result = await readImage(ctx, { file_path: 'red.png' }, await agentOn(ctx, 'vision-model'))
     expect(result.isError).toBe(true)
     expect(text(result)).toContain('unknown tool "read_image"')
   })
@@ -524,7 +539,7 @@ describe('argument and service preconditions', () => {
     await writeFile(join(dir, 'red.png'), PNG_1X1)
     const ctx = await setup({ attachments: false })
     applyReadImageTool(ctx)
-    const result = await readImage(ctx, { file_path: 'red.png' }, agentOn('vision-model'))
+    const result = await readImage(ctx, { file_path: 'red.png' }, await agentOn(ctx, 'vision-model'))
     expect(result.isError).toBe(true)
     expect(text(result)).toContain('no attachment service is mounted')
   })
@@ -555,7 +570,7 @@ describe('argument and service preconditions', () => {
     }
     const ctx = await setup({ attachments: false })
     await ctx.plugin(JpegOnlyStore)
-    const result = await readImage(ctx, { file_path: 'red.png' }, agentOn('vision-model'))
+    const result = await readImage(ctx, { file_path: 'red.png' }, await agentOn(ctx, 'vision-model'))
     expect(result.isError).toBe(true)
     expect(text(result)).toContain('image/png images are not accepted by this deployment')
   })
@@ -565,7 +580,7 @@ describe('image admission failures', () => {
   it('explains how to repair a declared/actual media-type mismatch', async () => {
     await writeFile(join(dir, 'wrong.jpg'), PNG_1X1)
     const ctx = await setup()
-    const result = await readImage(ctx, { file_path: 'wrong.jpg' }, agentOn('vision-model'))
+    const result = await readImage(ctx, { file_path: 'wrong.jpg' }, await agentOn(ctx, 'vision-model'))
     expect(result.isError).toBe(true)
     expect(text(result)).toContain('the .jpg extension declares image/jpeg')
     expect(text(result)).toContain('rename the file to match its actual format if it is PNG/JPEG/WebP/GIF, or convert it to one of those formats')
@@ -574,7 +589,7 @@ describe('image admission failures', () => {
   it('caps an extension-less read at maxImageBytes before format detection', async () => {
     await writeFile(join(dir, 'red'), PNG_1X1)
     const ctx = await setup({ storeConfig: { maxImageBytes: PNG_1X1.length - 1 } })
-    const result = await readImage(ctx, { file_path: 'red' }, agentOn('vision-model'))
+    const result = await readImage(ctx, { file_path: 'red' }, await agentOn(ctx, 'vision-model'))
     expect(result.isError).toBe(true)
     expect(text(result)).toContain('exceeds')
   })
@@ -582,7 +597,7 @@ describe('image admission failures', () => {
   it('honors the tighter per-message aggregate byte bound', async () => {
     await writeFile(join(dir, 'red.png'), PNG_1X1)
     const ctx = await setup({ storeConfig: { maxMessageImageBytes: PNG_1X1.length - 1 } })
-    const result = await readImage(ctx, { file_path: 'red.png' }, agentOn('vision-model'))
+    const result = await readImage(ctx, { file_path: 'red.png' }, await agentOn(ctx, 'vision-model'))
     expect(result.isError).toBe(true)
     expect(text(result)).toContain('exceeds')
   })
@@ -590,7 +605,7 @@ describe('image admission failures', () => {
   it('surfaces the pixel limit from the attachment admission', async () => {
     await writeFile(join(dir, 'big.png'), PNG_3X3)
     const ctx = await setup({ storeConfig: { maxImagePixels: 4 } })
-    const result = await readImage(ctx, { file_path: 'big.png' }, agentOn('vision-model'))
+    const result = await readImage(ctx, { file_path: 'big.png' }, await agentOn(ctx, 'vision-model'))
     expect(result.isError).toBe(true)
     expect(text(result)).toContain('exceeds the 4-pixel decoded-size limit')
     expect(text(result)).toContain('downscale the image and read the smaller copy')
@@ -599,7 +614,7 @@ describe('image admission failures', () => {
   it('surfaces the per-side limit from attachment admission', async () => {
     await writeFile(join(dir, 'wide.png'), PNG_3X3)
     const ctx = await setup({ storeConfig: { maxImageDimension: 2 } })
-    const result = await readImage(ctx, { file_path: 'wide.png' }, agentOn('vision-model'))
+    const result = await readImage(ctx, { file_path: 'wide.png' }, await agentOn(ctx, 'vision-model'))
     expect(result.isError).toBe(true)
     expect(text(result)).toContain('at least one image side exceeds the 2px limit')
     expect(text(result)).toContain('downscale the image and read the smaller copy')
@@ -635,7 +650,7 @@ describe('image admission failures', () => {
     await ctx.plugin(FailingStore)
 
     FailingStore.failure = new AttachmentError('Unable to persist image attachment.', 'ATTACHMENT_WRITE_FAILED')
-    const storageFault = await readImage(ctx, { file_path: 'red.png' }, agentOn('vision-model'))
+    const storageFault = await readImage(ctx, { file_path: 'red.png' }, await agentOn(ctx, 'vision-model'))
     expect(storageFault.isError).toBe(true)
     expect(text(storageFault)).toContain('Unable to persist image attachment.')
 
@@ -643,18 +658,18 @@ describe('image admission failures', () => {
       'The 16-bit PNG could not be converted to the normalized 8-bit sRGB form.',
       'ATTACHMENT_WRITE_FAILED',
     )
-    const sixteenBit = await readImage(ctx, { file_path: 'red.png' }, agentOn('vision-model'))
+    const sixteenBit = await readImage(ctx, { file_path: 'red.png' }, await agentOn(ctx, 'vision-model'))
     expect(text(sixteenBit)).toContain(
       `cannot read "${join(dir, 'red.png')}": the 16-bit PNG could not be converted to the normalized 8-bit sRGB form; convert it to an 8-bit PNG/JPEG/WebP and retry`,
     )
 
     FailingStore.failure = new AttachmentError('Image cannot be encoded within the configured normalized-image byte cap.', 'IMAGE_TOO_LARGE')
-    const overBudget = await readImage(ctx, { file_path: 'red.png' }, agentOn('vision-model'))
+    const overBudget = await readImage(ctx, { file_path: 'red.png' }, await agentOn(ctx, 'vision-model'))
     expect(overBudget.isError).toBe(true)
     expect(text(overBudget)).toContain('cannot be stored within the deployment\'s byte limits; downscale the image and read the smaller copy')
 
     FailingStore.failure = new Error('unrelated infrastructure failure')
-    const unrelated = await readImage(ctx, { file_path: 'red.png' }, agentOn('vision-model'))
+    const unrelated = await readImage(ctx, { file_path: 'red.png' }, await agentOn(ctx, 'vision-model'))
     expect(unrelated.isError).toBe(true)
     expect(text(unrelated)).toContain('unrelated infrastructure failure')
   })
@@ -664,12 +679,12 @@ describe('image admission failures', () => {
     const ctx = await setup()
     const observed: { path: string; kind: string }[] = []
     ctx.on('fs/observed', (target, observation) => void observed.push({ path: target.displayPath, kind: observation.kind }))
-    const missing = await readImage(ctx, { file_path: 'absent.png' }, agentOn('vision-model'))
+    const missing = await readImage(ctx, { file_path: 'absent.png' }, await agentOn(ctx, 'vision-model'))
     expect(missing.isError).toBe(true)
     expect(text(missing)).toContain('not found')
     expect(observed).toEqual([{ path: join(dir, 'absent.png'), kind: 'absent' }])
 
-    const directory = await readImage(ctx, { file_path: 'folder.png' }, agentOn('vision-model'))
+    const directory = await readImage(ctx, { file_path: 'folder.png' }, await agentOn(ctx, 'vision-model'))
     expect(directory.isError).toBe(true)
     expect(text(directory)).toContain('not a regular file')
   })
@@ -701,7 +716,7 @@ describe('image admission failures', () => {
     await writeFile(join(dir, 'red.png'), PNG_1X1)
     const ctx = await setup({ attachments: false })
     await ctx.plugin(NamelessStore)
-    const result = await readImage(ctx, { file_path: 'red.png' }, agentOn('vision-model'))
+    const result = await readImage(ctx, { file_path: 'red.png' }, await agentOn(ctx, 'vision-model'))
     expect(result.isError).toBe(false)
     const image = result.content[1] as { attachment: ImageAttachmentRef }
     expect(image.attachment.name).toBeUndefined()
@@ -741,7 +756,7 @@ describe('image admission failures', () => {
     await writeFile(join(dir, 'red.png'), PNG_1X1)
     const ctx = await setup({ attachments: false })
     await ctx.plugin(DownscalingStore)
-    const result = await readImage(ctx, { file_path: 'red.png' }, agentOn('vision-model'))
+    const result = await readImage(ctx, { file_path: 'red.png' }, await agentOn(ctx, 'vision-model'))
     expect(result.isError).toBe(false)
     expect(text(result)).toContain('image/png image, 2x1 px, 7 bytes (downscaled from 4x2 px; multiply coordinates by 2.00 to locate features in the original file)')
   })
@@ -758,9 +773,10 @@ describe('image admission failures', () => {
 describe('registration surface', () => {
   it('withdraws read_image when the tool-fs fiber or the attachment store is disposed (HMR safety)', async () => {
     const ctx = new Context()
-    await ctx.plugin(SystemPrompt)
-    await ctx.plugin(ToolRuntime, { mode: 'native' })
+    contexts.push(ctx)
+    await mountAgentLoopTestDependencies(ctx)
     await ctx.plugin(LocalFileSystem, { cwd: dir })
+    await ctx.plugin(WorkingDirectory, { defaultDirectory: dir })
     await ctx.plugin(FsPolicy)
     const attachmentsFiber = await ctx.plugin(LocalAttachmentStore, { dshHome: home })
     const toolFsFiber = await ctx.plugin(ToolFs)
@@ -802,11 +818,11 @@ describe('read keeps its text-only contract', () => {
     await writeFile(join(dir, 'note.txt'), 'hello\nworld')
     const ctx = await setup()
 
-    const png = await call(ctx, 'read', { file_path: 'red.png' }, agentOn('vision-model'))
+    const png = await call(ctx, 'read', { file_path: 'red.png' }, await agentOn(ctx, 'vision-model'))
     expect(png.isError).toBe(true)
     expect(text(png)).toContain('binary file')
 
-    const txt = await call(ctx, 'read', { file_path: 'note.txt' }, agentOn('text-model'))
+    const txt = await call(ctx, 'read', { file_path: 'note.txt' }, await agentOn(ctx, 'text-model'))
     expect(txt.isError).toBe(false)
     expect(text(txt)).toContain('1: hello')
     expect(text(txt)).toContain('<type>file</type>')
@@ -838,7 +854,7 @@ describe('image result presentation', () => {
     // Proves the single source of truth on the path a live call actually takes.
     await writeFile(join(dir, 'red.png'), PNG_1X1)
     const ctx = await setup()
-    const result = await call(ctx, 'read_image', { file_path: 'red.png' }, agentOn('vision-model'))
+    const result = await call(ctx, 'read_image', { file_path: 'red.png' }, await agentOn(ctx, 'vision-model'))
     expect(result.isError).toBe(false)
     expect(result.meta).toEqual({ path: join(dir, 'red.png') })
     const image = result.content.find(block => block.type === 'image')

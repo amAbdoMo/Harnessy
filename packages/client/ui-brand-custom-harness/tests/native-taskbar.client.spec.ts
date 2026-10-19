@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 /** Native indicator output driven through the Loader, real Session Controller, and UiSession. */
+import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, vi, type Mock } from 'vitest'
 import { ok, type RemoteMock } from '@deepseek-ai/dsh-remote-mock'
 import {
@@ -9,11 +11,17 @@ import {
 import { SESSION_FORMAT_VERSION, type SessionId } from '@deepseek-ai/dsh-session/types'
 import type { SessionFollowFrame, SessionListValue } from '@deepseek-ai/dsh-api-session-controller/types'
 
-const manifest: { readonly name: string; readonly dsh: { readonly client: { readonly inject: readonly string[] } } } =
-  JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+const manifest: unknown = JSON.parse(readFileSync(resolve(import.meta.dirname, '../package.json'), 'utf8'))
+assert(typeof manifest === 'object' && manifest !== null && 'name' in manifest && typeof manifest.name === 'string' && 'dsh' in manifest)
 const BRAND = manifest.name
+const dsh = manifest.dsh
+assert(typeof dsh === 'object' && dsh !== null && 'client' in dsh)
+const client = dsh.client
+assert(typeof client === 'object' && client !== null && 'inject' in client)
+const inject = client.inject
+assert(Array.isArray(inject) && inject.every((name: unknown): name is string => typeof name === 'string'))
 const roster = ClientRoster.of([...webApp.rows, {
-  name: BRAND, inject: manifest.dsh.client.inject, immediately: false,
+  name: BRAND, inject, immediately: false,
 }]).closure([BRAND])
 const it = createClientTest({ roster })
 const SESSION = 'taskbar-session' as SessionId
@@ -100,7 +108,7 @@ describe('Harnessy Windows taskbar completion unread', () => {
   it('denies listed and catalog-only subagent completions and orphan status without metadata', async ({ mock, start }) => {
     configure(mock, [row(SESSION), row(CHILD, { origin: 'subagent', parentSessionId: SESSION })])
     mock.remote.session.projections.mockResolvedValue(ok({
-      asOfSeq: 0, values: { subagentCatalog: [{ id: ORPHAN, createdAt: 1, mode: 'continuable', label: 'Child' }] },
+      kind: 'sequenced', asOfSeq: 0, values: { subagentCatalog: [{ id: ORPHAN, createdAt: 1, mode: 'continuable', label: 'Child' }] },
     }))
     const setUnread = native()
     const client = await start()
@@ -224,7 +232,7 @@ describe('Harnessy Windows taskbar completion unread', () => {
     expect(client.ctx.uiSession.sessionStatus.getSnapshot().get(SESSION)?.completionUnread).toBe(true)
     await client.unload(BRAND)
     expect(setUnread.mock.calls).toEqual([[false], [true], [false]])
-    expect(warn.mock.calls.map(([, reason]) => reason)).toEqual([failure, failure, failure])
+    expect(warn.mock.calls.map(([, reason]): unknown => reason)).toEqual([failure, failure, failure])
   })
 
   it('does not create native subscriptions in an ordinary Web page', async ({ mock, start }) => {

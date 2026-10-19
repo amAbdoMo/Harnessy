@@ -1,6 +1,12 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
+import { mkdir, mkdtemp, realpath, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
-import type { Agent } from '@deepseek-ai/dsh-agent'
+import AgentRegistry, { type Agent } from '@deepseek-ai/dsh-agent'
+import AgentLoop from '@deepseek-ai/dsh-agent-loop'
+import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
+import WorkingDirectory from '@deepseek-ai/dsh-working-directory'
 import type {} from '@deepseek-ai/dsh-agent-instructions'
 import { compactCheckpointSource, CompactionId } from '@deepseek-ai/dsh-compaction'
 import LlmRuntime, {
@@ -151,6 +157,12 @@ async function harness(
   return { ctx, adapter, auto }
 }
 
+async function createOwnedAgent(ctx: Context, id: string, cwd: string): Promise<Agent> {
+  await ctx.plugin(AgentRegistry)
+  await ctx.plugin(AgentLoop, { agents: [] })
+  return ctx.agentLoop.create(SessionId(id), { provider: 'review', model: 'same-model' }, { cwd })
+}
+
 function agentFor(session: Session): Agent {
   return {
     id: session.id,
@@ -259,6 +271,96 @@ async function until(predicate: () => boolean): Promise<void> {
 }
 
 describe('native review request', () => {
+  it('blocks directory changes at the service executor while Auto is active and releases the guard on disposal', async () => {
+    const { ctx, auto } = await harness([])
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'auto-directory-policy-')))
+    onTestFinished(() => rm(root, { recursive: true, force: true }))
+    const selected = join(root, 'selected')
+    await mkdir(selected)
+    await ctx.plugin(LocalFileSystem, { cwd: root })
+    await ctx.plugin(WorkingDirectory, {})
+    const agent = await createOwnedAgent(ctx, 'directory-policy', root)
+    ctx.permissionPresets.set(agent.session, AUTO_PRESET)
+    await expect(ctx.workingDirectory.set(agent, selected)).rejects.toThrow('leave Auto review before changing')
+    expect(ctx.workingDirectory.get(agent.session)).toBe(root)
+    expect(agent.session.snapshotEvents().filter(event => event.type === 'working-directory/change')).toEqual([])
+    await auto.dispose()
+    await expect(ctx.workingDirectory.set(agent, selected)).resolves.toBe(selected)
+    expect(agent.session.header.cwd).toBe(root)
+  })
+
+  it('refuses to review from a persisted directory that differs from the original project', async () => {
+    const { ctx, adapter } = await harness([])
+    const probe = registerProbe(ctx)
+    const agent = await createOwnedAgent(ctx, 'changed-directory-review', process.cwd())
+    ctx.permissionPresets.set(agent.session, AUTO_PRESET)
+    appendHeader(agent.session, ctx.tools.schemas())
+    agent.session.append('working-directory/change', { cwd: join(process.cwd(), 'other') })
+    const callId = ToolCallId('changed-directory-review-call')
+    appendNativeCall(agent.session, callId, 'probe', '{}')
+    const result = await ctx.tools.execute({ name: 'probe', callId, arguments: {}, agent, signal: new AbortController().signal })
+    expectReviewFailure(result, 'auto-review: restore the original working directory or leave Auto review before using tools')
+    expect(probe.runs()).toBe(0)
+    expect(adapter.requests).toEqual([])
+  })
+
+  it('holds the reviewed directory through mode changes, review and body settlement', async () => {
+    const reviewEntered = Promise.withResolvers<undefined>()
+    const reviewRelease = Promise.withResolvers<undefined>()
+    const bodyEntered = Promise.withResolvers<undefined>()
+    const bodyRelease = Promise.withResolvers<undefined>()
+    const { ctx } = await harness([async function* () {
+      reviewEntered.resolve(undefined)
+      await reviewRelease.promise
+      yield* decisionChunks('{"risk":"low","decision":"allow"}')
+    }])
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'auto-directory-hold-')))
+    let pending: ReturnType<Context['tools']['execute']> | undefined
+    try {
+      const selected = join(root, 'selected')
+      await mkdir(selected)
+      await ctx.plugin(LocalFileSystem, { cwd: root })
+      await ctx.plugin(WorkingDirectory, {})
+      const agent = await createOwnedAgent(ctx, 'directory-hold', root)
+      ctx.tools.register(defineContentToolFixture({
+        name: 'held-probe', description: 'Controlled directory-bound call.', parameters: {},
+        async execute() {
+          bodyEntered.resolve(undefined)
+          await bodyRelease.promise
+          return [{ type: 'text', text: 'finished at original directory' }]
+        },
+      }))
+      ctx.permissionPresets.set(agent.session, AUTO_PRESET)
+      appendHeader(agent.session, ctx.tools.schemas())
+      agent.session.append('turn/start', { turn: 1 })
+      appendUser(agent.session, 'Run the controlled call.', { kind: 'user' })
+      const callId = ToolCallId('directory-hold-call')
+      appendAssistant(agent.session, [{ type: 'tool-call', id: callId, name: 'held-probe', arguments: '{}' }])
+      appendNativeCall(agent.session, callId, 'held-probe', '{}')
+      pending = ctx.tools.execute({ name: 'held-probe', callId, arguments: {}, agent, signal: new AbortController().signal })
+      await Promise.race([reviewEntered.promise, pending.then((result) => {
+        throw new Error(`Call settled before review: ${JSON.stringify(result)}`)
+      })])
+      ctx.permissionPresets.set(agent.session, 'workspace-write')
+      await expect(ctx.workingDirectory.set(agent, selected)).rejects.toThrow('wait for the reviewed tool call to finish')
+      reviewRelease.resolve(undefined)
+      await Promise.race([bodyEntered.promise, pending.then((result) => {
+        throw new Error(`Call settled before body: ${JSON.stringify(result)}`)
+      })])
+      await expect(ctx.workingDirectory.set(agent, selected)).rejects.toThrow('wait for the reviewed tool call to finish')
+      bodyRelease.resolve(undefined)
+      expect((await pending).isError).toBe(false)
+      await expect(ctx.workingDirectory.set(agent, selected)).resolves.toBe(selected)
+      expect(agent.session.header.cwd).toBe(root)
+    } finally {
+      reviewRelease.resolve(undefined)
+      bodyRelease.resolve(undefined)
+      await Promise.allSettled([pending])
+      await ctx.fiber.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
   it('uses the latest route and exactly the filtered logged five-section input', async () => {
     const { ctx, adapter } = await harness([
       reasoningDecisionChunks('{"risk":"low","decision":"allow"}'),

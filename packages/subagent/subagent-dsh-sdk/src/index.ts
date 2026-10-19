@@ -12,6 +12,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/dsh-working-directory'
 import { statSync } from 'node:fs'
 import { isAbsolute, resolve } from 'node:path'
 import z from '@deepseek-ai/schemastery'
@@ -28,7 +29,7 @@ import {
 } from './run.ts'
 
 export const name = 'subagent-dsh-sdk'
-export const inject = ['subagents']
+export const inject = ['subagents', 'workingDirectory']
 
 /** Config: how to spawn and drive the child SDK runtime process. */
 export interface Config {
@@ -46,9 +47,8 @@ export interface Config {
    * Working directory override for the child process and its SDK session
    * workspace. Must be non-empty; a relative path resolves against the
    * harness launch directory at load, and the result must be an existing
-   * directory. When omitted, each child inherits its delegating parent
-   * session's cwd — and starting one from a parent session that has no cwd
-   * fails.
+   * directory. When omitted, each child uses its delegating Session's current
+   * directory, including the working-directory service's configured fallback.
    */
   cwd?: string
   /** Provider route the child runtime initializes with (default `deepseek-official`). */
@@ -152,7 +152,7 @@ class SdkSubagentProvider implements SubagentProvider {
     }
     let cwd: string
     try {
-      cwd = resolveChildCwd('subagent-dsh-sdk', this.config.cwd, request.parent.session.header.cwd)
+      cwd = resolveChildCwd('subagent-dsh-sdk', this.config.cwd, this.ctx.workingDirectory.get(request.parent.session))
     } catch (error: unknown) {
       const failure = sdkConfigurationFailure(error)
       this.ctx.logger.warn(`subagent-dsh-sdk "${this.name}": child start failed: %o`, error)

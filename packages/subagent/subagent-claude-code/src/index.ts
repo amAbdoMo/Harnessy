@@ -7,6 +7,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/dsh-working-directory'
 import z from '@deepseek-ai/schemastery'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import {
@@ -28,7 +29,7 @@ import {
 } from './run.ts'
 
 export const name = 'subagent-claude-code'
-export const inject = ['subagents', 'subprocess']
+export const inject = ['subagents', 'subprocess', 'workingDirectory']
 
 const DEFAULT_PROVIDER_NAME = 'claude-code'
 
@@ -81,12 +82,7 @@ class ClaudeCodeProvider implements SubagentProvider {
   ) {}
 
   async start(request: ResolvedSubagentStartRequest) {
-    const parentCwd = request.parent.session.header.cwd
-    if (parentCwd === undefined) {
-      throw new Error(
-        'subagent-claude-code: no working directory for the child — delegate from a parent session that has one',
-      )
-    }
+    const parentCwd = this.ctx.workingDirectory.get(request.parent.session)
     let cwd: string
     try {
       cwd = resolveChildCwd(

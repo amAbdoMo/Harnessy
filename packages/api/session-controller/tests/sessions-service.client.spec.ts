@@ -97,6 +97,28 @@ describe('list store projection', () => {
     expect(state.byId[sid('s2')]?.title).toBeUndefined()
   }, COLD_BOOT_TIMEOUT_MS)
 
+  it('exposes migration status and deferred hints without retaining a Session', async ({ bench }) => {
+    const b = bench()
+    const sessionId = sid('cold')
+    b.mock.remote.session.list.mockResolvedValueOnce(ok({ items: [{
+      sessionId, updatedAt: 1, running: false, blank: false, agentAvailable: false, formatStatus: 'migration-required',
+    }] }))
+    await b.svc.refresh()
+    b.mock.remote.session.projections.mockResolvedValueOnce(ok({ kind: 'migration-required', values: { title: 'cached title' } }))
+    await b.svc.refreshProjections(sessionId)
+    await Promise.resolve()
+    expect(b.svc.list.getSnapshot().byId[sessionId]).toMatchObject({
+      formatStatus: 'migration-required', title: 'cached title',
+    })
+    expect(b.svc.list.getSnapshot().projectionsBySession[sessionId]).toEqual({
+      state: 'idle', error: null, values: { title: 'cached title' },
+    })
+    expect(b.svc.binding(sessionId)).toBeUndefined()
+    expect(b.mock.log.requests(FOLLOW)).toHaveLength(0)
+    expect(b.mock.remote.session.create).not.toHaveBeenCalled()
+    expect(b.mock.remote.session.prompt).not.toHaveBeenCalled()
+  })
+
   it('reprojects a blank session from the generic agent-preset projection', async ({ bench }) => {
     const b = bench()
     await feedList(b, [{ id: 's1', blank: true, projections: { agentPreset: 'standard' } }])
@@ -730,6 +752,7 @@ describe('catalog-addressed navigation', () => {
     const b = bench()
     await feedList(b, [{ id: 'root' }])
     b.mock.remote.session.projections.mockResolvedValue(ok({
+      kind: 'sequenced',
       asOfSeq: 0, values: { subagentCatalog: [{ id: sid('child'), createdAt: 1, mode: 'continuable', label: 'Child' }] },
     }))
     await b.svc.refreshProjections(sid('root'))
@@ -761,6 +784,7 @@ describe('catalog-addressed navigation', () => {
         type: 'projection', sessionId: sid('one-shot'), key: 'title', value: title, seq: 2,
       })
       b.mock.remote.session.projections.mockResolvedValue(ok({
+        kind: 'sequenced',
         asOfSeq: 0, values: { subagentCatalog: [{ id: sid('one-shot'), createdAt: 1, mode: 'one-shot' }] },
       }))
       await b.svc.refreshProjections(sid('root'))
@@ -780,16 +804,16 @@ describe('catalog-addressed navigation', () => {
     b.mock.remote.session.projections.mockImplementation((payload) => {
       const { sessionId } = payload as { sessionId: SessionId }
       if (sessionId === sid('root')) {
-        return Promise.resolve(ok({ asOfSeq: 0, values: { subagentCatalog: [{ createdAt: 1,
+        return Promise.resolve(ok({ kind: 'sequenced', asOfSeq: 0, values: { subagentCatalog: [{ createdAt: 1,
           id: sid('child'), mode: 'continuable', label: 'Child',
         }] } }))
       }
       if (sessionId === sid('child')) {
-        return Promise.resolve(ok({ asOfSeq: 0, values: { title: 'Child session title', subagentCatalog: [{ createdAt: 1,
+        return Promise.resolve(ok({ kind: 'sequenced', asOfSeq: 0, values: { title: 'Child session title', subagentCatalog: [{ createdAt: 1,
           id: sid('grandchild'), mode: 'continuable', label: 'Grandchild',
         }] } }))
       }
-      return Promise.resolve(ok({ asOfSeq: 0, values: { subagentCatalog: [] } }))
+      return Promise.resolve(ok({ kind: 'sequenced', asOfSeq: 0, values: { subagentCatalog: [] } }))
     })
     await feedList(b, [
       { id: 'root' },
@@ -819,16 +843,16 @@ describe('catalog-addressed navigation', () => {
     b.mock.remote.session.projections.mockImplementation((payload) => {
       const { sessionId } = payload as { sessionId: SessionId }
       if (sessionId === sid('root')) {
-        return Promise.resolve(ok({ asOfSeq: 0, values: { subagentCatalog: [{ createdAt: 1,
+        return Promise.resolve(ok({ kind: 'sequenced', asOfSeq: 0, values: { subagentCatalog: [{ createdAt: 1,
           id: sid('child'), mode: 'continuable', label: 'Child',
         }] } }))
       }
       if (sessionId === sid('child')) {
-        return Promise.resolve(ok({ asOfSeq: 0, values: { subagentCatalog: [{ createdAt: 1,
+        return Promise.resolve(ok({ kind: 'sequenced', asOfSeq: 0, values: { subagentCatalog: [{ createdAt: 1,
           id: sid('grandchild'), mode: 'continuable', label: 'Grandchild',
         }] } }))
       }
-      return Promise.resolve(ok({ asOfSeq: 0, values: { subagentCatalog: [] } }))
+      return Promise.resolve(ok({ kind: 'sequenced', asOfSeq: 0, values: { subagentCatalog: [] } }))
     })
     await feedList(b, [{ id: 'root' }])
     await b.svc.refreshProjections(sid('root'))

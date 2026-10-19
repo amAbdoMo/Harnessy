@@ -48,6 +48,9 @@
       "path": "../../session/session-projection"
     },
     {
+      "path": "../../session/working-directory"
+    },
+    {
       "path": "../../storage/storage-domain"
     },
     {

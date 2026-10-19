@@ -3,7 +3,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { installProxyFromEnvironment } from '@deepseek-ai/dsh-http-proxy'
 import SubagentRuntime from '@deepseek-ai/dsh-subagent'
 import PtcWorkflowEngine from '../src/index.ts'
-import { fakeParent, mountPtcRuntime } from './setup.ts'
+import { realParent, mountPtcRuntime } from './setup.ts'
 
 describe('workflow program environment', () => {
   it('does not expose ambient credentials, proxy settings or host loader paths', async () => {
@@ -30,7 +30,7 @@ describe('workflow program environment', () => {
       const run = ctx.workflowEngine.start({
         script: "return { ...globalThis.constructor.constructor('return process')().env }",
         meta: { name: 'environment', description: 'program environment' },
-        parent: fakeParent(ctx),
+        parent: await realParent(ctx),
       })
       try {
         const result = await run.result

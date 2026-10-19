@@ -12,6 +12,7 @@ import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
 import CommandRuntime from '@deepseek-ai/dsh-commands'
 import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
+import WorkingDirectory from '@deepseek-ai/dsh-working-directory'
 import { createAssistantMessage, createUserMessage, ToolCallId as ToolCallIdOf } from '@deepseek-ai/dsh-llm'
 import type { LlmResolvedModelInfo } from '@deepseek-ai/dsh-llm'
 import TokenMeter from '@deepseek-ai/dsh-token-meter'
@@ -108,6 +109,8 @@ async function harness(
   await ctx.plugin(CommandRuntime)
   const workspace = scratch('dsh-cc-mods-ws-')
   await options.services?.(ctx, workspace)
+  if (ctx.get('fs') === undefined) await ctx.plugin(LocalFileSystem, { cwd: workspace })
+  await ctx.plugin(WorkingDirectory, {})
   const mods = await ctx.plugin(ClaudeCodeMods, { ...options.config })
   await mods.await()
   for (const entry of modsToLoad) {
@@ -246,7 +249,7 @@ describe('ticket-mod: a mod-registered tool, prompt context, and a turn.complete
     const agent = await h.agent()
     await h.turn(agent, 'open a PR for this change')
     expect(JSON.stringify(adapter.requests[0]?.messages)).toContain('Current branch: feature/mods')
-    const prompts = events(agent).filter(e => e.type === 'user/message')
+    const prompts = events(agent).filter(e => e.type === 'user/message' && e.data.source.kind === 'user')
     expect(prompts.map(e => e.type === 'user/message' && e.data.source)).toEqual([{ kind: 'user' }])
     expect(prompts[0]?.type === 'user/message' && prompts[0].data.content).toEqual([
       { type: 'text', text: 'open a PR for this change' },
@@ -533,7 +536,11 @@ describe('the mods API over harness services', () => {
         id: 'a1', cwd: h.workspace, root: h.workspace, model: 'mock', turns: 1,
         version: MODS_API_VERSION,
         usage: { startedAt: agent.session.header.createdAt, context: { window: 0 }, rateLimits: [] },
-        messages: [{ role: 'user', text: 'hello', toolUses: [] }, { role: 'assistant', text: 'ok', toolUses: [] }],
+        messages: [
+          { role: 'user', text: 'hello', toolUses: [] },
+          { role: 'user', text: `Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\n\nCurrent working directory: ${JSON.stringify(h.workspace)}.`, toolUses: [] },
+          { role: 'assistant', text: 'ok', toolUses: [] },
+        ],
       })
       expect(out.store).toEqual({ count: 7, keys: ['count'] })
       expect(out.env).toBe('yes')
@@ -1068,6 +1075,13 @@ describe('the band above the prompt', () => {
         await ctx.plugin(TokenMeter)
         await ctx.plugin(LocalFileSystem, { cwd: workspace })
         await ctx.plugin(LocalSubprocessRuntime)
+        const subprocess = ctx.get('subprocess')!
+        const spawn = subprocess.spawn.bind(subprocess)
+        // The published example calls POSIX sleep; keep its real delay portable through an owned Node child.
+        vi.spyOn(subprocess, 'spawn').mockImplementation(spec => spawn(spec.argv[0] !== 'sleep' ? spec : {
+          ...spec,
+          argv: [process.execPath, '-e', 'setTimeout(() => {}, Number(process.argv[1]) * 1000)', ...spec.argv.slice(1)],
+        }))
       },
     })
     h.ctx.tools.register(echoTool('bash', ran))
@@ -1097,6 +1111,7 @@ describe('the band above the prompt', () => {
     expect(cancelId).toBeDefined()
     await mods.pressBand(agent, drawn.generation, cancelId ?? '')
     await holding
+    expect(h.warn.mock.calls).toEqual([])
     expect(ran).toEqual([])
     expect(toolResult(agent)?.text).toMatch(/Blast Radius held this command: the user pressed Cancel/)
     await waitFor(() => !JSON.stringify(seen.at(-1)).includes('Cancel'))

@@ -3,8 +3,8 @@
  * Scripted stand-in for the DeepSeek Harness SDK runtime, driven entirely by
  * env vars — no model, no network, no harness imports. Speaks the runtime's
  * newline-delimited JSON-RPC protocol on stdio: answers `initialize`,
- * `session/prompt` (streaming scripted `session.event` notifications, then
- * `session.finished`, then the response), and `shutdown`.
+ * `session/prompt` (streaming scripted notifications before its receipt),
+ * Session working-directory get/set, and `shutdown`.
  *
  * Script vocabulary (all optional):
  * - `FAKE_TEXT`: assistant text for each turn (default `hello from fake runtime`).
@@ -47,11 +47,13 @@
  * - `FAKE_STDERR`: write this line to stderr at boot (diagnostics-tail probe).
  * - `FAKE_STDERR_NO_NEWLINE`: write this to stderr WITHOUT a newline (buffer-flush probe).
  * - `FAKE_RECORD_INIT`: append each `initialize` params JSON to this file (handshake probe).
+ * - `FAKE_DIRECTORY_RESPONSE_JSON`: raw JSON returned by working-directory requests.
  */
 
 import { appendFileSync, existsSync, writeFileSync } from 'node:fs'
 import process from 'node:process'
 import { createInterface } from 'node:readline'
+import { resolve } from 'node:path'
 
 const env = process.env
 
@@ -220,14 +222,17 @@ function sessionIdOf(params: Record<string, unknown> | undefined): string {
   return typeof value === 'string' ? value : ''
 }
 
+let originalDirectory = process.cwd()
+const directories = new Map<string, string>()
 const reader = createInterface({ input: process.stdin })
 reader.on('line', (line) => {
   if (line.trim().length === 0) return
   const frame = JSON.parse(line) as { id?: string | number; method?: string; params?: Record<string, unknown> }
   if (frame.method === undefined || frame.id === undefined) return
-  const respond = (result: object): void => { write({ jsonrpc: '2.0', id: frame.id, result }) }
+  const respond = (result: unknown): void => { write({ jsonrpc: '2.0', id: frame.id, result }) }
   switch (frame.method) {
     case 'initialize':
+      if (typeof frame.params?.cwd === 'string') originalDirectory = frame.params.cwd
       if (env.FAKE_RECORD_INIT !== undefined) appendFileSync(env.FAKE_RECORD_INIT, `${JSON.stringify(frame.params)}\n`)
       if (env.FAKE_HANG_INIT !== undefined) return
       if (env.FAKE_INIT_READY !== undefined && env.FAKE_INIT_GO !== undefined) {
@@ -309,6 +314,21 @@ reader.on('line', (line) => {
       runTurn(sessionId)
       notify('session.status', { sessionId, status: 'idle' })
       respond({ messageId })
+      return
+    }
+    case 'session/working-directory/get':
+    case 'session/working-directory/set': {
+      if (env.FAKE_DIRECTORY_RESPONSE_JSON !== undefined) {
+        respond(JSON.parse(env.FAKE_DIRECTORY_RESPONSE_JSON))
+        return
+      }
+      const sessionId = sessionIdOf(frame.params)
+      const current = directories.get(sessionId) ?? originalDirectory
+      if (frame.method === 'session/working-directory/set') {
+        if (typeof frame.params?.path !== 'string') throw new Error('scripted directory set requires a path')
+        directories.set(sessionId, resolve(current, frame.params.path))
+      }
+      respond({ cwd: directories.get(sessionId) ?? current })
       return
     }
     case 'shutdown':

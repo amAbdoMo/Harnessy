@@ -1,0 +1,13 @@
+- insert:
+    - id: worktree
+      name: '@deepseek-ai/dsh-experimental-worktree'
+      config:
+        directory: .agents/worktrees
+        namePrefix: worktree-
+        gitCommand: git
+        nodeCommand: node
+        timeoutMs: 60000
+        graceMs: 3000
+        maxOutputBytes: 65536
+    - id: tool-worktree
+      name: '@deepseek-ai/dsh-experimental-tool-worktree'

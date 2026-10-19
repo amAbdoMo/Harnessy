@@ -45,7 +45,7 @@ Use it when you own a Claude Code `hooks.json` (or a settings file whose `hooks`
 |---|---|---|
 | `configPath` | required | Path to a `hooks.json` or a settings file whose `hooks` key holds the config |
 | `pluginRoot` | — | Replaces `${CLAUDE_PLUGIN_ROOT}` in command strings |
-| `projectDir` | session workspace | Replaces `${CLAUDE_PROJECT_DIR}` and sets the `CLAUDE_PROJECT_DIR` env var |
+| `projectDir` | Session execution directory | Replaces `${CLAUDE_PROJECT_DIR}` and sets the `CLAUDE_PROJECT_DIR` env var |
 | `defaultTimeoutMs` | `600,000` | Per-hook timeout when a hook sets none (the Claude Code default) |
 | `stderrSummaryMaxChars` | `500` | Character cap on the persisted `hook/result` stderr summary |
 
@@ -65,7 +65,7 @@ The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-a
 
 ### How hooks run and fail
 
-- Hooks run in your project directory — the agent's session workspace — so `pwd` and relative paths in your hooks refer to your project, not the server's launch directory.
+- Agent-backed hooks use the Session's current execution directory without changing original workspace, settings or sandbox authority. `SubagentStop` observes the child's last committed directory after disposal; it neither resumes the child nor writes a directory recovery event.
 - `${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_PROJECT_DIR}` in command strings are replaced from your config, and `CLAUDE_PROJECT_DIR` is set for every hook process.
 - One config applies to the whole process: it is read once at startup, and a relative `configPath` resolves from the directory that launched the process.
 - Hooks on the same event run one after another, in config order.

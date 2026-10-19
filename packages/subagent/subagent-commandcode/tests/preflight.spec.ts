@@ -1,8 +1,10 @@
-import { afterEach, describe, expect, it } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
-import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
-import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import ToolRuntime from '@deepseek-ai/dsh-tools'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { Context } from '@deepseek-ai/cordis'
+import SubprocessRuntime from '@deepseek-ai/dsh-subprocess'
+import type { SubprocessSpawnSpec, SubprocessHandle } from '@deepseek-ai/dsh-subprocess'
+import SubagentRuntime from '@deepseek-ai/dsh-subagent'
+import { agentHarness } from './agent-harness.ts'
+import * as cli from '../src/cli.ts'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import type { CommandCodeHealth } from '../src/types.ts'
 import CommandCodeController, {
@@ -20,6 +22,14 @@ async function waitFor(predicate: () => boolean): Promise<void> {
   throw new Error('the awaited condition never held')
 }
 
+/** Only the external process API is replaced; unrequested operations fail loudly. */
+class ProbeSubprocess extends SubprocessRuntime {
+  resolveExecutable(): Promise<never> { throw new Error('unexpected executable lookup') }
+  terminalEnvironment(): Promise<never> { throw new Error('unexpected terminal inspection') }
+  spawnTerminal(): Promise<never> { throw new Error('unexpected terminal allocation') }
+  spawn(_spec: SubprocessSpawnSpec): SubprocessHandle { throw new Error('probe spawn not configured') }
+}
+
 interface Mounted {
   readonly ctx: Context
   readonly controller: CommandCodeController
@@ -34,14 +44,18 @@ interface Mounted {
  * handling stay under test.
  */
 async function mount(config: { readonly toolsEnabled?: boolean } = {}): Promise<Mounted> {
-  const ctx = new Context()
-  await ctx.plugin(SystemPrompt)
-  await ctx.plugin(ToolRuntime)
-  await ctx.plugin(LocalSubprocessRuntime)
+  const { ctx } = await agentHarness()
+  vi.spyOn(cli, 'defaultCommandCodeInvocation').mockReturnValue({ program: 'cmdc', prefix: [], source: 'path' })
+  await ctx.plugin(ProbeSubprocess)
   await ctx.plugin(TypertRegistry)
+  await ctx.plugin(SubagentRuntime)
   await ctx.plugin(CommandCodeController, config)
 
   const spawned: FakeChild[] = []
+  ctx.effect(() => async () => {
+    for (const child of spawned) child.exit()
+    await Promise.all(spawned.map(child => child.handle.done))
+  })
   // `ctx.get` reads the global service store; the `ctx.<name>` property proxy
   // is topology-sensitive and would not resolve a child-fiber registration.
   const subprocess = ctx.get('subprocess')
@@ -66,6 +80,7 @@ let mounted: Mounted | undefined
 afterEach(async () => {
   await mounted?.dispose()
   mounted = undefined
+  vi.restoreAllMocks()
 })
 
 describe('the shared Command Code probe', () => {
@@ -74,6 +89,8 @@ describe('the shared Command Code probe', () => {
     expect(mounted.ctx.tools.get(COMMAND_CODE_DELEGATE_TOOL)).toBeUndefined()
     expect(mounted.ctx.tools.get(COMMAND_CODE_LANES_TOOL)).toBeUndefined()
     expect(mounted.controller).toBeDefined()
+    expect(mounted.ctx.subagents.list()).toEqual(['commandcode'])
+    expect(mounted.spawned).toHaveLength(0)
   })
 
   it('lets joined callers share one probe without sharing cancellation authority', async () => {

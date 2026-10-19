@@ -85,14 +85,16 @@ export default defineMod({ name: 'token-weather', version: '0.1.0', root: import
 | `$.command` | `register`、`run`、`list` | `ctx.commands`，限定在事件所属的智能体 |
 | `$.tool` | `register`、`call`、`list` | `ctx.tools`；注册的工具名为 `mcp__<plugin>__<tool>`；工具推迟到下一请求的上下文会注入会话 |
 | `$.prompt` | `submit` | `agent.followup()`，作为 `user` 来源的消息，除非 `asUser` 否则套上"来自模组"的框架；它触发的 `prompt.submit` 带 `origin: { kind: 'plugin', name }` |
-| `$.session` | `id`、`cwd`、`root`、`model`、`turns`、`messages`、`usage`、`version` | 智能体的 Session 及 `turnBoundary`、`contextPressure` 投影；`cwd` 与 `root` 都报告会话工作区，即 harness 每会话一个目录 |
+| `$.session` | `id`、`cwd`、`root`、`model`、`turns`、`messages`、`usage`、`version` | 智能体的 Session 与投影；`cwd` 通过 `ctx.get('workingDirectory')` 读取已提交的执行目录，Agent 释放后仍可读取；`root` 保持为原始头部目录或进程回退目录 |
 | `$.state` | `get`、`set` | 为会话持有的内存，以模组命名的 `{ plugin, key }` 寻址；`ui.render` 期间的读取会让横幅订阅 |
 | `$.store` | `get`、`set`、`delete`、`keys` | `claude_code_mods` 存储域，每插件一个 JSON 对象，4 MiB |
 | `$.clock` | `now`、`sleep`、`after`、`every` | 由安排它们的事件所属会话拥有的定时器；事件取消时 `sleep` 拒绝 |
-| `$.fs` | `read`、`write`、`list`、`exists`、`stat` | `ctx.fs`，相对于会话工作区，每文件 4 MiB |
-| `$.process` | `run` | `ctx.subprocess`，不经 shell 的 argv |
+| `$.fs` | `read`、`write`、`list`、`exists`、`stat` | `ctx.fs`，相对于经验证的会话执行目录，每文件 4 MiB |
+| `$.process` | `run` | `ctx.subprocess`，不经 shell 的 argv；默认使用经验证的会话执行目录，保留显式 `cwd` |
 | `$.http` | `fetch` | 进程的 `fetch`，正文最多 4 MiB |
 | `$.env` | `get`、`set` | 本进程的环境变量，所有会话与插件共享 |
+
+`session.start` 报告已提交的执行目录。Agent 关联的 `$.session.cwd`、文件系统调用及默认进程目录需要 `dsh-working-directory`；执行时使用操作的取消信号验证目录。无 Agent 的调用保留文件系统／进程默认值。目录选择不会改变原始项目、设置、工作区或沙箱权限，也不会改变宿主进程目录。
 
 所需服务未组合的调用以缺失服务的包名拒绝；表外的命名空间或方法以 `no implementation for <namespace>.<method>` 拒绝。模组以本进程的全部权限运行：`$.env` 读写 harness 的环境变量，`$.http.fetch` 可访问任意 URL，`$.fs` 与 `$.tool.call` 以会话的身份行动。
 

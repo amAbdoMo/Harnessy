@@ -160,6 +160,7 @@ export type PromptOrigin =
 
 /** `session.start`: once per root agent before its first prompt; every loaded mod's hook sees the same event. */
 export interface SessionStartInput {
+  /** Committed execution directory; the original project root is available through `$.session.root`. */
   cwd: string
   /** The drawing surface's name (Claude Code: `terminal`, `desktop`); this host reports `null` when no surface draws mods. */
   surface: string | null
@@ -456,7 +457,9 @@ export interface ModsApi {
   }
   readonly session: {
     id(): Promise<string>
+    /** @returns the committed execution directory, readable after Agent disposal; rejects without dsh-working-directory. */
     cwd(): Promise<string>
+    /** @returns the immutable original header directory, or the host process directory when absent. */
     root(): Promise<string>
     model(): Promise<string>
     turns(): Promise<number>

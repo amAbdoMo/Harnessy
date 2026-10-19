@@ -25,10 +25,12 @@ import { AUTO_PRESET } from '@deepseek-ai/dsh-permission-presets'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-subagent'
 import type {} from '@deepseek-ai/dsh-user-approval'
+import type {} from '@deepseek-ai/dsh-working-directory'
 import {
   RUN_CODE_NAME,
   type PreToolDecision,
   type ToolExecution,
+  type ToolExecutionToken,
 } from '@deepseek-ai/dsh-tools'
 
 /** Structured error name persisted for every final reviewer denial. */
@@ -376,6 +378,11 @@ function snapshotAutoReview(agent: Agent, exec: ToolExecution): ReviewSnapshot {
     throw new Error('auto-review: the session has no working directory')
   }
 
+  const directoryChange = events.findLast((event): event is SessionEvent<'working-directory/change'> => event.type === 'working-directory/change')
+  if (directoryChange !== undefined && directoryChange.data.cwd !== cwd) {
+    throw new Error('auto-review: restore the original working directory or leave Auto review before using tools')
+  }
+
   const nativeCalls = events.filter((event): event is NativeCallEvent => event.type === 'tool/call')
   const { starts, openStep: currentStep } = scopePtcStarts(events)
   const initialPromptSeq = directParentInitialPromptSeq(agent, events)
@@ -680,9 +687,30 @@ export function apply(ctx: Context): void {
   const permissionPresets = ctx.permissionPresets
   let accepting = true
   const active = new Set<Promise<void>>()
+  const directoryBindings = new Map<ToolExecutionToken, { agent: Agent; cwd: string }>()
   const lifecycle = new AbortController()
 
   ctx.effect(function* () {
+    yield () => { directoryBindings.clear() }
+    yield ctx.on('tools/result', (exec) => { directoryBindings.delete(exec.token) })
+    yield ctx.on('tools/execute', (exec, next) => {
+      const binding = directoryBindings.get(exec.token)
+      const directory = ctx.get('workingDirectory')
+      if (binding !== undefined && directory !== undefined && directory.get(binding.agent.session) !== binding.cwd) {
+        throw new Error('auto-review: the working directory changed after this call was reviewed')
+      }
+      return next()
+    })
+    yield ctx.on('working-directory/before-change', (agent, directory, signal, next) => {
+      signal.throwIfAborted()
+      if ([...directoryBindings.values()].some(binding => binding.agent.session === agent.session && directory !== binding.cwd)) {
+        throw new Error('auto-review: wait for the reviewed tool call to finish before changing the working directory')
+      }
+      if (permissionPresets.current(agent.session) === AUTO_PRESET && directory !== agent.session.header.cwd) {
+        throw new Error('auto-review: leave Auto review before changing the working directory')
+      }
+      return next()
+    })
     const stopListener = ctx.on('tools/pre-execute', async (exec, next): Promise<PreToolDecision> => {
       const agent = exec.agent
       if (agent === undefined || (exec.parent === undefined && exec.name === RUN_CODE_NAME)) {
@@ -697,6 +725,8 @@ export function apply(ctx: Context): void {
 
       const completed = Promise.withResolvers<void>()
       active.add(completed.promise)
+      const cwd = agent.session.header.cwd
+      if (cwd !== undefined) directoryBindings.set(exec.token, { agent, cwd })
       try {
         const signal = AbortSignal.any([exec.signal, lifecycle.signal])
         const review = await classifyRisk(ctx, agent, exec, signal).then(

@@ -9,6 +9,8 @@ import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import SystemPrompt, { renderPrompt } from '@deepseek-ai/dsh-system-prompt'
 import ToolRegistry, { defineContentToolFixture } from '@deepseek-ai/dsh-tools'
 import { FILE_REFERENCE_PROMPT } from '@deepseek-ai/dsh-file-reference'
+import { provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
+import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import LocalFileReferenceService, { WorkspaceFileSearch } from '../src/index.ts'
 
 const roots: string[] = []
@@ -20,6 +22,8 @@ afterEach(async () => {
 
 async function harness(): Promise<Context> {
   const ctx = new Context()
+  provideWorkingDirectoryFixture(ctx)
+  await ctx.plugin(SessionProjectionRegistry)
   await ctx.plugin(SessionStore)
   await ctx.plugin(SystemPrompt, { personaPrefix: '' })
   await ctx.plugin(ToolRegistry)
@@ -55,8 +59,29 @@ async function stubAgent(
 }
 
 describe('LocalFileReferenceService', () => {
+  it('replaces the cached index after a committed directory change without changing the project', async () => {
+    const ctx = await harness()
+    try {
+      const { agent } = await stubAgent(ctx, 'changing-directory')
+      const original = agent.session.header.cwd
+      const directory = await mkdtemp(join(tmpdir(), 'dsh-file-reference-current-'))
+      roots.push(directory)
+      await writeFile(join(directory, 'CURRENT.md'), 'current')
+      await ctx.plugin(LocalFileReferenceService)
+      const signal = new AbortController().signal
+      expect(await ctx.fileReferences.list(agent, 'README', signal)).toEqual([{ path: 'README.md', kind: 'file' }])
+      agent.session.append('working-directory/change', { cwd: directory })
+      expect(await ctx.fileReferences.list(agent, 'CURRENT', signal)).toEqual([{ path: 'CURRENT.md', kind: 'file' }])
+      expect(await ctx.fileReferences.list(agent, 'README', signal)).toEqual([])
+      expect(agent.session.header.cwd).toBe(original)
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
   it('defers guidance until optional prompt and tool services become available', async () => {
     const ctx = new Context()
+    provideWorkingDirectoryFixture(ctx)
+    await ctx.plugin(SessionProjectionRegistry)
     await ctx.plugin(SessionStore)
     await ctx.plugin(AgentRegistry)
     await ctx.plugin(LocalFileReferenceService)
@@ -106,12 +131,13 @@ describe('LocalFileReferenceService', () => {
     await ctx.plugin(LocalFileReferenceService)
     await ctx.fileReferences.list(agent, 'README', new AbortController().signal)
 
-    ctx.emit('session/event', agent.session, { type: 'tool/result' } as never)
+    const event = agent.session.append('session/end-seed', {})
+    ctx.emit('session/event', agent.session, { ...event, type: 'tool/result' } as never)
     expect(invalidate).toHaveBeenCalledOnce()
-    ctx.emit('session/event', agent.session, { type: 'assistant/message' } as never)
+    ctx.emit('session/event', agent.session, { ...event, type: 'assistant/message' } as never)
     expect(invalidate).toHaveBeenCalledOnce()
     const orphan = ctx.sessions.create(SessionId('file-reference-orphan'))
-    ctx.emit('session/event', orphan, { type: 'tool/result' } as never)
+    ctx.emit('session/event', orphan, { ...orphan.append('session/end-seed', {}), type: 'tool/result' } as never)
     expect(invalidate).toHaveBeenCalledOnce()
 
     await dispose()

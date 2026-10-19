@@ -1,0 +1,10 @@
+- name: '@deepseek-ai/dsh-fs-local'
+- name: '@deepseek-ai/dsh-working-directory'
+- name: '@deepseek-ai/dsh-lsp'
+- name: '@deepseek-ai/dsh-tool-lsp'
+- name: '@deepseek-ai/dsh-file-reference-local'
+- name: '@deepseek-ai/dsh-skill'
+- name: '@deepseek-ai/dsh-skill-filesystem'
+  config:
+    watch: false
+- name: '@deepseek-ai/dsh-tool-skill'

@@ -262,6 +262,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Owns append-only Session instances and emits the durable session event feed.',
   },
   {
+    key: 'workingDirectory',
+    pkg: 'working-directory',
+    title: 'Session execution directory',
+    mode: 'service',
+    consumers: ['tool-working-directory', 'tool-fs', 'tool-bash', 'subagent-in-process-driver'],
+    note: 'Projects durable execution-directory changes while the immutable Session header retains project and sandbox authority.',
+  },
+  {
     key: 'speechController',
     pkg: 'experimental-api-speech-to-text',
     title: 'Experimental transcription Remote',
@@ -800,6 +808,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     mode: 'core',
     consumers: ['experimental-tool-agent-team'],
     note: 'Owns the implicit-root roster, durable peer mailbox, shared task DAG, and continuable-child lifecycle; tool-agent-team contributes model controls.',
+  },
+  {
+    key: 'worktrees',
+    pkg: 'experimental-worktree',
+    title: 'Retained Git checkouts',
+    mode: 'seam',
+    consumers: ['experimental-tool-worktree'],
+    note: 'Creates retained local Git worktrees under the Session file policy and pins the allocated checkout identity before its files are written.',
   },
   {
     key: 'claudeCodeMods',

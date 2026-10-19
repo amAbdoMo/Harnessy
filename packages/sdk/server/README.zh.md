@@ -47,6 +47,12 @@ Stdout 只承载 JSON-RPC 帧，客户端可以逐字节解析；诊断信息应
 
 `initialize` 是运行时就绪边界：服务器由 Loader 组合挂载时，会等待当前插件树完成所有加载任务后再响应，因此首次提示词能够看到 MCP 初始工具发现等异步同级能力。握手返回协议稳定标识 `deepseek-harness-sdk-runtime`。服务器会通过所选适配器校验提供方／模型路由与可选的非空 `reasoningEffort`，再保存这些值；省略时不会保存推理强度，因此模型保留自身默认值。可选的正整数 `maxTokens` 会成为每个 SDK 创建的 agent 及其进程内后代的请求输出上限，省略时则应用所选适配器或提供方路由的默认值。JSON-RPC 请求可能并发分派，因此在一次 `initialize` 成功完成之前，`session/prompt` 会拒绝；客户端必须等待握手完成后再发送提示词。已接受的提示词会把一条带标识的用户消息排入队列，并立即返回 `{ messageId }`；服务器随后把每个持久事实作为 `session.event`、把整个 agent 生命周期的每次状态转换作为 `session.status` 流式发出。它不会把某条助手消息或 `turn/end` 归属于某个提示词，同一会话上的独立请求可以继续排入更多工作。持久化根目录与 persona 来自外围组合。
 
+### 工作目录请求
+
+初始化后，`session/working-directory/get` 会校验有效目录，并将消失的选择恢复到原始项目；`session/working-directory/set` 会校验绝对或相对当前目录的 `path`，并返回 `{ cwd }`。两者均需要可选的[工作目录服务](../../session/working-directory/README.zh.md)；缺少该服务的组合会拒绝请求，且不分配 Session。线协议分派在分配前拒绝缺失或空的 `sessionId`，以及 set 请求中缺失或空的 `path`。显式的有效请求可以在没有提示词的情况下创建未知 Session。
+
+服务器将目录操作限定到所属 Agent 的身份，并保留原始 Session 头部。变更不会改变设置、工作区关联、沙箱权限依据或现有进程。关闭时会取消并等待挂起的目录操作结束，再释放 SDK 持有的 agent。
+
 ### 关闭与退出
 
 插件应答 `shutdown`，刷新响应并 dispose 根上下文，使 SDK 持有的 agent、订阅与持久化达到完全停稳，然后以 0 退出。EOF 与信号退出归 app bin 负责，后者也会 dispose 根上下文。仅卸载此插件会停止服务，但不会退出进程。

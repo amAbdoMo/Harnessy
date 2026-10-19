@@ -8,6 +8,7 @@
     "src"
   ],
   "references": [
+    { "path": "../../session/working-directory" },
     {
       "path": "../../../vendor/cordis"
     },

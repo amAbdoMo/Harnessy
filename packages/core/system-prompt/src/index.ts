@@ -83,6 +83,10 @@ export interface PromptContext {
   readonly order: number
   /** Static text or a provider evaluated for each assembly. Empty text contributes nothing. */
   readonly text: string | ((context: AssembleContext) => string)
+  /** Whether to interpolate prompt variables. Defaults to true; false preserves literal text. */
+  readonly interpolate?: boolean
+  /** Keep this operational context when optional runtime context is disabled. */
+  readonly required?: boolean
 }
 
 /** One section of an assembly: {@link PromptSection} with its text resolved. */
@@ -101,6 +105,8 @@ export interface AssembledContext {
   name: string
   /** The resolved text before variable interpolation. */
   text: string
+  /** Whether to interpolate prompt variables. Defaults to true; false preserves literal text. */
+  interpolate?: boolean
 }
 
 /** Tool schemas visible in one assembly and their pre-restriction name set. */
@@ -162,6 +168,7 @@ const SECTION_ORDERS = {
 export type PromptSectionOrderName = keyof typeof SECTION_ORDERS
 
 const CONTEXT_ORDERS = {
+  WORKING_DIRECTORY: 100,
   SANDBOX_POLICY: 110,
   APPROVAL_POLICY: 115,
   SUBAGENT_DELEGATION: 120,
@@ -247,7 +254,7 @@ function compareToolNames(a: ToolSchema, b: ToolSchema): number {
 export interface Config {
   /** Include the fixed DeepSeek Harness identity before the deployment persona (default true). */
   includeHarnessIdentity?: boolean
-  /** Include dynamic runtime-context snapshots in model history (default true). */
+  /** Include optional runtime-context snapshots in model history (default true); required context remains. */
   includeRuntimeContext?: boolean
   /**
    * Deployment-wide persona prefix template before first-party guidance. A scoped section named
@@ -317,7 +324,10 @@ export function joinContextSections(sections: readonly ContextSnapshotSection[])
  */
 export function renderContextSections(assembly: PromptAssembly): ContextSnapshotSection[] {
   return assembly.contexts
-    .map(context => ({ name: context.name, text: interpolate(context, assembly.variables, 'context') }))
+    .map(context => ({
+      name: context.name,
+      text: context.interpolate === false ? context.text : interpolate(context, assembly.variables, 'context'),
+    }))
     .filter(section => section.text.length > 0)
 }
 
@@ -611,14 +621,14 @@ export class SystemPrompt extends Service {
       })
     const assembly: PromptAssembly = {
       sections,
-      contexts: runtimeContextSuppressed
-        ? []
-        : [...contextByName.values()]
-          .sort((a, b) => a.order - b.order)
-          .map(entry => ({
-            name: entry.name,
-            text: typeof entry.text === 'function' ? entry.text(context) : entry.text,
-          })),
+      contexts: [...contextByName.values()]
+        .filter(entry => !runtimeContextSuppressed || entry.required === true)
+        .sort((a, b) => a.order - b.order)
+        .map(entry => ({
+          name: entry.name,
+          text: typeof entry.text === 'function' ? entry.text(context) : entry.text,
+          ...entry.interpolate !== undefined ? { interpolate: entry.interpolate } : {},
+        })),
       tools: orderTools(collected, this.toolOrder, knownNames),
       variables,
     }
@@ -627,10 +637,11 @@ export class SystemPrompt extends Service {
       () => Promise.resolve(assembly),
     )
     if (completeSection === undefined && !runtimeContextSuppressed) return transformed
+    const requiredContexts = new Set([...contextByName.values()].filter(entry => entry.required === true).map(entry => entry.name))
     return {
       ...transformed,
       sections: completeSection === undefined ? transformed.sections : [completeSection],
-      contexts: runtimeContextSuppressed ? [] : transformed.contexts,
+      contexts: runtimeContextSuppressed ? transformed.contexts.filter(entry => requiredContexts.has(entry.name)) : transformed.contexts,
     }
   }
 }

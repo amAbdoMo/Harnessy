@@ -5,7 +5,11 @@ import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
 import { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
-import type { SessionEvent, SessionId } from '@deepseek-ai/dsh-session'
+import { Session, SessionId, SESSION_FORMAT_VERSION, type SessionEvent } from '@deepseek-ai/dsh-session'
+import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
+import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
+import WorkingDirectory from '@deepseek-ai/dsh-working-directory'
+import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
 import type { SandboxExecutionPolicy, SandboxMode } from '@deepseek-ai/dsh-sandbox'
 import { SubprocessExecutableNotFoundError, type SubprocessRuntime, type SubprocessTerminalEnvironment, type SubprocessTerminalHandle } from '@deepseek-ai/dsh-subprocess'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
@@ -22,12 +26,19 @@ const request = { id, cols: 80, rows: 24 }
 const signal = (): AbortSignal => new AbortController().signal
 
 function owner(ctx: Context, id = 'session', cwd?: string): Agent {
-  return { id: id as SessionId, ctx, session: { id: id as SessionId, header: { cwd } } } as unknown as Agent
+  const sessionId = SessionId(id)
+  const session = Session.create(sessionId, [], { version: SESSION_FORMAT_VERSION, id: sessionId,
+    createdAt: 0, isSeeded: false, ...cwd === undefined ? {} : { cwd } })
+  return { id: sessionId, ctx, session } as Agent
 }
 
-function fixture(overrides: Partial<Config> = {}) {
+async function fixture(overrides: Partial<Config> = {}) {
   const ctx = new Context()
   roots.push(ctx)
+  await ctx.plugin(SessionProjectionRegistry)
+  await ctx.plugin(SystemPrompt)
+  await ctx.plugin(LocalFileSystem)
+  await ctx.plugin(WorkingDirectory, { defaultDirectory: '/workspace' })
   const effects = vi.spyOn(ctx.fiber, 'effect')
   const sandboxPolicy = { defaultMode: 'danger-full-access', workspaceRoot: '/workspace', resolve: vi.fn((): SandboxExecutionPolicy => ({ mode: 'danger-full-access', workspaceRoot: '/workspace' })) }
   ctx.provide('sandboxPolicy', sandboxPolicy as never)
@@ -39,7 +50,7 @@ function fixture(overrides: Partial<Config> = {}) {
     inspectForeground: async () => undefined, signalForeground: async () => 123,
     terminate: vi.fn(async () => { output.end(); done.resolve({ exitCode: 0, signal: null }) }) }
   const checked: SubprocessTerminalHandle = handle
-  const subprocess = { terminalEnvironment: vi.fn(async (): Promise<SubprocessTerminalEnvironment> => ({ platform: 'posix', defaultShell: '/bin/bash' })), resolveExecutable: vi.fn(async (path: string) => path), spawnTerminal: vi.fn(async () => checked) }
+  const subprocess = { terminalEnvironment: vi.fn(async (): Promise<SubprocessTerminalEnvironment> => ({ platform: 'posix', defaultShell: '/bin/bash' })), resolveExecutable: vi.fn(async (path: string) => path), spawnTerminal: vi.fn<SubprocessRuntime['spawnTerminal']>(async () => checked) }
   ctx.provide('subprocess', subprocess as never)
   const controller = new TerminalController(ctx, { ...config, ...overrides })
   const disposeEffect = (label: string): Promise<void> => {
@@ -52,8 +63,22 @@ function fixture(overrides: Partial<Config> = {}) {
 }
 
 describe('TerminalController', () => {
+  it('starts only new terminals in the changed directory and retains existing startup metadata', async () => {
+    const { controller, agent, subprocess } = await fixture()
+    const first = await controller.create(agent, request, signal())
+    agent.session.append('working-directory/change', { cwd: '/next' })
+    expect(controller.environment(agent, signal()).cwd).toBe('/next')
+    expect(await controller.create(agent, request, signal())).toBe(first)
+    const second = await controller.create(agent, { ...request, id: 'second' as WebTerminalId }, signal())
+    expect(first.cwd).toBe('/workspace')
+    expect(second.cwd).toBe('/next')
+    expect(subprocess.spawnTerminal.mock.calls.map(([spec]) => spec.cwd)).toEqual(['/workspace', '/next'])
+    expect(agent.session.header.cwd).toBeUndefined()
+    await controller.close(agent, id)
+    await controller.close(agent, second.id)
+  })
   it('resolves execution services from an Agent plugin context without consumer injections', async () => {
-    const { ctx, controller } = fixture()
+    const { ctx, controller } = await fixture()
     let agent: Agent | undefined
     await ctx.plugin((child) => { agent = owner(child) })
     if (agent === undefined) throw new Error('Agent plugin did not load')
@@ -63,7 +88,7 @@ describe('TerminalController', () => {
   })
 
   it('creates the environment default shell and keeps an existing identity when that default changes', async () => {
-    const { controller, agent, subprocess } = fixture({ shell: undefined })
+    const { controller, agent, subprocess } = await fixture({ shell: undefined })
     subprocess.terminalEnvironment.mockResolvedValue({ platform: 'posix', defaultShell: '/usr/local/bin/zsh' })
     expect(controller.environment(agent, signal())).toEqual({ cwd: '/workspace', maxCols: 200, maxRows: 100, maxInputBytes: 1000, scrollback: 100 })
     expect(subprocess.terminalEnvironment).not.toHaveBeenCalled()
@@ -77,7 +102,7 @@ describe('TerminalController', () => {
   })
 
   it('restores a running terminal after its default executable becomes unavailable', async () => {
-    const { controller, agent, subprocess } = fixture({ shell: undefined })
+    const { controller, agent, subprocess } = await fixture({ shell: undefined })
     await controller.create(agent, request, signal())
     subprocess.resolveExecutable.mockRejectedValue(new SubprocessExecutableNotFoundError('default shell was removed'))
     expect(controller.environment(agent, signal())).toMatchObject({ cwd: '/workspace', maxInputBytes: 1000 })
@@ -91,8 +116,8 @@ describe('TerminalController', () => {
     } finally { await stream.return?.() }
   })
 
-  it('honors cancellation before reading environment limits', () => {
-    const { controller, agent, subprocess, sandboxPolicy } = fixture()
+  it('honors cancellation before reading environment limits', async () => {
+    const { controller, agent, subprocess, sandboxPolicy } = await fixture()
     const abort = new AbortController()
     abort.abort(new Error('request cancelled'))
     expect(() => controller.environment(agent, abort.signal)).toThrow('request cancelled')
@@ -101,7 +126,7 @@ describe('TerminalController', () => {
   })
 
   it('deduplicates concurrent creates, scopes access by Session, and preserves terminals when a stream aborts', async () => {
-    const { controller, agent, ctx, subprocess, handle } = fixture()
+    const { controller, agent, ctx, subprocess, handle } = await fixture()
     const [first, second] = await Promise.all([controller.create(agent, request, signal()), controller.create(agent, request, signal())])
     expect(first.id).toBe(second.id)
     expect(subprocess.spawnTerminal).toHaveBeenCalledOnce()
@@ -123,7 +148,7 @@ describe('TerminalController', () => {
   })
 
   it('waits for pending allocation when explicitly closing and rolls back cancellation before publication', async () => {
-    const { controller, agent, subprocess, handle } = fixture()
+    const { controller, agent, subprocess, handle } = await fixture()
     const allocation = Promise.withResolvers<SubprocessTerminalHandle>()
     subprocess.spawnTerminal.mockImplementationOnce(() => allocation.promise)
     const creating = controller.create(agent, request, signal())
@@ -137,7 +162,7 @@ describe('TerminalController', () => {
   })
 
   it('rejects a delayed create after close even when that identity has never been allocated', async () => {
-    const { controller, agent, subprocess } = fixture()
+    const { controller, agent, subprocess } = await fixture()
     await controller.close(agent, id)
     await controller.close(agent, id)
     await expect(controller.create(agent, request, signal())).rejects.toThrow('closed in this Session')
@@ -148,7 +173,7 @@ describe('TerminalController', () => {
   })
 
   it('rejects original, duplicate and later creates when close arrives during allocation', async () => {
-    const { controller, agent, subprocess, handle } = fixture()
+    const { controller, agent, subprocess, handle } = await fixture()
     const allocation = Promise.withResolvers<SubprocessTerminalHandle>()
     const spawning = Promise.withResolvers<undefined>()
     subprocess.spawnTerminal.mockImplementationOnce(() => { spawning.resolve(undefined); return allocation.promise })
@@ -170,7 +195,7 @@ describe('TerminalController', () => {
   })
 
   it('retains failed allocation cleanup for a later explicit close', async () => {
-    const { controller, agent, subprocess, handle } = fixture()
+    const { controller, agent, subprocess, handle } = await fixture()
     const abort = new AbortController()
     subprocess.spawnTerminal.mockImplementationOnce(async () => { abort.abort(new Error('request disconnected')); return handle })
     vi.mocked(handle.terminate).mockRejectedValueOnce(new Error('cleanup failed'))
@@ -182,7 +207,7 @@ describe('TerminalController', () => {
   })
 
   it('retains a terminal when process cleanup fails so closing can be retried', async () => {
-    const { controller, agent, handle } = fixture()
+    const { controller, agent, handle } = await fixture()
     await controller.create(agent, request, signal())
     vi.mocked(handle.terminate).mockRejectedValueOnce(new Error('process still alive'))
     await expect(controller.close(agent, id)).rejects.toThrow('still alive')
@@ -193,7 +218,7 @@ describe('TerminalController', () => {
   })
 
   it('rejects invalid dimensions, unavailable shells and oversized input before executing them', async () => {
-    const { controller, agent, subprocess } = fixture()
+    const { controller, agent, subprocess } = await fixture()
     await expect(controller.create(agent, { ...request, cols: 1 }, signal())).rejects.toThrow('dimensions')
     subprocess.resolveExecutable.mockRejectedValueOnce(new SubprocessExecutableNotFoundError('shell unavailable'))
     await expect(controller.create(agent, request, signal())).rejects.toThrow('unavailable')
@@ -202,7 +227,7 @@ describe('TerminalController', () => {
   })
 
   it('keeps the committed identity on repeated creation and counts pending reservations toward the Session limit', async () => {
-    const { controller, agent, subprocess, handle } = fixture({ maxTerminals: 1 })
+    const { controller, agent, subprocess, handle } = await fixture({ maxTerminals: 1 })
     const allocation = Promise.withResolvers<SubprocessTerminalHandle>()
     const spawning = Promise.withResolvers<undefined>()
     subprocess.spawnTerminal.mockImplementationOnce(() => { spawning.resolve(undefined); return allocation.promise })
@@ -217,7 +242,7 @@ describe('TerminalController', () => {
   })
 
   it('keeps failed allocations reserved until their cleanup succeeds', async () => {
-    const { controller, agent, subprocess, handle } = fixture({ maxTerminals: 1 })
+    const { controller, agent, subprocess, handle } = await fixture({ maxTerminals: 1 })
     const abort = new AbortController()
     subprocess.spawnTerminal.mockImplementationOnce(async () => { abort.abort('lost request'); return handle })
     handle.terminate.mockRejectedValueOnce(new Error('still alive'))
@@ -230,7 +255,7 @@ describe('TerminalController', () => {
   })
 
   it('lets close reclaim an allocation whose request failed while close was waiting', async () => {
-    const { controller, agent, subprocess, handle } = fixture()
+    const { controller, agent, subprocess, handle } = await fixture()
     const allocation = Promise.withResolvers<SubprocessTerminalHandle>()
     const abort = new AbortController()
     subprocess.spawnTerminal.mockImplementationOnce(() => allocation.promise)
@@ -246,7 +271,7 @@ describe('TerminalController', () => {
   })
 
   it('routes input, resize and trimmed names through the active attachment', async () => {
-    const { controller, agent, handle } = fixture({ maxInputBytes: 6 })
+    const { controller, agent, handle } = await fixture({ maxInputBytes: 6 })
     await controller.create(agent, request, signal())
     const attachmentId = 'writer' as TerminalAttachmentId
     const stream = controller.follow(agent, id, attachmentId, signal())[Symbol.asyncIterator]()
@@ -263,7 +288,7 @@ describe('TerminalController', () => {
   })
 
   it.each([{ cols: 1.5, rows: 24 }, { cols: 201, rows: 24 }, { cols: 80, rows: 1.5 }, { cols: 80, rows: 0 }, { cols: 80, rows: 101 }])('rejects dimensions $cols × $rows before allocation or resize', async (dimensions) => {
-    const { controller, agent, subprocess, handle } = fixture()
+    const { controller, agent, subprocess, handle } = await fixture()
     await expect(controller.create(agent, { ...request, ...dimensions }, signal())).rejects.toThrow('dimensions')
     await expect(controller.resize(agent, id, 'writer' as TerminalAttachmentId, dimensions.cols, dimensions.rows)).rejects.toThrow('dimensions')
     expect(subprocess.spawnTerminal).not.toHaveBeenCalled()
@@ -271,7 +296,7 @@ describe('TerminalController', () => {
   })
 
   it('rejects invalid wire identities and names without changing retained terminals', async () => {
-    const { controller, agent } = fixture()
+    const { controller, agent } = await fixture()
     await expect(controller.create(agent, { ...request, id: '../terminal' as WebTerminalId }, signal())).rejects.toThrow('Invalid terminal identity')
     expect(() => controller.follow(agent, id, '' as TerminalAttachmentId, signal())).toThrow('attachment identity')
     expect(() => { controller.rename(agent, id, '  ') }).toThrow('1–120')
@@ -281,7 +306,7 @@ describe('TerminalController', () => {
   })
 
   it.each(['read-only', 'workspace-write', 'danger-full-access'] as const)('starts a user shell without confinement under %s Agent permissions', async (mode) => {
-    const { controller, agent, ctx, sandboxPolicy, subprocess } = fixture()
+    const { controller, agent, ctx, sandboxPolicy, subprocess } = await fixture()
     sandboxPolicy.resolve.mockReturnValue({ mode, workspaceRoot: '/workspace', sessionId: agent.id })
     const confine = vi.fn((argv: readonly string[]) => ({ argv: ['sandbox-runner', ...argv] }))
     ctx.provide('sandbox', { confine } as never)
@@ -292,15 +317,15 @@ describe('TerminalController', () => {
   })
 
   it('uses the Session working directory without requiring a sandbox provider', async () => {
-    const { controller, ctx, subprocess } = fixture()
+    const { controller, ctx, subprocess } = await fixture()
     const agent = owner(ctx, 'workspace-session', '/another-workspace')
     expect(controller.environment(agent, signal())).toMatchObject({ cwd: '/another-workspace' })
     await controller.create(agent, request, signal())
     expect(subprocess.spawnTerminal).toHaveBeenCalledWith(expect.objectContaining({ cwd: '/another-workspace' }))
   })
 
-  it.each(['subprocess', 'sandboxPolicy'] as const)('fails clearly when the Session lacks %s', (missing) => {
-    const { controller, subprocess, sandboxPolicy } = fixture()
+  it.each(['subprocess', 'sandboxPolicy'] as const)('fails clearly when the Session lacks %s', async (missing) => {
+    const { controller, subprocess, sandboxPolicy } = await fixture()
     const isolated = new Context()
     roots.push(isolated)
     if (missing !== 'subprocess') isolated.provide('subprocess', subprocess as never)
@@ -309,8 +334,11 @@ describe('TerminalController', () => {
   })
 
   it('allows Agent sandbox-mode changes while retaining the same user terminal', async () => {
-    const { controller, agent, ctx, subprocess, handle } = fixture()
-    const mode = (mode: SandboxMode): void => { ctx.emit('session/event', agent.session, { type: 'sandbox/mode', data: { mode } } as SessionEvent) }
+    const { controller, agent, ctx, subprocess, handle } = await fixture()
+    const mode = (mode: SandboxMode): void => {
+      const event = agent.session.append('session/end-seed', {})
+      ctx.emit('session/event', agent.session, { ...event, type: 'sandbox/mode', data: { mode } } as SessionEvent)
+    }
     await controller.create(agent, request, signal())
     for (const value of ['read-only', 'workspace-write', 'danger-full-access'] as const) {
       expect(() => { mode(value) }).not.toThrow()
@@ -321,7 +349,7 @@ describe('TerminalController', () => {
   })
 
   it('terminates committed processes when the Session effect ends', async () => {
-    const { controller, agent, handle, disposeEffect } = fixture()
+    const { controller, agent, handle, disposeEffect } = await fixture()
     await controller.create(agent, request, signal())
     await disposeEffect('terminal-controller.owner')
     expect(handle.terminate).toHaveBeenCalledOnce()
@@ -329,7 +357,7 @@ describe('TerminalController', () => {
   })
 
   it('cleans up a Session when its real Agent plugin fiber is disposed', async () => {
-    const { controller, ctx, handle } = fixture()
+    const { controller, ctx, handle } = await fixture()
     let agent: Agent | undefined
     const fiber = await ctx.plugin((child) => { agent = owner(child) })
     if (agent === undefined) throw new Error('Agent plugin did not load')
@@ -340,7 +368,7 @@ describe('TerminalController', () => {
   })
 
   it('waits for pending creation during Host disposal and rolls back its process before resolving', async () => {
-    const { controller, agent, subprocess, handle, disposeEffect } = fixture()
+    const { controller, agent, subprocess, handle, disposeEffect } = await fixture()
     const allocation = Promise.withResolvers<SubprocessTerminalHandle>()
     const spawning = Promise.withResolvers<undefined>()
     subprocess.spawnTerminal.mockImplementationOnce(() => { spawning.resolve(undefined); return allocation.promise })
@@ -357,7 +385,7 @@ describe('TerminalController', () => {
   })
 
   it('shares cleanup between the Session and Host effects while awaiting process termination', async () => {
-    const { controller, agent, handle, disposeEffect } = fixture()
+    const { controller, agent, handle, disposeEffect } = await fixture()
     await controller.create(agent, request, signal())
     const stopping = Promise.withResolvers<undefined>()
     const stopped = Promise.withResolvers<undefined>()
@@ -376,7 +404,7 @@ describe('TerminalController', () => {
   })
 
   it('retains cleanup failures from both Session and Host disposal for explicit retry', async () => {
-    const { controller, agent, handle, disposeEffect } = fixture()
+    const { controller, agent, handle, disposeEffect } = await fixture()
     await controller.create(agent, request, signal())
     handle.terminate.mockRejectedValueOnce(new Error('still alive'))
     await expect(disposeEffect('terminal-controller.owner')).rejects.toThrow('Session terminal cleanup failed')
@@ -390,7 +418,7 @@ describe('TerminalController', () => {
   })
 
   it('reclaims retained failed allocations when the owning Session ends', async () => {
-    const { controller, agent, subprocess, handle, disposeEffect } = fixture()
+    const { controller, agent, subprocess, handle, disposeEffect } = await fixture()
     const abort = new AbortController()
     subprocess.spawnTerminal.mockImplementationOnce(async () => { abort.abort(new Error('disconnected')); return handle })
     handle.terminate.mockRejectedValueOnce(new Error('first cleanup failed'))
@@ -422,7 +450,7 @@ describe('shell resolution', () => {
     { platform: 'posix' as const, path: '/bin/sh', name: 'sh', args: ['-i'] },
     { platform: 'windows' as const, path: 'cmd.exe', name: 'cmd.exe', args: [] },
   ])('uses the conservative $platform fallback only when the provider omits its default shell', async ({ platform, path, name, args }) => {
-    const { subprocess } = fixture()
+    const { subprocess } = await fixture()
     subprocess.terminalEnvironment.mockResolvedValue({ platform })
     const runtime = subprocess as unknown as SubprocessRuntime
     const requestSignal = signal()
@@ -436,7 +464,7 @@ describe('shell resolution', () => {
     { platform: 'windows' as const, defaultShell: 'C:\\PowerShell\\powershell.exe', name: 'powershell.exe', args: ['-NoLogo'] },
     { platform: 'posix' as const, defaultShell: '/usr/local/bin/pwsh', name: 'pwsh', args: ['-NoLogo'] },
   ])('resolves only the declared default $defaultShell with its interactive arguments', async ({ platform, defaultShell, name, args }) => {
-    const { subprocess } = fixture()
+    const { subprocess } = await fixture()
     subprocess.terminalEnvironment.mockResolvedValue({ platform, defaultShell })
     subprocess.resolveExecutable.mockResolvedValue('/resolved/shell')
     const runtime = subprocess as unknown as SubprocessRuntime
@@ -447,7 +475,7 @@ describe('shell resolution', () => {
   })
 
   it('uses an explicit profile without querying the environment and preserves its name and arguments', async () => {
-    const { subprocess } = fixture()
+    const { subprocess } = await fixture()
     subprocess.resolveExecutable.mockResolvedValue('/resolved/custom')
     const runtime = subprocess as unknown as SubprocessRuntime
     const requestSignal = signal()
@@ -458,7 +486,7 @@ describe('shell resolution', () => {
   })
 
   it.each([new SubprocessExecutableNotFoundError('missing default'), new Error('transport unavailable')])('reports default resolution failure without attempting fallback: %s', async (failure) => {
-    const { subprocess } = fixture()
+    const { subprocess } = await fixture()
     subprocess.resolveExecutable.mockRejectedValue(failure)
     const runtime = subprocess as unknown as SubprocessRuntime
     await expect(resolveShell(runtime, undefined, signal())).rejects.toBe(failure)
@@ -466,7 +494,7 @@ describe('shell resolution', () => {
   })
 
   it('reports an unavailable configured shell without consulting the provider default', async () => {
-    const { subprocess } = fixture()
+    const { subprocess } = await fixture()
     const failure = new SubprocessExecutableNotFoundError('missing configured shell')
     subprocess.resolveExecutable.mockRejectedValue(failure)
     const runtime = subprocess as unknown as SubprocessRuntime
@@ -476,7 +504,7 @@ describe('shell resolution', () => {
   })
 
   it('propagates environment cancellation before verifying an executable', async () => {
-    const { subprocess } = fixture()
+    const { subprocess } = await fixture()
     const cancelled = new Error('request disconnected')
     subprocess.terminalEnvironment.mockRejectedValue(cancelled)
     const runtime = subprocess as unknown as SubprocessRuntime
@@ -512,7 +540,7 @@ it.skipIf(process.platform === 'win32')('runs a real interactive shell with comp
 })
 
 it('discovers installed shells once per path, preserves default arguments, and refuses unlisted paths', async () => {
-  const h = fixture({ shellCandidates: ['bash', 'zsh', 'missing'] })
+  const h = await fixture({ shellCandidates: ['bash', 'zsh', 'missing'] })
   const missing = Object.assign(new Error('absent'), { name: 'SubprocessExecutableNotFoundError' })
   expect(missing).not.toBeInstanceOf(SubprocessExecutableNotFoundError)
   h.subprocess.resolveExecutable.mockImplementation(async (path) => {
@@ -533,7 +561,7 @@ it('discovers installed shells once per path, preserves default arguments, and r
 })
 
 it('propagates optional-shell discovery transport errors and cancellation', async () => {
-  const h = fixture({ shellCandidates: ['fish'] })
+  const h = await fixture({ shellCandidates: ['fish'] })
   h.subprocess.resolveExecutable.mockImplementation(async (path) => {
     if (path === 'fish') throw new Error('lookup transport failed')
     return path
@@ -544,12 +572,12 @@ it('propagates optional-shell discovery transport errors and cancellation', asyn
 })
 
 it('deduplicates Windows executable paths regardless of letter case', async () => {
-  const h = fixture({ shell: { path: 'C:\\Windows\\cmd.exe', name: 'Command Prompt', args: [] }, shellCandidates: ['c:\\windows\\cmd.exe'] })
+  const h = await fixture({ shell: { path: 'C:\\Windows\\cmd.exe', name: 'Command Prompt', args: [] }, shellCandidates: ['c:\\windows\\cmd.exe'] })
   expect(await h.controller.shells(h.agent, signal())).toEqual([{ path: 'C:\\Windows\\cmd.exe', name: 'Command Prompt', args: [] }])
 })
 
 it('lists each executable name once when PATH reaches the default shell through another directory', async () => {
-  const h = fixture({ shell: undefined, shellCandidates: ['zsh', 'bash'] })
+  const h = await fixture({ shell: undefined, shellCandidates: ['zsh', 'bash'] })
   // Merged /usr: the login shell is /bin/bash, while PATH lists /usr/bin before the /bin link.
   h.subprocess.resolveExecutable.mockImplementation(async path => path.startsWith('/') ? path : `/usr/bin/${path}`)
   expect(await h.controller.shells(h.agent, signal())).toEqual([
@@ -559,7 +587,7 @@ it('lists each executable name once when PATH reaches the default shell through 
 })
 
 it('retains a known terminal without Agent resolution and fences stream admission after explicit close', async () => {
-  const h = fixture()
+  const h = await fixture()
   await h.controller.create(h.agent, request, signal())
   const abort = new AbortController()
   const held = h.controller.retain(h.agent.id, id, abort.signal)[Symbol.asyncIterator]()
@@ -575,7 +603,7 @@ it('retains a known terminal without Agent resolution and fences stream admissio
 
 it('reclaims confirmed idle processes and preserves closed identity exclusion after removing their screens', async () => {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] })
-  const h = fixture({ unattendedTimeoutMs: 100, activityPollIntervalMs: 10 })
+  const h = await fixture({ unattendedTimeoutMs: 100, activityPollIntervalMs: 10 })
   try {
     h.handle.inspectActivity.mockResolvedValue({ state: 'busy', revision: 0 })
     await h.controller.create(h.agent, request, signal())
@@ -595,7 +623,7 @@ it('reclaims confirmed idle processes and preserves closed identity exclusion af
 
 it.each(['allocation', 'committed'] as const)('retains failed %s cleanup, reports scheduled failures, and releases resources after retry', async (phase) => {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] })
-  const h = fixture({ unattendedTimeoutMs: 100, activityPollIntervalMs: 10, cleanupRetryMs: 20 })
+  const h = await fixture({ unattendedTimeoutMs: 100, activityPollIntervalMs: 10, cleanupRetryMs: 20 })
   h.handle.terminate.mockRejectedValueOnce(new Error('still alive')).mockRejectedValueOnce(new Error('still alive again'))
   try {
     if (phase === 'allocation') {
@@ -622,7 +650,7 @@ it.each(['allocation', 'committed'] as const)('retains failed %s cleanup, report
 })
 
 it('classifies missing and closing terminal identities for localized recovery actions', async () => {
-  const h = fixture()
+  const h = await fixture()
   expect(() => h.controller.follow(h.agent, id, 'view' as TerminalAttachmentId, signal()))
     .toThrow(expect.objectContaining({ code: 'terminal/unavailable' }))
   await h.controller.create(h.agent, request, signal())

@@ -298,6 +298,33 @@ export class HarnessClient {
   }
 
   /**
+   * Read a Session's effective directory, recovering it to its origin if missing.
+   * @param sessionId - target Session; an unknown identity creates it.
+   * @returns the absolute directory used by future independent operations.
+   */
+  getWorkingDirectory(sessionId: string): Promise<string> {
+    return this.workingDirectoryRequest('session/working-directory/get', { sessionId })
+  }
+
+  /**
+   * Change execution directory without moving existing processes or changing permissions.
+   * @param sessionId - target Session; an unknown identity creates it.
+   * @param path - absolute or current-directory-relative path.
+   * @returns the validated absolute directory.
+   */
+  setWorkingDirectory(sessionId: string, path: string): Promise<string> {
+    return this.workingDirectoryRequest('session/working-directory/set', { sessionId, path })
+  }
+
+  private async workingDirectoryRequest(method: string, params: object): Promise<string> {
+    const result = await this.request(method, params)
+    if (!isRecord(result) || typeof result.cwd !== 'string' || result.cwd.length === 0) {
+      throw new SdkProtocolError(`${method} returned no working directory: ${JSON.stringify(result)}`)
+    }
+    return result.cwd
+  }
+
+  /**
    * Send one JSON-RPC request and await its result.
    * @param method - the wire method name.
    * @param params - the params object; omitted params send `{}`.

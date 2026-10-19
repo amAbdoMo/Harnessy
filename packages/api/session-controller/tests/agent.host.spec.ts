@@ -492,9 +492,11 @@ describe('ApiSession create or adoption', () => {
 describe('runtime ownership through source Loader composition', () => {
   it('rejects ordinary routing to a live owned Agent with no durable lineage', async () => {
     const b = await promptAdmissionComposition()
+    const cwd = b.agent.session.header.cwd
+    if (cwd === undefined) throw new Error('Parent fixture has no original directory')
     const { agent: child } = await b.agent.ctx.agents.create({
       sessionId: SessionId('owned-without-lineage'), parentAgent: b.agent,
-      meta: { cwd: b.agent.session.header.cwd }, agentOptions: { provider: 'fixture', model: 'fixture-model' },
+      meta: { cwd }, agentOptions: { provider: 'fixture', model: 'fixture-model' },
     })
     expect(child.session.header.origin).toBeUndefined()
     expect(child.session.header.parentSession).toBeUndefined()
@@ -512,9 +514,11 @@ describe('runtime ownership through source Loader composition', () => {
 
   it('keeps a runtime root routable when its durable header names a parent', async () => {
     const b = await promptAdmissionComposition()
+    const cwd = b.agent.session.header.cwd
+    if (cwd === undefined) throw new Error('Parent fixture has no original directory')
     const { agent: fork } = await b.ctx.agents.create({
       sessionId: SessionId('ordinary-runtime-fork'),
-      meta: { cwd: b.agent.session.header.cwd, parentSession: b.agent.id },
+      meta: { cwd, parentSession: b.agent.id },
       agentOptions: { provider: 'fixture', model: 'fixture-model' },
     })
     expect(b.ctx.agents.roots()).toContain(fork)

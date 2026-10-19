@@ -32,6 +32,8 @@ Mount the Host row in a Profile. In this repository the `custom-harness` product
   name: '@deepseek-ai/dsh-subagent-commandcode'
 ```
 
+New CLI runs use the Session’s current execution directory. Lane and role overrides remain keyed to the immutable original project (`header.cwd`), so changing directories cannot select another project’s access or routing policy.
+
 ### Requirements
 
 The user supplies the CLI. This package never vendors, installs, or redistributes Command Code, and it never reads, copies, or stores its credentials. The user installs the CLI, signs in, and picks lanes in Settings.

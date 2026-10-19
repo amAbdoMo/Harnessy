@@ -2935,6 +2935,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     occupants: [
       'client-ui-brand-custom-harness PhoneConnectionToast id \'custom-harness-phone-connection-result\'',
       'client-ui-brand-custom-harness ResetCreditToast id \'custom-harness-reset-result\'',
+      'client-ui-brand-custom-harness BillingReminderToast id \'custom-harness-billing-reminder-result\'',
       'client-ui-chat QuotaNoticeHost id \'chat.quota-notice\'',
       'client-ui-device-preview DevicePreviewNotice id \'device-preview.stop-notice\'',
       'client-ui-plugin-manager PluginRefreshToast id \'plugin-manager.refresh-toast\'',

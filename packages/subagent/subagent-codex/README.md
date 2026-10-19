@@ -25,6 +25,8 @@ Install `@deepseek-ai/dsh-subagent-codex` into a Profile when delegated work sho
 <a id="use-this-package"></a>
 ## Use this package
 
+New child processes and protocol sessions use the parent Session’s current directory from `ctx.workingDirectory`, including its configured fallback. A configured `cwd` override, when supported, still takes precedence; existing children keep their startup directory.
+
 Mount this provider when a delegation should run as a real Codex session in the parent's workspace. The common path is explicit: install the Bundle into a Profile, optionally configure the provider row, and expose it to the model through a delegation tool row.
 
 ### Installing the Bundle

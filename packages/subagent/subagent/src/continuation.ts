@@ -15,6 +15,7 @@
 
 import { randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/dsh-working-directory'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import { ReasoningEffortId, contentHasImage, createUserMessage } from '@deepseek-ai/dsh-llm'
@@ -136,6 +137,9 @@ export class SubagentContinuationManager {
     // but the service is also callable outside a turn.
     const releaseHold = this.activations.holdOwnership(parent, childId)
     try {
+      const workingDirectory = this.ctx.get('workingDirectory')
+      if (workingDirectory === undefined) throw new Error('continuable subagents require the working-directory service')
+      const cwd = workingDirectory.get(parent.session)
       const prepared = await this.host.prepareContinuable(spec.provider, {
         sessionId: childId,
         parent,
@@ -164,6 +168,7 @@ export class SubagentContinuationManager {
           provider: spec.provider,
           parent,
           create: {
+            cwd,
             seed,
             meta: childSessionMeta(parent, childDepth, prepared.seed !== undefined),
             inheritedEventCount,

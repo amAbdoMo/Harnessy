@@ -12,6 +12,7 @@ import FileReferenceService, {
   type FileReferenceCandidate,
 } from '@deepseek-ai/dsh-file-reference'
 import type {} from '@deepseek-ai/dsh-tools'
+import type {} from '@deepseek-ai/dsh-working-directory'
 import {
   DEFAULT_FILE_SEARCH_EXCLUDED_DIRECTORIES,
   DEFAULT_FILE_SEARCH_MAX_ENTRIES,
@@ -42,7 +43,7 @@ export interface Config {
 
 /** Local-filesystem owner of the file-reference discovery service. */
 export class LocalFileReferenceService extends FileReferenceService {
-  static inject = ['agents']
+  static inject = ['agents', 'workingDirectory']
   static Config: z<Config> = z.object({
     maxResults: z.number().step(1).min(1).default(DEFAULT_FILE_SEARCH_MAX_RESULTS),
     maxEntries: z.number().step(1).min(1).default(DEFAULT_FILE_SEARCH_MAX_ENTRIES),
@@ -70,7 +71,7 @@ export class LocalFileReferenceService extends FileReferenceService {
         scope.systemPrompt.section({
           name: 'context:file-reference',
           order: scope.systemPrompt.getSectionOrder('FILE_REFERENCE'),
-          text: () => agent.ctx.tools.get('read', agent) === undefined ? '' : FILE_REFERENCE_PROMPT,
+          text: () => scope.tools.get('read', agent) === undefined ? '' : FILE_REFERENCE_PROMPT,
         })
       })
       this.promptFibers.set(agent, fiber)
@@ -117,9 +118,14 @@ export class LocalFileReferenceService extends FileReferenceService {
     query: string,
     signal: AbortSignal,
   ): Promise<FileReferenceCandidate[]> {
+    const cwd = this.ctx.workingDirectory.get(agent.session)
     let search = this.searches.get(agent)
+    if (search !== undefined && search.root !== cwd) {
+      search.dispose()
+      search = undefined
+    }
     if (search === undefined) {
-      search = new WorkspaceFileSearch(agent.session.header.cwd ?? process.cwd(), this.config)
+      search = new WorkspaceFileSearch(cwd, this.config)
       this.searches.set(agent, search)
     }
     return search.list(query, signal)

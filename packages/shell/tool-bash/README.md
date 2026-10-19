@@ -96,9 +96,10 @@ This section explains the design decisions behind the tool and points at the cod
 | [`src/background.ts`](src/background.ts) | Own asynchronous shell preparation, map process settlement onto job outcomes, and render a ring read as a process read |
 | [`src/render.ts`](src/render.ts) | Model-facing result text: streams, markers, truncation notices |
 
+<a id="request-resolution"></a>
 ### Request resolution
 
-The tool resolves the workdir before `ctx.shell.resolve()` runs: an explicit relative `workdir` is resolved against the session cwd, and a sandbox policy's canonical workspace root wins so confinement and launch use the same identity. Sandbox policy resolves per call through `ctx.sandboxPolicy`; an escalation request goes through `ctx.approval` before anything executes, and the tool fails at load if the executor confines but no policy service is mounted.
+The tool validates the effective Session directory through the [working-directory service](../../session/working-directory/README.md) before `ctx.shell.resolve()` runs; explicit relative `workdir` values resolve against it. The original header remains the sandbox authority, not the execution-directory default. Cancellation during directory validation returns `tool call aborted` without starting a process or detached job. Sandbox policy resolves per call through `ctx.sandboxPolicy`; an escalation request goes through `ctx.approval` before anything executes, and the tool fails at load if the executor confines but no policy service is mounted.
 
 ### Rendering story
 

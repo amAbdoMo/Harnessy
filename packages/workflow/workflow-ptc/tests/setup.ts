@@ -1,9 +1,15 @@
+import { randomUUID } from 'node:crypto'
 import { mkdtemp, mkdir, rm } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
-import type { Agent } from '@deepseek-ai/dsh-agent'
-import SessionStore from '@deepseek-ai/dsh-session'
+import AgentRegistry from '@deepseek-ai/dsh-agent'
+import LlmRuntime from '@deepseek-ai/dsh-llm'
+import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
+import ToolRuntime from '@deepseek-ai/dsh-tools'
+import WorkingDirectory from '@deepseek-ai/dsh-working-directory'
+import { mountAgentLoopTestHarness } from '@deepseek-ai/dsh-agent-loop-testkit'
+import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import SessionProjections from '@deepseek-ai/dsh-session-projection'
 import FileSystem from '@deepseek-ai/dsh-fs-local'
 import Subprocess from '@deepseek-ai/dsh-subprocess-local'
@@ -32,9 +38,7 @@ export async function mountWorkflowRuntime(
   ctx: Context,
   options: { cwd?: string; mode?: SandboxMode; runtimeConfig?: NodeRuntimeConfig } = {},
 ): Promise<NodePtcRuntime> {
-  if (!ctx.get('sessions')) await ctx.plugin(SessionStore)
-  if (!ctx.get('sessionProjections')) await ctx.plugin(SessionProjections)
-  if (!ctx.get('fs')) await ctx.plugin(FileSystem)
+  await mountWorkflowDirectoryFixture(ctx)
   if (!ctx.get('subprocess')) await ctx.plugin(Subprocess)
   if (!ctx.get('sandbox')) await ctx.plugin(Sandbox)
   if (!ctx.get('sandboxPolicy')) await ctx.plugin(SandboxPolicy, {
@@ -45,8 +49,20 @@ export async function mountWorkflowRuntime(
   return ctx.ptcRuntime as NodePtcRuntime
 }
 
-/** Give a stub subagent provider a parent with a real Session and immutable cwd. */
-export function fakeParent(ctx: Context): Agent {
-  const session = ctx.sessions.create(undefined, { meta: { cwd: ctx.sandboxPolicy.workspaceRoot } })
-  return { id: session.id, session, options: {} } as unknown as Agent
+/** Mount real directory and Agent services beside any prerequisites already owned by the test. */
+export async function mountWorkflowDirectoryFixture(ctx: Context): Promise<void> {
+  if (!ctx.get('llm')) await ctx.plugin(LlmRuntime)
+  if (!ctx.get('sessions')) await ctx.plugin(SessionStore)
+  if (!ctx.get('sessionProjections')) await ctx.plugin(SessionProjections)
+  if (!ctx.get('systemPrompt')) await ctx.plugin(SystemPrompt)
+  if (!ctx.get('tools')) await ctx.plugin(ToolRuntime)
+  if (!ctx.get('agents')) await ctx.plugin(AgentRegistry)
+  if (!ctx.get('fs')) await ctx.plugin(FileSystem)
+  if (!ctx.get('workingDirectory')) await ctx.plugin(WorkingDirectory, {})
+}
+
+/** Give a stub subagent provider a production Agent with an immutable project directory. */
+export async function realParent(ctx: Context) {
+  if (!ctx.get('agentLoop')) await mountAgentLoopTestHarness(ctx)
+  return ctx.agentLoop.create(SessionId(randomUUID()), {}, { cwd: ctx.sandboxPolicy.workspaceRoot })
 }
