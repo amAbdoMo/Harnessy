@@ -106,6 +106,19 @@ describe('terminalCardModel', () => {
     expect(terminalFailed(terminalCardModel(running())!)).toBe(false)
   })
 
+  it('preserves a missing or negative exit code instead of reporting success', () => {
+    const missing = terminalCardModel(settled({
+      content: [{ type: 'text', text: '(no output)\n[timed out after 100ms]\n[exit code: null]' }],
+    }))!
+    expect(missing.card).toMatchObject({ output: '(no output)\n[timed out after 100ms]', exitCode: null })
+    expect(terminalFailed(missing)).toBe(true)
+    const negative = terminalCardModel(settled({
+      content: [{ type: 'text', text: 'boom\n[exit code: -1]' }],
+    }))!
+    expect(negative.card).toMatchObject({ output: 'boom', exitCode: -1 })
+    expect(terminalFailed(negative)).toBe(true)
+  })
+
   it('keeps status text that has no terminal pill and requires a leading newline', () => {
     expect(terminalCardModel(settled({
       content: [{ type: 'text', text: 'timed out\n[timed out after 1000ms]\n[exit code: 2]' }],

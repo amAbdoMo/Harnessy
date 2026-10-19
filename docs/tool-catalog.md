@@ -46,7 +46,6 @@ This table connects model-visible tool names to the plugin package and service s
 | `@deepseek-ai/dsh-tool-workspace-dependencies` | `load_workspace_dependencies` | `ctx.tools` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`, `web_search` | `ctx.tools`, `ctx.web`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps. |
 | `@deepseek-ai/dsh-tool-working-directory` | `working_directory` | `ctx.tools`, `ctx.workingDirectory`, `a calling Agent` | `tool/call`, `working-directory/change on a transition`, `agent/inbox/spliced for queued notices`, `tool/result` | - | - |
-| `@deepseek-ai/dsh-experimental-tool-worktree` | `create_worktree` | `ctx.tools`, `ctx.worktrees`, `a calling Agent` | `tool/call`, `new retained local Git branch and checkout`, `working-directory/change after creation`, `tool/result` | - | Opt-in only. Creates from a local revision without fetching or moving original project authority; new artifacts are retained on failure. |
 
 <a id="deepseek-aidsh-plugin-manager"></a>
 
@@ -2741,31 +2740,3 @@ Read the current working directory, or change it with cd. Relative paths use the
 ```
 
 Source: [`packages/session/tool-working-directory/src/index.ts`](../packages/session/tool-working-directory/src/index.ts)
-
-<a id="deepseek-aidsh-experimental-tool-worktree"></a>
-
-## `@deepseek-ai/dsh-experimental-tool-worktree`
-
-### `create_worktree`
-
-Create a new Git branch and worktree from a local commit, branch, or tag, then change this session's working directory to it. Defaults to HEAD and a generated name. Uncommitted files stay in the source checkout. Existing names fail. Use working_directory with cd to leave; the checkout and branch remain.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "name": {
-      "type": "string",
-      "description": "New branch name, also used as the checkout directory. Omit to generate a unique name."
-    },
-    "from": {
-      "type": "string",
-      "description": "Local commit, branch, or tag to start from. Defaults to HEAD; no fetch is performed."
-    }
-  }
-}
-```
-
-Source: [`packages/experimental/tool-worktree/src/index.ts`](../packages/experimental/tool-worktree/src/index.ts)
-
-Opt-in only. Creates from a local revision without fetching or moving original project authority; new artifacts are retained on failure.

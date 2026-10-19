@@ -356,10 +356,6 @@
       "@deepseek-ai/dsh-native-command/types": ["./packages/util/native-command/src/types.ts"],
       "@deepseek-ai/dsh-working-directory": ["./packages/session/working-directory/src/index.ts"],
       "@deepseek-ai/dsh-tool-working-directory": ["./packages/session/tool-working-directory/src/index.ts"],
-      "@deepseek-ai/dsh-experimental-worktree": ["./packages/experimental/worktree/src/index.ts"],
-      "@deepseek-ai/dsh-experimental-worktree/src/*": ["./packages/experimental/worktree/src/*"],
-      "@deepseek-ai/dsh-experimental-tool-worktree": ["./packages/experimental/tool-worktree/src/index.ts"],
-      "@deepseek-ai/dsh-experimental-tool-worktree/src/*": ["./packages/experimental/tool-worktree/src/*"],
       // BEGIN generated package aliases — pnpm run gen-tsconfig-paths
       "@deepseek-ai/dsh-acp": ["./packages/acp/acp/src"],
       "@deepseek-ai/dsh-acp-app": ["./packages/bundle/acp-app/src"],

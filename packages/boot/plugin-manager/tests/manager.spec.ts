@@ -452,14 +452,18 @@ it.each([
   })
 })
 
-it('turns a plugin off and on without duplicating patch overrides', async () => {
+it('turns a plugin off and on without leaving a patch override the bundle already implies', async () => {
   const { manager, dir } = await fixture()
+  const original = readFileSync(join(dir, 'cordis.patch.yml'), 'utf8')
   const id = (await manager.listPlugins()).find(row => row.patchId === 'managed')!.entryId
   expect(await manager.setPluginEnabled(id, false)).toMatchObject({ changed: true, application: 'applied' })
   expect((await manager.listPlugins()).find(row => row.entryId === id)?.enabled).toBe(false)
   expect(await manager.setPluginEnabled(id, false)).toMatchObject({ changed: false, application: 'applied' })
-  expect(await manager.setPluginEnabled(id, true)).toMatchObject({ changed: true, application: 'applied' })
   expect(readFileSync(join(dir, 'cordis.patch.yml'), 'utf8').match(/id: managed/g)).toHaveLength(1)
+  expect(await manager.setPluginEnabled(id, true)).toMatchObject({ changed: true, application: 'applied' })
+  expect((await manager.listPlugins()).find(row => row.entryId === id)?.enabled).toBe(true)
+  expect(readFileSync(join(dir, 'cordis.patch.yml'), 'utf8')).toBe(original)
+  expect(await manager.setPluginEnabled(id, true)).toMatchObject({ changed: false, application: 'applied' })
 })
 
 it('retains installed dependencies when toggling a bundle and appends it when re-enabled', async () => {
@@ -475,9 +479,14 @@ it('retains installed dependencies when toggling a bundle and appends it when re
 })
 
 it('reports an overlay overriding a saved plugin toggle', async () => {
-  const { manager } = await fixture('live', true)
+  const { manager, dir } = await fixture('live', true)
   const id = (await manager.listPlugins()).find(row => row.patchId === 'managed')!.entryId
+  expect(await manager.setPluginEnabled(id, true)).toMatchObject({ changed: false, application: 'overridden' })
+  writeFileSync(join(dir, 'cordis.patch.yml'), '- id: managed\n  disabled: true\n')
   expect(await manager.setPluginEnabled(id, true)).toMatchObject({ changed: true, application: 'overridden' })
+  expect(readFileSync(join(dir, 'cordis.patch.yml'), 'utf8')).toBe('[]\n')
+  expect(await manager.setPluginEnabled(id, true)).toMatchObject({ changed: false, application: 'overridden' })
+  expect((await manager.listPlugins()).find(row => row.entryId === id)?.enabled).toBe(false)
 })
 
 it('saves startup-only toggles and refuses removal of currently used packages', async () => {

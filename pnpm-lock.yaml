@@ -12079,6 +12079,9 @@ importers:
       koffi:
         specifier: 3.1.1
         version: 3.1.1
+      p-limit:
+        specifier: 7.3.3
+        version: 7.3.3
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:~
@@ -15451,18 +15454,30 @@ importers:
       '@deepseek-ai/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
+      '@deepseek-ai/cordis-plugin-include':
+        specifier: workspace:~
+        version: link:../../../vendor/include
+      '@deepseek-ai/cordis-plugin-loader':
+        specifier: workspace:~
+        version: link:../../../vendor/loader
       '@deepseek-ai/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
       '@deepseek-ai/dsh-session-persistence':
         specifier: workspace:*
         version: link:../../session/session-persistence
+      '@deepseek-ai/dsh-session-persistence-jsonl':
+        specifier: workspace:*
+        version: link:../../session/session-persistence-jsonl
       '@deepseek-ai/dsh-storage':
         specifier: workspace:*
         version: link:../../storage/storage
       '@deepseek-ai/dsh-storage-domain':
         specifier: workspace:*
         version: link:../../storage/storage-domain
+      '@deepseek-ai/dsh-storage-json':
+        specifier: workspace:*
+        version: link:../../storage/storage-json
       '@deepseek-ai/dsh-typert-protocol':
         specifier: workspace:*
         version: link:../../typert/protocol
@@ -16135,122 +16150,18 @@ importers:
 
 
 
-  packages/experimental/worktree:
-    dependencies:
-      '@deepseek-ai/schemastery':
-        specifier: workspace:~
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/vendor/schemastery
-      '@deepseek-ai/dsh-timeout':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/util/timeout
-    devDependencies:
-      '@deepseek-ai/cordis':
-        specifier: workspace:~
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/vendor/cordis
-      '@deepseek-ai/dsh-agent':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/core/agent
-      '@deepseek-ai/dsh-agent-loop-testkit':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/test-support/agent-loop-testkit
-      '@deepseek-ai/dsh-agent-loop':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/core/agent-loop
-      '@deepseek-ai/dsh-fs':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/fs/fs
-      '@deepseek-ai/dsh-fs-local':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/fs/fs-local
-      '@deepseek-ai/dsh-sandbox':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/sandbox/sandbox
-      '@deepseek-ai/dsh-sandbox-local':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/sandbox/sandbox-local
-      '@deepseek-ai/dsh-sandbox-policy':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/sandbox/sandbox-policy
-      '@deepseek-ai/dsh-session':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/core/session
-      '@deepseek-ai/dsh-session-projection':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/session/session-projection
-      '@deepseek-ai/dsh-subprocess':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/subprocess/subprocess
-      '@deepseek-ai/dsh-subprocess-local':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/subprocess/subprocess-local
-      '@deepseek-ai/dsh-system-prompt':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/core/system-prompt
-      '@deepseek-ai/dsh-working-directory':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/session/working-directory
-  packages/experimental/tool-worktree:
-    dependencies:
-      '@deepseek-ai/dsh-experimental-worktree':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/experimental/worktree
-    devDependencies:
-      '@deepseek-ai/cordis':
-        specifier: workspace:~
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/vendor/cordis
-      '@deepseek-ai/cordis-plugin-include':
-        specifier: workspace:~
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/vendor/include
-      '@deepseek-ai/cordis-plugin-loader':
-        specifier: workspace:~
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/vendor/loader
-      '@deepseek-ai/dsh-agent':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/core/agent
-      '@deepseek-ai/dsh-agent-loop-testkit':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/test-support/agent-loop-testkit
-      '@deepseek-ai/dsh-fs-local':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/fs/fs-local
-      '@deepseek-ai/dsh-llm':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/llm/llm
-      '@deepseek-ai/dsh-sandbox':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/sandbox/sandbox
-      '@deepseek-ai/dsh-sandbox-local':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/sandbox/sandbox-local
-      '@deepseek-ai/dsh-sandbox-policy':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/sandbox/sandbox-policy
-      '@deepseek-ai/dsh-session':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/core/session
-      '@deepseek-ai/dsh-session-projection':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/session/session-projection
-      '@deepseek-ai/dsh-subprocess-local':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/subprocess/subprocess-local
-      '@deepseek-ai/dsh-system-prompt':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/core/system-prompt
-      '@deepseek-ai/dsh-tools':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/core/tools
-      '@deepseek-ai/dsh-working-directory':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/session/working-directory
-      '@deepseek-ai/dsh-experimental-worktree':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/experimental/worktree
-      '@deepseek-ai/dsh-agent-loop':
-        specifier: workspace:*
-        version: link:A:/GitHub/HarnessY-isolated-functional-check/packages/core/agent-loop
-
 packages:
+
+  p-limit@7.3.3:
+    resolution:
+      integrity: sha512-SKgVvDU5TNIxQ4r30U75BNLC6a+6GOEjngrk/ysM5+Zu3oJuk1SC5ApzIzY/7PjCEjoVPMWJ0zho/4QUiEB7TQ==
+    engines:
+      node: '>=20'
+  yocto-queue@1.2.2:
+    resolution:
+      integrity: sha512-4LCcse/U2MHZ63HAJVE+v71o7yOdIe4cZ70Wpf8D/IyjDKYQLV5GD46B+hSTjJsvV5PztjvHoU580EftxjDZFQ==
+    engines:
+      node: '>=12.20'
 
   '@agentclientprotocol/sdk@1.4.0':
     resolution: {integrity: sha512-/eufudw+aFY1LKLolT6yFE6UMmYRl7fMJ/DEONSIyR6wI3slHWITBsANRGqXEY8FRzqUxwh7QEaGiZHcJPVThg==}
@@ -24098,6 +24009,11 @@ packages:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
 snapshots:
+
+  p-limit@7.3.3:
+    dependencies:
+      yocto-queue: 1.2.2
+  yocto-queue@1.2.2: {}
 
   '@agentclientprotocol/sdk@1.4.0(zod@4.4.3)':
     dependencies:

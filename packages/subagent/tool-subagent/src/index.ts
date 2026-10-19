@@ -11,7 +11,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { scopeChainOf, scopeOf } from '@deepseek-ai/dsh-scope'
-import { defineTool } from '@deepseek-ai/dsh-tools'
+import { defineTool, type ToolDefinition } from '@deepseek-ai/dsh-tools'
 import type { Agent, AgentOptions } from '@deepseek-ai/dsh-agent'
 import { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
@@ -20,6 +20,7 @@ import { SessionSeq } from '@deepseek-ai/dsh-session'
 import type { Session } from '@deepseek-ai/dsh-session'
 import {
   assertSubagentMaxDepth,
+  delegationDepthOf,
   parentAgentOptionsForDelegation,
   settleRun,
 } from '@deepseek-ai/dsh-subagent'
@@ -362,7 +363,7 @@ export function apply(ctx: Context, config: Config, session?: Session): void {
     if (modelSelectionPolicy !== undefined) registerListSubagentModels(runtimeCtx, modelSelectionPolicy)
     // Load order and HMR replacement can change provider availability while
     // this fiber remains active.
-    let mounted: { subagentProvider: SubagentProvider; disposeTool: () => void } | undefined
+    let mounted: { subagentProvider: SubagentProvider; definition: ToolDefinition; disposeTool: () => void } | undefined
     const mount = (subagentProvider: SubagentProvider): void => {
       assertSubagentProviderConfiguration(subagentProvider)
       const wording = providerWording(subagentProvider.inheritsParentContext)
@@ -376,7 +377,7 @@ export function apply(ctx: Context, config: Config, session?: Session): void {
           + (subagentProvider.inheritsParentContext
             ? ' Changing the route can prevent provider-side reuse of the inherited conversation prefix.'
             : '')
-      const disposeTool = runtimeCtx.tools.register(defineTool({
+      const definition = defineTool({
         name: toolName,
         description: wording.description + (backgroundEnabled
           // The completion notice is the continuation service's own behavior, not
@@ -566,8 +567,9 @@ export function apply(ctx: Context, config: Config, session?: Session): void {
           })
           return settleForegroundRun(run)
         },
-      }))
-      mounted = { subagentProvider, disposeTool }
+      })
+      const disposeTool = runtimeCtx.tools.register(definition)
+      mounted = { subagentProvider, definition, disposeTool }
     }
 
     // Register listeners before checking presence so no synchronous change is missed.
@@ -603,6 +605,20 @@ export function apply(ctx: Context, config: Config, session?: Session): void {
           : `Start independent ${toolName} delegations together in one assistant message and continue useful work while they run.`,
       })
     }
+    runtimeCtx.systemPrompt.context({
+      name: `tool:${toolName}:depth`,
+      order: runtimeCtx.systemPrompt.getContextOrder('SUBAGENT_DELEGATION'),
+      text: (context) => {
+        if (context.agent === undefined || mounted === undefined
+          || runtimeCtx.tools.get(toolName, context.scope) !== mounted.definition) return ''
+        const maxDepth = runtimeCtx.subagents.resolveMaxDepth(config.maxDepth)
+        if (maxDepth === undefined) return ''
+        const depth = delegationDepthOf(context.agent)
+        if (depth < maxDepth) return ''
+        return `Delegation depth for \`${toolName}\`: current ${depth}, maximum ${maxDepth}, remaining levels 0.`
+          + ` Do not call \`${toolName}\` at this depth; carry out the work directly.`
+      },
+    })
   }
 
   if (config.modelSelectionSettings !== true) {

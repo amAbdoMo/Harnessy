@@ -842,6 +842,67 @@ describe('CodexAppServerWire', () => {
     wire.close()
   })
 
+  it.each([
+    {
+      name: 'final after partial',
+      frames: [
+        agentMessage('partial', 'partial_answer'),
+        agentMessage('commentary between answers', 'commentary'),
+        agentMessage('first final', 'final_answer'),
+        agentMessage('last final', 'final_answer'),
+        agentMessage('trailing commentary', 'commentary'),
+      ],
+      text: 'last final',
+    },
+    {
+      name: 'final before partial',
+      frames: [
+        agentMessage('final', 'final_answer'),
+        agentMessage('commentary before partial', 'commentary'),
+        agentMessage('partial after final', 'partial_answer'),
+        agentMessage('unphased after final', null),
+        agentMessage('trailing commentary', 'commentary'),
+      ],
+      text: 'final',
+    },
+    {
+      name: 'partial only with exact bytes',
+      frames: [agentMessage(' \r\n 部分答案 🧪\t\n ', 'partial_answer')],
+      text: ' \r\n 部分答案 🧪\t\n ',
+    },
+    {
+      name: 'latest partial over unphased and commentary',
+      frames: [
+        agentMessage('unphased', null),
+        agentMessage('commentary before partial', 'commentary'),
+        agentMessage('first partial', 'partial_answer'),
+        agentMessage('commentary between partials', 'commentary'),
+        agentMessage('last partial', 'partial_answer'),
+        agentMessage('unphased after partial', null),
+        agentMessage('trailing commentary', 'commentary'),
+      ],
+      text: 'last partial',
+    },
+  ])('selects $name by phase precedence, never commentary', async ({ frames, text }) => {
+    const { child, wire } = await initializeWire()
+    try {
+      const result = wire.runTurn(['task'], new AbortController().signal)
+      const turnStart = await child.peer.nextMethod('turn/start')
+      child.peer.send(
+        { id: turnStart.id, result: { turn: { id: 'turn-1' } } },
+        ...frames,
+        turnCompleted('completed'),
+      )
+      await expect(result).resolves.toEqual({
+        output: [{ type: 'text', text }],
+        stopReason: 'completed',
+      })
+      expect(wire.collectOutput()).toEqual([{ type: 'text', text }])
+    } finally {
+      wire.close()
+    }
+  })
+
   it('groups representative string errors without changing stop reasons', async () => {
     const scenarios = [
       ['contextWindowExceeded', 'limit', 'max-tokens'],
@@ -979,16 +1040,33 @@ describe('CodexAppServerWire', () => {
     }> = [
       {
         frames: [turnCompleted('completed')],
-        message: 'without a final answer',
+        message: 'without an answer',
         category: 'invalid-result',
       },
       {
         frames: [
           agentMessage('fallback', null),
+          agentMessage('partial fallback', 'partial_answer'),
           agentMessage(' \n ', 'final_answer'),
           turnCompleted('completed'),
         ],
-        message: 'without a final answer',
+        message: 'without an answer',
+        category: 'invalid-result',
+      },
+      ...['', ' \r\n\t '].map(text => ({
+        frames: [
+          agentMessage('fallback', null),
+          agentMessage('earlier partial', 'partial_answer'),
+          agentMessage(text, 'partial_answer'),
+          agentMessage('commentary after blank', 'commentary'),
+          turnCompleted('completed'),
+        ],
+        message: 'without an answer',
+        category: 'invalid-result' as const,
+      })),
+      {
+        frames: [agentMessage('commentary only', 'commentary'), turnCompleted('completed')],
+        message: 'without an answer',
         category: 'invalid-result',
       },
       {
@@ -1533,9 +1611,11 @@ describe('run lifecycle and quiescence', () => {
     expect(run.localAgent).toBeUndefined()
 
     const turnStart = await child.peer.nextMethod('turn/start')
+    child.peer.respond(turnStart, { turn: { id: 'turn-1' } })
+    await nextTask()
     child.peer.send(
-      { id: turnStart.id, result: { turn: { id: 'turn-1' } } },
-      agentMessage('answer', 'final_answer'),
+      agentMessage('answer', 'partial_answer'),
+      agentMessage('trailing commentary', 'commentary'),
       turnCompleted('completed'),
     )
     await expect(run.result).resolves.toEqual({

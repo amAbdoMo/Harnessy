@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.1.12/jsonl-plugin-lifecycle/guide.md
+/:
+  en: c42b9c2d51167d18
+  zh: b0e77bb7aef020f9
+/mount-jsonl-persistence-through-its-plugin:
+  en: baa7c4ef631a4ae2
+  zh: 132d1c9f6337dcfe
+/mount-jsonl-persistence-through-its-plugin/change:
+  en: c60c5c8153fd04af
+  zh: 28c544ddcb441f1a
+/mount-jsonl-persistence-through-its-plugin/migration:
+  en: 93d9f202c59303e9
+  zh: 4159753628ddfc16

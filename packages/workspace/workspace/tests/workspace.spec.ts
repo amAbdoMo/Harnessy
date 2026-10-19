@@ -1,6 +1,6 @@
 import type { z } from 'zod'
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
+import { mkdir, mkdtemp, realpath, rename, rm, symlink, unlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, join, relative } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
@@ -21,6 +21,7 @@ import WorkspaceRegistry, {
 } from '../src/index.ts'
 import type { WorkspaceDomainState, WorkspaceRecord } from '../src/index.ts'
 import { defaultWorkspaceTitle, fullyQualifiedWorkspacePath } from '../src/paths.ts'
+import * as workspacePaths from '../src/paths.ts'
 
 const DOMAIN_VERSION = 2
 
@@ -44,6 +45,7 @@ interface HarnessOptions {
 async function harness(options: HarnessOptions = {}) {
   const pool = options.pool ?? new MemoryMediaPool()
   const ctx = new Context()
+  onTestFinished(() => ctx.fiber.dispose())
   await ctx.plugin(Storage)
   ctx.storage.backend.register('memory', options.backend ?? new MemoryStorageBackend(pool))
   const facility = new DomainFacility(ctx, { backend: 'memory', routes: {} })
@@ -89,6 +91,7 @@ async function harness(options: HarnessOptions = {}) {
 /** Boot only the storage side, for dependency-pending and startup-failure cases. */
 async function storageContext(pool: MemoryMediaPool, backend: StorageBackend = new MemoryStorageBackend(pool)) {
   const ctx = new Context()
+  onTestFinished(() => ctx.fiber.dispose())
   await ctx.plugin(Storage)
   ctx.storage.backend.register('memory', backend)
   const facility = new DomainFacility(ctx, { backend: 'memory', routes: {} })
@@ -766,6 +769,175 @@ describe('Workspace session ordering', () => {
 })
 
 describe('header-validated membership projection', () => {
+  it.each(['rename', 'delete'])('retains membership, title and archive after directory %s and cold restart', async (operation) => {
+    const dir = await makeDir('unavailable-owned')
+    const sessions = [header('first', dir), header('second', dir)]
+    const initial = await harness()
+    initial.setSessions(sessions)
+    const workspace = await initial.registry.create(dir)
+    await workspace.attachSession(SessionId('first'))
+    await workspace.attachSession(SessionId('second'))
+    if (operation === 'rename') await rename(dir, join(base, 'moved-owned'))
+    else await rm(dir, { recursive: true })
+
+    // A fresh header listing observes the filesystem loss in the live registry.
+    initial.setSessions([...sessions, header('refresh', dir)])
+    await initial.registry.archiveSession(SessionId('refresh'))
+    expect(workspace.sessionIds).toEqual(['second', 'first'])
+    expect(await workspace.status()).toBe('missing-dir')
+    await workspace.setTitle('Still owned')
+    await workspace.insertSessionBefore(SessionId('first'), SessionId('second'))
+    await initial.registry.archiveSession(SessionId('first'))
+    expect(storedRecord(initial.pool, workspace.id).sessionIds).toEqual(['first', 'second'])
+    await initial.ctx.fiber.dispose()
+
+    const cold = await harness({ pool: initial.pool, sessions: [...sessions, header('unowned', dir)] })
+    const restored = cold.registry.get(workspace.id)!
+    expect(restored.path).toBe(dir)
+    expect(restored.title).toBe('Still owned')
+    expect(restored.sessionIds).toEqual(['first', 'second'])
+    expect(cold.registry.archivedSessionIds).toEqual(['refresh', 'first'])
+    await cold.registry.unarchiveSession(SessionId('first'))
+    await restored.setTitle('Restored chat')
+    await expect(restored.attachSession(SessionId('unowned'))).rejects.toThrow(/does not resolve/)
+    expect(storedRecord(initial.pool, workspace.id).sessionIds).toEqual(['first', 'second'])
+    expect(cold.open).not.toHaveBeenCalled()
+    expect(cold.stat).not.toHaveBeenCalled()
+
+    if (operation === 'rename') await rename(join(base, 'moved-owned'), dir)
+    else await mkdir(dir)
+    await restored.detachSession(SessionId('second'))
+    await restored.attachSession(SessionId('second'))
+    expect(restored.sessionIds).toEqual(['second', 'first'])
+    expect(await restored.status()).toBe('ok')
+    expect(sessions.map(session => session.cwd)).toEqual([dir, dir])
+  })
+
+  it('retains live-only accounted headers with missing directories without admitting unowned headers', async () => {
+    const dir = await makeDir('live-missing')
+    const id = WorkspaceId('live-missing')
+    const pool = storedPool([[id, record(dir, ['owned'])]], { initialized: true, workspaceIds: [id] })
+    await rm(dir, { recursive: true })
+    const result = await harness({ pool, liveSessions: [header('owned', dir), header('unowned', dir)] })
+    const workspace = result.registry.get(id)!
+    expect(workspace.sessionIds).toEqual(['owned'])
+    await workspace.setTitle('Live header retained')
+    await result.registry.archiveSession(SessionId('owned'))
+    await expect(workspace.attachSession(SessionId('unowned'))).rejects.toThrow(/does not resolve/)
+    expect(storedRecord(pool, id).sessionIds).toEqual(['owned'])
+  })
+
+  it('retains a dangling directory alias account but never expands its canonical root', async () => {
+    const target = await makeDir('alias-target')
+    const elsewhere = await makeDir('alias-elsewhere')
+    const alias = join(base, 'owned-alias')
+    await symlink(target, alias, process.platform === 'win32' ? 'junction' : 'dir')
+    try {
+      const sessions = [header('linked', alias)]
+      const initial = await harness()
+      initial.setSessions(sessions)
+      const workspace = await initial.registry.create(target)
+      await workspace.attachSession(SessionId('linked'))
+      await initial.ctx.fiber.dispose()
+      await rm(target, { recursive: true })
+
+      const cold = await harness({ pool: initial.pool, sessions })
+      const restored = cold.registry.get(workspace.id)!
+      expect(restored.sessionIds).toEqual(['linked'])
+      expect(restored.path).toBe(target)
+      await restored.setTitle('Alias unavailable')
+      const fresh = await harness({ sessions })
+      expect(fresh.registry.list()).toEqual([])
+
+      await unlink(alias)
+      await symlink(elsewhere, alias, process.platform === 'win32' ? 'junction' : 'dir')
+      cold.setSessions([...sessions, header('new-linked', alias), header('reindex-alias', elsewhere)])
+      await cold.registry.pinSession(SessionId('reindex-alias'))
+      expect(restored.sessionIds).toEqual([])
+      expect(restored.path).toBe(target)
+      await expect(restored.attachSession(SessionId('new-linked'))).rejects.toThrow(/resolves to/)
+      await restored.setTitle('Retargeted alias excluded')
+      expect(storedRecord(initial.pool, workspace.id).sessionIds).toEqual([])
+    } finally {
+      await unlink(alias)
+    }
+  })
+
+  it('retains ENOENT between canonicalization and directory stat', async () => {
+    const dir = await makeDir('stat-missing')
+    const id = WorkspaceId('stat-missing')
+    const pool = storedPool([[id, record(dir, ['kept'])]], { initialized: true, workspaceIds: [id] })
+    const normalize = workspacePaths.realpathNormalize
+    const spy = vi.spyOn(workspacePaths, 'realpathNormalize').mockImplementation(async (path) => {
+      const canonical = await normalize(path)
+      if (path === dir) await rm(dir, { recursive: true })
+      return canonical
+    })
+    onTestFinished(() => { spy.mockRestore() })
+    const result = await harness({ pool, sessions: [header('kept', dir)] })
+    expect(result.registry.get(id)!.sessionIds).toEqual(['kept'])
+  })
+
+  it.each(['EACCES', 'ELOOP', 'ENOTDIR'])('excludes an accounted path failing with %s', async (code) => {
+    const dir = await makeDir(`path-error-${code}`)
+    const id = WorkspaceId(`path-error-${code}`)
+    const pool = storedPool([[id, record(dir, ['invalid'])]], { initialized: true, workspaceIds: [id] })
+    const spy = vi.spyOn(workspacePaths, 'realpathNormalize').mockRejectedValue(Object.assign(new Error(code), { code }))
+    onTestFinished(() => { spy.mockRestore() })
+    const result = await harness({ pool, sessions: [header('invalid', dir)] })
+    const workspace = result.registry.get(id)!
+    expect(workspace.sessionIds).toEqual([])
+    await workspace.setTitle('Pruned')
+    expect(storedRecord(pool, id).sessionIds).toEqual([])
+  })
+
+  it('clears missing-path eligibility when reindexing resolves elsewhere or loses cwd', async () => {
+    const dir = await makeDir('reindexed-missing')
+    const elsewhere = await makeDir('reindexed-elsewhere')
+    const id = WorkspaceId('reindexed-workspace')
+    const pool = storedPool([[id, record(dir, ['kept'])]], { initialized: true, workspaceIds: [id] })
+    await rm(dir, { recursive: true })
+    const result = await harness({ pool, sessions: [header('kept', dir)] })
+    const workspace = result.registry.get(id)!
+    expect(workspace.sessionIds).toEqual(['kept'])
+    result.setSessions([header('kept', elsewhere), header('trigger-one', elsewhere)])
+    await result.registry.pinSession(SessionId('trigger-one'))
+    expect(workspace.sessionIds).toEqual([])
+    result.setSessions([header('kept', dir), header('trigger-two', elsewhere)])
+    await result.registry.pinSession(SessionId('trigger-two'))
+    expect(workspace.sessionIds).toEqual(['kept'])
+    result.setSessions([header('kept'), header('trigger-three', elsewhere)])
+    await result.registry.pinSession(SessionId('trigger-three'))
+    expect(workspace.sessionIds).toEqual([])
+    await workspace.setTitle('Pruned')
+    expect(storedRecord(pool, id).sessionIds).toEqual([])
+  })
+
+  it('filters invalid headers but retains only already-accounted missing absolute paths', async () => {
+    const dir = await makeDir('candidate-validation')
+    const elsewhere = await makeDir('candidate-elsewhere')
+    const missing = join(base, 'candidate-missing')
+    const file = join(base, 'candidate-file')
+    await writeFile(file, 'not a directory')
+    const id = WorkspaceId('candidate-validation')
+    const pool = storedPool(
+      [[id, record(dir, ['missing-dir', 'no-header', 'no-cwd', 'relative', 'file', 'elsewhere'])]],
+      { initialized: true, workspaceIds: [id] },
+    )
+    const result = await harness({
+      pool,
+      sessions: [
+        header('missing-dir', missing), header('no-cwd'), header('relative', 'relative-missing'),
+        header('file', file), header('elsewhere', elsewhere), header('unowned', missing),
+      ],
+    })
+    const workspace = result.registry.get(id)!
+    expect(workspace.sessionIds).toEqual(['missing-dir'])
+    await workspace.setTitle('Validated')
+    expect(storedRecord(pool, id).sessionIds).toEqual(['missing-dir'])
+    await expect(workspace.attachSession(SessionId('unowned'))).rejects.toThrow(/does not resolve/)
+  })
+
   it('requires both candidate id and matching canonical cwd without re-reading on list()', async () => {
     const owned = await makeDir('owned')
     const elsewhere = await makeDir('projection-elsewhere')
@@ -1351,12 +1523,17 @@ describe('first-use Workspace preparation', () => {
     const target = join(h.directoryRoot, 'elsewhere')
     await mkdir(target)
     await mkdir(join(h.directoryRoot, 'nested'))
-    await symlink(target, join(h.directoryRoot, 'nested', 'Workspace'))
-    const workspace = await h.registry.initializeDefault(h.resolveDirectory)
-    expect(workspace?.path).toBe(await realpath(target))
-    // Not 'elsewhere': the title names the directory the caller asked for, so
-    // the caller can still recognize a Workspace it has not renamed.
-    expect(workspace?.title).toBe('Workspace')
+    const alias = join(h.directoryRoot, 'nested', 'Workspace')
+    // This case needs a directory alias, not privileged file-symlink semantics.
+    await symlink(target, alias, process.platform === 'win32' ? 'junction' : 'dir')
+    try {
+      const workspace = await h.registry.initializeDefault(h.resolveDirectory)
+      expect(workspace?.path).toBe(await realpath(target))
+      // The title names the directory the caller asked for, not 'elsewhere'.
+      expect(workspace?.title).toBe('Workspace')
+    } finally {
+      await unlink(alias)
+    }
   })
 
   it.each(['persisted', 'live'] as const)('refuses registration when a %s Session appears during directory preparation', async (kind) => {

@@ -27,16 +27,6 @@
       "source": "packages/session/working-directory/src/index.ts"
     },
     {
-      "doc": "docs/subsystems/worktrees.md",
-      "symbol": "CreateWorktreeRequest",
-      "source": "packages/experimental/worktree/src/types.ts"
-    },
-    {
-      "doc": "docs/subsystems/worktrees.md",
-      "symbol": "CreatedWorktree",
-      "source": "packages/experimental/worktree/src/types.ts"
-    },
-    {
       "doc": "docs/subsystems/compaction.md",
       "symbol": "ImageOffloadTarget",
       "source": "packages/compaction/compaction-image-offload/src/projection.ts"

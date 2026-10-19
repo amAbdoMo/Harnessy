@@ -1366,7 +1366,7 @@ export function defineAcpSnapshotSuite(options: SnapshotSuiteOptions): void {
         // Record writes live model fixtures; keyless refresh writes every comparable replayed
         // fixture. Pinning JSONL keeps prefixes but moves prompts and schemas into sidecars.
         const portableFixture = scenario.workspaceParent === undefined
-          ? tokenizeSessionFixtureCwd
+          ? (log: string, original: string): string => tokenizeSessionFixtureCwd(log, fixtureContext(original))
           : (log: string): string => log
         const writesSessionFixtures = writesCurrentSessionFixtures(manifest, mode)
           && ((RECORDING && scenario.recorded && scenario.hasModelTurn) || (REFRESHING && comparesLog))
@@ -1394,8 +1394,8 @@ export function defineAcpSnapshotSuite(options: SnapshotSuiteOptions): void {
               existingFixtures[index] as string,
               refreshReplacements,
               ctx,
-            ))))
-            : result.sessionLogs.map(log => scrubSessionSnapshot(portableFixture(log.content)))
+            ), log.content)))
+            : result.sessionLogs.map(log => scrubSessionSnapshot(portableFixture(log.content, log.content)))
           const outputFixtures = redactSessionSnapshotIds(stabilizeFixtureMessageIds(
             reconcileCatalogCreationTimes(freshFixtures, 'preserve-headers'), existingFixtures,
           ))

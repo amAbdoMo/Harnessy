@@ -12,7 +12,7 @@ import Include from '@deepseek-ai/cordis-plugin-include'
 import LlmRuntime, {
   createAssistantMessage, createSystemMessage, createUserMessage, ReasoningEffortId, type StreamChunk,
 } from '@deepseek-ai/dsh-llm'
-import JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
+import * as JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import Commands from '@deepseek-ai/dsh-commands'
@@ -85,7 +85,7 @@ const credentialReleases: Array<() => void> = []
 
 function track<T>(stream: Promise<T>): Promise<T> {
   streams.push(stream)
-  void stream.catch((_error) => {}) // Teardown joins failed streams even when an earlier assertion stops the scenario.
+  void stream.catch((_error: unknown) => {}) // Teardown joins failed streams even when an earlier assertion stops the scenario.
   return stream
 }
 
@@ -309,7 +309,7 @@ async function codexRequest(input: Parameters<typeof fetch>[0], init: Parameters
   if (request.url !== 'https://chatgpt.com/backend-api/codex/responses') throw new Error(`unexpected HTTP request: ${request.url}`)
   const payload = Buffer.from(await request.arrayBuffer())
   const decoded = request.headers.get('content-encoding') === 'zstd' ? zstdDecompressSync(payload) : payload
-  return JSON.parse(decoded.toString())
+  return JSON.parse(decoded.toString()) as CodexWireRequest
 }
 
 describe('Codex current-chat priority in real Loader composition', () => {
@@ -318,8 +318,8 @@ describe('Codex current-chat priority in real Loader composition', () => {
     class CompletingSocket extends CodexSocket {
       override send(body: string): void {
         super.send(body)
-        requests.push(JSON.parse(body))
-        queueMicrotask(() => this.complete('reply'))
+        requests.push(JSON.parse(body) as CodexWireRequest)
+        queueMicrotask(() => { this.complete('reply') })
       }
     }
     vi.stubGlobal('WebSocket', CompletingSocket)
@@ -515,7 +515,7 @@ describe('Codex current-chat priority in real Loader composition', () => {
       }
       const request = new Request(input, init)
       if (request.url !== 'https://fixture.invalid/chat/completions') throw new Error(`unexpected HTTP request: ${request.url}`)
-      requests.push(await request.json())
+      requests.push(await request.json() as Record<string, unknown>)
       return new Response(textEvents.map(event => `data: ${event}\n\n`).join(''), { headers: { 'content-type': 'text/event-stream' } })
     }))
     const provider = codex ? 'openai-codex' : 'deepseek'

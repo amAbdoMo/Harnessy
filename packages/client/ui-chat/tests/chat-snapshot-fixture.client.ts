@@ -8,6 +8,7 @@ import type {
   ConversationLocationDataSource, ConversationLocationDataStore, ConversationTurnDataMap, TurnLocation,
 } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { SessionSeq } from '@deepseek-ai/dsh-session/types'
+import type { TurnEndReason } from '@deepseek-ai/dsh-session/types'
 import type { TurnTokenUsage } from '../src/client/contract/chat-nodes.ts'
 import {
   sameTurnNavigationItem, turnNavigationItem,
@@ -282,6 +283,8 @@ export function chatSnapshotFixture(input: {
   readonly turnEnds?: LegacyConversationSlice['turnEnds']
   /** Per-turn usage buckets; production derives these from session events. */
   readonly turnUsages?: ReadonlyMap<number, TurnTokenUsage> | undefined
+  /** End reasons by turn; absent turns end `completed`. */
+  readonly turnEndReasons?: ReadonlyMap<number, TurnEndReason>
 } = {}, previous?: ChatSnapshot): ChatSnapshot {
   const legacy: LegacyConversationSlice = {
     nodes: input.nodes ?? EMPTY,
@@ -311,7 +314,7 @@ export function chatSnapshotFixture(input: {
       },
       end: endSeq === undefined ? undefined : {
         type: 'turn/end', seq: SessionSeq(endSeq), time: timing?.endTime ?? endSeq * 1000,
-        data: { turn, reason: { kind: 'completed' } },
+        data: { turn, reason: input.turnEndReasons?.get(turn) ?? { kind: 'completed' } },
       },
       status: endSeq === undefined ? 'open' : 'closed',
       steps: EMPTY,

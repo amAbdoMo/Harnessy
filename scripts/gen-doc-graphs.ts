@@ -810,14 +810,6 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Owns the implicit-root roster, durable peer mailbox, shared task DAG, and continuable-child lifecycle; tool-agent-team contributes model controls.',
   },
   {
-    key: 'worktrees',
-    pkg: 'experimental-worktree',
-    title: 'Retained Git checkouts',
-    mode: 'seam',
-    consumers: ['experimental-tool-worktree'],
-    note: 'Creates retained local Git worktrees under the Session file policy and pins the allocated checkout identity before its files are written.',
-  },
-  {
     key: 'claudeCodeMods',
     pkg: 'experimental-claude-code-mods',
     title: 'Claude Code mods bridge',

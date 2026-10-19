@@ -513,6 +513,17 @@ describe('prompt and cancel errors', () => {
     expect(session.getSnapshot().subagent).toEqual({ address: CHILD, parentAvailable: true })
   })
 
+  it('sends the echo identity to an addressed child so the recorded message retires it', async ({ mock, start }) => {
+    const session = await sessionBench(mock, start, SID, { address: CHILD, parentAvailable: true })
+    await session.open()
+    const handle = session.beginSubmission({ mode: 'queue', text: '继续', attachments: [] })
+    const prompted = await session.prompt([{ type: 'text', text: '继续' }], 'queue', undefined, handle.requestId)
+
+    expect(prompted).toEqual({ ok: true, value: { accepted: true } })
+    // The child's durable message carries this identity, so the local echo retires instead of lingering.
+    expect(mock.log.requests('subagents/prompt')).toMatchObject([{ requestId: handle.requestId, ...CHILD }])
+  })
+
   it('forwards continuation image parts to the subagent prompt Remote unstripped', async ({ mock, start }) => {
     const session = await sessionBench(mock, start, SID, { address: CHILD, parentAvailable: true })
     await session.open()

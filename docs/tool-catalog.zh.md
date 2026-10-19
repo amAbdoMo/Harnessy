@@ -50,7 +50,6 @@
 | `@deepseek-ai/dsh-tool-workspace-dependencies` | `load_workspace_dependencies` | `ctx.tools` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`、`web_search` | `ctx.tools`、`ctx.web`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可见 schema 在更换后端时保持稳定。 |
 | `@deepseek-ai/dsh-tool-working-directory` | `working_directory` | `ctx.tools`、`ctx.workingDirectory`、调用方 Agent | `tool/call`、变更时的 `working-directory/change`、通知排队时的 `agent/inbox/spliced`、`tool/result` | - | - |
-| `@deepseek-ai/dsh-experimental-tool-worktree` | `create_worktree` | `ctx.tools`、`ctx.worktrees`、调用方 Agent | `tool/call`、新建的保留本地 Git 分支与检出目录、创建后的 `working-directory/change`、`tool/result` | - | 仅限显式启用。从本地修订创建，不执行 fetch，也不移动原始项目权限；失败时保留新建的产物。 |
 
 <a id="deepseek-aidsh-plugin-manager"></a>
 
@@ -2749,31 +2748,3 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 ```
 
 来源：[`packages/session/tool-working-directory/src/index.ts`](../packages/session/tool-working-directory/src/index.ts)
-
-<a id="deepseek-aidsh-experimental-tool-worktree"></a>
-
-## `@deepseek-ai/dsh-experimental-tool-worktree`
-
-### `create_worktree`
-
-从本地提交、分支或标签创建新的 Git 分支与工作树，然后把本会话的工作目录切换到它。默认使用 HEAD 和自动生成的名称。未提交的文件留在源检出目录中。名称已存在时失败。使用 working_directory 配合 cd 离开；该检出目录与分支会被保留。
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "name": {
-      "type": "string",
-      "description": "New branch name, also used as the checkout directory. Omit to generate a unique name."
-    },
-    "from": {
-      "type": "string",
-      "description": "Local commit, branch, or tag to start from. Defaults to HEAD; no fetch is performed."
-    }
-  }
-}
-```
-
-来源：[`packages/experimental/tool-worktree/src/index.ts`](../packages/experimental/tool-worktree/src/index.ts)
-
-仅限显式启用。从本地修订创建，不执行 fetch，也不移动原始项目权限；失败时保留新建的产物。

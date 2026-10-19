@@ -32,8 +32,6 @@ Experimental prototypes may change their contracts and carry no support promise.
 | [`agent-team-profile`](agent-team-profile/README.md) | Agent Teams collaboration, tools, and Web UI bundle | — |
 | [`agent-team`](agent-team/README.md) | Named teammates with durable messages and a shared task board | `ctx.agentTeams` |
 | [`client-ui-agent-team`](client-ui-agent-team/README.md) | Team roster, task board, and teammate navigation for Web | — |
-| [`worktree`](worktree/README.md) | Retained Git checkouts under the existing Session file policy | `ctx.worktrees` |
-| [`tool-worktree`](tool-worktree/README.md) | Explicit opt-in creation and directory selection | registers on `ctx.tools` |
 | [`auto-review`](auto-review/README.md) | Explicit Web layer for same-model review before each native or PTC inner tool call | — |
 | [`claude-code-mods`](claude-code-mods/README.md) | Run Claude Code mods as plugins: their hook chains on harness extension points and a band above the prompt | `ctx.claudeCodeMods` |
 | [`client-ui-claude-code-mods`](client-ui-claude-code-mods/README.md) | The Web band that draws a mod's tree above the prompt and sends button clicks back | — |
@@ -60,7 +58,6 @@ Experimental prototypes may change their contracts and carry no support promise.
 - [Computer use](../../docs/subsystems/computer-use.md) — desktop provider choices.
 - [Browser use](../../docs/subsystems/browser-use.md) — browser provider choices and Session ownership.
 - [Agent Teams subsystem](../../docs/subsystems/agent-team.md) — durable Team types and the `ctx.agentTeams` service API.
-- [Worktree subsystem](../../docs/subsystems/worktrees.md) — retained-checkout requests, results and service API.
 - [Experimental subtree rules](AGENTS.md) — what experimental status does and does not relax.
 
 -----

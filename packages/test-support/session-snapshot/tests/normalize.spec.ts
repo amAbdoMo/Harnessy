@@ -26,6 +26,51 @@ const ctx: NormalizeContext = {
   cwd: '/tmp/acp-snap-cwd-abc123',
 }
 
+it.each([String.raw`C:\snapshot\run`, '/tmp/snapshot"run'])(
+  'normalizes the known JSON-quoted runtime directory without hiding a different path (%s)', (cwd) => {
+    const text = `Current working directory: ${JSON.stringify(cwd)}.`
+    const other = `Current working directory: ${JSON.stringify(`${cwd}-other`)}.`
+    const message = (directory: string) => ({
+      type: 'user/message',
+      data: {
+        content: [{ type: 'text', text: directory }],
+        source: {
+          kind: 'runtime-context',
+          form: 'snapshot',
+          sections: [{ name: 'working-directory:current', text: directory }],
+        },
+        unrelated: other,
+      },
+    })
+    const header = { type: 'session', version: 0, createdAt: 0, cwd }
+    const raw = [header, message(text)].map(record => JSON.stringify(record)).join('\n') + '\n'
+    const expected = [
+      { ...header, cwd: '{{cwd}}' },
+      message('Current working directory: "{{cwd}}".'),
+    ].map(record => JSON.stringify(record)).join('\n') + '\n'
+    expect(normalizeSessionLog(raw, { sessionIds: [], cwd })).toBe(expected)
+    expect(tokenizeSessionFixtureCwd(raw)).toBe(expected)
+    const stabilized = [{ ...header, cwd: '{{cwd}}' }, message(text)]
+      .map(record => JSON.stringify(record)).join('\n') + '\n'
+    expect(tokenizeSessionFixtureCwd(stabilized, { sessionIds: [], cwd })).toBe(expected)
+  },
+)
+
+it.each(['canonical', 'native'] as const)('retains the selected separator policy inside JSON-quoted runtime subdirectories (%s)', (cwdPathMode) => {
+  const cwd = String.raw`C:\snapshot\run`
+  const text = `Current working directory: ${JSON.stringify(`${cwd}\\child`)}.`
+  const expectedPath = cwdPathMode === 'canonical' ? '{{cwd}}/child' : String.raw`{{cwd}}\child`
+  const frame = (value: string) => JSON.stringify({ text: value }) + '\n'
+  expect(normalizeStdout(frame(text), { sessionIds: [], cwd }, { cwdPathMode }))
+    .toBe(frame(`Current working directory: ${JSON.stringify(expectedPath)}.`))
+})
+
+it('keeps malformed JSON-quoted runtime directory text visible', () => {
+  const text = String.raw`Current working directory: "C:\\snapshot\\run\q".`
+  const raw = JSON.stringify({ text }) + '\n'
+  expect(normalizeStdout(raw, { sessionIds: [], cwd: String.raw`C:\snapshot\run` })).toBe(raw)
+})
+
 describe('normalizeStdout', () => {
   it('rewrites JSON-RPC ids to a stable first-seen sequence', () => {
     const raw = [

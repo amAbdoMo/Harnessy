@@ -166,6 +166,25 @@ function replaceCwd(value: string, ctx: NormalizeContext, replacement: string): 
   return out
 }
 
+/** Tokenize only the known cwd inside the runtime directory's JSON-quoted diagnostic line. */
+function scrubRuntimeDirectory(value: string, ctx: NormalizeContext, cwdPathMode: CwdPathMode): string {
+  return value.replace(
+    /((?:^|\n)Current working directory: )("(?:[^"\\]|\\.)*")\.(?=$|\n)/g,
+    (match, prefix: string, literal: string) => {
+      let directory: string
+      try { directory = JSON.parse(literal) as string } catch (error) {
+        // Malformed diagnostic text stays observable instead of being normalized away.
+        void error
+        return match
+      }
+      let normalized = replaceCwd(directory, ctx, CWD)
+      if (normalized === directory) return match
+      if (cwdPathMode === 'canonical' && normalized.startsWith(CWD)) normalized = normalized.replaceAll('\\', '/')
+      return `${prefix}${JSON.stringify(normalized)}.`
+    },
+  )
+}
+
 /** Replace cwd, session ids, and any stray UUID with stable tokens in a string. */
 function scrubString(
   value: string,
@@ -173,7 +192,7 @@ function scrubString(
   cwdPathMode: CwdPathMode,
   identityMode: 'legacy' | 'preserve',
 ): string {
-  let out = replaceCwd(value, ctx, CWD)
+  let out = replaceCwd(scrubRuntimeDirectory(value, ctx, cwdPathMode), ctx, CWD)
   // Filesystem APIs can report one directory with several spellings. Replace
   // every known spelling longest-first so a shorter alias cannot corrupt a
   // longer one before it is tokenized. macOS additionally symlinks
@@ -240,7 +259,7 @@ function escapeRegExp(value: string): string {
 
 /** Replace any absolute spelling whose final segment is the generated cwd basename. */
 function tokenizeFixtureString(value: string, ctx: NormalizeContext, basename: string): string {
-  const exact = replaceCwd(value, ctx, CWD)
+  const exact = replaceCwd(scrubRuntimeDirectory(value, ctx, 'canonical'), ctx, CWD)
   const absoluteCwd = new RegExp(
     String.raw`(?:[A-Za-z]:)?[\\/](?:[^\\/\s<>"]+[\\/])*${escapeRegExp(basename)}`
     + String.raw`(?=$|[\\/\s<>'"()\[\]{},;:!?=])`,
@@ -273,19 +292,20 @@ function tokenizeFixtureValue(
  * path.
  *
  * @param rawLog The raw or refresh-stabilized session JSONL fixture.
+ * @param context Actual run paths when refresh has already tokenized the header cwd.
  * @returns Compact JSONL whose known cwd spellings become `{{cwd}}`.
  * @throws If a non-empty line is invalid JSON or the session cwd has no basename.
  */
-export function tokenizeSessionFixtureCwd(rawLog: string): string {
+export function tokenizeSessionFixtureCwd(rawLog: string, context?: NormalizeContext): string {
   const lines = rawLog.split('\n')
   const firstLine = lines.find(line => line.trim().length > 0)
   const header = firstLine === undefined ? undefined : JSON.parse(firstLine) as { cwd?: unknown }
-  const cwd = typeof header?.cwd === 'string' ? header.cwd : ''
+  const cwd = context?.cwd ?? (typeof header?.cwd === 'string' ? header.cwd : '')
   const basename = cwd.split(/[\\/]/).at(-1)
   if (basename === undefined || basename.length === 0) {
     throw new Error('acp-snapshot: cannot tokenize a cwd without a basename')
   }
-  const ctx: NormalizeContext = { sessionIds: [], cwd }
+  const ctx: NormalizeContext = { ...context, sessionIds: [], cwd }
   return lines.map((line) => {
     if (line.trim().length === 0) return line
     return JSON.stringify(tokenizeFixtureValue(JSON.parse(line), ctx, basename))

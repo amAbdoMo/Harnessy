@@ -265,11 +265,13 @@ function terminalSendCall(name: string, args: Record<string, unknown>): Terminal
  * @param text - rendered shell result text.
  * @returns output with a trailing exit-code or signal marker extracted.
  */
-function parseExitStatus(text: string): { output: string; exitCode?: number; signal?: string } {
+function parseExitStatus(text: string): { output: string; exitCode?: number | null; signal?: string } {
   const signal = /\n\[killed by signal: ([^\]\n]+)\]$/.exec(text)
   if (signal?.[1] !== undefined) return { output: text.slice(0, signal.index), signal: signal[1] }
-  const exit = /\n\[exit code: (\d+)\]$/.exec(text)
-  if (exit?.[1] !== undefined) return { output: text.slice(0, exit.index), exitCode: Number(exit[1]) }
+  const exit = /\n\[exit code: (-?\d+|null)\]$/.exec(text)
+  if (exit?.[1] !== undefined) {
+    return { output: text.slice(0, exit.index), exitCode: exit[1] === 'null' ? null : Number(exit[1]) }
+  }
   return { output: text, exitCode: 0 }
 }
 

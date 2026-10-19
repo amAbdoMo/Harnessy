@@ -1,0 +1,9 @@
+# A numeric cap keeps the tool visible while the real spawn provider rejects it.
+- insert:
+    - id: tool-subagent-depth
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: bounded_subagent
+        maxDepth: 0
+        enableRunInBackground: false
