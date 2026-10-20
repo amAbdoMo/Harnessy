@@ -48,6 +48,18 @@ pnpm run release:win:x64:approve -- --version "$version"
 - The workflow performs the whole-family version bump, focused updater qualification, exact-commit tagging, production unsigned packaging, local artifact/feed checks, tag push, draft creation and byte verification, then ancestry-checked local `master` fast-forward and lease-protected remote promotion. Do not manually bump only a few manifests or move master before draft verification.
 - Preparation finishes with a verified **draft**, not a published update. Read the real result and completion record before advancing. Deliver completed source commits to `origin/staging` under the [staging delivery rule](HARNESSY-STAGING-DELIVERY.md).
 
+### GitHub-hosted package builds
+
+When the user approves a cloud build instead of installing a local Windows compiler, use the existing [Harnessy Windows workflow](.github/workflows/custom-harness-windows.yml) with its `release_version` input. This route moves compilation and native qualification to GitHub's Windows runner; it does not waive the toolchain check or publish automatically. Keep the same exact human version approval and use `pnpm run release:dsh "$version"` for the complete family bump. Commit and deliver the approved source to staging before dispatch:
+
+```sh
+gh workflow run custom-harness-windows.yml --repo amAbdoMo/Harnessy --ref staging --field release_version="$version"
+```
+
+The read-only release-package job requires the official staging ref, matching stable root/Desktop versions, and the exact dispatched commit. It runs the product checks, updater qualification, production unsigned packaging and existing release-input byte checks. Its artifact contains only the installer, blockmap, feed, completion record and a readback of the actual packaged updater settings; it cannot push tags or refs, create drafts, or publish releases.
+
+Before using the downloaded package, verify the successful workflow run's repository, workflow, event, ref and source SHA, then verify the completion record and every artifact hash against that same commit and approved version. Download into the existing isolated Desktop target artifact directory, not the installed app. Create or accept only an exact local release tag and run `release:github:win:x64:check`. Only then push that tag, run the existing draft and verify commands, and fast-forward the clean linked master to the qualified commit with the existing ancestry check and explicit remote lease. Restore scoped owner work and continue with the normal publication command below. A failed cloud build or mismatched artifact, tag, draft or ref stops publication; never relabel an older package or replace a published identity.
+
 ## Publication and verification
 
 For the direct in-app release request, proceed to publication after preparation succeeds; do not stop at the draft or ask again whether the user wants it published.

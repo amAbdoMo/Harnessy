@@ -5,10 +5,16 @@ on:
     branches: [master]
   pull_request:
   workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Approved stable in-app release version; empty builds only the local installer'
+        type: string
+        required: false
+        default: ''
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ inputs.release_version != '' && 'release-build' || github.ref }}
+  cancel-in-progress: ${{ inputs.release_version == '' }}
 
 permissions:
   contents: read
@@ -62,7 +68,7 @@ jobs:
 
   unsigned-installer:
     name: unsigned installer / Windows x64
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[build-installer]'))
+    if: (github.event_name == 'workflow_dispatch' && inputs.release_version == '') || (github.event_name == 'push' && contains(github.event.head_commit.message, '[build-installer]'))
     needs: desktop-checks
     runs-on: windows-latest
     timeout-minutes: 120
@@ -152,3 +158,105 @@ jobs:
           path: apps/desktop/.desktop-build/targets/win-x64/unsigned-artifacts/**
           if-no-files-found: error
           compression-level: 0
+
+  release-package:
+    name: qualified in-app update / Windows x64
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'amAbdoMo/Harnessy' && github.ref == 'refs/heads/staging' && inputs.release_version != ''
+    needs: desktop-checks
+    runs-on: windows-latest
+    timeout-minutes: 120
+    env:
+      RELEASE_VERSION: ${{ inputs.release_version }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate the approved release identity
+        shell: pwsh
+        run: |
+          $version = $env:RELEASE_VERSION
+          if ($version -cnotmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') { throw 'A stable release version is required.' }
+          foreach ($path in @('package.json', 'apps/desktop/package.json')) {
+            $manifest = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
+            if ($manifest.version -cne $version) { throw "Manifest version differs from the approved version: $path" }
+          }
+          $head = git rev-parse HEAD
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($head -cne $env:GITHUB_SHA) { throw 'The checkout differs from the dispatched commit.' }
+          $tag = "v$version"
+          $existing = git tag --list $tag
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($existing) {
+            $tagCommit = git rev-parse "$tag^{commit}"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            if ($tagCommit -cne $head) { throw 'The release tag identifies different source.' }
+          } else {
+            git tag $tag $head
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        shell: pwsh
+        run: pnpm install --frozen-lockfile
+
+      - name: Configure the production Harnessy update
+        shell: pwsh
+        run: |
+          @(
+            'DSH_DESKTOP_APP_ID=com.amabdmo.customharness'
+            'DSH_DESKTOP_AUTO_UPDATE_ENV=production'
+            'DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN=https://github.com'
+          ) | Set-Content -LiteralPath apps/desktop/.env.windows -Encoding utf8
+
+      - name: Qualify the updater
+        shell: pwsh
+        run: pnpm run release:win:x64:qualify
+
+      - name: Build the production update
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force apps/desktop/.desktop-build | Out-Null
+          pnpm --dir apps/desktop run package:win:x64:release-unsigned *>&1 | Tee-Object -FilePath apps/desktop/.desktop-build/release-ci.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify the completed update package
+        shell: pwsh
+        run: |
+          pnpm --dir apps/desktop run release:github:win:x64:check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $artifacts = 'apps/desktop/.desktop-build/targets/win-x64/artifacts'
+          Copy-Item -LiteralPath "$artifacts/win-unpacked/resources/app-update.yml" -Destination "$artifacts/packaged-app-update.yml"
+
+      - name: Upload the qualified update package
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Harnessy-windows-x64-release-${{ inputs.release_version }}-${{ github.sha }}
+          path: |
+            apps/desktop/.desktop-build/targets/win-x64/artifacts/Harnessy-Setup-${{ inputs.release_version }}-win-x64.exe
+            apps/desktop/.desktop-build/targets/win-x64/artifacts/Harnessy-Setup-${{ inputs.release_version }}-win-x64.exe.blockmap
+            apps/desktop/.desktop-build/targets/win-x64/artifacts/latest.yml
+            apps/desktop/.desktop-build/targets/win-x64/artifacts/win-x64-release.json
+            apps/desktop/.desktop-build/targets/win-x64/artifacts/packaged-app-update.yml
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Upload release build diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Harnessy-windows-x64-release-diagnostics-${{ github.sha }}
+          path: |
+            apps/desktop/.desktop-build/release-ci.log
+            apps/desktop/.desktop-build/packaging-runs/**
+          if-no-files-found: warn

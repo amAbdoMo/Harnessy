@@ -9,6 +9,23 @@ function evaluateRunsOn(selector: unknown, context: Record<string, unknown>): un
   return runInNewContext(selector.trim().slice(3, -2), context, { timeout: 1000 })
 }
 
+/** String predicate used by the local-installer condition, case-insensitive in Actions. */
+const expressionFunctions = {
+  contains: (search: string, item: string): boolean => search.toLowerCase().includes(item.toLowerCase()),
+}
+
+/** Evaluate one GitHub expression against a context that mirrors a real event. */
+function evaluateExpression(expression: string, context: Record<string, unknown>): unknown {
+  const trimmed = expression.trim()
+  const body = trimmed.startsWith('${{') && trimmed.endsWith('}}') ? trimmed.slice(3, -2).trim() : trimmed
+  return runInNewContext(body, { ...expressionFunctions, ...context }, { timeout: 1000 })
+}
+
+/** Split a job condition into its normalized `&&` clauses. */
+function conditionClauses(expression: string): string[] {
+  return expression.split('&&').map(clause => clause.trim().replace(/"/gu, "'").replace(/\s+/gu, ' '))
+}
+
 const root = resolve(import.meta.dirname, '..')
 /**
  * The condition every inherited master-push job carries in this fork.
@@ -68,6 +85,319 @@ describe('Custom Harness Windows workflow', () => {
       'apps/desktop/.desktop-build/packaging-runs/**',
       '',
     ].join('\n'))
+  })
+})
+
+/**
+ * The cloud-only production release job packages the approved update on the
+ * hosted Windows runner, so its policy is pinned here: the job accepts an
+ * approved manual staging release only, receives no token, and publishes the
+ * qualified artifact set without the unpacked application tree.
+ */
+describe('Harnessy production release job', () => {
+  it('takes an optional release version and keeps release builds out of the cancellable group', () => {
+    const workflow = loadWorkflow('.github/workflows/custom-harness-windows.yml')
+    const dispatch = workflowEvent(workflow, 'workflow_dispatch')
+
+    expect(dispatch.inputs).toMatchObject({
+      release_version: { type: 'string', default: '' },
+    })
+    // The whole workflow stays read-only: the release job packages and uploads
+    // artifacts, it never writes to the repository.
+    expect(workflow.permissions).toEqual({ contents: 'read' })
+    expect(workflow.concurrency).toMatchObject({
+      group: "${{ github.workflow }}-${{ inputs.release_version != '' && 'release-build' || github.ref }}",
+      'cancel-in-progress': "${{ inputs.release_version == '' }}",
+    })
+  })
+
+  it('guards the release package job with the exact approved release condition', () => {
+    const release = workflowJob(loadWorkflow('.github/workflows/custom-harness-windows.yml'), 'release-package')
+    if (typeof release.if !== 'string') throw new TypeError('The release package job must define a string condition')
+
+    expect(new Set(conditionClauses(release.if))).toEqual(new Set([
+      "github.event_name == 'workflow_dispatch'",
+      "github.repository == 'amAbdoMo/Harnessy'",
+      "github.ref == 'refs/heads/staging'",
+      "inputs.release_version != ''",
+    ]))
+  })
+
+  it.each([
+    {
+      label: 'an approved manual staging release',
+      event: 'workflow_dispatch',
+      repository: 'amAbdoMo/Harnessy',
+      ref: 'refs/heads/staging',
+      releaseVersion: '1.2.3',
+      expected: true,
+    },
+    {
+      label: 'a pull request',
+      event: 'pull_request',
+      repository: 'amAbdoMo/Harnessy',
+      ref: 'refs/pull/42/merge',
+      releaseVersion: '1.2.3',
+      expected: false,
+    },
+    {
+      label: 'a push to master',
+      event: 'push',
+      repository: 'amAbdoMo/Harnessy',
+      ref: 'refs/heads/master',
+      releaseVersion: '1.2.3',
+      expected: false,
+    },
+    {
+      label: 'a manual run on master',
+      event: 'workflow_dispatch',
+      repository: 'amAbdoMo/Harnessy',
+      ref: 'refs/heads/master',
+      releaseVersion: '1.2.3',
+      expected: false,
+    },
+    {
+      label: 'a fork repository',
+      event: 'workflow_dispatch',
+      repository: 'someone-else/Harnessy',
+      ref: 'refs/heads/staging',
+      releaseVersion: '1.2.3',
+      expected: false,
+    },
+    {
+      label: 'an empty release version',
+      event: 'workflow_dispatch',
+      repository: 'amAbdoMo/Harnessy',
+      ref: 'refs/heads/staging',
+      releaseVersion: '',
+      expected: false,
+    },
+  ])('selects the release package job for $label only when the release is approved', ({
+    event,
+    repository,
+    ref,
+    releaseVersion,
+    expected,
+  }) => {
+    const release = workflowJob(loadWorkflow('.github/workflows/custom-harness-windows.yml'), 'release-package')
+    if (typeof release.if !== 'string') throw new TypeError('The release package job must define a string condition')
+
+    expect(evaluateExpression(release.if, releaseEventContext({ event, repository, ref, releaseVersion })), event)
+      .toBe(expected)
+  })
+
+  it('keeps the release package job read-only, pinned, and dependent on the desktop checks', () => {
+    const release = workflowJob(loadWorkflow('.github/workflows/custom-harness-windows.yml'), 'release-package')
+
+    expect(release['runs-on']).toBe('windows-latest')
+    const needs = release.needs
+    expect(Array.isArray(needs) ? needs : [needs]).toContain('desktop-checks')
+    const permissions = release.permissions
+    if (permissions !== undefined) {
+      if (!isRecord(permissions)) throw new TypeError('Job permissions must be a mapping')
+      for (const [scope, value] of Object.entries(permissions)) {
+        expect(value, `the ${scope} permission of the release package job`).toBe('read')
+      }
+    }
+
+    const steps = releaseSteps(release)
+    const checkout = steps.find(step => typeof step.uses === 'string' && step.uses.startsWith('actions/checkout@'))
+    if (checkout === undefined) throw new TypeError('The release package job must check out the dispatched commit')
+    expect(checkout).toMatchObject({
+      with: {
+        ref: '${{ github.sha }}',
+        'fetch-depth': 0,
+        'persist-credentials': false,
+      },
+    })
+
+    // No token and no write scope: the job can only read the repository.
+    const jobText = JSON.stringify(release)
+    expect(jobText).not.toContain('GH_TOKEN')
+    expect(jobText).not.toContain('secrets.')
+    expect(jobText).not.toContain('"write"')
+  })
+
+  it('validates the approved release identity before the dependency install', () => {
+    const release = workflowJob(loadWorkflow('.github/workflows/custom-harness-windows.yml'), 'release-package')
+    const steps = releaseSteps(release)
+    const identity = namedStep(steps, 'Validate the approved release identity')
+    const install = steps.findIndex(step => step.run === 'pnpm install --frozen-lockfile')
+    expect(install, 'the release package job must install dependencies with a frozen lockfile').toBeGreaterThan(-1)
+    expect(steps.indexOf(identity), 'the release identity must be validated before the dependency install')
+      .toBeLessThan(install)
+
+    // The approved version reaches the scripts as an environment value, never as
+    // an interpolated expression inside the shell.
+    expect(release.env).toMatchObject({ RELEASE_VERSION: '${{ inputs.release_version }}' })
+    for (const step of steps) {
+      if (typeof step.run !== 'string') continue
+      expect(step.run, 'a release step must not interpolate the approved version into the shell')
+        .not.toContain('${{ inputs.release_version }}')
+    }
+    const script = stepScript(identity)
+    expect(script).toContain('RELEASE_VERSION')
+
+    // An exact stable version, and the same version in both manifests.
+    const stableVersionGuard = /\\d\+\\\.\\d\+\\\.\\d\+/u.test(script)
+      || /\[0-9\]/u.test(script)
+      || /semver/iu.test(script)
+    expect(stableVersionGuard, 'the identity step must match a strict stable version').toBe(true)
+    expect(script, 'the identity step must reject a version that is not stable').toMatch(/stable|-c?notmatch/iu)
+    expect(script).toContain('apps/desktop/package.json')
+    expect(script.match(/package\.json/gu)?.length ?? 0, 'the identity step must read the root and Desktop manifests')
+      .toBeGreaterThanOrEqual(2)
+
+    // The packaged commit is the dispatched commit, so the released bytes and
+    // the release record name one commit.
+    expect(script).toContain('GITHUB_SHA')
+    expect(script).toMatch(/rev-parse[^\n]*HEAD/u)
+
+    // The release tag is local only: it lets the release check resolve the
+    // packaged commit, and it is never pushed from this job.
+    expect(script).toMatch(/git\s+tag/u)
+    const tagNameSpellings = [
+      /v\$\{?version\}?/u,
+      /v\$\{?env:RELEASE_VERSION\}?/u,
+      /v\$\{?RELEASE_VERSION\}?/u,
+      /["']v["']\s*\+\s*\$/u,
+    ]
+    expect(tagNameSpellings.some(pattern => pattern.test(script)), 'the identity step must name the local v<version> tag')
+      .toBe(true)
+    expect(script, 'the identity step must never publish a remote tag').not.toMatch(/\bpush\b/iu)
+  })
+
+  it('configures the production release without secrets', () => {
+    const release = workflowJob(loadWorkflow('.github/workflows/custom-harness-windows.yml'), 'release-package')
+    const steps = releaseSteps(release)
+    const config = steps.find(step => typeof step.run === 'string' && step.run.includes('.env.windows'))
+    if (config === undefined) {
+      throw new TypeError('The release package job must write the production release configuration')
+    }
+    const script = stepScript(config)
+
+    // The production deployment is file-owned; the release carries no secret.
+    expect(script).toContain('DSH_DESKTOP_APP_ID')
+    expect(script).toContain('DSH_DESKTOP_AUTO_UPDATE_ENV=production')
+    expect(script).toContain('DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN')
+    expect(JSON.stringify(release)).not.toContain('secrets.')
+  })
+
+  it('runs the production qualification, package, check, and upload in order', () => {
+    const release = workflowJob(loadWorkflow('.github/workflows/custom-harness-windows.yml'), 'release-package')
+    const steps = releaseSteps(release)
+    const index = (name: string): number => steps.findIndex(step => step.name === name)
+    const checkout = steps.findIndex(step => typeof step.uses === 'string' && step.uses.startsWith('actions/checkout@'))
+    const identity = index('Validate the approved release identity')
+    const install = steps.findIndex(step => step.run === 'pnpm install --frozen-lockfile')
+    const qualify = index('Qualify the updater')
+    const build = index('Build the production update')
+    const check = index('Verify the completed update package')
+    const upload = index('Upload the qualified update package')
+
+    expect(checkout).toBeGreaterThanOrEqual(0)
+    expect(identity).toBeGreaterThan(checkout)
+    expect(install).toBeGreaterThan(identity)
+    expect(qualify).toBeGreaterThan(install)
+    expect(build).toBeGreaterThan(qualify)
+    expect(check).toBeGreaterThan(build)
+    expect(upload).toBeGreaterThan(check)
+
+    expect(stepScript(namedStep(steps, 'Qualify the updater'))).toContain('pnpm run release:win:x64:qualify')
+    const buildStep = namedStep(steps, 'Build the production update')
+    const buildScript = stepScript(buildStep)
+    expect(buildScript).toContain('pnpm --dir apps/desktop run package:win:x64:release-unsigned')
+    // The build journal survives a failure, and a nonzero exit stops the job
+    // before the package is presented as a release.
+    const journalCapture = /\.log\b/iu.test(buildScript)
+      || /Tee-Object/iu.test(buildScript)
+      || /packaging-runs/iu.test(buildScript)
+    expect(journalCapture, 'the build step must capture its journal').toBe(true)
+    const explicitStop = /exit\s+\$?\{?LASTEXITCODE\}?/u.test(buildScript)
+      || (/LASTEXITCODE/u.test(buildScript) && /throw/iu.test(buildScript))
+    expect(explicitStop, 'the build step must stop on a nonzero exit').toBe(true)
+    expect(buildStep['continue-on-error']).not.toBe(true)
+
+    const checkScript = stepScript(namedStep(steps, 'Verify the completed update package'))
+    expect(checkScript).toContain('pnpm --dir apps/desktop run release:github:win:x64:check')
+    // The check keeps the packaged updater configuration as evidence.
+    expect(checkScript).toContain('app-update.yml')
+  })
+
+  it('uploads the qualified update artifact set without the unpacked application tree', () => {
+    const release = workflowJob(loadWorkflow('.github/workflows/custom-harness-windows.yml'), 'release-package')
+    const steps = releaseSteps(release)
+    const upload = namedStep(steps, 'Upload the qualified update package')
+    if (typeof upload.uses !== 'string' || !isRecord(upload.with)) {
+      throw new TypeError('The qualified update package must be uploaded as an artifact')
+    }
+
+    expect(upload.uses).toMatch(/^actions\/upload-artifact@/u)
+    expect(String(upload.if)).toContain('success()')
+    expect(upload.with.name).toBe('Harnessy-windows-x64-release-${{ inputs.release_version }}-${{ github.sha }}')
+
+    const paths = uploadPaths(upload)
+    expect(paths).toHaveLength(5)
+    for (const path of paths) {
+      expect(path.startsWith('apps/desktop/.desktop-build/targets/win-x64/artifacts/')).toBe(true)
+      expect(path, 'the upload must name single artifacts').not.toContain('**')
+      expect(path, 'the upload must not carry the unpacked application tree').not.toContain('win-unpacked')
+    }
+    expect(paths.some(path => path.endsWith('.exe'))).toBe(true)
+    expect(paths.some(path => path.endsWith('.exe.blockmap'))).toBe(true)
+    expect(paths.some(path => path.endsWith('latest.yml'))).toBe(true)
+    expect(paths.some(path => path.endsWith('win-x64-release.json'))).toBe(true)
+    expect(paths.some(path => path.endsWith('packaged-app-update.yml'))).toBe(true)
+  })
+
+  it('publishes failure diagnostics without the completed private app state', () => {
+    const release = workflowJob(loadWorkflow('.github/workflows/custom-harness-windows.yml'), 'release-package')
+    const steps = releaseSteps(release)
+    const uploads = steps.filter(step => typeof step.uses === 'string' && step.uses.startsWith('actions/upload-artifact@'))
+    // The diagnostics belong to a failed release: the upload runs on failure,
+    // either through always() or through failure().
+    const diagnostics = uploads.find(step => /always\(\)|failure\(\)/u.test(String(step.if)))
+    if (diagnostics === undefined) {
+      throw new TypeError('The release package job must upload diagnostics for a failed run')
+    }
+
+    const paths = uploadPaths(diagnostics)
+    expect(paths.length).toBeGreaterThan(0)
+    for (const path of paths) {
+      expect(path, 'the diagnostics must not carry the completed application').not.toContain('win-unpacked')
+      expect(path, 'the diagnostics must not carry the release artifacts').not.toContain('targets/win-x64/artifacts')
+      expect(path, 'the diagnostics must not carry the installer').not.toMatch(/\.exe$/u)
+    }
+    // The failure evidence is the packaging journal or the captured build log.
+    expect(paths.some(path => /packaging-runs|\.log\b/iu.test(path))).toBe(true)
+  })
+
+  it('does not select the ordinary local installer for an approved release', () => {
+    const workflow = loadWorkflow('.github/workflows/custom-harness-windows.yml')
+    const installer = workflowJob(workflow, 'unsigned-installer')
+    if (typeof installer.if !== 'string') throw new TypeError('The unsigned installer job must define a string condition')
+
+    // An ordinary manual run still builds the local installer.
+    expect(evaluateExpression(installer.if, releaseEventContext({
+      event: 'workflow_dispatch',
+      repository: 'amAbdoMo/Harnessy',
+      ref: 'refs/heads/staging',
+      releaseVersion: '',
+    }))).toBe(true)
+    // An approved release version must not fall back to the local package.
+    expect(evaluateExpression(installer.if, releaseEventContext({
+      event: 'workflow_dispatch',
+      repository: 'amAbdoMo/Harnessy',
+      ref: 'refs/heads/staging',
+      releaseVersion: '1.2.3',
+    }))).toBe(false)
+    // The push-triggered local installer keeps working.
+    expect(evaluateExpression(installer.if, releaseEventContext({
+      event: 'push',
+      repository: 'amAbdoMo/Harnessy',
+      ref: 'refs/heads/master',
+      releaseVersion: '',
+    }))).toBe(true)
   })
 })
 
@@ -1333,6 +1663,55 @@ function workflowJob(workflow: Record<string, unknown>, job: string): Record<str
     throw new TypeError(`workflow must define the ${job} job`)
   }
   return workflow.jobs[job]
+}
+
+/** One GitHub event the release conditions are evaluated against. */
+interface ReleaseEvent {
+  readonly event: string
+  readonly repository: string
+  readonly ref: string
+  readonly releaseVersion: string
+}
+
+/** Build the GitHub context one real event exposes to a workflow condition. */
+function releaseEventContext(event: ReleaseEvent): Record<string, unknown> {
+  return {
+    github: {
+      event_name: event.event,
+      repository: event.repository,
+      ref: event.ref,
+      sha: '1111111111111111111111111111111111111111',
+      event: { head_commit: { message: 'chore: [build-installer] rebuild the local installer' } },
+    },
+    inputs: { release_version: event.releaseVersion },
+  }
+}
+
+/** Read the steps of one job. */
+function releaseSteps(job: Record<string, unknown>): Record<string, unknown>[] {
+  if (!Array.isArray(job.steps)) throw new TypeError('The release package job must define steps')
+  return job.steps.filter(isRecord)
+}
+
+/** Read one named step. */
+function namedStep(steps: Record<string, unknown>[], name: string): Record<string, unknown> {
+  const step = steps.find(candidate => candidate.name === name)
+  if (step === undefined) throw new TypeError(`The release package job must define the ${name} step`)
+  return step
+}
+
+/** Read the script of one step. */
+function stepScript(step: Record<string, unknown>): string {
+  if (typeof step.run !== 'string') throw new TypeError('A release step must define a run script')
+  return step.run
+}
+
+/** Read the artifact paths of one upload step. */
+function uploadPaths(step: Record<string, unknown>): string[] {
+  if (!isRecord(step.with)) throw new TypeError('An artifact upload step must define its with block')
+  const raw = step.with.path
+  const lines = Array.isArray(raw) ? raw : String(raw).split('\n')
+  return lines.map(line => String(line).trim()).filter(line => line !== '')
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
