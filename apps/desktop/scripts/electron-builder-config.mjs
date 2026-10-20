@@ -2,7 +2,7 @@ import { officePackageDirectories } from '../../../scripts/libreoffice-packages.
 import { X509Certificate } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
-import { join, relative, sep } from 'node:path'
+import { join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
@@ -27,6 +27,9 @@ import { desktopTargetBuildPaths, resolveDesktopBuildTarget } from './desktop-bu
 import { installWindowsDirectoryInstaller } from './windows-directory-installer.mjs'
 import { preserveWindowsRuntimeSignature, signWindowsCode } from './windows-runtime-signature.mjs'
 import { prepareWindowsAsarUnpack, verifyWindowsAsarUnpack } from './windows-asar-unpack.mjs'
+import {
+  stageUpdaterRuntimeClosure, updaterRuntimeClosure, verifyUpdaterRuntimeClosure,
+} from './updater-runtime-closure.mjs'
 import { recordPackagingEvent } from './packaging-run.mjs'
 import {
   resolveMacOSAppUpdateFeed,
@@ -34,6 +37,9 @@ import {
   writeMacOSAppUpdateConfig,
 } from './macos-app-update-config.mjs'
 import { CUSTOM_HARNESS_PRODUCT } from '../../../scripts/custom-harness-product.mjs'
+
+/** Desktop application directory that owns the auto-updater dependency. */
+const APP_DIRECTORY = resolve(import.meta.dirname, '..')
 
 /**
  * Create electron-builder configuration from one release environment.
@@ -81,6 +87,7 @@ export function createElectronBuilderConfig(
   let primaryRuntimeDestination
   let dshDestination
   let windowsCode = []
+  let updaterClosure = []
   const unpack = ['**/*.{node,dylib,dll,so,exe}', '**/*.so.*', '**/spawn-helper', '**/@vscode/ripgrep-*/bin/rg',
     `**/node_modules/@deepseek-ai/libreoffice-kit-${resolvedPlatform}-${resolvedArch}/**/*`]
   const windowsSigner = packagesWindows && signsWindows
@@ -195,6 +202,16 @@ export function createElectronBuilderConfig(
       const patterns = office.map(directory => `**/${relative(buildPaths.dsh, directory).split(sep).join('/')}/**/*`)
       const existing = context.packager.config.asarUnpack ?? []
       context.packager.config.asarUnpack = [...(typeof existing === 'string' ? [existing] : existing), ...patterns]
+      updaterClosure = stageUpdaterRuntimeClosure(
+        updaterRuntimeClosure(APP_DIRECTORY),
+        join(context.packager.info.appDir, '.desktop-build', 'updater-runtime'),
+      )
+      context.packager.config.files = [
+        ...context.packager.config.files,
+        ...updaterClosure.map(member => ({
+          from: member.directory, to: `node_modules/${member.name}`, filter: ['**/*'],
+        })),
+      ]
       if (packagesWindows) windowsCode = await prepareWindowsAsarUnpack(context, buildPaths.dsh)
       if (windowsSigner !== undefined) {
         primaryRuntimeDestination = join(context.appOutDir, 'resources', 'runtime', 'primary-runtime')
@@ -207,6 +224,10 @@ export function createElectronBuilderConfig(
     afterPack: async context => {
       const { verifyDesktopRuntime } = await import('../lib/types/runtime-tree.js')
       const resourcesDir = context.packager.getResourcesDir(context.appOutDir)
+      if (updaterClosure.length > 0) {
+        const { readAsar } = await import('app-builder-lib/out/asar/asar.js')
+        verifyUpdaterRuntimeClosure(await readAsar(join(resourcesDir, 'app.asar')), updaterClosure)
+      }
       if (resolvedPlatform === 'darwin' && update !== undefined) {
         await writeMacOSAppUpdateConfig(resourcesDir, resolveMacOSAppUpdateFeed(context.packager.config.publish),
           context.packager.appInfo.updaterCacheDirName)

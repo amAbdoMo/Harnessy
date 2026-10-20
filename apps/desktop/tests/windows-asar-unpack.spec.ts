@@ -3,6 +3,7 @@ import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import type { Stats } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { Arch, Packager, type BeforePackContext, type Configuration } from 'app-builder-lib'
 import { WinPackager } from 'app-builder-lib/out/winPackager.js'
 import { getFileMatchers } from 'app-builder-lib/out/fileMatcher.js'
@@ -120,9 +121,23 @@ async function packageFixture(input: Awaited<ReturnType<typeof fixture>>) {
     }
   }
   await visit(mapping.from)
+  const packs = [{ src: mapping.from, destination: join(destination, 'dsh'), files, metadata }]
+  // The builder also carries the staged auto-updater runtime closure, so the fixture archive models it.
+  const closureRoot = join(input.appDir, '.desktop-build', 'updater-runtime')
+  for (const name of existsSync(closureRoot) ? await readdir(closureRoot) : []) {
+    const closureFiles: string[] = []
+    const closureMetadata = new Map<string, Stats>()
+    const source = join(closureRoot, name)
+    for (const file of await readdir(source)) {
+      const stat = await lstat(join(source, file))
+      closureFiles.push(join(source, file))
+      closureMetadata.set(join(source, file), stat)
+    }
+    packs.push({ src: source, destination: join(destination, 'node_modules', name), files: closureFiles, metadata: closureMetadata })
+  }
   await new AsarPackager({ info: { getWorkspaceRoot: async () => input.root } }, {
     defaultDestination: destination, resourcePath: input.resources, options: {}, unpackPattern: matchers[0]!.createFilter(),
-  }).pack([{ src: mapping.from, destination: join(destination, 'dsh'), files, metadata }])
+  }).pack(packs)
 }
 
 it.each([false, true])('unpacks PE files through builder source patterns (external=%s)', async (external) => {
