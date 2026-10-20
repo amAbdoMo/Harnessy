@@ -72,6 +72,8 @@ git diff --stat HEAD...upstream/master
 
 The count is `<Harnessy-only> <upstream-only>`. The second number is the amount Harnessy is behind. Include every missing upstream commit in the ledger, including merges and patch-equivalent commits; equivalence is a review decision, not permission to omit an ancestor. Preserve left-side custom commits. If the second count is zero, verify the ledger and stop the missing-commit audit.
 
+Choose bounded milestones from upstream's first-parent history, then inspect every newly reachable ancestor. Reverse topological order includes older side branches; its first unreviewed entry is not necessarily the next master checkpoint.
+
 When the list is large, group it by affected package or user surface before reading individual diffs. Prioritize shared APIs, persistence, lifecycle, security, provider behavior, Desktop packaging, and code touching a current Harnessy owner. Documentation-only and internal maintenance changes still need compatibility classification, but they do not justify reopening unrelated product choices.
 
 <a id="protect-decisions"></a>
@@ -125,7 +127,7 @@ Use a compact table with these columns: **Decision**, **Upstream improvement**, 
 
 Create an isolated `codex/upstream-*` branch; never merge upstream directly into `master` or operate on the active dirty checkout. Keep the ledger's baseline fixed and extend its pinned inventory without losing existing reviews. The verifier needs the pinned Git objects and their ancestry, so fetch the required history before checking a shallow clone. Inspect constituent diffs and merge resolutions, implement selected fixes, and document exclusions at their affected paths. Do not use a blanket `ours` strategy or attach unchecked ancestry to clear the counter.
 
-Before integrating a candidate, run `pnpm run verify:harnessy-upstream --checkpoint <checkpoint>` with its full commit ID. This read-only check requires exact inventory metadata, complete per-group path coverage, explicit merge evidence, and a reviewed ancestor closure. It also rejects unreviewed upstream ancestry already acquired by `HEAD`; it cannot establish that a reviewer's reasoning or evidence is correct. Qualification remains separate: selected runtime changes need focused behavior and recorded-session checks.
+Before integrating a candidate, run `pnpm run verify:harnessy-upstream --checkpoint <checkpoint>` with its full commit ID. This read-only check requires exact inventory metadata, complete per-group path coverage, explicit merge evidence, and a reviewed ancestor closure. It also rejects unreviewed ancestry already acquired by `HEAD` and proposals that omit acquired upstream ancestors; it cannot establish that a reviewer's reasoning or evidence is correct. Qualification remains separate: selected runtime changes need focused behavior and recorded-session checks.
 
 Merge the reviewed checkpoint normally and resolve each overlap according to its ledger disposition. Preserve custom owners and frozen historical files. Set `reviewedThrough` to the accepted checkpoint in the integration result, then run the checks below. `verify:harnessy-product` remains mandatory after conflict resolution; it checks identity, isolated state, custom bundle, Desktop launcher, accounts/models, MCP status, and configured-subagent behavior. Follow the normal pre-push procedure; do not bypass hooks or rebuild the active app.
 

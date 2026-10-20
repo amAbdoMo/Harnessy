@@ -69,6 +69,7 @@ export interface IdleWatchdog {
   /**
    * Await one iterator demand while the idle timer is armed. The deadline
    * settles the demand even when the awaited work ignores its abort signal.
+   * Its own timeout ends this watchdog's lifetime; retries need a fresh watchdog.
    * @param iterator - iterator whose next value represents provider progress.
    * @returns the iterator's next result.
    * @throws The {@link TimeoutReason} of this watchdog when the idle interval
@@ -172,10 +173,11 @@ export function idleWatchdog(
         // Both reactions end with this demand: a deadline promise kept for the
         // watchdog's lifetime would retain every value the settled races produced.
         return await Promise.race([
-          iterator.next().finally(() => { timeout.signal.removeEventListener('abort', onAbort) }),
+          iterator.next(),
           expired.promise,
         ])
       } finally {
+        timeout.signal.removeEventListener('abort', onAbort)
         clearTimeout(timer)
         timer = undefined
         outstanding = false

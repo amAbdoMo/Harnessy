@@ -291,6 +291,17 @@ describe('idleWatchdog', () => {
     expect(timeoutOf(watchdog.signal, 'LLM_STREAM_IDLE_TIMEOUT')).toMatchObject({ timeoutMs: 100 })
   })
 
+  it('releases a synchronous failed demand before a later demand times out', async () => {
+    vi.useFakeTimers()
+    using watchdog = idleWatchdog(undefined, 100, 'IDLE')
+    const failure = new Error('iterator failed synchronously')
+    await expect(watchdog.next<number>({ next: () => { throw failure } })).rejects.toBe(failure)
+    const next = watchdog.next({ next: () => new Promise<IteratorResult<number>>(() => {}) })
+    const outcome = next.catch((error: unknown) => error)
+    await vi.advanceTimersByTimeAsync(100)
+    expect(await outcome).toBe(watchdog.signal.reason)
+  })
+
   it('rejects invalid bounds and concurrent iterator demand', async () => {
     expect(() => idleWatchdog(undefined, 0, 'IDLE')).toThrow(/positive finite/)
     expect(() => idleWatchdog(undefined, Number.NaN, 'IDLE')).toThrow(/positive finite/)

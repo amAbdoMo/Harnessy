@@ -4,13 +4,13 @@ This file defines document structure, Markdown tiers, writing rules, and `verify
 
 ## Document structure
 
-These rules apply to human-facing documentation; [Agent Notes](../.agents/notes/README.md) remain outside their scope. A [postmortem](postmortem/README.md) is an incident-scoped reference; chronology records evidence, not a teaching sequence. A document's subject and tree position fix its scope: describe its own subject at appropriate detail and direct children only by purpose, responsibility, and high-level behavior; link to the owning descendant for lower-level detail. Document type does not widen that scope. A reference may be exhaustive only about its own subject. Testing mechanisms, fixtures, and harnesses belong at the lowest owning level; higher documents link there.
+These rules govern human-facing documentation, excluding [Agent Notes](../.agents/notes/README.md). A [postmortem](postmortem/README.md) records incident evidence, not a teaching sequence. Subject and tree position constrain scope regardless of document type: explain the document's subject, describe direct children only by purpose, responsibility, and high-level behavior, and link descendants for detail. Exhaustive references cover only their own subject. Testing mechanisms, fixtures, and harnesses belong at their lowest owner.
 
-Classify every in-scope document as a tutorial or reference. Tutorials follow an ordered path to an outcome and introduce only what each step needs. References define a lookup scope and current behavior without a teaching sequence. Separate substantial tutorial and reference content; label a section when either part is small.
+Classify documents as tutorials or references. Tutorials follow steps toward an outcome, introducing only what each step needs. References define current behavior for lookup. Separate substantial mixed content; label small sections.
 
-Before writing a tutorial, privately classify the reader's starting knowledge and each concept as beginner, intermediate, or advanced. Establish prerequisites before dependent concepts, increase difficulty gradually, and move unnecessary advanced material to a later tutorial or reference.
+Before writing a tutorial, classify the reader's knowledge and each concept's difficulty. Establish prerequisites first, increase difficulty gradually, and defer unnecessary advanced material.
 
-Author in this order: locate the document in the tree; set its permitted detail; choose tutorial or reference; for a tutorial, order concepts by prerequisite and difficulty; relocate descendant-owned detail; replace lower-level explanations with links to their owners.
+Author in order: choose tree position and scope; select tutorial or reference; order tutorial prerequisites; replace descendant-owned explanations with links.
 
 ## The tier taxonomy: one home per fact
 
@@ -73,4 +73,4 @@ Hunt these in any doc; [dsh-doc](../.agents/skills/dsh-doc/SKILL.md) runs this l
 
 ## Repository references
 
-Use relative Markdown links for current files and tags or PR numbers for historical references. `verify-md-links` checks local targets. [Reference validation](../scripts/verify-repository-references.ts) rejects actual commit identifiers and disallowed organization URLs in maintained files.
+Use relative Markdown links for current files and tags or PR numbers for historical references. `verify-md-links` checks local targets. [Reference validation](../scripts/verify-repository-references.ts) rejects actual commit identifiers and disallowed organization URLs in maintained files. Only the canonical [upstream audit ledger](../scripts/harnessy-upstream-review.json) may pin commit identifiers as audit data; neighboring JSON files and organization URLs remain checked.

@@ -201,6 +201,22 @@ describe('verify-harnessy-upstream', { timeout: 30_000 }, () => {
       .toThrow(/Unrecognized key/)
   })
 
+  it('rejects reviewed ancestry acquired beyond the declared integrated checkpoint', () => {
+    const fixture = createFixture()
+    adopt(fixture.root, fixture.merge, 'integrate the full reviewed upstream')
+    const ledger = fullyReviewed(fixture)
+    ledger.reviewedThrough = fixture.second
+    expect(() => verifyUpstreamReviewLedger(fixture.root, ledger))
+      .toThrow(/acquired upstream commit .* is outside the reviewed-through closure/)
+  })
+
+  it('rejects a proposal that omits already acquired reviewed ancestry', () => {
+    const fixture = createFixture()
+    adopt(fixture.root, fixture.merge, 'integrate the full reviewed upstream')
+    expect(() => verifyUpstreamReviewLedger(fixture.root, fullyReviewed(fixture), { checkpointSha: fixture.second }))
+      .toThrow(/acquired upstream commit .* is outside the proposed checkpoint closure/)
+  })
+
   it('accepts a fully reviewed checkpoint whose reviewed commits are integrated', () => {
     const fixture = createFixture()
     adopt(fixture.root, fixture.second, 'adopt the reviewed upstream commits')

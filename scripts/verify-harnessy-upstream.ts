@@ -482,6 +482,14 @@ export function verifyUpstreamReviewLedger(
     }
   }
 
+  const declaredClosure = new Set(checkpointClosure ?? closure)
+  for (const sha of inventory) {
+    if (headAncestors.has(sha) && !declaredClosure.has(sha)) {
+      const label = checkpointClosure === null ? 'the reviewed-through closure' : 'the proposed checkpoint closure'
+      throw new Error(`acquired upstream commit ${sha} is outside ${label}`)
+    }
+  }
+
   const reviewedCount = [...groupMembers.values()].reduce((total, members) => total + members.length, 0)
   const behindPinnedTip = revList(repo, `HEAD..${upstreamTip}`, 'the commits between HEAD and the pinned upstream tip').length
   return {

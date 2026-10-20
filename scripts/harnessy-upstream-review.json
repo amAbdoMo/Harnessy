@@ -3,7 +3,7 @@
   "baselineHead": "249d882737862fe8f6f03df3f537d656134bd171",
   "upstreamTip": "687f282e8625c6b8d11ff58211a90524be2e4317",
   "mergeBase": "5badb15009ae1756c3afe0ae0cef1faafc290ccc",
-  "reviewedThrough": "5badb15009ae1756c3afe0ae0cef1faafc290ccc",
+  "reviewedThrough": "0f51ba07379d5ee4118a4bfadc09215a8893c826",
   "entries": [
     {
       "sha": "687f282e8625c6b8d11ff58211a90524be2e4317",
@@ -15492,33 +15492,33 @@
       "files": [
         {
           "path": ".agents/notes/implemented/architecture/2026-06-21-bounded-llm-request-recovery.i18n.yaml",
-          "disposition": "excluded",
-          "reason": "Do not resurrect upstream implemented-note paths or rewrite their locally archived counterparts. Current behavior and cancellation/cleanup obligations are documented in the active timeout and provider READMEs."
+          "disposition": "adopted",
+          "reason": "Adopt the scoped deadline-settlement clarification in this checkout's existing active architecture note and its paired record. Do not move or edit archived copies in the protected original checkout."
         },
         {
           "path": ".agents/notes/implemented/architecture/2026-06-21-bounded-llm-request-recovery.md",
-          "disposition": "excluded",
-          "reason": "Do not resurrect upstream implemented-note paths or rewrite their locally archived counterparts. Current behavior and cancellation/cleanup obligations are documented in the active timeout and provider READMEs."
+          "disposition": "adopted",
+          "reason": "Adopt the scoped deadline-settlement clarification in this checkout's existing active architecture note and its paired record. Do not move or edit archived copies in the protected original checkout."
         },
         {
           "path": ".agents/notes/implemented/architecture/2026-06-21-bounded-llm-request-recovery.zh.md",
-          "disposition": "excluded",
-          "reason": "Do not resurrect upstream implemented-note paths or rewrite their locally archived counterparts. Current behavior and cancellation/cleanup obligations are documented in the active timeout and provider READMEs."
+          "disposition": "adopted",
+          "reason": "Adopt the scoped deadline-settlement clarification in this checkout's existing active architecture note and its paired record. Do not move or edit archived copies in the protected original checkout."
         },
         {
           "path": ".agents/notes/implemented/architecture/2026-07-06-timeout-deadline-library.i18n.yaml",
-          "disposition": "excluded",
-          "reason": "Do not resurrect upstream implemented-note paths or rewrite their locally archived counterparts. Current behavior and cancellation/cleanup obligations are documented in the active timeout and provider READMEs."
+          "disposition": "adopted",
+          "reason": "Adopt the scoped deadline-settlement clarification in this checkout's existing active architecture note and its paired record. Do not move or edit archived copies in the protected original checkout."
         },
         {
           "path": ".agents/notes/implemented/architecture/2026-07-06-timeout-deadline-library.md",
-          "disposition": "excluded",
-          "reason": "Do not resurrect upstream implemented-note paths or rewrite their locally archived counterparts. Current behavior and cancellation/cleanup obligations are documented in the active timeout and provider READMEs."
+          "disposition": "adopted",
+          "reason": "Adopt the scoped deadline-settlement clarification in this checkout's existing active architecture note and its paired record. Do not move or edit archived copies in the protected original checkout."
         },
         {
           "path": ".agents/notes/implemented/architecture/2026-07-06-timeout-deadline-library.zh.md",
-          "disposition": "excluded",
-          "reason": "Do not resurrect upstream implemented-note paths or rewrite their locally archived counterparts. Current behavior and cancellation/cleanup obligations are documented in the active timeout and provider READMEs."
+          "disposition": "adopted",
+          "reason": "Adopt the scoped deadline-settlement clarification in this checkout's existing active architecture note and its paired record. Do not move or edit archived copies in the protected original checkout."
         },
         {
           "path": "packages/llm/llm-deepseek/src/adapter.ts",
@@ -15565,7 +15565,11 @@
         "New never-settling-demand regression failed against the published implementation: Vitest timed out in 5000ms.",
         "Focused timeout/retry/DeepSeek/Pi suites: 638 passed. Two keyless-catalog expectations failed identically at published baseline 249d882737862fe8f6f03df3f537d656134bd171; their source and policy were not changed.",
         "A new authored idle-timeout-recovery recorded-session scenario replays through dsh --profile headless with the actual DeepSeek adapter and retry policy. Only fetch is replaced: first body ignores abort, second response is fixture-authored; exactly two equal model requests, TIMEOUT retry and final PONG are asserted. No provider is contacted.",
-        "Selected recorded replay and repository corpus ownership checks both passed; no committed predecessor generation or normalizer was edited."
+        "Selected recorded replay and repository corpus ownership checks both passed; no committed predecessor generation or normalizer was edited.",
+        "Ownership rechecked against preparation commit 54410272780ec3a831e405041a364d8ab4007ebb: both affected notes are tracked active implemented files here, so their scoped upstream clarifications are adopted; the original dirty checkout and its archival state remain untouched.",
+        "Additional source regression: a synchronous iterator.next failure left an orphaned deadline rejection in the imported implementation (Vitest reported one unhandled TimeoutReason). Abort-listener removal is in the outer demand finally, covering synchronous failure as well as normal promise settlement.",
+        "Final focused timeout/retry run: 36 passed, including the synchronous-failure regression, abandoned transport recovery and the existing cancellation/retry cases. The normal headless idle-timeout-recovery replay passed after that cleanup adaptation.",
+        "One post-adaptation source CLI replay reached its unchanged 30-second process deadline with empty output. A preserved-directory diagnostic replay and a subsequent unmodified-harness replay both passed. No timeout increase, built-in retry, assertion relaxation, normalizer edit, or diagnostic hook is retained."
       ]
     }
   }

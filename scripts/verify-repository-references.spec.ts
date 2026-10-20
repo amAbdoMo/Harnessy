@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { describe, expect, it, type TestContext } from 'vitest'
 import { findRepositoryReferences, scanRepositoryReferences } from './verify-repository-references.ts'
+import { buildUpstreamInventory } from './verify-harnessy-upstream.ts'
 
 const organizationUrl = `https://${['github.com', ['deepseek', 'harness'].join('-')].join('/')}`
 
@@ -67,6 +68,21 @@ describe('maintained repository reference policy', () => {
       { file: 'new.md', line: 1, kind: 'commit-hash' },
     ]))
     expect(scanRepositoryReferences(fixture.root)).toHaveLength(4)
+  })
+
+  it('accepts canonical upstream audit pins but still rejects neighboring JSON and prose references', (test) => {
+    const fixture = repository(test)
+    const ledger = JSON.stringify(buildUpstreamInventory(fixture.root, fixture.commit, fixture.commit))
+    fixture.write('scripts/harnessy-upstream-review.json', ledger)
+    fixture.write('scripts/other-upstream-review.json', ledger)
+    fixture.write('guide.md', fixture.commit)
+    expect(scanRepositoryReferences(fixture.root)).toEqual(expect.arrayContaining([
+      { file: 'scripts/other-upstream-review.json', line: 1, kind: 'commit-hash' },
+      { file: 'guide.md', line: 1, kind: 'commit-hash' },
+    ]))
+    expect(scanRepositoryReferences(fixture.root)).toHaveLength(2)
+    expect(findRepositoryReferences('scripts/harnessy-upstream-review.json', organizationUrl, new Set()))
+      .toEqual([{ file: 'scripts/harnessy-upstream-review.json', line: 1, kind: 'organization-url' }])
   })
 
   it('checks available unreachable commits without requiring a branch or network', (test) => {

@@ -50,11 +50,11 @@ export function apply(ctx: Context): void {
     globalThis.fetch = async (input, init) => {
       const url = input instanceof Request ? input.url : String(input)
       assert.equal(url, 'https://timeout-fixture.invalid/v1/messages', 'unexpected network request in keyless replay')
-      assert.equal(typeof init?.body, 'string', 'expected serialized Messages request')
+      assert.ok(typeof init?.body === 'string', 'expected serialized Messages request')
       attempts += 1
       assert.ok(attempts <= 2, 'idle timeout replay made an unexpected third request')
       if (attempts === 1) {
-        firstBody = String(init?.body)
+        firstBody = init.body
         firstSignal = init?.signal
         return new Response(new ReadableStream<Uint8Array>({
           start(controller) { blocked = controller },
