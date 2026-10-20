@@ -23,7 +23,7 @@ const scratch = mkdtempSync(join(tmpdir(), 'dsh-runtime-payload-'))
 /** Run a package script with only the shipped node launcher available on PATH. */
 function checkPnpm() {
   const bin = join(resourcesRuntime, 'bin')
-  const pnpm = join(resourcesRuntime, 'pnpm', 'bin', 'pnpm.mjs')
+  const pnpm = join(resourcesRuntime, 'primary-runtime', 'dependencies', 'pnpm', 'bin', 'pnpm.mjs')
   writeFileSync(join(scratch, 'package.json'), JSON.stringify({
     name: 'desktop-node-script-smoke', private: true, scripts: { check: 'node check.cjs' },
   }))
