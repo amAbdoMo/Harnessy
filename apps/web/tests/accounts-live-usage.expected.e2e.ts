@@ -96,7 +96,7 @@ it.skipIf(!custom)('updates sidebar and open Accounts together on a pushed usage
   fireEvent.click(within(screen.getByRole('dialog', { name: 'Billing reminder (user-entered)' })).getByRole('button', { name: 'Save' }))
   expect(await within(reminder).findByText('Oct 31')).toBeTruthy()
   expect(mock.log.calls('accounts/setManualBillingDate')).toHaveLength(1)
-  expect(mock.log.calls('accounts/setManualBillingDate')[0]?.args).toEqual(['openai-codex', 'codex-1', '2026-10-31'])
+  expect(mock.log.calls('accounts/setManualBillingDate')[0]?.args).toEqual([{ provider: 'openai-codex', accountId: 'codex-1', date: '2026-10-31' }])
   expect(await screen.findByText('Billing reminder saved.')).toBeTruthy()
   expect({
     sidebar: screen.getByRole('button', { name: /Fixture Account.*79% used/ }).getAttribute('aria-label'),

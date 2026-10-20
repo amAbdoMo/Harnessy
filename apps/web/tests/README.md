@@ -18,7 +18,7 @@ Ordinary scenarios begin with no registered Workspace or Session and a durable m
 
 State-sensitive cases use Workspace, admission, attachment, and model-stream barriers to separate visible intermediate states from completed operations. Model-picker persistence assertions wait for the saved default, independently of menu closure. Details close waits for frame transitions; archive verification assigns an explicit title to the seeded Session and follows that identity across reload. The [CI test reliability workflow](../../../.agents/skills/dsh-ci-test-reliability/SKILL.md#synchronize-on-state) owns these synchronization rules.
 
-Explicit scrolling uses `scrollIntoView` from `support.ts`: it resolves the locator again when its old element detaches and checks connection in the same browser task as native scrolling. Scenarios retain their visibility and geometry assertions after scrolling.
+Explicit scrolling uses `scrollIntoView` from `support.ts`: it resolves the locator again when its old element detaches and checks connection in the same browser task as native scrolling. Scenarios retain their visibility and geometry assertions after scrolling. Account-dialog layout checks wait for the frame's phone-mode marker after resizing, then open the account manager through the active sidebar or phone drawer; a sidebar-owned dialog is not retained across replacement of that sidebar occurrence.
 
 ## These are Host-face tests
 
@@ -30,6 +30,6 @@ Importing a Client package — a value or a type — pulls its whole TypeScript 
 
 When a scenario needs a Client-owned constant or pure function, mirror it here instead, next to the commented-out import that names the source module. A drift then surfaces as a missed selector or a stale mirrored value — a loud failure, never a silent pass. `scaffold.ts` follows this rule for the welcome-notice namespace, acknowledgement field, version, and asserted Chinese copy.
 
-The built-client harness is the exception. `assembled-boot.ts` imports `AppWebEntry`, the boot-manifest type, and `RemoteMock`; `assembled-remote.ts` imports the Client test runtime's default responses and `RemoteMock`. These packages are explicit project references for booting the real shell against a test-owned carrier. The chat scenarios mirror `conversationContextKey` in `support.ts` instead of importing its Client owner.
+The built-client harness is the exception. `assembled-boot.ts` imports `AppWebEntry`, the boot-manifest type, and `RemoteMock`; `assembled-remote.ts` imports the Client test runtime's default responses and `RemoteMock`. These packages are explicit project references for booting the real shell against a test-owned carrier. The fixture evaluates conditional row availability with the built Cordis Loader against a Web profile before deriving the browser graph. Desktop-only browser, preview and analytics rows therefore follow the same profile conditions as the shipped Web app; no fake Desktop carrier changes platform-gated behavior. The chat scenarios mirror `conversationContextKey` in `support.ts` instead of importing its Client owner.
 
 Nothing mechanically enforces this rule; keep it in review.

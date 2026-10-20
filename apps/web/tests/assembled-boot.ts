@@ -74,6 +74,17 @@ const workspacePackageManifests = new Map(globSync('packages/*/*/package.json', 
   return [pkg.name, path]
 }))
 const appBoot = await import(pathToFileURL(webBundleResolver.resolve('@deepseek-ai/dsh-app-boot')).href) as unknown as BootComposition
+const bootResolver = createRequire(webBundleResolver.resolve('@deepseek-ai/dsh-app-boot'))
+const cordis = await import(pathToFileURL(bootResolver.resolve('@deepseek-ai/cordis')).href) as {
+  Context: new () => { provide(name: string, service: unknown): void }
+}
+const conditions = await import(pathToFileURL(bootResolver.resolve('@deepseek-ai/cordis-plugin-loader')).href) as {
+  isJsExpr(candidate: unknown): candidate is { __jsExpr: string }
+  evaluate(context: object, expression: string): unknown
+}
+// The Loader evaluates Desktop-only row conditions against the Host Web profile before publishing its browser graph.
+const conditionContext = new cordis.Context()
+conditionContext.provide('profileContext', { name: 'web' })
 
 function resolvePackageManifest(specifier: string): string | undefined {
   return workspacePackageManifests.get(specifier)
@@ -106,7 +117,9 @@ function loadAssembledPlugins(profile?: 'custom-harness'): readonly AssembledPlu
   }))
   const plugins = new Map<string, AssembledPlugin>()
   for (const entry of entries) {
-    if (entry.disabled === true || typeof entry.name !== 'string') continue
+    const disabled = conditions.isJsExpr(entry.disabled)
+      ? Boolean(conditions.evaluate(conditionContext, entry.disabled.__jsExpr)) : entry.disabled === true
+    if (disabled || typeof entry.name !== 'string') continue
     const packagePath = resolvePackageManifest(entry.name)
     if (packagePath === undefined) continue
     const pkg = JSON.parse(readFileSync(packagePath, 'utf8')) as ClientPackageManifest

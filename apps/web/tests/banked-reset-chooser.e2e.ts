@@ -87,12 +87,34 @@ it('lists expiry dates, fits both themes and narrow windows, and redeems the sec
   await mkdir(fileURLToPath(new URL('./expected/banked-reset-chooser/', import.meta.url)), { recursive: true })
   await compareOrRefreshGolden(EXPECTED, await dialog.ariaSnapshot(), webSnapshotMode())
   await mkdir(fileURLToPath(new URL('../../../.artifacts', import.meta.url)), { recursive: true })
+  const closeAccounts = async (): Promise<void> => {
+    await page.keyboard.press('Escape')
+    await page.getByRole('dialog', { name: 'Accounts', exact: true }).getByRole('button', { name: 'Close', exact: true }).click()
+  }
+  const reopenChooser = async (): Promise<void> => {
+    const launcher = page.getByRole('button', { name: /Reset Fixture/ })
+    if (!(await launcher.isVisible())) {
+      expect(await page.locator('[data-phone="true"]').count(), 'Only the phone shell hides the account launcher in its drawer').toBe(1)
+      await page.getByRole('button', { name: 'Toggle sidebar', exact: true }).click()
+    }
+    await launcher.click()
+    await page.getByRole('menuitem', { name: /Reset Fixture/ }).click()
+    await action.click()
+    await dialog.getByRole('button', { name: /Use reset —/ }).nth(1).waitFor()
+  }
   for (const theme of ['light', 'dark'] as const) {
+    // The phone shell owns a separate sidebar occurrence; open through its drawer after each viewport change.
+    await closeAccounts()
     await page.emulateMedia({ colorScheme: theme })
     await expect.poll(() => page.evaluate(() => document.documentElement.style.colorScheme)).toBe(theme)
     await page.setViewportSize({ width: 900, height: 720 })
+    await expect.poll(() => page.locator('[data-phone="true"]').count()).toBe(0)
+    await reopenChooser()
     await dialog.screenshot({ path: fileURLToPath(new URL(`../../../.artifacts/banked-resets-${theme}.png`, import.meta.url)) })
+    await closeAccounts()
     await page.setViewportSize({ width: 320, height: 640 })
+    await page.locator('[data-phone="true"]').waitFor()
+    await reopenChooser()
     await expect.poll(async () => dialog.evaluate((element) => {
       const rect = element.getBoundingClientRect()
       return rect.left >= 0 && rect.right <= innerWidth && rect.top >= 0 && rect.bottom <= innerHeight
@@ -154,16 +176,6 @@ it('lists expiry dates, fits both themes and narrow windows, and redeems the sec
       if (saved.titlebarHeight === '') root.style.removeProperty('--dsh-windows-titlebar-height')
       else root.style.setProperty('--dsh-windows-titlebar-height', saved.titlebarHeight)
     }, platformMarkers)
-  }
-  const closeAccounts = async (): Promise<void> => {
-    await page.keyboard.press('Escape')
-    await page.getByRole('dialog', { name: 'Accounts', exact: true }).getByRole('button', { name: 'Close', exact: true }).click()
-  }
-  const reopenChooser = async (): Promise<void> => {
-    await page.getByRole('button', { name: /Reset Fixture/ }).click()
-    await page.getByRole('menuitem', { name: /Reset Fixture/ }).click()
-    await action.click()
-    await resetButtons.nth(1).waitFor()
   }
   await resetButtons.nth(1).click()
   await page.getByRole('alert').filter({ hasText: 'Could not use this reset. Try again.' }).waitFor()
