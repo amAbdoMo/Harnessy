@@ -30,3 +30,17 @@ index 6966d24..18f1d25 100644
  var DEFAULT_FILE = 'sh';
  var DEFAULT_NAME = 'xterm';
  var DESTROY_SOCKET_TIMEOUT_MS = 200;
+diff --git a/lib/windowsPtyAgent.js b/lib/windowsPtyAgent.js
+--- a/lib/windowsPtyAgent.js
++++ b/lib/windowsPtyAgent.js
+@@ -61,6 +61,10 @@
+         // See https://github.com/microsoft/node-pty/issues/763
+         this._conoutSocketWorker = options.conoutConnectionFactory(term.conout, this._useConptyDll);
++        // Output closure is the drain barrier, including natural DLL-backed exits.
++        this._outSocket.once('close', function () {
++            _this._conoutSocketWorker.dispose();
++        });
+         // Store pending connection info - we'll complete the connection when worker is ready
+         this._pendingPtyInfo = { pty: this._pty, commandLine: commandLine, cwd: cwd, env: env };
+         // Never call connect() before the worker is ready, as ConnectNamedPipe
+         // would block the Node.js event loop while waiting for the output client.

@@ -21,6 +21,7 @@ afterEach(() => {
   Object.defineProperty(process, 'arch', hostArch)
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
   vi.clearAllMocks()
+  vi.restoreAllMocks()
 })
 
 it('smokes an x64 target verified on an arm64 build host without revalidating against the host', async () => {
@@ -41,4 +42,35 @@ it('smokes an x64 target verified on an arm64 build host without revalidating ag
   expect(smokeDesktopRuntime).toHaveBeenCalledWith(root, electron, descriptor, expect.any(Object), resources)
   const environment = vi.mocked(smokeDesktopRuntime).mock.calls[0]![3]
   expect(existsSync(environment.NARB_NATIVE_CACHE_DIR!)).toBe(false)
+})
+
+it('retains partial payload progress and termination details, cleans its cache and refuses Host smoke after failure', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'prepared-runtime-failure-'))
+  roots.push(root)
+  const fixture = runtimeFixture(root)
+  const target = { platform: process.platform, arch: process.arch }
+  writeDesktopRuntime(root, fixture.release, fixture.sharedPackages.map(entry => entry.name), target)
+  const descriptor = await verifyDesktopRuntime(root, fixture.release.version, target)
+  const failure = Object.assign(new Error('payload did not drain'), {
+    code: 'ETIMEDOUT', killed: true, signal: 'SIGTERM',
+    stdout: 'payload-checks-complete; waiting for natural drain', stderr: 'payload native diagnostic',
+  })
+  payload.mockRejectedValueOnce(failure)
+  const diagnostics = vi.spyOn(console, 'error').mockImplementation(() => {})
+  await expect(smokePreparedRuntime(root, join(root, 'electron'), join(root, 'runtime'), descriptor)).rejects.toBe(failure)
+  expect(smokeDesktopRuntime).not.toHaveBeenCalled()
+  const options = payload.mock.calls[0]?.[2]
+  if (typeof options !== 'object' || options === null || !('env' in options)) throw new Error('Payload command must own an environment')
+  const environment = options.env
+  if (typeof environment !== 'object' || environment === null || !('NARB_NATIVE_CACHE_DIR' in environment)
+    || typeof environment.NARB_NATIVE_CACHE_DIR !== 'string') throw new Error('Payload command must own a private cache')
+  expect(existsSync(environment.NARB_NATIVE_CACHE_DIR)).toBe(false)
+  const line: unknown = diagnostics.mock.calls.flat().find(value => (
+    typeof value === 'string' && value.startsWith('desktop payload smoke: ')
+  ))
+  if (typeof line !== 'string') throw new Error('Payload failure must report termination details')
+  const details: unknown = JSON.parse(line.slice('desktop payload smoke: '.length))
+  expect(details).toMatchObject({ code: 'ETIMEDOUT', killed: true, signal: 'SIGTERM' })
+  expect(diagnostics).toHaveBeenCalledWith(failure.stdout)
+  expect(diagnostics).toHaveBeenCalledWith(failure.stderr)
 })

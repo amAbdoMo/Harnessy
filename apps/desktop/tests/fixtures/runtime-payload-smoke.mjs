@@ -158,19 +158,33 @@ function checkHtml() {
   assert.match(markdown, /\| x\s+\| 7\s+\|/u)
 }
 
+/** Report the check owning a stall while retaining its assertions and existing deadline. */
+async function traceCheck(name, check) {
+  const started = performance.now()
+  console.log(JSON.stringify({ phase: name, event: 'start' }))
+  try {
+    await check()
+  } catch (error) {
+    console.error(JSON.stringify({ phase: name, event: 'failure', code: error.code, killed: error.killed, signal: error.signal }))
+    throw error
+  }
+  console.log(JSON.stringify({ phase: name, event: 'done', elapsedMs: performance.now() - started }))
+}
+
 try {
   const builtin = requireRuntime('node-addon-require-builtin')
   assert.equal(typeof builtin.requireBuiltin('internal/modules/esm/loader').getOrInitializeCascadedLoader, 'function')
-  checkPnpm()
-  checkKoffi()
-  await checkSharp()
-  checkHtml()
-  await checkPty()
-  await checkSearch()
+  await traceCheck('pnpm', checkPnpm)
+  await traceCheck('koffi', checkKoffi)
+  await traceCheck('sharp', checkSharp)
+  await traceCheck('html', checkHtml)
+  await traceCheck('pty', checkPty)
+  await traceCheck('search', checkSearch)
 } finally {
   // This private tree contains only fixture files; Windows may release handles after terminal exit.
-  await rm(scratch, { recursive: true, force: true, maxRetries: 20, retryDelay: 50 })
+  await traceCheck('scratch-cleanup', () => rm(scratch, { recursive: true, force: true, maxRetries: 20, retryDelay: 50 }))
 }
+console.log(JSON.stringify({ phase: 'natural-drain', event: 'waiting', activeResources: process.getActiveResourcesInfo() }))
 
 // Natural event-loop drain includes node-pty's worker and console-list helper teardown.
 process.once('beforeExit', () => {
