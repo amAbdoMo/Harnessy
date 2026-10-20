@@ -52,7 +52,7 @@ it('retains partial payload progress and termination details, cleans its cache a
   writeDesktopRuntime(root, fixture.release, fixture.sharedPackages.map(entry => entry.name), target)
   const descriptor = await verifyDesktopRuntime(root, fixture.release.version, target)
   const failure = Object.assign(new Error('payload did not drain'), {
-    code: 'ETIMEDOUT', killed: true, signal: 'SIGTERM',
+    code: null, killed: true, signal: 'SIGTERM',
     stdout: 'payload-checks-complete; waiting for natural drain', stderr: 'payload native diagnostic',
   })
   payload.mockRejectedValueOnce(failure)
@@ -70,7 +70,7 @@ it('retains partial payload progress and termination details, cleans its cache a
   ))
   if (typeof line !== 'string') throw new Error('Payload failure must report termination details')
   const details: unknown = JSON.parse(line.slice('desktop payload smoke: '.length))
-  expect(details).toMatchObject({ code: 'ETIMEDOUT', killed: true, signal: 'SIGTERM' })
+  expect(details).toMatchObject({ code: null, killed: true, signal: 'SIGTERM' })
   expect(diagnostics).toHaveBeenCalledWith(failure.stdout)
   expect(diagnostics).toHaveBeenCalledWith(failure.stderr)
 })

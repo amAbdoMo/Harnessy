@@ -32,6 +32,7 @@ import {
 import { desktopTargetPlatform, resolveDesktopBuildTarget, resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
 import { desktopRuntimeFileExclusion } from './runtime-file-policy.ts'
 import { selectOfficeEngine } from '../../../scripts/libreoffice-packages.mjs'
+import { stageRuntimeDependencyPatches } from './runtime-dependency-patches.ts'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const BUILD_PATHS = resolveDesktopTargetBuildPaths()
@@ -123,6 +124,9 @@ async function main(): Promise<void> {
       createRuntimeProjectMetadata(BUILD_ROOT, release)
     })
     await packagingStep(process.env.DSH_DESKTOP_PACKAGING_RUN_DIR, 'runtime:lockfile', () => runPnpm(['install', '--lockfile-only']))
+    await packagingStep(process.env.DSH_DESKTOP_PACKAGING_RUN_DIR, 'runtime:dependency-patches', async () => {
+      if (stageRuntimeDependencyPatches(BUILD_ROOT, resolve(APP_ROOT, '../..'))) await runPnpm(['install', '--lockfile-only'])
+    })
     verifyDesktopCoreLockfile(
       readFileSync(join(BUILD_ROOT, 'pnpm-lock.yaml'), 'utf8'),
       readDesktopCorePackageSet(BUILD_ROOT, release.version),
