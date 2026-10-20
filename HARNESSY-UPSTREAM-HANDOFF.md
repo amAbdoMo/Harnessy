@@ -1,14 +1,14 @@
 ---
-description: "Review only new DeepSeek Harness upstream work, preserve Harnessy's product decisions, and finish with concise recommendations and a verified zero-behind branch."
+description: "Review DeepSeek Harness upstream work, preserve Harnessy's product decisions, and integrate only fully reviewed checkpoints with an exact adoption and exclusion ledger."
 ---
 
 # Cookbook: reviewing upstream for Harnessy
 
 ## Summary
 
-Use this handoff when comparing Harnessy with the main DeepSeek Harness repository. It keeps the review limited to upstream commits that Harnessy does not already contain, routes each change to the current Harnessy owner, and turns the result into **Adopt**, **Adapt**, or **Skip** recommendations. Ask the owner only when a choice changes visible behavior, stored data, security, operating cost, or release scope. A completed synchronization must include the selected improvements, preserve Harnessy's custom MCP, subagent, account, workspace, notification, and Desktop behavior, and leave the upstream-only commit count at zero.
+Use this handoff to integrate selected upstream improvements without replacing Harnessy's custom behavior. Review every commit included by a checkpoint, including merged side branches, and record adoption, adaptation, or deliberate exclusion. Preserve Harnessy's custom MCP, subagent, account, workspace, notification, and Desktop owners. Ask the owner only when a choice changes visible behavior, stored data, security, operating cost, or release scope.
 
-Do not store a moving commit hash or repeat a completed commit-by-commit audit in this page. Git ancestry is the durable checkpoint: after a completed synchronization, the next review starts from only the new right-side commits.
+The [review ledger](scripts/harnessy-upstream-review.json) pins the inventory, decisions, evidence, and integrated checkpoint. An entry without a review is unreviewed; a partial port does not account for its unchecked remainder. Keep moving hashes and per-commit evidence in that ledger, not this procedure. Git ancestry records the integrated checkpoint; GitHub's behind count includes newer commits and is not an arbitrary per-commit review counter.
 
 ## Table of Contents
 
@@ -28,7 +28,7 @@ Do not store a moving commit hash or repeat a completed commit-by-commit audit i
 <a id="before-start"></a>
 ## Before you start
 
-Confirm the task's scope. A **review** is read-only and ends with recommendations. A **synchronization** fetches upstream, integrates the selected work, runs focused checks, commits, pushes when requested, and verifies that Harnessy is no longer behind. Do not build an installer for a recommendation-only review. Build one only when Desktop packaging changed or the owner requested a release artifact.
+Confirm the task's scope. A **review** is read-only and ends with recommendations. A **checkpoint integration** fetches upstream, accounts for the chosen checkpoint's complete missing ancestry, integrates selected work, runs focused checks, and publishes only when qualified. Newer unreviewed commits may remain behind; state their count. A full synchronization additionally accounts for the fetched upstream tip. Build an installer only when Desktop packaging changed or the owner requested a release artifact.
 
 Preserve uncommitted user work. Inspect the worktree before fetching or merging, and never discard, overwrite, or hide unrelated changes. Harnessy does not need an automatic rollback copy; Git commits and the remote branch are the recovery points unless the owner explicitly requests another backup.
 
@@ -66,11 +66,11 @@ Fetch both remotes, then calculate the comparison from the current Harnessy `HEA
 git fetch origin
 git fetch upstream
 git rev-list --left-right --count HEAD...upstream/master
-git log --right-only --cherry-pick --no-merges --oneline HEAD...upstream/master
+git log --reverse --topo-order --oneline HEAD..upstream/master
 git diff --stat HEAD...upstream/master
 ```
 
-The count is `<Harnessy-only> <upstream-only>`. The second number is the amount Harnessy is behind. The log lists only upstream commits not already represented in Harnessy; do not review left-side custom commits as missing upstream work. If the second count is zero, stop the commit audit. Report that Harnessy is current and discuss only a separate product-improvement request from the owner.
+The count is `<Harnessy-only> <upstream-only>`. The second number is the amount Harnessy is behind. Include every missing upstream commit in the ledger, including merges and patch-equivalent commits; equivalence is a review decision, not permission to omit an ancestor. Preserve left-side custom commits. If the second count is zero, verify the ledger and stop the missing-commit audit.
 
 When the list is large, group it by affected package or user surface before reading individual diffs. Prioritize shared APIs, persistence, lifecycle, security, provider behavior, Desktop packaging, and code touching a current Harnessy owner. Documentation-only and internal maintenance changes still need compatibility classification, but they do not justify reopening unrelated product choices.
 
@@ -96,7 +96,7 @@ Prefer upstream extension points and shared services over a lasting fork inside 
 <a id="classify"></a>
 ## 4. Classify each relevant change
 
-Assign one decision to every relevant upstream group:
+Assign one decision to every reviewed upstream group. Record every group's changed paths and their dispositions in the ledger; mixed commits may adopt selected behavior while explicitly excluding other hunks. Keep unreviewed commits marked unreviewed, and do not advance a checkpoint across a gap:
 
 - **Adopt** when the upstream change is useful as written and does not conflict with a Harnessy product decision.
 - **Adapt** when the behavior is useful but must enter an existing Harnessy owner, copy style, persistence path, security rule, Windows lifecycle, or release workflow.
@@ -123,19 +123,25 @@ Use a compact table with these columns: **Decision**, **Upstream improvement**, 
 <a id="integrate"></a>
 ## 7. Integrate and verify
 
-For a synchronization, create an isolated `codex/upstream-*` branch before integrating upstream; never merge upstream directly into `master`. Integrate in a way that preserves ancestry, resolve overlaps in the product owners above, and update every affected consumer. Preserve the user's work and do not use destructive reset or checkout commands. Run `pnpm run verify:harnessy-product` after resolving overlaps and before merging the integration branch. This mandatory guard verifies Harnessy's identity, isolated state, custom bundle, Desktop launcher, accounts/models, MCP status, and configured-subagent surfaces; the Harnessy Windows workflow repeats it for every pull request and `master` update. Follow the repository's pre-push procedure and run any additional focused behavior, type, documentation, and packaging checks required by the changed surfaces; exhaustive platform and live-API coverage belongs to CI unless the task specifically requires it.
+Create an isolated `codex/upstream-*` branch; never merge upstream directly into `master` or operate on the active dirty checkout. Keep the ledger's baseline fixed and extend its pinned inventory without losing existing reviews. The verifier needs the pinned Git objects and their ancestry, so fetch the required history before checking a shallow clone. Inspect constituent diffs and merge resolutions, implement selected fixes, and document exclusions at their affected paths. Do not use a blanket `ours` strategy or attach unchecked ancestry to clear the counter.
+
+Before integrating a candidate, run `pnpm run verify:harnessy-upstream --checkpoint <checkpoint>` with its full commit ID. This read-only check requires exact inventory metadata, complete per-group path coverage, explicit merge evidence, and a reviewed ancestor closure. It also rejects unreviewed upstream ancestry already acquired by `HEAD`; it cannot establish that a reviewer's reasoning or evidence is correct. Qualification remains separate: selected runtime changes need focused behavior and recorded-session checks.
+
+Merge the reviewed checkpoint normally and resolve each overlap according to its ledger disposition. Preserve custom owners and frozen historical files. Set `reviewedThrough` to the accepted checkpoint in the integration result, then run the checks below. `verify:harnessy-product` remains mandatory after conflict resolution; it checks identity, isolated state, custom bundle, Desktop launcher, accounts/models, MCP status, and configured-subagent behavior. Follow the normal pre-push procedure; do not bypass hooks or rebuild the active app.
 
 After the integration commit, verify the working tree, ancestry, and fork remote:
 
 ```sh
+pnpm run verify:harnessy-upstream
+pnpm run verify:harnessy-product
 git status --short
 git rev-list --left-right --count HEAD...upstream/master
-git merge-base --is-ancestor upstream/master HEAD
+git merge-base --is-ancestor <reviewed-checkpoint> HEAD
 git rev-parse HEAD
-git rev-parse origin/master
+git ls-remote --heads origin staging
 ```
 
-Completion requires a clean intended worktree, a zero second count, a successful ancestry check, and matching local and `origin/master` revisions when pushing is in scope. A nonzero first count is normal because it represents Harnessy-only work. If pushing or installer creation is outside the task, state that explicitly instead of describing the synchronization as fully published.
+A completed checkpoint requires a clean intended worktree, a passing ledger check, successful checkpoint ancestry verification, qualified selected changes, and matching local and `origin/staging` revisions when publication is requested. Verify that newly acquired upstream ancestors equal the reviewed checkpoint's declared closure. A full synchronization also requires zero commits behind the fetched upstream tip; a bounded checkpoint must report the remaining behind and unreviewed counts separately. Harnessy-only commits may remain ahead. Never push `master`, tags, releases, or an extra delivery branch without a separate request.
 
 When a release artifact is requested, use the fork's Windows workflow and report the workflow result, artifact name, size, and checksum. Keep that operational evidence in the task handoff or release record, not in this maintained page.
 
@@ -147,9 +153,10 @@ Use this template at the end of the next upstream review so a later task can con
 ```md
 ## Upstream status
 
-- Upstream-only commits before work: <count>
-- Upstream-only commits after work: <count>
-- Scope: review only | synchronized | synchronized and released
+- Pinned upstream tip and integrated reviewed checkpoint: <ledger references>
+- Commits behind before / after: <counts>
+- Ledger adopted/adapted / reviewed-excluded / unreviewed: <counts>
+- Scope: review only | checkpoint integrated | fully synchronized | released
 
 ## Recommendations
 
@@ -175,7 +182,7 @@ Use this template at the end of the next upstream review so a later task can con
 
 ## Next review
 
-- Start from `git log --right-only --cherry-pick --no-merges --oneline HEAD...upstream/master`; do not re-audit commits already contained by `HEAD`.
+- Start from the ledger's remaining unreviewed entries and `git log --reverse --topo-order --oneline HEAD..upstream/master`. Reuse valid recorded evidence; do not infer review from an adopted hunk, commit title, or reduced counter.
 ```
 
 <a id="dev-note"></a>

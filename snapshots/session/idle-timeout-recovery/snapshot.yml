@@ -1,0 +1,11 @@
+version: 1
+scenario: idle-timeout-recovery
+profile: headless
+composition: idle-timeout-recovery
+recording: authored
+permission: danger-full-access
+environment:
+  DSH_IDLE_TIMEOUT_FIXTURE_KEY: fixture-only
+header:
+  class: idle-timeout-recovery
+  pin: true
