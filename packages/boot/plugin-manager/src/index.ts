@@ -166,19 +166,26 @@ function parsedForRegistry(spec: string): ParsedInstallSpec {
 }
 
 /**
- * The package an installation spec names before pnpm runs: a registry name, a local directory's manifest name, or the
- * dependency saved with this git or tarball spec, compared as the plugin list shows saved specs.
+ * Resolve an unchanged installation from its spec and installed package identity.
+ * Raw git and tarball sources must match exactly one dependency under its own name.
  * @param spec The installation spec.
- * @param dependencies The profile's saved dependencies.
- * @param profileDir The profile directory saved local paths are relative to.
- * @returns The package name, or `undefined` when only the installation tells it.
+ * @param dependencies The profile's saved dependencies after installation.
+ * @param profile The package-resolution anchors and base for saved local paths.
+ * @returns The named package, or `undefined` when the installation remains ambiguous.
  */
-function specPackageName(spec: string, dependencies: Readonly<Record<string, string>>, profileDir: string): string | undefined {
+function specPackageName(spec: string, dependencies: Readonly<Record<string, string>>, profile: ProfileContext): string | undefined {
   const parsed = parsedForRegistry(spec)
   if (parsed.kind === 'registry') return parsed.name
   if (parsed.kind === 'path') return packageName(parsed.path)
-  const specs = parsed.kind === 'tarball' && parsed.path !== undefined ? [spec, `file:${parsed.path}`] : [spec]
-  return Object.entries(dependencies).find(([dependency, saved]) => specs.includes(dependencySpec(dependency, saved, profileDir)))?.[0]
+  const requested = parsed.kind === 'tarball' && parsed.path !== undefined ? `file:${parsed.path}` : parsed.spec
+  const matches = Object.entries(dependencies).filter(([dependency, saved]) => {
+    if (dependencySpec(dependency, requested, profile.dir) !== dependencySpec(dependency, saved, profile.dir)) return false
+    let dir: string
+    try { dir = resolveBundleDir('dsh', dependency, profile.installAnchor, profile.dir) }
+    catch (_error) { return false /* an unresolved dependency cannot establish its own package name */ }
+    return packageName(dir) === dependency
+  })
+  return matches.length === 1 ? matches[0]?.[0] : undefined
 }
 
 /** The package name a local directory declares, or `undefined` without a readable manifest. */
@@ -583,7 +590,7 @@ export class PluginManager extends TypertRemoteService {
         // Registry retries can retain the saved range after a partial installation; a repeated local link leaves the
         // saved dependency as it was, so the spec names the package instead.
         if (installed.length === 0) {
-          const local = specPackageName(spec, after, this.profile.dir)
+          const local = specPackageName(spec, after, this.profile)
           if (local !== undefined && Object.hasOwn(after, local)) installed.push(local)
         }
         const target = installed[0]

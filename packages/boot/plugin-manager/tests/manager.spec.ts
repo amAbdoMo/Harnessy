@@ -883,6 +883,50 @@ it('names a repeated local link install from the directory it points at', async 
   expect(await manager.installBundle(local, { enabled: false })).toMatchObject({ changed: false, application: 'restart-required' })
 })
 
+it.each([
+  { kind: 'tarball', input: 'https://cdn.example.invalid/real.tgz', saved: 'https://cdn.example.invalid/real.tgz' },
+  { kind: 'authenticated tarball', input: 'https://fixture-user:fixture-password@cdn.example.invalid/real.tgz', saved: 'https://cdn.example.invalid/real.tgz' },
+  { kind: 'authenticated git', input: 'git+https://fixture-user:fixture-password@git.example.invalid/team/real.git#main', saved: 'git+https://git.example.invalid/team/real.git#main' },
+  { kind: 'local tarball', input: 'local', saved: 'file:archive.tgz' },
+])('resolves a repeated source install to its own package rather than an earlier alias ($kind)', async ({ kind, input, saved }) => {
+  const { manager, dir, bundle } = await fixture()
+  bundle('alias', [])
+  bundle('real', [])
+  const aliasPath = join(dir, 'node_modules', 'alias', 'package.json')
+  const alias = readProfileManifest('test', join(dir, 'node_modules', 'alias'))
+  alias.name = 'real'
+  writeFileSync(aliasPath, JSON.stringify(alias))
+  const manifest = readProfileManifest('test', dir)
+  manifest.dependencies = { ...manifest.dependencies, alias: saved, real: saved }
+  writeFileSync(join(dir, 'package.json'), JSON.stringify(manifest))
+  const pnpm = vi.spyOn(operations, 'runProfilePnpm').mockResolvedValue({
+    exitCode: 0, output: 'already installed', truncated: false, logPath: join(dir, 'pnpm.log'),
+  })
+  onTestFinished(() => { pnpm.mockRestore() })
+  const spec = kind === 'local tarball' ? join(dir, 'archive.tgz') : input
+  expect(await manager.installBundle(spec)).toMatchObject({ application: 'restart-required', bundle: 'real', target: 'real' })
+  expect(readProfileManifest('test', dir).dsh?.profile?.bundles).toContain('real')
+  expect(readProfileManifest('test', dir).dsh?.profile?.bundles).not.toContain('alias')
+})
+
+it('refuses a repeated source install when multiple own package names match', async () => {
+  const { manager, dir, bundle } = await fixture()
+  const spec = 'https://cdn.example.invalid/shared.tgz'
+  bundle('first', [])
+  bundle('second', [])
+  const manifest = readProfileManifest('test', dir)
+  manifest.dependencies = { ...manifest.dependencies, first: spec, second: spec }
+  const packagePath = join(dir, 'package.json')
+  writeFileSync(packagePath, JSON.stringify(manifest))
+  const before = readFileSync(packagePath, 'utf8')
+  const pnpm = vi.spyOn(operations, 'runProfilePnpm').mockResolvedValue({
+    exitCode: 0, output: 'already installed', truncated: false, logPath: join(dir, 'pnpm.log'),
+  })
+  onTestFinished(() => { pnpm.mockRestore() })
+  expect(await manager.installBundle(spec)).toMatchObject({ application: 'failed', error: { code: 'ambiguous-install' } })
+  expect(readFileSync(packagePath, 'utf8')).toBe(before)
+})
+
 it('removes a package with the registry it was installed from', async () => {
   const { manager, dir, bundle } = await fixture()
   const pnpm = vi.spyOn(operations, 'runProfilePnpm')
