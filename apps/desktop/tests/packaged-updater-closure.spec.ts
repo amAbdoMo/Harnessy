@@ -11,6 +11,7 @@ const archive = { getFile: (path: string) => (path.endsWith('package.json') ? { 
 vi.mock('../../../scripts/libreoffice-packages.mjs', () => ({ officePackageDirectories }))
 // The hook imports the built tree, which a clean checkout has not produced.
 vi.mock('/apps/desktop/lib/types/runtime-tree.js', () => ({ verifyDesktopRuntime: async () => undefined }))
+vi.mock('/apps/desktop/lib/types/mandatory-update-policy.js', async () => import('../src/mandatory-update-policy.ts'))
 vi.mock('../scripts/windows-asar-unpack.mjs', async importOriginal => ({
   ...await importOriginal<typeof import('../scripts/windows-asar-unpack.mjs')>(),
   prepareWindowsAsarUnpack: async () => [],
