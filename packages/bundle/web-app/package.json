@@ -28,14 +28,12 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "lib/index.js",
-    "lib/startup.js",
+    "lib/*.js",
     "cordis.patch.yml",
     "presets/standard.patch.yml",
     "presets/ptc.patch.yml",
     "presets/minimal.patch.yml",
     "presets/cordis.patch.yml",
-    "lib/public-url-*.js",
     "lib/types/**/*.d.ts"
   ],
   "license": "MIT",

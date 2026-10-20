@@ -171,7 +171,7 @@ These limits tell you what to expect in unusual setups — a source checkout, SS
 <details>
 <summary>Working context for maintainers — click to expand</summary>
 
-None.
+The package includes all top-level runtime JavaScript in `lib/*.js`, including shared chunks required by its main and startup entries. JavaScript emitted under `lib/types` is not published. The [packaging regression](../../../scripts/web-app-package.spec.ts) packs the declared file set and imports both entries from an isolated archive.
 
 </details>
 

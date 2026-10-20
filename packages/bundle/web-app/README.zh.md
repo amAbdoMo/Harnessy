@@ -171,7 +171,7 @@ URL 行与浏览器交接都是就绪信号：监督方一观察到该行就发�
 <details>
 <summary>维护者的工作上下文——点击展开</summary>
 
-无。
+包通过 `lib/*.js` 纳入所有顶层运行时 JavaScript，包括主入口与 startup 入口所需的共享 chunk。`lib/types` 下生成的 JavaScript 不发布。[打包回归测试](../../../scripts/web-app-package.spec.ts)按声明的文件集合打包，并从隔离归档导入两个入口。
 
 </details>
 
