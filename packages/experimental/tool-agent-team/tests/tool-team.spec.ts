@@ -353,6 +353,34 @@ describe('dsh-tool-team', () => {
     }
   })
 
+  it('omits Team identity when a late one-shot descriptor identifies a non-Team child', async () => {
+    const { ctx, lead, adapter } = await setup([textResponse('workflow child done')])
+    const handle = await ctx.agents.create({
+      sessionId: SessionId('late-one-shot-descriptor'),
+      meta: { parentSession: lead.id },
+      agentOptions: { provider: 'mock', model: 'mock' },
+      signal: SIGNAL,
+    })
+    try {
+      ctx.on('agent/pre-step', async ({ agent }, next) => {
+        const decision = await next()
+        if (agent === handle.agent) {
+          agent.session.append('subagent/descriptor', { version: 3, mode: 'one-shot', provider: 'spawn' })
+        }
+        return decision
+      })
+      await runTurn(handle.agent, 'One-shot task')
+      const request = adapter.requests.find(request => request.sessionId === handle.agent.id)
+      expect(request).toBeDefined()
+      expect(runtimeContextText(request!)).not.toContain('You are the Team Lead')
+      expect(request!.messages.filter(message => message.source?.kind === 'runtime-context')
+        .flatMap(message => message.source?.kind === 'runtime-context' && message.source.form === 'snapshot' ? message.source.sections : [])
+        .some(section => section.name === 'team:identity')).toBe(false)
+    } finally {
+      await handle.dispose()
+    }
+  })
+
   it('restores compacted identity and does not repeat an unchanged retained snapshot', async () => {
     const { ctx, lead, adapter } = await setup([
       toolCallResponse('first-list', 'list_agents', {}),
@@ -360,7 +388,7 @@ describe('dsh-tool-team', () => {
       textResponse('done'),
     ])
     ctx.on('agent/pre-step', async ({ agent, step }, next) => {
-      if (step === 2) {
+      if (step === 3) {
         const identity = agent.session.snapshotEvents().find(event => event.type === 'user/message'
           && event.data.source.kind === 'runtime-context')
         if (identity === undefined) throw new Error('expected teammate runtime context')
@@ -380,13 +408,11 @@ describe('dsh-tool-team', () => {
     const childId = spawnedChildId(ctx, lead, spawned)
     await waitNoAgent(ctx, childId)
     const childRequests = adapter.requests.filter(request => request.sessionId === childId)
-    // The loop projects the runtime context before the pre-step waterfall, so
-    // the compaction inside step 2 replaces the snapshot that step used and the
-    // identity returns with the next step.
-    for (const [index, request] of childRequests.entries()) {
+    expect(childRequests).toHaveLength(3)
+    for (const request of childRequests) {
       const snapshots = request.messages.filter(message => message.source?.kind === 'runtime-context')
-      expect(snapshots).toHaveLength(index === 1 ? 0 : 1)
-      if (index !== 1) expect(runtimeContextText(request)).toContain('You are teammate "reviewer".')
+      expect(snapshots).toHaveLength(1)
+      expect(runtimeContextText(request)).toContain('You are teammate "reviewer".')
     }
     await using persisted = await ctx.sessionPersistence.open(childId, 'read')
     const { events } = await persisted.read()

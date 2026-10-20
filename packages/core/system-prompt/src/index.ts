@@ -81,7 +81,7 @@ export interface PromptContext {
   readonly name: string
   /** Contexts are joined in ascending order. */
   readonly order: number
-  /** Static text or a provider evaluated for each assembly. Empty text contributes nothing. */
+  /** Static text or a provider evaluated at assembly and admission refresh. Empty text contributes nothing. */
   readonly text: string | ((context: AssembleContext) => string)
   /** Whether to interpolate prompt variables. Defaults to true; false preserves literal text. */
   readonly interpolate?: boolean
@@ -375,6 +375,15 @@ function interpolate(
   return result + text.slice(last)
 }
 
+/** Resolve one registered runtime fact without assembling sections or tools. */
+function resolveContext(entry: PromptContext, context: AssembleContext): AssembledContext {
+  return {
+    name: entry.name,
+    text: typeof entry.text === 'function' ? entry.text(context) : entry.text,
+    ...entry.interpolate !== undefined ? { interpolate: entry.interpolate } : {},
+  }
+}
+
 /** One tool-schema provider stored in a prompt layer. */
 type ToolProvider = (context: AssembleContext) => ToolProviderResult
 
@@ -560,6 +569,38 @@ export class SystemPrompt extends Service {
   }
 
   /**
+   * Refresh accepted registered runtime facts for request admission. Contexts
+   * added only by the assembly waterfall retain their accepted values. Current
+   * suppression removes optional contexts, and missing required registrations
+   * are restored in registry order. Sections, tools, and interpolation variables
+   * retain the accepted assembly; their providers and waterfall do not rerun.
+   * @param assembly - accepted assembly for this scope and step.
+   * @param context - the same scope and current plugin-defined assembly fields.
+   * @returns the accepted assembly with current runtime-context provider text.
+   */
+  refreshContext(assembly: PromptAssembly, context: AssembleContext = {}): PromptAssembly {
+    const providers = this.layers.merge(context.scope, layer => layer.contexts)
+    const suppressed = !this.layers.global.runtimeContextSuppressors.isEmpty()
+      || this.layers.chainLayers(context.scope).some(layer => !layer.runtimeContextSuppressors.isEmpty())
+    const required = new Map([...providers].filter(([, entry]) => entry.required === true))
+    const contexts: AssembledContext[] = []
+    for (const accepted of assembly.contexts) {
+      const provider = providers.get(accepted.name)
+      required.delete(accepted.name)
+      if (suppressed && provider?.required !== true) continue
+      contexts.push(provider === undefined ? accepted : resolveContext(provider, context))
+    }
+    for (const provider of required.values()) {
+      const index = contexts.findIndex((entry) => {
+        const next = providers.get(entry.name)
+        return next !== undefined && next.order > provider.order
+      })
+      contexts.splice(index < 0 ? contexts.length : index, 0, resolveContext(provider, context))
+    }
+    return { ...assembly, contexts }
+  }
+
+  /**
    * Assemble global and scoped providers, detach tool parameters, apply
    * canonical ordering, then run the assembly waterfall. Scoped sections and
    * variables shadow globals. The returned waterfall value is authoritative
@@ -628,11 +669,7 @@ export class SystemPrompt extends Service {
       contexts: [...contextByName.values()]
         .filter(entry => !runtimeContextSuppressed || entry.required === true)
         .sort((a, b) => a.order - b.order)
-        .map(entry => ({
-          name: entry.name,
-          text: typeof entry.text === 'function' ? entry.text(context) : entry.text,
-          ...entry.interpolate !== undefined ? { interpolate: entry.interpolate } : {},
-        })),
+        .map(entry => resolveContext(entry, context)),
       tools: orderTools(collected, this.toolOrder, knownNames),
       variables,
     }

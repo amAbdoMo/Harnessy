@@ -65,6 +65,8 @@ ctx.systemPrompt.section({
 
 Set `interpolate: false` on a section to preserve its text literally, including `{{…}}` groups in generated tool documentation. Other sections interpolate variables by default.
 
+`refreshContext(assembly, context)` refreshes registered runtime facts after pre-step and route preparation. It preserves accepted sections, tools, variables, and contexts contributed only by the assembly waterfall, applies current optional-context suppression, and restores missing required entries. Put changing facts in context providers; registered context text is read again before each request admission.
+
 ### Contribute a prompt variable
 
 Variables are referenced from section text as `{{name}}` and resolved at each assembly; scoped variables shadow a same-named global for that agent. The loop supplies `model` and `cwd`; any plugin can register the facts it owns.
@@ -79,7 +81,7 @@ Tool-schema providers are evaluated per assembly and contribute the model-visibl
 
 ### Suppress runtime context
 
-`suppressRuntimeContext()` removes every dynamic runtime-context contribution for the calling scope without disabling the services that own the underlying facts; multiple suppressors compose and the effect restores context when none remains.
+`suppressRuntimeContext()` removes optional dynamic runtime-context contributions for the calling scope while retaining `required: true` entries, without disabling the services that own the underlying facts; multiple suppressors compose and the effect restores context when none remains.
 
 -----
 

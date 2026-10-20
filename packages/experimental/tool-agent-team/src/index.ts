@@ -176,7 +176,10 @@ function install(agent: Agent, ctx: Context, config: Required<Config>): () => vo
       order: scoped.systemPrompt.getContextOrder('TEAM_IDENTITY'),
       required: true,
       text: () => {
-        const { role, name } = ctx.agentTeams.membership(agent)
+        // One-shot providers may publish their non-Team descriptor after initial assembly.
+        const membership = ctx.agentTeams.tryMembership(agent)
+        if (membership === undefined) return ''
+        const { role, name } = membership
         return `${role === 'lead'
           ? 'You are the Team Lead named "lead".'
           : `You are teammate "${name}".\nYour Team Lead is named "lead".\nTo message your Team Lead, use send_message({ target: "lead", message: "..." }).`}

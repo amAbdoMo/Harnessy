@@ -65,6 +65,8 @@ ctx.systemPrompt.section({
 
 在段上设置 `interpolate: false` 可原样保留文本，包括生成的工具文档中的 `{{…}}` 组。其他段默认执行变量插值。
 
+`refreshContext(assembly, context)` 在 pre-step 和路由准备之后刷新已注册的运行时事实。它保留已接纳的段、工具、变量以及仅由组装 waterfall 提供的上下文，应用当前可选上下文抑制，并恢复缺失的必需条目。变化的事实应放入 context provider；每次请求准入前都会重新读取已注册的上下文文本。
+
 ### 贡献提示词变量
 
 变量在段文本中以 `{{name}}` 引用，并在每次组装时解析；带作用域变量会为该 agent 遮蔽同名全局变量。循环提供 `model` 与 `cwd`；任何插件都可以注册自己拥有的事实。
@@ -79,7 +81,7 @@ ctx.systemPrompt.variable('cwd', ({ agent }) => agent?.session.header.cwd)
 
 ### 抑制运行时上下文
 
-`suppressRuntimeContext()` 移除调用作用域的所有动态运行时上下文贡献，但不禁用拥有底层事实的服务；多个抑制器独立组合，当不再存在抑制器时该 effect 会恢复上下文。
+`suppressRuntimeContext()` 移除调用作用域的可选动态运行时上下文贡献，保留 `required: true` 条目，但不禁用拥有底层事实的服务；多个抑制器独立组合，当不再存在抑制器时该 effect 会恢复上下文。
 
 -----
 
