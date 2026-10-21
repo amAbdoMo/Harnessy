@@ -1440,7 +1440,7 @@ describe('desktop main startup', () => {
     return host
   }
 
-  it('brands task toasts and selects their Session only through product protocol activation without reloading', async () => {
+  it('uses compact task toasts with registered branding and activates their Session without reloading', async () => {
     await readyWorkspace()
     const window = harness.windows[0]!
     window.minimized = true
@@ -1451,8 +1451,8 @@ describe('desktop main startup', () => {
     expect(invoke(DESKTOP_IPC.notificationsShow, 'app', { title: 'Task finished', body: 'Review the result.', sessionId: 's1' })).toBe(true)
     const notification = harness.notifications.at(-1)!
     expect(notification.options.toastXml).toContain('launch="harnessy://session/s1" activationType="protocol"')
-    expect(notification.options.toastXml).toContain('placement="appLogoOverride"')
-    expect(notification.options.toastXml).toContain('icon.png')
+    expect(notification.options.toastXml).not.toMatch(/<image|<actions|<input|inlineReply/u)
+    expect(notification.options.toastXml).toContain('<text>Task finished</text><text>Review the result.</text>')
     expect(notification.show).toHaveBeenCalledOnce()
     notification.emit('click')
     expect(window.webContents.send).not.toHaveBeenCalledWith(DESKTOP_IPC.notificationActivated, expect.anything())
