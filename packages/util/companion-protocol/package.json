@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-companion-protocol",
   "description": "Node-native authenticated companion channels and relay key-possession proofs",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "publishConfig": { "access": "public" },
   "repository": {
     "type": "git",
