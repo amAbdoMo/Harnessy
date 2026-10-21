@@ -61,8 +61,8 @@ export interface SessionListSnapshot {
 /** Shared projection values and the lifecycle of their explicit baseline read. */
 export interface SessionProjectionSnapshot {
   readonly values: Readonly<Partial<SessionProjectionMap>>
-  /** Idle includes migration-deferred hints; only a completed exact read is ready. */
-  readonly state: 'idle' | 'loading' | 'ready' | 'error'
+  /** Deferred migration retains cached hints without opening the Session. */
+  readonly state: 'idle' | 'loading' | 'ready' | 'migration-required' | 'error'
   readonly error: RemoteFailure | null
 }
 
@@ -154,8 +154,8 @@ export class SessionManager {
 
   /**
    * Resolve an address for breadcrumb navigation without retaining transport authority.
-   * @param sessionId - possible child id in an already-loaded catalog.
-   * @returns A retained or catalog-derived direct-parent address.
+   * @param sessionId - possible child id in received Session metadata.
+   * @returns A retained or catalog address, then an unknown-mode listed subagent address without retention.
    */
   subagentAddress(sessionId: SessionId): SubagentAddress | undefined {
     const retained = this.addresses.get(sessionId)
@@ -171,7 +171,9 @@ export class SessionManager {
         }
       }
     }
-    return undefined
+    const summary = this.summaries.find(summary => summary.sessionId === sessionId)
+    if (summary?.origin !== 'subagent' || summary.parentSessionId === undefined) return undefined
+    return { parentSessionId: summary.parentSessionId, childSessionId: sessionId, mode: 'unknown' }
   }
 
   // ---- Instance management ----
@@ -353,7 +355,7 @@ export class SessionManager {
         if (result.ok) {
           if (result.value?.kind === 'migration-required') {
             store.applyCached(result.value.values)
-            this.projectionLoads.set(sessionId, { state: 'idle', error: null })
+            this.projectionLoads.set(sessionId, { state: 'migration-required', error: null })
             return
           }
           if (result.value !== null) {
@@ -532,16 +534,17 @@ export class SessionManager {
    * preserve it or lower it after an exact cut before the first `turn/start`;
    * lineage rides parentSessionId. A child published before Workspace
    * attachment fails is also reconciled into the list.
-   * @param opts - source session and the optional exact inclusive boundary seq.
+   * @param opts - source session, optional exact inclusive boundary seq, and permission to start migration.
    * @returns the fork result (the child session id).
    */
   async fork(
-    opts: { sessionId: SessionId; atSeq?: SessionSeq },
+    opts: { sessionId: SessionId; atSeq?: SessionSeq; allowMigration?: boolean },
   ): Promise<RemoteResult<{ sessionId: SessionId }>> {
     const source = this.summaries.find(s => s.sessionId === opts.sessionId)
     const result = await this.remote.session.fork({
       sessionId: opts.sessionId,
       ...opts.atSeq === undefined ? {} : { atSeq: opts.atSeq },
+      ...opts.allowMigration === undefined ? {} : { allowMigration: opts.allowMigration },
     })
     const childId = result.ok
       ? result.value.sessionId

@@ -67,7 +67,7 @@ A flow declares the credential record it writes, a user-facing label, and the si
 
 ### Running an attempt
 
-A surface runs one attempt per credential at a time. The interaction travels with the request rather than living in a registry, so prompts reach exactly the page that asked; a headless caller supplies an interaction that declines. `begin()` reports `{ status: 'authorized' }` when the record was committed and observed during the attempt, and `{ status: 'cancelled' }` when the human declined or the caller withdrew. `cancel(key)` withdraws the running attempt from a second call, for the request/response transport that answers a Cancel button without holding the first call's signal.
+A surface runs one attempt per credential at a time. The interaction travels with the request rather than living in a registry, so prompts reach exactly the page that asked; a headless caller supplies an interaction that declines. `begin()` reports `{ status: 'authorized' }` when the attempt successfully awaits `session.commit()` or observes its credential write during the attempt, and `{ status: 'cancelled' }` when the human declined or the caller withdrew. `cancel(key)` withdraws the running attempt from a second call, for the request/response transport that answers a Cancel button without holding the first call's signal.
 
 Callers may provide `destination` to stage a grant without replacing the active record. The flow must declare `supportsDestination: true` and route every write through `session.commit`; otherwise an alternate destination is refused with `UNSUPPORTED_DESTINATION` before the flow runs. The caller owns adoption and deletion of staged records; the flow key still owns attempt exclusion and settlement events.
 

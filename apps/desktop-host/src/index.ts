@@ -8,7 +8,7 @@ import type {} from '@deepseek-ai/dsh-client-connection'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-deepseek-account'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
-import CompanionHost, { installDesktopCompanionOwner } from '@deepseek-ai/dsh-companion-host'
+import { installDesktopCompanionOwner } from '@deepseek-ai/dsh-companion-host'
 import type { Config as CompanionConfig } from '@deepseek-ai/dsh-companion-host'
 import { installDesktopCompanionControls, resolveDesktopCompanionConfig } from './companion.ts'
 import * as desktopOffice from './office.ts'
@@ -63,7 +63,7 @@ async function main(): Promise<void> {
     prepare(ctx) {
       control.companionConfig = resolveDesktopCompanionConfig(process.env)
       installDesktopCompanionOwner(ctx, { home: resolveDshHome(), signal: companionLife.signal })
-      control.companion = installDesktopCompanionControls(ctx, companionLife.signal, send)
+      control.companion = installDesktopCompanionControls(ctx, control.companionConfig, companionLife, send)
       control.websiteMcp = installWebsiteMcpInspector(ctx, projectDir)
       const parent = control.websiteParent = installWebsiteParentChannel(ctx, send)
       control.websiteRequests = installWebsiteRequests(ctx, control.websiteMcp, (request) => {
@@ -170,9 +170,9 @@ async function main(): Promise<void> {
     await control.websiteTools.await()
     await control.devicePreviewTools.await()
     await control.devicePreviewController.await()
-    if (control.companionConfig === undefined) throw new Error('Desktop companion configuration was not initialized')
+    if (control.companion === undefined) throw new Error('Desktop companion controls were not initialized')
     companionLife.signal.throwIfAborted()
-    await ctx.plugin(CompanionHost, control.companionConfig)
+    await control.companion.initialize()
   } catch (error) { await ctx.fiber.dispose(); throw error }
   control.updateTasks = installDesktopUpdateTaskControl(ctx)
   control.quitInspection = installDesktopQuitInspection(ctx)

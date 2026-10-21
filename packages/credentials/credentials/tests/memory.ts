@@ -45,13 +45,13 @@ export class MemoryCredentials extends CredentialProvider {
       return Promise.reject(new Error('memory credentials: an empty value cannot be stored; use unset'))
     }
     this.store.set(ref, value)
-    this.ctx.emit('credentials/reference-updated', ref)
+    this.notifyUpdated(ref)
     return Promise.resolve()
   }
 
   override unset(ref: CredentialRef): Promise<void> {
     if (this.store.delete(ref)) {
-      this.ctx.emit('credentials/reference-updated', ref)
+      this.notifyUpdated(ref)
     }
     return Promise.resolve()
   }
@@ -79,13 +79,13 @@ export class MemoryCredentials extends CredentialProvider {
     const next = await mutate(current)
     if (next === undefined) return current
     this.records.set(key, next)
-    this.ctx.emit('credentials/record-updated', key)
+    this.notifyRecordUpdated(key)
     return next
   }
 
   override deleteRecord(key: CredentialKey): Promise<void> {
     if (this.records.delete(key)) {
-      this.ctx.emit('credentials/record-updated', key)
+      this.notifyRecordUpdated(key)
     }
     return Promise.resolve()
   }

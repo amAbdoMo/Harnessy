@@ -100,7 +100,7 @@ export class SessionCommandController {
   ) {}
 
   /**
-   * Create or idempotently adopt one ordinary Session.
+   * Create an ordinary Session, exclusively for newSessionId or idempotently for sessionId.
    * @param request - requested identity, location, and Agent preset.
    * @returns the Session identity and resolved preset when configured.
    */
@@ -108,7 +108,10 @@ export class SessionCommandController {
     if (request.workspaceId !== undefined && request.cwd !== undefined) {
       throw new RemoteError('gateway/bad-request', 'session.create accepts workspaceId or cwd, not both', {})
     }
-    const sessionId = request.sessionId ?? brandString<SessionId>(`session-${randomUUID()}`)
+    if (request.newSessionId !== undefined && request.sessionId !== undefined) {
+      throw new RemoteError('gateway/bad-request', 'session.create accepts newSessionId or sessionId, not both', {})
+    }
+    const sessionId = request.newSessionId ?? request.sessionId ?? brandString<SessionId>(`session-${randomUUID()}`)
     let workspace: Workspace | undefined
     if (request.workspaceId !== undefined) {
       workspace = this.ctx.workspaceRegistry.get(request.workspaceId)
@@ -123,12 +126,9 @@ export class SessionCommandController {
       ?? await this.resolveImplicitCwd(sessionId, request.sessionId !== undefined)
     let adopted: Agent
     try {
-      adopted = await this.agents.ensureSession(
-        sessionId,
-        cwd,
-        request.sessionId !== undefined,
-        request.agentPreset,
-      )
+      adopted = request.newSessionId === undefined
+        ? await this.agents.ensureSession(sessionId, cwd, request.sessionId !== undefined, request.agentPreset)
+        : await this.agents.createFreshSession(sessionId, cwd, request.agentPreset)
     } catch (error) {
       this.rejectCreation(sessionId, error)
     }

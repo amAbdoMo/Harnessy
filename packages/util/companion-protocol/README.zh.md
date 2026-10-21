@@ -43,6 +43,17 @@ PC 必须原子地预留/消耗有效邀请、核对目标 PC/源及过期时间
 
 本节冻结版本一的线字段、顺序、编码和加密输入。JSON 对象属性顺序无关紧要；认证二进制字段的顺序不可改变。解析器拒绝缺失/额外字段、其他版本/套件/角色以及非规范二进制编码。调用方只解码 JSON 一次，并在这些解析器之前拒绝过大的原始消息。
 
+### 应用导航兼容性
+
+`listSessions` 接受可选的 `view: 'navigation'`。省略时，每行仍恰好包含 `sessionId`、`title` 和 `status`；选择导航视图后增加 `navigation`，其中恰好包含 `updatedAt`、`pinOrder` 和 `workspace`。`workspace` 为 `null` 或恰好包含 `{id, title, order}`；未置顶时 `pinOrder` 为 `null`。所有导航数值均为 `[0, Number.MAX_SAFE_INTEGER]` 内的整数。[应用类型](src/application-types.ts)与[解析器](src/application.ts)负责这些字段；导航不授予修改权限。
+
+不支持此扩展的 PC 会拒绝额外请求字段并关闭通道。使用请求此视图的手机前，必须先更新 PC；不得放宽精确字段解析，也不得通过宽松回退重试。省略 `view` 的旧手机仍接收原有响应。参见[升级指南](../../../docs/upgrade-guide/v0.1.15/companion-navigation/guide.zh.md)。
+
+<a id="application-management-compatibility"></a>
+### 应用管理兼容性
+
+封闭的[应用请求／结果类型](src/application-types.ts)新增受权限控制的 `listManagementWorkspaces` 和四条命令：`createSession`、`renameSession`、`archiveSession` 与 `setSessionPinned`。目录以 ID、标题和顺序包含已注册的空 Workspace，绝不包含 PC 路径；普通 Session 列表仍省略空分组。精确字段解析不接受通用 RPC、提供方秘密或 Delete 操作。创建将手机预先知道的 Session ID 绑定为 `mobile-${operationId}`；置顶使用明确的目标布尔值，而非切换。`managed` 区分 `applied`、确定的 `rejected` 和 `unknown`；操作 ID 是单次关联标识，不是持久重放键。PC 许可与完成语义归[Host 集成](../../host/companion-host/INTEGRATION.md)所有；请遵循[PC 优先升级指南](../../../docs/upgrade-guide/v0.1.15/companion-chat-management/guide.zh.md)。
+
 ### 基础编码
 
 `LP(x)` 为 `uint32BE(byteLength(x)) || x`，不带终止符。`C(domain; fields...)` 为 `LP(UTF8(domain)) || LP(field1) || ...`。普通文本字段使用确切 UTF-8。十进制字段使用无前导零的最短无符号 ASCII 十进制。下文原始字段使用解码后的字节，而非 base64url 文本。嵌套转录作为一个原始字段，包含其所有内部长度前缀。任何认证转录都不包含 JSON 序列化、空白、排序、Unicode 规范化或分隔符拼接。

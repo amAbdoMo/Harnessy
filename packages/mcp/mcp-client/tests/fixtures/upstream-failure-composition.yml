@@ -1,0 +1,15 @@
+- id: prompt
+  name: '@deepseek-ai/dsh-system-prompt'
+- id: tools
+  name: '@deepseek-ai/dsh-tools'
+- id: resources
+  name: '@deepseek-ai/dsh-mcp-resources'
+- id: mcp
+  name: '@deepseek-ai/dsh-mcp-client'
+  config:
+    transport: streamable-http
+    serverName: fixture
+    url: __FIXTURE_URL__
+    failOnStartupError: __STRICT__
+    reconnect:
+      enabled: false

@@ -33,7 +33,7 @@ kind: "package-reference"
 
 Client journal 在发布 follow 快照、live entry 或历史页之前验证当前 Session 事件 envelope。它复用浏览器安全的 Session validator，检查必需的 surface marker、精确的 replacement endpoint、更早且唯一的 source seq、内嵌 Assistant 提供方元数据、request header 可选字段的省略规则以及工具错误一致性。无效 record 直接失败，不删除字段或归一化；范围成员与来源存在性仍由 Host 的持久日志检查。
 
-每个 endpoint 都声明自己的激活策略。列表只读取持久化 header 与 projection cache row，绝不调用逐 Session stat 或打开冷 Session body。当前格式 cache identity 可以提供全部列表 hint；生命周期匹配的 predecessor cache 只能提供版本兼容的 title，作为可能过时的展示事实，绝不能作为权威 fold seed。搜索、附件、历史页、日志跟随、skill 发现和工作区路径打开可以在不激活 Agent 的情况下检查 persistence；`canOpenWorkspacePath()` 无需指定 Session 即可报告原生打开能力。取消要求 live 状态；queue 变更、模型、重命名、prompt 和文件引用操作可以解析或恢复普通 Session。提示词会在解析 Agent 或追加 Session 事件前，拒绝既没有非空白文本也没有附件的 content；queue edit 只接受非空文本 content。prompt 准入从注入的 [`fileUploads`](../../client/file-upload/README.zh.md) Host 服务取得不透明凭证，在把完整有序内容列表交给 `ctx.attachments` 前解析每个属于同一 Agent 的凭证。在异步解析 Agent 和附件后，prompt 取消仍有效，直到同步 inbox 插入为止；返回已有请求的接受结果前也会检查取消，已准入的工作继续运行。接受结果表示内存 inbox 准入，不表示持久化检查点或任务完成。`requestId` 已进入 queue 或日志时，prompt 重试直接返回原来的接受结果，不会重复插入消息。只有 create 与 fork 会直接创建新 Agent。该服务把同一套感知 preset 的恢复策略和 subagent ownership fence 同时用于自身方法，以及其他 Remote namespace 使用的 Typert Agent 与 Session lookup。Queue 变更只有一个狭窄例外：当前 projection identity 为 continuable 且来自自身非 seed suffix 的在线 child，可以在两个 inbox 目标上使用普通 Edit、Remove 与 QueueDock Steer action。One-shot、缺失、未知、损坏、仅含 seed identity 或冷 child 继续被拒绝，且不会恢复。skill 目录优先使用已有 live Agent，否则使用所记录 preset 的常驻 scope，因此列表查询绝不会启动 Agent。经过鉴权的文件交付路由通过 `workspaceDesktop()` 获取提供服务的 Host 名称和文件管理器行为。`openWorkspacePath({ path, action: "reveal" })` 将文件管理器导航委托给原生适配器；省略 `action` 时按文件类型关联打开，包括 HTML 和 SVG。两种操作都要求当前文件系统将请求的 Host 路径映射到同一个规范进程路径；无法映射的远端路径会在执行原生命令之前被拒绝。 `session.projections` 为已接入或当前存储格式的 Session 返回 `sequenced` 基线，不激活 Agent。需要迁移的冷会话 header 返回 `migration-required` 和不带序号的缓存提示，不读取正文。Session 不存在时返回 null，并可提供任意已注册的 projection key。Client 通过 `projectionsBySession` 暴露共享值和显式读取状态，由领域选择自身的 key。Session 列表摘要携带 `agentAvailable`，通过已有摘要与状态事件更新，与持久化 projection 相互独立。带序号的初始读取与实时 projection 帧使用相同的序号排序规则。
+每个 endpoint 都声明自己的激活策略。列表只读取持久化 header 与 projection cache row，绝不调用逐 Session stat 或打开冷 Session body。当前格式 cache identity 可以提供全部列表 hint；生命周期匹配的 predecessor cache 只能提供版本兼容的 title，作为可能过时的展示事实，绝不能作为权威 fold seed。搜索、附件、历史页、日志跟随、skill 发现和工作区路径打开可以在不激活 Agent 的情况下检查 persistence；`canOpenWorkspacePath()` 无需指定 Session 即可报告原生打开能力。取消要求 live 状态；queue 变更、模型、重命名、prompt 和文件引用操作可以解析或恢复普通 Session。提示词会在解析 Agent 或追加 Session 事件前，拒绝既没有非空白文本也没有附件的 content；queue edit 只接受非空文本 content。prompt 准入从注入的 [`fileUploads`](../../client/file-upload/README.zh.md) Host 服务取得不透明凭证，在把完整有序内容列表交给 `ctx.attachments` 前解析每个属于同一 Agent 的凭证。在异步解析 Agent 和附件后，prompt 取消仍有效，直到同步 inbox 插入为止；返回已有请求的接受结果前也会检查取消，已准入的工作继续运行。接受结果表示内存 inbox 准入，不表示持久化检查点或任务完成。`requestId` 已进入 queue 或日志时，prompt 重试直接返回原来的接受结果，不会重复插入消息。只有 create 与 fork 会直接创建新 Agent。该服务把同一套感知 preset 的恢复策略和 subagent ownership fence 同时用于自身方法，以及其他 Remote namespace 使用的 Typert Agent 与 Session lookup。Queue 变更只有一个狭窄例外：当前 projection identity 为 continuable 且来自自身非 seed suffix 的在线 child，可以在两个 inbox 目标上使用普通 Edit、Remove 与 QueueDock Steer action。One-shot、缺失、未知、损坏、仅含 seed identity 或冷 child 继续被拒绝，且不会恢复。skill 目录优先使用已有 live Agent，否则使用所记录 preset 的常驻 scope，因此列表查询绝不会启动 Agent。经过鉴权的文件交付路由通过 `workspaceDesktop()` 获取提供服务的 Host 名称和文件管理器行为。`openWorkspacePath({ path, action: "reveal" })` 将文件管理器导航委托给原生适配器；省略 `action` 时按文件类型关联打开，包括 HTML 和 SVG。两种操作都要求当前文件系统将请求的 Host 路径映射到同一个规范进程路径；无法映射的远端路径会在执行原生命令之前被拒绝。 `session.projections` 读取已注册的 projection key，不激活 Agent，Session 不存在时返回 null。Client 通过 `projectionsBySession` 暴露共享值和显式读取状态，由领域选择自身的 key。Session 列表摘要携带 `agentAvailable`，通过已有摘要与状态事件更新，与持久化 projection 相互独立。带序号的读取与实时 projection 帧使用相同的序号排序规则；缓存提示让位于带序号的值。
 
 普通路由独立于持久 Session 血缘检查实际 live Agent 注册表所有权。运行时被拥有的子项即使没有 `origin` 或 `parentSession` 也被拒绝；记录了父项的运行时根仍是普通 fork。同一检查保护 Agent 解析、prompt 准入与 Typert lookup；被拒绝的 prompt 不追加工作或模型请求。
 
@@ -41,13 +41,13 @@ Host 仅在配置的工作时间片耗尽时，于完整条目之间让出事件
 
 Client 列表行和驻留 Session 使用当前 `sessionListMetadata` 投影纠正过期的空白会话提示；最近活动时间取摘要时间戳与投影中最后一次用户提示词时间的较晚值。当 SessionManager 在列表行到达前创建实例时，会使用已保留的该 Session 元数据对账空白状态。因此，即使旧列表响应仍将已有对话标为空白，新会话操作也不会复用已经打开过的对话。
 
-显式 ID 的 `session.create` 会收养活动 Session，或恢复持久化 Session 并持续持有其写锁。写锁争用返回 `session/writer-held`；调用方可以尝试其他空白会话，同时保留其他失败。`session.list` 根据缓存元数据列出持久化空白会话，不打开冷日志正文。
+`session.create` 接受新增的 `newSessionId`，它与旧字段 `sessionId` 互斥。`newSessionId` 要求全新身份：绝不收养活动、冷态或正在处理的 Session，由现有持久化所有者原子占用新身份。旧字段 `sessionId` 仍会收养活动 Session，或恢复持久化 Session 并持续持有其写锁。写锁争用返回 `session/writer-held`；调用方可以尝试其他空白会话，同时保留其他失败。`session.list` 根据缓存元数据列出持久化空白会话，不打开冷日志正文。
 
 Client 列表刷新保留未变化的行对象，并在顺序和值均相同时复用条目数组。每行的 `retainedBy` 包含正数的本地引用来源计数，Host 元数据刷新不能覆盖它们。缓存成员检查使用每次刷新构建的 ID 集合，因此对账成本随当前列表和保留缓存的规模线性增长。 Host 摘要更新会替换运行状态与 Agent 可用性；本地 create/fork 响应只补充已有行缺失的元数据。普通 Session 被移除后，仅在目录仍有子项时保留其投影 store。
 
 后台 job 的名册行与观测流属于 [`dsh-api-job-controller`](../job-controller/README.zh.md)；控制流只承载投影。
 
-列表摘要在已知时报告 `formatStatus`；已接入的 Session 为 `current`。投影读取独立于其值保留加载与失败状态。迁移暂缓时的提示保持 `idle`，可在后续显式刷新时重试，不激活 Agent。缓存提示不会覆盖带序号的值，也不会恢复同一 Host generation 内完整基线已省略的键。重连会取消上一连接的读取，并重新加载已请求的投影；实时成员更新通过 control stream 到达。父 Agent 可用性来自 Host 摘要，在收到对应摘要或成功的列表 baseline 前保持未知。地址查找直接解析投影中的子项，不会选择它们或创建 scope。
+`session.projections` 对活动或当前格式的冷历史返回带精确 `asOfSeq` 的 `kind: 'sequenced'`。历史文件返回 `kind: 'migration-required'` 和不带序号的缓存提示；该读取绝不打开其正文或发布后继。列表摘要在展开前公开所选代际的 `formatStatus`。投影读取独立于值保留加载、需迁移和失败状态；显式迁移后可刷新延期的读取。重连取消上一连接的读取，并重新加载已请求的投影。父 Agent 可用性来自 Host 摘要，而非缓存提示。地址查找优先使用已保留和投影中的地址，再使用列表中的子代理 header 生成模式未知的地址，不选择它或创建 scope。
 
 已受理的提示词与已观察到的运行，会使客户端展示转换跨列表刷新、重连及 Session 对象替换保留。Manager 按 Session id 保留这些观察；它们不证明持久历史已经产生。草稿、投影存储和侧边栏展示规则保留原有行为。[blank 回退修复决策](../../../.agents/notes/implemented/bug-fix/2026-09-15-client-session-blank-reconciliation.zh.md) 定义保留期限及迟到响应处理。
 
@@ -60,7 +60,7 @@ Session 对象还承载本地提交回显：`session.beginSubmission` 在调用�
 
 面向用户调用的 `skills/list` 元数据包含胜出提供方可选的指令文件 `path`。输入框可据此预览文件，无需加载每个 skill 的正文或激活冷态 Agent。
 
-Fork 复制 `atSeq` 所选的精确事件前缀，包含切点事件，允许在开放轮次内截取。子会话在合成的 fork 结果和结束事件之前记录继承标记。省略 `atSeq` 时选择最近已结束轮次及其独立尾部，在下一轮次或排队输入之前停止；不存在的事件会被拒绝。聊天操作选择已结束轮次。
+Fork 复制 `atSeq` 所选的精确事件前缀，包含切点事件，允许在开放轮次内截取。子会话在合成的 fork 结果和结束事件之前记录继承标记。省略 `atSeq` 时选择最近已结束轮次及其独立尾部，在下一轮次或排队输入之前停止；不存在的事件会被拒绝。聊天操作选择已结束轮次。`allowMigration: false` 会在读取正文或创建子会话前，以 `session/migration-required` 拒绝冷态历史源；省略时保留只读源准备。仅打开历史不会发布后继，写入迁移由显式执行或续接负责。
 
 恢复会话时若已有写句柄占用，返回 `session/writer-held`，并携带会话 id；其他恢复失败仍返回 `gateway/internal`。
 

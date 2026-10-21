@@ -111,7 +111,7 @@ describe('list store projection', () => {
       formatStatus: 'migration-required', title: 'cached title',
     })
     expect(b.svc.list.getSnapshot().projectionsBySession[sessionId]).toEqual({
-      state: 'idle', error: null, values: { title: 'cached title' },
+      state: 'migration-required', error: null, values: { title: 'cached title' },
     })
     expect(b.svc.binding(sessionId)).toBeUndefined()
     expect(b.mock.log.requests(FOLLOW)).toHaveLength(0)

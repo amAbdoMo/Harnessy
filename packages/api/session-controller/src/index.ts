@@ -280,9 +280,10 @@ export class SessionController extends TypertRemoteService {
   }
 
   /**
-   * Create or idempotently adopt one ordinary Session.
-   * @param request - requested identity, location, and Agent preset.
-   * @returns the Session identity and resolved preset when configured.
+   * Create an ordinary Session without submitting work. newSessionId requires a fresh identity;
+   * sessionId may adopt an existing one.
+   * @param request - mutually exclusive fresh/adoptable identities, location, and Agent preset.
+   * @returns the Session identity and resolved preset when configured; existing or in-flight fresh identities reject.
    */
   @Remote('create')
   create(request: SessionCreateRequest): Promise<SessionCreateValue> {
@@ -423,11 +424,19 @@ export class SessionController extends TypertRemoteService {
    * Fork one cold-readable exact event prefix into a new Session. An omitted
    * boundary selects the latest completed-turn prefix; an open cut receives
    * synthetic fork closers.
-   * @param request - source Session and optional exact inclusive event boundary.
+   * @param request - source Session, optional exact inclusive event boundary, and migration preflight choice.
    * @returns the new Session identity.
    */
   @Remote('fork')
-  fork(request: SessionForkRequest): Promise<SessionForkValue> {
+  async fork(request: SessionForkRequest): Promise<SessionForkValue> {
+    if (request.allowMigration === false && this.ctx.sessions.get(request.sessionId) === undefined) {
+      const stored = await this.ctx.get('sessionPersistence')?.stat(request.sessionId)
+      if (stored?.formatStatus === 'migration-required' && this.ctx.sessions.get(request.sessionId) === undefined) {
+        throw new RemoteError('session/migration-required', 'The source Session requires migration before forking', {
+          sessionId: request.sessionId,
+        })
+      }
+    }
     return this.commands.fork(request)
   }
 

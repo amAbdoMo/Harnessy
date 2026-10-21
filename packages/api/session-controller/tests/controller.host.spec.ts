@@ -1,4 +1,7 @@
 import { Context } from '@deepseek-ai/cordis'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
+import { promptAdmissionComposition } from './prompt-admission-composition.ts'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
@@ -16,6 +19,21 @@ const defaults = {
 }
 
 describe('SessionController facade', () => {
+  it('rejects ambiguous create identities without creating a directory or publishing a Session', async () => {
+    const { ctx, agent, create } = await promptAdmissionComposition()
+    const sessionId = SessionId('ambiguous-create')
+    const cwd = join(agent.session.header.cwd!, 'ambiguous-must-not-exist')
+    const before = ctx.sessions.list().map(session => session.id)
+
+    await expect(create({ sessionId, newSessionId: sessionId, cwd })).rejects.toMatchObject({
+      code: 'gateway/bad-request',
+    })
+
+    expect(existsSync(cwd)).toBe(false)
+    expect(ctx.sessions.list().map(session => session.id)).toEqual(before)
+    expect(await ctx.sessionPersistence.stat(sessionId)).toBeUndefined()
+  })
+
   it('does not require the Tools service', () => {
     expect(SessionController.inject).not.toContain('tools')
   })

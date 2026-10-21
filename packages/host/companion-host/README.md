@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Monitor existing ordinary PC Sessions from a locally approved native phone and queue follow-up text in those Sessions. Pairing requires a one-time invitation plus explicit PC approval of the phone fingerprint. The phone cannot create Sessions, approve tools, browse files, run commands, or call the operator API. This source package requires Desktop and deployment integration; it is not activated in a shipped profile here.
+Monitor ordinary PC Sessions and queue follow-up text from a locally approved native phone. Separate per-phone PC consent enables empty Workspace chat creation, Rename, Archive and Pin/unpin. Pairing requires a one-time invitation and explicit PC approval of the phone fingerprint; it does not grant management. The phone cannot delete Sessions, approve tools, browse files, run arbitrary commands or call the operator API. Source preparation does not update an installed Desktop or Android runtime.
 
 ## Table of Contents
 
@@ -35,6 +35,12 @@ An omitted `httpsOrigin` makes the optional feature unavailable without generati
 |---|---|---|
 | `httpsOrigin` | Omitted: unavailable | Actual public HTTPS relay origin, pinned in the credential record. |
 | `budgets` | Required with origin | Explicit admission, retention, connection and application limits from [the schema](src/config.ts), including `channel` cryptographic queue and write-time limits. |
+
+### Read-only Workspace navigation
+
+The opt-in `listSessions` navigation view mirrors PC Workspace membership and pins only for returned, visible ordinary Sessions. The first explicit membership in Workspace registry order supplies the Workspace ID, sanitized title and order; no membership yields `null`. The response contains neither folder paths/cwd nor an empty-Workspace inventory, and never infers membership from a Session title, ID or cwd. `pinOrder` is the global PC pin rank, not a per-Workspace rank. This view remains a read-only projection; separately authorized management commands can change PC pins. The granted Workspace catalog, unlike ordinary listings, includes registered empty Workspaces without paths. See [management permission and compatibility](../../../docs/upgrade-guide/v0.1.15/companion-chat-management/guide.md).
+
+`updatedAt` matches Desktop recency: the later of Session creation and the cached latest durable human prompt, not assistant completion or arbitrary activity. The [Session view](src/session-view.ts) reads cached projections without loading every Session log. Legacy requests omit navigation metadata. Update the PC before using the navigation-requesting phone; see [compatibility and update order](../../../docs/upgrade-guide/v0.1.15/companion-navigation/guide.md).
 
 ### Pairing and follow-up authority
 

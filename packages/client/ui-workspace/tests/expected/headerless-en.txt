@@ -1,0 +1,10 @@
+Workspace: Alpha (collapsed)
+Session: Loose 7
+Session: Loose 1
+Session: Loose 2
+Session: Loose 3
+Session: Loose 4
+Session: Loose 5
+Session: Loose 6
+
+Delete workspaceThis removes “Alpha” from the workspace list. The folder and session logs will be kept. Its sessions will appear directly in the session list.CancelDelete workspace

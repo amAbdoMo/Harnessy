@@ -226,6 +226,7 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     'session/steer-unavailable': { readonly itemId: MessageId }
     'session/title-invalid': { readonly sessionId: SessionId }
     'session/fork-unavailable': { readonly sessionId: SessionId }
+    'session/migration-required': { readonly sessionId: SessionId }
     'subagent/not-found': {
       readonly parentSessionId: SessionId
       readonly childSessionId: SessionId
@@ -287,7 +288,10 @@ export interface SessionSearchValue {
 export interface SessionCreateRequest {
   readonly workspaceId?: WorkspaceId
   readonly cwd?: string
+  /** Legacy requested identity; an existing ordinary Session may be adopted or resumed. */
   readonly sessionId?: SessionId
+  /** Exclusive fresh identity; rejects existing or in-flight Sessions. Mutually exclusive with sessionId. */
+  readonly newSessionId?: SessionId
   readonly agentPreset?: string
 }
 
@@ -324,6 +328,8 @@ export interface SessionForkRequest {
   readonly sessionId: SessionId
   /** Exact inclusive source event seq; omission selects the latest completed-turn prefix. */
   readonly atSeq?: number
+  /** False asks the Host to check for required migration before forking. Defaults to true. */
+  readonly allowMigration?: boolean
 }
 
 /** Identity of a newly forked Session. */

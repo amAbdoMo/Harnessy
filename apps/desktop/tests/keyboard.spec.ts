@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { routerCertificate } from './fixtures/router-certificate.ts'
 import { EventEmitter } from 'node:events'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -77,7 +78,7 @@ const installFixture = installDesktopShortcuts as (
 ) => KeyboardFixture
 type GuestsFixture = {
   createProfiles(...args: Parameters<InstanceType<typeof DesktopBrowserGuests>['createProfiles']>): DesktopWebsiteProfiles
-  acquireProfile(owner: ContentsFixture, profile: DesktopWebsiteProfileId): DesktopBrowserReservation
+  acquireProfile(owner: ContentsFixture, profile: DesktopWebsiteProfileId, address: string): DesktopBrowserReservation
   acquire(owner: ContentsFixture, workspace: unknown, addressHint?: unknown): DesktopBrowserReservation
   command(owner: ContentsFixture, id: unknown, input: unknown): Promise<void>
   release(owner: ContentsFixture, id: unknown): Promise<void>
@@ -168,7 +169,7 @@ async function websiteCleanupFixture() {
   await profiles.setControl(profile.id, 'agent')
   const attach = vi.fn(() => () => {})
   guests.bind(f.window, attach)
-  const reservation = guests.acquireProfile(f.contents, profile.id)
+  const reservation = guests.acquireProfile(f.contents, profile.id, profile.url)
   const { frame, guest } = browserGuest(reservation, f.contents)
   let attached = false
   const attachGuest = () => { attached = true; f.contents.emit('did-attach-webview', {}, guest) }
@@ -810,17 +811,18 @@ it.each(['macos', 'windows'] as const)('requires fresh %s chord presses when Ele
   }
 })
 
+
 const privateDevice = 'https://192.168.1.10:8443/'
 const otherPrivateDevice = 'https://192.168.1.11:8443/'
 const publicWebsite = 'https://portal.example.test/'
 const applicationHost = 'https://host.example.test:19387/'
 
-async function guestPolicyFixture() {
+async function guestPolicyFixture(websiteNavigation?: ConstructorParameters<typeof DesktopBrowserGuests>[1]) {
   const f = await fixture()
   // Test-finished releases run after the suite's afterEach clears native mock histories.
   for (const method of nativeCleanupMethods) storage[method].mockClear()
   const confirm = vi.fn<NonNullable<ConstructorParameters<typeof DesktopBrowserGuests>[2]>>(async () => true)
-  const guests = new DesktopBrowserGuests(() => applicationHost, undefined, confirm) as GuestsFixture
+  const guests = new DesktopBrowserGuests(() => applicationHost, websiteNavigation, confirm) as GuestsFixture
   guests.bind(f.window, () => () => {})
   const attach = (reservation: DesktopBrowserReservation) => {
     const native = browserGuest(reservation, f.contents)
@@ -842,7 +844,16 @@ async function guestPolicyFixture() {
       expect(callback).toHaveBeenCalledOnce()
       return callback.mock.calls[0]![0]
     }
-    return { ...native, reservation, request }
+    const navigate = (url: string) => {
+      native.frame.url = url
+      native.guest.emit('did-start-navigation', { isMainFrame: true, isSameDocument: false, url })
+    }
+    const certificateFailure = (url: string, mainFrame = true, error = 'net::ERR_CERT_AUTHORITY_INVALID') => {
+      const callback = vi.fn<(trusted: boolean) => void>()
+      native.guest.emit('certificate-error', { preventDefault: vi.fn() }, url, error, routerCertificate, callback, mainFrame)
+      return callback
+    }
+    return { ...native, reservation, request, navigate, certificateFailure }
   }
   const ordinary = (hint?: string, workspace = 'policy:test') => attach(guests.acquire(f.contents, workspace, hint))
   return { ...f, guests, confirm, attach, ordinary }
@@ -1049,11 +1060,12 @@ it('joins private storage cleanup after native destruction precedes explicit rel
   for (const method of nativeCleanupMethods) expect(storage[method]).toHaveBeenCalledOnce()
 })
 
-it.each(['private', 'profile', 'shared', 'other-origin', 'stale-url', 'subframe', 'other-error'] as const)(
+it.each(['private', 'local-profile', 'profile', 'shared', 'other-origin', 'stale-url', 'subframe', 'other-error'] as const)(
   'certificate confirmation is limited to the exact private lease navigation: %s', async (kind) => {
     const f = await guestPolicyFixture()
     const profile = 'cd1b6493-c881-4967-a544-b0a49f2d847f' as DesktopWebsiteProfileId
-    const tab = kind === 'profile' ? f.attach(f.guests.acquireProfile(f.contents, profile))
+    const tab = kind === 'profile' || kind === 'local-profile'
+      ? f.attach(f.guests.acquireProfile(f.contents, profile, kind === 'local-profile' ? privateDevice : publicWebsite))
       : f.ordinary(kind === 'shared' ? publicWebsite : privateDevice)
     const target = `${privateDevice}settings?token=private`
     tab.guest.emit('did-start-navigation', { isMainFrame: true, isSameDocument: false, url: target })
@@ -1063,18 +1075,212 @@ it.each(['private', 'profile', 'shared', 'other-origin', 'stale-url', 'subframe'
     const callback = vi.fn((trusted: boolean) => { result.resolve(trusted) })
     tab.guest.emit('certificate-error', event, url,
       kind === 'other-error' ? 'net::ERR_CERT_DATE_INVALID' : 'net::ERR_CERT_AUTHORITY_INVALID',
-      { fingerprint: 'AA:BB' }, callback, kind !== 'subframe')
-    expect(await result.promise).toBe(kind === 'private')
+      routerCertificate, callback, kind !== 'subframe')
+    const eligible = kind === 'private' || kind === 'local-profile'
+    expect(await result.promise).toBe(eligible)
     expect(event.preventDefault).toHaveBeenCalledOnce()
     expect(callback).toHaveBeenCalledOnce()
-    if (kind === 'private') {
+    if (eligible) {
       expect(f.confirm).toHaveBeenCalledOnce()
       const [prompt] = f.confirm.mock.calls[0]!
-      expect(prompt).toMatchObject({ owner: f.contents, origin: new URL(privateDevice).origin, fingerprint: 'AA:BB' })
+      expect(prompt).toMatchObject({ owner: f.contents, origin: new URL(privateDevice).origin, fingerprint: routerCertificate.fingerprint })
       expect(prompt.signal).toBeInstanceOf(AbortSignal)
     } else expect(f.confirm).not.toHaveBeenCalled()
   },
 )
+
+it('isolates parallel and reopened saved local-profile consent without touching the original persistent Session', async () => {
+  const f = await guestPolicyFixture()
+  const profile = 'local-consent-profile' as DesktopWebsiteProfileId
+  const original = nativeSession(`persist:dsh-website-${profile}`)
+  const savedTab = () => f.attach(f.guests.acquireProfile(f.contents, profile, privateDevice))
+  const first = savedTab()
+  const parallel = savedTab()
+  expect(first.reservation.partition).not.toMatch(/^persist:/u)
+  expect(first.guest.session).not.toBe(original)
+  expect(parallel.guest.session).not.toBe(first.guest.session)
+  expect(f.guests.inspectWebsite(f.contents, first.reservation.lease)).toMatchObject({ owner: f.contents, profile })
+  first.navigate(privateDevice)
+  const approved = first.certificateFailure(privateDevice)
+  await vi.waitFor(() => { expect(approved).toHaveBeenCalledExactlyOnceWith(true) })
+  expect(first.certificateFailure(`${privateDevice}app.js`, false)).toHaveBeenCalledExactlyOnceWith(true)
+  expect(parallel.certificateFailure(`${privateDevice}app.js`, false)).toHaveBeenCalledExactlyOnceWith(false)
+  f.confirm.mockResolvedValueOnce(false)
+  parallel.navigate(privateDevice)
+  const denied = parallel.certificateFailure(privateDevice)
+  await vi.waitFor(() => { expect(denied).toHaveBeenCalledExactlyOnceWith(false) })
+  await f.guests.release(f.contents, first.reservation.lease)
+  for (const method of nativeCleanupMethods) {
+    expect(storage[method]).toHaveBeenCalledOnce()
+    expect(storage[method].mock.contexts).toEqual([first.guest.session])
+  }
+  const reopened = savedTab()
+  expect(reopened.guest.session).not.toBe(first.guest.session)
+  expect(reopened.certificateFailure(`${privateDevice}app.js`, false)).toHaveBeenCalledExactlyOnceWith(false)
+  reopened.navigate(privateDevice)
+  const fresh = reopened.certificateFailure(privateDevice)
+  await vi.waitFor(() => { expect(fresh).toHaveBeenCalledExactlyOnceWith(true) })
+  expect(f.confirm).toHaveBeenCalledTimes(3)
+  const publicProfile = 'public-consent-profile' as DesktopWebsiteProfileId
+  const publicTab = f.attach(f.guests.acquireProfile(f.contents, publicProfile, publicWebsite))
+  const publicAlias = f.attach(f.guests.acquireProfile(f.contents, publicProfile, publicWebsite))
+  expect(publicTab.reservation.partition).toBe(`persist:dsh-website-${publicProfile}`)
+  expect(publicAlias.guest.session).toBe(publicTab.guest.session)
+  await f.guests.release(f.contents, publicTab.reservation.lease)
+  for (const method of nativeCleanupMethods) expect(storage[method]).toHaveBeenCalledOnce()
+})
+
+it('restricts saved local-profile main-frame redirects and commands to the lease origin independently of Session resources', async () => {
+  const f = await guestPolicyFixture()
+  const tab = f.attach(f.guests.acquireProfile(f.contents, 'local-origin-profile' as DesktopWebsiteProfileId, privateDevice))
+  const settings = `${privateDevice}settings`
+  await f.guests.command(f.contents, tab.reservation.lease, { kind: 'navigate', url: settings })
+  expect(tab.guest.loadURL).toHaveBeenCalledExactlyOnceWith(settings)
+  for (const url of [otherPrivateDevice, 'https://192.168.1.10:9443/', publicWebsite, 'http://192.168.1.10:8443/']) {
+    const redirect = { preventDefault: vi.fn() }
+    tab.guest.emit('will-redirect', redirect, url, false, true)
+    expect(redirect.preventDefault).toHaveBeenCalledOnce()
+    const navigation = { preventDefault: vi.fn(), url, isMainFrame: true }
+    tab.guest.emit('will-frame-navigate', navigation)
+    expect(navigation.preventDefault).toHaveBeenCalledOnce()
+    await expect(f.guests.command(f.contents, tab.reservation.lease, { kind: 'navigate', url })).rejects.toThrow('command rejected')
+    expect(tab.request(url, 'mainFrame', 'GET', -1)).toEqual({ cancel: true })
+  }
+  expect(tab.request(settings)).toEqual({ cancel: false })
+  for (const url of [otherPrivateDevice, 'http://192.168.1.11:8443/', 'wss://192.168.1.11:8443/socket', 'ws://192.168.1.11:8443/socket']) {
+    expect(tab.request(url, 'other', 'GET', -1)).toEqual({ cancel: true })
+  }
+  expect(tab.request(`${privateDevice}app.js`, 'script')).toEqual({ cancel: false })
+  expect(tab.request(`${publicWebsite}app.js`, 'script')).toEqual({ cancel: false })
+  expect(f.contents.send).not.toHaveBeenCalled()
+})
+
+it.each(['release', 'crash', 'owner-reload', 'owner-crash', 'owner-destroy', 'policy-revoked'] as const)(
+  'denies saved local-profile pending consent after %s and clears only its exclusive Session', async (cause) => {
+    let available = true
+    const f = await guestPolicyFixture(() => available)
+    const tab = f.attach(f.guests.acquireProfile(f.contents, 'local-lifecycle-profile' as DesktopWebsiteProfileId, privateDevice))
+    const decision = Promise.withResolvers<boolean>()
+    f.confirm.mockImplementation(() => decision.promise)
+    tab.navigate(privateDevice)
+    const pending = tab.certificateFailure(privateDevice)
+    const resource = tab.certificateFailure(`${privateDevice}app.js`, false)
+    await vi.waitFor(() => { expect(f.confirm).toHaveBeenCalledOnce() })
+    if (cause === 'crash') tab.guest.emit('render-process-gone')
+    else if (cause === 'owner-reload') f.contents.emit('did-start-navigation', {}, 'dsh-app://app/', false, true)
+    else if (cause === 'owner-crash') f.contents.emit('render-process-gone')
+    else if (cause === 'owner-destroy') f.contents.emit('destroyed')
+    else if (cause === 'policy-revoked') available = false
+    const release = cause === 'policy-revoked' ? undefined : f.guests.release(f.contents, tab.reservation.lease)
+    if (cause !== 'policy-revoked') expect(f.confirm.mock.calls[0]?.[0].signal.aborted).toBe(true)
+    decision.resolve(true)
+    await vi.waitFor(() => { expect(pending).toHaveBeenCalledExactlyOnceWith(false) })
+    expect(resource).toHaveBeenCalledExactlyOnceWith(false)
+    await release
+    if (cause === 'policy-revoked') await f.guests.release(f.contents, tab.reservation.lease)
+    for (const method of nativeCleanupMethods) {
+      expect(storage[method]).toHaveBeenCalledOnce()
+      expect(storage[method].mock.contexts).toEqual([tab.guest.session])
+    }
+    expect(tab.request(privateDevice)).toEqual({ cancel: true })
+  },
+)
+
+it('local-profile release waits for an unidentified native guest in its exclusive Session before clearing storage', async () => {
+  const f = await guestPolicyFixture()
+  const tab = f.attach(f.guests.acquireProfile(f.contents, 'local-duplicate-profile' as DesktopWebsiteProfileId, privateDevice))
+  const duplicate = browserGuest(tab.reservation, f.contents).guest
+  f.contents.emit('did-attach-webview', {}, duplicate)
+  expect(duplicate.close).toHaveBeenCalledOnce()
+  const closing = Promise.withResolvers<undefined>()
+  duplicate.close.mockImplementation(() => { closing.resolve(undefined) })
+  const release = f.guests.release(f.contents, tab.reservation.lease)
+  onTestFinished(async () => { duplicate.emit('destroyed'); await release })
+  await closing.promise
+  for (const method of nativeCleanupMethods) expect(storage[method]).not.toHaveBeenCalled()
+  expect(tab.request(privateDevice)).toEqual({ cancel: true })
+  duplicate.emit('destroyed')
+  await release
+  for (const method of nativeCleanupMethods) {
+    expect(storage[method]).toHaveBeenCalledOnce()
+    expect(storage[method].mock.contexts).toEqual([tab.guest.session])
+  }
+})
+
+async function localProfileRegistryFixture() {
+  const f = await guestPolicyFixture()
+  const root = await mkdtemp(join(tmpdir(), 'dsh-local-profile-consent-'))
+  onTestFinished(() => rm(root, { recursive: true, force: true }))
+  const profiles = f.guests.createProfiles(join(root, 'profiles.json'), {
+    inspect: async () => ({ identity: 'a'.repeat(64), endpoint: 'https://router-mcp.example.test/mcp' }),
+    confirm: async () => {}, enroll: async () => {},
+  }, async () => {})
+  const profile = await profiles.create({ name: 'Local router', accountLabel: 'operator', url: privateDevice, mcpServerName: 'router' })
+  return { ...f, profiles, profile, root }
+}
+
+it('local-profile certificate acceptance preserves human control and unconfirmed login', async () => {
+  const f = await localProfileRegistryFixture()
+  const tab = f.attach(f.guests.acquireProfile(f.contents, f.profile.id, f.profile.url))
+  tab.navigate(privateDevice)
+  const approved = tab.certificateFailure(privateDevice, true, 'net::ERR_CERT_COMMON_NAME_INVALID')
+  await vi.waitFor(() => { expect(approved).toHaveBeenCalledExactlyOnceWith(true) })
+  expect(f.profiles.assertAvailable(f.profile.id).control).toBe('human')
+  expect(() => f.profiles.assertAgent(f.profile.id)).toThrow('paused')
+  const document = JSON.parse(await readFile(join(f.root, 'profiles.json'), 'utf8')) as { profiles: Array<{ loginConfirmed: boolean }> }
+  expect(document.profiles[0]?.loginConfirmed).toBe(false)
+})
+
+it.each(['forget', 'signOut'] as const)('local-profile %s joins every ephemeral guest before clearing it and any legacy account storage', async (operation) => {
+  const f = await localProfileRegistryFixture()
+  const original = nativeSession(`persist:dsh-website-${f.profile.id}`)
+  const tabs = [0, 1].map(() => f.attach(f.guests.acquireProfile(f.contents, f.profile.id, f.profile.url)))
+  const decision = Promise.withResolvers<boolean>()
+  f.confirm.mockImplementation(() => decision.promise)
+  for (const tab of tabs) { tab.navigate(privateDevice); tab.certificateFailure(privateDevice) }
+  await vi.waitFor(() => { expect(f.confirm).toHaveBeenCalledTimes(2) })
+  await f.profiles[operation](f.profile.id)
+  decision.resolve(true)
+  for (const tab of tabs) {
+    expect(tab.guest.isDestroyed()).toBe(true)
+    expect(f.guests.inspectWebsite(f.contents, tab.reservation.lease)).toBeUndefined()
+  }
+  for (const [prompt] of f.confirm.mock.calls) expect(prompt.signal.aborted).toBe(true)
+  for (const method of nativeCleanupMethods) {
+    expect(storage[method]).toHaveBeenCalledTimes(3)
+    expect(new Set(storage[method].mock.contexts)).toEqual(new Set([...tabs.map(tab => tab.guest.session), original]))
+    expect(storage[method].mock.contexts.at(-1)).toBe(original)
+  }
+})
+
+it.each(['forget', 'signOut'] as const)('local-profile %s cannot finish while an unidentified legacy Session guest remains alive', async (operation) => {
+  const f = await localProfileRegistryFixture()
+  const partition = `persist:dsh-website-${f.profile.id}`
+  const original = nativeSession(partition)
+  const reservation = { lease: 'unidentified-legacy-local' as DesktopBrowserLeaseId, partition }
+  const legacy = browserGuest(reservation, f.contents).guest
+  legacy.getURL = () => 'about:blank'
+  overlays.application.emit('web-contents-created', {}, legacy)
+  let finished = false
+  const cleanup = f.profiles[operation](f.profile.id).then(() => { finished = true })
+  onTestFinished(async () => { legacy.emit('destroyed'); await cleanup })
+  await vi.waitFor(() => { expect(legacy.close).toHaveBeenCalled() })
+  expect(finished).toBe(false)
+  expect(() => f.profiles.assertAvailable(f.profile.id)).toThrow('must be cleared successfully')
+  for (const method of nativeCleanupMethods) expect(storage[method]).not.toHaveBeenCalled()
+  legacy.emit('destroyed')
+  await cleanup
+  expect(finished).toBe(true)
+  for (const method of nativeCleanupMethods) expect(storage[method].mock.contexts).toEqual([original])
+})
+
+function assertBootstrapListenersReleased(guest: EventEmitter): void {
+  expect(guest.listenerCount('did-start-navigation')).toBe(0)
+  expect(guest.listenerCount('did-navigate-in-page')).toBe(0)
+  // The native viewport reapply callback remains on both readiness and commit events.
+  expect(guest.listenerCount('did-navigate')).toBe(1)
+  expect(guest.listeners('did-navigate')).toEqual(guest.listeners('dom-ready'))
+}
 
 async function bootstrapFixture() {
   const f = await fixture()
@@ -1106,7 +1312,7 @@ it.each(['start', 'commit', 'fragment'] as const)('binds a delayed exact native 
   else guest.emit('did-navigate-in-page', {}, marker, true)
   expect(f.attachInput).toHaveBeenCalledExactlyOnceWith(guest, f.reservation.lease)
   expect(guest.close).not.toHaveBeenCalled()
-  for (const name of ['did-start-navigation', 'did-navigate', 'did-navigate-in-page']) expect(guest.listenerCount(name)).toBe(0)
+  assertBootstrapListenersReleased(guest)
   guest.emit('did-navigate', {}, 'https://portal.example.test/', 200, 'OK')
   expect(guest.close).not.toHaveBeenCalled()
 })
@@ -1137,7 +1343,7 @@ it.each(['unapproved', 'owner', 'session', 'duplicate'] as const)('closes a nati
   f.contents.emit('did-attach-webview', {}, guest)
   expect(f.attachInput).not.toHaveBeenCalled()
   expect(guest.close).toHaveBeenCalledOnce()
-  for (const name of ['did-start-navigation', 'did-navigate', 'did-navigate-in-page']) expect(guest.listenerCount(name)).toBe(0)
+  assertBootstrapListenersReleased(guest)
 })
 
 it.each(['release', 'destroy', 'throw'] as const)('never publishes an input disposer after reentrant attachment %s', async (operation) => {
@@ -1201,7 +1407,7 @@ it.each(['deadline', 'crash'] as const)('keeps owner release waiting for an unid
   guest.emit('destroyed')
   await released
   expect(settled).toBe(true)
-  for (const name of ['did-start-navigation', 'did-navigate', 'did-navigate-in-page']) expect(guest.listenerCount(name)).toBe(0)
+  assertBootstrapListenersReleased(guest)
 })
 
 it.each(['reload', 'crash', 'destroy'] as const)('joins early native creation across owner %s and ignores late attachment delivery', async (operation) => {
@@ -1391,7 +1597,7 @@ it.each(['release', 'destruction', 'crash'] as const)('invalidates exact website
   const guests = new DesktopBrowserGuests(() => undefined) as GuestsFixture
   guests.bind(f.window, () => () => {})
   const profile = 'cd1b6493-c881-4967-a544-b0a49f2d847f' as DesktopWebsiteProfileId
-  const reservation = guests.acquireProfile(f.contents, profile)
+  const reservation = guests.acquireProfile(f.contents, profile, publicWebsite)
   const ordinary = guests.acquire(f.contents, 'ordinary')
   expect(guests.inspectWebsite(f.contents, ordinary.lease)).toBeUndefined()
   expect(guests.inspectWebsite(f.contents, reservation.lease)).toBeUndefined()
@@ -1556,7 +1762,7 @@ it.each(['settled', 'failed'] as const)('retains website authentication until in
   }, async () => {})
   const profile = await profiles.create({ name: 'Portal', accountLabel: '', url: 'https://portal.example.test/', mcpServerName: 'portal' })
   guests.bind(f.window, () => () => {})
-  const reservation = guests.acquireProfile(f.contents, profile.id)
+  const reservation = guests.acquireProfile(f.contents, profile.id, profile.url)
   const { frame, guest } = browserGuest(reservation, f.contents)
   f.contents.emit('will-attach-webview', { preventDefault: vi.fn() }, {}, { src: frame.url, partition: reservation.partition })
   f.contents.emit('did-attach-webview', {}, guest)
@@ -1592,7 +1798,7 @@ it('contains private invalidation diagnostics during native owner teardown and r
   }, async () => {})
   const profile = await profiles.create({ name: 'Portal', accountLabel: '', url: 'https://portal.example.test/', mcpServerName: 'portal' })
   guests.bind(f.window, () => () => {})
-  const reservation = guests.acquireProfile(f.contents, profile.id)
+  const reservation = guests.acquireProfile(f.contents, profile.id, profile.url)
   const { frame, guest } = browserGuest(reservation, f.contents)
   f.contents.emit('will-attach-webview', { preventDefault: vi.fn() }, {}, { src: frame.url, partition: reservation.partition })
   f.contents.emit('did-attach-webview', {}, guest)
@@ -1626,7 +1832,7 @@ it.each(['settled', 'failed'] as const)('joins held authority drainage after nat
   }, async () => {})
   const profile = await profiles.create({ name: 'Portal', accountLabel: '', url: 'https://portal.example.test/', mcpServerName: 'portal' })
   guests.bind(f.window, () => () => {})
-  const reservation = guests.acquireProfile(f.contents, profile.id)
+  const reservation = guests.acquireProfile(f.contents, profile.id, profile.url)
   const { frame, guest } = browserGuest(reservation, f.contents)
   f.contents.emit('will-attach-webview', { preventDefault: vi.fn() }, {}, { src: frame.url, partition: reservation.partition })
   f.contents.emit('did-attach-webview', {}, guest)
@@ -1676,8 +1882,8 @@ it.each(['settled', 'failed'] as const)('joins every website guest after a sibli
   }, async () => {})
   const profile = await profiles.create({ name: 'Portal', accountLabel: '', url: 'https://portal.example.test/', mcpServerName: 'portal' })
   guests.bind(f.window, () => () => {})
-  const firstReservation = guests.acquireProfile(f.contents, profile.id)
-  const reservations = [firstReservation, guests.acquireProfile(f.contents, profile.id)]
+  const firstReservation = guests.acquireProfile(f.contents, profile.id, profile.url)
+  const reservations = [firstReservation, guests.acquireProfile(f.contents, profile.id, profile.url)]
   const closing = reservations.map((reservation) => {
     const { frame, guest } = browserGuest(reservation, f.contents)
     f.contents.emit('will-attach-webview', { preventDefault: vi.fn() }, {}, { src: frame.url, partition: reservation.partition })
@@ -1718,7 +1924,7 @@ it('bounds stalled guest destruction, retains authentication, and permits cleanu
   }, async () => {})
   const profile = await profiles.create({ name: 'Portal', accountLabel: '', url: 'https://portal.example.test/', mcpServerName: 'portal' })
   guests.bind(f.window, () => () => {})
-  const reservation = guests.acquireProfile(f.contents, profile.id)
+  const reservation = guests.acquireProfile(f.contents, profile.id, profile.url)
   const { frame, guest } = browserGuest(reservation, f.contents)
   f.contents.emit('will-attach-webview', { preventDefault: vi.fn() }, {}, { src: frame.url, partition: reservation.partition })
   f.contents.emit('did-attach-webview', {}, guest)

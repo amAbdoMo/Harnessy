@@ -119,10 +119,17 @@ Manage several local identities per provider while keeping one canonical active 
 
 /**
  * Refresh supported usage snapshots, active account first, and push each committed update.
- * @param signal - cancellation checked between accounts and forwarded to usage requests.
+ * @param signal - cancellation forwarded to every account read and checked before commits.
  * @returns the updated public account state with refreshed usage when available.
  */
 @Remote async refreshUsage(signal: AbortSignal): Promise<AccountsState>
+
+/**
+ * Refresh stale usage snapshots for automatic browser checks.
+ * @param signal - cancellation forwarded to every account read and checked before commits.
+ * @returns the public account state after any required usage reads and automatic selection.
+ */
+@Remote async refreshCachedUsage(signal: AbortSignal): Promise<AccountsState>
 ```
 
 Source: [`packages/api/settings-controller/src/accounts.ts`](../../packages/api/settings-controller/src/accounts.ts)

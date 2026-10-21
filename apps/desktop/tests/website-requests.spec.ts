@@ -1,3 +1,6 @@
+import { EventEmitter } from 'node:events'
+import { bindBrowserCertificateErrors } from '../src/browser-certificates.ts'
+import { routerCertificate } from './fixtures/router-certificate.ts'
 import type { WebContents } from 'electron'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import type { DesktopBrowserLeaseId, DesktopWebsiteProfileId } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
@@ -630,4 +633,28 @@ describe('Main website request authority', () => {
     await f.requests.revoke(a.id)
     expect(await f.requests.close(a.id)).toBe(false)
   })
+})
+
+it('accepting a local-device certificate does not resume an acknowledged website request', async () => {
+  const f = fixture()
+  const a = f.prepare({ url: 'https://192.168.1.10:8443/' })
+  onTestFinished(async () => { await f.requests.close(a.id) })
+  const receipt = a.acknowledge()
+  const emitter = Object.assign(new EventEmitter(), { isLoading: () => true })
+  // The native policy consumes only event listeners and loading state from this guest.
+  const native = emitter as WebContents
+  onTestFinished(bindBrowserCertificateErrors(native, a.input.owner, () => true, async () => true))
+  emitter.emit('did-start-navigation', { isMainFrame: true, isSameDocument: false, url: a.input.url })
+  const approved = vi.fn<(trusted: boolean) => void>()
+  emitter.emit('certificate-error', { preventDefault: vi.fn() }, a.input.url,
+    'net::ERR_CERT_COMMON_NAME_INVALID', routerCertificate, approved, true)
+  await vi.waitFor(() => { expect(approved).toHaveBeenCalledExactlyOnceWith(true) })
+  expect(() => { f.requests.assertGranted(f.capturedHost, a.id) }).toThrow('stale')
+  const operation = vi.fn(async () => 'forbidden')
+  await expect(f.requests.run(f.capturedHost, a.id, new AbortController().signal, operation)).rejects.toThrow('stale')
+  expect(operation).not.toHaveBeenCalled()
+  expect(f.spies.commit).not.toHaveBeenCalled()
+  await f.requests.resume(a.input.owner, receipt)
+  expect(() => { f.requests.assertGranted(f.capturedHost, a.id) }).not.toThrow()
+  expect(f.spies.commit).toHaveBeenCalledOnce()
 })

@@ -11,6 +11,7 @@ import ToolRuntime from '@deepseek-ai/dsh-tools'
 import McpResources from '@deepseek-ai/dsh-mcp-resources'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import type { Config } from '@deepseek-ai/dsh-mcp-client'
+import type { ServerCapabilities } from '@modelcontextprotocol/client'
 
 // ---- Mock MCP SDK ----
 
@@ -29,7 +30,7 @@ const { mockConnect, mockClose, mockListTools, mockCallTool, mockSetNotification
     onclose: (() => void) | undefined
     connect = mockConnect
     close = mockClose
-    getServerCapabilities = () => ({ tools: {} })
+    getServerCapabilities(): ServerCapabilities { return { tools: {} } }
     getInstructions(): string | undefined { return undefined }
     listResources = async () => ({ resources: [] })
     listTools = mockListTools
@@ -56,7 +57,7 @@ vi.mock('@modelcontextprotocol/client/stdio', () => ({
 // vi.mock is hoisted above static imports, so the modules under test see the
 // mocked SDK even through a static import.
 import { apply } from '@deepseek-ai/dsh-mcp-client/src/index.ts'
-import { RECONNECT_DEFAULTS, resolveReconnectPolicy, startConnection } from '@deepseek-ai/dsh-mcp-client/src/connection.ts'
+import { RECONNECT_DEFAULTS, resolveReconnectPolicy, startConnection, type ConnectionSnapshot } from '@deepseek-ai/dsh-mcp-client/src/connection.ts'
 
 // ---- Helpers ----
 
@@ -134,6 +135,79 @@ describe('reconnect supervisor', () => {
     ctx = await mountRegistry()
   })
 
+  it('rejects the proxy failure before an early tool notification can sync and disposes its backoff to quiescence', async () => {
+    const capabilities = vi.spyOn(MockClient.prototype, 'getServerCapabilities').mockReturnValue({
+      tools: {}, experimental: { connectionFailed: {} },
+    })
+    vi.useFakeTimers()
+    const closeEntered: PromiseWithResolvers<void> = Promise.withResolvers()
+    const releaseClose: PromiseWithResolvers<void> = Promise.withResolvers()
+    mockClose.mockImplementation(async function (this: { onclose?: () => void }) {
+      closeEntered.resolve()
+      await releaseClose.promise
+      this.onclose?.()
+    })
+    mockConnect.mockImplementation(async () => {
+      const notify = mockSetNotificationHandler.mock.calls.at(-1)![1] as () => void
+      notify()
+    })
+    const snapshots: ConnectionSnapshot[] = []
+    const handle = startConnection(ctx, stdioConfig(), resolveReconnectPolicy(undefined, 'reconnect'), snapshot => snapshots.push(snapshot))
+    try {
+      await closeEntered.promise
+      expect(snapshots.at(-1)?.status).toBe('error')
+      expect(snapshots.at(-1)?.error).toContain('upstream connection failure')
+      expect(mockListTools).not.toHaveBeenCalled()
+      releaseClose.resolve()
+      expect((await handle.ready).error).toBeInstanceOf(Error)
+      expect(snapshots.at(-1)?.status).toBe('reconnecting')
+      expect(snapshots.at(-1)?.error).toContain('upstream connection failure')
+      expect(mockListTools).not.toHaveBeenCalled()
+      await handle.dispose()
+      const settled = [...snapshots]
+      instances[0]!.onclose?.()
+      await vi.runAllTimersAsync()
+      expect(mockConnect).toHaveBeenCalledTimes(1)
+      expect(snapshots).toEqual(settled)
+      expect(ctx.tools.schemas()).toEqual([])
+      expect(handle.instructions()).toBe('')
+      ctx.effect(() => ctx.tools.register({
+        name: 'disconnected_resource_probe', description: 'Probe a disconnected resource provider',
+        parameters: { type: 'object' },
+        output: { schema: { type: 'string' }, render: () => [{ type: 'text', text: 'unreachable' }] },
+        execute: async (_args, execution) => handle.resources.request({ method: 'resources/list' }, execution),
+      }))
+      const disconnected = await ctx.tools.execute({
+        signal: testToolSignal, callId: nextCallId(), name: 'disconnected_resource_probe', arguments: {},
+      })
+      expect(disconnected.isError).toBe(true)
+      expect(disconnected).toHaveProperty('content.0.text', expect.stringContaining('server is disconnected'))
+    } finally {
+      releaseClose.resolve()
+      await handle.dispose()
+      await ctx.fiber.dispose()
+      capabilities.mockRestore()
+      vi.useRealTimers()
+    }
+  })
+
+  it('refreshes an early list change after successful initial discovery', async () => {
+    mockConnect.mockImplementation(async () => {
+      const notify = mockSetNotificationHandler.mock.calls.at(-1)![1] as () => void
+      notify()
+    })
+    mockListTools.mockResolvedValueOnce(listing('initial')).mockResolvedValueOnce(listing('updated'))
+    const handle = startConnection(ctx, stdioConfig(), resolveReconnectPolicy(undefined, 'reconnect'))
+    try {
+      expect(await handle.ready).toEqual({})
+      await vi.waitFor(() => { expect(ctx.tools.get('mcp__srv__updated')).toBeDefined() })
+      expect(ctx.tools.get('mcp__srv__initial')).toBeUndefined()
+    } finally {
+      await handle.dispose()
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('keeps instructions withdrawn when disposal interrupts initial discovery', async () => {
     const listingGate: PromiseWithResolvers<ReturnType<typeof listing>> = Promise.withResolvers()
     const instructionSpy = vi.spyOn(MockClient.prototype, 'getInstructions').mockReturnValue('Instructions after discovery.')
@@ -153,16 +227,19 @@ describe('reconnect supervisor', () => {
     }
   })
 
-  it('rejects resource reads while a replacement connection is still negotiating', async () => {
+  it('retains last-good instructions but rejects resource reads while a replacement connection is still negotiating', async () => {
     await ctx.plugin(McpResources)
+    const instructions = vi.spyOn(MockClient.prototype, 'getInstructions').mockReturnValue('Connected fixture instructions.')
     const config = stdioConfig({ initialDelayMs: 2, maxDelayMs: 8, maxAttempts: 2 })
     const handle = startConnection(ctx, config, resolveReconnectPolicy(config.reconnect, 'reconnect'))
     const reconnectGate: PromiseWithResolvers<void> = Promise.withResolvers()
     try {
       await handle.ready
       ctx.mcpResources.register('srv', handle.resources)
+      expect(handle.instructions()).toContain('Connected fixture instructions.')
       mockConnect.mockImplementationOnce(() => reconnectGate.promise)
       instances[0]!.onclose?.()
+      expect(handle.instructions()).toContain('Connected fixture instructions.')
       await vi.waitFor(() => { expect(instances).toHaveLength(2) })
       const result = await ctx.tools.execute({
         name: 'list_mcp_resources', arguments: { server: 'srv' },
@@ -174,6 +251,7 @@ describe('reconnect supervisor', () => {
       reconnectGate.resolve()
       await handle.dispose()
       await ctx.fiber.dispose()
+      instructions.mockRestore()
     }
   })
 

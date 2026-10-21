@@ -526,7 +526,9 @@ export class DesktopHostProcess {
       throw new Error('Companion native control is unavailable')
     }
     const expected = command.kind === 'describe' ? 'status' : command.kind === 'createInvitation' ? 'invitation' : 'completed'
-    if (response.result.kind !== expected) throw new Error('Companion Host returned a different operation result')
+    if (response.result.kind !== expected && !(command.kind === 'describe' && response.result.kind === 'activationRequired')) {
+      throw new Error('Companion Host returned a different operation result')
+    }
     return response.result
   }
 

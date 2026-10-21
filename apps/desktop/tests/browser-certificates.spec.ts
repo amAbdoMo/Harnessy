@@ -1,3 +1,4 @@
+import { X509Certificate } from 'node:crypto'
 import { EventEmitter } from 'node:events'
 import { onTestFinished, expect, it, vi } from 'vitest'
 import type { Event, WebContents } from 'electron'
@@ -20,7 +21,7 @@ it('records English and Chinese device consent with explicit risks and isolated-
 
       Acceptance stays in this isolated device tab until it closes, including its resources and reloads. It does not install or permanently trust the certificate.",
           "title": "Unverified local device",
-          "warning": "This device’s certificate cannot be verified and may be expired or not match this address. An attacker could impersonate the device. Continue only if you recognize the device and trust this network.",
+          "warning": "This device’s certificate issuer cannot be verified or its name does not match this address. An attacker could impersonate the device. Continue only if you recognize the device, have verified its fingerprint, and trust this network.",
         },
         {
           "buttons": [
@@ -32,11 +33,41 @@ it('records English and Chinese device consent with explicit risks and isolated-
 
       接受证书仅适用于此独立设备标签页关闭前的访问，包括资源加载和重新加载，不会安装或永久信任该证书",
           "title": "未经验证的本地设备",
-          "warning": "无法验证此设备的证书，它可能已过期或与此地址不匹配。攻击者可能冒充该设备。只有在认识此设备并信任当前网络时才继续",
+          "warning": "无法验证此设备的证书颁发者，或其名称与此地址不匹配。攻击者可能冒充该设备。只有在认识此设备、已核实其指纹并信任当前网络时才继续",
         },
       ]
     `)
 })
+
+// Signed test leaves, valid 2020–2040, deliberately lacking the router's IP SAN. No private key is retained.
+const certificateOne = `-----BEGIN CERTIFICATE-----
+MIIBKjCCAM+gAwIBAgIBATAKBggqhkjOPQQDAjAeMRwwGgYDVQQDDBNyb3V0ZXIu
+ZXhhbXBsZS50ZXN0MB4XDTIwMDEwMTAwMDAwMFoXDTQwMDEwMTAwMDAwMFowHjEc
+MBoGA1UEAwwTcm91dGVyLmV4YW1wbGUudGVzdDBZMBMGByqGSM49AgEGCCqGSM49
+AwEHA0IABOWBuGtj0luoknttr0mDMO3rVbrjPKxVVHXdQvMuStYPtyIquPu3TGr2
+qL3KJAF4N13Cba44jdaSJ/9c1xGf9qswCgYIKoZIzj0EAwIDSQAwRgIhAM0GK22T
+6WMJl84cVYj6KnrIxY1y8CKnnLsm7dNWZ/xTAiEApekUyZaIGvkXYzwUNxVFl7nn
+3arjFjLF5XOrMkOPIw0=
+-----END CERTIFICATE-----`
+const certificateTwo = `-----BEGIN CERTIFICATE-----
+MIIBKTCCAM+gAwIBAgIBAjAKBggqhkjOPQQDAjAeMRwwGgYDVQQDDBNyb3V0ZXIu
+ZXhhbXBsZS50ZXN0MB4XDTIwMDEwMTAwMDAwMFoXDTQwMDEwMTAwMDAwMFowHjEc
+MBoGA1UEAwwTcm91dGVyLmV4YW1wbGUudGVzdDBZMBMGByqGSM49AgEGCCqGSM49
+AwEHA0IABOWBuGtj0luoknttr0mDMO3rVbrjPKxVVHXdQvMuStYPtyIquPu3TGr2
+qL3KJAF4N13Cba44jdaSJ/9c1xGf9qswCgYIKoZIzj0EAwIDSAAwRQIhALxolLv1
+ABk6aVyFSzdf0yp1Z1AQDYcdkkuTqvQqyMeOAiAClD02XHJfin+nWj9ANaqJQB2Y
+5eDhEP9xsax9Jvr7Rg==
+-----END CERTIFICATE-----`
+type CertificateFixture = Pick<Electron.Certificate, 'data' | 'fingerprint' | 'validStart' | 'validExpiry'>
+function nativeCertificate(pem: string): CertificateFixture {
+  const leaf = new X509Certificate(pem)
+  const fingerprint = `sha256/${Buffer.from(leaf.fingerprint256.replaceAll(':', ''), 'hex').toString('base64')}`
+  return { data: pem, fingerprint,
+    validStart: leaf.validFromDate.getTime() / 1000, validExpiry: leaf.validToDate.getTime() / 1000 }
+}
+const leaves = { 'certificate-one': nativeCertificate(certificateOne), 'certificate-two': nativeCertificate(certificateTwo) }
+const fingerprintOne = new X509Certificate(certificateOne).fingerprint256
+const fingerprintTwo = new X509Certificate(certificateTwo).fingerprint256
 
 function fixture(confirm: ConfirmBrowserCertificate = async () => true) {
   const guest = Object.assign(new EventEmitter(), { isLoading: vi.fn(() => true) })
@@ -52,14 +83,27 @@ function fixture(confirm: ConfirmBrowserCertificate = async () => true) {
   const dispose = bindFixture(guest, owner, eligible, prompt)
   onTestFinished(dispose)
   const navigate = (url: string) => guest.emit('did-start-navigation', { isMainFrame: true, isSameDocument: false, url })
-  const failure = (url: string, mainFrame = true, error = 'net::ERR_CERT_AUTHORITY_INVALID', data = 'certificate-one') => {
+  const failure = (url: string, mainFrame = true, error = 'net::ERR_CERT_AUTHORITY_INVALID', certificate: keyof typeof leaves | CertificateFixture = 'certificate-one') => {
     const event = { preventDefault: vi.fn() } as Pick<Event, 'preventDefault'>
-    const callback = vi.fn(onAnswer)
-    guest.emit('certificate-error', event, url, error, { data, fingerprint: `native-fingerprint:${data}` }, callback, mainFrame)
+    const callback = vi.fn((trusted: boolean) => { onAnswer(trusted) })
+    guest.emit('certificate-error', event, url, error, typeof certificate === 'string' ? leaves[certificate] : certificate, callback, mainFrame)
     return callback
   }
   return { guest, owner, eligible, prompt, navigate, failure, dispose, onAnswer }
 }
+
+it.each([
+  { name: 'Electron SHA-256 base64', fingerprint: leaves['certificate-one'].fingerprint },
+  { name: 'colon-separated hexadecimal', fingerprint: fingerprintOne },
+  { name: 'plain lowercase hexadecimal', fingerprint: fingerprintOne.replaceAll(':', '').toLowerCase() },
+])('canonicalizes the verified native $name fingerprint for human consent', async ({ fingerprint }) => {
+  const f = fixture()
+  const url = 'https://192.168.1.1/'
+  f.navigate(url)
+  const answer = f.failure(url, true, undefined, { ...leaves['certificate-one'], fingerprint })
+  await vi.waitFor(() => { expect(answer).toHaveBeenCalledExactlyOnceWith(true) })
+  expect(f.prompt.mock.calls[0]?.[0].fingerprint).toBe(fingerprintOne)
+})
 
 it.each(['https://192.168.1.1/', 'https://10.0.0.1/', 'https://172.16.0.1/', 'https://172.31.255.255/',
   'https://169.254.0.1/', 'https://127.0.0.1:1234/', 'https://localhost:1234/', 'https://[::1]/',
@@ -75,7 +119,7 @@ it.each(['https://192.168.1.1/', 'https://10.0.0.1/', 'https://172.16.0.1/', 'ht
   if (input === undefined) throw new Error('Expected certificate confirmation')
   expect(input.owner).toBe(f.owner)
   expect(input.origin).toBe(new URL(url).origin)
-  expect(input.fingerprint).toBe('native-fingerprint:certificate-one')
+  expect(input.fingerprint).toBe(fingerprintOne)
 })
 
 it.each(['https://example.com/', 'https://8.8.8.8/', 'https://172.15.0.1/', 'https://172.32.0.1/',
@@ -87,14 +131,14 @@ it.each(['https://example.com/', 'https://8.8.8.8/', 'https://172.15.0.1/', 'htt
   expect(f.prompt).not.toHaveBeenCalled()
 })
 
-it.each(['net::ERR_CERT_REVOKED', 'net::ERR_CERT_DATE_INVALID', 'net::ERR_CERT_COMMON_NAME_INVALID'])('does not bypass %s', (error) => {
+it.each(['net::ERR_CERT_REVOKED', 'net::ERR_CERT_DATE_INVALID', 'net::ERR_CERT_INVALID', 'net::ERR_SSL_PROTOCOL_ERROR'])('does not bypass %s', (error) => {
   const f = fixture()
   f.navigate('https://192.168.1.1/')
   expect(f.failure('https://192.168.1.1/', true, error)).toHaveBeenCalledExactlyOnceWith(false)
   expect(f.prompt).not.toHaveBeenCalled()
 })
 
-it.each(['net::ERR_CERT_REVOKED', 'net::ERR_CERT_DATE_INVALID', 'net::ERR_CERT_COMMON_NAME_INVALID'])(
+it.each(['net::ERR_CERT_REVOKED', 'net::ERR_CERT_DATE_INVALID', 'net::ERR_CERT_INVALID', 'net::ERR_SSL_PROTOCOL_ERROR'])(
   'does not reuse an approved fingerprint to bypass %s', async (error) => {
     const f = fixture()
     f.navigate('https://192.168.1.1/')
@@ -106,6 +150,120 @@ it.each(['net::ERR_CERT_REVOKED', 'net::ERR_CERT_DATE_INVALID', 'net::ERR_CERT_C
     expect(f.prompt).toHaveBeenCalledOnce()
   },
 )
+
+it.each(['net::ERR_CERT_AUTHORITY_INVALID', 'net::ERR_CERT_COMMON_NAME_INVALID'])(
+  'requires manual consent, never automatic name/authority trust for %s', async (error) => {
+    const decision = Promise.withResolvers<boolean>()
+    const f = fixture(() => decision.promise)
+    const url = 'https://192.168.1.1/'
+    f.navigate(url)
+    expect(f.failure(url, false, error)).toHaveBeenCalledExactlyOnceWith(false)
+    const answer = f.failure(url, true, error)
+    await vi.waitFor(() => { expect(f.prompt).toHaveBeenCalledOnce() })
+    expect(answer).not.toHaveBeenCalled()
+    decision.resolve(false)
+    await vi.waitFor(() => { expect(answer).toHaveBeenCalledExactlyOnceWith(false) })
+    f.prompt.mockResolvedValue(true)
+    const retry = f.failure(url, true, error)
+    await vi.waitFor(() => { expect(retry).toHaveBeenCalledExactlyOnceWith(true) })
+    const otherError = error === 'net::ERR_CERT_AUTHORITY_INVALID' ? 'net::ERR_CERT_COMMON_NAME_INVALID' : 'net::ERR_CERT_AUTHORITY_INVALID'
+    expect(f.failure(`${url}app.js`, false, otherError)).toHaveBeenCalledExactlyOnceWith(true)
+    expect(f.prompt).toHaveBeenCalledTimes(2)
+  },
+)
+
+it.each([
+  { kind: 'malformed PEM', certificate: { ...leaves['certificate-one'], data: 'certificate-one' } },
+  { kind: 'missing fingerprint', certificate: { ...leaves['certificate-one'], fingerprint: '' } },
+  { kind: 'malformed fingerprint', certificate: { ...leaves['certificate-one'], fingerprint: 'native-fingerprint:certificate-one' } },
+  { kind: 'other leaf fingerprint', certificate: { ...leaves['certificate-one'], fingerprint: fingerprintTwo } },
+  { kind: 'wrong native digest', certificate: { ...leaves['certificate-one'], fingerprint: leaves['certificate-two'].fingerprint } },
+  { kind: 'native digest without padding', certificate: { ...leaves['certificate-one'], fingerprint: leaves['certificate-one'].fingerprint.slice(0, -1) } },
+  { kind: 'native digest with trailing data', certificate: { ...leaves['certificate-one'], fingerprint: `${leaves['certificate-one'].fingerprint}extra` } },
+  { kind: 'unsupported native digest algorithm', certificate: { ...leaves['certificate-one'], fingerprint: leaves['certificate-one'].fingerprint.replace('sha256/', 'sha1/') } },
+  { kind: 'native start mismatch', certificate: { ...leaves['certificate-one'], validStart: 1 } },
+  { kind: 'native expiry mismatch', certificate: { ...leaves['certificate-one'], validExpiry: Infinity } },
+])('denies $kind and withdraws same-origin pending consent', async ({ certificate }) => {
+  const decision = Promise.withResolvers<boolean>()
+  const f = fixture(() => decision.promise)
+  const url = 'https://192.168.1.1/'
+  f.navigate(url)
+  const pending = f.failure(url)
+  await vi.waitFor(() => { expect(f.prompt).toHaveBeenCalledOnce() })
+  expect(f.failure(url, true, undefined, certificate)).toHaveBeenCalledExactlyOnceWith(false)
+  expect(pending).toHaveBeenCalledExactlyOnceWith(false)
+  expect(f.prompt.mock.calls[0]?.[0].signal.aborted).toBe(true)
+  decision.resolve(true)
+  await new Promise<undefined>(resolve => setImmediate(() => { resolve(undefined) }))
+  expect(f.failure(`${url}app.js`, false)).toHaveBeenCalledExactlyOnceWith(false)
+  expect(f.prompt).toHaveBeenCalledOnce()
+})
+
+it('withdraws existing approval after an uncertain native leaf instead of trusting its unchecked fingerprint', async () => {
+  const f = fixture()
+  const url = 'https://192.168.1.1/'
+  f.navigate(url)
+  const first = f.failure(url)
+  await vi.waitFor(() => { expect(first).toHaveBeenCalledExactlyOnceWith(true) })
+  expect(f.failure(`${url}app.js`, false, undefined, { ...leaves['certificate-one'], data: 'malformed' }))
+    .toHaveBeenCalledExactlyOnceWith(false)
+  expect(f.failure(`${url}app.js`, false)).toHaveBeenCalledExactlyOnceWith(false)
+  const retry = f.failure(url)
+  await vi.waitFor(() => { expect(retry).toHaveBeenCalledExactlyOnceWith(true) })
+  expect(f.prompt).toHaveBeenCalledTimes(2)
+})
+
+it.each([
+  ['not yet valid', '2019-12-31T23:59:59Z', false],
+  ['valid start', '2020-01-01T00:00:00Z', true],
+  ['valid expiry', '2040-01-01T00:00:00Z', false],
+  ['expired', '2040-01-01T00:00:01Z', false],
+] as const)('checks real PEM dates when authority-invalid masks %s', async (_kind, now, accepted) => {
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.parse(now))
+  onTestFinished(() => { clock.mockRestore() })
+  const f = fixture()
+  const url = 'https://192.168.1.1/'
+  f.navigate(url)
+  const answer = f.failure(url)
+  await vi.waitFor(() => { expect(answer).toHaveBeenCalledExactlyOnceWith(accepted) })
+  expect(f.prompt).toHaveBeenCalledTimes(accepted ? 1 : 0)
+})
+
+it.each(['pending', 'approved'] as const)('rejects a leaf expiring while consent is %s', async (phase) => {
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2039-12-31T23:59:59Z'))
+  onTestFinished(() => { clock.mockRestore() })
+  const decision = Promise.withResolvers<boolean>()
+  const f = fixture(() => decision.promise)
+  const url = 'https://192.168.1.1/'
+  f.navigate(url)
+  const answer = f.failure(url)
+  await vi.waitFor(() => { expect(f.prompt).toHaveBeenCalledOnce() })
+  if (phase === 'approved') {
+    decision.resolve(true)
+    await vi.waitFor(() => { expect(answer).toHaveBeenCalledExactlyOnceWith(true) })
+  }
+  clock.mockReturnValue(Date.parse('2040-01-01T00:00:00Z'))
+  if (phase === 'pending') {
+    decision.resolve(true)
+    await vi.waitFor(() => { expect(answer).toHaveBeenCalledExactlyOnceWith(false) })
+  }
+  expect(f.failure(`${url}app.js`, false)).toHaveBeenCalledExactlyOnceWith(false)
+  expect(f.prompt).toHaveBeenCalledOnce()
+})
+
+it('denies pending consent if the clock moves before the parsed leaf valid start', async () => {
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2020-01-01T00:00:00Z'))
+  onTestFinished(() => { clock.mockRestore() })
+  const decision = Promise.withResolvers<boolean>()
+  const f = fixture(() => decision.promise)
+  const url = 'https://192.168.1.1/'
+  f.navigate(url)
+  const answer = f.failure(url)
+  await vi.waitFor(() => { expect(f.prompt).toHaveBeenCalledOnce() })
+  clock.mockReturnValue(Date.parse('2019-12-31T23:59:59Z'))
+  decision.resolve(true)
+  await vi.waitFor(() => { expect(answer).toHaveBeenCalledExactlyOnceWith(false) })
+})
 
 it('denies subframes, obsolete URLs, ineligible leases, and the default cancel decision', async () => {
   const f = fixture(async () => false)
@@ -184,7 +342,7 @@ it('withdraws a changed certificate even for resources and retains no historical
   const original = f.failure('https://192.168.1.1/')
   await vi.waitFor(() => { expect(original).toHaveBeenCalledExactlyOnceWith(true) })
   expect(f.prompt.mock.calls.map(([prompt]) => prompt.fingerprint)).toEqual([
-    'native-fingerprint:certificate-one', 'native-fingerprint:certificate-two', 'native-fingerprint:certificate-one',
+    fingerprintOne, fingerprintTwo, fingerprintOne,
   ])
 })
 
@@ -241,7 +399,7 @@ it.each([
   newDecision.resolve(true)
   await vi.waitFor(() => { expect(replacement).toHaveBeenCalledExactlyOnceWith(true) })
   expect(f.prompt.mock.calls.map(([prompt]) => prompt.fingerprint)).toEqual([
-    'native-fingerprint:certificate-one', 'native-fingerprint:certificate-two',
+    fingerprintOne, fingerprintTwo,
   ])
 })
 

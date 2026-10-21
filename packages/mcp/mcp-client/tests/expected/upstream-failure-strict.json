@@ -1,0 +1,6 @@
+{
+  "startup": "failed",
+  "remoteTools": [],
+  "prompt": "You are an AI agent powered by DeepSeek Harness.",
+  "resourceError": "unknown tool \"list_mcp_resources\""
+}

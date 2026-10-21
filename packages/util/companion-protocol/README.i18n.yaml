@@ -20,6 +20,12 @@
 /dsh-companion-protocol/wire-reference:
   en: b5a0cdbb91194378
   zh: ba67e58ef3fa5a8c
+/dsh-companion-protocol/wire-reference/application-navigation-compatibility:
+  en: 5f7e32c720e4aa78
+  zh: 8c5acaf92d32db46
+/dsh-companion-protocol/wire-reference/application-management-compatibility:
+  en: 3842d7f060f9364e
+  zh: 7a68d36130baded1
 /dsh-companion-protocol/wire-reference/primitive-encoding:
   en: 10d7e3dd84f12a1a
   zh: 17bcf94adc43b194

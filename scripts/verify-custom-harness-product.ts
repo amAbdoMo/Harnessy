@@ -143,6 +143,11 @@ function verifyRootScripts(manifest: RootManifest): string[] {
     'packages/client/ui-brand-custom-harness/tests/native-taskbar.client.spec.ts',
     'packages/api/settings-controller/tests/accounts-controller.host.spec.ts',
     'packages/api/settings-controller/tests/mcp-manager.host.spec.ts',
+    'apps/desktop-host/tests/companion-activation.spec.ts',
+    'apps/desktop-host/tests/companion-deployment.spec.ts',
+    'apps/desktop/tests/companion-native.spec.ts',
+    'packages/host/companion-host/tests/session-management.spec.ts',
+    'packages/client/ui-brand-custom-harness/tests/companion-disclosure-composition.client.spec.tsx',
   ]) {
     if (!manifest.scripts?.['verify:harnessy-upgrade']?.includes(owner)) {
       failures.push(`Harnessy upgrade verification must include ${owner}`)

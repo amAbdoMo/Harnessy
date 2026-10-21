@@ -86,7 +86,7 @@ const FIXTURE: Record<string, string> = {
     "  protected notifyTuple(): void { this.fireTuple(['private/array']) }",
     "  private fireTuple(args: ['private/array' | 'private/array-dead']): void { void this.ctx.events.dispatch('emit', args) }",
     "  private fanOut(...args: ['credentials/reference-updated' | 'credentials/record-updated' | 'credentials/dead', string] | ['credentials/source-failed' | 'private/spread']): void {",
-    "    void this.ctx.events.dispatch('emit', args)",
+    "    void this.ctx.events.dispatch('emit', [...args])",
     '    this.fanOut(...args)',
     '  }',
     '}',

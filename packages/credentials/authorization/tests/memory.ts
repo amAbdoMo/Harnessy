@@ -59,12 +59,12 @@ export class MemoryCredentials extends CredentialProvider {
     const next = await mutate(current)
     if (next === undefined) return current
     this.records.set(key, next)
-    this.ctx.emit('credentials/record-updated', key)
+    this.notifyRecordUpdated(key)
     return next
   }
 
   override deleteRecord(key: CredentialKey): Promise<void> {
-    if (this.records.delete(key)) this.ctx.emit('credentials/record-updated', key)
+    if (this.records.delete(key)) this.notifyRecordUpdated(key)
     return Promise.resolve()
   }
 }

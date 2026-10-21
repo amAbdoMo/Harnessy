@@ -16,6 +16,7 @@
   "include": [
     // The native/renderer keyboard fixture imports only these Cordis-free Desktop modules.
     "apps/desktop/tests/keyboard.spec.ts",
+    "apps/desktop/tests/fixtures/router-certificate.ts",
     "apps/desktop/src/keyboard.ts",
     "apps/desktop/src/keybindings.ts",
     "apps/desktop/src/browser-guests.ts",

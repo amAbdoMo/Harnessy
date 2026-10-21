@@ -1,8 +1,10 @@
 /** Non-activating, bounded phone projections; raw tool payloads and reasoning stay PC-local. */
 import { createHash } from 'node:crypto'
+import { statSync } from 'node:fs'
 import type { Context } from '@deepseek-ai/cordis'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import type {} from '@deepseek-ai/dsh-agent'
+import type {} from '@deepseek-ai/dsh-api-session-controller'
 import type {
   ApplicationBudget, HistoryRow, HistorySequence, SessionSummary,
 } from '@deepseek-ai/dsh-companion-protocol'
@@ -24,6 +26,8 @@ export class MobileViewError extends Error {
 
 /** Explicit limits and authorization check for one bounded list read. */
 export interface MobileSessionListOptions {
+  /** Omission preserves the legacy three-field Session summary. */
+  readonly view?: 'navigation'
   readonly limit: number
   readonly after: SessionListPosition | undefined
   readonly budget: ApplicationBudget
@@ -71,6 +75,12 @@ export function requireVisibleSession(ctx: Context, header: SessionHeader): void
     || workspaces.archivedSessionIds.includes(header.id)) throw new MobileViewError('denied')
   const parent = header.parentSession === undefined ? undefined : ctx.agents.get(header.parentSession)
   if (parent !== undefined && ctx.agents.isOwnedBy(header.id, parent)) throw new MobileViewError('denied')
+  let directory: boolean
+  try { directory = statSync(header.cwd).isDirectory() } catch (_error: unknown) {
+    // Unresolvable working directories are not visible phone targets.
+    throw new MobileViewError('denied')
+  }
+  if (!directory) throw new MobileViewError('denied')
 }
 
 /**
@@ -98,14 +108,14 @@ function compare(left: SessionListPosition, right: SessionListPosition): number 
 /**
  * Project at most limit summaries, retaining only limit + 1 header candidates.
  * Persistence exposes an all-header listing, but no Session log or complete list projection is copied.
- * @param ctx - Live and persisted Session registries and cached title projections.
+ * @param ctx - Session and Workspace registries with cached title and human-prompt activity projections.
  * @param options - Validated page, field, cancellation, and synchronous authorization limits.
- * @returns a deterministic created-time page of ordinary visible Sessions.
+ * @returns a deterministic created-time page of visible Sessions; navigation requires its explicit view.
  */
 export async function listMobileSessions(
   ctx: Context, options: MobileSessionListOptions,
 ): Promise<MobileSessionPage> {
-  const { limit, after, budget, signal, requireCurrent } = options
+  const { view, limit, after, budget, signal, requireCurrent } = options
   requireCurrent()
   const candidates: { header: SessionHeader; key: SessionListPosition }[] = []
   const consider = (header: SessionHeader): void => {
@@ -135,16 +145,50 @@ export async function listMobileSessions(
   for (const item of candidates.slice(0, limit)) {
     requireCurrent()
     signal.throwIfAborted()
-    requireVisibleSession(ctx, item.header)
-    const live = ctx.sessions.get(item.header.id)
-    const projections = live === undefined
-      ? ctx.get('sessionProjectionCache')?.cachedSnapshot(item.header, ['title'])
-      : ctx.get('sessionProjections')?.cachedSnapshot(live, ['title'])
-    const title = sanitizedText(projections?.values.title ?? '', budget.maxTitleBytes)
-    sessions.push({ sessionId: item.header.id, title, status: mobileSessionStatus(ctx, item.header.id) })
+    sessions.push(mobileSessionSummary(ctx, item.header, budget, view))
   }
   const last = candidates[limit - 1]
   return { sessions, ...(candidates.length > limit && last !== undefined ? { next: last.key } : {}) }
+}
+
+/**
+ * Project one visible Session without activating its Agent or reading its log.
+ * @param ctx - Host registries and cached projections.
+ * @param header - Existing Session identity; visibility is checked even for management replies.
+ * @param budget - UTF-8 field limits.
+ * @param view - Explicit navigation opt-in; omission preserves legacy rows.
+ * @returns the approved summary, with navigation only when requested.
+ */
+export function mobileSessionSummary(
+  ctx: Context, header: SessionHeader, budget: ApplicationBudget, view?: 'navigation',
+): SessionSummary {
+  requireVisibleSession(ctx, header)
+  const registry = view === 'navigation' ? ctx.get('workspaceRegistry') : undefined
+  if (view === 'navigation' && registry === undefined) throw new MobileViewError('unavailable')
+  const keys = view === 'navigation' ? ['title', 'sessionListMetadata'] as const : ['title'] as const
+  const live = ctx.sessions.get(header.id)
+  const projections = live === undefined
+    ? ctx.get('sessionProjectionCache')?.cachedSnapshot(header, keys)
+    : ctx.get('sessionProjections')?.cachedSnapshot(live, keys)
+  const summary: SessionSummary = {
+    sessionId: header.id, title: sanitizedText(projections?.values.title ?? '', budget.maxTitleBytes),
+    status: mobileSessionStatus(ctx, header.id),
+  }
+  if (registry === undefined) return summary
+  const workspaces = registry.list()
+  const order = workspaces.findIndex(workspace => workspace.sessionIds.includes(header.id))
+  const workspace = workspaces[order]
+  const pinOrder = registry.pinnedSessionIds.indexOf(header.id)
+  return {
+    ...summary,
+    navigation: {
+      updatedAt: Math.max(header.createdAt, projections?.values.sessionListMetadata?.lastPromptAt ?? 0),
+      pinOrder: pinOrder < 0 ? null : pinOrder,
+      workspace: workspace === undefined ? null : {
+        id: workspace.id, title: sanitizedText(workspace.title, budget.maxTitleBytes), order,
+      },
+    },
+  }
 }
 
 /**

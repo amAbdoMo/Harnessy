@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AccountsState } from '@deepseek-ai/dsh-api-remotes/client'
 import { AccountsUsageController } from '../src/client/accounts-usage.ts'
+import type { AccountsManagerOperations } from '../src/client/AccountsManagerCard.tsx'
 
 const describedState: AccountsState = {
   writable: true,
@@ -199,7 +200,7 @@ describe('Harnessy automatic account usage', () => {
     const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
     const operations = {
       describe: vi.fn(async () => ({ state: describedState })),
-      refreshUsage: vi.fn(async () => ({ state: refreshedState })),
+      refreshUsage: vi.fn<AccountsManagerOperations['refreshUsage']>().mockResolvedValue({ state: refreshedState }),
     }
     const controller = new AccountsUsageController(operations)
     const dispose = controller.start()
@@ -207,6 +208,7 @@ describe('Harnessy automatic account usage', () => {
 
     expect(controller.state.getSnapshot()).toEqual(refreshedState)
     expect(operations.refreshUsage).toHaveBeenCalledTimes(1)
+    expect(operations.refreshUsage.mock.calls[0]?.[1]).toBe('cached')
     await vi.advanceTimersByTimeAsync(60_000)
     expect(operations.refreshUsage).toHaveBeenCalledTimes(2)
     visibility.mockReturnValue('hidden')
@@ -216,6 +218,7 @@ describe('Harnessy automatic account usage', () => {
     window.dispatchEvent(new Event('focus'))
     await settle()
     expect(operations.refreshUsage).toHaveBeenCalledTimes(3)
+    expect(operations.refreshUsage.mock.calls.every(call => call[1] === 'cached')).toBe(true)
 
     dispose()
     await vi.advanceTimersByTimeAsync(60_000)
@@ -243,5 +246,26 @@ describe('Harnessy automatic account usage', () => {
     await settle()
     expect(controller.state.getSnapshot()).toEqual(refreshedState)
     dispose()
+  })
+
+  it('keeps a manual fresh follow-up when focus events join a cached read', async () => {
+    const pending = Promise.withResolvers<{ state: AccountsState }>()
+    const operations = {
+      describe: async () => ({ state: refreshedState }),
+      refreshUsage: vi.fn<AccountsManagerOperations['refreshUsage']>()
+        .mockImplementationOnce(() => pending.promise)
+        .mockResolvedValue({ state: refreshedState }),
+    }
+    const controller = new AccountsUsageController(operations)
+    const dispose = controller.start()
+    try {
+      await vi.waitFor(() => { expect(operations.refreshUsage).toHaveBeenCalledOnce() })
+      const manual = controller.refresh(true)
+      window.dispatchEvent(new Event('focus'))
+      pending.resolve({ state: refreshedState })
+      await manual
+      await vi.waitFor(() => { expect(operations.refreshUsage).toHaveBeenCalledTimes(2) })
+      expect(operations.refreshUsage.mock.calls.map(call => call[1])).toEqual(['cached', 'fresh'])
+    } finally { pending.resolve({ state: refreshedState }); dispose() }
   })
 })

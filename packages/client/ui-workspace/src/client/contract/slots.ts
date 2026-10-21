@@ -295,6 +295,7 @@ export type RowToast =
   | { kind: 'unpinFailed' }
   | { kind: 'archivedNotOpenable' }
   | { kind: 'defaultWorkspaceFailed' }
+  | { kind: 'forkRequiresOpen'; sessionId: SessionId }
   /**
    * An explicit New Session request that failed. `message` is untranslated:
    * a Host refusal as `code: message` — the stable code stays in the copy so
@@ -411,7 +412,7 @@ export interface SessionRenameDialogInjected {
   renameSession: (sessionId: SessionId, title: string) => Promise<void>
 }
 
-/** Row toast share: the notice on display, its dismissal, and the two actions the archived notice offers. */
+/** Row toast share: the notice, dismissal, archive recovery, and explicit fork-source opening. */
 export interface RowToastInjected {
   hooks: {
     /** The notice on display, or none. */
@@ -423,6 +424,8 @@ export interface RowToastInjected {
   undoArchive: (sessionId: SessionId) => void
   /** Switch the archived filter to "show" so the archived row is back in view. */
   showArchived: () => void
+  /** Open the fork source without retrying the fork. */
+  openForkSource: (sessionId: SessionId) => void
 }
 
 /** Props of the rename dialog entry in `shell.overlay`. */

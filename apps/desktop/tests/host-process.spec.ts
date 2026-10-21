@@ -37,6 +37,11 @@ server.listen(0, '127.0.0.1', () => {
   process.send({ type: 'ready', url: 'http://127.0.0.1:' + server.address().port + '/?token=fixture' })
 })
 process.on('message', message => {
+  if (message.type === 'companion-control') {
+    const result = message.command.kind === 'activate' ? { kind: 'completed' } : { kind: 'activationRequired' }
+    process.send({ type: 'companion-control', requestId: message.requestId, result })
+    return
+  }
   if (message.type === 'website-control') {
     const command = message.command
     if (command.action === 'sync' || command.action === 'drain' || command.action === 'remove') {
@@ -148,6 +153,14 @@ afterEach(async () => {
 })
 
 describe('desktop host process', () => {
+  it('carries first-time companion setup through the real private Main transport without accepting it as a mutation result', async () => {
+    const host = hostProcess(projectWithHost())
+    await host.start()
+    await expect(host.companionControl({ kind: 'describe' })).resolves.toEqual({ kind: 'activationRequired' })
+    await expect(host.companionControl({ kind: 'activate' })).resolves.toEqual({ kind: 'completed' })
+    await expect(host.companionControl({ kind: 'createInvitation' })).rejects.toThrow('different operation result')
+  })
+
   it('carries the clean remote root privately without replacing the authenticated loopback ready URL', async () => {
     const source = HTTP_HOST.replace("{ type: 'ready', url:", "{ type: 'ready', remoteRoot: 'https://pc.tailnet.ts.net/', url:")
     const ready = await hostProcess(projectWithHost(source)).start()

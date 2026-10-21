@@ -43,6 +43,17 @@ A relay stores each challenge against the exact pending socket generation, bound
 
 This section freezes version-one wire fields, order, encoding, and cryptographic inputs. JSON object property order is irrelevant; authenticated binary field order is not. Parsers reject omitted/extra fields, other versions/suites/roles, and noncanonical binary encodings. Callers decode JSON once and reject oversized raw messages before these parsers.
 
+### Application navigation compatibility
+
+`listSessions` accepts optional `view: 'navigation'`. Omission preserves rows with exactly `sessionId`, `title`, and `status`; opting in adds `navigation` with exactly `updatedAt`, `pinOrder`, and `workspace`. `workspace` is `null` or exactly `{id, title, order}`; `pinOrder` is `null` when unpinned. Every numeric navigation value is an integer in `[0, Number.MAX_SAFE_INTEGER]`. The [application types](src/application-types.ts) and [parser](src/application.ts) own these fields; navigation grants no mutation authority.
+
+A PC without this extension rejects the extra request field and closes the channel. Update the PC before using a phone that requests this view; do not relax exact-field parsing or retry through a permissive fallback. Older phones that omit `view` retain the legacy response. See the [upgrade guide](../../../docs/upgrade-guide/v0.1.15/companion-navigation/guide.md).
+
+<a id="application-management-compatibility"></a>
+### Application management compatibility
+
+The closed [application request/result types](src/application-types.ts) add permission-gated `listManagementWorkspaces` and four commands: `createSession`, `renameSession`, `archiveSession` and `setSessionPinned`. The catalog includes registered empty Workspaces as IDs, titles and order, never PC paths; ordinary Session listings still omit empty groups. Exact-field parsing admits no generic RPC, provider secrets or Delete operation. Create binds the phone-known Session ID to `mobile-${operationId}`; Pin uses an explicit desired boolean, not a toggle. `managed` distinguishes `applied`, definite `rejected` and `unknown`; operation IDs are one-shot correlations, not durable replay keys. PC consent and completion semantics belong to [Host integration](../../host/companion-host/INTEGRATION.md); follow the [PC-first upgrade guide](../../../docs/upgrade-guide/v0.1.15/companion-chat-management/guide.md).
+
 ### Primitive encoding
 
 `LP(x)` is `uint32BE(byteLength(x)) || x`, without a terminator. `C(domain; fields...)` is `LP(UTF8(domain)) || LP(field1) || ...`. Ordinary textual fields use exact UTF-8. A decimal field uses shortest unsigned ASCII decimal without leading zeros. Raw fields below use decoded bytes, not base64url text. Nested transcripts are one raw field, including all their own prefixes. No JSON serialization, whitespace, sorting, Unicode normalization, or delimiter joining enters an authenticated transcript.

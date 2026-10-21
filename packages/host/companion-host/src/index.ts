@@ -20,9 +20,9 @@ import type { RelayConnection, RelayInput } from './connector.ts'
 import { fingerprint, HostRecords, randomId, RECORD_KEY } from './records.ts'
 import type { DeviceRecord } from './records.ts'
 import { createApplicationDispatcher } from './application-dispatch.ts'
-import type { CandidateId, CompanionStatus, PairedDevice, PrivateInvitation } from './types.ts'
+import type { CandidateId, CompanionControlCommand, CompanionStatus, PairedDevice, PrivateInvitation } from './types.ts'
 
-export { Config } from './config.ts'
+export { Config, resolveConfig } from './config.ts'
 export { installDesktopCompanionOwner } from './desktop-owner.ts'
 export type * from './types.ts'
 
@@ -74,6 +74,7 @@ export default class CompanionHost extends Service {
   private readonly candidates = new Map<CandidateId, Candidate>()
   private readonly channels = new Map<ChannelId, Channel>()
   private readonly retiring = new Set<Promise<void>>()
+  private readonly permissionChanges = new Set<{ readonly grantId: GrantId }>()
   private tail: Promise<void> = Promise.resolve()
   private pendingLocal = 0
   private channelAttempts = 0
@@ -95,7 +96,7 @@ export default class CompanionHost extends Service {
         this.ctx.on('credentials/source-failed', () => { this.withdraw() })
         this.ctx.credentials.sourceFailureSignal.throwIfAborted()
         this.records = new HostRecords(this.ctx.credentials, resolved.origin, resolved.budgets)
-        const record = await this.records.initialize()
+        const record = await this.records.initialize(this.life.signal)
         if (owner.signal.aborted || this.life.signal.aborted) throw new Error('companion-host: owner retired during startup')
         this.available = true
         this.ctx.on('credentials/record-updated', (key) => {
@@ -191,7 +192,7 @@ export default class CompanionHost extends Service {
 
   private publicDevice(grant: DeviceRecord): PairedDevice {
     return { grantId: grant.grantId, generation: grant.generation, fingerprint: fingerprint(grant.phoneIdentityKey),
-      displayName: grant.displayName, pairedAt: grant.pairedAt }
+      displayName: grant.displayName, pairedAt: grant.pairedAt, sessionManagement: grant.sessionManagementV1 === true }
   }
 
   /**
@@ -311,6 +312,38 @@ export default class CompanionHost extends Service {
     })
   }
 
+  /**
+   * Withdraw current channels immediately and commit explicit per-phone chat management consent without re-pairing.
+   * @param command - Native-confirmed grant id, generation, fingerprint and permission;
+   *   all three identifiers are rechecked under the update lock.
+   * @returns Provider commit and channel teardown; any failure disables this Host until explicit recovery.
+   */
+  setSessionManagement(command: Extract<CompanionControlCommand, { readonly kind: 'setSessionManagement' }>): Promise<void> {
+    // A queued handshake must not reacquire authority while this native decision waits for its commit.
+    const change = { grantId: command.grantId }
+    this.permissionChanges.add(change)
+    for (const channel of this.channels.values()) if (channel.grant?.grantId === command.grantId) this.retire(channel, true)
+    return this.serialize(async () => {
+      const records = this.requireAvailable()
+      await records.update((grants) => {
+        this.life.signal.throwIfAborted()
+        const current = grants.find(grant => grant.grantId === command.grantId)
+        if (current === undefined || current.generation !== command.expectedGeneration
+          || fingerprint(current.phoneIdentityKey) !== command.fingerprint) {
+          throw new Error('companion-host: stale or mismatched phone permission')
+        }
+        return grants.map((grant) => {
+          if (grant !== current) return grant
+          const { sessionManagementV1: _permission, ...denied } = grant
+          return command.enabled ? { ...denied, sessionManagementV1: true as const } : denied
+        })
+      })
+      if (!this.life.signal.aborted) this.available = true
+      await Promise.allSettled([...this.retiring])
+    }).catch((error: unknown) => { this.withdraw(); throw error })
+      .finally(() => { this.permissionChanges.delete(change) })
+  }
+
   private rejectInput(connection: RelayConnection, frame: RelayInput): void {
     if (connection !== this.connection || connection.signal.aborted || this.life.signal.aborted) return
     const channel = this.channels.get(frame.channelId)
@@ -406,6 +439,11 @@ export default class CompanionHost extends Service {
     if (crypto === undefined) throw new Error('companion-host: handshake missing')
     channel.dispatch = createApplicationDispatcher(this.ctx, {
       signal: channel.life.signal, requireCurrent: () => { this.requireCurrent(channel) }, grantId: grant.grantId,
+      managementAccess: () => {
+        this.requireCurrent(channel)
+        return this.requireAvailable().snapshot().grants.some(row => row.grantId === grant.grantId
+          && row.generation === grant.generation && row.phoneIdentityKey === channel.phoneKey && row.sessionManagementV1 === true)
+      },
       generation: grant.generation, budget: this.budget().application, maxWatches: this.budget().application.maxSubscriptionsPerGrant,
       maxPendingRequests: this.budget().maxPendingMessages, maxProgressBuffer: this.budget().maxProgressBuffer,
       sendProgress: result => this.sendResult(channel, result),
@@ -420,6 +458,7 @@ export default class CompanionHost extends Service {
     const records = this.requireAvailable()
     const grant = channel.grant
     if (grant === undefined || channel.connection !== this.connection || channel.connection.signal.aborted
+      || [...this.permissionChanges].some(change => change.grantId === grant.grantId)
       || !records.snapshot().grants.some(row => row.grantId === grant.grantId && row.generation === grant.generation
         && row.phoneIdentityKey === channel.phoneKey)) throw new Error('companion-host: grant generation withdrawn')
   }

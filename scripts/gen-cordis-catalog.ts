@@ -863,6 +863,7 @@ export const FOUNDATION_TYPE_NAMES: ReadonlySet<string> = new Set([
 /** Project types deliberately documented outside the subsystems catalog. */
 export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   CompanionStatus: 'native companion management status is owned by packages/host/companion-host/INTEGRATION.md',
+  CompanionControlCommand: 'private native companion commands are owned by packages/host/companion-host/INTEGRATION.md',
   PrivateInvitation: 'Main-only pairing output is owned by packages/host/companion-host/INTEGRATION.md',
   CandidateId: 'native companion approval identity is owned by packages/host/companion-host/INTEGRATION.md',
   PairedDevice: 'native paired-device metadata is owned by packages/host/companion-host/src/types.ts',

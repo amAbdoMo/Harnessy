@@ -116,8 +116,8 @@ cancel(key: CredentialKey): void
  * and the second would answer questions the first was asked.
  *
  * @param request - flow key, method, interaction, cancel signal, and optional staging destination.
- * @returns `authorized` once the flow's record is committed during this
- *   attempt and observed, or `cancelled` when the human declined or the
+ * @returns `authorized` once this attempt completes `session.commit()` or
+ *   observes its credential write, or `cancelled` when the human declined or the
  *   caller withdrew.
  * @throws {AuthorizationError} code `NO_FLOW` when nothing claims the key,
  *   `UNSUPPORTED_DESTINATION` when an alternate destination is not supported,

@@ -483,7 +483,8 @@ describe('ui-workspace apply', () => {
     b.retain.mockClear()
     fork.forkSession('session' as never)
     await forkSession.mock.results[0]!.value
-    expect(b.fork).toHaveBeenCalledWith({ sessionId: 'session', increaseTitle: true, onCreated: expect.any(Function) as (childId: SessionId) => void })
+    expect(b.fork).toHaveBeenCalledWith({ sessionId: 'session', increaseTitle: true, allowMigration: false,
+      onCreated: expect.any(Function) as (childId: SessionId) => void })
     expect(b.retain).not.toHaveBeenCalled()
 
     // The rename row raises the request the dialog entry reads; settling clears it.
@@ -517,6 +518,33 @@ describe('ui-workspace apply', () => {
     }
     await browser.unarchiveSession('session' as never)
     expect(unarchiveSession).toHaveBeenCalledWith('session')
+  })
+
+  it.each([false, true])('offers explicit source opening after a refused sidebar fork (archived: %s)', async (archived) => {
+    const b = await bench()
+    onTestFinished(() => b.ctx.fiber.dispose())
+    b.setSessions(sessionState([summary('source', 1)]))
+    declare(b.slots, 'sidebar.workspaces', 'shell.overlay')
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    const failure = Object.assign(new Error('migration required'), {
+      name: 'SessionForkError', rpcError: new RemoteError('session/migration-required', 'migration required', { sessionId: sid('source') }),
+    })
+    b.fork.mockRejectedValueOnce(failure)
+    const fork = faceOf(entry(b.slots, MENU_ITEM, 'fork')) as ForkSessionInjected
+    const toast = faceOf(entry(b.slots, 'shell.overlay', 'workspace.row-toast')) as RowToastInjected
+    fork.forkSession(sid('source'))
+    await vi.waitFor(() => { expect(toast.hooks.toast.getSnapshot()).toMatchObject({ kind: 'forkRequiresOpen', sessionId: 'source' }) })
+    expect(b.fork).toHaveBeenCalledWith(expect.objectContaining({ allowMigration: false }))
+    expect(b.retain).not.toHaveBeenCalled()
+    if (archived) b.setWorkspaces(workspaceState([], [sid('source')]))
+    toast.openForkSource(sid('source'))
+    if (archived) {
+      expect(b.retain).not.toHaveBeenCalled()
+      expect(toast.hooks.toast.getSnapshot()?.kind).toBe('archivedNotOpenable')
+    } else {
+      expect(b.retain).toHaveBeenCalledExactlyOnceWith('source', { source: 'mainView' })
+    }
+    expect(b.fork).toHaveBeenCalledOnce()
   })
 
   it('routes browser actions and picker creation to the services', async () => {

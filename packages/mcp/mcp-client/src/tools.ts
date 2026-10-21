@@ -19,7 +19,7 @@
 
 import { createHash } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
-import { specTypeSchemas, type Client, type ImageContent } from '@modelcontextprotocol/client'
+import { specTypeSchemas, type CallToolResult, type Client, type ImageContent, type StandardSchemaV1Sync } from '@modelcontextprotocol/client'
 import type { Context } from '@deepseek-ai/cordis'
 import { scopeTarget } from '@deepseek-ai/dsh-scope'
 import type { Scoped } from '@deepseek-ai/dsh-scope'
@@ -357,7 +357,8 @@ function createExecutor(
     // specific "missing required param" error the model can learn from.
     const argsObj = (typeof args === 'object' && args !== null ? args : {}) as Record<string, unknown>
     const guarded = await guardUpstreamCall(ctx, options, argsObj, exec)
-    const parsed = specTypeSchemas.CallToolResult['~standard'].validate(guarded.value)
+    const resultSchema: StandardSchemaV1Sync<unknown, CallToolResult> = specTypeSchemas.CallToolResult
+    const parsed = resultSchema['~standard'].validate(guarded.value)
     if (parsed.issues !== undefined) {
       throw new Error(`Tool "${rawName}" returned an invalid MCP result: ${parsed.issues.map(issue => issue.message).join('; ')}`)
     }

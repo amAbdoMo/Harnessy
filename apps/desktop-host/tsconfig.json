@@ -11,6 +11,7 @@
     { "path": "../../vendor/cordis" },
     { "path": "../../packages/core/agent" },
     { "path": "../../packages/host/companion-host" },
+    { "path": "../../packages/credentials/credentials" },
     { "path": "../../packages/core/tools" },
     { "path": "../../packages/attachment/attachment" },
     { "path": "../../packages/llm/llm" },

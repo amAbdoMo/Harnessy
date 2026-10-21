@@ -274,6 +274,25 @@ export class ApiSessionAgentController {
   }
 
   /**
+   * Create a requested identity without adopting live, cold, or in-flight Sessions.
+   * Persistence claims the durable identity exclusively; failures never resolve to a raced Agent.
+   * @param sessionId - exclusive fresh Session identity.
+   * @param cwd - directory for the new Session.
+   * @param presetId - optional Agent preset for the new Session.
+   * @returns the newly published Agent, or rejection if the identity is unavailable or creation fails.
+   */
+  async createFreshSession(sessionId: SessionId, cwd: string, presetId?: string): Promise<Agent> {
+    if (this.creations.has(sessionId) || this.resumes.has(sessionId)
+      || this.ctx.agents.get(sessionId) !== undefined || this.ctx.sessions.get(sessionId) !== undefined) {
+      throw new Error(`session "${sessionId}" already exists or is being activated`)
+    }
+    const creation = this.createSession(sessionId, cwd, presetId)
+      .finally(() => { this.creations.delete(sessionId) })
+    this.creations.set(sessionId, creation)
+    return creation
+  }
+
+  /**
    * Install or return the Session-local model selection used by prompt assembly.
    * @param agent - live Agent that owns the selection.
    * @returns the installed mutable selection reference.
@@ -475,6 +494,10 @@ export class ApiSessionAgentController {
       }
     }
 
+    return this.createSession(sessionId, cwd, presetId)
+  }
+
+  private async createSession(sessionId: SessionId, cwd: string, presetId: string | undefined): Promise<Agent> {
     try {
       await mkdir(cwd, { recursive: true })
     } catch (error: unknown) {

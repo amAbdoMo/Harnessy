@@ -318,7 +318,7 @@ export abstract class CredentialProvider extends Service {
   /** Contained dispatch for committed updates and provider-owned source failure. */
   private fanOut(...args: ['credentials/reference-updated' | 'credentials/record-updated', string] | ['credentials/source-failed']): void {
     const [event, subject = 'source'] = args
-    for (const listener of this.ctx.events.dispatch('emit', args) as Array<(...listenerArgs: unknown[]) => unknown>) {
+    for (const listener of this.ctx.events.dispatch('emit', [...args]) as Array<(...listenerArgs: unknown[]) => unknown>) {
       try {
         const returned = listener(...args.slice(1))
         if (returned != null && typeof (returned as PromiseLike<unknown>).then === 'function') {

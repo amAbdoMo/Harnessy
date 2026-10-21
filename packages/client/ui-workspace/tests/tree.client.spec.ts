@@ -253,12 +253,14 @@ describe('deriveGroups', () => {
     },
   )
 
-  it('puts only real unaccounted Sessions in the trailing Ungrouped group', () => {
+  it('keeps unaccounted Sessions expanded while real Workspaces remain folded', () => {
     const sessions = list(summary('owned', 1, '/projects/first'), summary('loose', 9, '/other'))
     const groups = deriveGroups(
-      sessions, [workspace('first', ['owned'])], noRows, noAttention, view([UNGROUPED_KEY]),
+      sessions, [workspace('first', ['owned'])], noRows, noAttention, view(),
     )
     expect(groups.map(group => group.key)).toEqual(['first', UNGROUPED_KEY])
+    expect(groups[0]).toMatchObject({ expanded: false, sessions: [] })
+    expect(groups[1]).toMatchObject({ expanded: true, workspaceId: undefined })
     expect(groups[1]!.sessions.map(session => session.id)).toEqual([sid('loose')])
   })
 

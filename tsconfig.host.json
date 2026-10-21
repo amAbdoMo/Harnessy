@@ -130,6 +130,7 @@
     "apps/web/tests/custom-harness-disablement.e2e.ts",
     "apps/web/tests/compact-session-header.e2e.ts",
     "apps/web/tests/banked-reset-chooser.e2e.ts",
+    "apps/web/tests/phone-companion-card.e2e.ts",
     "apps/web/tests/open-in-app-ssh.e2e.ts",
     "apps/web/tests/fork-mid-turn.e2e.ts",
     "apps/web/tests/message-feedback.e2e.ts",

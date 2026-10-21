@@ -214,7 +214,7 @@
     "start:web": "node --import tsx/esm apps/cli/src/bin.ts web",
     "dev:web": "tsx scripts/dev-web.ts --poll",
     "postinstall": "node scripts/install-lefthook.mjs",
-    "verify:harnessy-upgrade": "vitest run apps/desktop/tests/upgrade-settings-preservation.spec.ts apps/desktop/tests/taskbar-unread.spec.ts apps/desktop/tests/taskbar-badge.spec.ts apps/desktop/tests/taskbar-badge-windows.spec.ts packages/client/ui-brand-custom-harness/tests/native-taskbar.client.spec.ts packages/api/settings-controller/tests/accounts-controller.host.spec.ts packages/api/settings-controller/tests/mcp-manager.host.spec.ts --testTimeout 15000"
+    "verify:harnessy-upgrade": "vitest run apps/desktop/tests/upgrade-settings-preservation.spec.ts apps/desktop/tests/taskbar-unread.spec.ts apps/desktop/tests/taskbar-badge.spec.ts apps/desktop/tests/taskbar-badge-windows.spec.ts packages/client/ui-brand-custom-harness/tests/native-taskbar.client.spec.ts packages/api/settings-controller/tests/accounts-controller.host.spec.ts packages/api/settings-controller/tests/mcp-manager.host.spec.ts apps/desktop-host/tests/companion-activation.spec.ts apps/desktop-host/tests/companion-deployment.spec.ts apps/desktop/tests/companion-native.spec.ts packages/host/companion-host/tests/session-management.spec.ts packages/client/ui-brand-custom-harness/tests/companion-disclosure-composition.client.spec.tsx --testTimeout 15000"
   },
   "devDependencies": {
     "@deepseek-ai/dsh-agent": "workspace:*",

@@ -87,7 +87,10 @@ export interface AccountsManagerOperations {
     readonly state?: AccountsState
     readonly error?: string
   }>
-  readonly refreshUsage: (signal: AbortSignal) => Promise<{ readonly state?: AccountsState; readonly error?: string }>
+  readonly refreshUsage: (
+    signal: AbortSignal,
+    freshness?: 'fresh' | 'cached',
+  ) => Promise<{ readonly state?: AccountsState; readonly error?: string }>
 }
 
 /** Private operations supplied to the Models-footer occupant. */

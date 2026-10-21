@@ -1,0 +1,10 @@
+Workspace: Alpha (collapsed)
+Session: Loose 7
+Session: Loose 1
+Session: Loose 2
+Session: Loose 3
+Session: Loose 4
+Session: Loose 5
+Session: Loose 6
+
+删除工作区将把“Alpha”从工作区列表中移除。文件夹与会话记录会保留，其会话将直接显示在会话列表中。取消删除工作区

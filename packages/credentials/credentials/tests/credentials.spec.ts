@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { credentialRef, isCredentialKeySegment } from '../src/index.ts'
-import type { CredentialRef } from '../src/index.ts'
+import { credentialKey, credentialRef, isCredentialKeySegment } from '../src/index.ts'
+import type { CredentialKey, CredentialRef } from '../src/index.ts'
 import { MemoryCredentials } from './memory.ts'
 
 const REF = credentialRef('DEEPSEEK_API_KEY')
@@ -72,6 +72,25 @@ describe('the credentials seam through the memory provider', () => {
     await expect(ctx.credentials.set(REF, '')).rejects.toThrow(/empty value/)
     await ctx.credentials.unset(REF)
     expect(events).toEqual([])
+  })
+
+  it('reports the committed record key to every observer on writes and deletion', async () => {
+    const ctx = await boot()
+    const key = credentialKey('fixture', 'account')
+    const first: CredentialKey[] = []
+    const second: CredentialKey[] = []
+    ctx.on('credentials/record-updated', (changed) => { first.push(changed) })
+    ctx.on('credentials/record-updated', (changed) => { second.push(changed) })
+    try {
+      await ctx.credentials.modifyRecord(key, () => Promise.resolve({ kind: 'api-key', key: 'fixture-value' }))
+      expect(await ctx.credentials.readRecord(key)).toEqual({ kind: 'api-key', key: 'fixture-value' })
+      await ctx.credentials.deleteRecord(key)
+      expect(await ctx.credentials.readRecord(key)).toBeUndefined()
+      expect(first).toEqual([key, key])
+      expect(second).toEqual([key, key])
+    } finally {
+      await ctx.fiber.dispose()
+    }
   })
 
   it('removes the service with its fiber', async () => {

@@ -150,8 +150,14 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       {
         signature: '@Remote async refreshUsage(signal: AbortSignal): Promise<AccountsState>',
         description: 'Refresh supported usage snapshots, active account first, and push each committed update.',
-        parameters: [{ name: 'signal', description: 'cancellation checked between accounts and forwarded to usage requests.' }],
+        parameters: [{ name: 'signal', description: 'cancellation forwarded to every account read and checked before commits.' }],
         returns: 'the updated public account state with refreshed usage when available.',
+      },
+      {
+        signature: '@Remote async refreshCachedUsage(signal: AbortSignal): Promise<AccountsState>',
+        description: 'Refresh stale usage snapshots for automatic browser checks.',
+        parameters: [{ name: 'signal', description: 'cancellation forwarded to every account read and checked before commits.' }],
+        returns: 'the public account state after any required usage reads and automatic selection.',
       },
     ],
   },
@@ -617,7 +623,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         signature: 'async begin(request: AuthorizationRequest): Promise<AuthorizationOutcome>',
         description: 'Run one attempt to authorize a key, and report how it ended.\n\nOne attempt per key at a time. A second caller is refused rather than joined: the two would be prompting different humans through the same flow, and the second would answer questions the first was asked.',
         parameters: [{ name: 'request', description: 'flow key, method, interaction, cancel signal, and optional staging destination.' }],
-        returns: '`authorized` once the flow\'s record is committed during this attempt and observed, or `cancelled` when the human declined or the caller withdrew.',
+        returns: '`authorized` once this attempt completes `session.commit()` or observes its credential write, or `cancelled` when the human declined or the caller withdrew.',
         throws: ['{AuthorizationError} code `NO_FLOW` when nothing claims the key, `UNSUPPORTED_DESTINATION` when an alternate destination is not supported, `UNKNOWN_METHOD` when the named method is not one the flow offers, `ALREADY_IN_FLIGHT` when an attempt is already running for the key, or `NOT_COMMITTED` when the flow resolved without committing a record during the attempt.'],
       },
     ],
@@ -834,6 +840,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Withdraw the channel authorization capability synchronously, then remove the durable current row.',
         parameters: [{ name: 'grantId', description: 'PC-issued current record identifier.' }],
         returns: 'Completion after provider commit and affected application teardown; any failure disables this Host incarnation.',
+      },
+      {
+        signature: 'setSessionManagement(command: Extract<CompanionControlCommand, { readonly kind: \'setSessionManagement\' }>): Promise<void>',
+        description: 'Withdraw current channels immediately and commit explicit per-phone chat management consent without re-pairing.',
+        parameters: [{ name: 'command', description: 'Native-confirmed grant id, generation, fingerprint and permission; all three identifiers are rechecked under the update lock.' }],
+        returns: 'Provider commit and channel teardown; any failure disables this Host until explicit recovery.',
       },
     ],
   },
@@ -2192,9 +2204,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: '@Remote(\'create\') create(request: SessionCreateRequest): Promise<SessionCreateValue>',
-        description: 'Create or idempotently adopt one ordinary Session.',
-        parameters: [{ name: 'request', description: 'requested identity, location, and Agent preset.' }],
-        returns: 'the Session identity and resolved preset when configured.',
+        description: 'Create an ordinary Session without submitting work. newSessionId requires a fresh identity; sessionId may adopt an existing one.',
+        parameters: [{ name: 'request', description: 'mutually exclusive fresh/adoptable identities, location, and Agent preset.' }],
+        returns: 'the Session identity and resolved preset when configured; existing or in-flight fresh identities reject.',
       },
       {
         signature: '@Remote(\'selectModel\') selectModel(request: SessionSelectModelRequest): Promise<SessionSelectModelValue>',
@@ -2247,9 +2259,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the accepted title and durable event sequence.',
       },
       {
-        signature: '@Remote(\'fork\') fork(request: SessionForkRequest): Promise<SessionForkValue>',
+        signature: '@Remote(\'fork\') async fork(request: SessionForkRequest): Promise<SessionForkValue>',
         description: 'Fork one cold-readable exact event prefix into a new Session. An omitted boundary selects the latest completed-turn prefix; an open cut receives synthetic fork closers.',
-        parameters: [{ name: 'request', description: 'source Session and optional exact inclusive event boundary.' }],
+        parameters: [{ name: 'request', description: 'source Session, optional exact inclusive event boundary, and migration preflight choice.' }],
         returns: 'the new Session identity.',
       },
       {
@@ -5337,6 +5349,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type CompactionTrigger = \'pressure\' | \'context-overflow\';',
   },
   {
+    name: 'CompanionControlCommand',
+    declaration: 'export type CompanionControlCommand = {\n    readonly kind: \'describe\';\n} | {\n    readonly kind: \'activate\';\n} | {\n    readonly kind: \'createInvitation\';\n} | {\n    readonly kind: \'approveCandidate\';\n    readonly candidateId: CandidateId;\n    readonly fingerprint: string;\n} | {\n    readonly kind: \'cancelInvitation\';\n} | {\n    readonly kind: \'revokeGrant\';\n    readonly grantId: GrantId;\n} | {\n    readonly kind: \'setSessionManagement\';\n    readonly grantId: GrantId;\n    readonly expectedGeneration: number;\n    readonly fingerprint: string;\n    readonly enabled: boolean;\n};',
+  },
+  {
     name: 'CompanionStatus',
     declaration: 'export interface CompanionStatus {\n    readonly available: boolean;\n    readonly connected: boolean;\n    readonly pcId?: PcId;\n    readonly paired: readonly PairedDevice[];\n    readonly invitation?: {\n        readonly invitationId: InvitationId;\n        readonly expiresAt: number;\n    };\n    readonly candidates: readonly {\n        readonly candidateId: CandidateId;\n        readonly fingerprint: string;\n        readonly displayName: string;\n        readonly expiresAt: number;\n    }[];\n}',
   },
@@ -6582,7 +6598,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'PairedDevice',
-    declaration: 'export interface PairedDevice {\n    readonly grantId: GrantId;\n    readonly generation: number;\n    readonly fingerprint: string;\n    readonly displayName: string;\n    readonly pairedAt: number;\n}',
+    declaration: 'export interface PairedDevice {\n    readonly grantId: GrantId;\n    readonly generation: number;\n    readonly fingerprint: string;\n    readonly displayName: string;\n    readonly pairedAt: number;\n    readonly sessionManagement: boolean;\n}',
   },
   {
     name: 'PaneOpenArgs',
@@ -7242,7 +7258,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SessionCreateRequest',
-    declaration: 'export interface SessionCreateRequest {\n    readonly workspaceId?: WorkspaceId;\n    readonly cwd?: string;\n    readonly sessionId?: SessionId;\n    readonly agentPreset?: string;\n}',
+    declaration: 'export interface SessionCreateRequest {\n    readonly workspaceId?: WorkspaceId;\n    readonly cwd?: string;\n    readonly sessionId?: SessionId;\n    readonly newSessionId?: SessionId;\n    readonly agentPreset?: string;\n}',
   },
   {
     name: 'SessionCreateValue',
@@ -7350,7 +7366,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SessionForkRequest',
-    declaration: 'export interface SessionForkRequest {\n    readonly sessionId: SessionId;\n    readonly atSeq?: number;\n}',
+    declaration: 'export interface SessionForkRequest {\n    readonly sessionId: SessionId;\n    readonly atSeq?: number;\n    readonly allowMigration?: boolean;\n}',
   },
   {
     name: 'SessionForkSource',

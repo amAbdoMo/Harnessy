@@ -245,13 +245,17 @@ export interface Config {
 
 ## `@deepseek-ai/dsh-api-settings-controller`
 
-- `source`: [`packages/api/settings-controller/src/index.ts:41`](../packages/api/settings-controller/src/index.ts)
+- `source`: [`packages/api/settings-controller/src/index.ts:49`](../packages/api/settings-controller/src/index.ts)
 
 ```ts config-catalog
-/** Host integrations replaceable by direct unit tests. */
-export interface SettingsControllerInternals {
-  /** Host text-editor integration used to open the settings document. */
-  readonly openTextFile?: (path: string, signal: AbortSignal) => Promise<void>
+/** Account usage scheduling accepted by the Settings Controller profile. */
+export interface Config {
+  /** Minimum milliseconds between background usage reads of the active account; zero disables caching. */
+  readonly activeAccountUsageRefreshMs?: number
+  /** Minimum milliseconds between background usage reads of inactive accounts; zero disables caching. */
+  readonly inactiveAccountUsageRefreshMs?: number
+  /** Maximum concurrent Codex account usage reads. */
+  readonly accountUsageConcurrency?: number
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-api-settings-controller -->

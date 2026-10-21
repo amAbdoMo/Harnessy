@@ -1,0 +1,42 @@
+{
+  "httpsOrigin": "https://harnessy.abdom.me",
+  "budgets": {
+    "application": {
+      "maxRequestBytes": 32768,
+      "maxResultBytes": 32768,
+      "maxTextBytes": 8192,
+      "maxTitleBytes": 256,
+      "maxRows": 64,
+      "maxSessions": 256,
+      "maxSubscriptionsPerGrant": 8,
+      "maxPendingSubmissionsPerGrant": 4,
+      "readTimeoutMs": 10000,
+      "subscriptionLifetimeMs": 120000
+    },
+    "channel": {
+      "maxQueuedSendBytes": 262144,
+      "maxQueuedReceiveBytes": 262144,
+      "maxPendingSends": 32,
+      "maxPendingReceives": 32,
+      "sendTimeoutMs": 10000
+    },
+    "maxChannels": 4,
+    "maxChannelAttempts": 128,
+    "maxCandidates": 4,
+    "maxGrants": 16,
+    "maxRecordBytes": 262144,
+    "maxFrameBytes": 98304,
+    "maxSendQueuedBytes": 524288,
+    "maxPendingMessages": 32,
+    "maxProgressBuffer": 32,
+    "bytesPerSecond": 524288,
+    "invitationLifetimeMs": 120000,
+    "handshakeTimeoutMs": 60000,
+    "connectionTimeoutMs": 15000,
+    "maxConnectionLifetimeMs": 900000,
+    "idleTimeoutMs": 60000,
+    "reconnectInitialMs": 1000,
+    "reconnectMaxMs": 30000,
+    "reconnectAttempts": 5
+  }
+}

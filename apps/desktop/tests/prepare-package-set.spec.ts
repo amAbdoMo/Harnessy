@@ -87,10 +87,11 @@ describe('desktop package-set selection', () => {
     ])
   })
 
-  it('requires both Desktop Host and public CLI entries', () => {
+  it('requires Desktop Host, public CLI and the app-owned companion deployment', () => {
     const files = [
       'package/lib/index.js',
       'package/lib/cli.js',
+      'package/companion-deployment.json',
     ]
     expect(() => {
       assertDesktopHostPackageFiles(files)
@@ -99,5 +100,6 @@ describe('desktop package-set selection', () => {
       assertDesktopHostPackageFiles(files.slice(1))
     }).toThrow(/lib\/index\.js/u)
     expect(() => { assertDesktopHostPackageFiles(files.slice(0, 1)) }).toThrow(/lib\/cli\.js/u)
+    expect(() => { assertDesktopHostPackageFiles(files.slice(0, 2)) }).toThrow(/companion-deployment\.json/u)
   })
 })

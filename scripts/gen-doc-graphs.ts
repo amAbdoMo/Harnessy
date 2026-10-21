@@ -1313,6 +1313,10 @@ export class EventRelationCollector {
     seen.add(current)
 
     if (ts.isArrayLiteralExpression(current)) {
+      const first = current.elements[0]
+      if (current.elements.length === 1 && first && ts.isSpreadElement(first)) {
+        return this.eventNamesFromArgumentList(first.expression, seen, eventSlots)
+      }
       for (const element of current.elements.slice(0, eventSlots)) {
         if (ts.isOmittedExpression(element) || ts.isSpreadElement(element)) continue
         const values = this.finiteStringValues(element)

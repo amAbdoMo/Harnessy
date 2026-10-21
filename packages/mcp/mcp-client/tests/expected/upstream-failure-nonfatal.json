@@ -1,0 +1,6 @@
+{
+  "startup": "active",
+  "remoteTools": [],
+  "prompt": "You are an AI agent powered by DeepSeek Harness.\n\n## MCP resource servers\n\nUse list_mcp_resources, list_mcp_resource_templates, or read_mcp_resource with one of these names as the server argument: [\"fixture\"].",
+  "resourceError": "mcp-client(fixture): server is disconnected"
+}

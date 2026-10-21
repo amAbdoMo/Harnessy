@@ -401,7 +401,7 @@ describe('apply (plugin lifecycle)', () => {
     expect(mockClose).toHaveBeenCalled()
   })
 
-  it('preserves strict startup registration when list_changed arrives before connect resolves', async () => {
+  it('defers early list_changed to strict initial discovery before registering tools', async () => {
     ctx.tools.register({
       name: 'mcp__srv__remote',
       description: 'Foreign squatter',
@@ -422,7 +422,7 @@ describe('apply (plugin lifecycle)', () => {
       failOnStartupError: true,
     })).rejects.toThrow('initial connection or tool synchronization failed')
 
-    expect(mockListTools).toHaveBeenCalledTimes(2)
+    expect(mockListTools).toHaveBeenCalledTimes(1)
     expect(ctx.tools.get('mcp__srv__remote')?.description).toBe('Foreign squatter')
     await ctx.fiber.dispose()
   })

@@ -1,0 +1,190 @@
+/* General settings clears its last row's bottom separator; keep the card inside that row. */
+.frame {
+  min-width: 0;
+  padding-block: 16px;
+}
+
+.root {
+  container: companion / inline-size;
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 16px 18px;
+  border: 0.5px solid var(--dsw-alias-settings-card-stroke);
+  border-radius: var(--dsw-radius-xl);
+  background: var(--dsw-alias-settings-card-fill);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 20px;
+}
+
+.iconTile {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: var(--dsw-radius-md);
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+}
+
+.heading {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.title,
+.summary,
+.statusPill,
+.error {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.title {
+  color: var(--dsw-alias-label-primary);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+}
+
+.summary,
+.statusPill,
+.disclosureSummary,
+.error {
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.summary {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 162px;
+  gap: 18px;
+  padding: 14px 0 10px;
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.status {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.statusLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  min-width: 0;
+}
+
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 3px 10px;
+  border-radius: 999px;
+  corner-shape: round;
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.statusPill[data-state='unavailable'] {
+  color: var(--dsw-alias-state-warn-label);
+  background: var(--dsw-alias-state-warn-tertiary);
+}
+
+.statusPill[data-state='connected'] {
+  background: var(--dsw-alias-state-success-tertiary);
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  min-width: 0;
+}
+
+.actions > .action {
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  min-height: 36px;
+  padding-block: 6px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.feedback {
+  min-height: 20px;
+  padding-bottom: 10px;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+}
+
+.error {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.disclosure {
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.disclosureSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 14px;
+  list-style: none;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.disclosureSummary::-webkit-details-marker {
+  display: none;
+}
+
+.disclosureSummary:hover {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.chevron {
+  flex: none;
+}
+
+.disclosure[open] > .disclosureSummary > .chevron {
+  transform: rotate(90deg);
+}
+
+.guidance {
+  display: grid;
+  gap: 10px;
+  padding-top: 14px;
+}
+
+@container companion (max-width: 420px) {
+  .body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+}

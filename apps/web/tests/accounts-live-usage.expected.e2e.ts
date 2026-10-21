@@ -41,6 +41,7 @@ it.skipIf(!custom)('updates sidebar and open Accounts together on a pushed usage
   const { mock } = mountAssembledApp({ profile: 'custom-harness' })
   mock.unary('accounts/describe', () => ok(initial))
   mock.unary('accounts/refreshUsage', () => ok(initial))
+  mock.unary('accounts/refreshCachedUsage', () => ok(initial))
   mock.unary('mcpManager/describe', () => ok({ available: false, writable: false, servers: [] } satisfies McpManagerState))
   mock.unary('llm/listProviders', () => ok([]))
   mock.unary('llm/listConfigurableProviders', () => ok([]))
@@ -52,7 +53,8 @@ it.skipIf(!custom)('updates sidebar and open Accounts together on a pushed usage
   expect(within(dialog).queryByRole('button', { name: /refresh/i })).toBeNull()
   expect(await within(dialog).findByText('28% used')).toBeTruthy()
   await waitFor(() => {
-    expect(mock.log.calls('accounts/refreshUsage').length).toBeGreaterThanOrEqual(2)
+    expect(mock.log.calls('accounts/refreshUsage').length).toBeGreaterThanOrEqual(1)
+    expect(mock.log.calls('accounts/refreshCachedUsage').length).toBeGreaterThanOrEqual(1)
     expect(mock.log.calls('accounts/refreshUsage').every(call => call.state === 'answered')).toBe(true)
   })
   const reads = mock.log.calls('accounts/refreshUsage').length

@@ -595,13 +595,16 @@ describe('workspace browser rows', () => {
     }
   })
 
-  it('ungrouped bucket renders no workspace menu', () => {
+  it('virtual account renders no Workspace header or controls', () => {
     const group: GroupNode = {
       key: '', workspaceId: undefined, cwd: undefined, createdAt: undefined, label: 'Ungrouped',
       sessionCount: 0, expanded: false, containsCurrent: false, sessions: [],
     }
-    render(<ProjectRowItem group={group} onToggle={vi.fn()} onCreate={vi.fn()} t={t} />)
-    expect(screen.queryByRole('button', { name: /工作区/ })).toBeNull()
+    const view = render(<ProjectRowItem group={group} onToggle={vi.fn()} onCreate={vi.fn()} t={t} />)
+    expect(view.container.textContent).toBe('')
+    expect(screen.queryByRole('treeitem')).toBeNull()
+    expect(screen.queryByRole('button')).toBeNull()
+    expect(view.container.querySelector('svg')).toBeNull()
   })
 
   it('blank New Session rows carry no menu, no time label, and no hover-card time', () => {

@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-在本地批准的原生手机上监控现有普通 PC Session，并向这些 Session 排队提交后续文本。配对需要一次性邀请，以及在 PC 上明确批准手机指纹。手机不能创建 Session、批准工具、浏览文件、运行命令或调用操作员 API。此源码包需要桌面端及部署集成；本次未在已发布配置中启用。
+通过本地批准的原生手机监控普通 PC Session 并排队提交后续文本。PC 对每台手机单独授权后，可创建空 Workspace 聊天、重命名、归档和置顶／取消置顶。配对需要一次性邀请及在 PC 上明确批准手机指纹，但不授予管理权限。手机不能删除 Session、批准工具、浏览文件、运行任意命令或调用操作员 API。准备源码不会更新已安装的 Desktop 或 Android 运行时。
 
 ## 目录
 
@@ -35,6 +35,12 @@ kind: "package-reference"
 |---|---|---|
 | `httpsOrigin` | 省略：不可用 | 真实公开 HTTPS 中继来源，固定在凭证记录中。 |
 | `budgets` | 配置来源时必填 | [配置模式](src/config.ts)中显式的准入、保留、连接和应用限制，包括 `channel` 的加密队列与写入时间限制。 |
+
+### 只读 Workspace 导航
+
+可选的 `listSessions` 导航视图仅对返回的可见普通 Session 镜像 PC Workspace 成员关系和置顶状态。按 Workspace 注册表顺序找到的首个显式成员关系提供 Workspace ID、净化后的标题和顺序；没有成员关系时返回 `null`。响应不包含文件夹路径／cwd 或空 Workspace 清单，也绝不根据 Session 标题、ID 或 cwd 推断成员关系。`pinOrder` 是全局 PC 置顶排名，不是各 Workspace 内的排名。此视图仍是只读投影；单独授权的管理命令可以修改 PC 置顶。与普通列表不同，获准的 Workspace 目录包含已注册的空 Workspace，不含路径。参见[管理权限与兼容性](../../../docs/upgrade-guide/v0.1.15/companion-chat-management/guide.zh.md)。
+
+`updatedAt` 与 Desktop 最近时间一致：取 Session 创建时间与缓存的最近一次已持久化人工提示时间的较大值，不使用助手完成时间或任意活动时间。[Session 视图](src/session-view.ts)读取缓存投影，不加载所有 Session 日志。旧请求省略导航元数据。使用请求导航视图的手机前，必须先更新 PC；参见[兼容性与更新顺序](../../../docs/upgrade-guide/v0.1.15/companion-navigation/guide.zh.md)。
 
 ### 配对及后续任务权限
 

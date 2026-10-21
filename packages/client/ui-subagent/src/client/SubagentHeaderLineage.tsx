@@ -18,7 +18,7 @@ import css from './SubagentHeaderLineage.module.css'
 const NO_DESCENDANTS = { count: 0, runningCount: 0 } as const
 
 type SubagentCatalogSnapshot = Omit<SessionProjectionSnapshot, 'values' | 'state'> & {
-  state: 'loading' | 'ready' | 'error'
+  state: Exclude<SessionProjectionSnapshot['state'], 'idle'>
   entries: (SessionProjectionMap['subagentCatalog'][number] & { activity: 'running' | 'inactive' })[]
 }
 type Catalogs = Readonly<Record<SessionId, SubagentCatalogSnapshot>>
@@ -272,7 +272,9 @@ function CatalogRows({
     return () => { clearInterval(timer) }
   }, [running])
   const emptyLoading = catalog.state === 'loading' && catalog.entries.length === 0
-  const reserveDisclosure = catalog.entries.some(entry => !isKnownLeaf(catalogs[entry.id]))
+  const reserveDisclosure = catalog.entries.some(entry => !isKnownLeaf(catalogs[entry.id])
+    && summaries[entry.id]?.formatStatus !== 'migration-required'
+    && catalogs[entry.id]?.state !== 'migration-required')
   return (
     <>
       {emptyLoading && (
@@ -294,8 +296,11 @@ function CatalogRows({
       {catalog.entries.map((entry) => {
         const childCatalog = catalogs[entry.id]
         const isCurrent = entry.id === currentSessionId
-        const isExpanded = expanded.has(entry.id)
         const knownLeaf = isKnownLeaf(childCatalog)
+        const requiresOpening = summaries[entry.id]?.formatStatus === 'migration-required'
+          || childCatalog?.state === 'migration-required'
+        const canExpand = !knownLeaf && !requiresOpening
+        const isExpanded = canExpand && expanded.has(entry.id)
         const childLoading = childCatalog === undefined
           || (childCatalog.state === 'loading' && childCatalog.entries.length === 0)
         const summary = summaries[entry.id]
@@ -313,7 +318,8 @@ function CatalogRows({
         const effort = reasoningEffortLabel(modelRoute?.reasoningEffort, t)
         // The secondary line ellipsizes at its tail, so the model route leads
         // and only title, mode, and activity can be truncated away.
-        const secondary = [modelRoute?.model, effort, summary?.title, mode, activity]
+        const secondary = [modelRoute?.model, effort, summary?.title,
+          requiresOpening ? t('catalog.migrationRequired') : mode, activity]
           .filter(value => value !== undefined)
           .join(' · ')
         const totalTokens = tokenTotal(summary?.projectionValues?.tokenUsage)
@@ -355,7 +361,7 @@ function CatalogRows({
             event.stopPropagation()
             open()
           } else if (
-            (event.key === 'ArrowRight' && !knownLeaf && !isExpanded)
+            (event.key === 'ArrowRight' && canExpand && !isExpanded)
             || (event.key === 'ArrowLeft' && isExpanded)
           ) {
             event.preventDefault()
@@ -377,12 +383,12 @@ function CatalogRows({
               aria-level={level}
               aria-current={isCurrent || undefined}
               aria-label={[label, secondary, metrics].filter(value => value !== '').join(' ')}
-              {...knownLeaf ? {} : { 'aria-expanded': isExpanded }}
+              {...canExpand ? { 'aria-expanded': isExpanded } : {}}
               className={css.row}
               onClick={open}
               onKeyDown={handleKey}
             >
-              {knownLeaf
+              {!canExpand
                 ? reserveDisclosure && <span className={css.disclosureSpace} />
                 : (
                   <button
@@ -431,7 +437,7 @@ function CatalogRows({
                 )}
               </div>
             </div>
-            {isExpanded && !knownLeaf && (
+            {isExpanded && (
               <div
                 role="group"
                 className={css.children}
@@ -520,7 +526,8 @@ function CatalogDropdown({
   const catalogs = useMemo<Catalogs>(() => Object.fromEntries(Object.entries(projections).map(([id, snapshot]) => [id, {
     state: snapshot.state === 'idle'
       ? snapshot.values.subagentCatalog === undefined ? 'loading' : 'ready'
-      : snapshot.state,
+      : snapshot.state === 'migration-required' && snapshot.values.subagentCatalog !== undefined
+        ? 'ready' : snapshot.state,
     error: snapshot.error,
     entries: (snapshot.values.subagentCatalog ?? []).map(entry => ({
       ...entry, activity: (statuses.get(entry.id)?.running ?? summaries[entry.id]?.running) === true ? 'running' as const : 'inactive' as const,
@@ -941,7 +948,8 @@ export function SubagentHeaderLineage({
     for (const [parentId, snapshot] of Object.entries(state.projectionsBySession)) {
       if (snapshot.values.subagentCatalog?.some(entry => entry.id === lineageSessionId)) return parentId as SessionId
     }
-    return undefined
+    const summary = state.byId[lineageSessionId]
+    return summary?.origin === 'subagent' ? summary.parentId : undefined
   })
   const shared = { useSessions, useSessionStatus, openChild, openChildAside, refreshProjection, t }
   // Root sessions carry no breadcrumb; their descendant count lives in the

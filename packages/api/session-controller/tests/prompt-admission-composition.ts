@@ -21,6 +21,7 @@ import type { GenerateOptions, LlmResolvedModelInfo, StreamChunk } from '@deepse
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import * as JsonlPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
+import SessionQuery from '@deepseek-ai/dsh-session-query'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
@@ -29,7 +30,7 @@ import { ApiSessionAgentController } from '../src/agent.ts'
 import { SessionCommandController } from '../src/commands.ts'
 import { SessionControlController } from '../src/control.ts'
 import { installModelSelectionProjection } from '../src/model-selection-projection.ts'
-import type { SessionPromptRequest, SessionPromptValue } from '../src/types.ts'
+import type { SessionCreateRequest, SessionPromptRequest, SessionPromptValue } from '../src/types.ts'
 
 /** Deterministic pause at an external provider or storage operation. */
 export class AdmissionBarrier {
@@ -136,7 +137,7 @@ export async function promptAdmissionComposition() {
   }
   const owner = {
     name: 'prompt-admission-owner',
-    inject: ['agents', 'agentDefaultModel', 'sessions', 'llm', 'attachments', 'fileUploads', 'sessionProjections', 'typert'],
+    inject: ['agents', 'agentDefaultModel', 'sessions', 'sessionQuery', 'llm', 'attachments', 'fileUploads', 'sessionProjections', 'typert'],
     apply(ownerContext: Context) {
       installModelSelectionProjection(ownerContext)
       const agents = new ApiSessionAgentController(ownerContext)
@@ -154,7 +155,7 @@ export async function promptAdmissionComposition() {
     ['llm', LlmRuntime], ['agents', AgentRegistry], ['system-prompt', SystemPrompt],
     ['tools', ToolRuntime], ['loop', AgentLoop], ['attachments', AdmissionStorage],
     ['commands', CommandRuntime], ['transport', externalTransport], ['uploads', FileUploads],
-    ['default-model', AgentDefaultModel], ['persistence', JsonlPersistence], ['owner', owner],
+    ['default-model', AgentDefaultModel], ['persistence', JsonlPersistence], ['query', SessionQuery], ['owner', owner],
   ])
   const rows = [...modules.keys()].map(name => ({
     id: name, name,
@@ -192,6 +193,7 @@ export async function promptAdmissionComposition() {
   })
   return {
     ctx, agent, agents: agentController, control, model, storage,
+    create: (request: SessionCreateRequest) => commandOwner.create(request),
     barrier: () => {
       const barrier = new AdmissionBarrier()
       barriers.push(barrier)

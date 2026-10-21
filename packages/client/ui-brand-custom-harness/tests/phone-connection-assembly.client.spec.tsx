@@ -45,6 +45,7 @@ afterEach(() => {
 function configure(mock: RemoteMock): void {
   mock.remote.accounts.describe.mockResolvedValue(ok({ writable: true, accounts: [], providers: [] }))
   mock.remote.accounts.refreshUsage.mockResolvedValue(ok({ writable: true, accounts: [], providers: [] }))
+  mock.remote.accounts.refreshCachedUsage.mockResolvedValue(ok({ writable: true, accounts: [], providers: [] }))
   mock.remote.mcpManager.describe.mockResolvedValue(ok({ available: true, writable: true, servers: [] }))
 }
 

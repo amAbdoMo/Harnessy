@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.1.15/companion-navigation/guide.md
+/:
+  en: e89aba9c8c448046
+  zh: 7004503d5d07964a
+/update-the-pc-before-the-navigation-enabled-android-companion:
+  en: 5809343daa29a39d
+  zh: 6aad12a0bf73a738
+/update-the-pc-before-the-navigation-enabled-android-companion/change:
+  en: 970a3ac3540b5205
+  zh: 85b9c402f64dc36f
+/update-the-pc-before-the-navigation-enabled-android-companion/migration:
+  en: ab9777026eb5e6d0
+  zh: a18e59fd30b216ce

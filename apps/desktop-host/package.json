@@ -8,7 +8,8 @@
   "main": "lib/index.js",
   "files": [
     "lib/index.js",
-    "lib/cli.js"
+    "lib/cli.js",
+    "companion-deployment.json"
   ],
   "dependencies": {
     "koffi": "^3.1.0",
@@ -20,6 +21,7 @@
     "@deepseek-ai/dsh-app-boot": "workspace:*",
     "@deepseek-ai/dsh-client-connection": "workspace:*",
     "@deepseek-ai/dsh-companion-host": "workspace:*",
+    "@deepseek-ai/dsh-credentials": "workspace:*",
     "@deepseek-ai/dsh-host-webserver": "workspace:*",
     "@deepseek-ai/dsh-home-paths": "workspace:*",
     "@deepseek-ai/dsh-jobs": "workspace:*",
@@ -47,6 +49,7 @@
     "@deepseek-ai/dsh-user-approval": "workspace:*",
     "@deepseek-ai/cordis-plugin-loader": "workspace:~",
     "@deepseek-ai/cordis-plugin-include": "workspace:~",
-    "@deepseek-ai/dsh-skill": "workspace:*"
+    "@deepseek-ai/dsh-skill": "workspace:*",
+    "ws": "8.21.0"
   }
 }

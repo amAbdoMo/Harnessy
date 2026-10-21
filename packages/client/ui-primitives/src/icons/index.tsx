@@ -1652,6 +1652,23 @@ export const IconSlidersTwoOutlineMedium = (props: IconProps) => (
   <IconSlidersTwoOutlineArtwork {...props} strokeWidth={ICON_MEDIUM_STROKE} />
 )
 
+const IconPhoneOutlineArtwork = ({ size = 16, className, strokeWidth }: WeightedIconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" aria-hidden="true" strokeWidth={strokeWidth}>
+    <rect x="4" y="1.5" width="8" height="13" rx="1.5" stroke="currentColor" />
+    <path d="M6.5 12.5H9.5" stroke="currentColor" strokeLinecap="round" />
+  </svg>
+)
+
+/** Phone outline with uniform one-pixel strokes. */
+export const IconPhoneOutlineRegular = (props: IconProps) => (
+  <IconPhoneOutlineArtwork {...props} strokeWidth={ICON_REGULAR_STROKE} />
+)
+
+/** Phone outline with uniform 1.3px strokes. */
+export const IconPhoneOutlineMedium = (props: IconProps) => (
+  <IconPhoneOutlineArtwork {...props} strokeWidth={ICON_MEDIUM_STROKE} />
+)
+
 const IconMicrophoneOutlineArtwork = ({ size = 16, className, strokeWidth }: WeightedIconProps) => (
   <svg width={size} height={size} viewBox="0 0 16 16" className={className} fill="none" stroke="currentColor" strokeWidth={strokeWidth} aria-hidden="true">
     <rect x={4.5 + strokeWidth / 2} y={1 + strokeWidth / 2} width={7 - strokeWidth} height={10 - strokeWidth} rx={(7 - strokeWidth) / 2} />

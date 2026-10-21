@@ -18,7 +18,7 @@ export class AccountsUsageController {
   private refreshInFlight: {
     readonly result: Promise<AccountUsageResult>
     readonly accountIds: readonly string[]
-    followup: boolean
+    followup: 'fresh' | 'cached' | undefined
   } | undefined
   private publication = 0
   private requestSequence = 0
@@ -57,16 +57,17 @@ export class AccountsUsageController {
       .map(account => account.id) ?? []
     const pending = this.refreshInFlight
     if (pending !== undefined) {
-      if (freshAfterCurrent || accountIds.some(id => !pending.accountIds.includes(id))) pending.followup = true
+      if (freshAfterCurrent) pending.followup = 'fresh'
+      else if (pending.followup === undefined && accountIds.some(id => !pending.accountIds.includes(id))) pending.followup = 'cached'
       return pending.result
     }
-    const operation = this.requestUsage(lifecycle).finally(() => {
+    const operation = this.requestUsage(lifecycle, freshAfterCurrent ? 'fresh' : 'cached').finally(() => {
       if (this.refreshInFlight?.result !== operation) return
       const followup = this.refreshInFlight.followup
       this.refreshInFlight = undefined
-      if (followup) void this.refresh()
+      if (followup !== undefined) void this.refresh(followup === 'fresh')
     })
-    this.refreshInFlight = { result: operation, accountIds, followup: false }
+    this.refreshInFlight = { result: operation, accountIds, followup: undefined }
     return operation
   }
 
@@ -109,8 +110,8 @@ export class AccountsUsageController {
     await this.refresh()
   }
 
-  private async requestUsage(lifecycle: AbortController): Promise<AccountUsageResult> {
-    const refreshed = await this.request(() => this.operations.refreshUsage(lifecycle.signal))
+  private async requestUsage(lifecycle: AbortController, freshness: 'fresh' | 'cached'): Promise<AccountUsageResult> {
+    const refreshed = await this.request(() => this.operations.refreshUsage(lifecycle.signal, freshness))
     if (this.lifecycle !== lifecycle || lifecycle.signal.aborted) return {}
     return refreshed
   }

@@ -12,6 +12,15 @@ async function boot() {
 }
 
 describe('settings Remote', () => {
+  it.each([
+    { activeAccountUsageRefreshMs: -1 },
+    { inactiveAccountUsageRefreshMs: -1 },
+    { accountUsageConcurrency: 0 },
+    { accountUsageConcurrency: 1.5 },
+  ])('rejects invalid account usage deployment limits (%j)', (config) => {
+    expect(() => SettingsController.Config(config)).toThrow()
+  })
+
   it('publishes form operations and the credentials namespace', async () => {
     const { ctx, controller } = await boot()
     expect(controller.typertRemote.namespace).toBe('settings')
@@ -49,7 +58,7 @@ describe('settings Remote', () => {
   it('opens the profile patch and contains opener failure and cancellation', async () => {
     const { ctx, profile } = await configurationFixture()
     const openTextFile = vi.fn(async (_path: string, _signal: AbortSignal) => {})
-    const controller = new SettingsController(ctx, { openTextFile })
+    const controller = new SettingsController(ctx, {}, { openTextFile })
     const abort = new AbortController()
     await controller.openSettingsDocument(abort.signal)
     expect(openTextFile).toHaveBeenCalledWith(profile.patchPath, abort.signal)
@@ -64,7 +73,7 @@ describe('settings Remote', () => {
     const prepared = Promise.withResolvers<string>()
     vi.spyOn(ctx.settings, 'prepareDocument').mockReturnValue(prepared.promise)
     const openTextFile = vi.fn(async (_path: string, _signal: AbortSignal) => {})
-    const controller = new SettingsController(ctx, { openTextFile })
+    const controller = new SettingsController(ctx, {}, { openTextFile })
     const abort = new AbortController()
     const opening = controller.openSettingsDocument(abort.signal)
     abort.abort()
@@ -93,7 +102,7 @@ it('reports a form removed after its write committed', async () => {
 it('classifies document preparation failures and cancellation during opening', async () => {
   const { ctx } = await configurationFixture({ hmr: false })
   let abort = new AbortController()
-  const controller = new SettingsController(ctx, { openTextFile: async () => {
+  const controller = new SettingsController(ctx, {}, { openTextFile: async () => {
     abort.abort(); throw new Error('opening cancelled')
   } })
   const prepare = vi.spyOn(ctx.settings, 'prepareDocument')

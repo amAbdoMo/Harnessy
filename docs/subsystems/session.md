@@ -831,9 +831,10 @@ inspect( sessionId: SessionId, signal?: AbortSignal, ): Promise<SessionInspectio
 @Remote('search') search(request: SessionSearchRequest, signal: AbortSignal): Promise<SessionSearchValue>
 
 /**
- * Create or idempotently adopt one ordinary Session.
- * @param request - requested identity, location, and Agent preset.
- * @returns the Session identity and resolved preset when configured.
+ * Create an ordinary Session without submitting work. newSessionId requires a fresh identity;
+ * sessionId may adopt an existing one.
+ * @param request - mutually exclusive fresh/adoptable identities, location, and Agent preset.
+ * @returns the Session identity and resolved preset when configured; existing or in-flight fresh identities reject.
  */
 @Remote('create') create(request: SessionCreateRequest): Promise<SessionCreateValue>
 
@@ -897,10 +898,10 @@ workspaceDesktop(): { name: string; available: boolean; fileManager: 'finder' | 
  * Fork one cold-readable exact event prefix into a new Session. An omitted
  * boundary selects the latest completed-turn prefix; an open cut receives
  * synthetic fork closers.
- * @param request - source Session and optional exact inclusive event boundary.
+ * @param request - source Session, optional exact inclusive event boundary, and migration preflight choice.
  * @returns the new Session identity.
  */
-@Remote('fork') fork(request: SessionForkRequest): Promise<SessionForkValue>
+@Remote('fork') async fork(request: SessionForkRequest): Promise<SessionForkValue>
 
 /**
  * Admit one prompt after explicitly resuming its Session.

@@ -1,4 +1,5 @@
 /** Human-only consent for local-device certificate failures in a lease-exclusive Session. */
+import { X509Certificate } from 'node:crypto'
 import { isIP } from 'node:net'
 import type { WebContents } from 'electron'
 
@@ -16,6 +17,8 @@ export type ConfirmBrowserCertificate = (prompt: BrowserCertificatePrompt) => Pr
 interface CertificateApproval {
   readonly origin: string
   readonly fingerprint: string
+  readonly validStart: number
+  readonly validExpiry: number
 }
 
 interface CertificateDecision extends CertificateApproval {
@@ -27,12 +30,12 @@ interface CertificateDecision extends CertificateApproval {
 
 /**
  * Retain one approved origin and leaf fingerprint in this guest until replacement or disposal.
- * Only authority-invalid errors can be accepted; fresh consent requires the current main-frame navigation.
+ * Only authority/name-invalid errors on a parsed, valid-date leaf allow consent for the current main-frame navigation.
  * Matching pending resources share consent, with each request's URL rechecked; changed fingerprints withdraw consent and approval.
  * Navigation cancels pending consent, not approval; no shared Session or hostname allowlist receives trust.
  * @param guest - exact native guest owned by the Browser lease.
  * @param owner - authenticated primary renderer that owns this lease.
- * @param eligible - live ordinary-guest ownership and existing navigation policy, rechecked before accepting.
+ * @param eligible - live lease-exclusive guest ownership and existing navigation/website policy, rechecked before accepting.
  * @param confirm - Main-owned user confirmation; omitted means deny.
  * @returns disposer that denies pending callbacks, clears approval, and withdraws all listeners.
  */
@@ -63,11 +66,12 @@ export function bindBrowserCertificateErrors(guest: WebContents, owner: WebConte
   }
   const canConsent = (decision: CertificateDecision): boolean => isEligible(decision.address) && pending === decision
     && !decision.controller.signal.aborted && generation === decision.generation && target === decision.address
+    && certificateCurrent(decision)
   const settleDecision = (decision: CertificateDecision, approval: CertificateApproval | undefined): void => {
     if (pending === decision) pending = undefined
     // Committed callbacks survive loading events, but never guest loss or withdrawal of this certificate.
     for (const { address, finish } of decision.callbacks.splice(0)) {
-      finish(approval !== undefined && isEligible(address) && approved === approval)
+      finish(approval !== undefined && isEligible(address) && approved === approval && certificateCurrent(approval))
     }
   }
   const started = (event: { isMainFrame: boolean; isSameDocument: boolean; url: string }): void => {
@@ -96,10 +100,12 @@ export function bindBrowserCertificateErrors(guest: WebContents, owner: WebConte
     const address = navigationTarget(url)
     if (address === undefined || !localDevice(new URL(address).hostname)) { finish(false); return }
     const origin = new URL(address).origin
-    const fingerprint = certificate.fingerprint
-    if (approved?.origin === origin && approved.fingerprint !== fingerprint) approved = undefined
-    if (pending?.origin === origin && pending.fingerprint !== fingerprint) cancelPending()
-    if (!isEligible(address) || error !== 'net::ERR_CERT_AUTHORITY_INVALID') { finish(false); return }
+    const leaf = validCertificateLeaf(certificate)
+    if (approved?.origin === origin && approved.fingerprint !== leaf?.fingerprint) approved = undefined
+    if (pending?.origin === origin && pending.fingerprint !== leaf?.fingerprint) cancelPending()
+    if (leaf === undefined || !isEligible(address) || !certificateCurrent(leaf)
+      || !['net::ERR_CERT_AUTHORITY_INVALID', 'net::ERR_CERT_COMMON_NAME_INVALID'].includes(error)) { finish(false); return }
+    const { fingerprint, validStart, validExpiry } = leaf
     if (approved?.origin === origin && approved.fingerprint === fingerprint) { finish(true); return }
     if (requestGeneration !== generation || (mainFrame && address !== target)) { finish(false); return }
     if (pending !== undefined) {
@@ -110,7 +116,8 @@ export function bindBrowserCertificateErrors(guest: WebContents, owner: WebConte
     }
     if (!mainFrame || address !== target) { finish(false); return }
     const decision: CertificateDecision = {
-      controller: new AbortController(), generation, address, origin, fingerprint, callbacks: [{ address, finish }],
+      controller: new AbortController(), generation, address, origin, fingerprint, validStart, validExpiry,
+      callbacks: [{ address, finish }],
     }
     pending = decision
     decision.controller.signal.addEventListener('abort', () => { settleDecision(decision, undefined) }, { once: true })
@@ -118,7 +125,7 @@ export function bindBrowserCertificateErrors(guest: WebContents, owner: WebConte
       if (!canConsent(decision)) return false
       return confirm({ owner, origin, fingerprint, signal: decision.controller.signal })
     }).then((accepted) => {
-      const approval = accepted && canConsent(decision) ? { origin, fingerprint } : undefined
+      const approval = accepted && canConsent(decision) ? { origin, fingerprint, validStart, validExpiry } : undefined
       if (approval !== undefined) approved = approval
       settleDecision(decision, approval)
     }).catch((_error: unknown) => { settleDecision(decision, undefined) })
@@ -153,6 +160,32 @@ export function localBrowserDeviceOrigin(value: string): string | undefined {
   if (address === undefined) return undefined
   const url = new URL(address)
   return localDevice(url.hostname) ? url.origin : undefined
+}
+
+/** Native certificate uncertainty denies consent, including an authority error masking invalid dates. */
+function validCertificateLeaf(certificate: Electron.Certificate): Omit<CertificateApproval, 'origin'> | undefined {
+  let leaf: X509Certificate
+  try { leaf = new X509Certificate(certificate.data) }
+  catch (_error: unknown) { return undefined /* Malformed native PEM cannot establish a certificate pin. */ }
+  const validStart = leaf.validFromDate.getTime()
+  const validExpiry = leaf.validToDate.getTime()
+  const now = Date.now()
+  if (!Number.isFinite(validStart) || !Number.isFinite(validExpiry) || validStart >= validExpiry
+    || now < validStart || now >= validExpiry || certificate.validStart !== validStart / 1000
+    || certificate.validExpiry !== validExpiry / 1000) return undefined
+  const fingerprint = certificate.fingerprint
+  const hexadecimal = leaf.fingerprint256.replaceAll(':', '')
+  const nativeFingerprint = `sha256/${Buffer.from(hexadecimal, 'hex').toString('base64')}`
+  const matchesNative = fingerprint === nativeFingerprint
+  const matchesHexadecimal = /^(?:[0-9a-f]{64}|(?:[0-9a-f]{2}:){31}[0-9a-f]{2})$/iu.test(fingerprint)
+    && fingerprint.replaceAll(':', '').toUpperCase() === hexadecimal
+  if (!matchesNative && !matchesHexadecimal) return undefined
+  return { fingerprint: leaf.fingerprint256, validStart, validExpiry }
+}
+
+function certificateCurrent(certificate: Pick<CertificateApproval, 'validStart' | 'validExpiry'>): boolean {
+  const now = Date.now()
+  return now >= certificate.validStart && now < certificate.validExpiry
 }
 
 function navigationTarget(value: string): string | undefined {

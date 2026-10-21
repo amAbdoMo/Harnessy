@@ -32,7 +32,7 @@ function fingerprint(value: unknown): string {
 }
 
 /**
- * Admit only the five native management operations, never arbitrary service dispatch.
+ * Admit only closed native management operations, never arbitrary service dispatch.
  * @param input - Private process-channel command JSON.
  * @returns Validated operation and branded identity; unknown fields and operations throw.
  */
@@ -40,6 +40,7 @@ export function parseCompanionControlCommand(input: unknown): CompanionControlCo
   if (typeof input !== 'object' || input === null || !('kind' in input)) throw new Error('Invalid companion command')
   switch (input.kind) {
     case 'describe':
+    case 'activate':
     case 'createInvitation':
     case 'cancelInvitation':
       exactRecord(input, ['kind'])
@@ -51,6 +52,12 @@ export function parseCompanionControlCommand(input: unknown): CompanionControlCo
     case 'revokeGrant': {
       const row = exactRecord(input, ['kind', 'grantId'])
       return { kind: 'revokeGrant', grantId: parseId<GrantId>(row.grantId) }
+    }
+    case 'setSessionManagement': {
+      const row = exactRecord(input, ['kind', 'grantId', 'expectedGeneration', 'fingerprint', 'enabled'])
+      return { kind: 'setSessionManagement', grantId: parseId<GrantId>(row.grantId),
+        expectedGeneration: parseGeneration(row.expectedGeneration), fingerprint: fingerprint(row.fingerprint),
+        enabled: boolean(row.enabled) }
     }
     default:
       throw new Error('Unsupported companion command')
@@ -66,10 +73,11 @@ function status(input: unknown): CompanionStatus {
   if (!Array.isArray(row.paired) || row.paired.length > MAX_PUBLIC_ROWS
     || !Array.isArray(row.candidates) || row.candidates.length > MAX_PUBLIC_ROWS) throw new Error('Companion roster exceeds limit')
   const paired: PairedDevice[] = row.paired.map((item: unknown) => {
-    const device = exactRecord(item, ['grantId', 'generation', 'fingerprint', 'displayName', 'pairedAt'])
+    const device = exactRecord(item, ['grantId', 'generation', 'fingerprint', 'displayName', 'pairedAt', 'sessionManagement'])
     return {
       grantId: parseId<GrantId>(device.grantId), generation: parseGeneration(device.generation),
       fingerprint: fingerprint(device.fingerprint), displayName: label(device.displayName), pairedAt: timestamp(device.pairedAt),
+      sessionManagement: boolean(device.sessionManagement),
     }
   })
   const candidates = row.candidates.map((item: unknown) => {
@@ -99,8 +107,9 @@ export function parseCompanionControlResult(input: unknown, now: number): Compan
   if (typeof input !== 'object' || input === null || !('kind' in input)) throw new Error('Invalid companion result')
   switch (input.kind) {
     case 'completed':
+    case 'activationRequired':
       exactRecord(input, ['kind'])
-      return { kind: 'completed' }
+      return { kind: input.kind }
     case 'status': {
       const row = exactRecord(input, ['kind', 'status'])
       return { kind: 'status', status: status(row.status) }

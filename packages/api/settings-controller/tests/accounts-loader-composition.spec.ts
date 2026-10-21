@@ -21,6 +21,7 @@ import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import { profileComposition } from '../../../settings/settings/tests/profile-composition.ts'
 import AccountsController from '../src/accounts.ts'
+import SettingsController, { type Config } from '../src/index.ts'
 import type { AccountAutoSwitchEvent, AccountsState } from '../src/types.ts'
 import TypertRegistry from '../../../typert/registry/src/index.ts'
 import { TypertGatewayService } from '../../gateway/src/index.ts'
@@ -147,9 +148,14 @@ function codexEvents(text: string): unknown[] {
 
 /** Inject the external usage endpoint without replacing AccountsController behavior. */
 class FixtureAccounts extends AccountsController {
-  constructor(ctx: Context) {
+  constructor(ctx: Context, options: Config = {}) {
     if (wire === undefined) throw new Error('HTTP fixture is not installed')
-    super(ctx, { fetchUsage: wire.fetchUsage, now: () => NOW })
+    const config = SettingsController.Config(options)
+    super(ctx, { fetchUsage: wire.fetchUsage, now: () => NOW, usagePolicy: {
+      activeRefreshMs: config.activeAccountUsageRefreshMs,
+      inactiveRefreshMs: config.inactiveAccountUsageRefreshMs,
+      concurrency: config.accountUsageConcurrency,
+    } })
   }
 }
 
@@ -167,7 +173,10 @@ afterEach(async () => {
   }
 })
 
-async function loadComposition(existingHome?: string): Promise<{ ctx: Context; patchPath: string; http: ProviderWire }> {
+async function loadComposition(
+  existingHome?: string,
+  usageConfig: Config = {},
+): Promise<{ ctx: Context; patchPath: string; http: ProviderWire }> {
   const home = existingHome ?? await mkdtemp(join(tmpdir(), 'dsh-accounts-loader-'))
   root = home
   const http = new ProviderWire()
@@ -189,6 +198,7 @@ async function loadComposition(existingHome?: string): Promise<{ ctx: Context; p
   const rows = [...modules.keys()].map(name => ({
     id: name === 'test-accounts' ? 'accounts' : name.replace('@deepseek-ai/dsh-', ''),
     name,
+    ...name === 'test-accounts' ? { config: usageConfig } : {},
     ...name === '@deepseek-ai/dsh-credentials-local' ? { config: { path: join(home, '.credentials.yaml'), watch: false } } : {},
   }))
   // JSON is valid YAML; the Include/profile loader parses these real entry rows.
@@ -393,6 +403,38 @@ describe('accounts across real Loader turns', () => {
     expect(JSON.stringify(result)).not.toContain('signature')
   })
 
+  it('completes a Codex turn while an automatic account usage refresh is pending', { timeout: 60_000 }, async () => {
+    const { ctx, http } = await loadComposition()
+    await ctx.settings.mutate('llm-pi-ai', [{ op: 'set', path: ['providers', 'openai-codex'], value: {
+      transport: 'sse', reasoning: 'off',
+    } }])
+    await seedCodex(ctx, 'personal')
+    await ctx.accountsController.setAutoSwitch('openai-codex', true)
+    const [model] = await ctx.llm.discoverModels('llm-pi-ai', { provider: 'openai-codex' })
+    if (model === undefined) throw new Error('installed Codex catalog is empty')
+    const agent = await ctx.agentLoop.create(SessionId('codex-pending-usage'), { provider: 'openai-codex', model: model.id })
+    const usage = { entered: Promise.withResolvers<undefined>(), release: Promise.withResolvers<undefined>(), fail: false }
+    http.billingUsage = usage
+    const refreshing = ctx.accountsController.refreshUsage(new AbortController().signal)
+    try {
+      await usage.entered.promise
+      followup(agent, 'first question')
+      await awaitRequest(agent, http)
+      http.release.resolve(undefined)
+      await agent.whenIdle()
+      expect(transcript(agent)).toEqual([
+        { role: 'system', text: 'You are an AI agent powered by DeepSeek Harness.' },
+        { role: 'user', text: 'first question' },
+        { role: 'assistant', text: 'first answer' },
+      ])
+      expect(await ctx.credentials.readRecord(CODEX)).toEqual(codexGrant('personal'))
+    } finally {
+      usage.release.resolve(undefined)
+      http.release.resolve(undefined)
+      await Promise.allSettled([refreshing, agent.whenIdle()])
+    }
+  })
+
   it('pushes fresh usage after a real Codex request with automatic switching disabled', { timeout: 60_000 }, async () => {
     const { ctx, http } = await loadComposition()
     await ctx.settings.mutate('llm-pi-ai', [{ op: 'set', path: ['providers', 'openai-codex'], value: {
@@ -420,6 +462,34 @@ describe('accounts across real Loader turns', () => {
       { role: 'user', text: 'first question' },
       { role: 'assistant', text: 'first answer' },
     ])
+  })
+
+  it('runs ten Codex turns with one background usage cycle through configured Loader limits', { timeout: 60_000 }, async () => {
+    const { ctx, http } = await loadComposition(undefined, {
+      activeAccountUsageRefreshMs: 30_000, inactiveAccountUsageRefreshMs: 300_000, accountUsageConcurrency: 2,
+    })
+    await ctx.settings.mutate('llm-pi-ai', [{ op: 'set', path: ['providers', 'openai-codex'], value: {
+      transport: 'sse', reasoning: 'off',
+    } }])
+    await seedCodex(ctx, 'personal')
+    await ctx.accountsController.setAutoSwitch('openai-codex', true)
+    const [model] = await ctx.llm.discoverModels('llm-pi-ai', { provider: 'openai-codex' })
+    if (model === undefined) throw new Error('installed Codex catalog is empty')
+    const agent = await ctx.agentLoop.create(SessionId('codex-cached-usage'), { provider: 'openai-codex', model: model.id })
+    http.release.resolve(undefined)
+    followup(agent, 'question 0')
+    await agent.whenIdle()
+    await vi.waitFor(async () => {
+      expect((await ctx.accountsController.describe()).accounts.every(account => account.usageUpdatedAt === NOW)).toBe(true)
+    })
+    for (let turn = 1; turn < 10; turn++) {
+      followup(agent, `question ${turn}`)
+      await agent.whenIdle()
+    }
+    expect(http.requests).toHaveLength(10)
+    expect(http.usageRequests).toEqual(['personal', 'workspace'])
+    expect(agent.session.deriveMessages().filter(message => message.role === 'assistant')).toHaveLength(10)
+    expect(await ctx.credentials.readRecord(CODEX)).toEqual(codexGrant('personal'))
   })
 
   it('recovers a real Codex quota failure without racing post-stream usage against promotion', { timeout: 60_000 }, async () => {
@@ -495,8 +565,7 @@ describe('accounts across real Loader turns', () => {
       `Bearer ${codexGrant(active).payload.access}`,
       `Bearer ${codexGrant(replacement).payload.access}`,
     ])
-    expect(http.usageRequests.slice(0, 4)).toEqual([active, replacement, active, replacement])
-    expect(http.usageRequests.slice(4, 6)).toEqual([replacement, active])
+    expect(http.usageRequests.slice(0, 2)).toEqual([active, replacement])
     expect(session.snapshotEvents().slice(0, firstTurn.length)).toEqual(firstTurn)
     expect(transcript(agent)).toEqual([
       { role: 'system', text: 'You are an AI agent powered by DeepSeek Harness.' },
@@ -513,6 +582,7 @@ describe('manual billing dates through the real source Loader', () => {
     const { ctx, http } = await loadComposition()
     const key = credentialKey('llm-pi-ai', 'kimi-coding')
     const grant = (subject: string, refresh: string) => ({ kind: 'grant' as const, payload: {
+      type: 'oauth',
       access: `header.${Buffer.from(JSON.stringify({ sub: subject })).toString('base64url')}.signature`,
       refresh, expires: 4_000_000_000_000,
     } })

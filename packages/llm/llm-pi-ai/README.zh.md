@@ -37,6 +37,8 @@ kind: "package-reference"
 
 即使 SDK 在取消后仍不结算读取，空闲超时也会结算尚未完成的流读取。适配器会中止 SDK 工作，而不等待排在已放弃读取之后的生成器返回操作。
 
+Codex HTTP 失败会在终止诊断中保留已识别的套接字、DNS、超时和 TLS 错误码，不包含嵌套错误消息或请求数据。没有已识别网络错误码的错误仍按原有方式处理。
+
 每个 profile 都可以设置 `retryPolicy`；省略时使用 normal mode、最多重试五次。`apiKeyEnv` 是按请求经 harness 凭据 seam 解析的凭据引用，因此配置文件绝不包含密钥；解析为空的引用会让请求以 `MISSING_CREDENTIAL` 失败。省略它会让路由保持已配置但无密钥（configured-but-keyless）状态，对已安装目录路由而言即交由 pi-ai 提供方原生的环境发现。
 
 ```yaml

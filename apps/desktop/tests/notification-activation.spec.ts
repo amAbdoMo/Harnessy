@@ -1,5 +1,3 @@
-import { resolve } from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { SessionId } from '@deepseek-ai/dsh-session/types'
 import {
@@ -47,20 +45,17 @@ describe('product notification activation URI', () => {
 })
 
 describe('Windows protocol toast XML', () => {
-  it('escapes copy and uses the bundled disk logo with Session metadata only in launch', async () => {
-    const iconPath = resolve('Harnessy & product', 'icon.png')
+  it('escapes a native text card with registered header identity, no body logo or reply, and Session metadata only in launch', async () => {
     const xml = windowsNotificationToastXml({
       title: 'Title <&> "quoted"', body: "Body 'text' & <tag>", sessionId: SessionId('private/session?ID'),
-    }, iconPath)
-    const logoUri = pathToFileURL(iconPath).href.replaceAll('&', '&amp;')
-    expect(xml).toContain(`<image placement="appLogoOverride" src="${logoUri}"/>`)
-    // Only the fixture's machine-specific disk location is replaced in this Windows presentation expectation.
-    await expect(xml.replace(logoUri, '{{bundled-logo}}') + '\n').toMatchFileSnapshot('./expected/native-task-toast.xml')
+    })
+    await expect(xml + '\n').toMatchFileSnapshot('./expected/native-task-toast.xml')
+    expect(xml).not.toMatch(/<image|<actions|<input|inlineReply/u)
     expect(xml).not.toContain('<text>private')
   })
 
   it('bounds XML copy without splitting astral text or preserving invalid XML characters', () => {
-    const xml = windowsNotificationToastXml({ title: `${'a'.repeat(119)}😀extra`, body: `${'b'.repeat(497)}\u0000😀extra` }, resolve('icon.png'))
+    const xml = windowsNotificationToastXml({ title: `${'a'.repeat(119)}😀extra`, body: `${'b'.repeat(497)}\u0000😀extra` })
     expect(xml).toContain('launch="harnessy://open" activationType="protocol"')
     expect(xml).toContain(`<text>${'a'.repeat(119)}</text>`)
     expect(xml).toContain(`<text>${'b'.repeat(497)}\ufffd😀</text>`)

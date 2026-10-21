@@ -8,6 +8,7 @@
  */
 
 import { Context } from '@deepseek-ai/cordis'
+import Schema from '@deepseek-ai/schemastery'
 import {
   openNativeTextFile,
 } from '@deepseek-ai/dsh-native-command'
@@ -23,6 +24,7 @@ import { AccountsController } from './accounts.ts'
 import { OpenAIAccountController } from './openai-account.ts'
 import { McpManagerController } from './mcp-manager.ts'
 import type { SettingsDocumentOpenValue } from './types.ts'
+import { DEFAULT_ACCOUNT_USAGE_POLICY } from './usage-policy.ts'
 
 export { CredentialsController } from './credentials.ts'
 export { AccountsController } from './accounts.ts'
@@ -42,6 +44,18 @@ export interface SettingsControllerInternals {
   /** Host text-editor integration used to open the settings document. */
   readonly openTextFile?: (path: string, signal: AbortSignal) => Promise<void>
 }
+
+/** Account usage scheduling accepted by the Settings Controller profile. */
+export interface Config {
+  /** Minimum milliseconds between background usage reads of the active account; zero disables caching. */
+  readonly activeAccountUsageRefreshMs?: number
+  /** Minimum milliseconds between background usage reads of inactive accounts; zero disables caching. */
+  readonly inactiveAccountUsageRefreshMs?: number
+  /** Maximum concurrent Codex account usage reads. */
+  readonly accountUsageConcurrency?: number
+}
+
+type ResolvedConfig = Required<Config>
 
 /**
  * Project one redacted descriptor onto its wire view, field by field. The
@@ -80,6 +94,12 @@ declare module '@deepseek-ai/cordis' {
  * `settings/conflict` or `settings/rejected` with the service's message.
  */
 export class SettingsController extends TypertRemoteService {
+  static Config: Schema<Config, ResolvedConfig> = Schema.object({
+    activeAccountUsageRefreshMs: Schema.natural().default(DEFAULT_ACCOUNT_USAGE_POLICY.activeRefreshMs),
+    inactiveAccountUsageRefreshMs: Schema.natural().default(DEFAULT_ACCOUNT_USAGE_POLICY.inactiveRefreshMs),
+    accountUsageConcurrency: Schema.natural().min(1).default(DEFAULT_ACCOUNT_USAGE_POLICY.concurrency),
+  })
+
   private readonly openTextFile: (path: string, signal: AbortSignal) => Promise<void>
 
   /**
@@ -87,12 +107,19 @@ export class SettingsController extends TypertRemoteService {
    * it. All namespaces stay registered when a provider is absent so calls can
    * return the configuration API's actionable missing-provider diagnostic.
    * @param ctx - Host context where settings and credential providers may be mounted.
+   * @param options - deployment account usage scheduling.
+   * @param internals - optional Host editor integration for direct tests.
    */
-  constructor(ctx: Context, internals: SettingsControllerInternals = {}) {
+  constructor(ctx: Context, options: Config = {}, internals: SettingsControllerInternals = {}) {
     super(ctx, 'settingsController', { namespace: 'settings' })
+    const config = SettingsController.Config(options)
     this.openTextFile = internals.openTextFile ?? openNativeTextFile
     ctx.plugin(CredentialsController)
-    ctx.plugin(AccountsController)
+    ctx.plugin(AccountsController, { usagePolicy: {
+      activeRefreshMs: config.activeAccountUsageRefreshMs,
+      inactiveRefreshMs: config.inactiveAccountUsageRefreshMs,
+      concurrency: config.accountUsageConcurrency,
+    } })
     ctx.plugin(OpenAIAccountController)
     ctx.plugin(McpManagerController)
   }

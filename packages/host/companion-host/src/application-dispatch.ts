@@ -7,7 +7,7 @@ import {
 } from '@deepseek-ai/dsh-companion-protocol'
 import type {
   ApplicationBudget, ApplicationRequest, ApplicationResult, GrantId, MobileSessionId,
-  ReadCursor, SubscriptionId,
+  MobileOperationId, ReadCursor, SubscriptionId, WorkspaceSummary,
 } from '@deepseek-ai/dsh-companion-protocol'
 import type {} from '@deepseek-ai/dsh-api-session-controller'
 import type { SessionRequestId } from '@deepseek-ai/dsh-api-session-controller'
@@ -16,9 +16,11 @@ import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
 import { assertNever } from '@deepseek-ai/dsh-util-values'
 import {
   listMobileSessions, MobileViewError, mobileActivityRow, mobileHistoryPage, mobileHistoryRow,
-  mobileSessionStatus, requireVisibleSession,
+  mobileSessionStatus, requireVisibleSession, sanitizedText,
 } from './session-view.ts'
 import type { SessionListPosition } from './session-view.ts'
+import { executeManagement, rejectManagement } from './session-management.ts'
+import type { ManagementRequest } from './session-management.ts'
 
 /** Explicit per-channel policy supplied by the service that owns authorization and transport. */
 export interface ApplicationDispatcherOptions {
@@ -26,6 +28,8 @@ export interface ApplicationDispatcherOptions {
   readonly signal: AbortSignal
   /** Synchronously throw unless this exact channel and grant generation still have authority. */
   readonly requireCurrent: () => void
+  /** Check current channel authority and read the fresh grant's management permission; never capture a boolean. */
+  readonly managementAccess: () => boolean
   readonly grantId: GrantId
   readonly generation: number
   readonly budget: ApplicationBudget
@@ -92,6 +96,7 @@ export function createApplicationDispatcher(
   const requests = new Set<Promise<ApplicationResult>>()
   const sends = new Set<Promise<void>>()
   const submissions = new Map<SessionRequestId, Promise<void>>()
+  const managementOperations = new Set<MobileOperationId>()
   let closing: Promise<void> | undefined
 
   function requireCurrent(): void {
@@ -114,7 +119,9 @@ export function createApplicationDispatcher(
   }
 
   function failure(request: ApplicationRequest, code: ErrorCode): ApplicationResult {
-    return checked({ v: 1, type: 'error', requestId: request.requestId, code })
+    return checked('operationId' in request
+      ? rejectManagement(request, code)
+      : { v: 1, type: 'error', requestId: request.requestId, code })
   }
 
   function cursorMac(payload: Buffer, sessionId: MobileSessionId | undefined): Buffer {
@@ -127,9 +134,9 @@ export function createApplicationDispatcher(
     return brandString<ReadCursor>(Buffer.concat([payload, cursorMac(payload, sessionId)]).toString('base64url'))
   }
 
-  function openCursor(cursor: ReadCursor, kind: 1 | 2, sessionId?: MobileSessionId): Buffer {
+  function openCursor(cursor: ReadCursor, kind: 1 | 2 | 3, sessionId?: MobileSessionId): Buffer {
     const bytes = Buffer.from(cursor, 'base64url')
-    const length = kind === 1 ? 49 : 25
+    const length = kind === 2 ? 25 : 49
     if (bytes.length !== length + 32 || bytes.toString('base64url') !== cursor) throw new MobileViewError('denied')
     const payload = bytes.subarray(0, length)
     if (payload[0] !== kind || !timingSafeEqual(bytes.subarray(length), cursorMac(payload, sessionId))) {
@@ -163,6 +170,86 @@ export function createApplicationDispatcher(
     const through = Number(payload.readBigUInt64BE(9))
     if (!Number.isSafeInteger(offset) || !Number.isSafeInteger(through) || offset > through) throw new MobileViewError('denied')
     return { offset, through }
+  }
+
+  function managementCatalog(
+    request: Extract<ApplicationRequest, { type: 'listManagementWorkspaces' }>, read: ReadScope,
+  ): ApplicationResult {
+    requireRead(read)
+    if (!options.managementAccess()) {
+      return checked({ v: 1, type: 'managementWorkspaces', requestId: request.requestId, enabled: false, workspaces: [] })
+    }
+    requireRead(read)
+    const registry = ctx.get('workspaceRegistry')
+    if (registry === undefined) throw new MobileViewError('unavailable')
+    const catalog = registry.list()
+    const snapshot = createHash('sha256').update(JSON.stringify(catalog.map(item => [item.id, item.title]))).digest()
+    let start = 0
+    if (request.cursor !== undefined) {
+      const payload = openCursor(request.cursor, 3)
+      if (!timingSafeEqual(snapshot, payload.subarray(9, 41))) throw new MobileViewError('expired')
+      start = Number(payload.readBigUInt64BE(1))
+      if (!Number.isSafeInteger(start) || start < 1 || start >= catalog.length) throw new MobileViewError('expired')
+    }
+    function continuation(offset: number): ReadCursor {
+      const payload = Buffer.alloc(49)
+      payload[0] = 3
+      payload.writeBigUInt64BE(BigInt(offset), 1)
+      snapshot.copy(payload, 9)
+      payload.writeBigUInt64BE(BigInt(Date.now() + budget.subscriptionLifetimeMs), 41)
+      return sealCursor(payload)
+    }
+    const workspaces: WorkspaceSummary[] = []
+    let end = start
+    let result: ApplicationResult = checked({
+      v: 1, type: 'managementWorkspaces', requestId: request.requestId, enabled: true, workspaces: [],
+    })
+    while (end < catalog.length && workspaces.length < request.limit) {
+      requireRead(read)
+      if (!options.managementAccess()) throw new MobileViewError('denied')
+      const item = catalog[end]
+      if (item === undefined) throw new MobileViewError('expired')
+      try {
+        const row = { id: item.id, title: sanitizedText(item.title, budget.maxTitleBytes), order: end }
+        const candidate = checked({
+          v: 1, type: 'managementWorkspaces', requestId: request.requestId, enabled: true,
+          workspaces: [...workspaces, row], ...(end + 1 < catalog.length ? { cursor: continuation(end + 1) } : {}),
+        })
+        workspaces.push(row)
+        result = candidate
+        end++
+      } catch (error: unknown) {
+        if (!(error instanceof MobileViewError) || error.code !== 'limit' || workspaces.length === 0) throw error
+        break
+      }
+    }
+    requireRead(read)
+    if (!options.managementAccess()) throw new MobileViewError('denied')
+    return result
+  }
+
+  async function manage(request: ManagementRequest, read: ReadScope): Promise<ApplicationResult> {
+    const requireAdmission = (): void => {
+      requireRead(read)
+      if (!options.managementAccess()) throw new MobileViewError('denied')
+      requireRead(read)
+    }
+    requireAdmission()
+    if (managementOperations.has(request.operationId)) return checked(rejectManagement(request, 'conflict'))
+    managementOperations.add(request.operationId)
+    try {
+      const result = await executeManagement(ctx, request, {
+        budget, signal: read.signal, requireAdmission, errorCode: error => errorCode(error, read),
+      })
+      // Revocation withdraws the reply, not the admitted write or its targeted flush.
+      if (result.outcome !== 'rejected') {
+        try { requireAdmission() } catch (_error: unknown) {
+          return checked({ v: 1, type: 'managed', requestId: request.requestId, operationId: request.operationId,
+            sessionId: request.sessionId, action: result.action, outcome: 'unknown' })
+        }
+      }
+      return checked(result)
+    } finally { managementOperations.delete(request.operationId) }
   }
 
   async function history(
@@ -393,8 +480,18 @@ export function createApplicationDispatcher(
 
   async function run(request: ApplicationRequest, read: ReadScope): Promise<ApplicationResult> {
     requireRead(read)
-    encodeApplicationRequest(request, budget)
+    try { encodeApplicationRequest(request, budget) } catch (error: unknown) {
+      if ('operationId' in request || request.type === 'listManagementWorkspaces') {
+        throw new MobileViewError('limit', { cause: error })
+      }
+      throw error
+    }
     switch (request.type) {
+      case 'listManagementWorkspaces': return managementCatalog(request, read)
+      case 'createSession':
+      case 'renameSession':
+      case 'archiveSession':
+      case 'setSessionPinned': return manage(request, read)
       case 'listSessions': {
         let after: SessionListPosition | undefined
         if (request.cursor !== undefined) {
@@ -405,6 +502,7 @@ export function createApplicationDispatcher(
         }
         const page = await listMobileSessions(ctx, {
           limit: request.limit, after, budget, signal: read.signal, requireCurrent: () => { requireRead(read) },
+          ...(request.view === undefined ? {} : { view: request.view }),
         })
         requireRead(read)
         return checked({

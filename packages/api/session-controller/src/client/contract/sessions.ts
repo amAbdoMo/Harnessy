@@ -91,7 +91,7 @@ export interface ISessions {
   /**
    * Resolve an already discovered direct-parent address without opening it.
    * @param id - possible addressed child id.
-   * @returns a retained or loaded-catalog address, without retaining a new selection or scope.
+   * @returns a retained, catalog-derived, or unknown-mode listed address, without retaining a selection or scope.
    */
   subagentAddress(id: SessionId): SubagentAddress | undefined
 
@@ -134,6 +134,8 @@ export interface ISessions {
     atSeq?: number
     increaseTitle?: boolean
     onCreated?: (childId: SessionId) => void
+    /** False refuses source migration; omission preserves the Host default. */
+    allowMigration?: boolean
   }): Promise<SessionId>
   /**
    * Borrow an already-retained Agent-scoped Context without extending its lifetime.

@@ -1,12 +1,13 @@
 import { brandString } from '@deepseek-ai/dsh-brand'
 import type { SessionRequestId } from '../src/types.ts'
 import { promptAdmissionComposition } from './prompt-admission-composition.ts'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
 import type { Agent } from '@deepseek-ai/dsh-agent'
+import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import { agentPresetProjectionDefinition } from '@deepseek-ai/dsh-agent-preset-registry'
 import SessionStore, { SESSION_FORMAT_VERSION, SessionLogOffset, SessionId } from '@deepseek-ai/dsh-session'
 import type { SessionEvent, SessionHeader } from '@deepseek-ai/dsh-session'
@@ -489,6 +490,18 @@ describe('ApiSession create or adoption', () => {
   })
 })
 
+async function durableEvents(ctx: Context, sessionId: SessionId): Promise<readonly SessionEvent[]> {
+  await using stored = await ctx.sessionPersistence.open(sessionId, 'read')
+  return (await stored.read()).events
+}
+
+async function freshCreationComposition() {
+  const fixture = await promptAdmissionComposition()
+  const cwd = fixture.agent.session.header.cwd
+  if (cwd === undefined) throw new Error('composition has no workspace directory')
+  return { ...fixture, cwd, commands: { create: fixture.create } }
+}
+
 describe('runtime ownership through source Loader composition', () => {
   it('rejects ordinary routing to a live owned Agent with no durable lineage', async () => {
     const b = await promptAdmissionComposition()
@@ -528,5 +541,130 @@ describe('runtime ownership through source Loader composition', () => {
     }, () => {})
     await fork.whenIdle()
     expect(fork.session.deriveMessages().some(message => message.role === 'assistant')).toBe(true)
+  })
+})
+
+describe('exclusive fresh identities through source Loader composition', () => {
+  it.each(['ordinary', 'subagent', 'cwd-less'] as const)(
+    'refuses an existing %s identity without new Session or directory effects', async (kind) => {
+      const { ctx, cwd, commands } = await freshCreationComposition()
+      const id = SessionId(`fresh-live-${kind}`)
+      const { agent: existing } = await ctx.agents.create({
+        sessionId: id,
+        meta: kind === 'cwd-less' ? {} : { cwd, ...(kind === 'subagent' ? { origin: 'subagent' as const } : {}) },
+        agentOptions: { provider: 'fixture', model: 'fixture-model' },
+      })
+      existing.session.append('user/message', createUserMessage({
+        content: [{ type: 'text', text: 'Keep this existing conversation' }], source: { kind: 'user' },
+      }), { surfaceOp: 'append' })
+      expect(await ctx.sessions.flush(existing.session)).toBe(true)
+      const before = await durableEvents(ctx, id)
+      const sessionsBefore = ctx.sessions.list().map(session => session.id)
+      const unwantedCwd = join(cwd, 'must-not-be-created')
+
+      await expect(commands.create({ newSessionId: id, cwd })).rejects.toMatchObject({ code: 'gateway/internal' })
+      await expect(commands.create({ newSessionId: id, cwd: unwantedCwd })).rejects.toMatchObject({
+        code: 'gateway/internal',
+      })
+
+      expect(ctx.agents.get(id)).toBe(existing)
+      expect(ctx.sessions.list().map(session => session.id)).toEqual(sessionsBefore)
+      expect(existsSync(unwantedCwd)).toBe(false)
+      expect(await durableEvents(ctx, id)).toEqual(before)
+      expect(JSON.stringify(before)).toContain('Keep this existing conversation')
+    },
+  )
+
+  it('leaves a busy conversation running without adopting it or appending work', async () => {
+    const fixture = await freshCreationComposition()
+    const { ctx, agent, cwd, commands } = fixture
+    const barrier = fixture.barrier()
+    fixture.model.streamBarrier = barrier
+    try {
+      await fixture.prompt({
+        sessionId: agent.id, requestId: brandString<SessionRequestId>('busy-fresh-refusal'), mode: 'queue',
+        content: [{ type: 'text', text: 'Existing conversation is still running' }],
+      }, () => {})
+      await barrier.arrived
+      expect(agent.status).toBe('running')
+      expect(await ctx.sessions.flush(agent.session)).toBe(true)
+      const before = await durableEvents(ctx, agent.id)
+
+      await expect(commands.create({ newSessionId: agent.id, cwd })).rejects.toMatchObject({ code: 'gateway/internal' })
+
+      expect(ctx.agents.get(agent.id)).toBe(agent)
+      expect(agent.status).toBe('running')
+      expect(await durableEvents(ctx, agent.id)).toEqual(before)
+      expect(JSON.stringify(before)).toContain('Existing conversation is still running')
+    } finally {
+      barrier.release()
+      await agent.whenIdle()
+    }
+  })
+
+  it('does not adopt a nonempty cold identity inserted after an absent preflight', async () => {
+    const { ctx, cwd, commands } = await freshCreationComposition()
+    const id = SessionId('fresh-cold-preflight-race')
+    expect(await ctx.sessionPersistence.stat(id)).toBeUndefined()
+    // Another writer commits after the caller's preflight, before create reaches its owner.
+    const cold = ctx.sessions.prepare(id, { meta: { cwd } })
+    cold.append('turn/start', { turn: 1 })
+    cold.append('user/message', createUserMessage({
+      content: [{ type: 'text', text: 'Cold conversation belongs to another creator' }], source: { kind: 'user' },
+    }), { surfaceOp: 'append' })
+    cold.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
+    await using stored = await ctx.sessionPersistence.create(cold.header)
+    await stored.append(cold.snapshotEvents())
+    await stored.flush()
+    await stored.close()
+    const before = await durableEvents(ctx, id)
+
+    await expect(commands.create({ newSessionId: id, cwd })).rejects.toMatchObject({ code: 'gateway/internal' })
+
+    expect(ctx.agents.get(id)).toBeUndefined()
+    expect(ctx.sessions.get(id)).toBeUndefined()
+    expect(await durableEvents(ctx, id)).toEqual(before)
+    expect(JSON.stringify(before)).toContain('Cold conversation belongs to another creator')
+    await expect(commands.create({ sessionId: id, cwd })).resolves.toEqual({ sessionId: id })
+    expect(JSON.stringify(ctx.sessions.get(id)?.snapshotEvents())).toContain('Cold conversation belongs to another creator')
+  })
+
+  it('publishes one blank Session for concurrent fresh requests and refuses replay', async () => {
+    const { ctx, cwd, commands } = await freshCreationComposition()
+    const id = SessionId('fresh-concurrent')
+    const outcomes = await Promise.allSettled([
+      commands.create({ newSessionId: id, cwd }),
+      commands.create({ newSessionId: id, cwd }),
+    ])
+
+    expect(outcomes.filter(outcome => outcome.status === 'fulfilled')).toEqual([
+      { status: 'fulfilled', value: { sessionId: id } },
+    ])
+    expect(outcomes.filter(outcome => outcome.status === 'rejected')).toHaveLength(1)
+    expect(ctx.sessions.list().filter(session => session.id === id)).toHaveLength(1)
+    const existing = ctx.agents.get(id)
+    if (existing === undefined) throw new Error('fresh Session was not published')
+    expect(await ctx.sessions.flush(existing.session)).toBe(true)
+    const before = await durableEvents(ctx, id)
+    expect(before.filter(event => event.type === 'user/message' || event.type === 'request/header')).toEqual([])
+    await expect(commands.create({ newSessionId: id, cwd })).rejects.toMatchObject({ code: 'gateway/internal' })
+    expect(await durableEvents(ctx, id)).toEqual(before)
+  })
+
+  it('refuses a fresh request while a legacy creation owns the same identity', async () => {
+    const { ctx, cwd, commands } = await freshCreationComposition()
+    const id = SessionId('fresh-versus-legacy')
+    const first = commands.create({ sessionId: id, cwd })
+    const second = commands.create({ sessionId: id, cwd })
+    const freshDenied = expect(commands.create({ newSessionId: id, cwd })).rejects.toMatchObject({ code: 'gateway/internal' })
+    const [legacy, coalesced] = await Promise.all([first, second])
+    await freshDenied
+
+    expect(coalesced).toEqual(legacy)
+    const live = ctx.agents.get(id)!
+    expect(live.id).toBe(legacy.sessionId)
+    expect(ctx.sessions.list().filter(session => session.id === id)).toHaveLength(1)
+    expect(await ctx.sessions.flush(live.session)).toBe(true)
+    expect((await durableEvents(ctx, id)).filter(event => event.type === 'user/message')).toEqual([])
   })
 })

@@ -353,8 +353,9 @@ export function apply(ctx: ClientContext): void {
       const response = await ctx.remote.accounts.deleteAccount(provider, accountId)
       return response.ok ? { state: response.value } : { error: response.error.message }
     },
-    refreshUsage: async (signal) => {
-      const response = await ctx.remote.accounts.refreshUsage(signal)
+    refreshUsage: async (signal, freshness = 'fresh') => {
+      const response = await (freshness === 'cached'
+        ? ctx.remote.accounts.refreshCachedUsage(signal) : ctx.remote.accounts.refreshUsage(signal))
       return response.ok ? { state: response.value } : { error: response.error.message }
     },
   }

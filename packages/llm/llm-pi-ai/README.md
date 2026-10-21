@@ -37,6 +37,8 @@ Choose this adapter when the same composition serves several providers, when a r
 
 An idle timeout settles the outstanding stream read even if the SDK does not settle it after cancellation. The adapter aborts SDK work without awaiting a generator return queued behind that abandoned read.
 
+Codex HTTP failures retain recognized socket, DNS, timeout and TLS error codes in the terminal diagnostic without including nested error messages or request data. Errors without a recognized network code retain their original handling.
+
 Each profile may set a `retryPolicy`; omission uses normal mode with five retries. `apiKeyEnv` is a credential reference resolved per request through the harness credential seam, so no secret enters the configuration file; a reference that resolves to nothing fails the request with `MISSING_CREDENTIAL`. Omitting it leaves the route configured-but-keyless, which for an installed catalog route defers to pi-ai's provider-native ambient discovery.
 
 ```yaml

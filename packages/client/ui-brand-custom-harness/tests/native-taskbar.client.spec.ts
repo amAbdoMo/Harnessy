@@ -58,6 +58,7 @@ function configure(mock: RemoteMock, items: SessionListValue['items'] = [row(SES
   mock.remote.session.list.mockResolvedValue(ok({ items }))
   mock.remote.accounts.describe.mockResolvedValue(ok({ writable: true, accounts: [], providers: [] }))
   mock.remote.accounts.refreshUsage.mockResolvedValue(ok({ writable: true, accounts: [], providers: [] }))
+  mock.remote.accounts.refreshCachedUsage.mockResolvedValue(ok({ writable: true, accounts: [], providers: [] }))
   mock.remote.mcpManager.describe.mockResolvedValue(ok({ available: true, writable: true, servers: [] }))
   mock.stream('session/follow', (_request, stream) => {
     stream.push({

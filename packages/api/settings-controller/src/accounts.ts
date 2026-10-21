@@ -38,6 +38,8 @@ import type {
   AccountUsageWindow,
   ManagedAccountView,
 } from './types.ts'
+import { DEFAULT_ACCOUNT_USAGE_POLICY } from './usage-policy.ts'
+import type { AccountUsagePolicy } from './usage-policy.ts'
 
 const VAULT_KEY = credentialKey('account-manager', 'accounts')
 const PI_AI_SETTINGS = 'llm-pi-ai'
@@ -88,8 +90,26 @@ interface AccountVault {
   readonly providers: Readonly<Partial<Record<AccountProviderId, ProviderVault>>>
 }
 
+interface UsageRefreshRequest {
+  readonly signal: AbortSignal
+  readonly selection: 'automatic' | 'usage-only'
+  readonly freshness: 'fresh' | 'cached'
+  readonly accountId?: string
+}
+
 function assertUsageRefreshActive(signal: AbortSignal): void {
   if (signal.aborted) throw new RemoteError('gateway/cancelled', 'account usage refresh was cancelled', {})
+}
+
+async function waitForUsageTurn(predecessor: Promise<void>, signal: AbortSignal): Promise<void> {
+  assertUsageRefreshActive(signal)
+  let cancel!: () => void
+  const cancelled = new Promise<never>((_resolve, reject) => {
+    cancel = () => { reject(new RemoteError('gateway/cancelled', 'account usage refresh was cancelled', {})) }
+    signal.addEventListener('abort', cancel, { once: true })
+  })
+  try { await Promise.race([predecessor, cancelled]) }
+  finally { signal.removeEventListener('abort', cancel) }
 }
 
 /** Replaceable native and network boundaries for tests. */
@@ -97,6 +117,8 @@ export interface AccountsControllerInternals {
   readonly openUrl?: (url: string, signal: AbortSignal) => Promise<void>
   readonly fetchUsage?: typeof fetch
   readonly now?: () => number
+  /** Validated scheduling supplied by the owning Settings Controller. */
+  readonly usagePolicy?: AccountUsagePolicy
 }
 
 declare module '@deepseek-ai/cordis' {
@@ -114,6 +136,7 @@ export class AccountsController extends TypertRemoteService {
   private readonly openUrl: (url: string, signal: AbortSignal) => Promise<void>
   private readonly fetchUsage: typeof fetch
   private readonly now: () => number
+  private readonly usagePolicy: AccountUsagePolicy
   private usageRefreshTail: Promise<void> = Promise.resolve()
   private readonly usageLifecycle = new AbortController()
   private backgroundUsage: Promise<void> | undefined
@@ -133,6 +156,7 @@ export class AccountsController extends TypertRemoteService {
     this.openUrl = internals.openUrl ?? openNativeUrl
     this.fetchUsage = internals.fetchUsage ?? fetch
     this.now = internals.now ?? Date.now
+    this.usagePolicy = internals.usagePolicy ?? DEFAULT_ACCOUNT_USAGE_POLICY
     ctx.effect(() => async () => {
       this.usageLifecycle.abort()
       await this.backgroundUsage
@@ -377,7 +401,7 @@ export class AccountsController extends TypertRemoteService {
     })
     if (!response.ok) throw unavailable(`reset credit request failed (${String(response.status)})`)
     const outcome = decodeResetCreditOutcome(await response.json())
-    const state = await this.refreshUsageRun(signal, false, accountId)
+    const state = await this.refreshUsageRun({ signal, selection: 'usage-only', freshness: 'fresh', accountId })
     return { outcome, state }
   }
 
@@ -468,12 +492,22 @@ export class AccountsController extends TypertRemoteService {
 
   /**
    * Refresh supported usage snapshots, active account first, and push each committed update.
-   * @param signal - cancellation checked between accounts and forwarded to usage requests.
+   * @param signal - cancellation forwarded to every account read and checked before commits.
    * @returns the updated public account state with refreshed usage when available.
    */
   @Remote
   async refreshUsage(signal: AbortSignal): Promise<AccountsState> {
-    return this.refreshUsageRun(signal, true)
+    return this.refreshUsageRun({ signal, selection: 'automatic', freshness: 'fresh' })
+  }
+
+  /**
+   * Refresh stale usage snapshots for automatic browser checks.
+   * @param signal - cancellation forwarded to every account read and checked before commits.
+   * @returns the public account state after any required usage reads and automatic selection.
+   */
+  @Remote
+  async refreshCachedUsage(signal: AbortSignal): Promise<AccountsState> {
+    return this.refreshUsageRun({ signal, selection: 'automatic', freshness: 'cached' })
   }
 
   /** Coalesce stream completions, retaining one follow-up for completions during a read. */
@@ -485,7 +519,7 @@ export class AccountsController extends TypertRemoteService {
       while (this.usageRequested && !this.usageLifecycle.signal.aborted) {
         this.usageRequested = false
         try {
-          await this.refreshUsageRun(this.usageLifecycle.signal, false)
+          await this.refreshUsageRun({ signal: this.usageLifecycle.signal, selection: 'usage-only', freshness: 'cached' })
         } catch (error: unknown) {
           this.reportUsageError(error)
         }
@@ -501,51 +535,78 @@ export class AccountsController extends TypertRemoteService {
     if (!this.usageLifecycle.signal.aborted) this.ctx.logger.warn(`accounts: usage refresh failed: ${messageOf(error)}`)
   }
 
-  private async refreshUsageRun(signal: AbortSignal, automatic: boolean, accountId?: string): Promise<AccountsState> {
+  private async refreshUsageRun(request: UsageRefreshRequest): Promise<AccountsState> {
+    const { signal } = request
     assertUsageRefreshActive(signal)
     const predecessor = this.usageRefreshTail
     let release!: () => void
     this.usageRefreshTail = new Promise<void>((resolve) => { release = resolve })
-    await predecessor
     try {
+      await waitForUsageTurn(predecessor, signal)
       assertUsageRefreshActive(signal)
-      return await this.refreshUsageOnce(signal, automatic, accountId)
+      return await this.refreshUsageOnce(request)
     } finally {
-      release()
+      // A cancelled waiter retains ordering until its predecessor settles.
+      void predecessor.then(release)
     }
   }
 
-  private async refreshUsageOnce(signal: AbortSignal, automatic: boolean, accountId?: string): Promise<AccountsState> {
+  private async refreshUsageOnce(request: UsageRefreshRequest): Promise<AccountsState> {
+    const { signal, accountId } = request
     const revision = this.selectionRevisions.get('openai-codex') ?? 0
     const credentials = this.credentials()
-    let vault = await this.importCanonicalAccounts(credentials)
+    const vault = await this.importCanonicalAccounts(credentials)
     const codex = vault.providers['openai-codex']
     if (codex === undefined) return this.publicState(vault, true)
     const accounts = Object.values(codex.accounts)
       .filter(account => accountId === undefined || account.id === accountId)
       .sort((left, right) => Number(right.id === codex.activeAccountId) - Number(left.id === codex.activeAccountId))
-    for (const saved of accounts) {
-      assertUsageRefreshActive(signal)
-      const account = (await this.readVault(credentials)).providers['openai-codex']?.accounts[saved.id]
-      if (account === undefined) continue
-      const refreshed = await this.refreshCodexAccount(account, signal)
-      assertUsageRefreshActive(signal)
-      vault = await this.commitSelection(credentials, 'openai-codex', (current) => {
-        const currentProvider = current.providers['openai-codex']
-        const existing = currentProvider?.accounts[account.id]
-        if (currentProvider === undefined || existing === undefined
-          || !sameRecord(existing.credential, refreshed.credential)) return undefined
-        return replaceProviderVault(current, 'openai-codex', {
-          ...currentProvider,
-          accounts: {
-            ...currentProvider.accounts,
-            [account.id]: retainManualBillingDate({ ...refreshed, name: existing.name }, existing),
-          },
-        })
-      })
+    let cursor = 0
+    const workers = Array.from({ length: Math.min(this.usagePolicy.concurrency, accounts.length) }, async () => {
+      for (;;) {
+        const saved = accounts[cursor++]
+        if (saved === undefined) return
+        await this.refreshUsageAccount(saved.id, request)
+      }
+    })
+    // Drain every worker before releasing the usage queue or reporting a failed commit.
+    const settled = await Promise.allSettled(workers)
+    assertUsageRefreshActive(signal)
+    const failed = settled.find(outcome => outcome.status === 'rejected')
+    if (failed?.status === 'rejected') throw failed.reason
+    const current = request.selection === 'automatic'
+      ? await this.autoSwitchCodexAtLimit(credentials, revision) : await this.readVault(credentials)
+    return this.publicState(current, true)
+  }
+
+  private async refreshUsageAccount(accountId: string, request: UsageRefreshRequest): Promise<void> {
+    const { signal } = request
+    assertUsageRefreshActive(signal)
+    const credentials = this.credentials()
+    const provider = (await this.readVault(credentials)).providers['openai-codex']
+    if (provider === undefined) return
+    const account = provider.accounts[accountId]
+    if (account === undefined) return
+    const interval = accountId === provider.activeAccountId ? this.usagePolicy.activeRefreshMs : this.usagePolicy.inactiveRefreshMs
+    if (request.freshness === 'cached' && account.usageUpdatedAt !== undefined) {
+      const age = this.now() - account.usageUpdatedAt
+      if (age >= 0 && age < interval) return
     }
-    if (automatic && !signal.aborted) vault = await this.autoSwitchCodexAtLimit(credentials, revision)
-    return this.publicState(vault, true)
+    const refreshed = await this.refreshCodexAccount(account, request)
+    assertUsageRefreshActive(signal)
+    await this.commitUsageAccount(account, refreshed)
+  }
+
+  private async commitUsageAccount(account: StoredAccount, refreshed: StoredAccount): Promise<void> {
+    await this.commitSelection(this.credentials(), 'openai-codex', (current) => {
+      const provider = current.providers['openai-codex']
+      const existing = provider?.accounts[account.id]
+      if (provider === undefined || existing === undefined || !sameRecord(existing.credential, refreshed.credential)) return undefined
+      return replaceProviderVault(current, 'openai-codex', {
+        ...provider,
+        accounts: { ...provider.accounts, [account.id]: retainManualBillingDate({ ...refreshed, name: existing.name }, existing) },
+      })
+    })
   }
 
   private async autoSwitchCodexAtLimit(
@@ -594,17 +655,18 @@ export class AccountsController extends TypertRemoteService {
     return vault.providers['openai-codex']?.autoSwitchOnLimit === true
   }
 
-  /** Refresh an opted-in Codex route immediately before the model credential is resolved. */
+  /** Apply saved usage to an opted-in route without waiting for provider usage requests. */
   private async prepareCodexAccount(signal: AbortSignal): Promise<void> {
     const credentials = this.ctx.get('credentials')
     if (credentials === undefined) return
     const vault = await this.readVault(credentials)
     if (vault.providers['openai-codex']?.autoSwitchOnLimit !== true) return
     try {
-      await this.refreshUsage(signal)
+      assertUsageRefreshActive(signal)
+      await this.autoSwitchCodexAtLimit(credentials, this.selectionRevisions.get('openai-codex') ?? 0)
     } catch (error: unknown) {
       if (signal.aborted) throw error
-      this.ctx.logger.warn(`accounts: pre-request Codex usage refresh failed: ${messageOf(error)}`)
+      this.ctx.logger.warn(`accounts: pre-request Codex account selection failed: ${messageOf(error)}`)
     }
   }
 
@@ -624,7 +686,7 @@ export class AccountsController extends TypertRemoteService {
     const failed = providerBefore.accounts[activeBefore]
     if (failed === undefined) return false
     try {
-      await this.refreshUsageRun(signal, false)
+      await this.refreshUsageRun({ signal, selection: 'usage-only', freshness: 'fresh' })
     } catch (error: unknown) {
       if (signal.aborted) throw error
       this.ctx.logger.warn(`accounts: Codex quota recovery refresh failed: ${messageOf(error)}`)
@@ -637,10 +699,11 @@ export class AccountsController extends TypertRemoteService {
       && next.providers['openai-codex'].activeAccountId !== activeBefore
   }
 
-  private async refreshCodexAccount(account: StoredAccount, signal: AbortSignal): Promise<StoredAccount> {
+  private async refreshCodexAccount(account: StoredAccount, request: UsageRefreshRequest): Promise<StoredAccount> {
+    const { signal } = request
     let credential = account.credential
     try {
-      const access = await this.codexAccess(account.id, signal)
+      const access = await this.codexAccess(account.id, signal, request.freshness === 'cached' ? 'existing' : 'refresh')
       credential = access.credential
       const headers = codexUsageHeaders(access.oauth.access, access.accountId)
       const response = await this.fetchUsage(USAGE_URL, { headers, signal: combinedSignal(signal) })
@@ -687,7 +750,7 @@ export class AccountsController extends TypertRemoteService {
     }
   }
 
-  private async codexAccess(accountId: string, signal: AbortSignal): Promise<{
+  private async codexAccess(accountId: string, signal: AbortSignal, tokenPolicy: 'refresh' | 'existing' = 'refresh'): Promise<{
     readonly credential: CredentialRecord
     readonly oauth: OAuthCredential
     readonly accountId?: string
@@ -702,7 +765,10 @@ export class AccountsController extends TypertRemoteService {
       let oauth = oauthCredential(credential)
       if (oauth === undefined) throw new Error('the saved account is not an OAuth account')
       const identity = codexIdentity(credential)
-      if (oauth.expires <= this.now() + 60_000) {
+      if (tokenPolicy === 'existing' && oauth.expires <= this.now()) {
+        throw new Error('background usage requires an unexpired credential')
+      }
+      if (tokenPolicy === 'refresh' && oauth.expires <= this.now() + 60_000) {
         const refresh = openaiCodexProvider().auth.oauth
         if (refresh === undefined) throw new Error('the Codex OAuth refresher is unavailable')
         const refreshed = await refresh.refresh(oauth, combinedSignal(signal))

@@ -33,7 +33,7 @@ function fixture(profile?: DesktopWebsiteProfileId) {
   let ownerDestroyed = false
   const ownerPartial: Partial<WebContents> = { isDestroyed: () => ownerDestroyed, send: vi.fn() }
   const owner = Object.assign(new EventEmitter(), ownerPartial) as WebContents
-  const reservation = profile === undefined ? guests.acquire(owner, 'viewport-workspace') : guests.acquireProfile(owner, profile)
+  const reservation = profile === undefined ? guests.acquire(owner, 'viewport-workspace') : guests.acquireProfile(owner, profile, 'https://example.test/')
   let destroyed = false
   let attached = false
   const debuggerApi = Object.assign(new EventEmitter(), {

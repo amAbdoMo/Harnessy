@@ -979,6 +979,17 @@ describe('subagent catalogs', () => {
     expect(manager.getListSnapshot().projectionsBySession[S1]).toBeUndefined()
   })
 
+  it('derives only unknown-mode subagent addresses from listed headers without discovery', ({ mock, remote }) => {
+    const manager = makeManager(mock, remote)
+    manager.handleSessionAdded({ ...summary(S2), origin: 'subagent', parentSessionId: S1, formatStatus: 'migration-required' })
+    expect(manager.subagentAddress(S2)).toEqual({ parentSessionId: S1, childSessionId: S2, mode: 'unknown' })
+    manager.handleSessionAdded(summary(S1, { parentSessionId: S2 }))
+    expect(manager.subagentAddress(S1)).toBeUndefined()
+    expect(manager.getListSnapshot().projectionsBySession[S1]).toBeUndefined()
+    expect(remote.session.projections).not.toHaveBeenCalled()
+    expect(remote.session.follow).not.toHaveBeenCalled()
+  })
+
   it('keeps deferred cache hints unsequenced and retries later without activation', async ({ mock, remote }) => {
     const manager = makeManager(mock, remote)
     onTestFinished(() => manager.dispose())
@@ -992,7 +1003,7 @@ describe('subagent catalogs', () => {
     } }))
     await reading
     expect(manager.getListSnapshot().projectionsBySession[S1]).toEqual({
-      state: 'idle', error: null,
+      state: 'migration-required', error: null,
       values: { title: 'live title', subagentCatalog: [{ id: S2, createdAt: 1, mode: 'one-shot' }] },
     })
     remote.session.projections.mockResolvedValueOnce(ok({ kind: 'sequenced', asOfSeq: 2, values: {} }))
@@ -1014,7 +1025,7 @@ describe('subagent catalogs', () => {
     manager.handleControlFrame({ type: 'baseline', value: { projections: { [S1]: { asOfSeq: 2, values: {} } } } })
     pending.resolve(ok({ kind: 'migration-required', values: { title: 'stale hint' } }))
     await reading
-    expect(manager.getListSnapshot().projectionsBySession[S1]).toEqual({ state: 'idle', error: null, values: {} })
+    expect(manager.getListSnapshot().projectionsBySession[S1]).toEqual({ state: 'migration-required', error: null, values: {} })
   })
 
   it.for(['reconnect', 'removal'] as const)('ignores a retired deferred read after %s without retiring its replacement', async (edge, { mock, remote }) => {
@@ -1043,7 +1054,7 @@ describe('subagent catalogs', () => {
     remote.session.projections.mockResolvedValue(ok({ kind: 'migration-required', values: {} }))
     await manager.refreshProjections(S1)
     await manager.refreshProjections(S1)
-    expect(manager.getListSnapshot().projectionsBySession[S1]).toEqual({ state: 'idle', error: null, values: {} })
+    expect(manager.getListSnapshot().projectionsBySession[S1]).toEqual({ state: 'migration-required', error: null, values: {} })
     expect(remote.session.projections).toHaveBeenCalledTimes(2)
     expect(remote.session.follow).not.toHaveBeenCalled()
   })

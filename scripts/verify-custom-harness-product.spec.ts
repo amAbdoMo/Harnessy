@@ -122,6 +122,11 @@ describe('Harnessy product contract', () => {
     'packages/client/ui-brand-custom-harness/tests/native-taskbar.client.spec.ts',
     'packages/api/settings-controller/tests/accounts-controller.host.spec.ts',
     'packages/api/settings-controller/tests/mcp-manager.host.spec.ts',
+    'apps/desktop-host/tests/companion-activation.spec.ts',
+    'apps/desktop-host/tests/companion-deployment.spec.ts',
+    'apps/desktop/tests/companion-native.spec.ts',
+    'packages/host/companion-host/tests/session-management.spec.ts',
+    'packages/client/ui-brand-custom-harness/tests/companion-disclosure-composition.client.spec.tsx',
   ])('rejects upgrade verification without %s', (owner) => {
     const current = readCustomHarnessProductEvidence(root)
     const verify = current.rootManifest.scripts!['verify:harnessy-upgrade']!

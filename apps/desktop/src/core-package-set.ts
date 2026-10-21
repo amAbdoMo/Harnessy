@@ -21,6 +21,7 @@ export const CUSTOM_HARNESS_BUNDLE_PACKAGE = '@deepseek-ai/dsh-custom-harness'
 export const DESKTOP_HOST_RUNTIME_FILES = [
   'lib/index.js',
   'lib/cli.js',
+  'companion-deployment.json',
 ] as const
 
 /** One immutable npm tarball in the Desktop core package set. */

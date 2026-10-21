@@ -653,7 +653,7 @@ async function main(): Promise<void> {
     const copy = parseDesktopNotificationPayload(payload)
     if (!nativeNotificationsReady || !ElectronNotification.isSupported()) return false
     const notification = new ElectronNotification(protocolNotifications
-      ? { title: copy.title, body: copy.body, toastXml: windowsNotificationToastXml(copy, join(process.resourcesPath, 'icon.png')) }
+      ? { title: copy.title, body: copy.body, toastXml: windowsNotificationToastXml(copy) }
       : { title: copy.title, body: copy.body, icon: applicationIconPath })
     const release = (): void => { nativeNotifications.delete(notification) }
     nativeNotifications.add(notification)
@@ -1051,7 +1051,7 @@ async function main(): Promise<void> {
     const profile = await websiteProfiles.acquire(id)
     assertProductSender(event)
     websiteProfiles.assertAvailable(profile.id)
-    return browserGuests.acquireProfile(event.sender, profile.id)
+    return browserGuests.acquireProfile(event.sender, profile.id, profile.url)
   })
   ipcMain.handle(DESKTOP_IPC.websiteProfilesControl, (event, id: unknown, control: unknown) => {
     assertProductSender(event)

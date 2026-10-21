@@ -199,7 +199,9 @@ describe('the Harnessy accounts Remote namespace', () => {
       .mockImplementation(async (_input, init) => new Promise<Response>((_resolve, reject) => {
         init?.signal?.addEventListener('abort', () => { reject(new Error('fixture usage aborted')) }, { once: true })
       }))
-    const { ctx, controller } = await boot({ fetchUsage })
+    const { ctx, controller } = await boot({ fetchUsage,
+      usagePolicy: { activeRefreshMs: 0, inactiveRefreshMs: 0, concurrency: 3 },
+    })
     await ctx.plugin(LlmRuntime)
     ctx.llm.registerAdapter(['openai-codex'], new UsageStreamAdapter())
     await ctx.credentials.modifyRecord(credentialKey('llm-pi-ai', 'openai-codex'), () =>
@@ -238,6 +240,121 @@ describe('the Harnessy accounts Remote namespace', () => {
     await vi.waitFor(() => { expect(warn).toHaveBeenCalledOnce() })
   })
 
+  it('caches background reads by account role while explicit refresh and clock rollback fetch current usage', async () => {
+    const start = Date.now()
+    let now = start
+    const memberships: string[] = []
+    const { ctx, controller } = await boot({ now: () => now, fetchUsage: async (_input, init) => {
+      memberships.push(new Headers(init?.headers).get('chatgpt-account-id')!)
+      return usageResponse(20)
+    } })
+    await ctx.plugin(LlmRuntime)
+    ctx.llm.registerAdapter(['openai-codex'], new UsageStreamAdapter())
+    await ctx.credentials.modifyRecord(credentialKey('llm-pi-ai', 'openai-codex'), () =>
+      Promise.resolve(codexGrant('owner@example.com', 'active')))
+    await controller.describe()
+    await seedOAuth(ctx, codexGrant('owner@example.com', 'inactive'))
+    const background = async () => { await drainUsageStream(ctx); await setImmediate() }
+    for (let request = 0; request < 10; request++) await background()
+    expect(memberships).toEqual(['active', 'inactive'])
+    const cached = await controller.refreshCachedUsage(new AbortController().signal)
+    expect(cached.accounts.every(account => account.usage?.windows[0]?.usedPercent === 20)).toBe(true)
+    expect(memberships).toEqual(['active', 'inactive'])
+    now = start + 30_000
+    await background()
+    expect(memberships).toEqual(['active', 'inactive', 'active'])
+    await controller.refreshUsage(new AbortController().signal)
+    expect(memberships.slice(-2)).toEqual(['active', 'inactive'])
+    const inactive = (await controller.describe()).accounts.find(account => !account.active)!
+    await controller.activate('openai-codex', inactive.id)
+    now = start + 65_000
+    await background()
+    expect(memberships).toHaveLength(6)
+    expect(memberships.at(-1)).toBe('inactive')
+    now = start + 330_000
+    await background()
+    expect(memberships.slice(-2)).toEqual(['inactive', 'active'])
+    now = start + 1_000
+    await background()
+    expect(memberships).toHaveLength(10)
+    expect(memberships.slice(-2)).toEqual(['inactive', 'active'])
+  })
+
+  it('starts only the configured number of usage reads and drains cancellation before the next refresh', async () => {
+    const entered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const memberships: string[] = []
+    let inFlight = 0
+    let peak = 0
+    let blocked = true
+    const { ctx, controller } = await boot({ usagePolicy: { activeRefreshMs: 30_000, inactiveRefreshMs: 300_000, concurrency: 2 },
+      fetchUsage: async (_input, init) => {
+        memberships.push(new Headers(init?.headers).get('chatgpt-account-id')!)
+        inFlight++
+        peak = Math.max(peak, inFlight)
+        if (inFlight === 2) entered.resolve(undefined)
+        try {
+          if (blocked) await release.promise
+          init?.signal?.throwIfAborted()
+          return usageResponse(20)
+        } finally { inFlight-- }
+      },
+    })
+    await ctx.credentials.modifyRecord(credentialKey('llm-pi-ai', 'openai-codex'), () =>
+      Promise.resolve(codexGrant('owner@example.com', 'active')))
+    await controller.describe()
+    for (const id of ['standby-one', 'standby-two', 'standby-three']) await seedOAuth(ctx, codexGrant('owner@example.com', id))
+    const signal = new AbortController()
+    const refreshing = controller.refreshUsage(signal.signal)
+    const rejected = expect(refreshing).rejects.toMatchObject({ code: 'gateway/cancelled' })
+    let next: Promise<AccountsState> | undefined
+    try {
+      await bounded(entered.promise)
+      expect(memberships).toEqual(['active', 'standby-one'])
+      expect(peak).toBe(2)
+      signal.abort()
+      blocked = false
+      next = controller.refreshUsage(new AbortController().signal)
+      expect(inFlight).toBe(2)
+      release.resolve(undefined)
+      await bounded(rejected)
+      const state = await bounded(next)
+      expect(state.accounts.every(account => account.usage?.windows[0]?.usedPercent === 20)).toBe(true)
+      expect(inFlight).toBe(0)
+      expect(peak).toBe(2)
+    } finally {
+      signal.abort()
+      release.resolve(undefined)
+      await Promise.allSettled([refreshing, ...next === undefined ? [] : [next]])
+    }
+  })
+
+  it.each([-1, 30_000])('keeps background token rotation out of the model request credential lock with %d ms remaining', async (remaining) => {
+    const rotation = Promise.withResolvers<ReturnType<typeof codexGrant>['payload']>()
+    oauthRefresh.mockImplementation(() => rotation.promise)
+    const now = Date.now()
+    const grant = codexGrant('owner@example.com', 'active')
+    grant.payload.expires = now + remaining
+    const { ctx, controller } = await boot({ now: () => now, fetchUsage: async () => usageResponse(20) })
+    await ctx.plugin(LlmRuntime)
+    ctx.llm.registerAdapter(['openai-codex'], new UsageStreamAdapter())
+    const key = credentialKey('llm-pi-ai', 'openai-codex')
+    await ctx.credentials.modifyRecord(key, () => Promise.resolve(grant))
+    await controller.setAutoSwitch('openai-codex', true)
+    try {
+      await drainUsageStream(ctx)
+      await setImmediate()
+      const config = { provider: 'openai-codex', model: 'fixture' }
+      await expect(bounded(agentEvents(ctx, {} as Agent).waterfall('agent/request',
+        { turn: 1, step: 0, signal: new AbortController().signal }, () => Promise.resolve(config)))).resolves.toEqual(config)
+      expect(oauthRefresh).not.toHaveBeenCalled()
+      expect(await ctx.credentials.readRecord(key)).toEqual(grant)
+      const account = (await controller.describe()).accounts[0]
+      expect(account?.usageError).toBe(remaining < 0 ? 'Usage is temporarily unavailable.' : undefined)
+      expect(account?.usage?.windows[0]?.usedPercent).toBe(remaining < 0 ? undefined : 20)
+    } finally { rotation.resolve({ ...grant.payload, expires: now + 3_600_000 }) }
+  })
+
   it('owns the account-management methods and reports unavailable composition safely', async () => {
     const empty = context()
     await empty.plugin(AccountsController)
@@ -245,7 +362,7 @@ describe('the Harnessy accounts Remote namespace', () => {
     const { controller } = await boot()
     expect(remoteMethods(controller).map(method => method.method)).toEqual([
       'describe', 'addOAuth', 'addApiKey', 'activate', 'setAutoSwitch', 'listResetCredits', 'consumeResetCredit', 'setManualBillingDate', 'rename', 'deleteAccount',
-      'refreshUsage',
+      'refreshUsage', 'refreshCachedUsage',
     ])
   })
 
@@ -818,6 +935,42 @@ describe('the Harnessy accounts Remote namespace', () => {
     expect(requests).toBe(2)
   })
 
+  it('sends a model request while usage is pending and cancels queued refreshes without waiting', async () => {
+    const entered = Promise.withResolvers<undefined>()
+    const response = Promise.withResolvers<Response>()
+    const { ctx, controller } = await boot({ fetchUsage: async () => {
+      entered.resolve(undefined)
+      await response.promise
+      return usageResponse(20)
+    } })
+    const key = credentialKey('llm-pi-ai', 'openai-codex')
+    const credential = codexGrant('owner@example.com', 'personal')
+    await ctx.credentials.modifyRecord(key, () => Promise.resolve(credential))
+    await controller.setAutoSwitch('openai-codex', true)
+    const refreshing = controller.refreshUsage(new AbortController().signal)
+    const cancelled = new AbortController()
+    let queued: Promise<AccountsState> | undefined
+    try {
+      await bounded(entered.promise)
+      const config = { provider: 'openai-codex', model: 'gpt-5' }
+      const selected = agentEvents(ctx, {} as Agent).waterfall('agent/request',
+        { turn: 1, step: 0, signal: new AbortController().signal }, () => Promise.resolve(config))
+      await expect(bounded(selected)).resolves.toEqual(config)
+      expect(await ctx.credentials.readRecord(key)).toEqual(credential)
+      queued = controller.refreshUsage(cancelled.signal)
+      const rejected = expect(queued).rejects.toMatchObject({ code: 'gateway/cancelled' })
+      cancelled.abort()
+      await bounded(rejected)
+      response.resolve(usageResponse(20))
+      await refreshing
+      expect((await bounded(controller.refreshUsage(new AbortController().signal))).accounts[0]?.usage?.windows[0]?.usedPercent).toBe(20)
+    } finally {
+      cancelled.abort()
+      response.resolve(usageResponse(20))
+      await Promise.allSettled([refreshing, ...queued === undefined ? [] : [queued]])
+    }
+  })
+
   it('keeps a manual switch that lands while a usage refresh is in flight', async () => {
     let releaseFirst!: () => void
     const firstResponse = new Promise<void>((resolve) => { releaseFirst = resolve })
@@ -839,7 +992,7 @@ describe('the Harnessy accounts Remote namespace', () => {
     expect(spare).toBeDefined()
 
     const refresh = controller.refreshUsage(new AbortController().signal)
-    await vi.waitFor(() => { expect(requests).toBe(1) })
+    await vi.waitFor(() => { expect(requests).toBeGreaterThanOrEqual(1) })
     await controller.activate('openai-codex', spare!.id)
     releaseFirst()
     const state = await refresh
@@ -881,7 +1034,7 @@ describe('the Harnessy accounts Remote namespace', () => {
     })])
   })
 
-  it('refreshes and switches an exhausted Codex account before returning the next model request', async () => {
+  it('switches an exhausted Codex account using saved usage before returning the next model request', async () => {
     let request = 0
     const fetchUsage = vi.fn(async () => request++ === 0 ? usageResponse(100, 40) : usageResponse(20)) as typeof fetch
     const { ctx, controller } = await boot({ fetchUsage, openUrl: async () => {} })
@@ -894,8 +1047,10 @@ describe('the Harnessy accounts Remote namespace', () => {
     })
     await ctx.credentials.modifyRecord(key, () => Promise.resolve(first))
     await controller.describe()
-    await controller.setAutoSwitch('openai-codex', true)
     await seedOAuth(ctx, second)
+
+    await controller.refreshUsage(new AbortController().signal)
+    await controller.setAutoSwitch('openai-codex', true)
 
     const config = { provider: 'openai-codex', model: 'gpt-5' }
     const agent = {} as Agent
@@ -921,8 +1076,10 @@ describe('the Harnessy accounts Remote namespace', () => {
     })
     await ctx.credentials.modifyRecord(key, () => Promise.resolve(first))
     await controller.describe()
-    await controller.setAutoSwitch('openai-codex', true)
     await seedOAuth(ctx, second)
+
+    await controller.refreshUsage(new AbortController().signal)
+    await controller.setAutoSwitch('openai-codex', true)
 
     const config = { provider: 'openai-codex', model: 'gpt-5' }
     const agent = {} as Agent

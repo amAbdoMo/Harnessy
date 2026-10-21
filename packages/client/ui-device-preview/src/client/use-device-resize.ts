@@ -30,7 +30,11 @@ interface ResizeInputs {
  * @param inputs - current presentation and parent-owned oriented dimension writer.
  * @returns frozen drag geometry and handlers for frame handles.
  */
-export function useDeviceResize(inputs: ResizeInputs) {
+export function useDeviceResize(inputs: ResizeInputs): {
+  drag: DeviceResizeDrag | undefined
+  begin: (direction: ResizeDirection, event: ReactPointerEvent<HTMLButtonElement>) => void
+  keyboard: (direction: ResizeDirection, event: ReactKeyboardEvent<HTMLButtonElement>) => void
+} {
   const [drag, setDrag] = useState<DeviceResizeDrag>()
   const active = useRef<{ stop: () => void; finish: () => void } | undefined>(undefined)
   const latest = useRef(inputs)

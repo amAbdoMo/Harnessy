@@ -1,7 +1,7 @@
 /**
  * Derives the workspace browser tree from caller-projected Workspace and
- * Session order. Unassigned Sessions trail under Ungrouped; only the selected
- * blank Session remains visible.
+ * Session order. Unassigned Sessions trail directly in the list; only the
+ * selected blank Session remains visible.
  */
 import {
   type SessionListState, type SessionSearchResultItem, type SessionSummary,
@@ -64,7 +64,7 @@ export interface SessionNode {
 /** Session order selected by the Workspace browser. */
 export type SessionOrderBy = 'manual' | 'updated'
 
-/** One workspace group section: header row facts + visible top-level session rows. */
+/** One ordering section: a real Workspace header, or headerless unassigned Session rows. */
 export interface GroupNode {
   /** Group key: the workspace id or {@link UNGROUPED_KEY}. */
   key: string
@@ -79,7 +79,7 @@ export interface GroupNode {
   expanded: boolean
   /** The group contains the selected session (active folder tint; supplied here so the renderer never scans). */
   containsCurrent: boolean
-  /** Visible session rows (empty while the group is folded). */
+  /** Visible Session rows; empty for folded Workspaces, always populated for unassigned Sessions. */
   sessions: readonly SessionNode[]
 }
 
@@ -422,7 +422,8 @@ function sessionNode(
  *
  * Every group shows, except that the archived-only filter drops groups
  * without visible members; sessions populate under expanded groups with
- * pinned rows leading in the selected local order. Blank sessions are
+ * pinned rows leading in the selected local order. Unassigned Sessions are
+ * always expanded and render without a Workspace header. Blank sessions are
  * excluded except for the selected provisional New Session row; archived
  * sessions keep their slots and appear per the archived filter. Content
  * search lives outside this derivation (see {@link deriveSearchResults}).
@@ -449,7 +450,7 @@ export function deriveGroups(
     : owningGroupKey(workspaces, current)
   const groups: GroupNode[] = []
   for (const g of groupByWorkspace(list, workspaces, archived, rowState.archivedFilter, view.ungroupedOrder)) {
-    const expanded = expandedGroups.has(g.key)
+    const expanded = g.workspaceId === undefined || expandedGroups.has(g.key)
     groups.push({
       key: g.key,
       workspaceId: g.workspaceId,

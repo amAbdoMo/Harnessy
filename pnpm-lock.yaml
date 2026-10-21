@@ -771,6 +771,9 @@ importers:
       '@deepseek-ai/dsh-companion-host':
         specifier: workspace:*
         version: link:../../packages/host/companion-host
+      '@deepseek-ai/dsh-credentials':
+        specifier: workspace:*
+        version: link:../../packages/credentials/credentials
       '@deepseek-ai/dsh-deepseek-account':
         specifier: workspace:*
         version: link:../../packages/credentials/deepseek-account
@@ -856,6 +859,9 @@ importers:
       '@deepseek-ai/dsh-user-approval':
         specifier: workspace:*
         version: link:../../packages/interaction/user-approval
+      ws:
+        specifier: 8.21.0
+        version: 8.21.0
 
   apps/web:
     devDependencies:

@@ -1,6 +1,5 @@
 /** Product-owned toast URIs carry only an opaque Session selection, never executable actions. */
 
-import { pathToFileURL } from 'node:url'
 import { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { DesktopNotificationPayload } from './ipc.ts'
 
@@ -71,17 +70,15 @@ function toastText(text: string, limit: number): string {
 }
 
 /**
- * Build a bounded ToastGeneric with a disk product logo and protocol-only activation.
+ * Build a bounded native text card with the registered Harnessy header identity and protocol-only activation.
  * @param payload - trusted notification copy and optional branded Session metadata.
- * @param iconPath - bundled disk icon.png, outside the ASAR archive.
- * @returns Windows toast XML; the Session address occurs only in launch metadata.
+ * @returns Windows toast XML; the Session address occurs only in launch metadata, with no inline actions or reply input.
  */
-export function windowsNotificationToastXml(payload: DesktopNotificationPayload, iconPath: string): string {
+export function windowsNotificationToastXml(payload: DesktopNotificationPayload): string {
   const launch = escapeXml(notificationActivationUri(payload))
-  const image = escapeXml(pathToFileURL(iconPath).href)
   return `<toast launch="${launch}" activationType="protocol"><visual><binding template="ToastGeneric">`
     + `<text>${toastText(payload.title, 120)}</text><text>${toastText(payload.body, 500)}</text>`
-    + `<image placement="appLogoOverride" src="${image}"/></binding></visual></toast>`
+    + '</binding></visual></toast>'
 }
 
 /** Main-window activation operations; selection returns false until safe delivery is possible. */

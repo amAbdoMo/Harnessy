@@ -309,7 +309,8 @@ function SessionTree({
     ? undefined
     : owningGroupKey(workspaces, current)
   useEffect(() => {
-    if (current === undefined || currentGroup === undefined || Object.hasOwn(groupExpansion, currentGroup)) return
+    if (current === undefined || currentGroup === undefined || currentGroup === UNGROUPED_KEY
+      || Object.hasOwn(groupExpansion, currentGroup)) return
     setGroupExpanded(currentGroup, true)
   }, [current, currentGroup, setGroupExpanded, groupExpansion])
   const parents = useMemo(() => {
@@ -330,7 +331,7 @@ function SessionTree({
   }, [currentGroup, parents])
   const expandedGroups = useMemo(() => {
     const ancestorKeys = new Set<string | undefined>(parents.values())
-    return [...workspaces.map(workspace => workspace.workspaceId), UNGROUPED_KEY]
+    return workspaces.map(workspace => workspace.workspaceId)
       .filter(key => groupExpansion[key] ?? ancestorKeys.has(key))
   }, [groupExpansion, parents, workspaces])
   const groups = useMemo(
@@ -341,7 +342,7 @@ function SessionTree({
     [list, workspaces, rowState, statuses, expandedGroups, ungroupedSessionIds],
   )
   useEffect(() => {
-    for (let key = revealGroup; key !== undefined; key = parents.get(key)) {
+    for (let key = revealGroup; key !== undefined && key !== UNGROUPED_KEY; key = parents.get(key)) {
       if (groupExpansion[key] === false || (key === revealGroup && groupExpansion[key] !== true)) {
         setGroupExpanded(key, true)
       }
@@ -350,7 +351,8 @@ function SessionTree({
   useEffect(() => {
     if (revealSessionId === undefined || revealGroup === undefined) return
     const group = groups.find(candidate => candidate.key === revealGroup)
-    if (group === undefined || !group.expanded || !group.sessions.some(row => row.id === revealSessionId)) return
+    if (group === undefined || group.workspaceId === undefined || !group.expanded
+      || !group.sessions.some(row => row.id === revealSessionId)) return
     if (collapsedSessionRows(group.sessions).rows.some(row => row.id === revealSessionId)) return
     setSessionLimits(limits => limits[revealGroup] === Infinity ? limits : { ...limits, [revealGroup]: Infinity })
   }, [groups, revealGroup, revealSessionId])
@@ -366,7 +368,9 @@ function SessionTree({
       ? ungroupedSessionIds
       : workspaces.find(workspace => workspace.workspaceId === activeDrag.accountKey)?.sessionIds
     if (accountSessionIds === undefined) return
-    const renderedSessions = collapsedSessionRows(group.sessions, sessionLimits[group.key]).rows
+    const renderedSessions = group.workspaceId === undefined
+      ? group.sessions
+      : collapsedSessionRows(group.sessions, sessionLimits[group.key]).rows
     const nextOrder = sessionDragOrder(accountSessionIds, renderedSessions, activeDrag, over)
     if (nextOrder !== undefined) setSessionOrder(activeDrag.accountKey, nextOrder)
   }
@@ -416,10 +420,11 @@ function SessionTree({
     const workspaceId = group.workspaceId
     const children = childrenByParent.get(group.key) ?? []
     const compatibleDrag = workspaceDrag !== null && parents.get(workspaceDrag.workspaceId) === parents.get(group.key)
-    const collapsed = collapsedSessionRows(group.sessions)
-    const visible = collapsedSessionRows(group.sessions, sessionLimits[group.key])
+    const limit = workspaceId === undefined ? Infinity : sessionLimits[group.key]
+    const collapsed = collapsedSessionRows(group.sessions, workspaceId === undefined ? Infinity : COLLAPSED_SESSION_LIMIT)
+    const visible = collapsedSessionRows(group.sessions, limit)
     const sessionsExpanded = visible.hiddenCount === 0
-    rowKeys.push(`workspace:${group.key}`)
+    if (workspaceId !== undefined) rowKeys.push(`workspace:${group.key}`)
     const childRows = group.expanded ? children.map(child => renderGroup(child, depth + 1)) : []
     const sessions = visible.rows
     for (const node of sessions) rowKeys.push(`session:${node.id}`)
@@ -454,9 +459,7 @@ function SessionTree({
         commitWorkspaceDrag(workspaceDrag, { id: workspaceId, half })
       }
     return (
-    // Group section: header, descendant Workspaces, and own Session rows. The
-    // inter-group breathing room is the section's own margin
-    // (WorkspaceBrowser.module.css).
+    // The loose-session account keeps its ordering section but has no header.
       <div
         key={group.key}
         style={{ '--dsh-workspace-indent': `${depth * 12}px` } as CSSProperties}
@@ -493,38 +496,30 @@ function SessionTree({
             }
           }}
       >
-        <ProjectRowItem
-          newShortcut={shortcuts.find(row => row.id === 'session.new')}
-          group={group}
-          containsCurrentDescendant={currentAncestors.has(group.key)}
-          home={home}
-          t={t}
-          onToggle={() => {
-            if (group.expanded) {
-              setSessionLimits(limits => ({ ...limits, [group.key]: COLLAPSED_SESSION_LIMIT }))
-            }
-            setGroupExpanded(group.key, !group.expanded)
-          }}
-          onCreate={() => {
-            if (group.workspaceId !== undefined) {
-              setGroupExpanded(group.key, true)
-              startSession(group.workspaceId)
-            }
-          }}
-          drag={workspaceDragProps}
-          actions={group.workspaceId === undefined
-            ? undefined
-            : {
-              rename: () => {
-              /* v8 ignore next -- narrowing guard: the actions object exists only for real-workspace groups. */
-                if (group.workspaceId !== undefined) onRenameRequest(group.workspaceId, group.label)
-              },
-              delete: () => {
-              /* v8 ignore next -- narrowing guard: the actions object exists only for real-workspace groups. */
-                if (group.workspaceId !== undefined) onDeleteRequest(group.workspaceId, group.label)
-              },
+        {workspaceId !== undefined && (
+          <ProjectRowItem
+            newShortcut={shortcuts.find(row => row.id === 'session.new')}
+            group={group}
+            containsCurrentDescendant={currentAncestors.has(group.key)}
+            home={home}
+            t={t}
+            onToggle={() => {
+              if (group.expanded) {
+                setSessionLimits(limits => ({ ...limits, [group.key]: COLLAPSED_SESSION_LIMIT }))
+              }
+              setGroupExpanded(group.key, !group.expanded)
             }}
-        />
+            onCreate={() => {
+              setGroupExpanded(group.key, true)
+              startSession(workspaceId)
+            }}
+            drag={workspaceDragProps}
+            actions={{
+              rename: () => { onRenameRequest(workspaceId, group.label) },
+              delete: () => { onDeleteRequest(workspaceId, group.label) },
+            }}
+          />
+        )}
         {childRows.length > 0 && (
           <div role="group">
             {childRows}

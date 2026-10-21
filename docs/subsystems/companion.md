@@ -53,6 +53,14 @@ approveCandidate(candidateId: CandidateId, confirmFingerprint: string): Promise<
  * @returns Completion after provider commit and affected application teardown; any failure disables this Host incarnation.
  */
 revokeGrant(grantId: GrantId): Promise<void>
+
+/**
+ * Withdraw current channels immediately and commit explicit per-phone chat management consent without re-pairing.
+ * @param command - Native-confirmed grant id, generation, fingerprint and permission;
+ *   all three identifiers are rechecked under the update lock.
+ * @returns Provider commit and channel teardown; any failure disables this Host until explicit recovery.
+ */
+setSessionManagement(command: Extract<CompanionControlCommand, { readonly kind: 'setSessionManagement' }>): Promise<void>
 ```
 
 Source: [`packages/host/companion-host/src/index.ts`](../../packages/host/companion-host/src/index.ts)

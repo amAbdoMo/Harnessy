@@ -115,6 +115,11 @@ export interface ConnectionHandle extends ServerContext {
   dispose(): Promise<void>
 }
 
+/** Normalize a connection failure without serializing arbitrary error payloads. */
+function connectionErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : typeof error === 'string' ? error : 'unknown connection failure'
+}
+
 /** Operational state emitted by the connection supervisor. */
 export interface ConnectionSnapshot {
   /** Current lifecycle phase. */
@@ -151,9 +156,7 @@ export function startConnection(
     serverName: config.serverName,
     toolCallTimeoutMs: config.toolCallTimeoutMs,
   }
-  // The initial sync uses 'throw' when failOnStartupError is configured, so
-  // a registration conflict propagates to the startup-await path. Re-syncs
-  // and reconnect syncs always contain conflicts.
+  // Only initial discovery propagates registration conflicts under strict startup.
   const startupOpts: ToolBridgeOptions = config.failOnStartupError
     ? { ...opts, registrationFailure: 'throw' }
     : opts
@@ -183,7 +186,7 @@ export function startConnection(
       tools: Object.freeze([...disposers.keys()]),
       ...error === undefined
         ? {}
-        : { error: error instanceof Error ? error.message : typeof error === 'string' ? error : 'unknown connection failure' },
+        : { error: connectionErrorMessage(error) },
     })
     try {
       observe(snapshot)
@@ -216,23 +219,25 @@ export function startConnection(
   }
 
   /** One disconnect decision per generation: the isCurrent guard makes racing close/error signals idempotent. */
-  function generationDown(generation: Client): void {
+  function generationDown(generation: Client, error?: unknown): void {
     if (!isCurrent(generation)) return
     client = undefined
     closeClient = undefined
-    scheduleReconnect()
+    scheduleReconnect(error)
   }
 
   /** Decide retry ownership after a failed connection's close barrier settles. */
-  function settleFailedGeneration(generation: Client, quiesced: boolean): void {
+  function settleFailedGeneration(generation: Client, quiesced: boolean, error: unknown): void {
     if (!isCurrent(generation)) return
     if (!quiesced) {
       client = undefined
       closeClient = undefined
-      ctx.logger.error(`${label}: failed generation could not confirm transport closure — reconnect stopped to avoid overlapping server processes; reload the plugin or restart the Host to retry`)
+      const message = 'failed generation could not confirm transport closure — reconnect stopped to avoid overlapping server processes; reload the plugin or restart the Host to retry'
+      ctx.logger.error(`${label}: ${message}`)
+      publish('error', `${message}: ${connectionErrorMessage(error)}`)
       return
     }
-    generationDown(generation)
+    generationDown(generation, error)
   }
 
   /** Wait for the transport-owned close signal without letting a broken transport wedge teardown forever. */
@@ -247,14 +252,15 @@ export function startConnection(
     })
   }
 
-  function scheduleReconnect(): void {
+  function scheduleReconnect(error?: unknown): void {
+    const cause = error === undefined ? '' : `: ${connectionErrorMessage(error)}`
     const lostEstablishedConnection = connectedAt !== undefined
     if (!policy.enabled) {
       const message = lostEstablishedConnection
         ? 'connection lost and reconnect is disabled — registered tools will fail until an HMR reload or Host restart'
         : 'connection failed and reconnect is disabled — no tools were registered; reload the plugin or restart the Host to connect'
       ctx.logger.error(`${label}: ${message}`)
-      publish('error', message)
+      publish('error', `${message}${cause}`)
       return
     }
     // A connection that stayed up past the stability window (= maxDelayMs, the
@@ -271,13 +277,13 @@ export function startConnection(
         serverInstructions = ''
       })
       ctx.logger.error(`${label}: giving up after ${policy.maxAttempts} consecutive failed reconnect attempts — tools unregistered; reload the plugin or restart the Host to reconnect`)
-      publish('error', `gave up after ${policy.maxAttempts} reconnect attempts`)
+      publish('error', `gave up after ${policy.maxAttempts} reconnect attempts${cause}`)
       return
     }
     const delayMs = Math.min(policy.maxDelayMs, policy.initialDelayMs * 2 ** (failedAttempts - 1))
     const action = lostEstablishedConnection ? 'connection lost; reconnecting' : 'connection failed; retrying'
     ctx.logger.warn(`${label}: ${action} in ${delayMs}ms (attempt ${failedAttempts}/${policy.maxAttempts})`)
-    publish('reconnecting')
+    publish('reconnecting', error)
     reconnectTimer = setTimeout(() => {
       reconnectTimer = undefined
       settling = connectGeneration(false)
@@ -290,9 +296,11 @@ export function startConnection(
    * One connection attempt: fresh transport + client (the MCP SDK binds a
    * Protocol to one transport for life), connect, then queue the initial tool
    * sync. The startup flag belongs to the attempt rather than the shared sync
-   * queue, so an early notification cannot consume strict startup semantics.
-   * Every failure funnels through {@link generationDown}; success arms the
-   * onclose-driven disconnect path. Never rejects.
+   * queue. Notifications cannot sync before negotiation and initial discovery
+   * succeed. Proxy-reported upstream failure rejects before either server
+   * instructions or tools can publish. Every failure funnels through
+   * {@link generationDown}; success arms the onclose-driven disconnect path.
+   * Never rejects.
    *
    * @param startup - Whether this is the plugin's activation attempt.
    */
@@ -337,6 +345,12 @@ export function startConnection(
     }
     async function refreshTools(): Promise<void> {
       if (!isCurrent(generation)) return
+      if (!attemptSettled) {
+        // The first callback can run before `settling` is assigned by the caller.
+        await Promise.resolve()
+        await settling
+      }
+      if (!isCurrent(generation) || connectedAt === undefined) return
       ctx.logger.info(`${label}: tool list changed, re-syncing`)
       try {
         await enqueueSync(generation)
@@ -357,6 +371,12 @@ export function startConnection(
         if (!await closeGeneration()) ctx.logger.error(incompleteDisposalMessage)
         return
       }
+      // The SDK validates experimental values as JSON objects. This known proxy
+      // extension reports upstream failure even when MCP initialization succeeds.
+      const upstreamFailure = generation.getServerCapabilities()?.experimental?.connectionFailed
+      if (upstreamFailure !== undefined) {
+        throw new Error('MCP proxy reported an upstream connection failure — check the upstream server connection and retry')
+      }
       const serverText = generation.getInstructions()?.trimEnd() ?? ''
       instructions = serverText ? `### MCP server: ${config.serverName}\n\n${serverText}` : ''
       if (Buffer.byteLength(instructions) > maxInstructionBytes) {
@@ -367,10 +387,13 @@ export function startConnection(
       if (firstAttemptError === undefined) firstAttemptError = error
       // Disposal clears current ownership before it closes the generation, so
       // only a live supervisor reports an attempt failure.
-      if (isCurrent(generation)) ctx.logger.warn(`${label}: connection attempt failed: ${String(error)}`)
+      if (isCurrent(generation)) {
+        ctx.logger.warn(`${label}: connection attempt failed: ${String(error)}`)
+        publish('error', error)
+      }
       const quiesced = await closeGeneration()
       attemptSettled = true
-      settleFailedGeneration(generation, quiesced)
+      settleFailedGeneration(generation, quiesced, error)
       return
     }
     attemptSettled = true

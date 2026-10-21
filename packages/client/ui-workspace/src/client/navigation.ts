@@ -51,9 +51,14 @@ export interface UiWorkspace {
    * Fork a Session without changing the current selection.
    * @param sessionId - source Session.
    * @param onCreated - observer before the optional child-title update.
+   * @param options - source migration permission; omission preserves the Host default.
    * @returns the child SessionId after creation and inherited-title increment.
    */
-  forkSession(sessionId: SessionId, onCreated?: (childId: SessionId) => void): Promise<SessionId>
+  forkSession(
+    sessionId: SessionId,
+    onCreated?: (childId: SessionId) => void,
+    options?: Pick<Parameters<ISessions['fork']>[0], 'allowMigration'>,
+  ): Promise<SessionId>
   /**
    * Resolve the reusable or newly created blank Session for a Workspace.
    * @param workspaceId - target Workspace.
@@ -222,8 +227,17 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     this.replaceMain(sessionId, navigation, 'reveal', beforeOpen)
   }
 
-  async forkSession(sessionId: SessionId, onCreated?: (childId: SessionId) => void): Promise<SessionId> {
-    return this.sessions.fork({ sessionId, increaseTitle: true, ...onCreated === undefined ? {} : { onCreated } })
+  async forkSession(
+    sessionId: SessionId,
+    onCreated?: (childId: SessionId) => void,
+    options?: Pick<Parameters<ISessions['fork']>[0], 'allowMigration'>,
+  ): Promise<SessionId> {
+    return this.sessions.fork({
+      sessionId,
+      increaseTitle: true,
+      ...onCreated === undefined ? {} : { onCreated },
+      ...options?.allowMigration === undefined ? {} : { allowMigration: options.allowMigration },
+    })
   }
 
   startSession(workspaceId?: WorkspaceId, options?: StartSessionOptions): void {

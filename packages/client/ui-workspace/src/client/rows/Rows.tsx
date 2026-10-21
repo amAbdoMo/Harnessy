@@ -205,7 +205,7 @@ function rowHalf(e: { clientY: number; currentTarget: HTMLElement }): 'before' |
 /**
  * Project (workspace) header row: folder + title;
  * hover reveals the chevron and create button, and dwelling on a real
- * Workspace shows its hover card (the ungrouped bucket has none).
+ * Workspace shows its hover card. Virtual groups render no header.
  * `containsCurrent` arrives on the node (derivation fact, no renderer scan).
  * @param props.group - derived group node.
  * @param props.containsCurrentDescendant - highlight an ancestor even when its subtree is collapsed.
@@ -222,7 +222,7 @@ export function ProjectRowItem({ group, containsCurrentDescendant = false, onTog
   containsCurrentDescendant?: boolean
   onToggle: () => void
   onCreate: () => void
-  /** Real-Workspace actions; absent for the ungrouped bucket (no menu shown). */
+  /** Optional rename and delete actions for a real Workspace. */
   actions?: { rename: () => void; delete: () => void } | undefined
   /** Present only for real Workspace rows in the grouped view. */
   drag?: WorkspaceRowDragProps | undefined
@@ -231,10 +231,10 @@ export function ProjectRowItem({ group, containsCurrentDescendant = false, onTog
   t: RowTranslate
 }) {
   const row = group
-  // The ungrouped bucket has no workspace title: its label is dictionary copy.
-  const label = row.workspaceId === undefined ? t('group.ungrouped') : row.label
+  const label = row.label
   const active = containsCurrentDescendant || (group.expanded && group.containsCurrent)
   const [menuOpen, setMenuOpen] = useState(false)
+  if (row.workspaceId === undefined) return null
   const workspaceMenuItems = [
     { id: 'rename', label: t('rename'), icon: <IconEditOutlineRegular /> },
     { id: 'delete', label: t('delete.workspace'), icon: <IconTrashOutlineRegular />, danger: true },
@@ -308,7 +308,6 @@ export function ProjectRowItem({ group, containsCurrentDescendant = false, onTog
       </span>
     </div>
   )
-  // The ungrouped bucket has no backing Workspace: no card to show.
   if (row.createdAt === undefined) return ownRow
   return (
     <HoverCard

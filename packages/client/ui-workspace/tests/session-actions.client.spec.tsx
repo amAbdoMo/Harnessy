@@ -490,7 +490,10 @@ declare module '@deepseek-ai/dsh-workspace/types' {
 
 describe('RowActionToast', () => {
   /** The notice surface over a test-owned notice source; dismissal clears the notice the way apply does. */
-  function toastSurface(viewState: { archivedFilter?: 'default' | 'show' | 'only' } = { archivedFilter: 'default' }) {
+  function toastSurface(
+    viewState: { archivedFilter?: 'default' | 'show' | 'only' } = { archivedFilter: 'default' },
+    translate = t,
+  ) {
     const toast = createSnapshotStore<RowToastState | null>(null)
     const instance = createWorkspaceViewStore().create()
     // A v5 snapshot hydrates without the filter key; mirror it by dropping the
@@ -502,22 +505,25 @@ describe('RowActionToast', () => {
     const dismissToast = vi.fn(() => { toast.set(null) })
     const undoArchive = vi.fn()
     const showArchived = vi.fn()
+    const openForkSource = vi.fn()
     render(
       <RowActionToast
         {...overlay}
+        t={translate}
         useToast={bindSnapshotSelector(toast)}
         useStore={bindSnapshotSelector(view)}
         actions={instance.actions}
         dismissToast={dismissToast}
         undoArchive={undoArchive}
         showArchived={showArchived}
+        openForkSource={openForkSource}
       />,
     )
     let seq = 0
     const notify = (notice: RowToast): void => {
       act(() => { toast.set({ ...notice, seq: ++seq }) })
     }
-    return { dismissToast, undoArchive, showArchived, notify }
+    return { dismissToast, undoArchive, showArchived, openForkSource, notify }
   }
 
   it('renders nothing without a notice', () => {
@@ -525,6 +531,18 @@ describe('RowActionToast', () => {
     expect(screen.queryByRole('alert')).toBeNull()
     expect(document.body.textContent).toBe('')
   })
+
+  it.each([{ translate: t, messages: zh }, { translate: tEn, messages: en }])(
+    'dismisses a localized migration-required fork notice before explicitly opening its source', ({ translate, messages }) => {
+      const { dismissToast, openForkSource, notify } = toastSurface(undefined, translate)
+      notify({ kind: 'forkRequiresOpen', sessionId: sid('source') })
+      expect(screen.getByRole('alert').textContent).toContain(messages['toast.forkRequiresOpen'])
+      fireEvent.click(screen.getByRole('button', { name: messages['toast.openForkSource'] }))
+      expect(openForkSource).toHaveBeenCalledExactlyOnceWith(sid('source'))
+      expect(callOrder(dismissToast)).toBeLessThan(callOrder(openForkSource))
+      expect(screen.queryByRole('alert')).toBeNull()
+    },
+  )
 
   it('the stopped-and-archived notice offers the same undo and filter actions under its own wording', () => {
     const { undoArchive, notify } = toastSurface()

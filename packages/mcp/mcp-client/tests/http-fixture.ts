@@ -13,11 +13,12 @@ export interface HttpMcpFixture {
   close: () => Promise<void>
 }
 
-/** Start a local stateless MCP endpoint exposing one `ping` tool. */
-export async function startHttpMcpFixture(): Promise<HttpMcpFixture> {
+/** Start a local stateless MCP endpoint; defaults to one `ping` tool. */
+export async function startHttpMcpFixture(options?: { createServer: () => McpServer }): Promise<HttpMcpFixture> {
   const calls: string[] = []
   const authorization: Array<string | undefined> = []
   const handler = createMcpHandler(() => {
+    if (options !== undefined) return options.createServer()
     const mcp = new McpServer(
       { name: 'http-fixture', version: '1.0.0' },
       { capabilities: { tools: {} } },

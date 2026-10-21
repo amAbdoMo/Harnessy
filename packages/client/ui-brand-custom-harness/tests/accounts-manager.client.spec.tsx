@@ -75,7 +75,7 @@ function publishing(
       publish(await value.consumeResetCredit(accountId, creditId)),
     rename: async (provider, accountId, name) => publish(await value.rename(provider, accountId, name)),
     remove: async (provider, accountId) => publish(await value.remove(provider, accountId)),
-    refreshUsage: async signal => publish(await value.refreshUsage(signal)),
+    refreshUsage: async (signal, freshness) => publish(await value.refreshUsage(signal, freshness)),
   }
 }
 
@@ -374,7 +374,7 @@ describe('manual billing reminders', () => {
     const api = operations()
     const rendered = renderManager(api)
     fireEvent.click(await screen.findByRole('button', { name: en.accountsManage }))
-    fireEvent.click(screen.getByRole('button', { name: en.accountsBillingAdd }))
+    fireEvent.click(await screen.findByRole('button', { name: en.accountsBillingAdd }))
     const field = screen.getByLabelText(en.accountsBillingDate)
     for (const invalid of ['', '2031-02-29', '2030-13-01', '0000-01-01', '2030-01-01T00:00:00Z']) {
       fireEvent.change(field, { target: { value: invalid } })

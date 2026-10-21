@@ -26,7 +26,7 @@ const CHILD = 'child' as SessionId
 const GRANDCHILD = 'grandchild' as SessionId
 const t: SubagentHeaderLineageProps['t'] = makeTranslate(zh)
 
-type CatalogFixture = { entries: readonly (SubagentCatalogRow | { id: SessionId; mode: 'unknown'; label?: string; activity: 'inactive' })[]; parentAvailable: boolean; state: 'loading' | 'ready' | 'error'; error: SessionListState['projectionsBySession'][SessionId]['error'] }
+type CatalogFixture = { entries: readonly (SubagentCatalogRow | { id: SessionId; mode: 'unknown'; label?: string; activity: 'inactive' })[]; parentAvailable: boolean; state: SessionListState['projectionsBySession'][SessionId]['state']; error: SessionListState['projectionsBySession'][SessionId]['error'] }
 
 function catalog(over: Partial<CatalogFixture> = {}): CatalogFixture {
   return {
@@ -802,6 +802,47 @@ describe('SubagentHeaderLineage', () => {
     })
   })
 
+  it.each(['absent', 'idle', 'loading'] as const)('shows historical header status before disclosure with %s child projections', (state) => {
+    const input = props(catalog(), {}, {
+      [CHILD]: { ...summary(CHILD, 1), running: true, formatStatus: 'migration-required' },
+    })
+    const initial = input.useSessions(snapshot => snapshot)
+    const snapshot: SessionListState = state === 'absent' ? initial : {
+      ...initial,
+      projectionsBySession: { ...initial.projectionsBySession, [CHILD]: { state, error: null, values: {} } },
+    }
+    render(<HeaderCatalog {...input} useSessions={select => select(snapshot)} />)
+    hoverCatalog(countTrigger())
+    const child = screen.getByRole('treeitem', { name: /worker.*需要迁移/ })
+    expect(child.hasAttribute('aria-expanded')).toBe(false)
+    expect(screen.queryByRole('button', { name: '展开 worker 的下级子智能体' })).toBeNull()
+    fireEvent.keyDown(child, { key: 'ArrowRight' })
+    expect(input.refreshProjection).not.toHaveBeenCalled()
+    fireEvent.click(child)
+    expect(input.openChild).toHaveBeenCalledWith({ parentSessionId: PARENT, childSessionId: CHILD, mode: 'continuable' })
+  })
+
+  it('retains cached catalog membership during deferred migration without inventing descendants', () => {
+    const input = props(catalog({ state: 'migration-required' }), {
+      [CHILD]: catalog({ state: 'migration-required', entries: [] }),
+    })
+    render(<HeaderCatalog {...input} />)
+    hoverCatalog(countTrigger())
+    expect(screen.getByRole('treeitem', { name: /worker/ })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: '展开 worker 的下级子智能体' })).toBeNull()
+    expect(input.refreshProjection).not.toHaveBeenCalled()
+  })
+
+  it('uses a listed subagent parent for lineage without inventing parent catalog membership', () => {
+    const input = props(undefined, {}, {
+      [CHILD]: { ...summary(CHILD, 1), origin: 'subagent', parentId: PARENT },
+    })
+    render(<SubagentHeaderLineage {...input} lineageSessionId={CHILD} displayTitle="Listed child" />)
+    expect(screen.getByRole('button', { name: /Listed child/ })).toBeTruthy()
+    expect(input.refreshProjection).not.toHaveBeenCalled()
+    expect(input.openChild).not.toHaveBeenCalled()
+  })
+
   it('shows one generic state while a child catalog loads', () => {
     const secondGrandchild = 'grandchild-2' as SessionId
     const summaries = {
@@ -1031,11 +1072,11 @@ describe('SubagentHeaderLineage', () => {
     })
   })
 
-  it('does not derive a subagent address from Session summary lineage', () => {
+  it('does not derive a subagent address from an ordinary fork summary', () => {
     const input = {
       ...props(undefined, {}, {
         [CHILD]: {
-          ...summary(CHILD, 1), parentId: PARENT, origin: 'subagent' as const,
+          ...summary(CHILD, 1), parentId: PARENT,
         },
       }),
       lineageSessionId: CHILD,
