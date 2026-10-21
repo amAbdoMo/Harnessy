@@ -3,29 +3,29 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-device-preview/README.md
 /:
-  en: 2b952020c958d4d1
-  zh: 567076097ac35aaf
+  en: f40954301e60e8fc
+  zh: 73a39a2d589846ce
 /deepseek-ai-dsh-client-ui-device-preview:
   en: a534b98a24de0a2a
   zh: 3c4bc81354d7e270
 /deepseek-ai-dsh-client-ui-device-preview/summary:
-  en: 57539566189cacd8
-  zh: 3019bd648afb119a
+  en: 60b60c432a26ef2e
+  zh: d0b02f19ed95d289
 /deepseek-ai-dsh-client-ui-device-preview/table-of-contents:
   en: d152484eb41ac6b4
   zh: de4a2a92773d135e
 /deepseek-ai-dsh-client-ui-device-preview/use-this-package:
-  en: 3ed91b0754867236
-  zh: 2c5ef155b10c69fe
+  en: 34bda27b7182ed54
+  zh: 8700a19d67276aa6
 /deepseek-ai-dsh-client-ui-device-preview/use-this-package/when-to-choose-it:
-  en: bee4d8a6d0d52b04
-  zh: 294bfa49335a0335
+  en: b3d559a5a626dee5
+  zh: ee4d0b99addc51e0
 /deepseek-ai-dsh-client-ui-device-preview/use-this-package/minimal-configuration:
-  en: 5b1ff1a0f0ca5d22
-  zh: 352bb373e0e2e67b
+  en: c06554e9d11a6446
+  zh: bcb5600a0198b818
 /deepseek-ai-dsh-client-ui-device-preview/understand-the-implementation:
-  en: 8b5ff3273054fec7
-  zh: eb030b514c0b981c
+  en: 574e2b64e5e46470
+  zh: 3e24148084ad8c38
 /deepseek-ai-dsh-client-ui-device-preview/further-exploration:
   en: 17949d572fad3990
   zh: 61e08c522f42654d

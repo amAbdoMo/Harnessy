@@ -16,6 +16,8 @@
  *
  * A repeated run accepts a `master`, a tag, or a draft that already names the
  * qualified commit, so an interrupted run continues with the same command.
+ * Source must be live `origin/staging`, or its direct version-only release
+ * commit. Both identities remain fixed through qualification and promotion.
  */
 
 import { spawn, spawnSync } from 'node:child_process'
@@ -406,11 +408,60 @@ function gitSucceeds(session: PromoteSession, root: string, args: readonly strin
  * @returns The declared version.
  */
 async function manifestVersion(root: string, manifestPath: string): Promise<string> {
-  const manifest: unknown = JSON.parse(await readFile(join(root, manifestPath), 'utf8'))
+  return manifestTextVersion(await readFile(join(root, manifestPath), 'utf8'), manifestPath)
+}
+
+function manifestTextVersion(text: string, manifestPath: string): string {
+  const manifest: unknown = JSON.parse(text)
   if (typeof manifest !== 'object' || manifest === null || !('version' in manifest) || typeof manifest.version !== 'string') {
     throw new Error(`promote: ${manifestPath} must declare a string version`)
   }
   return manifest.version
+}
+
+/** Read the live staging ref; a missing branch cannot reuse a cached tracking ref. */
+function liveStagingCommit(session: PromoteSession): string {
+  const result = readGit(session, session.stagingRoot, ['ls-remote', '--heads', 'origin', 'refs/heads/staging'])
+  const match = /^([a-f\d]{40})\s+refs\/heads\/staging$/u.exec(result)
+  if (match === null) throw new Error('promote: origin/staging is missing or has no exact commit')
+  return match[1]!
+}
+
+/** Accept only the version-only direct successor produced by release:dsh. */
+function requireReleaseSource(session: PromoteSession, source: string, commit: string, version: string): void {
+  if (commit === source) return
+  const git = (args: readonly string[]): string => readGit(session, session.stagingRoot, args)
+  const reject = (): never => { throw new Error(`promote: candidate ${commit} is not origin/staging ${source} or its direct version-only release commit`) }
+  if (git(['rev-list', '--parents', '-n', '1', commit]) !== `${commit} ${source}`
+    || git(['log', '-1', '--format=%s', commit]) !== `release(dsh): ${version}`) reject()
+  const paths = git(['diff', '--name-only', '--no-renames', source, commit]).split('\n')
+  if (!paths.includes(ROOT_MANIFEST) || !paths.includes(DESKTOP_MANIFEST)) reject()
+  const previousVersion = manifestTextVersion(git(['show', `${source}:${ROOT_MANIFEST}`]), ROOT_MANIFEST)
+  for (const path of paths) {
+    if (path !== 'pnpm-lock.yaml' && path !== ROOT_MANIFEST
+      && !/^(?:apps\/[^/]+|packages\/[^/]+\/[^/]+)\/package\.json$/u.test(path)) reject()
+    if (path === 'pnpm-lock.yaml') {
+      const patch = git(['diff', '--no-ext-diff', '--unified=0', source, commit, '--', path]).split('\n')
+      const removed = patch.filter(line => line.startsWith('-') && !line.startsWith('---')).map(line => line.slice(1))
+      const added = patch.filter(line => line.startsWith('+') && !line.startsWith('+++')).map(line => line.slice(1))
+      if (removed.length === 0 || removed.map(line => line.replaceAll(previousVersion, version)).join('\n') !== added.join('\n')) reject()
+    } else {
+      const before = git(['show', `${source}:${path}`])
+      const after = git(['show', `${commit}:${path}`])
+      const from = manifestTextVersion(before, path)
+      if (manifestTextVersion(after, path) !== version
+        || before.replace(`"version": "${from}"`, `"version": "${version}"`) !== after) reject()
+    }
+  }
+}
+
+/** Stop source movement before another tag, package, draft, or master mutation. */
+function requireReleaseUnchanged(session: PromoteSession, source: string, commit: string): void {
+  requireCleanWorktree(session, session.stagingRoot, 'staging')
+  if (readGit(session, session.stagingRoot, ['rev-parse', 'HEAD']) !== commit) {
+    throw new Error('promote: the candidate commit changed during release approval')
+  }
+  if (liveStagingCommit(session) !== source) throw new Error('promote: origin/staging moved during release approval')
 }
 
 /**
@@ -467,13 +518,14 @@ function requireGitHubAuthentication(session: PromoteSession): void {
  * Commit the requested stable version when the manifests declare another one.
  * @param session - Approval state.
  * @param version - Version the release publishes.
+ * @returns Whether this run executed the family version commit.
  */
-async function ensureFamilyVersion(session: PromoteSession, version: string): Promise<void> {
+async function ensureFamilyVersion(session: PromoteSession, version: string): Promise<boolean> {
   const manifests = [ROOT_MANIFEST, DESKTOP_MANIFEST]
   const declared = await Promise.all(manifests.map(async path => ({ path, version: await manifestVersion(session.stagingRoot, path) })))
   if (declared.every(entry => entry.version === version)) {
     session.log(`promote: the release family already declares ${version}`)
-    return
+    return false
   }
   session.log(`promote: committing ${version} through ${VERSION_SCRIPT} (${declared
     .map(entry => `${entry.path} declares ${entry.version}`).join(', ')})`)
@@ -483,6 +535,7 @@ async function ensureFamilyVersion(session: PromoteSession, version: string): Pr
   if (stale.length > 0) {
     throw new Error(`promote: ${VERSION_SCRIPT} left ${stale.map(entry => `${entry.path} at ${entry.version}`).join(', ')}`)
   }
+  return true
 }
 
 /**
@@ -658,32 +711,48 @@ export async function promoteWindowsRelease(options: PromoteWindowsReleaseOption
   requireCleanWorktree(session, session.stagingRoot, 'staging')
   requireCleanWorktree(session, masterPath, 'master')
   requireGitHubAuthentication(session)
-  await runGit(session, session.stagingRoot, ['fetch', 'origin', 'master'])
+  await runGit(session, session.stagingRoot, ['fetch', 'origin', 'master', 'staging'])
+  const source = liveStagingCommit(session)
+  if (readGit(session, session.stagingRoot, ['rev-parse', 'origin/staging']) !== source) {
+    throw new Error('promote: origin/staging moved after the source fetch')
+  }
+  const initialCommit = readGit(session, session.stagingRoot, ['rev-parse', 'HEAD'])
+  requireReleaseSource(session, source, initialCommit, version)
 
   const phrase = approvalPhrase(tag)
   log(`promote: staging worktree ${session.stagingRoot}`)
   log(`promote: master worktree  ${masterPath}`)
   log(`promote: origin          ${officialOrigin()}`)
   log(`promote: origin/master   ${readGit(session, masterPath, ['rev-parse', 'origin/master'])}`)
+  log(`promote: origin/staging  ${source}`)
   log(`promote: ${tag} will be qualified, packaged, and drafted; master moves only after the draft is verified`)
   if (!await options.confirm(phrase)) throw new Error(`promote: declined; type "${phrase}" to approve a release`)
 
-  await ensureFamilyVersion(session, version)
+  requireReleaseUnchanged(session, source, initialCommit)
+  const versionCommitted = await ensureFamilyVersion(session, version)
   requireCleanWorktree(session, session.stagingRoot, 'staging')
   const commit = readGit(session, session.stagingRoot, ['rev-parse', 'HEAD'])
+  if (commit !== initialCommit && (!versionCommitted || initialCommit !== source)) {
+    throw new Error('promote: the candidate commit changed during version preparation')
+  }
+  requireReleaseSource(session, source, commit, version)
+  requireReleaseUnchanged(session, source, commit)
   requireLocalTagCompatible(session, tag, commit)
   requireCleanWorktree(session, masterPath, 'master')
   requirePromotionAncestry(session, masterPath, commit)
   await session.adapter.run(pnpmScript(session.stagingRoot, DESKTOP_DIRECTORY, PACKAGE_CHECK_SCRIPT))
   await session.adapter.run(pnpmScript(session.stagingRoot, undefined, QUALIFY_SCRIPT))
+  requireReleaseUnchanged(session, source, commit)
   await ensureLocalTag(session, tag, commit)
   await ensureSignedArtifacts(session)
 
-  await runGit(session, session.stagingRoot, ['fetch', 'origin', 'master'])
+  await runGit(session, session.stagingRoot, ['fetch', 'origin', 'master', 'staging'])
+  requireReleaseUnchanged(session, source, commit)
   requireCleanWorktree(session, masterPath, 'master')
   requirePromotionAncestry(session, masterPath, commit)
   const tagPushed = await pushTag(session, tag, commit)
   const draftCreated = await ensureDraft(session)
+  requireReleaseUnchanged(session, source, commit)
   requireCleanWorktree(session, masterPath, 'master')
   await fastForwardMaster(session, masterPath, commit)
   const masterPushed = await pushMaster(session, masterPath, commit)

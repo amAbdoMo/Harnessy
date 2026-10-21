@@ -1,5 +1,9 @@
 /** Locale-owned Browser tab copy. */
 export const zh = {
+  'mode.label': '浏览模式',
+  'mode.desktop': '桌面',
+  'mode.mobile': '手机',
+  'mode.tablet': '平板',
   'type.label': '浏览器',
   'guide.title': '浏览器',
   'guide.description': '浏览网页',
@@ -84,6 +88,10 @@ export type SidebarBrowserKey = keyof typeof zh
 
 /** English dictionary with the same keys. */
 export const en = {
+  'mode.label': 'Browser mode',
+  'mode.desktop': 'Desktop',
+  'mode.mobile': 'Mobile',
+  'mode.tablet': 'Tablet',
   'type.label': 'Browser',
   'guide.title': 'Browser',
   'guide.description': 'Browse web pages',

@@ -6,6 +6,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
 import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
+import type { BrowserResponsiveInjected, BrowserTabParams } from './responsive.ts'
 import { BrowserBody, type BrowserBodyProps } from './view/BrowserBody.tsx'
 import { BrowserTitle } from './view/BrowserTitle.tsx'
 import { BrowserProfileNotice, type BrowserProfileNoticeInjected } from './view/BrowserProfileNotice.tsx'
@@ -17,7 +18,7 @@ import { createIframePage } from './pages.ts'
 import { createElectronPage } from './electron/pages.ts'
 import { observeBrowserBridge } from './electron/observed-bridge.ts'
 import type { NativeBrowser } from './browser/native-browser.ts'
-import type { DesktopBrowserBridge, DesktopWebsiteProfileId } from '../types.ts'
+import type { DesktopBrowserBridge } from '../types.ts'
 import { browserWorkspace } from './electron/workspace.ts'
 import type { BrowserPageFactory } from './browser/BrowserPage.ts'
 import { BROWSER_ID, browserDefinition } from './definition.tsx'
@@ -26,6 +27,7 @@ import { createBrowserStore } from './browser/store.ts'
 import { createWebsiteProfileDraftStore } from './browser/profile-draft.ts'
 import { BrowserProfilePicker, type BrowserProfilePickerInjected } from './view/BrowserProfilePicker.tsx'
 
+export type { BrowserMode, BrowserResponsiveOwner, BrowserTabParams } from './responsive.ts'
 export type { BrowserBodyProps } from './view/BrowserBody.tsx'
 export type { BrowserControllerState, BrowserInjected, BrowserMountRequest, BrowserTabControllers } from './browser/BrowserController.ts'
 export type { BrowserFrame, BrowserFrameState, BrowserLoadError, BrowserSandboxControl } from './browser/BrowserFrame.ts'
@@ -45,7 +47,7 @@ declare module '@deepseek-ai/dsh-client-ui-sidebar-right/client' {
      * A page opened with a `profileId` uses that account's persistent storage and
      * never stores its own navigation.
      */
-    browser: { readonly url?: string; readonly profileId?: DesktopWebsiteProfileId }
+    browser: BrowserTabParams
   }
 }
 
@@ -91,7 +93,11 @@ export function apply(ctx: Context): void {
   ctx.effect(() => ctx.locale.register(namespace, { zh, en }), 'ui-sidebar-browser.copy')
   ctx.effect(() => ctx.sidebarRightTabs.register({ ...browserDefinition(t), keepMounted: desktop !== undefined }), 'ui-sidebar-browser.type')
   const installFrames = (scope: Context): void => {
-    const controllers = new Map<BrowserBodyProps['sessionId'], BrowserInjected>()
+    const responsiveAvailable = {
+      getSnapshot: () => scope.slots.entries('sidebar.right.pane.tab.browser.responsive').length !== 0,
+      subscribe: (listener: () => void) => scope.slots.subscribe('sidebar.right.pane.tab.browser.responsive', listener),
+    }
+    const controllers = new Map<BrowserBodyProps['sessionId'], BrowserInjected & BrowserResponsiveInjected>()
     const requests = new Map<BrowserBodyProps['sessionId'], WebsiteRequestSession>()
     const native: NativeBrowser | undefined = desktop === undefined ? undefined : {
       createPage: ({ sessionId, options, leaseChanged }) => {
@@ -122,15 +128,18 @@ export function apply(ctx: Context): void {
     }, 'ui-sidebar-browser.frames')
     scope.effect(() => scope.slots.inject('sidebar.right.pane.tab', () => scope.slots.register({
       name: 'sidebar.right.pane.tab', key: BROWSER_ID, locale: namespace, store,
-      children: { 'sidebar.right.pane.tab.browser.profiles': { kind: 'single', scope: 'session' } },
-      inject: (sessionId, actions): BrowserInjected => {
+      children: {
+        'sidebar.right.pane.tab.browser.profiles': { kind: 'single', scope: 'session' },
+        'sidebar.right.pane.tab.browser.responsive': { kind: 'single', scope: 'session' },
+      },
+      inject: (sessionId, actions) => {
         let face = controllers.get(sessionId)
         if (face === undefined) {
           face = {
             ...createBrowserControllers(actions, factory(sessionId), tabId =>
               openTabs.getSnapshot().some(tab => tab.sessionId === sessionId && tab.tabId === tabId), () => websiteProfiles.getSnapshot()),
             profiles: profileCommands,
-            hooks: { websiteProfiles },
+            hooks: { websiteProfiles, responsiveAvailable },
           }
           controllers.set(sessionId, face)
         } else face.rebind(actions)

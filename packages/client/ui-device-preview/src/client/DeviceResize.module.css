@@ -1,0 +1,92 @@
+.scroll {
+  box-sizing: border-box;
+  padding: 8px;
+}
+
+.frame.dragging {
+  position: absolute;
+  top: var(--device-resize-top);
+  left: var(--device-resize-left);
+  justify-self: start;
+}
+
+.scroll.dragScroll {
+  overflow: hidden;
+}
+
+/* Shrinking must not clamp an existing scroll offset and move the captured origin. */
+.dragScroll::after {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--device-resize-scroll-width);
+  height: var(--device-resize-scroll-height);
+  pointer-events: none;
+  content: '';
+}
+
+.handle {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--dsw-alias-label-secondary);
+  background: none;
+  border: 0;
+  border-radius: var(--dsw-radius-sm);
+  cursor: var(--device-resize-cursor);
+  touch-action: none;
+  user-select: none;
+}
+
+.handle::after {
+  width: 8px;
+  height: 8px;
+  background: var(--dsw-alias-bg-overlay);
+  border: 0.5px solid var(--dsw-alias-label-secondary);
+  border-radius: var(--dsw-radius-sm);
+  content: '';
+}
+
+.handle:hover::after,
+.handle:focus-visible::after {
+  background: var(--dsw-alias-interactive-bg-hover);
+  border-color: var(--dsw-alias-label-primary);
+}
+
+.handle:focus-visible {
+  outline: 1px solid var(--dsw-alias-label-primary);
+  outline-offset: -2px;
+}
+
+.n, .s { left: calc(50% - 12px); --device-resize-cursor: ns-resize; }
+.e, .w { top: calc(50% - 12px); --device-resize-cursor: ew-resize; }
+.n, .ne, .nw { top: -8px; }
+.s, .se, .sw { bottom: -8px; }
+.e, .ne, .se { right: -8px; }
+.w, .nw, .sw { left: -8px; }
+.ne, .sw { --device-resize-cursor: nesw-resize; }
+.nw, .se { --device-resize-cursor: nwse-resize; }
+
+.n::after, .s::after { width: 16px; height: 3px; }
+.e::after, .w::after { width: 3px; height: 16px; }
+
+.handle:hover::after,
+.handle:focus-visible::after {
+  box-shadow: 0 0 0 2px var(--dsw-alias-bg-base);
+}
+
+.shield {
+  position: fixed;
+  z-index: calc(var(--dsh-dockkit-float-layer, 60) + 20);
+  inset: 0;
+  background: transparent;
+  cursor: var(--device-resize-cursor);
+  touch-action: none;
+  user-select: none;
+}

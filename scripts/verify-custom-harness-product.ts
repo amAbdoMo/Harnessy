@@ -3,6 +3,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import ts from 'typescript'
 import { CUSTOM_HARNESS_PRODUCT } from './custom-harness-product.ts'
 
 interface ProductIdentityEvidence {
@@ -36,6 +37,9 @@ interface CustomHarnessProductEvidence {
   readonly desktopDevelopmentLauncher: string
   readonly desktopPackageTarget: string
   readonly windowsWorkflow: string
+  readonly devicePreviewClient: string
+  readonly browserClient: string
+  readonly browserBody: string
 }
 
 const EXPECTED_BUNDLES = [
@@ -125,6 +129,25 @@ function verifyRootScripts(manifest: RootManifest): string[] {
   if (!manifest.scripts?.['verify:harnessy-product']?.startsWith('tsx scripts/verify-custom-harness-product.ts')) {
     failures.push('verify:harnessy-product must run the static product verifier first')
   }
+  if (!manifest.scripts?.['release:win:x64:qualify']?.startsWith('pnpm run verify:harnessy-product && ')) {
+    failures.push('Windows release qualification must run verify:harnessy-product first')
+  }
+  if (!manifest.scripts?.['release:win:x64:qualify']?.includes('pnpm run verify:harnessy-upgrade && ')) {
+    failures.push('Windows release qualification must run verify:harnessy-upgrade')
+  }
+  for (const owner of [
+    'apps/desktop/tests/upgrade-settings-preservation.spec.ts',
+    'apps/desktop/tests/taskbar-unread.spec.ts',
+    'apps/desktop/tests/taskbar-badge.spec.ts',
+    'apps/desktop/tests/taskbar-badge-windows.spec.ts',
+    'packages/client/ui-brand-custom-harness/tests/native-taskbar.client.spec.ts',
+    'packages/api/settings-controller/tests/accounts-controller.host.spec.ts',
+    'packages/api/settings-controller/tests/mcp-manager.host.spec.ts',
+  ]) {
+    if (!manifest.scripts?.['verify:harnessy-upgrade']?.includes(owner)) {
+      failures.push(`Harnessy upgrade verification must include ${owner}`)
+    }
+  }
   return failures
 }
 
@@ -162,11 +185,66 @@ function verifyDevelopmentAndCi(evidence: CustomHarnessProductEvidence): string[
   if (!evidence.windowsWorkflow.includes('run: pnpm run verify:harnessy-product')) {
     failures.push('Harnessy Windows CI must run verify:harnessy-product')
   }
+  if (!evidence.windowsWorkflow.includes('run: pnpm run verify:harnessy-upgrade')) {
+    failures.push('Harnessy Windows CI must run verify:harnessy-upgrade')
+  }
+  return failures
+}
+
+function sourceCalls(source: string): ts.CallExpression[] {
+  const calls: ts.CallExpression[] = []
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node)) calls.push(node)
+    ts.forEachChild(node, visit)
+  }
+  visit(ts.createSourceFile('client.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX))
+  return calls
+}
+
+function isServiceCall(call: ts.CallExpression, service: string, method: string): boolean {
+  const member = call.expression
+  return ts.isPropertyAccessExpression(member) && member.name.text === method
+    && ts.isPropertyAccessExpression(member.expression) && member.expression.name.text === service
+}
+
+function objectProperty(object: ts.Expression | undefined, name: string): ts.Expression | undefined {
+  if (object === undefined || !ts.isObjectLiteralExpression(object)) return undefined
+  const property = object.properties.find(entry => ts.isPropertyAssignment(entry)
+    && (ts.isIdentifier(entry.name) || ts.isStringLiteral(entry.name)) && entry.name.text === name)
+  return property !== undefined && ts.isPropertyAssignment(property) ? property.initializer : undefined
+}
+
+function isString(expression: ts.Expression | undefined, expected: string): boolean {
+  return expression !== undefined && ts.isStringLiteral(expression) && expression.text === expected
+}
+
+function verifyBrowserComposition(evidence: CustomHarnessProductEvidence): string[] {
+  const failures: string[] = []
+  const responsiveSlot = 'sidebar.right.pane.tab.browser.responsive'
+  const previewCalls = sourceCalls(evidence.devicePreviewClient)
+  if (previewCalls.some(call => isServiceCall(call, 'sidebarRightTabs', 'register')
+    || isServiceCall(call, 'slots', 'register')
+      && isString(objectProperty(call.arguments[0], 'name'), 'sidebar.right.pane.tab'))) {
+    failures.push('Device Preview must contribute inside Browser without a separate guide or tab')
+  }
+  if (!previewCalls.some(call => isServiceCall(call, 'slots', 'register')
+    && isString(objectProperty(call.arguments[0], 'name'), responsiveSlot))) {
+    failures.push('Device Preview must register Browser responsive content')
+  }
+  if (!sourceCalls(evidence.browserClient).some(call => isServiceCall(call, 'slots', 'register')
+    && isString(objectProperty(call.arguments[0], 'name'), 'sidebar.right.pane.tab')
+    && objectProperty(objectProperty(call.arguments[0], 'children'), responsiveSlot) !== undefined)) {
+    failures.push('Browser must declare its responsive content slot')
+  }
+  if (!sourceCalls(evidence.browserBody).some(call => ts.isIdentifier(call.expression)
+    && call.expression.text === 'renderSlot' && isString(call.arguments[0], responsiveSlot))) {
+    failures.push('Browser must render its responsive content slot')
+  }
   return failures
 }
 
 /**
- * Validate the product identity, custom bundle, development launcher, and fork CI evidence.
+ * Validate product identity, custom bundles, Browser composition, launchers, and fork CI.
  * @param evidence - parsed repository evidence or a test fixture.
  * @returns deterministic descriptions of every product regression.
  */
@@ -176,6 +254,7 @@ export function customHarnessProductViolations(evidence: CustomHarnessProductEvi
     ...verifyRootScripts(evidence.rootManifest),
     ...verifyBundle(evidence.bundleManifest, evidence.bundlePatch),
     ...verifyDevelopmentAndCi(evidence),
+    ...verifyBrowserComposition(evidence),
   ]
 }
 
@@ -193,6 +272,9 @@ export function readCustomHarnessProductEvidence(root: string): CustomHarnessPro
     desktopDevelopmentLauncher: readFileSync(resolve(root, 'apps/desktop/scripts/dev.ts'), 'utf8'),
     desktopPackageTarget: readFileSync(resolve(root, 'apps/desktop/scripts/package-target.ts'), 'utf8'),
     windowsWorkflow: readFileSync(resolve(root, '.github/workflows/custom-harness-windows.yml'), 'utf8'),
+    devicePreviewClient: readFileSync(resolve(root, 'packages/client/ui-device-preview/src/client/index.ts'), 'utf8'),
+    browserClient: readFileSync(resolve(root, 'packages/client/ui-sidebar-browser/src/client/index.ts'), 'utf8'),
+    browserBody: readFileSync(resolve(root, 'packages/client/ui-sidebar-browser/src/client/view/BrowserBody.tsx'), 'utf8'),
   }
 }
 

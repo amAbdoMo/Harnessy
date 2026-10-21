@@ -37,6 +37,7 @@ const DRAFT_RUN = 'pnpm --dir apps/desktop run release:github:win:x64:draft'
 const VERIFY_RUN = 'pnpm --dir apps/desktop run release:github:win:x64:verify'
 const TAG_PUSH = `git push origin refs/tags/${TAG}:refs/tags/${TAG}`
 const MASTER_PUSH = `git push --force-with-lease=refs/heads/master:${MID} origin ${COMMIT}:refs/heads/master`
+const FETCH_RUN = 'git fetch origin master staging'
 
 const roots: string[] = []
 afterEach(async () => {
@@ -51,6 +52,14 @@ interface RecordedCall {
 
 /** Mutable state the fixture derives its git and gh answers from. */
 interface HarnessState {
+  stagingHead: string
+  originStaging: string | undefined
+  readonly sourceVersion: string
+  versionPaths: string[]
+  versionSubject: string
+  versionParent: string
+  versionManifestChanged: boolean
+  lockfileChange: 'version' | 'dependency' | undefined
   declaredVersion: string
   stagingStatus: string
   masterStatus: string
@@ -70,6 +79,11 @@ interface HarnessState {
 
 /** Fixture inputs; each one stands for a state an approval can meet. */
 interface FixtureOptions {
+  readonly stagingHead?: string
+  readonly originStaging?: string
+  readonly stagingMissing?: boolean
+  readonly onRun?: (command: PromoteCommand, state: HarnessState) => void
+  readonly onConfirm?: (state: HarnessState) => void
   readonly declaredVersion?: string
   readonly stagingStatus?: string
   readonly masterStatus?: string
@@ -109,8 +123,8 @@ function isAncestor(left: string | undefined, right: string | undefined): boolea
 
 async function writeManifests(root: string, version: string): Promise<void> {
   await mkdir(join(root, 'apps', 'desktop'), { recursive: true })
-  await writeFile(join(root, 'package.json'), `${JSON.stringify({ name: 'root', version })}\n`)
-  await writeFile(join(root, 'apps', 'desktop', 'package.json'), `${JSON.stringify({ name: 'desktop', version })}\n`)
+  await writeFile(join(root, 'package.json'), `${JSON.stringify({ name: 'root', version }, null, 2)}\n`)
+  await writeFile(join(root, 'apps', 'desktop', 'package.json'), `${JSON.stringify({ name: 'desktop', version }, null, 2)}\n`)
 }
 
 async function createStagingRoot(version: string): Promise<string> {
@@ -148,12 +162,29 @@ function inspectCommand(command: PromoteCommand, state: HarnessState, masterRoot
     case 'tag':
       return ok(state.localTag === undefined ? '' : TAG)
     case 'rev-list':
+      if (rest[0] === '--parents') return ok(`${state.stagingHead} ${state.versionParent}`)
       return ok(state.localTag ?? '')
+    case 'log':
+      return ok(state.versionSubject)
+    case 'diff':
+      if (rest.includes('--unified=0')) {
+        const extra = state.lockfileChange === 'dependency' ? '\n-  dependency: 8.0.0\n+  dependency: 9.0.0' : ''
+        return ok(`--- a/pnpm-lock.yaml\n+++ b/pnpm-lock.yaml\n@@ -1 +1 @@\n-  version: ${state.sourceVersion}\n+  version: ${VERSION}${extra}`)
+      }
+      return ok(state.versionPaths.join('\n'))
+    case 'show': {
+      const [ref, path] = rest[0]!.split(':')
+      const version = ref === state.originStaging ? state.sourceVersion : state.declaredVersion
+      const name = ref !== state.originStaging && state.versionManifestChanged ? 'replacement' : path === 'package.json' ? 'root' : 'desktop'
+      return ok(JSON.stringify({ name, version }, null, 2))
+    }
     case 'rev-parse':
-      if (rest[0] === 'HEAD') return ok(inMaster ? state.masterHead : COMMIT)
+      if (rest[0] === 'HEAD') return ok(inMaster ? state.masterHead : state.stagingHead)
       if (rest[0] === 'origin/master') return ok(state.originMaster)
+      if (rest[0] === 'origin/staging') return ok(state.originStaging ?? '')
       break
     case 'ls-remote':
+      if (rest[0] === '--heads') return ok(state.originStaging === undefined ? '' : `${state.originStaging}\trefs/heads/staging`)
       return ok(state.remoteTag === undefined ? '' : `${state.remoteTag}\trefs/tags/${TAG}`)
     case 'merge-base': {
       const [left, right] = rest.slice(1)
@@ -167,7 +198,7 @@ function inspectCommand(command: PromoteCommand, state: HarnessState, masterRoot
 
 /** Apply the effect one executed command has on the fixture state. */
 async function applyRun(command: PromoteCommand, state: HarnessState, stagingRoot: string): Promise<void> {
-  if (command.label === 'git fetch origin master') return
+  if (command.label === FETCH_RUN) return
   if (command.label === PACKAGE_CHECK_RUN || command.label === QUALIFY_RUN) return
   if (command.label === PACKAGE_RUN) {
     if (state.packageFails) throw new Error(`promote: ${command.label} exited with 1`)
@@ -178,6 +209,7 @@ async function applyRun(command: PromoteCommand, state: HarnessState, stagingRoo
   if (command.label === VERSION_RUN) {
     await writeManifests(stagingRoot, VERSION)
     state.declaredVersion = VERSION
+    state.stagingHead = COMMIT
     return
   }
   if (command.label === `git tag ${TAG} ${COMMIT}`) {
@@ -213,6 +245,15 @@ async function createFixture(options: FixtureOptions = {}): Promise<PromoteFixtu
   const stagingRoot = await createStagingRoot(options.declaredVersion ?? VERSION)
   const masterRoot = resolve('fixture-master')
   const state: HarnessState = {
+    stagingHead: options.stagingHead ?? (options.declaredVersion === undefined ? COMMIT : MID),
+    originStaging: options.stagingMissing === true
+      ? undefined : options.originStaging ?? (options.declaredVersion === undefined ? COMMIT : MID),
+    sourceVersion: options.declaredVersion ?? VERSION,
+    versionPaths: ['package.json', 'apps/desktop/package.json'],
+    versionSubject: `release(dsh): ${VERSION}`,
+    versionParent: options.originStaging ?? MID,
+    versionManifestChanged: false,
+    lockfileChange: undefined,
     declaredVersion: options.declaredVersion ?? VERSION,
     stagingStatus: options.stagingStatus ?? '',
     masterStatus: options.masterStatus ?? '',
@@ -236,6 +277,7 @@ async function createFixture(options: FixtureOptions = {}): Promise<PromoteFixtu
     run: async (command) => {
       calls.push({ kind: 'run', command })
       await applyRun(command, state, stagingRoot)
+      options.onRun?.(command, state)
     },
     inspect: (command) => {
       calls.push({ kind: 'inspect', command })
@@ -258,6 +300,7 @@ async function createFixture(options: FixtureOptions = {}): Promise<PromoteFixtu
           confirmation.count += 1
           confirmation.after = calls.length
           expect(phrase).toBe(approvalPhrase(TAG))
+          options.onConfirm?.(state)
           return !decline
         },
         platform: options.platform ?? 'win32',
@@ -373,6 +416,84 @@ describe('promote Windows release worktree discovery', () => {
 })
 
 describe('promote Windows release approval', () => {
+  it.each([
+    ['stale checkout', { stagingHead: BASE }, /not origin\/staging/],
+    ['missing staging branch', { stagingMissing: true }, /origin\/staging is missing/],
+  ] as const)('refuses %s before approval or a release mutation', async (_scenario, options, error) => {
+    const fixture = await createFixture(options)
+    await expect(fixture.run()).rejects.toThrow(error)
+    expect(fixture.confirmation.count).toBe(0)
+    expect(runs(fixture)).toEqual([FETCH_RUN])
+    expect(fixture.state.localTag).toBeUndefined()
+    expect(fixture.state.remoteTag).toBeUndefined()
+    expect(fixture.state.masterHead).toBe(MID)
+  })
+
+  it.each([
+    ['confirmation', 'confirm'],
+    ['qualification', QUALIFY_RUN],
+    ['packaging', PACKAGE_RUN],
+    ['draft verification', VERIFY_RUN],
+  ])('stops promotion when live staging moves during %s', async (_scenario, stage) => {
+    const fixture = await createFixture({
+      onConfirm: (state) => { if (stage === 'confirm') state.originStaging = AHEAD },
+      onRun: (command, state) => { if (command.label === stage) state.originStaging = AHEAD },
+    })
+    await expect(fixture.run()).rejects.toThrow(/origin\/staging moved/)
+    expect(fixture.state.masterHead).toBe(MID)
+    expect(fixture.state.originMaster).toBe(MID)
+    expect(fixture.state.remoteTag).toBe(stage === VERIFY_RUN ? COMMIT : undefined)
+    if (stage === 'confirm') expect(runIndex(fixture, VERSION_RUN)).toBe(-1)
+  })
+
+  it('stops a changed local candidate before tagging it after qualification', async () => {
+    const fixture = await createFixture({ onRun: (command, state) => {
+      if (command.label === QUALIFY_RUN) state.stagingHead = AHEAD
+    } })
+    await expect(fixture.run()).rejects.toThrow(/candidate commit changed/)
+    expect(fixture.state.localTag).toBeUndefined()
+    expect(fixture.state.remoteTag).toBeUndefined()
+    expect(fixture.state.masterHead).toBe(MID)
+  })
+
+  it('resumes an interrupted version-only successor without creating another version commit', async () => {
+    const fixture = await createFixture({ declaredVersion: '1.2.2', packageFails: true })
+    await expect(fixture.run()).rejects.toThrow(/package:win:x64:release-unsigned exited with 1/)
+    fixture.state.packageFails = false
+    await expect(fixture.run()).resolves.toMatchObject({ commit: COMMIT, masterPushed: true })
+    expect(runs(fixture).filter(label => label === VERSION_RUN)).toHaveLength(1)
+  })
+
+  it.each(['version', 'dependency'] as const)('checks a version successor containing a %s lockfile update', async (change) => {
+    const fixture = await createFixture({ declaredVersion: '1.2.2' })
+    fixture.state.versionPaths.push('pnpm-lock.yaml')
+    fixture.state.lockfileChange = change
+    if (change === 'version') {
+      await expect(fixture.run()).resolves.toMatchObject({ commit: COMMIT })
+    } else {
+      await expect(fixture.run()).rejects.toThrow(/not origin\/staging/)
+      expect(fixture.state.localTag).toBeUndefined()
+      expect(fixture.state.remoteTag).toBeUndefined()
+      expect(fixture.state.masterHead).toBe(MID)
+    }
+  })
+
+  it.each(['parent', 'subject', 'source file', 'manifest content'])('rejects an unrelated successor with changed %s', async (change) => {
+    const fixture = await createFixture({ declaredVersion: '1.2.2' })
+    await writeManifests(fixture.stagingRoot, VERSION)
+    fixture.state.declaredVersion = VERSION
+    fixture.state.stagingHead = COMMIT
+    if (change === 'parent') fixture.state.versionParent = BASE
+    if (change === 'subject') fixture.state.versionSubject = 'fix: unrelated change'
+    if (change === 'source file') fixture.state.versionPaths.push('apps/desktop/src/main.ts')
+    if (change === 'manifest content') fixture.state.versionManifestChanged = true
+    await expect(fixture.run()).rejects.toThrow(/not origin\/staging/)
+    expect(runs(fixture)).toEqual([FETCH_RUN])
+    expect(fixture.state.localTag).toBeUndefined()
+    expect(fixture.state.remoteTag).toBeUndefined()
+    expect(fixture.state.masterHead).toBe(MID)
+  })
+
   it('packages and checks before it moves master, then pushes and drafts', async () => {
     const fixture = await createFixture()
     const result = await fixture.run()
@@ -390,13 +511,13 @@ describe('promote Windows release approval', () => {
     expect(fixture.state.originMaster).toBe(COMMIT)
     expect(fixture.state.remoteTag).toBe(COMMIT)
     expect(runs(fixture)).toEqual([
-      'git fetch origin master',
+      FETCH_RUN,
       PACKAGE_CHECK_RUN,
       QUALIFY_RUN,
       `git tag ${TAG} ${COMMIT}`,
       PACKAGE_RUN,
       CHECK_RUN,
-      'git fetch origin master',
+      FETCH_RUN,
       TAG_PUSH,
       DRAFT_RUN,
       VERIFY_RUN,
@@ -411,10 +532,10 @@ describe('promote Windows release approval', () => {
     expect(runIndex(fixture, VERIFY_RUN)).toBeLessThan(runIndex(fixture, `git merge --ff-only ${COMMIT}`))
     expect(runIndex(fixture, `git merge --ff-only ${COMMIT}`)).toBeLessThan(runIndex(fixture, MASTER_PUSH))
     expect(fixture.confirmation.count).toBe(1)
-    // Only the origin/master fetch precedes the prompt, so the operator approves after seeing fresh remote state.
+    // Only the remote fetch precedes the prompt, so the operator approves after seeing fresh remote state.
     expect(fixture.calls.slice(0, fixture.confirmation.after)
-      .filter(call => call.kind === 'run').map(call => call.command.label)).toEqual(['git fetch origin master'])
-    expect(callIndex(fixture, 'gh auth status')).toBeLessThan(callIndex(fixture, 'git fetch origin master'))
+      .filter(call => call.kind === 'run').map(call => call.command.label)).toEqual([FETCH_RUN])
+    expect(callIndex(fixture, 'gh auth status')).toBeLessThan(callIndex(fixture, FETCH_RUN))
   })
 
   it('never names or runs the publish command', async () => {
@@ -431,7 +552,7 @@ describe('promote Windows release approval', () => {
   it('rejects a confirmation the operator did not type exactly', async () => {
     const fixture = await createFixture()
     await expect(fixture.run(true)).rejects.toThrow(/declined/)
-    expect(runs(fixture)).toEqual(['git fetch origin master'])
+    expect(runs(fixture)).toEqual([FETCH_RUN])
     expect(fixture.state.masterHead).toBe(MID)
     expect(fixture.state.originMaster).toBe(MID)
     expect(fixture.state.localTag).toBeUndefined()
@@ -553,7 +674,7 @@ describe('promote Windows release approval', () => {
     })
     const result = await fixture.run()
     expect(result).toMatchObject({ masterPushed: false, tagPushed: false, draftCreated: false })
-    expect(runs(fixture)).toEqual(['git fetch origin master', PACKAGE_CHECK_RUN, QUALIFY_RUN, 'git fetch origin master'])
+    expect(runs(fixture)).toEqual([FETCH_RUN, PACKAGE_CHECK_RUN, QUALIFY_RUN, FETCH_RUN])
   })
 
   it('commits the family version only when the manifests declare another one', async () => {

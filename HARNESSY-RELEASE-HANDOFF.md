@@ -11,6 +11,7 @@ Read this file before planning or performing a Harnessy release. Publish a verif
 ## Table of Contents
 
 - [Request meaning and saved preferences](#request-meaning-and-saved-preferences)
+- [Preserve the customized Harnessy app](#preserve-the-customized-harnessy-app)
 - [Preflight](#preflight)
 - [Approval and preparation](#approval-and-preparation)
 - [Publication and verification](#publication-and-verification)
@@ -26,12 +27,28 @@ Read this file before planning or performing a Harnessy release. Publish a verif
 - Keep the existing personal unsigned Windows x64 channel. Do not introduce EV signing, change repositories or channels, create an additional app/worktree copy, or reinstall the app without a separate request. Required packaging artifacts belong in the existing Desktop target build directory.
 - The user will use the application's updater. The updater may close and relaunch the app after the user confirms installation; the agent must not trigger that action.
 
+## Preserve the customized Harnessy app
+
+A release request is **not an upstream synchronization request**. Build from the approved Harnessy fork source, including its existing custom features and product decisions. Do not substitute a fresh stock DeepSeek Harness checkout, an upstream release, or a bulk feature import for that source. Do not fetch and integrate upstream changes, rebase onto upstream, reset to upstream, or cherry-pick upstream features as an implicit prerequisite to publishing. Ordinary release checks and fetching the fork's `origin/master` remain part of the existing release workflow.
+
+Preserve Harnessy's custom accounts/models, MCP manager, subagent settings and routing, workspaces, notification behavior, branding, local-state isolation, Desktop lifecycle, and any newer custom features. The list is not exhaustive: inspect the current fork and intended release diff, not just this handoff. Compare the candidate against the last published Harnessy tag and verify that the changes are the intended Harnessy work; stop for clarification if the candidate's origin or an unexplained replacement/removal of custom behavior is uncertain. Do not silently include unfinished or unrelated local changes.
+
+Before selecting a clean release checkout, inventory the owner's intended staging workspace, including tracked edits and untracked source files. Record the included features and the changes still pending. If the intended changes are uncommitted, absent from `origin/staging`, or absent from the selected candidate, stop preparation until they are reviewed, committed and delivered; never substitute an older clean checkout without identifying the omissions. Local promotion checks the fetched staging source and allows only its validated family-version successor for interrupted-run recovery. Repeat the source comparison before remote changes. A successful hosted build creates an artifact; only verified publication makes that version available through Check for Updates.
+
+### Saved installation data
+
+Each installation owns its saved default and custom subagents, their settings, added models, MCP definitions/settings, accounts, subscription references and chat history. Release payloads contain application code and defaults, never a developer's saved setup or credentials. Upgrades must retain configured values; shipped defaults may initialize missing values but must not reset or replace saved choices. Any required data migration must preserve the user's configuration and follow the persistence compatibility rules. Keep installed and staging data separate.
+
+Qualify preservation with synthetic settings and opaque credential fixtures, including existing default and custom subagent assignments, models, MCPs, accounts/subscription references and chats. Readiness includes the intended Browser responsive-preview composition and the approved taskbar behavior. Run the product-preservation and upgrade-settings checks before release packaging, and retain their actual results. Do not copy or upload live user settings to perform these checks; remote subscription entitlements remain owned by their provider.
+
+If the user separately requests upstream synchronization, first follow the [upstream handoff](HARNESSY-UPSTREAM-HANDOFF.md#protect-decisions): classify improvements as Adopt, Adapt, or Skip, preserve existing Harnessy owners, and ask before changing custom user-visible behavior. Never resolve a conflict by wholesale taking the upstream side, removing custom code, duplicating an existing feature page, or replacing Harnessy defaults just to get a build to pass. Run the documented product-preservation guard and relevant custom-feature tests before releasing synchronized code; a passing product guard does not establish that every custom feature survived.
+
 ## Preflight
 
 1. Determine the actual working directory, branch, linked worktrees, remote URLs, and live local/remote commits. Never infer them from an old handoff or a previous job id.
 2. Query the latest published stable release and inspect the root and Desktop manifest versions. Choose a strictly newer stable version; never hardcode a previous “next version” or reuse an existing tag for different code.
 3. Inspect the installed updater configuration without launching the app or reading credentials. The established feed is GitHub owner `amAbdoMo`, repository `Harnessy`, channel `latest`, release type `release`. Publication alone does not prove the installed app has upgraded.
-4. Preserve unrelated tracked and untracked work. The local approval command requires clean staging and linked `master` worktrees; the cloud route below also supports an explicitly approved remote-only promotion with local master untouched. Obtain permission before temporarily shelving unrelated files; save exact hashes and the scoped stash identity, and never discard, commit, or silently ignore those files to pass the clean-tree check.
+4. Preserve unrelated tracked and untracked work. The approval workflow requires clean staging and linked `master` worktrees. Obtain permission before temporarily shelving unrelated files; save exact hashes and the scoped stash identity, and never discard, commit, or silently ignore those files to pass the clean-tree check.
 5. Resolve the available Node and pnpm executables from the session/runtime environment; do not assume global `pnpm` exists. Git hooks must also be able to resolve Node and pnpm. On Windows, a library-driven invocation needs the correct `npm_execpath` pointing to pnpm's JavaScript entry.
 6. Read the [Desktop release instructions](apps/desktop/README.md) and [approval implementation](apps/desktop/scripts/promote-windows-release.ts). Inspect failed relevant CI before publication; do not describe pending or skipped checks as passed.
 
@@ -48,17 +65,13 @@ pnpm run release:win:x64:approve -- --version "$version"
 - The workflow performs the whole-family version bump, focused updater qualification, exact-commit tagging, production unsigned packaging, local artifact/feed checks, tag push, draft creation and byte verification, then ancestry-checked local `master` fast-forward and lease-protected remote promotion. Do not manually bump only a few manifests or move master before draft verification.
 - Preparation finishes with a verified **draft**, not a published update. Read the real result and completion record before advancing. Deliver completed source commits to `origin/staging` under the [staging delivery rule](HARNESSY-STAGING-DELIVERY.md).
 
-### GitHub-hosted package builds
+### Hosted Windows builds
 
-When the user approves a cloud build instead of installing a local Windows compiler, use the existing [Harnessy Windows workflow](.github/workflows/custom-harness-windows.yml) with its `release_version` input. This route moves compilation and native qualification to GitHub's Windows runner; it does not waive the toolchain check or publish automatically. Keep the same exact human version approval and use `pnpm run release:dsh "$version"` for the complete family bump. Commit and deliver the approved source to staging before dispatch:
+The saved hosted-build preference uses the existing `release-package` job in [Harnessy Windows](.github/workflows/custom-harness-windows.yml), preserving the local `master` checkout. Apply the reviewed release changes to the existing clean release checkout, retain newer fork fixes, run focused checks, and deliver the exact approved version commit to `origin/staging`. Dispatch that branch with `release_version` set to the confirmed stable version. Never dispatch an older clean commit that omits the reviewed changes.
 
-```sh
-gh workflow run custom-harness-windows.yml --repo amAbdoMo/Harnessy --ref staging --field release_version="$version"
-```
+Require both Desktop checks and the production release job to succeed at that exact commit. Download its five-file qualified artifact into the existing Desktop target output, preserving any earlier artifact separately. Verify the completion record, installer/blockmap/feed hashes and packaged updater settings against the installed feed before creating the exact tag and byte-verified draft through the existing GitHub release commands. Build success alone does not complete publication.
 
-The read-only release-package job requires the official staging ref, matching stable root/Desktop versions, and the exact dispatched commit. It runs the product checks, updater qualification, production unsigned packaging and existing release-input byte checks. Its artifact contains only the installer, blockmap, feed, completion record and a readback of the actual packaged updater settings; it cannot push tags or refs, create drafts, or publish releases.
-
-Before using the downloaded package, verify the successful workflow run's repository, workflow, event, ref and source SHA, then verify the completion record and every artifact hash against that same commit and approved version. Download into the existing isolated Desktop target artifact directory, not the installed app. Create or accept only an exact local release tag and run `release:github:win:x64:check`. Only then push that tag and run the existing draft and verify commands. With permission to shelve owner work, fast-forward the clean linked master and restore that work as in the local workflow. If the user chooses to leave a dirty local master untouched, preserve its HEAD, index, files and stashes, and push only GitHub's master from the clean qualified checkout with the same ancestry check, normal hooks and explicit captured remote lease; the local branch may remain behind. Verify local owner work and installed artifacts are unchanged, then continue with the normal publication command below. A failed cloud build or mismatched artifact, tag, draft or ref stops publication; never relabel an older package or replace a published identity.
+For the saved remote-only promotion preference, leave local `master` files, index, commits and stashes untouched. After draft verification, confirm the fetched live remote `master` is an ancestor of the qualified commit and push only that commit with an explicit lease against the observed remote head. The preserved local `master` head and the remote lease may differ. Stop on concurrent remote movement; retain preservation evidence. Publish through the existing command and complete the public checks below.
 
 ## Publication and verification
 

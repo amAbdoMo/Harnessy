@@ -51,7 +51,7 @@ export const DESKTOP_IPC = {
   phoneConnectionDescribe: 'dsh-desktop:phone-connection-describe',
   phoneConnectionCopyPairingUrl: 'dsh-desktop:phone-connection-copy-pairing-url',
   taskbarDocument: 'dsh-desktop:taskbar-document',
-  taskbarSetUnread: 'dsh-desktop:taskbar-set-unread',
+  taskbarSetUnreadCount: 'dsh-desktop:taskbar-set-unread-count',
   localeBootstrap: 'dsh-desktop:locale-bootstrap',
   localeChanged: 'dsh-desktop:locale-changed',
   updatesStatus: 'dsh-desktop:updates-status',
@@ -172,17 +172,18 @@ export type DesktopPhoneConnectionState = { readonly enabled: false } | { readon
 /** Product documents cannot supply update versions, package URLs, or installation authorization. */
 export interface DshDesktopProductApi {
   readonly protocolVersion: 1
-  /** Windows-only taskbar app-icon overlay; no counts or app-navigation badges. */
+  /** Windows-only ordinary-Session unread completion count on the taskbar app icon. */
   readonly taskbar?: {
     /**
-     * Publish current ordinary-Session unread state; false clears the overlay.
+     * Publish the current ordinary-Session unread completion count; zero clears the overlay.
      * Dispatch waits for the private document ticket and renderer load; stale document calls reject.
      * Main-document replacement, renderer loss and native owner teardown also clear it.
-     * Native accent and overlay failures are diagnosed without rejecting accepted state; a later repaint retries unread state.
-     * @param unread - whether any non-subagent Session has an unread completion.
+     * Native raster and overlay failures are diagnosed without rejecting accepted state; a later repaint retries the count.
+     * Counts above 99 display 99+; the accessible description retains the actual count.
+     * @param count - nonnegative safe-integer count of non-subagent Sessions with unread completions.
      * @returns completion of state acceptance and best-effort native painting, not evidence of Windows presentation.
      */
-    setUnread(unread: boolean): Promise<void>
+    setUnreadCount(count: number): Promise<void>
   }
   /** Native companion controls; decisions and clipboard secrets remain in Main. */
   readonly companion?: {

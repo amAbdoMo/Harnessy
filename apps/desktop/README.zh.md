@@ -25,7 +25,7 @@ Harnessy 在账号凭据失效或移除后仍保持工作区打开。Provider �
 <a id="device-preview"></a>
 ## 设备预览
 
-[设备预览](../../packages/client/ui-device-preview/README.zh.md)以手机和平板外观呈现支持 Web 的应用。私有 Host 工具准备已有项目脚本，不安装依赖，然后为精确启动命令、工作目录和 URL 请求权限。单次允许明确授权该未变化计划在本次应用运行中、同一 Agent 和执行权限下使用；清单、启动参数或权限提供者变化后，需要重新准备或同意。受管理的子进程范围和作业拥有启动程序。外部 URL 不携带终止权限。关闭预览或隐藏窗口不会停止服务器；显式停止和 Host 退出只等待记录的自有范围结束。启动输出可标识就绪，但打开可见预览不代表 HTTP 已就绪。
+[设备预览](../../packages/client/ui-device-preview/README.zh.md)在 Browser 内以手机和平板外观呈现支持 Web 的应用。Browser 提供 Desktop、Mobile 和 Tablet 模式；设备预览没有独立标签页或引导入口。私有 Host 工具准备已有项目脚本，不安装依赖，然后为精确启动命令、工作目录和 URL 请求权限。单次允许明确授权该未变化计划在本次应用运行中、同一 Agent 和执行权限下使用；清单、启动参数或权限提供者变化后，需要重新准备或同意。受管理的子进程范围和作业拥有启动程序。外部 URL 不携带终止权限。关闭预览或隐藏窗口不会停止服务器；显式停止和 Host 退出只等待记录的自有范围结束。启动输出可标识就绪，但打开可见预览不代表 HTTP 已就绪。
 
 打开预览不会读取页面。每次请求截图或有界布局读取，都需要为精确预览、设备和操作重新批准。Main 在原生工作前后检查当前 Host、发起 Session、已提交的可见普通 guest、视口和起始源地址。已保存账号 guest 被排除；隐藏、最小化、渲染器丢失和 Host 替换会撤回执行中的结果。截图结果使用持久图片附件，并要求当前模型支持图片输入。预览工具不提供点击、输入、导航或任意脚本。工具调用和结果按正常方式记录；设备查看控件不增加 Session event。人工桌面验收负责小数缩放的输入映射和实际原生渲染。
 
@@ -75,7 +75,9 @@ Windows 在整个运行期间常驻托盘图标。悬停提示为产品名，单
 <a id="native-activity-notifications"></a>
 ## 原生活动通知
 
-Windows 任务栏应用图标使用单个圆形的完成结果未读圆点，而非数量或应用导航徽标。可选的私有桥接 `dshDesktop.taskbar.setUnread(unread: boolean): Promise<void>` 接收主界面当前普通 Session 的完成结果未读状态，排除子代理。Desktop 以当前 Windows 系统强调色绘制透明的 16×16 原生叠加图标，并在未读期间更新颜色；无障碍描述跟随壳语言。传入 false、主文档替换、渲染进程丢失、窗口销毁及应用退出都会清除它。只有精确归属的主 `dsh-app://app` 顶层 frame 可以写入。预加载脚本在分发前获取私有文档凭据，并等待渲染文档的 load；主进程在 DOM-ready 后接受当前 frame，无需等待所有子资源加载完成。新的主文档导航会立即使 frame 和凭据失效，包括同一 frame、同一来源的重载。其他平台不暴露任务栏桥接，也不执行原生叠加图标操作。Windows 未提供系统强调色时，Desktop 不显示圆点，直到后续重绘获得强调色。强调色查询、位图创建及原生叠加图标失败会记录诊断，而不会中断语言或强调色回调；已接受的未读状态仍供后续重绘使用。桥接调用的 Promise 完成仅确认状态已接受且已尽力绘制，不代表原生展示。Windows 验收负责可见及最小化状态下的任务栏展示、系统强调色变化和重载或崩溃时的清除；使用模拟 Electron 调用的回归源码不能确认原生展示。
+Windows 任务栏应用图标通过透明的 16×16 原生叠加图标显示带白色轮廓的完成结果未读数量，不依赖系统强调色。私有桥接 `dshDesktop.taskbar.setUnreadCount(count: number): Promise<void>` 接收主界面符合条件的普通 Session 数量；零清除徽标。超过 99 时徽标显示 `99+`，本地化无障碍描述仍保留实际数量。主文档替换、渲染进程丢失、窗口销毁及应用退出也会清除徽标。只有持有当前私有文档凭据、精确归属的主 `dsh-app://app` 顶层 frame 可以写入。预加载脚本等待凭据与渲染文档的 load；主进程在 DOM-ready 后接受当前 frame。新的主文档导航会使 frame 和凭据失效，包括同一 frame、同一来源的重载。其他平台不暴露任务栏桥接。绘制失败会记录诊断且不丢弃已接受的数量；后续重绘会重试。桥接调用的 Promise 完成仅确认状态已接受且已尽力绘制，不代表原生展示。Windows 验收负责可见及最小化状态下的任务栏展示、缩放和重载或崩溃时的清除；模拟 Electron 调用不能确认原生展示。
+
+徽标栅格化会在释放 GDI 资源前将 GDI 像素复制到 JavaScript 管理的内存，因为 [Electron 禁止外部 ArrayBuffer 视图](https://koffi.dev/pointers#external-buffers-views)。
 
 已安装的 Windows 活动通知使用 Harnessy 名称和随包标志。选择通知会恢复应用；应用已停止时则启动应用。任务与需要用户操作的通知会在启动后选择仍然存在的 Session。应用自有的 `harnessy` 协议仅用于激活应用和选择不透明 Session 标识，绝不执行工具、批准请求或切换工作区。账户与 MCP 通知只打开应用。Windows 通知权限和专注模式可能阻止通知显示。
 
@@ -182,13 +184,13 @@ macOS 上自定义菜单保留 Electron 的标准 Window 菜单及应用隐藏�
 
 [Web 插件 UI](../../packages/client/ui-plugin-manager/README.zh.md)负责管理界面。Desktop profile 初始化和恢复保留已安装插件文件。
 
-主窗口创建、主文档加载、preload、渲染器、Web 初始化或后端的致命失败，会在每个应用进程中打开一次原生恢复对话框。对话框显示首次错误末尾的限长摘要，标明截断情况，并提供退出、重启、禁用第三方插件、备份 profile patch 并重启。启动失败保留 Web 加载页和动画；运行中失败保留当前页面。预期关闭、取消导航和普通请求错误不会触发恢复。共享 Web 插件管理器报告包操作错误；插件变更后的 Host 启动失败会进入原生恢复。不通过启动超时推断故障。 包含 `listen EADDRINUSE` 的监听失败以退出其他正在运行的 DSH 实例的提示替代诊断和重装建议，仅提供退出和重启。
+主窗口创建、主文档加载、preload、渲染器、Web 初始化或后端的致命失败，会在每个应用进程中打开一次原生恢复对话框。对话框显示首次错误末尾的限长摘要，标明截断情况，并提供退出、重启、备份并禁用自定义插件和设置，然后重启。启动失败保留 Web 加载页和动画；运行中失败保留当前页面。预期关闭、取消导航和普通请求错误不会触发恢复。共享 Web 插件管理器报告包操作错误；插件变更后的 Host 启动失败会进入原生恢复。不通过启动超时推断故障。 包含 `listen EADDRINUSE` 的监听失败以退出其他正在运行的 DSH 实例的提示替代诊断和重装建议，仅提供退出和重启。
 
 原生弹窗详情最多包含 1,200 个 UTF-16 代码单元和八行诊断，若已写入下述崩溃报告则附上其路径。Host 错误诊断仅保留 stderr 输出的最后 64 Ki 个字符。更早的输出会被丢弃，避免长期运行的 Host 使壳的诊断缓冲区无限增长。
 
 首个致命弹窗打开前，Electron 会向平台日志目录（`app.getPath('logs')`：macOS 为 `~/Library/Logs/Harnessy`，Windows 与 Linux 为应用 `userData` 目录下的 `logs`）写入一份崩溃报告，最多等待写入一秒；写入缓慢或失败时弹窗不带路径。文件 `crash-<UTC 时间>-<source>.log` 记录来源（`host` 为 Host 退出、`web-boot` 为渲染进程启动失败、`renderer` 为渲染进程或文档失败、`main` 为壳自身错误）、后端是否已就绪、应用与运行时版本、包含可枚举属性与 cause 链的错误（截至 256 KiB）、Host 在退出前通过 IPC 报告启动失败时自己的 inspect 错误（最多 64 KiB），以及主窗口最近的 error 级 console 输出（最多 64 KiB）。因此 Host 退出报告包含保留的 stderr 尾部，其中可能含有插件输出。关闭过程中的致命失败只写报告、不弹窗。平台支持时文件仅所有者可读；启动时保留最新十份报告并删除更早的，不触碰目录中的其他文件。
 
-恢复操作等待 Host 关闭后才修改插件启用状态。原生恢复操作在 profile 事务锁内调用共享 app-boot 恢复函数。它禁用第三方 bundle，并将 profile 的 `cordis.patch.yml` 重命名为 `cordis.patch.yml.bak-<timestamp>`（重名时追加序号），无需解析；下次启动创建空 patch。已安装包和已有备份保留。home 级 patch 不变。Electron 控制台记录备份路径（或原文件不存在）以及 home 级 patch 未修改。profile 数据无效、重命名失败或写入失败会作为恢复操作错误报告；已完成的修改保留，Desktop 不会假装恢复成功后重启。Desktop 不提供 profile 重置操作或应急 HTML 文档。
+恢复操作等待 Host 关闭后才修改插件启用状态。原生恢复操作在 profile 事务锁内调用共享 app-boot 恢复函数。它禁用第三方 bundle，并将 profile 的 `cordis.patch.yml` 重命名为 `cordis.patch.yml.bak-<timestamp>`（重名时追加序号），无需解析；下次启动创建空 patch。已安装包和已有备份保留。已保存的 profile 覆盖设置（包括模型和 subagent 分配）保留在备份中，恢复前不生效；账户 vault 和聊天不变。更新绝不会调用这个由用户选择的恢复操作。home 级 patch 不变。Electron 控制台记录备份路径（或原文件不存在）以及 home 级 patch 未修改。profile 数据无效、重命名失败或写入失败会作为恢复操作错误报告；已完成的修改保留，Desktop 不会假装恢复成功后重启。Desktop 不提供 profile 重置操作或应急 HTML 文档。
 
 ### Host 环境
 
@@ -295,7 +297,7 @@ Desktop 在本地打包工作区包，并通过目标捆绑的 Node 和 pnpm 安
 
 [Office 转换提供方](../../packages/document/office-to-pdf/README.zh.md)携带目标已声明的原生引擎；kit 未声明匹配原生目标时携带 WASM 引擎。准备阶段在打包前拒绝缺少目标引擎的情况。完整 Office 依赖（CLI、JavaScript 库和选定引擎的可执行文件、数据、许可证及 notices）解包到 `resources/app.asar.unpacked/dsh/node_modules/` 下。Desktop Host 将引擎清单解析到这些物理目录，并向加载的技能提供独立 Node 和解包后 CLI 的绝对路径。Node 位于 `resources/runtime/primary-runtime/dependencies/node/bin/`；CLI 位于解包后的 `@deepseek-ai/libreoffice-kit/lib/cli.js`。macOS 上的原生辅助程序获得 [LibreOffice UNO 桥](https://github.com/LibreOffice/core/blob/master/sysui/desktop/macosx/hardened_runtime.xcent.in)所需的 JIT entitlement。
 
-打包应用运行编译后的 JavaScript 和预生成的 Typert 元数据，不编译 TypeScript 插件。源码级调试导航和编辑器声明仍可从开发包中获取。[复制规则测试](tests/runtime-file-policy.spec.ts)覆盖排除项和保留资源；[产物 smoke](tests/fixtures/runtime-payload-smoke.mjs) 在 Host smoke 和最终清单验证之前，使用 Electron RunAsNode 执行。产物 smoke 通过随附的 Node 启动器运行共享 primary runtime 中的 pnpm，解析搜索工具使用的 ripgrep 可执行文件，并验证文本搜索和文件枚举。它报告每项依赖检查，并要求终端退出后事件循环自然排空；失败时保留部分进度和原生终止信息。发布验证先运行真实 Windows [ConPTY 排空回归测试](tests/runtime-payload-drain.spec.ts)，因此仍存活的输出 worker 会在打包前阻止发布。Windows 签名构建在依赖签名后运行这些检查；其他构建在 `prepare:dsh` 中运行。打包会把自动更新器的运行时包闭包暂存进应用归档，因为 electron-builder 的 pnpm 生产依赖收集可能丢弃工作区仅以重复引用形式报告的包，随后更新器在访问发布源时就会报 `Cannot find module 'debug'`。[闭包回归测试](tests/updater-runtime-closure.spec.ts)解析更新器需要的每个运行时包，打包本身也会拒绝缺少其中任一包的归档。[Host smoke](scripts/smoke-runtime.ts) 使用捆绑的 Python 创建 DOCX、XLSX 和 PPTX 输入，通过真实 Office 提供方逐一转换并检查 PDF 输出。每个组装后的应用（包括目录包和 Windows 未签名构建）都会针对 ASAR 重复产物和 Host 检查。最终 smoke 从 electron-builder 使用的产品标识解析应用包和可执行文件，因此独立品牌构建会按其发布名称接受验证。归档完整性检查将归档内完整描述符与准备结果比对，并核对归档和解包目录中的文件内容与清单、归档内文件记录的执行标志，以及解包文件的物理权限。转换失败会在写入发布记录前终止打包；macOS DMG/ZIP 构建在公证前执行这些检查。
+打包应用运行编译后的 JavaScript 和预生成的 Typert 元数据，不编译 TypeScript 插件。源码级调试导航和编辑器声明仍可从开发包中获取。[复制规则测试](tests/runtime-file-policy.spec.ts)覆盖排除项和保留资源；[产物 smoke](tests/fixtures/runtime-payload-smoke.mjs) 在 Host smoke 和最终清单验证之前，使用 Electron RunAsNode 执行。产物 smoke 通过随附的 Node 启动器运行共享 primary runtime 中的 pnpm，解析搜索工具使用的 ripgrep 可执行文件，并验证文本搜索和文件枚举。它报告每项依赖检查，并要求终端退出后事件循环自然排空；失败时保留部分进度和原生终止信息。发布验证先运行真实 Windows [ConPTY 排空回归测试](tests/runtime-payload-drain.spec.ts)，因此仍存活的输出 worker 会在打包前阻止发布。Windows 签名构建在依赖签名后运行这些检查；其他构建在 `prepare:dsh` 中运行。打包会把自动更新器的运行时包闭包暂存进应用归档，因为 electron-builder 的 pnpm 生产依赖收集可能丢弃工作区仅以重复引用形式报告的包，随后更新器在访问发布源时就会报 `Cannot find module 'debug'`。[闭包回归测试](tests/updater-runtime-closure.spec.ts)解析更新器需要的每个运行时包，打包本身也会拒绝缺少其中任一包的归档。[Host smoke](scripts/smoke-runtime.ts) 使用捆绑的 Python 创建 DOCX、XLSX 和 PPTX 输入，通过真实 Office 提供方逐一转换并检查 PDF 输出。每个组装后的应用（包括目录包和 Windows 未签名构建）都会针对 ASAR 重复产物和 Host 检查。最终 smoke 从 electron-builder 使用的产品标识解析应用包和可执行文件，因此独立品牌构建会按其发布名称接受验证。归档完整性检查将归档内完整描述符与准备结果比对，并核对归档和解包目录中的文件内容与清单、归档内文件记录的执行标志，以及解包文件的物理权限。转换失败会在写入发布记录前终止打包；macOS DMG/ZIP 构建在公证前执行这些检查。 运行上述检查前，[shell 依赖烟雾测试](tests/fixtures/packaged-shell-dependencies.cjs)通过随应用交付的可执行文件加载 updater，并拒绝解析到应用资源目录之外的日志依赖。
 
 Windows 发布验收还需在 Desktop 构建后手动运行[目录和替换检查](scripts/smoke-windows.ps1)。将 `$Makensis`、`$SevenZip` 和 `$PluginDir` 分别设为锁定版本构建器的 NSIS 编译器、7-Zip 可执行文件和 x86-unicode NSIS 插件目录；通过 `-FrameLibrary` 传入已准备好的 `window-frame.dll`，即可同时覆盖原生解压路径及其失败报告。从仓库根目录运行以下命令。它验证 目录替换与回滚和两种文件占用替换方式；不属于单元测试通道。
 

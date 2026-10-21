@@ -1,42 +1,14 @@
 /** Windows taskbar overlay owned by one primary window and its current application document. */
 
-import { nativeImage, systemPreferences, type BrowserWindow, type IpcMain, type IpcMainInvokeEvent,
+import { nativeImage, type BrowserWindow, type IpcMain, type IpcMainInvokeEvent,
   type NativeImage, type WebFrameMain, type WebContentsDidStartNavigationEventParams } from 'electron'
 import { DESKTOP_IPC } from './ipc.ts'
 import type { DesktopLocale } from './locale.ts'
-
-/**
- * Rasterize one circle as Windows N32 premultiplied BGRA, leaving its surroundings transparent.
- * @param accent - Electron system accent in RRGGBBAA order.
- * @returns a 16×16 bitmap suitable only for Windows nativeImage.createFromBitmap.
- * @see https://github.com/electron/electron/blob/v44.0.0/shell/common/api/electron_api_native_image.cc
- * @see https://github.com/chromium/chromium/blob/main/skia/config/SkUserConfig.h
- */
-export function taskbarUnreadBitmap(accent: string): Buffer {
-  if (!/^[\da-f]{8}$/iu.test(accent)) throw new Error('Desktop taskbar: invalid system accent color')
-  const red = Number.parseInt(accent.slice(0, 2), 16)
-  const green = Number.parseInt(accent.slice(2, 4), 16)
-  const blue = Number.parseInt(accent.slice(4, 6), 16)
-  const opacity = Number.parseInt(accent.slice(6, 8), 16)
-  const bitmap = Buffer.alloc(16 * 16 * 4)
-  // Electron's N32 bitmap uses premultiplied BGRA on Windows; alpha-zero pixels must keep zero RGB.
-  for (let y = 0; y < 16; y++) {
-    for (let x = 0; x < 16; x++) {
-      const coverage = Math.max(0, Math.min(1, 6.5 - Math.hypot(x - 7.5, y - 7.5)))
-      const alpha = Math.round(opacity * coverage)
-      const offset = (y * 16 + x) * 4
-      bitmap[offset] = Math.round(blue * alpha / 255)
-      bitmap[offset + 1] = Math.round(green * alpha / 255)
-      bitmap[offset + 2] = Math.round(red * alpha / 255)
-      bitmap[offset + 3] = alpha
-    }
-  }
-  return bitmap
-}
+import { taskbarUnreadBitmap } from './taskbar-badge.ts'
 
 /** Primary-window overlay; new main-document navigation and renderer loss immediately retire unread state and tickets. */
 export class DesktopTaskbarUnread {
-  private unread = false
+  private unreadCount = 0
   private disposed = false
   private epoch = 0
   private frame: WebFrameMain | undefined
@@ -51,7 +23,6 @@ export class DesktopTaskbarUnread {
     window.webContents.on('render-process-gone', this.retireDocument)
     window.webContents.on('destroyed', this.dispose)
     window.on('closed', this.dispose)
-    systemPreferences.on('accent-color-changed', this.repaint)
   }
 
   private readonly captureDocument = (): void => {
@@ -96,19 +67,19 @@ export class DesktopTaskbarUnread {
   /**
    * Apply authoritative unread state only after the current document's dom-ready; native paint failures are diagnosed.
    * @param event - authenticated primary top-frame caller.
-   * @param unread - whether any ordinary Session has an unread completion.
+   * @param count - accepted nonnegative safe-integer count of ordinary Sessions with unread completions.
    * @param epoch - private preload ticket captured before dispatch.
    */
-  setUnread(event: IpcMainInvokeEvent, unread: boolean, epoch: unknown): void {
+  setUnreadCount(event: IpcMainInvokeEvent, count: number, epoch: unknown): void {
     this.assertDocument(event)
     if (epoch !== this.epoch) throw new Error('Desktop taskbar: rejected stale document ticket')
-    if (!unread) { this.clear(); return }
-    this.unread = true
+    if (count === 0) { this.clear(); return }
+    this.unreadCount = count
     this.repaint()
   }
 
   private clear(): void {
-    this.unread = false
+    this.unreadCount = 0
     this.setOverlay(null, '')
   }
 
@@ -121,17 +92,10 @@ export class DesktopTaskbarUnread {
 
   /** Refresh localized copy; diagnosed native paint failures preserve unread for the next repaint. */
   readonly repaint = (): void => {
-    if (this.disposed || !this.unread || this.window.isDestroyed()) return
-    let accent: string
-    try { accent = systemPreferences.getAccentColor() } catch (error) {
-      console.warn('Desktop taskbar: could not read system accent', error)
-      return
-    }
-    // Electron returns an empty string when Windows has no available system accent.
-    if (accent === '') { this.setOverlay(null, ''); return }
+    if (this.disposed || this.unreadCount === 0 || this.window.isDestroyed()) return
     let bitmap: Buffer
-    try { bitmap = taskbarUnreadBitmap(accent) } catch (error) {
-      console.warn('Desktop taskbar: could not rasterize system accent', error)
+    try { bitmap = taskbarUnreadBitmap(this.unreadCount) } catch (error) {
+      console.warn('Desktop taskbar: could not rasterize unread count', error)
       return
     }
     let image: NativeImage
@@ -139,7 +103,7 @@ export class DesktopTaskbarUnread {
       console.warn('Desktop taskbar: could not create overlay image', error)
       return
     }
-    this.setOverlay(image, this.locale().messages.taskbarUnread)
+    this.setOverlay(image, this.locale().messages.taskbarUnread.replace('{count}', String(this.unreadCount)))
   }
 
   /** Detach every listener and attempt native clearing; late callbacks stay inert even if diagnosed clearing fails. */
@@ -151,7 +115,6 @@ export class DesktopTaskbarUnread {
     this.window.webContents.off('render-process-gone', this.retireDocument)
     this.window.webContents.off('destroyed', this.dispose)
     this.window.off('closed', this.dispose)
-    systemPreferences.off('accent-color-changed', this.repaint)
     this.retireDocument()
   }
 }
@@ -176,10 +139,12 @@ export function installDesktopTaskbarIpc(ipc: Pick<IpcMain, 'handle' | 'removeHa
   }
   ipc.handle(DESKTOP_IPC.taskbarDocument, (event) => { assertSender(event); return current()?.documentEpoch(event) })
   try {
-    ipc.handle(DESKTOP_IPC.taskbarSetUnread, (event, unread: unknown, epoch: unknown) => {
+    ipc.handle(DESKTOP_IPC.taskbarSetUnreadCount, (event, count: unknown, epoch: unknown) => {
       assertSender(event)
-      if (typeof unread !== 'boolean') throw new Error('Desktop taskbar: unread must be boolean')
-      current()?.setUnread(event, unread, epoch)
+      if (typeof count !== 'number' || !Number.isSafeInteger(count) || count < 0) {
+        throw new Error('Desktop taskbar: unread count must be a nonnegative safe integer')
+      }
+      current()?.setUnreadCount(event, count, epoch)
     })
   } catch (error) {
     ipc.removeHandler(DESKTOP_IPC.taskbarDocument)
@@ -190,6 +155,6 @@ export function installDesktopTaskbarIpc(ipc: Pick<IpcMain, 'handle' | 'removeHa
     if (!attached) return
     attached = false
     ipc.removeHandler(DESKTOP_IPC.taskbarDocument)
-    ipc.removeHandler(DESKTOP_IPC.taskbarSetUnread)
+    ipc.removeHandler(DESKTOP_IPC.taskbarSetUnreadCount)
   }
 }

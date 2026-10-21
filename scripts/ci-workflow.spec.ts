@@ -49,9 +49,12 @@ describe('Custom Harness Windows workflow', () => {
     if (!Array.isArray(checks.steps)) throw new TypeError('Desktop checks job must define steps')
     const steps = checks.steps.filter(isRecord)
     const product = steps.findIndex(step => step.run === 'pnpm run verify:harnessy-product')
+    const upgrade = steps.findIndex(step => step.run === 'pnpm run verify:harnessy-upgrade')
     const compilation = steps.findIndex(step => step.run === 'pnpm exec tsc -b tsconfig.host.json --pretty false')
     expect(product).toBeGreaterThanOrEqual(0)
-    expect(compilation).toBeGreaterThan(product)
+    expect(upgrade).toBeGreaterThan(product)
+    expect(compilation).toBeGreaterThan(upgrade)
+    expect(steps[upgrade]).not.toHaveProperty('continue-on-error', true)
   })
 
   it('installs the account-chooser browser through the workspace that owns Playwright', () => {

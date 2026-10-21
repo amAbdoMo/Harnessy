@@ -488,29 +488,38 @@ function bounded(value: string, max: number, label: string): string {
 }
 
 function parseVault(record: CredentialRecord | undefined): McpVault {
-  if (record?.kind !== 'grant' || !isRecord(record.payload)) return { version: 1, servers: [] }
+  if (record === undefined) return { version: 1, servers: [] }
+  if (record.kind !== 'grant' || !isRecord(record.payload)) {
+    throw rejected(undefined, 'protected MCP data has an unsupported credential record')
+  }
   const payload = record.payload
-  if (payload.version !== 1 || !Array.isArray(payload.servers)) return { version: 1, servers: [] }
-  const servers = payload.servers.filter(isStoredServer)
-  return { version: 1, servers }
+  if (payload.version !== 1 || !Array.isArray(payload.servers)) {
+    throw rejected(undefined, 'protected MCP data must contain version 1 and a servers array')
+  }
+  return validateVaultServers(payload.servers, 'protected MCP data')
 }
 
 function parseConfigurationText(text: string): McpVault {
   let value: unknown
   try {
     value = JSON.parse(text)
-  } catch (error: unknown) {
-    throw rejected(undefined, `MCP configuration is not valid JSON: ${messageOf(error)}`)
+  } catch (_error: unknown) {
+    // JSON parser messages may quote plaintext credentials from the document.
+    throw rejected(undefined, 'MCP configuration is not valid JSON')
   }
   if (!isRecord(value) || value.version !== 1 || !Array.isArray(value.servers)) {
     throw rejected(undefined, 'MCP configuration must contain version 1 and a servers array')
   }
-  if (value.servers.length > MAX_SERVERS || !value.servers.every(isStoredServer)) {
-    throw rejected(undefined, `MCP configuration must contain at most ${MAX_SERVERS} complete server entries`)
+  return validateVaultServers(value.servers, 'MCP configuration')
+}
+
+function validateVaultServers(values: readonly unknown[], source: string): McpVault {
+  if (values.length > MAX_SERVERS || !values.every(isStoredServer)) {
+    throw rejected(undefined, `${source} must contain at most ${MAX_SERVERS} complete server entries`)
   }
   const ids = new Set<string>()
   const namespaces = new Set<string>()
-  for (const server of value.servers) {
+  for (const server of values) {
     if (server.id.length === 0 || server.id.length > 128 || ids.has(server.id)) {
       throw rejected(server.id, 'MCP server ids must be unique and contain 1–128 characters')
     }
@@ -534,7 +543,7 @@ function parseConfigurationText(text: string): McpVault {
       validateEnvironment(server.environment, server.id)
     }
   }
-  return { version: 1, servers: value.servers }
+  return { version: 1, servers: values }
 }
 
 /** Keep saved credentials when an edited public document retains their marker. */

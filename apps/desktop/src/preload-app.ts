@@ -22,11 +22,11 @@ function createTaskbarApi(): NonNullable<DshDesktopProductApi['taskbar']> {
   if (document.readyState === 'complete') loaded.resolve(undefined)
   else window.addEventListener('load', () => { loaded.resolve(undefined) }, { once: true })
   return {
-    async setUnread(unread) {
+    async setUnreadCount(count) {
       const binding = await ticket
       if ('error' in binding) throw binding.error
       await loaded.promise
-      await ipcRenderer.invoke(DESKTOP_IPC.taskbarSetUnread, unread, binding.epoch)
+      await ipcRenderer.invoke(DESKTOP_IPC.taskbarSetUnreadCount, count, binding.epoch)
     },
   }
 }

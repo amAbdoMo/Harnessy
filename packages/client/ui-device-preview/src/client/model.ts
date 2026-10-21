@@ -49,7 +49,7 @@ export interface DevicePreviewInjected {
   readonly updateSurface: (tabId: TabId, lane: DeviceLane, geometry: DeviceSurfaceGeometry, visible: boolean) => void
   /** Expand the existing Sidebar for a user-requested two-device comparison. */
   readonly expandComparison: () => void
-  /** Called only by an explicit Start/Go gesture; validates URL and authorization in the parent. */
+  /** Navigate from an explicit Start/Go or Browser mode gesture; the controller validates the URL. */
   readonly navigate: (tabId: TabId, lane: DeviceLane, url: string) => void
   readonly reload: (tabId: TabId, lane: DeviceLane) => void
   readonly goBack: (tabId: TabId, lane: DeviceLane) => void

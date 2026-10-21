@@ -52,4 +52,85 @@ describe('Harnessy product contract', () => {
     expect(failures).toContain('Harnessy Windows CI must run verify:harnessy-product')
     expect(failures).toContain('custom-harness bundle is missing @deepseek-ai/dsh-subagent-roster')
   })
+
+  it.each([
+    "ctx.sidebarRightTabs.register({ kind: 'device-preview', guide: [{ id: 'new' }] })",
+    "ctx.slots.register({ name: 'sidebar.right.pane.tab', key: 'device-preview' }, DevicePreview)",
+  ])('rejects restored standalone Device Preview registration: %s', (registration) => {
+    const current = readCustomHarnessProductEvidence(root)
+    expect(customHarnessProductViolations({
+      ...current, devicePreviewClient: `${current.devicePreviewClient}\n${registration}\n`,
+    })).toContain('Device Preview must contribute inside Browser without a separate guide or tab')
+  })
+
+  it.each([
+    ['devicePreviewClient', 'Device Preview must register Browser responsive content'],
+    ['browserClient', 'Browser must declare its responsive content slot'],
+    ['browserBody', 'Browser must render its responsive content slot'],
+  ] as const)('rejects removed responsive composition in %s despite stale comments', (owner, failure) => {
+    const current = readCustomHarnessProductEvidence(root)
+    const regressed = current[owner].replaceAll('sidebar.right.pane.tab.browser.responsive', 'removed.responsive')
+    expect(regressed).not.toBe(current[owner])
+    expect(customHarnessProductViolations({
+      ...current,
+      [owner]: `${regressed}\n// ${current[owner].replaceAll('\n', '\n// ')}\n`,
+    })).toContain(failure)
+  })
+
+  it('ignores inactive standalone Device Preview examples', () => {
+    const current = readCustomHarnessProductEvidence(root)
+    expect(customHarnessProductViolations({
+      ...current,
+      devicePreviewClient: `${current.devicePreviewClient}\n// ctx.sidebarRightTabs.register({ kind: 'device-preview' })\n`,
+    })).toEqual([])
+  })
+
+  it('rejects Windows release qualification that omits product verification', () => {
+    const current = readCustomHarnessProductEvidence(root)
+    expect(customHarnessProductViolations({
+      ...current,
+      rootManifest: {
+        ...current.rootManifest,
+        scripts: { ...current.rootManifest.scripts, 'release:win:x64:qualify': 'vitest run apps/desktop/tests/update-coordinator.spec.ts' },
+      },
+    })).toContain('Windows release qualification must run verify:harnessy-product first')
+  })
+
+  it('rejects release qualification that skips upgrade verification', () => {
+    const current = readCustomHarnessProductEvidence(root)
+    expect(customHarnessProductViolations({
+      ...current,
+      rootManifest: {
+        ...current.rootManifest,
+        scripts: { ...current.rootManifest.scripts, 'release:win:x64:qualify': 'pnpm run verify:harnessy-product && vitest run' },
+      },
+    })).toContain('Windows release qualification must run verify:harnessy-upgrade')
+  })
+
+  it('rejects Windows CI that skips upgrade verification', () => {
+    const current = readCustomHarnessProductEvidence(root)
+    expect(customHarnessProductViolations({
+      ...current, windowsWorkflow: current.windowsWorkflow.replace('run: pnpm run verify:harnessy-upgrade', 'run: echo skipped'),
+    })).toContain('Harnessy Windows CI must run verify:harnessy-upgrade')
+  })
+
+  it.each([
+    'apps/desktop/tests/upgrade-settings-preservation.spec.ts',
+    'apps/desktop/tests/taskbar-unread.spec.ts',
+    'apps/desktop/tests/taskbar-badge.spec.ts',
+    'apps/desktop/tests/taskbar-badge-windows.spec.ts',
+    'packages/client/ui-brand-custom-harness/tests/native-taskbar.client.spec.ts',
+    'packages/api/settings-controller/tests/accounts-controller.host.spec.ts',
+    'packages/api/settings-controller/tests/mcp-manager.host.spec.ts',
+  ])('rejects upgrade verification without %s', (owner) => {
+    const current = readCustomHarnessProductEvidence(root)
+    const verify = current.rootManifest.scripts!['verify:harnessy-upgrade']!
+    expect(customHarnessProductViolations({
+      ...current,
+      rootManifest: {
+        ...current.rootManifest,
+        scripts: { ...current.rootManifest.scripts, 'verify:harnessy-upgrade': verify.replace(owner, '') },
+      },
+    })).toContain(`Harnessy upgrade verification must include ${owner}`)
+  })
 })

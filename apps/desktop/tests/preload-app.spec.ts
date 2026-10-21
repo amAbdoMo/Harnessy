@@ -212,6 +212,7 @@ it('moves welcome-entry focus to the document without changing keyboard tab orde
   const dom = new JSDOM('<body><button>Sidebar</button><input></body>')
   try {
     vi.stubGlobal('document', dom.window.document)
+    vi.spyOn(dom.window.document, 'readyState', 'get').mockReturnValue('loading')
     vi.stubGlobal('location', new URL('dsh-app://app/'))
     await import('../src/preload-app.ts')
     const enter = electron.ipcRenderer.on.mock.calls.find(([channel]) => channel === DESKTOP_IPC.enterWorkspace)![1] as () => void

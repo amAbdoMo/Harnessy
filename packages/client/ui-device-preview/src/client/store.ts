@@ -21,7 +21,6 @@ export interface DeviceLaneView {
 export interface DevicePreviewView {
   urlDraft: string
   compare: boolean
-  selected: DeviceLane
   phone: DeviceLaneView
   tablet: DeviceLaneView
 }
@@ -37,7 +36,7 @@ function initialLane(kind: DeviceKind): DeviceLaneView {
  * @returns independent phone and tablet choices.
  */
 export function initialPreviewView(url = ''): DevicePreviewView {
-  return { urlDraft: url, compare: false, selected: 'phone', phone: initialLane('ios-phone'), tablet: initialLane('ios-tablet') }
+  return { urlDraft: url, compare: false, phone: initialLane('ios-phone'), tablet: initialLane('ios-tablet') }
 }
 function tabView(draft: DevicePreviewState, tabId: TabId): DevicePreviewView {
   return draft.byTab[tabId] ??= initialPreviewView()
@@ -46,7 +45,6 @@ type DevicePreviewActions = {
   initialize: (draft: DevicePreviewState, tabId: TabId, url: string) => void
   setUrl: (draft: DevicePreviewState, tabId: TabId, url: string) => void
   setCompare: (draft: DevicePreviewState, tabId: TabId, compare: boolean) => void
-  selectLane: (draft: DevicePreviewState, tabId: TabId, lane: DeviceLane) => void
   setKind: (draft: DevicePreviewState, tabId: TabId, lane: DeviceLane, kind: DeviceKind) => void
   setOrientation: (draft: DevicePreviewState, tabId: TabId, lane: DeviceLane, orientation: DeviceOrientation) => void
   /** Accept already bounded portrait-baseline dimensions from the custom-input parser. */
@@ -70,7 +68,6 @@ export function createDevicePreviewStore(): EngineStoreHandle<DevicePreviewState
       initialize: (draft, tabId, url) => { draft.byTab[tabId] ??= initialPreviewView(url) },
       setUrl: (draft, tabId, url) => { tabView(draft, tabId).urlDraft = url },
       setCompare: (draft, tabId, compare) => { tabView(draft, tabId).compare = compare },
-      selectLane: (draft, tabId, lane) => { tabView(draft, tabId).selected = lane },
       setKind: (draft, tabId, lane, kind) => {
         const preview = tabView(draft, tabId)[lane]
         preview.kind = kind

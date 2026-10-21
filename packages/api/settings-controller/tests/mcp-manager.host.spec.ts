@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -23,7 +23,7 @@ afterEach(async () => {
   await Promise.all(temporaryDirectories.splice(0).map(path => rm(path, { recursive: true, force: true })))
 })
 
-async function boot() {
+async function boot(prepare?: (ctx: Context, configurationPath: string) => Promise<void>) {
   const started: StartedConnection[] = []
   const startConnection = vi.fn((
     _ctx: Context,
@@ -49,11 +49,36 @@ async function boot() {
   await ctx.plugin(MemoryCredentials)
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
+  await prepare?.(ctx, configurationPath)
   await ctx.plugin(McpManagerController, { startConnection, configurationPath, openTextFile })
   return { ctx, controller: ctx.mcpManagerController, started, configurationPath, openTextFile }
 }
 
 describe('the Harnessy MCP manager Remote namespace', () => {
+  describe.each(['missing', 'existing'] as const)('%s editable mirror', (mirror) => {
+    const mirrorText = '{"version":1,"servers":[]}\n'
+    it.each([
+      ['a non-grant record', { kind: 'api-key' as const, key: 'fixture-vault-secret' }],
+      ['a future version', { kind: 'grant' as const, payload: { version: 2, servers: [] } }],
+      ['a malformed server', { kind: 'grant' as const, payload: {
+        version: 1, servers: [{ id: 'broken', authentication: 'fixture-server-secret' }],
+      } }],
+    ])('rejects %s protected vault without changing its record', async (_scenario, record) => {
+      const { ctx, controller, configurationPath } = await boot(async (context, path) => {
+        if (mirror === 'existing') await writeFile(path, mirrorText)
+        await context.credentials.modifyRecord(credentialKey('mcp-manager', 'servers'), () => Promise.resolve(record))
+      })
+      const error = await controller.describe().catch((failure: unknown) => failure)
+
+      expect(remoteErrorOf(error)).toMatchObject({ code: 'mcp-manager/rejected' })
+      expect(JSON.stringify(error)).not.toContain('fixture-vault-secret')
+      expect(JSON.stringify(error)).not.toContain('fixture-server-secret')
+      expect(await ctx.credentials.readRecord(credentialKey('mcp-manager', 'servers'))).toEqual(record)
+      if (mirror === 'existing') expect(await readFile(configurationPath, 'utf8')).toBe(mirrorText)
+      else await expect(stat(configurationPath)).rejects.toMatchObject({ code: 'ENOENT' })
+    })
+  })
+
   it('owns the expected methods and reports unavailable composition safely', async () => {
     const empty = new Context()
     const directory = await mkdtemp(join(tmpdir(), 'dsh-mcp-manager-empty-'))
@@ -159,6 +184,24 @@ describe('the Harnessy MCP manager Remote namespace', () => {
     expect(disabled.servers[0]?.status).toBe('disabled')
     expect(started.at(-1)?.dispose).toHaveBeenCalledOnce()
     expect((await controller.deleteServer(id)).servers).toEqual([])
+  })
+
+  it('rejects malformed plaintext JSON without returning parser input snippets or changing the vault', async () => {
+    const { ctx, controller, configurationPath } = await boot()
+    await controller.save({
+      name: 'Local', serverName: 'local', transport: 'stdio', enabled: false,
+      command: 'node', environment: { WP_API_PASSWORD: 'fixture-parser-password' },
+    })
+    const vault = await ctx.credentials.readRecord(credentialKey('mcp-manager', 'servers'))
+    const malformed = '{"WP_API_PASSWORD":fixture-parser-password}'
+    await writeFile(configurationPath, malformed)
+    const error = await controller.describe().catch((error: unknown) => error)
+    expect(remoteErrorOf(error)).toMatchObject({
+      code: 'mcp-manager/rejected', message: 'MCP configuration is not valid JSON', details: {},
+    })
+    expect(JSON.stringify(error)).not.toContain('fixture-parser-password')
+    expect(await readFile(configurationPath, 'utf8')).toBe(malformed)
+    expect(await ctx.credentials.readRecord(credentialKey('mcp-manager', 'servers'))).toEqual(vault)
   })
 
   it('rejects unsafe remote URLs and duplicate tool namespaces', async () => {

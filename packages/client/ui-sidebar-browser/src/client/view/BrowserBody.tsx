@@ -1,8 +1,8 @@
 /** Common browser chrome; a presentation adapter attaches the page inside its content container. */
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import {
-  Button,
+  Button, SegmentedControl,
   IconChevronLeftOutlineRegular,
   IconChevronRightOutlineRegular,
   IconLinkOutlineRegular,
@@ -14,6 +14,8 @@ import {
 import type { InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { DesktopWebsiteProfile } from '../../types.ts'
 import type { SidebarRightTabParamsFor } from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
+import type { BrowserMode, BrowserResponsiveInjected } from '../responsive.ts'
+import { parseBrowserAddress } from '../browser/url.ts'
 import type { BrowserInjected } from '../browser/BrowserController.ts'
 import { emptyBrowserFrame } from '../browser/BrowserFrame.ts'
 import { currentBrowserTarget } from '../browser/BrowserPersistence.ts'
@@ -38,7 +40,8 @@ function SandboxPolicyIcon({ sandboxed }: { readonly sandboxed: boolean }): Reac
 /** Browser body props assembled by the tab seat. */
 export type BrowserBodyProps = PropsRuntime<'sidebar.right.pane.tab'>
   & PropsStore<BrowserStore>
-  & PropsRenderSlots<'sidebar.right.pane.tab.browser.profiles'>
+  & PropsRenderSlots<'sidebar.right.pane.tab.browser.profiles' | 'sidebar.right.pane.tab.browser.responsive'>
+  & InjectFace<BrowserResponsiveInjected>
   & PropsLocale<'sidebarBrowser'>
   & InjectFace<BrowserInjected>
 
@@ -55,12 +58,25 @@ export function BrowserBody(props: BrowserBodyProps): ReactNode {
     setVisible, selectRequest, resumeRequest, takeoverRequest, reloadRequests, useWebsiteRequests,
     useWebsiteProfiles, renderSlot, t,
   } = props
-  const { tab } = useTabInfo()
-  useEffect(() => tab.actions.bindCommands({ refresh: () => { reload(tab.id) } }), [tab.actions, tab.id, reload])
+  const { tab, sidebar } = useTabInfo()
+  const responsiveAvailable = props.useResponsiveAvailable(available => available)
+  const [presentation, setPresentation] = useState<{
+    readonly mode: BrowserMode
+    readonly navigation: { readonly url: string; readonly revision: number } | undefined
+  }>({ mode: 'desktop', navigation: undefined })
+  const params = tab.navigation.params as SidebarRightTabParamsFor<'browser'>
+  const mode = responsiveAvailable && params?.profileId === undefined ? presentation.mode : 'desktop'
+  useEffect(() => {
+    if (!responsiveAvailable) setPresentation({ mode: 'desktop', navigation: undefined })
+  }, [responsiveAvailable])
+  useEffect(() => {
+    if (mode !== 'desktop') return
+    return tab.actions.bindCommands({ refresh: () => { reload(tab.id) } })
+  }, [tab.actions, tab.id, reload, mode])
   const saved = useStore(state => state.byTab[tab.id])
   const initial = useRef(saved)
-  const initialUrl = useRef(tab.navigation.params?.url)
-  const profileId = (tab.navigation.params as SidebarRightTabParamsFor<'browser'>)?.profileId
+  const initialUrl = useRef(params?.previewId === undefined ? params?.url : undefined)
+  const profileId = params?.profileId
   const viewportId = useId()
   const [mountEpoch, setMountEpoch] = useState(0)
   const state = useBrowserState(tab.id)
@@ -89,9 +105,9 @@ export function BrowserBody(props: BrowserBodyProps): ReactNode {
   }, [mount, tab.id, tab.signal, tab.actions, viewportId, props.actions, profileId])
 
   useLayoutEffect(() => {
-    setVisible(tab.id, tab.visible)
+    setVisible(tab.id, tab.visible && mode === 'desktop')
     return () => { setVisible(tab.id, false) }
-  }, [setVisible, tab.id, tab.visible, mountEpoch])
+  }, [setVisible, tab.id, tab.visible, mountEpoch, mode])
 
   const unknown = frame.address === 'unknown'
   const externalUrl = unknown ? undefined : target?.url
@@ -104,75 +120,105 @@ export function BrowserBody(props: BrowserBodyProps): ReactNode {
   const failure = state?.addressFailure
   const error = frame.error
   const submit = (event: FormEvent): void => { event.preventDefault(); if (!humanAccessBlocked) loadUrl(tab.id, draft) }
+  const selectMode = (next: BrowserMode): void => {
+    if (next !== 'desktop' && mode === 'desktop' && draft.trim() !== '') {
+      const parsed = parseBrowserAddress(draft, window.location.origin)
+      if (!parsed.ok) { loadUrl(tab.id, draft); return }
+      setPresentation(current => ({
+        mode: next, navigation: { url: parsed.target.url, revision: (current.navigation?.revision ?? 0) + 1 },
+      }))
+    } else setPresentation(current => ({ ...current, mode: next }))
+  }
+  const selectMobile = useCallback(() => { setPresentation(current => ({ ...current, mode: 'mobile' })) }, [])
+  const modeId = `${viewportId}-mode`
 
   return (
     <div className={css.root}>
-      <form className={css.toolbar} onSubmit={submit}>
-        <button type="button" className={css.tool} aria-label={t('back')} title={t('back')} disabled={humanAccessBlocked || !frame.canGoBack} onClick={() => { goBack(tab.id) }}><IconChevronLeftOutlineRegular /></button>
-        <button type="button" className={css.tool} aria-label={t('forward')} title={t('forward')} disabled={humanAccessBlocked || !frame.canGoForward} onClick={() => { goForward(tab.id) }}><IconChevronRightOutlineRegular /></button>
-        <Tooltip label={t('reload')} shortcutKeys={tab.refreshShortcut?.keys} side="bottom" delayMs={500}>
-          <button type="button" className={css.tool} aria-label={t('reload')} aria-keyshortcuts={tab.refreshShortcut?.aria} disabled={humanAccessBlocked || target === undefined || mountEpoch === 0} onClick={() => { reload(tab.id) }}><IconRefreshOutlineRegular /></button>
-        </Tooltip>
-        <div className={css.addressBox}>
-          <input
-            className={[css.address, unknown ? css.addressUnknown : ''].join(' ')}
-            value={draft}
-            aria-label={t('address.placeholder')}
-            placeholder={t('address.placeholder')}
-            spellCheck={false}
+      {responsiveAvailable && profileId === undefined && <div className={css.modes}>
+        <SegmentedControl<BrowserMode> id={modeId} value={mode} label={t('mode.label')}
+          options={(['desktop', 'mobile', 'tablet'] as const).map(value => ({ value, label: t(`mode.${value}`) }))}
+          onChange={selectMode} />
+      </div>}
+      <div className={css.desktop} hidden={mode !== 'desktop'} id={`${modeId}-desktop-panel`}
+        role="tabpanel" aria-labelledby={responsiveAvailable && profileId === undefined ? `${modeId}-desktop` : undefined}>
+        <form className={css.toolbar} onSubmit={submit}>
+          <button type="button" className={css.tool} aria-label={t('back')} title={t('back')} disabled={humanAccessBlocked || !frame.canGoBack} onClick={() => { goBack(tab.id) }}><IconChevronLeftOutlineRegular /></button>
+          <button type="button" className={css.tool} aria-label={t('forward')} title={t('forward')} disabled={humanAccessBlocked || !frame.canGoForward} onClick={() => { goForward(tab.id) }}><IconChevronRightOutlineRegular /></button>
+          <Tooltip label={t('reload')} shortcutKeys={tab.refreshShortcut?.keys} side="bottom" delayMs={500}>
+            <button type="button" className={css.tool} aria-label={t('reload')} aria-keyshortcuts={tab.refreshShortcut?.aria} disabled={humanAccessBlocked || target === undefined || mountEpoch === 0} onClick={() => { reload(tab.id) }}><IconRefreshOutlineRegular /></button>
+          </Tooltip>
+          <div className={css.addressBox}>
+            <input
+              className={[css.address, unknown ? css.addressUnknown : ''].join(' ')}
+              value={draft}
+              aria-label={t('address.placeholder')}
+              placeholder={t('address.placeholder')}
+              spellCheck={false}
+              disabled={humanAccessBlocked}
+              onChange={(event) => { setDraft(event.currentTarget.value) }}
+            />
+            {unknown && <span className={css.addressChanged}>{t('address.changed')}</span>}
+            <button type="submit" className={[css.tool, css.addressGo].join(' ')} aria-label={t('go')} title={t('go')} disabled={humanAccessBlocked}><IconLinkOutlineRegular /></button>
+          </div>
+          <button type="button" className={css.tool} aria-label={t('external')} title={t('external')} disabled={humanAccessBlocked || externalUrl === undefined}
+            onClick={externalUrl === undefined ? undefined : () => { window.open(externalUrl, '_blank', 'noopener,noreferrer') }}
+          ><IconRightUpOutlineRegular size={14} /></button>
+          {sandboxed !== undefined && <button
+            type="button"
+            className={[css.tool, sandboxed ? '' : css.sandboxOff].join(' ')}
+            aria-label={t(sandboxed ? 'sandbox.disable' : 'sandbox.enable')}
+            title={t(sandboxed ? 'sandbox.disable' : 'sandbox.enable')}
+            aria-pressed={!sandboxed}
             disabled={humanAccessBlocked}
-            onChange={(event) => { setDraft(event.currentTarget.value) }}
-          />
-          {unknown && <span className={css.addressChanged}>{t('address.changed')}</span>}
-          <button type="submit" className={[css.tool, css.addressGo].join(' ')} aria-label={t('go')} title={t('go')} disabled={humanAccessBlocked}><IconLinkOutlineRegular /></button>
-        </div>
-        <button type="button" className={css.tool} aria-label={t('external')} title={t('external')} disabled={humanAccessBlocked || externalUrl === undefined}
-          onClick={externalUrl === undefined ? undefined : () => { window.open(externalUrl, '_blank', 'noopener,noreferrer') }}
-        ><IconRightUpOutlineRegular size={14} /></button>
-        {sandboxed !== undefined && <button
-          type="button"
-          className={[css.tool, sandboxed ? '' : css.sandboxOff].join(' ')}
-          aria-label={t(sandboxed ? 'sandbox.disable' : 'sandbox.enable')}
-          title={t(sandboxed ? 'sandbox.disable' : 'sandbox.enable')}
-          aria-pressed={!sandboxed}
-          disabled={humanAccessBlocked}
-          onClick={() => { setSandbox(tab.id, !sandboxed) }}
-        ><SandboxPolicyIcon sandboxed={sandboxed} /></button>}
-        {profiles !== undefined && renderSlot('sidebar.right.pane.tab.browser.profiles', {
-          profileId,
-          openProfile: (profile: DesktopWebsiteProfile) => {
-            tab.actions.openTab('browser', { params: { url: profile.url, profileId: profile.id }, revealIfOpened: false })
-          },
-        })}
-      </form>
-      {profileId !== undefined && (profiles === undefined
+            onClick={() => { setSandbox(tab.id, !sandboxed) }}
+          ><SandboxPolicyIcon sandboxed={sandboxed} /></button>}
+          {profiles !== undefined && renderSlot('sidebar.right.pane.tab.browser.profiles', {
+            profileId,
+            openProfile: (profile: DesktopWebsiteProfile) => {
+              tab.actions.openTab('browser', { params: { url: profile.url, profileId: profile.id }, revealIfOpened: false })
+            },
+          })}
+        </form>
+        {profileId !== undefined && (profiles === undefined
         // This carrier cannot reach the desktop profile registry; say so instead
         // of showing controls that would store nothing.
-        ? <p className={css.profileNotice}>{t('profiles.desktopOnly')}</p>
-        : <BrowserProfileBar profileId={profileId} profiles={profiles} useWebsiteProfiles={useWebsiteProfiles}
-          requests={requests} selectRequest={(id) => { selectRequest(tab.id, id) }}
-          resumeRequest={() => resumeRequest(tab.id)} takeoverRequest={() => takeoverRequest(tab.id)}
-          reloadRequests={() => reloadRequests(tab.id)} t={t} />)}
-      {sandboxed === false && <div className={css.sandboxWarning} role="status">{t('sandbox.warning')}</div>}
-      {error !== undefined && <div className={css.failure} role="status">{error.code !== undefined && error.description !== undefined
-        ? t('load.failed.detail', { code: String(error.code), description: error.description })
-        : t('load.failed')}</div>}
-      {failure !== undefined && <div className={css.failure} role="alert">{t(`error.${failure}`)}</div>}
-      <div className={css.content} aria-busy={frame.loading}>
-        <div id={viewportId} className={css.viewport} aria-label={t('type.label')} ref={(element) => { element?.toggleAttribute('inert', humanAccessBlocked) }} />
-        {restoreTarget !== undefined && <section className={css.restore} aria-label={t('restore.previous')}>
-          <p className={css.restoreLabel}>{t('restore.previous')}</p>
-          <p className={css.restoreTitle}>{restoreTarget.title}</p>
-          <p className={css.restoreUrl}>{restoreTarget.url}</p>
-          <Button variant="primary" size="sm" disabled={humanAccessBlocked || mountEpoch === 0} onClick={() => { restore(tab.id) }}>
-            {t('restore.action')}
-          </Button>
-        </section>}
-        {restoreTarget === undefined && (target === undefined || frame.loading) && error === undefined && <div className={css.placeholder}>
-          <div className={css.start}>{t(target === undefined ? 'start' : 'loading')}</div>
-        </div>}
+          ? <p className={css.profileNotice}>{t('profiles.desktopOnly')}</p>
+          : <BrowserProfileBar profileId={profileId} profiles={profiles} useWebsiteProfiles={useWebsiteProfiles}
+            requests={requests} selectRequest={(id) => { selectRequest(tab.id, id) }}
+            resumeRequest={() => resumeRequest(tab.id)} takeoverRequest={() => takeoverRequest(tab.id)}
+            reloadRequests={() => reloadRequests(tab.id)} t={t} />)}
+        {sandboxed === false && <div className={css.sandboxWarning} role="status">{t('sandbox.warning')}</div>}
+        {error !== undefined && <div className={css.failure} role="status">{error.code !== undefined && error.description !== undefined
+          ? t('load.failed.detail', { code: String(error.code), description: error.description })
+          : t('load.failed')}</div>}
+        {failure !== undefined && <div className={css.failure} role="alert">{t(`error.${failure}`)}</div>}
+        <div className={css.content} aria-busy={frame.loading}>
+          <div id={viewportId} className={css.viewport} aria-label={t('type.label')} ref={(element) => { element?.toggleAttribute('inert', humanAccessBlocked) }} />
+          {restoreTarget !== undefined && <section className={css.restore} aria-label={t('restore.previous')}>
+            <p className={css.restoreLabel}>{t('restore.previous')}</p>
+            <p className={css.restoreTitle}>{restoreTarget.title}</p>
+            <p className={css.restoreUrl}>{restoreTarget.url}</p>
+            <Button variant="primary" size="sm" disabled={humanAccessBlocked || mountEpoch === 0} onClick={() => { restore(tab.id) }}>
+              {t('restore.action')}
+            </Button>
+          </section>}
+          {restoreTarget === undefined && (target === undefined || frame.loading) && error === undefined && (
+            <div className={css.placeholder}>
+              <div className={css.start}>{t(target === undefined ? 'start' : 'loading')}</div>
+            </div>
+          )}
+        </div>
+        {unknown && <p className={css.limit}>{t('address.unknown')}</p>}
       </div>
-      {unknown && <p className={css.limit}>{t('address.unknown')}</p>}
+      {responsiveAvailable && profileId === undefined && <div className={css.responsive} hidden={mode === 'desktop'}
+        id={`${modeId}-${mode === 'desktop' ? 'mobile' : mode}-panel`} role="tabpanel"
+        aria-labelledby={`${modeId}-${mode === 'desktop' ? 'mobile' : mode}`}>
+        {renderSlot('sidebar.right.pane.tab.browser.responsive', {
+          tab: { ...tab, visible: tab.visible && mode !== 'desktop' }, fullscreen: sidebar.fullscreen,
+          mode, navigation: presentation.navigation,
+          selectMobile,
+        })}
+      </div>}
     </div>
   )
 }

@@ -970,13 +970,21 @@ function providerKey(provider: AccountProviderId): CredentialKey {
 }
 
 function parseVault(record: CredentialRecord | undefined): AccountVault {
-  if (record?.kind !== 'grant' || !isRecord(record.payload)) return { version: 1, providers: {} }
+  if (record === undefined) return { version: 1, providers: {} }
+  if (record.kind !== 'grant' || !isRecord(record.payload)) {
+    throw unavailable('stored account data has an unsupported credential record')
+  }
   const payload = record.payload
-  if (payload.version !== 1 || !isRecord(payload.providers)) return { version: 1, providers: {} }
+  if (payload.version !== 1 || !isRecord(payload.providers)) {
+    throw unavailable('stored account data must contain version 1 and a providers object')
+  }
   const providers: Partial<Record<AccountProviderId, ProviderVault>> = {}
-  for (const definition of PROVIDERS) {
-    const candidate = decodeProviderVault(payload.providers[definition.id], definition)
-    if (candidate !== undefined) providers[definition.id] = candidate
+  for (const [providerId, value] of Object.entries(payload.providers)) {
+    const definition = PROVIDERS.find(candidate => candidate.id === providerId)
+    if (definition === undefined) throw unavailable('stored account data contains an unsupported provider')
+    const candidate = decodeProviderVault(value, definition)
+    if (candidate === undefined) throw unavailable('stored account data contains an invalid provider entry')
+    providers[definition.id] = candidate
   }
   return { version: 1, providers }
 }

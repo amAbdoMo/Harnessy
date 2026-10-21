@@ -7,4 +7,4 @@ Diagnostic report: C:\Users\someone\AppData\Roaming\DeepSeek Harness\logs\crash-
 If application files are missing or damaged, close the application and reinstall it. Your tasks are stored separately.
 Exit
 Restart
-Disable third-party plugins, back up profile patch, and restart
+Back up and disable custom plugins and settings, then restart

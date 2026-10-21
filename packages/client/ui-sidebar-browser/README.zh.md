@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-在独立的右侧 Sidebar tab 中浏览 HTTP(S) 页面，包括 loopback 服务。Web 使用 iframe 和应用维护的 history；Desktop 使用 Electron `<webview>`、原生导航 history 和保活页面。本包不会向被访问内容注入 Electron 或 Node 能力。
+在独立的右侧 Sidebar tab 中浏览 HTTP(S) 页面，包括 loopback 服务。Web 使用 iframe 和应用维护的 history；Desktop 使用 Electron `<webview>`、原生导航 history 和保活页面。Browser 默认使用桌面模式；普通 Desktop tab 还提供手机和平板响应式预览。本包不会向被访问内容注入 Electron 或 Node 能力。
 
 ## 目录
 
@@ -26,6 +26,8 @@ kind: "package-reference"
 ## 使用本包
 
 Browser 在 Web profile 中默认禁用，在 Desktop 中默认启用。Web 用户可通过 profile patch 启用随附条目。可以从右侧 Sidebar guide 打开 **浏览器**并输入 HTTP(S) URL。Chat 的[链接偏好](../ui-chat/README.zh.md)选择**应用内侧边栏**时，HTTP(S) 链接会在此打开。不带 scheme 的主机名会补全为 HTTPS。公共目标与 loopback 目标使用相同的默认 sandbox。每次 guide 操作或委托到此的消息链接操作都会创建一个新的 Browser tab。
+
+Desktop 的 Browser 在同一标签页内提供**桌面**、**手机**和**平板**模式；没有独立的设备预览标签页或开始页入口。响应式模式复用私有[预览集成](../ui-device-preview/README.zh.md)及其手机/平板控制器，提供固定 CSS 视口、设备外观和图片回退。实时预览使用普通、未关联已保存账号的 Chromium guest，不是移动 OS 模拟器。已保存的网站账号保持桌面模式，不能成为设备观察目标。打开预览不授予检查权限：每次截图或有界布局读取都需要重新同意。关闭标签页不会停止服务器；自有启动程序需使用显式停止操作。
 
 ### 何时选择
 
@@ -66,7 +68,7 @@ Web 记录 toolbar 提交和 typed tab 打开。导航状态机把每个受控 r
 
 ### Controller
 
-Desktop 向[设备预览](../ui-device-preview/README.zh.md)提供以纯类型声明共享的 `nativeBrowser` 页面服务。使用者负责页面销毁。普通页面可以在不导航的情况下应用固定 CSS 视口尺寸；已保存账号页面不提供视口操作。原生命令成功后的通知标识精确租约及已确认尺寸，释放操作则在实际等待 guest 结束前撤销关联。
+Desktop 向私有 [Browser 响应式集成](../ui-device-preview/README.zh.md)提供以纯类型声明共享的 `nativeBrowser` 页面服务。使用者负责页面销毁。普通页面可以在不导航的情况下应用固定 CSS 视口尺寸；已保存账号页面不提供视口操作。原生命令成功后的通知标识精确租约及已确认尺寸，释放操作则在实际等待 guest 结束前撤销关联。
 
 每个 tab 的 `BrowserController` 负责地址校验、命令和显式恢复。`BrowserFrame` 提供与载体无关的导航状态；`IframeImpl` 使用 `BrowserNavigation`，`ElectronWebViewImpl` 仅为普通 tab 观察 Chromium history。`BrowserPresentation` 负责 DOM 的物理挂载。Session 所有的 `WebsiteRequestSession` 维护有界请求列表与精确 claim；每个已保存账户页面负责自身的准入、撤销和清理等待。销毁会同步停止请求列表观察，并在不等待原生清理完成的情况下撤下控件。它会等待准入和 guest 释放，包括迟到的获取结果；失败的清理仍可等待，并阻止复用。框架绑定的 Browser、profile 和 request hook 提供快照；组件只接收普通 callback，不接收 provider 或 observable 对象。
 

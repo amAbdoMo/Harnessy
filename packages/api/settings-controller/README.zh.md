@@ -39,6 +39,8 @@ kind: "package-reference"
 
 `mcpManager.describe()` 返回 Harnessy 全局保存的 MCP profile、实时连接状态与已发现工具名称，但不返回认证值。`save`、`setEnabled`、`reconnect` 与 `deleteServer` 通过 credential provider 串行保存变更，并立即协调受监督的连接。`openConfigurationFile()` 打开专用的 `$DSH_HOME/mcp-servers.json` 文档；页面下一次刷新状态时会验证并采用其中的修改，界面写入也会同步该文档。该文档仅供本机所有者使用，但为了直接编辑而刻意保持可读，因此可能包含 MCP 认证信息，不应共享。远程服务必须使用 HTTPS，本机 loopback HTTP 除外；本地 stdio 条目直接启动可执行文件，不经过 shell 插值。启用的服务器与声明式 MCP client 条目共享公共 namespace 预留，因此重复 namespace 会安全失败，不影响先前连接。
 
+已有账户或 MCP vault 记录若包含不受支持的版本、无效的 provider/server 条目或不受支持的凭据类型，读取与写入会失败，并保留原有记录及 MCP 可编辑文档。只有记录不存在时才初始化空 vault。错误信息不包含已存储的秘密值。
+
 -----
 
 <a id="configuration"></a>

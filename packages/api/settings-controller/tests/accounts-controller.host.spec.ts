@@ -143,6 +143,27 @@ async function drainUsageStream(ctx: Context, provider = 'openai-codex'): Promis
 }
 
 describe('the Harnessy accounts Remote namespace', () => {
+  it.each([
+    ['a non-grant record', { kind: 'api-key' as const, key: 'fixture-vault-secret' }],
+    ['a future version', { kind: 'grant' as const, payload: { version: 2, providers: {} } }],
+    ['an unknown provider', { kind: 'grant' as const, payload: {
+      version: 1, providers: { 'future-provider': { accounts: {} } },
+    } }],
+    ['a malformed provider', { kind: 'grant' as const, payload: {
+      version: 1, providers: { zai: { accounts: { broken: null } } },
+    } }],
+  ])('rejects %s account vault without changing its record', async (_scenario, record) => {
+    const { ctx, controller } = await boot()
+    const key = credentialKey('account-manager', 'accounts')
+    await ctx.credentials.modifyRecord(key, () => Promise.resolve(record))
+
+    const error = await controller.describe().catch((failure: unknown) => failure)
+
+    expect(error).toMatchObject({ code: 'accounts/unavailable' })
+    expect(JSON.stringify(error)).not.toContain('fixture-vault-secret')
+    expect(await ctx.credentials.readRecord(key)).toEqual(record)
+  })
+
   it.each(['success', 'error', 'early-close'] as const)('refreshes Codex usage after %s without delaying stream settlement', async (outcome) => {
     const pending = Promise.withResolvers<Response>()
     const fetchUsage = vi.fn(() => pending.promise)
@@ -1647,7 +1668,8 @@ describe('manual account billing dates on the Host', () => {
       const { ctx, controller } = await boot()
       const key = credentialKey('llm-pi-ai', provider)
       const grant = (subject: string, refresh: string) => ({ kind: 'grant' as const, payload: {
-        access: jwt({ sub: subject, email: `${subject}@example.com` }), refresh, expires: Date.now() + 3_600_000,
+        type: 'oauth' as const, access: jwt({ sub: subject, email: `${subject}@example.com` }),
+        refresh, expires: Date.now() + 3_600_000,
       } })
       await ctx.credentials.modifyRecord(key, () => Promise.resolve(grant('first', 'initial-token')))
       const [account] = (await controller.describe()).accounts

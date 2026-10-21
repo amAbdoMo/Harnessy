@@ -39,6 +39,8 @@ Mount this package as a Loader entry in a profile that serves browser configurat
 
 `mcpManager.describe()` returns Harnessy's global saved MCP profiles, live connection state, and discovered tool names without authentication values. `save`, `setEnabled`, `reconnect`, and `deleteServer` serialize durable changes through the credential provider and reconcile supervised connections immediately. `openConfigurationFile()` opens the dedicated `$DSH_HOME/mcp-servers.json` document; edits are validated and adopted by the page's next status refresh, while UI writes keep the document synchronized. The document is owner-local but intentionally readable because it is the user's direct-edit surface, so it can contain MCP authentication and must not be shared. Remote services require HTTPS, except loopback HTTP on this computer; local stdio entries launch an executable directly without shell interpolation. Enabled servers reserve the same public namespace as declarative MCP client entries, so duplicate namespaces fail without disturbing an earlier connection.
 
+Existing account or MCP vault records with unsupported versions, invalid provider/server entries, or unsupported credential kinds reject reads and writes without replacing saved records or the MCP editable document. An absent record initializes an empty vault. Errors omit stored secret values.
+
 -----
 
 <a id="configuration"></a>

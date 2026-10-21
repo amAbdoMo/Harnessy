@@ -84,10 +84,20 @@ function ImageSelection(props: DeviceControlsProps): ReactNode {
 export function DeviceControls(props: DeviceControlsProps): ReactNode {
   const { t, view, actions, tabId, lane } = props
   const [menuOpen, setMenuOpen] = useState(false)
-  const [customOpen, setCustomOpen] = useState(view.sizing === 'custom')
+  const [zoomOpen, setZoomOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [customOpen, setCustomOpen] = useState(false)
+  const settingsId = useId()
+  const settingsRef = useRef<HTMLButtonElement>(null)
   const kinds: readonly DeviceKind[] = lane === 'phone' ? ['ios-phone', 'android-phone'] : ['ios-tablet', 'android-tablet']
-  return <div className={css.controls}>
-    <div className={css.controlRow}>
+  return <div className={css.controls} onKeyDown={(event) => {
+    if (event.key === 'Escape' && settingsOpen) {
+      event.stopPropagation()
+      setSettingsOpen(false)
+      settingsRef.current?.focus()
+    }
+  }}>
+    <div className={css.compactControls}>
       <Menu open={menuOpen} portal selectedId={view.kind} onClose={() => { setMenuOpen(false) }}
         anchor={<Button size="sm" variant="outline" aria-label={t('device')} aria-expanded={menuOpen} aria-haspopup="menu"
           onClick={() => { setMenuOpen(!menuOpen) }}>{t(`device.${view.kind}`)}<IconChevronDownOutlineRegular size={14} /></Button>}
@@ -102,23 +112,28 @@ export function DeviceControls(props: DeviceControlsProps): ReactNode {
           aria-pressed={view.orientation === orientation}
           onClick={() => { actions.setOrientation(tabId, lane, orientation) }}>{t(orientation)}</Button>)}
       </div>
+      <Menu open={zoomOpen} portal selectedId={view.zoom} onClose={() => { setZoomOpen(false) }}
+        anchor={<Button size="sm" variant="outline" aria-label={t('scale')} aria-expanded={zoomOpen} aria-haspopup="menu"
+          onClick={() => { setZoomOpen(!zoomOpen) }}>{t(view.zoom === 'fit' ? 'fit' : 'actual')}<IconChevronDownOutlineRegular size={14} /></Button>}
+        items={[{ id: 'fit', label: t('fit') }, { id: 'actual', label: t('actual') }]}
+        onSelect={(zoom) => { if (zoom === 'fit' || zoom === 'actual') actions.setZoom(tabId, lane, zoom); setZoomOpen(false) }} />
+      <Button ref={settingsRef} size="sm" variant="ghost" aria-expanded={settingsOpen} aria-controls={settingsId}
+        onClick={() => { setSettingsOpen(!settingsOpen) }}>{t('settings')}</Button>
     </div>
-    <div className={css.controlRow}>
-      <Button size="sm" variant="ghost" aria-pressed={!customOpen}
-        onClick={() => { actions.setPreset(tabId, lane); setCustomOpen(false) }}>{t('preset')}</Button>
-      <Button size="sm" variant="ghost" aria-pressed={customOpen} onClick={() => { setCustomOpen(true) }}>{t('custom')}</Button>
-      <div className={css.choiceGroup} role="group" aria-label={t('scale')}>
-        <Button size="sm" variant="ghost" aria-pressed={view.zoom === 'fit'} onClick={() => { actions.setZoom(tabId, lane, 'fit') }}>{t('fit')}</Button>
-        <Button size="sm" variant="ghost" aria-pressed={view.zoom === 'actual'} onClick={() => { actions.setZoom(tabId, lane, 'actual') }}>{t('actual')}</Button>
+    <div id={settingsId} className={css.advancedSettings} hidden={!settingsOpen}>
+      <div className={css.controlRow}>
+        <Button size="sm" variant="ghost" aria-pressed={view.sizing === 'preset'}
+          onClick={() => { actions.setPreset(tabId, lane); setCustomOpen(false) }}>{t('preset')}</Button>
+        <Button size="sm" variant="ghost" aria-pressed={view.sizing === 'custom' || customOpen} onClick={() => { setCustomOpen(true) }}>{t('custom')}</Button>
       </div>
+      {customOpen && <CustomSize key={`${view.orientation}:${view.dimensions.width}:${view.dimensions.height}`} {...props} />}
+      <div className={css.choiceGroup} role="group" aria-label={t('source')}>
+        <Button size="sm" variant="ghost" disabled={!props.liveAvailable} aria-pressed={props.liveAvailable && view.source === 'live'}
+          onClick={() => { actions.setSource(tabId, lane, 'live') }}>{t('live')}</Button>
+        <Button size="sm" variant="ghost" aria-pressed={!props.liveAvailable || view.source === 'image'}
+          onClick={() => { actions.setSource(tabId, lane, 'image') }}>{t('image')}</Button>
+      </div>
+      {(!props.liveAvailable || view.source === 'image') && <ImageSelection {...props} />}
     </div>
-    {customOpen && <CustomSize key={`${view.orientation}:${view.dimensions.width}:${view.dimensions.height}`} {...props} />}
-    <div className={css.choiceGroup} role="group" aria-label={t('source')}>
-      <Button size="sm" variant="ghost" disabled={!props.liveAvailable} aria-pressed={props.liveAvailable && view.source === 'live'}
-        onClick={() => { actions.setSource(tabId, lane, 'live') }}>{t('live')}</Button>
-      <Button size="sm" variant="ghost" aria-pressed={!props.liveAvailable || view.source === 'image'}
-        onClick={() => { actions.setSource(tabId, lane, 'image') }}>{t('image')}</Button>
-    </div>
-    {(!props.liveAvailable || view.source === 'image') && <ImageSelection {...props} />}
   </div>
 }

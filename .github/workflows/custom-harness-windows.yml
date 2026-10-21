@@ -44,6 +44,10 @@ jobs:
         shell: pwsh
         run: pnpm run verify:harnessy-product
 
+      - name: Verify saved settings and unread badges
+        shell: pwsh
+        run: pnpm run verify:harnessy-upgrade
+
       - name: Type-check the desktop host
         shell: pwsh
         run: pnpm exec tsc -b tsconfig.host.json --pretty false

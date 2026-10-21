@@ -1,0 +1,15 @@
+Desktop
+Mobile
+Tablet
+Page URL
+Back
+Forward
+Reload
+Go
+Compare phone and tablet
+Device
+Portrait
+Landscape
+Display scale
+Settings
+About this preview

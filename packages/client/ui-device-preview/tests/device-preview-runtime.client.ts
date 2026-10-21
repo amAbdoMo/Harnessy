@@ -1,5 +1,6 @@
 /** Source-plane application composition; only native guests and Remote IO are inert. */
 import { ClientRoster, type AssemblyPlan } from '@deepseek-ai/dsh-client-test-runtime/src/assembly/index.ts'
+import * as fileUpload from '@deepseek-ai/dsh-client-file-upload/client'
 import * as gateway from '@deepseek-ai/dsh-api-gateway/src/client/index.ts'
 import * as typert from '@deepseek-ai/dsh-typert-registry/src/client/index.ts'
 import * as renderer from '@deepseek-ai/dsh-client-ui-renderer/src/client/index.ts'
@@ -15,6 +16,7 @@ import * as resources from '@deepseek-ai/dsh-client-resources/src/client/index.t
 import * as sidebarRight from '@deepseek-ai/dsh-client-ui-sidebar-right/src/client/index.ts'
 
 const provide: NonNullable<AssemblyPlan['provide']> = {
+  '@deepseek-ai/dsh-client-file-upload': fileUpload,
   '@deepseek-ai/dsh-api-gateway': gateway,
   '@deepseek-ai/dsh-typert-registry': typert,
   '@deepseek-ai/dsh-client-ui-renderer': renderer,

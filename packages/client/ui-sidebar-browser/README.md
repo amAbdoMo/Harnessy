@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Browse HTTP(S) pages, including loopback services, inside independent right-Sidebar tabs. Web uses an iframe with application-managed history; Desktop uses Electron `<webview>` with native navigation history and retained pages. The package never injects Electron or Node access into visited content.
+Browse HTTP(S) pages, including loopback services, inside independent right-Sidebar tabs. Web uses an iframe with application-managed history; Desktop uses Electron `<webview>` with native navigation history and retained pages. Browser starts in Desktop mode; ordinary Desktop tabs also offer Mobile and Tablet responsive previews. The package never injects Electron or Node access into visited content.
 
 ## Table of Contents
 
@@ -26,6 +26,8 @@ Browse HTTP(S) pages, including loopback services, inside independent right-Side
 ## Use this package
 
 Browser is disabled by default in Web profiles and enabled on Desktop. Enable the shipped entry through the Web profile patch to use it. Open **Browser** from the right-Sidebar guide and enter an HTTP(S) URL. Chat HTTP(S) links open here when the [link preference](../ui-chat/README.md) selects **In-App Sidebar**. A host name without a scheme becomes HTTPS. Public and loopback targets use the same default sandbox. Each guide action or delegated message-link activation creates another Browser tab.
+
+Desktop's Browser offers **Desktop**, **Mobile** and **Tablet** modes inside the same tab; there is no separate Device Preview tab or guide entry. Responsive modes reuse the private [preview integration](../ui-device-preview/README.md) and its phone/tablet controllers for fixed CSS viewports, device frames and image fallback. Live previews use ordinary unprofiled Chromium guests, not a mobile OS emulator. Saved website accounts stay in Desktop mode and cannot be device-observation targets. Opening a preview grants no inspection: each screenshot or bounded layout read needs fresh consent. Closing the tab does not stop its server; use explicit Stop for an owned launcher.
 
 ### When to choose it
 
@@ -66,7 +68,7 @@ Web records toolbar submissions and typed tab opens. A navigation state machine 
 
 ### Controller
 
-Desktop provides the type-only `nativeBrowser` page service to [Device Preview](../ui-device-preview/README.md). Consumers own page disposal. Ordinary pages can apply fixed CSS viewport metrics without navigation; saved-account pages expose no viewport operation. Successful native command notifications identify the exact lease and acknowledged geometry, while release revokes the association before physical guest drainage.
+Desktop provides the type-only `nativeBrowser` page service to the private [Browser responsive integration](../ui-device-preview/README.md). Consumers own page disposal. Ordinary pages can apply fixed CSS viewport metrics without navigation; saved-account pages expose no viewport operation. Successful native command notifications identify the exact lease and acknowledged geometry, while release revokes the association before physical guest drainage.
 
 Each tab's `BrowserController` owns address validation, commands, and explicit restoration. `BrowserFrame` supplies carrier-neutral navigation state; `IframeImpl` uses `BrowserNavigation`, while `ElectronWebViewImpl` observes Chromium history only for ordinary tabs. `BrowserPresentation` owns physical DOM attachment. A Session-owned `WebsiteRequestSession` maintains the bounded request roster and exact claims; each saved-account page owns its admission, revocation, and drainage. Disposal stops roster observation synchronously and withdraws controls without waiting for native drainage. It joins admission and guest releases, including late acquisitions; failed drainage remains joinable and blocks reuse. Framework-bound Browser, profile, and request hooks supply snapshots; components receive plain callbacks, never providers or observable objects.
 

@@ -35,6 +35,9 @@ function websiteSession(partition: string) {
 type InvokeEvent = { sender?: unknown; senderFrame: { url: string } }
 type InvokeHandler = (event: InvokeEvent, ...args: unknown[]) => unknown
 
+const gdi = await vi.hoisted(async () => (await import('./gdi-mock.ts')).createGdiMock())
+vi.mock('koffi', () => ({ default: gdi.koffi }))
+
 vi.mock('../src/windows-notification-registration.ts', () => ({ registerWindowsToastIdentity: vi.fn(async () => false) }))
 vi.mock('../src/web-document.ts', () => ({ authenticateWebHost: async () => 'test-cookie', serveWebDocument: vi.fn(), forwardWebRequest: vi.fn() }))
 // Report persistence has its own unit tests; here it resolves within microtasks so the fatal
@@ -1229,23 +1232,24 @@ describe('desktop main startup', () => {
     const window = harness.windows[0]
     if (window === undefined) throw new Error('Missing primary window')
     const epoch = invoke(DESKTOP_IPC.taskbarDocument, 'app')
-    expect(() => invoke(DESKTOP_IPC.taskbarSetUnread, 'app', true, epoch)).toThrow('stale application document')
+    expect(() => invoke(DESKTOP_IPC.taskbarSetUnreadCount, 'app', 7, epoch)).toThrow('stale application document')
     window.webContents.isLoadingMainFrame.mockReturnValue(true)
     window.webContents.emit('dom-ready')
-    invoke(DESKTOP_IPC.taskbarSetUnread, 'app', true, epoch)
+    invoke(DESKTOP_IPC.taskbarSetUnreadCount, 'app', 7, epoch)
     const overlay = window.setOverlayIcon.mock.lastCall?.[0]
     expect(overlay?.getSize()).toEqual({ width: 16, height: 16 })
-    expect([...overlay?.toBitmap().subarray((7 * 16 + 7) * 4, (7 * 16 + 7) * 4 + 4) ?? []]).toEqual([153, 102, 51, 255])
-    expect(() => invoke(DESKTOP_IPC.taskbarSetUnread, 'shell', true, epoch)).toThrow('unowned renderer')
-    const unreadHandler = harness.handlers.get(DESKTOP_IPC.taskbarSetUnread)
+    expect(overlay?.toBitmap().byteLength).toBe(16 * 16 * 4)
+    expect(window.setOverlayIcon.mock.lastCall?.[1]).toBe('Unread session completions: 7')
+    expect(() => invoke(DESKTOP_IPC.taskbarSetUnreadCount, 'shell', 7, epoch)).toThrow('unowned renderer')
+    const unreadHandler = harness.handlers.get(DESKTOP_IPC.taskbarSetUnreadCount)
     if (unreadHandler === undefined) throw new Error('Missing taskbar unread handler')
-    expect(() => unreadHandler({ sender: {}, senderFrame: window.webContents.mainFrame }, true, epoch)).toThrow('unowned renderer')
+    expect(() => unreadHandler({ sender: {}, senderFrame: window.webContents.mainFrame }, 7, epoch)).toThrow('unowned renderer')
     harness.app.emit('will-quit')
     expect(window.setOverlayIcon.mock.lastCall).toEqual([null, ''])
     expect(harness.handlers.has(DESKTOP_IPC.taskbarDocument)).toBe(false)
-    expect(harness.handlers.has(DESKTOP_IPC.taskbarSetUnread)).toBe(false)
+    expect(harness.handlers.has(DESKTOP_IPC.taskbarSetUnreadCount)).toBe(false)
     expect(harness.systemPreferences.listenerCount('accent-color-changed')).toBe(0)
-    expect(() => unreadHandler({ sender: window.webContents, senderFrame: window.webContents.mainFrame }, true, epoch)).toThrow('stale')
+    expect(() => unreadHandler({ sender: window.webContents, senderFrame: window.webContents.mainFrame }, 7, epoch)).toThrow('stale')
   })
 
   it.each(['before-load', 'after-load'] as const)('composes the real preload single early publication with main IPC when the ticket settles %s', async (settlement) => {
@@ -1257,9 +1261,9 @@ describe('desktop main startup', () => {
     onTestFinished(() => { ticket.resolve(undefined) })
     const renderer = await loadProductPreload()
     // The publisher may dedupe this initial value; acceptance must not depend on a second publication.
-    const published = renderer.taskbar.setUnread(true)
+    const published = renderer.taskbar.setUnreadCount(7)
     drainTaskbarPublications([published], () => { renderer.load(); ticket.resolve(undefined) })
-    expect(harness.rendererInvoke.mock.calls.filter(([channel]) => channel === DESKTOP_IPC.taskbarSetUnread)).toEqual([])
+    expect(harness.rendererInvoke.mock.calls.filter(([channel]) => channel === DESKTOP_IPC.taskbarSetUnreadCount)).toEqual([])
     window.webContents.isLoadingMainFrame.mockReturnValue(true)
     window.webContents.emit('dom-ready')
     if (settlement === 'before-load') {
@@ -1269,13 +1273,13 @@ describe('desktop main startup', () => {
       ticket.resolve(undefined)
       // The aggregate resumes after the preload's earlier ticket continuation reaches its renderer-load wait.
       await Promise.all([request.value])
-      expect(harness.rendererInvoke.mock.calls.filter(([channel]) => channel === DESKTOP_IPC.taskbarSetUnread)).toEqual([])
+      expect(harness.rendererInvoke.mock.calls.filter(([channel]) => channel === DESKTOP_IPC.taskbarSetUnreadCount)).toEqual([])
     }
     renderer.load()
     if (settlement === 'after-load') ticket.resolve(undefined)
     await published
     expect(harness.rendererInvoke.mock.calls.filter(([channel]) => channel.startsWith('dsh-desktop:taskbar-'))).toEqual([
-      [DESKTOP_IPC.taskbarDocument], [DESKTOP_IPC.taskbarSetUnread, true, 0],
+      [DESKTOP_IPC.taskbarDocument], [DESKTOP_IPC.taskbarSetUnreadCount, 7, 0],
     ])
     expect(window.setOverlayIcon.mock.lastCall?.[0]?.getSize()).toEqual({ width: 16, height: 16 })
   })
@@ -1286,9 +1290,9 @@ describe('desktop main startup', () => {
     if (window === undefined) throw new Error('Missing primary window')
     window.webContents.emit('dom-ready')
     const renderer = await loadProductPreload('complete')
-    await renderer.taskbar.setUnread(true)
-    expect(harness.rendererInvoke.mock.calls.filter(([channel]) => channel === DESKTOP_IPC.taskbarSetUnread)).toEqual([
-      [DESKTOP_IPC.taskbarSetUnread, true, 0],
+    await renderer.taskbar.setUnreadCount(7)
+    expect(harness.rendererInvoke.mock.calls.filter(([channel]) => channel === DESKTOP_IPC.taskbarSetUnreadCount)).toEqual([
+      [DESKTOP_IPC.taskbarSetUnreadCount, 7, 0],
     ])
     expect(window.setOverlayIcon.mock.lastCall?.[0]?.getSize()).toEqual({ width: 16, height: 16 })
   })
@@ -1299,17 +1303,17 @@ describe('desktop main startup', () => {
     harness.ticketSettlement = ticket.promise
     onTestFinished(() => { ticket.resolve(undefined) })
     const renderer = await loadProductPreload()
-    const published = renderer.taskbar.setUnread(true)
+    const published = renderer.taskbar.setUnreadCount(7)
     drainTaskbarPublications([published], () => { renderer.load(); ticket.resolve(undefined) })
     const failed = expect(published).rejects.toThrow('ticket transport failed')
     renderer.load()
     ticket.reject(new Error('ticket transport failed'))
     await failed
-    expect(harness.rendererInvoke.mock.calls.filter(([channel]) => channel === DESKTOP_IPC.taskbarSetUnread)).toEqual([])
+    expect(harness.rendererInvoke.mock.calls.filter(([channel]) => channel === DESKTOP_IPC.taskbarSetUnreadCount)).toEqual([])
     expect(harness.createFromBitmap).not.toHaveBeenCalled()
   })
 
-  it('preserves pending true, false and HMR-clear order through preload ticket and renderer-load readiness', async () => {
+  it('preserves pending count, zero and HMR-clear order through preload ticket and renderer-load readiness', async () => {
     await readyForUpdate()
     const window = harness.windows[0]
     if (window === undefined) throw new Error('Missing primary window')
@@ -1317,7 +1321,7 @@ describe('desktop main startup', () => {
     harness.ticketSettlement = ticket.promise
     onTestFinished(() => { ticket.resolve(undefined) })
     const renderer = await loadProductPreload()
-    const pending = [renderer.taskbar.setUnread(true), renderer.taskbar.setUnread(false), renderer.taskbar.setUnread(false)]
+    const pending = [renderer.taskbar.setUnreadCount(7), renderer.taskbar.setUnreadCount(0), renderer.taskbar.setUnreadCount(0)]
     drainTaskbarPublications(pending, () => { renderer.load(); ticket.resolve(undefined) })
     expect(harness.createFromBitmap).not.toHaveBeenCalled()
     window.webContents.emit('dom-ready')
@@ -1325,8 +1329,8 @@ describe('desktop main startup', () => {
     expect(harness.createFromBitmap).not.toHaveBeenCalled()
     ticket.resolve(undefined)
     await Promise.all(pending)
-    expect(harness.rendererInvoke.mock.calls.filter(([channel]) => channel === DESKTOP_IPC.taskbarSetUnread)).toEqual([
-      [DESKTOP_IPC.taskbarSetUnread, true, 0], [DESKTOP_IPC.taskbarSetUnread, false, 0], [DESKTOP_IPC.taskbarSetUnread, false, 0],
+    expect(harness.rendererInvoke.mock.calls.filter(([channel]) => channel === DESKTOP_IPC.taskbarSetUnreadCount)).toEqual([
+      [DESKTOP_IPC.taskbarSetUnreadCount, 7, 0], [DESKTOP_IPC.taskbarSetUnreadCount, 0, 0], [DESKTOP_IPC.taskbarSetUnreadCount, 0, 0],
     ])
     expect(harness.createFromBitmap).toHaveBeenCalledOnce()
     expect(window.setOverlayIcon.mock.lastCall).toEqual([null, ''])
@@ -1341,12 +1345,12 @@ describe('desktop main startup', () => {
     onTestFinished(() => { ticket.resolve(undefined) })
     const oldRenderer = await loadProductPreload()
     window.webContents.emit('dom-ready')
-    const published = oldRenderer.taskbar.setUnread(true)
+    const published = oldRenderer.taskbar.setUnreadCount(7)
     drainTaskbarPublications([published], () => { oldRenderer.load(); ticket.resolve(undefined) })
     const failed = expect(published).rejects.toThrow('stale document ticket')
     const sameFrame = window.webContents.mainFrame
     window.webContents.emit('did-start-navigation', { isMainFrame: true, isSameDocument: false })
-    expect(() => invoke(DESKTOP_IPC.taskbarSetUnread, 'app', true, 0)).toThrow('stale application document')
+    expect(() => invoke(DESKTOP_IPC.taskbarSetUnreadCount, 'app', 7, 0)).toThrow('stale application document')
     expect(window.webContents.mainFrame).toBe(sameFrame)
     window.webContents.emit('dom-ready')
     oldRenderer.load()
@@ -1359,9 +1363,9 @@ describe('desktop main startup', () => {
     const replacement = await loadProductPreload()
     window.webContents.emit('dom-ready')
     replacement.load()
-    await replacement.taskbar.setUnread(true)
-    expect(harness.rendererInvoke.mock.calls.filter(([channel]) => channel === DESKTOP_IPC.taskbarSetUnread)).toEqual([
-      [DESKTOP_IPC.taskbarSetUnread, true, 0], [DESKTOP_IPC.taskbarSetUnread, true, 1],
+    await replacement.taskbar.setUnreadCount(7)
+    expect(harness.rendererInvoke.mock.calls.filter(([channel]) => channel === DESKTOP_IPC.taskbarSetUnreadCount)).toEqual([
+      [DESKTOP_IPC.taskbarSetUnreadCount, 7, 0], [DESKTOP_IPC.taskbarSetUnreadCount, 7, 1],
     ])
     expect(window.setOverlayIcon.mock.lastCall?.[0]?.getSize()).toEqual({ width: 16, height: 16 })
   })
@@ -2513,7 +2517,7 @@ describe('desktop main startup', () => {
     harness.prepared.reject(new Error('runtime resources missing'))
     await harness.dialogShown.promise
     expect((harness.dialog.showMessageBox.mock.calls[0]![0] as MessageBoxOptions).detail).toContain('runtime resources missing')
-    expect((harness.dialog.showMessageBox.mock.calls[0]![0] as MessageBoxOptions).buttons).toEqual(['Exit', 'Restart', 'Disable third-party plugins, back up profile patch, and restart'])
+    expect((harness.dialog.showMessageBox.mock.calls[0]![0] as MessageBoxOptions).buttons).toEqual(['Exit', 'Restart', 'Back up and disable custom plugins and settings, then restart'])
     expect(harness.windows[0]!.urls).toEqual(['dsh-app://app/'])
   })
 

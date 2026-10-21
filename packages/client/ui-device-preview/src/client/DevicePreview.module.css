@@ -15,12 +15,11 @@
   display: flex;
   flex: 0 0 auto;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px;
+  gap: 6px;
+  padding: 8px 12px;
   border-bottom: 0.5px solid var(--dsw-alias-border-l3);
 }
 
-.startRow,
 .controlRow,
 .choiceGroup,
 .navigation,
@@ -45,7 +44,55 @@
 
 .address {
   flex: 1 1 auto;
-  min-width: 0;
+  min-width: 96px;
+  height: 28px;
+}
+
+.address input {
+  font: var(--dsw-font-xs-13);
+}
+
+.navigation {
+  flex-wrap: wrap;
+}
+
+.compactControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.advancedSettings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: var(--dsw-alias-bg-layer-1);
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: var(--dsw-radius-md);
+}
+
+.advancedSettings[hidden] {
+  display: none;
+}
+
+.statusBar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 12px;
+  border-top: 0.5px solid var(--dsw-alias-border-l3);
+  color: var(--dsw-alias-label-secondary);
+  font: var(--dsw-font-xxs-12);
+}
+
+.aboutCopy {
+  max-width: 280px;
+  margin: 0;
+  font: var(--dsw-font-xs-13);
 }
 
 .hint {
@@ -81,13 +128,6 @@
 
 .comparison .lane + .lane {
   border-left: 0.5px solid var(--dsw-alias-border-l3);
-}
-
-.laneTitle {
-  margin: 0;
-  font-size: inherit;
-  font-weight: 500;
-  line-height: inherit;
 }
 
 .controls {
@@ -314,7 +354,4 @@
     border-left: 0;
   }
 
-  .startRow {
-    flex-wrap: wrap;
-  }
 }

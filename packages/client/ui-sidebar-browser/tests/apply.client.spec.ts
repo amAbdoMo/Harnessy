@@ -58,6 +58,8 @@ async function boot(platform: ShortcutPlatform = 'macos', runtime: 'desktop' | '
   const tabs = new SidebarRightTabRegistry(ctx)
   const registered: Recorded[] = []
   const slots = {
+    entries: vi.fn(() => []),
+    subscribe: vi.fn(() => () => {}),
     inject: vi.fn((_name: string, register: () => () => void) => register()),
     register: vi.fn((options: Omit<Recorded, 'component'>, component: unknown) => {
       const entry: Recorded = { ...options, component }

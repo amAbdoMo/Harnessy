@@ -4,14 +4,14 @@ import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controlle
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { SessionStatusSnapshot } from '@deepseek-ai/dsh-client-ui-session/client'
 
-/** Optional desktop capability; Windows owns the indicator's accent color. */
+/** Optional desktop capability; the native carrier owns badge rendering. */
 export interface NativeTaskbar {
   /**
-   * Replace the window's unread indicator in invocation order.
-   * @param unread - whether a listed ordinary Session has an unread completion.
+   * Replace the window's unread count in invocation order; zero clears the badge.
+   * @param count - nonnegative integer count of eligible listed ordinary Sessions with unread completions.
    * @returns acknowledgement of the native update; carrier failures reject.
    */
-  setUnread(unread: boolean): Promise<void>
+  setUnreadCount(count: number): Promise<void>
 }
 
 interface TaskbarSources {
@@ -20,32 +20,34 @@ interface TaskbarSources {
   readonly workspaces: ObservableSnapshot<WorkspaceSnapshot>
 }
 
-function completionUnread(sources: TaskbarSources): boolean {
+function completionUnreadCount(sources: TaskbarSources): number {
   const list = sources.sessions.getSnapshot()
   const statuses = sources.statuses.getSnapshot()
   const archived = new Set(sources.workspaces.getSnapshot().archivedSessionIds)
   const current = Object.values(list.byId).find(session => (session.retainedBy.mainView ?? 0) > 0)?.id
-  return list.ids.some((id) => {
+  let count = 0
+  for (const id of list.ids) {
     const summary = list.byId[id]
-    return summary !== undefined && summary.origin !== 'subagent' && !archived.has(id)
-      && (!summary.blank || id === current) && statuses.get(id)?.completionUnread === true
-  })
+    if (summary !== undefined && summary.origin !== 'subagent' && !archived.has(id)
+      && (!summary.blank || id === current) && statuses.get(id)?.completionUnread === true) count++
+  }
+  return count
 }
 
 function reportTaskbarFailure(reason: unknown): void {
   console.warn('Harnessy taskbar unread update failed:', reason)
 }
 
-function sendUnread(taskbar: NativeTaskbar, unread: boolean): void {
+function sendUnreadCount(taskbar: NativeTaskbar, count: number): void {
   try {
-    void taskbar.setUnread(unread).catch(reportTaskbarFailure)
+    void taskbar.setUnreadCount(count).catch(reportTaskbarFailure)
   } catch (reason) {
     reportTaskbarFailure(reason)
   }
 }
 
 /**
- * Send the current aggregate and live changes without owning a second unread state.
+ * Send the current count and each changed count without owning a second unread state.
  * Calls reach the carrier immediately in order, including teardown's final clear;
  * promise settlement never publishes another update. Failures are diagnostic only.
  * @param taskbar - native window capability, resolved only in the apply world.
@@ -55,13 +57,13 @@ function sendUnread(taskbar: NativeTaskbar, unread: boolean): void {
  */
 export function subscribeNativeTaskbar(taskbar: NativeTaskbar, sources: TaskbarSources, page: Window): () => void {
   let active = true
-  let lastPublished: boolean | undefined
-  const publish = (unread: boolean): void => {
-    if (unread === lastPublished) return
-    lastPublished = unread
-    sendUnread(taskbar, unread)
+  let lastPublished: number | undefined
+  const publish = (count: number): void => {
+    if (count === lastPublished) return
+    lastPublished = count
+    sendUnreadCount(taskbar, count)
   }
-  const sync = (): void => { if (active) publish(completionUnread(sources)) }
+  const sync = (): void => { if (active) publish(completionUnreadCount(sources)) }
   const stopStatus = sources.statuses.subscribe(sync)
   const stopSessions = sources.sessions.subscribe(sync)
   const stopWorkspaces = sources.workspaces.subscribe(sync)
@@ -72,7 +74,7 @@ export function subscribeNativeTaskbar(taskbar: NativeTaskbar, sources: TaskbarS
     stopSessions()
     stopWorkspaces()
     page.removeEventListener('pagehide', dispose)
-    sendUnread(taskbar, false)
+    sendUnreadCount(taskbar, 0)
   }
   page.addEventListener('pagehide', dispose)
   sync()

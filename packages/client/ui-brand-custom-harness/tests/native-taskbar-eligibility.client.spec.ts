@@ -17,38 +17,38 @@ const unread: SessionStatusSnapshot = new Map([[SESSION, {
 }]])
 
 it.each([
-  { scenario: 'missing metadata', ids: [SESSION], byId: {}, archived: [], expected: false },
-  { scenario: 'unlisted metadata', ids: [], byId: { [SESSION]: summary }, archived: [], expected: false },
+  { scenario: 'missing metadata', ids: [SESSION], byId: {}, archived: [], expected: 0 },
+  { scenario: 'unlisted metadata', ids: [], byId: { [SESSION]: summary }, archived: [], expected: 0 },
   { scenario: 'subagent origin', ids: [SESSION], byId: { [SESSION]: { ...summary, origin: 'subagent' } },
-    archived: [], expected: false },
-  { scenario: 'archived membership', ids: [SESSION], byId: { [SESSION]: summary }, archived: [SESSION], expected: false },
+    archived: [], expected: 0 },
+  { scenario: 'archived membership', ids: [SESSION], byId: { [SESSION]: summary }, archived: [SESSION], expected: 0 },
   { scenario: 'unselected blank', ids: [SESSION], byId: { [SESSION]: { ...summary, blank: true } },
-    archived: [], expected: false },
+    archived: [], expected: 0 },
   { scenario: 'current blank', ids: [SESSION], byId: { [SESSION]: { ...summary, blank: true, retainedBy: { mainView: 1 } } },
-    archived: [], expected: true },
+    archived: [], expected: 1 },
   { scenario: 'ordinary fork', ids: [SESSION], byId: { [SESSION]: { ...summary, parentId: 'source' as SessionId } },
-    archived: [], expected: true },
+    archived: [], expected: 1 },
 ] satisfies readonly {
   scenario: string
   ids: SessionId[]
   byId: SessionListState['byId']
   archived: SessionId[]
-  expected: boolean
+  expected: number
 }[])('publishes $expected for unread with $scenario', ({ ids, byId, archived, expected }) => {
   const sessions = createSnapshotStore<SessionListState>({ ids, byId, phase: 'ready', projectionsBySession: {} })
   const workspaces = createSnapshotStore<WorkspaceSnapshot>({
     items: [], archivedSessionIds: archived, pinnedSessionIds: [], state: 'idle', phase: 'ready', error: null,
   })
   const statuses = createSnapshotStore(unread)
-  const setUnread = vi.fn(async (_unread: boolean) => {})
-  const dispose = subscribeNativeTaskbar({ setUnread }, { sessions, workspaces, statuses }, window)
+  const setUnreadCount = vi.fn(async (_count: number) => {})
+  const dispose = subscribeNativeTaskbar({ setUnreadCount }, { sessions, workspaces, statuses }, window)
   try {
-    expect(setUnread.mock.calls).toEqual([[expected]])
+    expect(setUnreadCount.mock.calls).toEqual([[expected]])
     sessions.set({ ...sessions.getSnapshot(), ids: [] })
-    expect(setUnread).toHaveBeenLastCalledWith(false)
+    expect(setUnreadCount).toHaveBeenLastCalledWith(0)
     sessions.set({ ids: [SESSION], byId: { [SESSION]: summary }, phase: 'ready', projectionsBySession: {} })
     workspaces.set({ ...workspaces.getSnapshot(), archivedSessionIds: [] })
-    expect(setUnread).toHaveBeenLastCalledWith(true)
+    expect(setUnreadCount).toHaveBeenLastCalledWith(1)
     expect(statuses.getSnapshot()).toBe(unread)
   } finally { dispose() }
 })

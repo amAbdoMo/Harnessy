@@ -626,9 +626,18 @@ importers:
       '@deepseek-ai/dsh-api-gateway':
         specifier: workspace:*
         version: link:../../packages/api/gateway
+      debug:
+        specifier: ^4.4.3
+        version: 4.4.3(supports-color@9.4.0)
       electron-updater:
         specifier: ^6.8.9
         version: 6.8.9
+      koffi:
+        specifier: 3.1.1
+        version: 3.1.1
+      ms:
+        specifier: ^2.1.3
+        version: 2.1.3
       semver:
         specifier: ^7.8.5
         version: 7.8.5
@@ -723,9 +732,6 @@ importers:
       js-yaml:
         specifier: ^4.2.0
         version: 4.3.1
-      koffi:
-        specifier: 3.1.1
-        version: 3.1.1
       react:
         specifier: ^18.2.0
         version: 18.3.1
@@ -4061,6 +4067,9 @@ importers:
       '@deepseek-ai/dsh-brand':
         specifier: workspace:*
         version: link:../../util/brand
+      '@deepseek-ai/dsh-client-file-upload':
+        specifier: workspace:*
+        version: link:../file-upload
       '@deepseek-ai/dsh-client-locale':
         specifier: workspace:*
         version: link:../locale

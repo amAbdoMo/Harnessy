@@ -8,6 +8,7 @@ import { createBrowserControllers, type BrowserControllerState, type BrowserInje
 import { createBrowserStore } from '../src/client/browser/store.ts'
 import { createWebsiteProfileDraftStore } from '../src/client/browser/profile-draft.ts'
 import { BrowserProfilePicker, type BrowserProfilePickerProps } from '../src/client/view/BrowserProfilePicker.tsx'
+import type { BrowserResponsiveOwner } from '../src/client/responsive.ts'
 import type { BrowserBodyProps } from '../src/client/view/BrowserBody.tsx'
 import { BrowserBody } from '../src/client/view/BrowserBody.tsx'
 import { WEB_BROWSER_SANDBOX } from '../src/client/view/IframePresentation.ts'
@@ -71,6 +72,7 @@ const absentState = {
 function mountBrowser(navigation?: { readonly url?: string; readonly profileId?: DesktopWebsiteProfileId },
   options: {
     initial?: BrowserTabState
+    responsive?: boolean
     createPage?: BrowserPageFactory
     refreshShortcut?: ReturnType<BrowserBodyProps['useTabInfo']>['tab']['refreshShortcut']
     profiles?: WebsiteProfileCommands
@@ -81,6 +83,7 @@ function mountBrowser(navigation?: { readonly url?: string; readonly profileId?:
   const lifetime = new AbortController()
   lifetimes.add(lifetime)
   const websiteProfiles = options.websiteProfiles ?? profileState()
+  const responsive = createSnapshotStore(options.responsive ?? false)
   const injected = createBrowserControllers(store.actions, options.createPage ?? createIframePage,
     () => true, () => websiteProfiles.getSnapshot())
   controllers.push(injected)
@@ -96,9 +99,10 @@ function mountBrowser(navigation?: { readonly url?: string; readonly profileId?:
   }
   const profileDraft = createWebsiteProfileDraftStore().create()
   const tabActions = { bindCommands: vi.fn<ReturnType<BrowserBodyProps['useTabInfo']>['tab']['actions']['bindCommands']>(() => vi.fn()), openResource: vi.fn(), openTab: vi.fn(), close: vi.fn() }
-  const props: Pick<BrowserBodyProps, 'sessionId' | 'useTabInfo' | 'useStore' | 'actions' | 't' | 'useBrowserState' | 'useWebsiteProfiles' | 'useWebsiteRequests' | 'profiles' | 'renderSlot'>
+  const props: Pick<BrowserBodyProps, 'sessionId' | 'useResponsiveAvailable' | 'useTabInfo' | 'useStore' | 'actions' | 't' | 'useBrowserState' | 'useWebsiteProfiles' | 'useWebsiteRequests' | 'profiles' | 'renderSlot'>
     & Omit<BrowserInjected, 'keyedHooks' | 'hooks'> = {
       sessionId: SESSION,
+      useResponsiveAvailable: hookOf(responsive),
       useTabInfo: () => ({
         sidebar: { expanded: true, fullscreen: false }, panel: { id: 'pane' as PaneId },
         tab: {
@@ -111,10 +115,17 @@ function mountBrowser(navigation?: { readonly url?: string; readonly profileId?:
       useStore: hookOf(store),
       actions: store.actions,
       profiles: options.profiles,
-      renderSlot: ((_name: 'sidebar.right.pane.tab.browser.profiles', owner: Pick<BrowserProfilePickerProps, 'profileId' | 'openProfile'>) => options.profiles === undefined ? null : <BrowserProfilePicker {...{
-        ...owner, sessionId: SESSION, profiles: options.profiles, useStore: hookOf(profileDraft), actions: profileDraft.actions,
-        useWebsiteProfiles: props.useWebsiteProfiles, t: props.t,
-      } as BrowserProfilePickerProps} />) as BrowserBodyProps['renderSlot'],
+      renderSlot: ((name: string, owner: BrowserResponsiveOwner | Pick<BrowserProfilePickerProps, 'profileId' | 'openProfile'>) => {
+        if (name === 'sidebar.right.pane.tab.browser.responsive') {
+          const responsiveOwner = owner as BrowserResponsiveOwner
+          return <output aria-label="Responsive owner">{JSON.stringify({ mode: responsiveOwner.mode,
+            visible: responsiveOwner.tab.visible, url: responsiveOwner.navigation?.url })}</output>
+        }
+        return options.profiles === undefined ? null : <BrowserProfilePicker {...{
+          ...owner, sessionId: SESSION, profiles: options.profiles, useStore: hookOf(profileDraft), actions: profileDraft.actions,
+          useWebsiteProfiles: props.useWebsiteProfiles, t: props.t,
+        } as BrowserProfilePickerProps} />
+      }) as BrowserBodyProps['renderSlot'],
       t: (key, params) => {
         const template = messages[key] ?? key
         return params === undefined ? template : template.replace(/\{(\w+)\}/g, (_match, name: string) => String(params[name]))
