@@ -48,6 +48,19 @@ jobs:
         shell: pwsh
         run: pnpm run verify:harnessy-upgrade
 
+      - name: Verify model connection recovery
+        shell: pwsh
+        run: >-
+          pnpm exec vitest run
+          packages/llm/llm-pi-ai/tests/convert.spec.ts
+          packages/llm/llm-pi-ai/tests/codex-socket.spec.ts
+          packages/llm/llm-pi-ai/tests/fetch-errors.spec.ts
+          packages/llm/llm-pi-ai/tests/adapter.spec.ts
+          packages/llm/llm-retry/tests/retry.spec.ts
+          packages/llm/llm-retry/tests/transport-recovery.spec.ts
+          packages/llm/llm-retry/tests/loader-composition.spec.ts
+          packages/llm/llm-retry/tests/persistence.spec.ts
+
       - name: Type-check the desktop host
         shell: pwsh
         run: pnpm exec tsc -b tsconfig.host.json --pretty false

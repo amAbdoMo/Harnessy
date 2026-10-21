@@ -1,0 +1,12 @@
+{
+  "failedAttempts": 1,
+  "retries": [],
+  "assistant": [],
+  "end": {
+    "kind": "error",
+    "error": {
+      "message": "You have hit your ChatGPT usage limit.",
+      "code": "QUOTA"
+    }
+  }
+}

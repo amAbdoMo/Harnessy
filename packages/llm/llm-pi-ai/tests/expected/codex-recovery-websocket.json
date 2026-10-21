@@ -1,0 +1,20 @@
+{
+  "failedAttempts": 1,
+  "retries": [
+    {
+      "message": "WebSocket error",
+      "code": "TRANSPORT"
+    }
+  ],
+  "assistant": [
+    [
+      {
+        "type": "text",
+        "text": "reply"
+      }
+    ]
+  ],
+  "end": {
+    "kind": "completed"
+  }
+}

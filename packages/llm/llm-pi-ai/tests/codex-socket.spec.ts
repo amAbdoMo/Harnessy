@@ -1,4 +1,4 @@
-/** Keyless real-Loader regressions for Codex socket identity and truncated responses. */
+/** Keyless real-Loader regressions for Codex socket identity, truncation, and bounded recovery. */
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -20,6 +20,7 @@ import SessionStore, { SessionId, type SessionEvent } from '@deepseek-ai/dsh-ses
 import Projections from '@deepseek-ai/dsh-session-projection'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import Tools from '@deepseek-ai/dsh-tools'
+import * as LlmRetry from '@deepseek-ai/dsh-llm-retry'
 import LocalCredentialProvider from '@deepseek-ai/dsh-credentials-local'
 import type { OAuthCredential } from '@earendil-works/pi-ai'
 import { getBuiltinModels } from '@earendil-works/pi-ai/providers/all'
@@ -106,13 +107,13 @@ afterEach(async () => {
   }
 })
 
-async function load(options: { fastMode?: boolean; transport?: 'sse' | 'websocket'; persistence?: boolean } = {}): Promise<Context> {
+async function load(options: { fastMode?: boolean; recovery?: boolean; transport?: 'sse' | 'websocket'; persistence?: boolean } = {}): Promise<Context> {
   root ??= await mkdtemp(join(tmpdir(), 'dsh-codex-sockets-'))
   const configPath = join(root, 'cordis.yml')
   await writeFile(configPath, [
     '- id: llm\n  name: test-llm',
     `- id: credentials\n  name: test-credentials\n  config:\n    path: ${JSON.stringify(join(root, '.credentials.yaml'))}\n    watch: false`,
-    ...options.fastMode !== true ? [] : [
+    ...options.fastMode !== true && options.recovery !== true ? [] : [
       '- id: sessions\n  name: test-sessions',
       '- id: projections\n  name: test-projections',
       '- id: commands\n  name: test-commands',
@@ -124,7 +125,8 @@ async function load(options: { fastMode?: boolean; transport?: 'sse' | 'websocke
       ],
       '- id: agent-loop\n  name: test-agent-loop\n  config:\n    agents: []',
     ],
-    `- id: llm-pi-ai\n  name: test-pi-ai\n  config:\n    providers:\n      openai-codex:\n        transport: ${options.transport ?? 'websocket'}`,
+    ...options.recovery !== true ? [] : ['- id: retry\n  name: test-retry'],
+    `- id: llm-pi-ai\n  name: test-pi-ai\n  config:\n    providers:\n      openai-codex:\n        transport: ${options.transport ?? 'websocket'}${options.recovery !== true ? '' : '\n        retryPolicy:\n          mode: normal\n          maxRetries: 1\n          backoff:\n            initialDelayMs: 1\n            maxDelayMs: 1\n            jitterRatio: 0'}`,
     '',
   ].join('\n'))
   const context = new Context()
@@ -136,7 +138,7 @@ async function load(options: { fastMode?: boolean; transport?: 'sse' | 'websocke
     ['test-llm', LlmRuntime], ['test-credentials', LocalCredentialProvider], ['test-pi-ai', LlmPiAi],
     ['test-sessions', SessionStore], ['test-projections', Projections], ['test-commands', Commands],
     ['test-agents', AgentRegistry], ['test-agent-loop', AgentLoop],
-    ['test-system-prompt', SystemPrompt], ['test-tools', Tools], ['test-jsonl', JsonlSessionPersistence],
+    ['test-system-prompt', SystemPrompt], ['test-tools', Tools], ['test-jsonl', JsonlSessionPersistence], ['test-retry', LlmRetry],
   ])
   const internal: ModuleLoaderV2 = {
     version: 'v2', loadCache: new Map(),
@@ -155,7 +157,7 @@ async function load(options: { fastMode?: boolean; transport?: 'sse' | 'websocke
 }
 
 describe('Codex socket settlement', () => {
-  it.each([1000, 1012])('treats close %i before completion as retryable truncation and recovers the same Session over SSE', async (code) => {
+  it.each([1000, 1012, 'error'] as const)('treats socket failure %s before completion as retryable truncation and recovers the same Session over SSE', async (code) => {
     vi.stubGlobal('WebSocket', CodexSocket)
     const fetch = vi.fn<typeof globalThis.fetch>(async () => { throw new Error('unexpected HTTP request') })
     vi.stubGlobal('fetch', fetch)
@@ -179,7 +181,8 @@ describe('Codex socket settlement', () => {
       expect(chunks).toContainEqual({ type: 'text-delta', index: 0, text: 'unfinished' })
       expect(chunks).toContainEqual(expect.objectContaining({ type: 'tool-call-delta', index: 1, name: 'lookup', argumentsDelta: '{"query":"unfinished' }))
     })
-    first.close(code)
+    if (code === 'error') first.dispatchEvent(new Event('error'))
+    else first.close(code)
     await running
 
     expect(chunks.filter(chunk => chunk.type === 'block-end')).toEqual([])
@@ -286,6 +289,50 @@ describe('Codex dispatch identity', () => {
     expect((await work).message.content).toEqual([{ type: 'text', text: 'work again' }])
     expect(CodexSocket.connections).toHaveLength(3)
     expect(second.requests.join('')).not.toContain(grant('second-person', 'shared-work').access)
+  })
+})
+
+describe('Codex bounded recovery in real Loader composition', () => {
+  it.each(['websocket', 'fetch', 'exhausted', 'quota'] as const)('settles %s through the shipping agent loop', async (scenario) => {
+    vi.stubGlobal('WebSocket', CodexSocket)
+    const request = vi.fn<typeof globalThis.fetch>(async (input, init) => {
+      await codexRequest(input, init)
+      if (scenario === 'exhausted' || scenario === 'fetch' && request.mock.calls.length === 1) {
+        throw new TypeError('fetch failed', { cause: Object.assign(new Error('private network detail'), { code: 'ECONNRESET' }) })
+      }
+      if (scenario === 'quota') return new Response(JSON.stringify({ error: { message: 'You have hit your ChatGPT usage limit.' } }), { status: 429 })
+      return sseCompletion()
+    })
+    vi.stubGlobal('fetch', request)
+    const context = await load({ recovery: true, transport: scenario === 'websocket' ? 'websocket' : 'sse' })
+    const model = getBuiltinModels('openai-codex')[0]
+    if (model === undefined) throw new Error('installed Codex catalog has no models')
+    await context.credentials.modifyRecord(recordKeyFor('openai-codex'), () => Promise.resolve({ kind: 'grant', payload: grant('person', 'work') }))
+    const agent = await context.agentLoop.create(SessionId(`recovery-${scenario}`), { provider: 'openai-codex', model: model.id })
+    let streamed = false
+    context.on('agent/assistant-stream', ({ frame }) => { if (frame.type === 'chunk') streamed = true })
+    agent.followup(createUserMessage({ content: [{ type: 'text', text: 'recover' }], source: { kind: 'user' } }))
+    const idle = track(agent.whenIdle())
+    if (scenario === 'websocket') {
+      await vi.waitFor(() => { expect(CodexSocket.connections[0]?.requests).toHaveLength(1) })
+      const socket = CodexSocket.connections[0]!
+      socket.partial()
+      await vi.waitFor(() => { expect(streamed).toBe(true) })
+      socket.dispatchEvent(new Event('error'))
+    }
+    await idle
+    const events = agent.session.snapshotEvents()
+    const ending = events.at(-1)
+    if (ending?.type !== 'turn/end') throw new Error('expected a settled turn')
+    const outcome = {
+      failedAttempts: events.filter(event => event.type === 'assistant/attempt').length,
+      retries: events.flatMap(event => event.type === 'llm/retry' ? [event.data.failure] : []),
+      assistant: agent.session.deriveMessages().filter(message => message.role === 'assistant').map(message => message.content),
+      end: ending.data.reason,
+    }
+    expect(request).toHaveBeenCalledTimes(scenario === 'fetch' || scenario === 'exhausted' ? 2 : 1)
+    expect(CodexSocket.connections).toHaveLength(scenario === 'websocket' ? 1 : 0)
+    await expect(JSON.stringify(outcome, null, 2) + '\n').toMatchFileSnapshot(`./expected/codex-recovery-${scenario}.json`)
   })
 })
 

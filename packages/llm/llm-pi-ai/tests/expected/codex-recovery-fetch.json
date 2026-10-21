@@ -1,0 +1,20 @@
+{
+  "failedAttempts": 1,
+  "retries": [
+    {
+      "message": "fetch failed (ECONNRESET)",
+      "code": "TRANSPORT"
+    }
+  ],
+  "assistant": [
+    [
+      {
+        "type": "text",
+        "text": "reply"
+      }
+    ]
+  ],
+  "end": {
+    "kind": "completed"
+  }
+}

@@ -126,7 +126,7 @@ profile 的 `models` 列表会替换而非扩展路由的已安装目录；每�
 
 pi-ai 不提供的路由需要 `api`、`baseURL` 与非空 `models` 列表；无法服务的 profile 会在写入处被拒绝，并点名路由与模型。失败携带稳定 code：无法使用的凭据以 `INVALID_CREDENTIAL` 失败并点名路由与引用，`apiKeyEnv` 引用解析为空的路由以 `MISSING_CREDENTIAL` 失败，未配置模型以 `UNKNOWN_MODEL` 失败，终止性提供方失败则区分 `QUOTA` 与暂时性 `RATE_LIMIT`。`GenerateOptions.stop` 以 `UNSUPPORTED_OPTION` 被拒绝，因为 pi-ai 的通用流式 UI 无法跨提供方保证它。
 
-Codex WebSocket 在响应终止事件之前关闭时，模型请求仍然失败，即使关闭码为表示正常关闭的 `1000`。可恢复的关闭码（`1000`、`1001`、`1005`、`1006`、`1011`–`1014`）映射为 `TRANSPORT`；协议、策略、载荷大小与无法识别的关闭不会自动成为可重试失败。挂载 [llm-retry](../llm-retry/README.zh.md) 后，路由的重试策略只重复未完成的模型请求，不重复已经执行的工具，并遵循配置的次数限制与取消操作。重试耗尽或禁用时仍报告失败；连接关闭绝不代替响应完成。Codex HTTP fetch 失败会在持久失败消息中保留已识别的 socket、DNS、TLS 与超时代码，不包含嵌套错误文本、请求 header 或请求 body。
+Codex WebSocket 在响应终止事件之前失败时，模型请求仍然失败，即使关闭码为表示正常关闭的 `1000`。通用 `WebSocket error` 失败与可恢复的关闭码（`1000`、`1001`、`1005`、`1006`、`1011`–`1014`）映射为 `TRANSPORT`；协议、策略、载荷大小与无法识别的关闭不会自动成为可重试失败。挂载 [llm-retry](../llm-retry/README.zh.md) 后，路由的重试策略只重复未完成的模型请求，不重复已经执行的工具，并遵循配置的次数限制与取消操作。启用 SDK Session 缓存时，WebSocket Session 失败后，SDK 在下一次请求中使用 HTTP 流式传输，不改写保存的传输偏好。重试耗尽或禁用时仍报告失败；连接关闭绝不代替响应完成。Codex HTTP fetch 失败会在持久失败消息中保留已识别的 socket、DNS、TLS 与超时代码，不包含嵌套错误文本、请求 header 或请求 body。
 
 Config 更新严格验证发生变化的 provider。初始加载将已存储的目录故障保留为可编辑的 provider 诊断；未更改的故障 provider 不阻止其他编辑。可用模型仍可选择，无法解析的模型在网络 I/O 前失败。修复或删除问题配置会清除其诊断。
 
