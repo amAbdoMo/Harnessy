@@ -67,7 +67,7 @@ export const inject = [
 
 /**
  * The Harnessy build keeps the session header to conversation actions only; the
- * preset is chosen before a session starts and visible in Settings.
+ * preset is chosen before a session starts.
  */
 const headerLabelEnabled = process.env.DSH_CLIENT_BUILD_PROFILE !== 'custom-harness'
 
@@ -272,6 +272,7 @@ export function apply(ctx: ClientContext): void {
 
   // Ordered after Models: choosing a model is routine, and composing an
   // agent is the deployment-shaping act behind it.
+  if (process.env.DSH_CLIENT_BUILD_PROFILE === 'custom-harness') return
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section',
     id: 'agent-presets',

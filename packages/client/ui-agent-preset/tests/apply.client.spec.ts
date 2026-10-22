@@ -362,6 +362,26 @@ describe('ui-agent-preset apply', () => {
     expect(resolveSlotLabel(section.options.label)).toBe('Agent presets')
   })
 
+  it('keeps preset selection without a Settings entry in Harnessy', async () => {
+    const { ctx, slots } = await bench()
+    const previousProfile = process.env.DSH_CLIENT_BUILD_PROFILE
+    try {
+      vi.stubEnv('DSH_CLIENT_BUILD_PROFILE', 'custom-harness')
+      declareRoot(slots)
+      declareConversation(slots)
+      ctx.provide('conversation', {} as never)
+      ctx.provide('sessions', sessionsDouble(ctx, { byId: {} }) as never)
+      ctx.provide('uiWorkspace', uiWorkspaceDouble() as never)
+      await ctx.plugin({ inject: [...inject], apply }).await()
+
+      expect(slots.entries('settings.section')).toHaveLength(0)
+      expect(slots.entries('conversation.hero.agentPreset')[0]?.component).toBe(AgentPresetSeat)
+    } finally {
+      await ctx.fiber.dispose()
+      vi.stubEnv('DSH_CLIENT_BUILD_PROFILE', previousProfile)
+    }
+  })
+
   it('registers into a declaration that arrives after apply', async () => {
     const { ctx, slots } = await bench()
     ctx.provide('sessions', sessionsDouble(ctx, { byId: {} }) as never)
