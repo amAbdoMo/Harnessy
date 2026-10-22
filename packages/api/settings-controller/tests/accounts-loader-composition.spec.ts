@@ -155,6 +155,9 @@ class FixtureAccounts extends AccountsController {
       activeRefreshMs: config.activeAccountUsageRefreshMs,
       inactiveRefreshMs: config.inactiveAccountUsageRefreshMs,
       concurrency: config.accountUsageConcurrency,
+      activeRefreshTiers: config.accountUsageRefreshTiers,
+      failureRefreshMs: config.failedAccountUsageRefreshMs,
+      maxRetryAfterMs: config.accountUsageMaxRetryAfterMs,
     } })
   }
 }

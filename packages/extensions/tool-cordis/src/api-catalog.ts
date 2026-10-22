@@ -4914,7 +4914,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AccountsState',
-    declaration: 'export interface AccountsState {\n    readonly writable: boolean;\n    readonly providers: readonly AccountProviderView[];\n    readonly accounts: readonly ManagedAccountView[];\n}',
+    declaration: 'export interface AccountsState {\n    readonly writable: boolean;\n    readonly providers: readonly AccountProviderView[];\n    readonly accounts: readonly ManagedAccountView[];\n    readonly usageRefreshIntervalMs?: number;\n}',
   },
   {
     name: 'AccountUsageScope',

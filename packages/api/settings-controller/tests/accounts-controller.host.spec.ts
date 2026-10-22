@@ -244,7 +244,7 @@ describe('the Harnessy accounts Remote namespace', () => {
     const start = Date.now()
     let now = start
     const memberships: string[] = []
-    const { ctx, controller } = await boot({ now: () => now, fetchUsage: async (_input, init) => {
+    const { ctx, controller } = await boot({ usagePolicy: { activeRefreshMs: 30_000 }, now: () => now, fetchUsage: async (_input, init) => {
       memberships.push(new Headers(init?.headers).get('chatgpt-account-id')!)
       return usageResponse(20)
     } })
@@ -278,6 +278,83 @@ describe('the Harnessy accounts Remote namespace', () => {
     await background()
     expect(memberships).toHaveLength(10)
     expect(memberships.slice(-2)).toEqual(['inactive', 'active'])
+  })
+
+  it.each([[20, 60_000], [75, 30_000], [90, 15_000], [99, 5_000]])(
+    'refreshes active %d%% quota after %d ms while keeping inactive snapshots cached', async (used, interval) => {
+      let now = Date.now()
+      const fetchUsage = vi.fn<typeof fetch>(async () => usageResponse(used))
+      const { ctx, controller } = await boot({ now: () => now, fetchUsage })
+      await ctx.credentials.modifyRecord(credentialKey('llm-pi-ai', 'openai-codex'), () =>
+        Promise.resolve(codexGrant('owner@example.com', 'active')))
+      await controller.describe()
+      await seedOAuth(ctx, codexGrant('owner@example.com', 'inactive'))
+      const first = await controller.refreshUsage(new AbortController().signal)
+      expect(first.usageRefreshIntervalMs).toBe(interval)
+      expect(fetchUsage).toHaveBeenCalledTimes(2)
+      now += interval - 1
+      await controller.refreshCachedUsage(new AbortController().signal)
+      expect(fetchUsage).toHaveBeenCalledTimes(2)
+      now += 1
+      await controller.refreshCachedUsage(new AbortController().signal)
+      expect(fetchUsage).toHaveBeenCalledTimes(3)
+      expect(new Headers(fetchUsage.mock.calls[2]?.[1]?.headers).get('chatgpt-account-id')).toBe('active')
+    },
+  )
+
+  it('retries failed active usage after its short cooldown and clears the error on recovery', async () => {
+    let now = Date.now()
+    const fetchUsage = vi.fn<typeof fetch>()
+      .mockRejectedValueOnce(new Error('fixture unavailable'))
+      .mockImplementation(async () => usageResponse(20))
+    const { ctx, controller } = await boot({ now: () => now, fetchUsage })
+    await ctx.credentials.modifyRecord(credentialKey('llm-pi-ai', 'openai-codex'), () =>
+      Promise.resolve(codexGrant('owner@example.com', 'active')))
+    const failed = await controller.refreshUsage(new AbortController().signal)
+    expect(failed.usageRefreshIntervalMs).toBe(5_000)
+    now += 4_999
+    await controller.refreshCachedUsage(new AbortController().signal)
+    expect(fetchUsage).toHaveBeenCalledOnce()
+    now += 1
+    const recovered = await controller.refreshCachedUsage(new AbortController().signal)
+    expect(fetchUsage).toHaveBeenCalledTimes(2)
+    expect(recovered.usageRefreshIntervalMs).toBe(60_000)
+    expect(recovered.accounts[0]?.usageError).toBeUndefined()
+  })
+
+  it('honors a bounded provider cooldown until its exact deadline', async () => {
+    let now = Date.now()
+    const fetchUsage = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response('', { status: 429, headers: { 'retry-after': '900' } }))
+      .mockImplementation(async () => usageResponse(20))
+    const { ctx, controller } = await boot({ now: () => now, fetchUsage })
+    await ctx.credentials.modifyRecord(credentialKey('llm-pi-ai', 'openai-codex'), () =>
+      Promise.resolve(codexGrant('owner@example.com', 'active')))
+    expect((await controller.refreshUsage(new AbortController().signal)).usageRefreshIntervalMs).toBe(300_000)
+    now += 299_999
+    await controller.refreshCachedUsage(new AbortController().signal)
+    expect(fetchUsage).toHaveBeenCalledOnce()
+    now += 1
+    await controller.refreshCachedUsage(new AbortController().signal)
+    expect(fetchUsage).toHaveBeenCalledTimes(2)
+    await controller.refreshUsage(new AbortController().signal)
+    expect(fetchUsage).toHaveBeenCalledTimes(3)
+  })
+
+  it.each(['explicit refresh', 'clock rollback'] as const)('bypasses a provider cooldown after %s', async (reason) => {
+    let now = Date.now()
+    const fetchUsage = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response('', { status: 429, headers: { 'retry-after': '120' } }))
+      .mockImplementation(async () => usageResponse(20))
+    const { ctx, controller } = await boot({ now: () => now, fetchUsage })
+    await ctx.credentials.modifyRecord(credentialKey('llm-pi-ai', 'openai-codex'), () =>
+      Promise.resolve(codexGrant('owner@example.com', 'active')))
+    await controller.refreshUsage(new AbortController().signal)
+    now += reason === 'clock rollback' ? -1 : 1_000
+    if (reason === 'explicit refresh') await controller.refreshUsage(new AbortController().signal)
+    else await controller.refreshCachedUsage(new AbortController().signal)
+    expect(fetchUsage).toHaveBeenCalledTimes(2)
+    expect((await controller.describe()).usageRefreshIntervalMs).toBe(60_000)
   })
 
   it('starts only the configured number of usage reads and drains cancellation before the next refresh', async () => {

@@ -24,7 +24,7 @@ import { AccountsController } from './accounts.ts'
 import { OpenAIAccountController } from './openai-account.ts'
 import { McpManagerController } from './mcp-manager.ts'
 import type { SettingsDocumentOpenValue } from './types.ts'
-import { DEFAULT_ACCOUNT_USAGE_POLICY } from './usage-policy.ts'
+import { DEFAULT_ACCOUNT_USAGE_POLICY, type AccountUsageRefreshTier } from './usage-policy.ts'
 
 export { CredentialsController } from './credentials.ts'
 export { AccountsController } from './accounts.ts'
@@ -47,12 +47,18 @@ export interface SettingsControllerInternals {
 
 /** Account usage scheduling accepted by the Settings Controller profile. */
 export interface Config {
-  /** Minimum milliseconds between background usage reads of the active account; zero disables caching. */
+  /** Base milliseconds between active-account background usage reads before quota tiers shorten it; zero disables caching. */
   readonly activeAccountUsageRefreshMs?: number
   /** Minimum milliseconds between background usage reads of inactive accounts; zero disables caching. */
   readonly inactiveAccountUsageRefreshMs?: number
   /** Maximum concurrent Codex account usage reads. */
   readonly accountUsageConcurrency?: number
+  /** Active-account used-percentage thresholds and shorter refresh intervals in milliseconds. */
+  readonly accountUsageRefreshTiers?: AccountUsageRefreshTier[]
+  /** Milliseconds to cache a failed active-account usage read. */
+  readonly failedAccountUsageRefreshMs?: number
+  /** Maximum milliseconds to honor a usage service Retry-After cooldown. */
+  readonly accountUsageMaxRetryAfterMs?: number
 }
 
 type ResolvedConfig = Required<Config>
@@ -98,6 +104,12 @@ export class SettingsController extends TypertRemoteService {
     activeAccountUsageRefreshMs: Schema.natural().default(DEFAULT_ACCOUNT_USAGE_POLICY.activeRefreshMs),
     inactiveAccountUsageRefreshMs: Schema.natural().default(DEFAULT_ACCOUNT_USAGE_POLICY.inactiveRefreshMs),
     accountUsageConcurrency: Schema.natural().min(1).default(DEFAULT_ACCOUNT_USAGE_POLICY.concurrency),
+    accountUsageRefreshTiers: Schema.array(Schema.object({
+      usedPercent: Schema.number().min(0).max(100),
+      refreshMs: Schema.natural().min(1),
+    })).default([...DEFAULT_ACCOUNT_USAGE_POLICY.activeRefreshTiers]),
+    failedAccountUsageRefreshMs: Schema.natural().min(1).default(DEFAULT_ACCOUNT_USAGE_POLICY.failureRefreshMs),
+    accountUsageMaxRetryAfterMs: Schema.natural().min(1).default(DEFAULT_ACCOUNT_USAGE_POLICY.maxRetryAfterMs),
   })
 
   private readonly openTextFile: (path: string, signal: AbortSignal) => Promise<void>
@@ -119,6 +131,9 @@ export class SettingsController extends TypertRemoteService {
       activeRefreshMs: config.activeAccountUsageRefreshMs,
       inactiveRefreshMs: config.inactiveAccountUsageRefreshMs,
       concurrency: config.accountUsageConcurrency,
+      activeRefreshTiers: config.accountUsageRefreshTiers,
+      failureRefreshMs: config.failedAccountUsageRefreshMs,
+      maxRetryAfterMs: config.accountUsageMaxRetryAfterMs,
     } })
     ctx.plugin(OpenAIAccountController)
     ctx.plugin(McpManagerController)

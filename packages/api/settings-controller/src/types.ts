@@ -181,6 +181,8 @@ export interface AccountsState {
   readonly writable: boolean
   readonly providers: readonly AccountProviderView[]
   readonly accounts: readonly ManagedAccountView[]
+  /** Host-selected active-account polling interval; absent when no cached active Codex quota exists. */
+  readonly usageRefreshIntervalMs?: number
 }
 
 /** Provider result and refreshed account state after redeeming a reset credit. */

@@ -5,6 +5,8 @@ import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client
 import type { AccountsManagerOperations } from './AccountsManagerCard.tsx'
 
 const USAGE_REFRESH_INTERVAL_MS = 60_000
+// Browser timers use a signed 32-bit delay; longer deployment intervals must not wrap to one millisecond.
+const MAX_TIMER_DELAY_MS = 2_147_483_647
 
 type AccountUsageOperations = Pick<AccountsManagerOperations, 'describe' | 'refreshUsage'>
 type AccountUsageResult = Awaited<ReturnType<AccountUsageOperations['refreshUsage']>>
@@ -23,6 +25,7 @@ export class AccountsUsageController {
   private publication = 0
   private requestSequence = 0
   private appliedRequest = 0
+  private timer: number | undefined
 
   /** @param operations - Host-backed redacted account reads. */
   constructor(private readonly operations: AccountUsageOperations) {}
@@ -37,12 +40,14 @@ export class AccountsUsageController {
     this.lifecycle = lifecycle
     const refreshWhenVisible = (): void => {
       if (document.visibilityState !== 'hidden') void this.refresh()
+      else this.schedule(lifecycle)
     }
     void this.load(lifecycle)
-    const timer = window.setInterval(refreshWhenVisible, USAGE_REFRESH_INTERVAL_MS)
+    const unsubscribe = this.state.subscribe(() => { this.schedule(lifecycle) })
+    this.schedule(lifecycle)
     window.addEventListener('focus', refreshWhenVisible)
     document.addEventListener('visibilitychange', refreshWhenVisible)
-    return () => { this.stop(lifecycle, timer, refreshWhenVisible) }
+    return () => { this.stop(lifecycle, unsubscribe, refreshWhenVisible) }
   }
 
   /**
@@ -66,6 +71,7 @@ export class AccountsUsageController {
       const followup = this.refreshInFlight.followup
       this.refreshInFlight = undefined
       if (followup !== undefined) void this.refresh(followup === 'fresh')
+      else this.schedule(lifecycle)
     })
     this.refreshInFlight = { result: operation, accountIds, followup: undefined }
     return operation
@@ -116,12 +122,25 @@ export class AccountsUsageController {
     return refreshed
   }
 
-  private stop(lifecycle: AbortController, timer: number, refreshWhenVisible: () => void): void {
+  private schedule(lifecycle: AbortController): void {
+    if (this.lifecycle !== lifecycle || lifecycle.signal.aborted) return
+    window.clearTimeout(this.timer)
+    if (document.visibilityState === 'hidden') return
+    const interval = this.state.getSnapshot()?.usageRefreshIntervalMs ?? USAGE_REFRESH_INTERVAL_MS
+    this.timer = window.setTimeout(() => {
+      if (document.visibilityState !== 'hidden') void this.refresh()
+      else this.schedule(lifecycle)
+    }, Math.min(interval, MAX_TIMER_DELAY_MS))
+  }
+
+  private stop(lifecycle: AbortController, unsubscribe: () => void, refreshWhenVisible: () => void): void {
     if (this.lifecycle !== lifecycle) return
     this.lifecycle = undefined
     this.refreshInFlight = undefined
     lifecycle.abort()
-    window.clearInterval(timer)
+    window.clearTimeout(this.timer)
+    this.timer = undefined
+    unsubscribe()
     window.removeEventListener('focus', refreshWhenVisible)
     document.removeEventListener('visibilitychange', refreshWhenVisible)
   }

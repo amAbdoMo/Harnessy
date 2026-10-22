@@ -38,7 +38,7 @@ import type {
   AccountUsageWindow,
   ManagedAccountView,
 } from './types.ts'
-import { DEFAULT_ACCOUNT_USAGE_POLICY } from './usage-policy.ts'
+import { activeUsageRefreshMs, resolveAccountUsagePolicy, usageRetryAfterMs } from './usage-policy.ts'
 import type { AccountUsagePolicy } from './usage-policy.ts'
 
 const VAULT_KEY = credentialKey('account-manager', 'accounts')
@@ -118,7 +118,7 @@ export interface AccountsControllerInternals {
   readonly fetchUsage?: typeof fetch
   readonly now?: () => number
   /** Validated scheduling supplied by the owning Settings Controller. */
-  readonly usagePolicy?: AccountUsagePolicy
+  readonly usagePolicy?: Partial<AccountUsagePolicy>
 }
 
 declare module '@deepseek-ai/cordis' {
@@ -137,6 +137,7 @@ export class AccountsController extends TypertRemoteService {
   private readonly fetchUsage: typeof fetch
   private readonly now: () => number
   private readonly usagePolicy: AccountUsagePolicy
+  private readonly usageCooldowns = new Map<string, { readonly until: number; readonly credential: CredentialRecord }>()
   private usageRefreshTail: Promise<void> = Promise.resolve()
   private readonly usageLifecycle = new AbortController()
   private backgroundUsage: Promise<void> | undefined
@@ -156,10 +157,11 @@ export class AccountsController extends TypertRemoteService {
     this.openUrl = internals.openUrl ?? openNativeUrl
     this.fetchUsage = internals.fetchUsage ?? fetch
     this.now = internals.now ?? Date.now
-    this.usagePolicy = internals.usagePolicy ?? DEFAULT_ACCOUNT_USAGE_POLICY
+    this.usagePolicy = resolveAccountUsagePolicy(internals.usagePolicy)
     ctx.effect(() => async () => {
       this.usageLifecycle.abort()
       await this.backgroundUsage
+      this.usageCooldowns.clear()
     }, 'accounts: post-request usage lifecycle')
     ctx.on('llm/stream', (options, next) => {
       const stream = next()
@@ -561,6 +563,9 @@ export class AccountsController extends TypertRemoteService {
     const accounts = Object.values(codex.accounts)
       .filter(account => accountId === undefined || account.id === accountId)
       .sort((left, right) => Number(right.id === codex.activeAccountId) - Number(left.id === codex.activeAccountId))
+    for (const id of this.usageCooldowns.keys()) {
+      if (codex.accounts[id] === undefined) this.usageCooldowns.delete(id)
+    }
     let cursor = 0
     const workers = Array.from({ length: Math.min(this.usagePolicy.concurrency, accounts.length) }, async () => {
       for (;;) {
@@ -587,10 +592,10 @@ export class AccountsController extends TypertRemoteService {
     if (provider === undefined) return
     const account = provider.accounts[accountId]
     if (account === undefined) return
-    const interval = accountId === provider.activeAccountId ? this.usagePolicy.activeRefreshMs : this.usagePolicy.inactiveRefreshMs
+    const interval = accountId === provider.activeAccountId ? this.activeUsageInterval(account) : this.usagePolicy.inactiveRefreshMs
     if (request.freshness === 'cached' && account.usageUpdatedAt !== undefined) {
       const age = this.now() - account.usageUpdatedAt
-      if (age >= 0 && age < interval) return
+      if (age >= 0 && (age < interval || this.usageCooldown(account) > 0)) return
     }
     const refreshed = await this.refreshCodexAccount(account, request)
     assertUsageRefreshActive(signal)
@@ -707,6 +712,9 @@ export class AccountsController extends TypertRemoteService {
       credential = access.credential
       const headers = codexUsageHeaders(access.oauth.access, access.accountId)
       const response = await this.fetchUsage(USAGE_URL, { headers, signal: combinedSignal(signal) })
+      const cooldown = usageRetryAfterMs(response, this.now(), this.usagePolicy.maxRetryAfterMs)
+      if (cooldown !== undefined) this.usageCooldowns.set(account.id, { until: this.now() + cooldown, credential })
+      else this.usageCooldowns.delete(account.id)
       if (!response.ok) throw new Error(`usage request failed (${String(response.status)})`)
       const usage = extractCodexUsage(await response.json(), this.now())
       const { usageError: _previousError, ...accountWithoutError } = account
@@ -854,7 +862,25 @@ export class AccountsController extends TypertRemoteService {
         autoSwitchOnLimit: definition.id === 'openai-codex' && providerVault?.autoSwitchOnLimit === true,
       }
     })
-    return { writable, providers, accounts }
+    const codex = vault.providers['openai-codex']
+    const active = codex?.activeAccountId === undefined ? undefined : codex.accounts[codex.activeAccountId]
+    const interval = active === undefined ? undefined : Math.max(this.activeUsageInterval(active), this.usageCooldown(active))
+    return { writable, providers, accounts,
+      ...interval === undefined || interval === 0 ? {} : { usageRefreshIntervalMs: interval },
+    }
+  }
+
+  private activeUsageInterval(account: StoredAccount): number {
+    const windows = standardUsageWindows(account)
+    const pressure = windows.length === 0 ? undefined : Math.max(...windows.map(window => window.usedPercent))
+    return activeUsageRefreshMs(this.usagePolicy, pressure, account.usageError !== undefined)
+  }
+
+  private usageCooldown(account: StoredAccount): number {
+    const cooldown = this.usageCooldowns.get(account.id)
+    if (cooldown === undefined || !sameRecord(cooldown.credential, account.credential)
+      || account.usageUpdatedAt === undefined || this.now() < account.usageUpdatedAt) return 0
+    return Math.max(0, cooldown.until - this.now())
   }
 
   private emptyState(writable: boolean): AccountsState {

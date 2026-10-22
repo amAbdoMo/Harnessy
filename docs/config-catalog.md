@@ -248,12 +248,26 @@ export interface Config {
 ```ts config-catalog
 /** Account usage scheduling accepted by the Settings Controller profile. */
 export interface Config {
-  /** Minimum milliseconds between background usage reads of the active account; zero disables caching. */
+  /** Base milliseconds between active-account background usage reads before quota tiers shorten it; zero disables caching. */
   readonly activeAccountUsageRefreshMs?: number
   /** Minimum milliseconds between background usage reads of inactive accounts; zero disables caching. */
   readonly inactiveAccountUsageRefreshMs?: number
   /** Maximum concurrent Codex account usage reads. */
   readonly accountUsageConcurrency?: number
+  /** Active-account used-percentage thresholds and shorter refresh intervals in milliseconds. */
+  readonly accountUsageRefreshTiers?: AccountUsageRefreshTier[]
+  /** Milliseconds to cache a failed active-account usage read. */
+  readonly failedAccountUsageRefreshMs?: number
+  /** Maximum milliseconds to honor a usage service Retry-After cooldown. */
+  readonly accountUsageMaxRetryAfterMs?: number
+}
+
+/** One active-account quota threshold and its refresh interval. */
+export interface AccountUsageRefreshTier {
+  /** Standard quota usage percentage, from zero through one hundred, that activates this tier. */
+  readonly usedPercent: number
+  /** Positive cache interval in milliseconds for this tier. */
+  readonly refreshMs: number
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-api-settings-controller -->

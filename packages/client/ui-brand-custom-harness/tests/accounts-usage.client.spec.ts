@@ -226,6 +226,54 @@ describe('Harnessy automatic account usage', () => {
     expect(operations.refreshUsage).toHaveBeenCalledTimes(3)
   })
 
+  it('follows Host cadence changes, pauses while hidden, and clears timers on disposal', async () => {
+    vi.useFakeTimers()
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+    const operations = {
+      describe: vi.fn(async () => ({ state: describedState })),
+      refreshUsage: vi.fn<AccountsManagerOperations['refreshUsage']>()
+        .mockResolvedValue({ state: { ...refreshedState, usageRefreshIntervalMs: 5_000 } }),
+    }
+    const controller = new AccountsUsageController(operations)
+    const dispose = controller.start()
+    try {
+      await vi.advanceTimersByTimeAsync(0)
+      await vi.advanceTimersByTimeAsync(4_999)
+      expect(operations.refreshUsage).toHaveBeenCalledOnce()
+      await vi.advanceTimersByTimeAsync(1)
+      expect(operations.refreshUsage).toHaveBeenCalledTimes(2)
+      controller.publish({ ...refreshedState, usageRefreshIntervalMs: 30_000 })
+      await vi.advanceTimersByTimeAsync(29_999)
+      expect(operations.refreshUsage).toHaveBeenCalledTimes(2)
+      visibility.mockReturnValue('hidden')
+      document.dispatchEvent(new Event('visibilitychange'))
+      await vi.advanceTimersByTimeAsync(120_000)
+      expect(operations.refreshUsage).toHaveBeenCalledTimes(2)
+      expect(vi.getTimerCount()).toBe(0)
+      visibility.mockReturnValue('visible')
+      window.dispatchEvent(new Event('focus'))
+      await vi.advanceTimersByTimeAsync(0)
+      expect(operations.refreshUsage).toHaveBeenCalledTimes(3)
+    } finally { dispose() }
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('keeps a long deployment interval from overflowing into rapid polling', async () => {
+    vi.useFakeTimers()
+    const operations = {
+      describe: vi.fn(async () => ({ state: describedState })),
+      refreshUsage: vi.fn<AccountsManagerOperations['refreshUsage']>()
+        .mockResolvedValue({ state: { ...refreshedState, usageRefreshIntervalMs: 3_000_000_000 } }),
+    }
+    const controller = new AccountsUsageController(operations)
+    const dispose = controller.start()
+    try {
+      await vi.advanceTimersByTimeAsync(0)
+      await vi.advanceTimersByTimeAsync(60_000)
+      expect(operations.refreshUsage).toHaveBeenCalledOnce()
+    } finally { dispose() }
+  })
+
   it('shares one in-flight refresh across automatic triggers', async () => {
     vi.useFakeTimers()
     let finishRefresh: ((outcome: { state: AccountsState }) => void) | undefined
