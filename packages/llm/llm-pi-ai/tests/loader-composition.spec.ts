@@ -108,6 +108,10 @@ describe('llm-pi-ai real dormant composition', () => {
     const result = await assemble(ctx, { provider: 'deepseek', model: 'deepseek-flash', messages: [] })
     expect(result.message.content).toEqual([{ type: 'text', text: 'hello' }])
     expect(server.headers[0]?.authorization).toBe('Bearer key-from-store')
+    const timing = ctx.logger.buffer.flatMap(record => record.args).filter((line): line is string => typeof line === 'string' && line.startsWith('llm-pi-ai request-timing '))
+    expect(timing.some(line => line.includes('"phase":"first-output"'))).toBe(true)
+    expect(timing.some(line => line.includes('"phase":"settled"') && line.includes('"outcome":"completed"'))).toBe(true)
+    expect(timing.join('\n')).not.toContain('key-from-store')
   })
 
   it('uses settings-only route headers for model discovery', async () => {

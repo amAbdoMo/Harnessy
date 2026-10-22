@@ -104,6 +104,12 @@ pi-ai 提供登录的提供方可以通过 harness 授权 seam 登录：流程�
 
 快速模式仅在普通 Codex 对话请求中发送 `service_tier: priority`，同时支持 SSE 与 WebSocket，不改变模型、推理等级或提示词。标题生成和压缩辅助调用不会请求优先服务。已分派的请求保留开始时的选择。其他提供方不受影响，之后切回 Codex 时使用该会话已保存的选择。快速模式消耗更多额度；账户和模型资格、计费及提供方回退遵循 [OpenAI 速度文档](https://learn.chatgpt.com/docs/agent-configuration/speed.md)。已保存的开启状态表示请求快速模式，不保证提供方接受或实际加速。
 
+### 诊断请求延迟
+
+插件通过 Host 的 info logger 输出带有 `llm-pi-ai request-timing` 前缀的 JSON 行。每次尝试都有新的诊断 UUID、所用 API、请求的传输方式（未指定时为 `sdk-default`）、快速模式选择、基于单调时钟的累计毫秒数，以及距上一检查点的毫秒数。检查点包括开始、凭据引用解析、上下文转换、payload 就绪、提供方暴露的 HTTP 响应头、首个输出块或增量，以及结束（`completed`、`error`、`aborted` 或 consumer `closed`）。失败的尝试只保留实际到达的检查点。直接使用 `PiAiAdapter` 的调用方可通过 `logRequestTiming` 启用同样的记录；日志接收方故障不会中断生成。
+
+Host logger 将记录保留在有界内存缓冲区中；如需在退出后保留记录，必须使用部署环境的 logger exporter 或捕获控制台输出。记录不含 prompt、输出文本、headers、URL、模型或账户标识符、凭据、Session id 或错误消息；诊断 UUID 与 Session 和提供方 id 无关。payload 就绪时间包含上下文转换之后的 pi-ai 认证和 payload 构建。payload 就绪至首个输出的区间合并了序列化、连接建立或复用，以及服务器等待；WebSocket 连接和服务器耗时无法分别观测。HTTP 响应头回调不能确认实际使用的 WebSocket 传输方式或 fallback。adapter 计时不含 agent admission 及更早的 prompt 准备；输出开始之后的耗时包含 consumer backpressure。诊断不会更改模型、推理强度、重试、已保存设置或 Session 事件，本身也不会加速请求。
+
 ### 解析模型目录
 
 profile 的 `models` 列表会替换而非扩展路由的已安装目录；每个条目从同 id 已安装模型取未设置字段的默认值，因此把路由收窄到两个模型、修正一个容量或添加比已安装目录更新的模型都是一行编辑。`modelOverrides` 无需该代价即可重塑个别已安装目录模型——修正一个模型，保留其余三十七个——当它与 `models` 列表并存、位于手工声明路由上、或点名目录未描述的模型时会被拒绝，因为静默不变的模型会成为别人日后寻找的拼写错误。

@@ -63,6 +63,7 @@ import { toPiContext } from './context.ts'
 import { createModels, getSupportedThinkingLevels } from './models.ts'
 import { toStreamChunks } from './stream.ts'
 import { requestFetch } from './request-fetch.ts'
+import { RequestTiming } from './request-timing.ts'
 
 /** One resolution's frozen view: the profiles and the collection built from them. */
 interface PiAiSnapshot {
@@ -108,6 +109,8 @@ export interface PiAiAdapterOptions {
    * conversion because its stored replay state is unusable by this build.
    */
   onReplayDegrade?: (detail: { provider: string; model: string; reason: string }) => void
+  /** Receive content-free local attempt timing lines; sink failures do not interrupt generation. */
+  logRequestTiming?: (message: string) => void
 }
 
 /** The two auth injectables a pi-ai collection is built with. */
@@ -360,87 +363,113 @@ export class PiAiAdapter extends LlmAdapter {
     )
     const fastMode = model.api === 'openai-codex-responses' && options.purpose === undefined && options.sessionId !== undefined
       && this.config.resolveFastMode?.(options.sessionId) === true
-    const apiKey = await this.config.resolveApiKey(options.provider, profile)
-
-    const consumer = new AbortController()
-    const upstream = options.signal === undefined
-      ? consumer.signal
-      : AbortSignal.any([options.signal, consumer.signal])
-    const streamIdleTimeoutMs = profile.streamIdleTimeoutMs
-    using watchdog = idleWatchdog(upstream, streamIdleTimeoutMs, 'LLM_STREAM_IDLE_TIMEOUT')
-
+    const timing = this.config.logRequestTiming === undefined ? undefined : new RequestTiming(
+      this.config.logRequestTiming,
+      { api: model.api, transport: profile.transport ?? 'sdk-default', fastMode },
+    )
+    let outcome: 'completed' | 'error' | 'aborted' | 'closed' = 'closed'
     try {
-      const containsImage = options.messages.some(message => contentHasImage(message.content))
-      if (containsImage && !model.input.includes('image')) {
-        throw new LlmError(`pi-ai model "${model.id}" does not support image input`, 'UNSUPPORTED_CONTENT')
-      }
-      const attachments = containsImage ? this.config.resolveAttachments?.() : undefined
-      if (containsImage && attachments === undefined) {
-        throw new LlmError('pi-ai image input requires the durable attachment service', 'UNSUPPORTED_CONTENT')
-      }
-      const onReplayDegrade = (reason: string): void => {
-        this.config.onReplayDegrade?.({ provider: options.provider, model: options.model, reason })
-      }
-      const context = attachments === undefined
-        ? toPiContext(options, undefined, onReplayDegrade)
-        : await toPiContext({ ...options, signal: watchdog.signal }, {
-          attachments,
-          resolveImageAccess: ref => this.config.resolveImageAccess?.(attachments, ref),
-          maxRequestImageBytes: profile.maxRequestImageBytes,
-          requestImagePolicy: {
-            maxPixels: profile.requestImagePixelBudget,
-            maxBytes: profile.requestImageMaxBytes,
-          },
-        }, onReplayDegrade)
-      const streamOptions: SimpleStreamOptions = {
-        ...profileOptions(profile, reasoning, apiKey),
-        ...model.api === 'openai-codex-responses' ? { fetch: requestFetch } : {},
-        ...options.temperature === undefined ? {} : { temperature: options.temperature },
-        ...options.maxTokens === undefined ? {} : { maxTokens: options.maxTokens },
-        ...options.sessionId === undefined ? {} : { sessionId: String(options.sessionId) },
-        signal: watchdog.signal,
-        // Profile headers are deployment-owned; attribution names are
-        // Harness-owned and therefore win collisions.
-        headers: requestHeaders(profile.headers),
-      }
-      // streamSimple reconstructs protocol options and drops serviceTier.
-      const events = fastMode
-        ? snapshot.models.stream(model, context, {
-          ...streamOptions,
-          serviceTier: 'priority',
-          ...reasoning === undefined || reasoning === 'off' ? {} : { reasoningEffort: reasoning },
-        } satisfies OpenAICodexResponsesOptions)
-        : snapshot.models.streamSimple(model, context, streamOptions)
-      const iterator = toStreamChunks(events, model.contextWindow, options.signal, model.id)[Symbol.asyncIterator]()
-      let exhausted = false
+      const apiKey = await this.config.resolveApiKey(options.provider, profile)
+      timing?.mark('credential-reference-resolved')
+
+      const consumer = new AbortController()
+      const upstream = options.signal === undefined
+        ? consumer.signal
+        : AbortSignal.any([options.signal, consumer.signal])
+      const streamIdleTimeoutMs = profile.streamIdleTimeoutMs
+      using watchdog = idleWatchdog(upstream, streamIdleTimeoutMs, 'LLM_STREAM_IDLE_TIMEOUT')
+
       try {
-        while (true) {
-          const result = await watchdog.next(iterator)
-          if (result.done) {
-            exhausted = true
-            return
+        const containsImage = options.messages.some(message => contentHasImage(message.content))
+        if (containsImage && !model.input.includes('image')) {
+          throw new LlmError(`pi-ai model "${model.id}" does not support image input`, 'UNSUPPORTED_CONTENT')
+        }
+        const attachments = containsImage ? this.config.resolveAttachments?.() : undefined
+        if (containsImage && attachments === undefined) {
+          throw new LlmError('pi-ai image input requires the durable attachment service', 'UNSUPPORTED_CONTENT')
+        }
+        const onReplayDegrade = (reason: string): void => {
+          this.config.onReplayDegrade?.({ provider: options.provider, model: options.model, reason })
+        }
+        const context = attachments === undefined
+          ? toPiContext(options, undefined, onReplayDegrade)
+          : await toPiContext({ ...options, signal: watchdog.signal }, {
+            attachments,
+            resolveImageAccess: ref => this.config.resolveImageAccess?.(attachments, ref),
+            maxRequestImageBytes: profile.maxRequestImageBytes,
+            requestImagePolicy: {
+              maxPixels: profile.requestImagePixelBudget,
+              maxBytes: profile.requestImageMaxBytes,
+            },
+          }, onReplayDegrade)
+        timing?.mark('context-ready')
+        const streamOptions: SimpleStreamOptions = {
+          ...profileOptions(profile, reasoning, apiKey),
+          ...model.api === 'openai-codex-responses' ? { fetch: requestFetch } : {},
+          ...options.temperature === undefined ? {} : { temperature: options.temperature },
+          ...options.maxTokens === undefined ? {} : { maxTokens: options.maxTokens },
+          ...options.sessionId === undefined ? {} : { sessionId: String(options.sessionId) },
+          signal: watchdog.signal,
+          // Profile headers are deployment-owned; attribution names are
+          // Harness-owned and therefore win collisions.
+          headers: requestHeaders(profile.headers),
+          ...timing === undefined ? {} : {
+            onPayload: () => { timing.mark('payload-ready') },
+            onResponse: () => { timing.mark('response-headers') },
+          },
+        }
+        // streamSimple reconstructs protocol options and drops serviceTier.
+        const events = fastMode
+          ? snapshot.models.stream(model, context, {
+            ...streamOptions,
+            serviceTier: 'priority',
+            ...reasoning === undefined || reasoning === 'off' ? {} : { reasoningEffort: reasoning },
+          } satisfies OpenAICodexResponsesOptions)
+          : snapshot.models.streamSimple(model, context, streamOptions)
+        const iterator = toStreamChunks(events, model.contextWindow, options.signal, model.id)[Symbol.asyncIterator]()
+        let exhausted = false
+        try {
+          while (true) {
+            const result = await watchdog.next(iterator)
+            if (result.done) {
+              exhausted = true
+              return
+            }
+            if (result.value.type === 'block-start' || result.value.type === 'text-delta'
+              || result.value.type === 'reasoning-delta' || result.value.type === 'tool-call-delta') {
+              timing?.mark('first-output')
+            }
+            if (result.value.type === 'finish') {
+              outcome = result.value.reason.kind === 'error' ? 'error'
+                : result.value.reason.kind === 'aborted' ? 'aborted' : 'completed'
+            }
+            yield result.value
           }
-          yield result.value
+        } finally {
+          if (!exhausted) {
+            consumer.abort('pi-ai stream consumer stopped')
+            // A demand the deadline abandoned can stay pending forever, and this
+            // generator queues its return behind it; the abort above owns SDK termination.
+            /* v8 ignore next -- the detached drain only rejects while unwinding an abandoned stream. */
+            void iterator.return(undefined).catch(() => {})
+          }
         }
+      } catch (error: unknown) {
+        if (timeoutOf(watchdog.signal, 'LLM_STREAM_IDLE_TIMEOUT') !== undefined) {
+          throw new LlmError(`pi-ai stream idle timeout after ${streamIdleTimeoutMs}ms`, 'TIMEOUT', { cause: error })
+        }
+        if (options.signal?.aborted) {
+          throw new LlmError('pi-ai request aborted by caller', 'ABORTED', { cause: error })
+        }
+        throw error
       } finally {
-        if (!exhausted) {
-          consumer.abort('pi-ai stream consumer stopped')
-          // A demand the deadline abandoned can stay pending forever, and this
-          // generator queues its return behind it; the abort above owns SDK termination.
-          /* v8 ignore next -- the detached drain only rejects while unwinding an abandoned stream. */
-          void iterator.return(undefined).catch(() => {})
-        }
+        consumer.abort('pi-ai stream consumer stopped')
       }
     } catch (error: unknown) {
-      if (timeoutOf(watchdog.signal, 'LLM_STREAM_IDLE_TIMEOUT') !== undefined) {
-        throw new LlmError(`pi-ai stream idle timeout after ${streamIdleTimeoutMs}ms`, 'TIMEOUT', { cause: error })
-      }
-      if (options.signal?.aborted) {
-        throw new LlmError('pi-ai request aborted by caller', 'ABORTED', { cause: error })
-      }
+      outcome = options.signal?.aborted ? 'aborted' : 'error'
       throw error
     } finally {
-      consumer.abort('pi-ai stream consumer stopped')
+      timing?.mark('settled', outcome === 'closed' && options.signal?.aborted ? 'aborted' : outcome)
     }
   }
 }

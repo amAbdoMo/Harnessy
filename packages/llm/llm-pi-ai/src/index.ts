@@ -221,6 +221,7 @@ export function apply(ctx: Context, config: Config): void {
     profiles,
     resolveApiKey,
     auth,
+    logRequestTiming: message => ctx.logger.info(message),
     resolveFastMode: (id) => {
       const session = ctx.get('sessions')?.get(id)
       const projections = ctx.get('sessionProjections')
