@@ -9,6 +9,7 @@ import { DesktopUpdateDialog } from '../../lib/types/update-dialog.js'
 import { DesktopUpdateOverlays } from '../../lib/types/update-overlay.js'
 import { DesktopBackgroundNotice } from '../../lib/types/background-notice.js'
 import { desktopUpdateReadyConfirmation, resolveDesktopLocale } from '../../lib/types/locale.js'
+import { qualifyCompanionDialogs } from './companion-dialogs.mjs'
 
 async function rendered(window) {
   await window.webContents.executeJavaScript(`new Promise((resolve, reject) => {
@@ -154,6 +155,7 @@ export async function qualifyUpdateDialogs(root, fixture) {
       assert.equal(parent.isVisible(), false)
       assert.equal(dialogs.isOpen, false)
     } finally { notice.dispose() }
+    screenshots.push(...await qualifyCompanionDialogs(parent, dialogs, root))
     return screenshots
   } finally {
     dialogs.dispose()

@@ -116,6 +116,10 @@ const harness = await vi.hoisted(async () => {
       setWindowOpenHandler: vi.fn(),
       insertCSS: vi.fn(async () => 'blur'),
       removeInsertedCSS: vi.fn(async () => {}),
+      executeJavaScript: vi.fn<BrowserWindow['webContents']['executeJavaScript']>().mockResolvedValue({
+        dark: true, surface: '#0d2731ff', text: '#f1fbfcff', muted: '#b7ccd1ff', border: '#a9e5e930',
+        primary: '#37c4c9ff', primaryText: '#052831ff', secondary: '#133440ff',
+      }),
       openDevTools: vi.fn(),
       getURL: () => this.urls.at(-1) ?? '',
       isLoadingMainFrame: vi.fn(() => false),
@@ -188,6 +192,10 @@ const harness = await vi.hoisted(async () => {
       async (_command: DesktopWebsiteHostCommand): Promise<DesktopWebsiteHostSnapshot | undefined> => undefined,
     )
     readonly inspectWebsiteMcp = vi.fn(async (_server: string) => ({ identity: 'a'.repeat(64), endpoint: 'https://portal.example.test/mcp' }))
+    readonly companionControl = vi.fn<DesktopHostProcess['companionControl']>(async (command) => {
+      if (command.kind !== 'describe') throw new Error('Unexpected fixture companion mutation')
+      return { kind: 'status', status: { available: true, connected: true, paired: [], candidates: [] } }
+    })
     url = 'http://127.0.0.1:3080/?token=test'
     fetch = vi.fn(async () => Response.json({ hasApiKey: true, writable: true, localePreference: null }))
     readonly ready = deferred()
@@ -1192,6 +1200,18 @@ describe('desktop main startup', () => {
     await harness.navigated.promise
     return harness.hosts[0]!
   }
+
+  it('opens phone settings with the captured app palette and no pairing mutation on Close', async () => {
+    const host = await readyForUpdate()
+    await invoke(DESKTOP_IPC.boot, 'app')
+    harness.dialog.showMessageBox.mockResolvedValueOnce({ response: 3, checkboxChecked: false })
+    await invoke(DESKTOP_IPC.companionOpen, 'app')
+    expect(harness.dialog.showMessageBox.mock.lastCall?.[0]).toMatchObject({
+      message: 'Link your Android phone or manage its access.',
+      applicationTheme: { dark: true, surface: '#0d2731ff', primary: '#37c4c9ff' },
+    })
+    expect(host.companionControl.mock.calls.map(([command]) => command)).toEqual([{ kind: 'describe' }])
+  })
 
   async function loadProductPreload(initialReadiness: DocumentReadyState = 'loading') {
     const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>')

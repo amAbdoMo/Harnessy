@@ -1,7 +1,8 @@
-/** Main-owned update confirmations; closing or replacing a dialog never grants installation permission. */
+/** Main-owned shell confirmations with private response-only IPC. */
 import { ipcMain, type BrowserWindow, type IpcMainInvokeEvent, type MessageBoxOptions, type MessageBoxReturnValue } from 'electron'
 import type { DesktopLocale } from './locale.ts'
 import type { DesktopUpdateOverlays } from './update-overlay.ts'
+import type { ApplicationDialogTheme } from './application-dialog-theme.ts'
 
 /** Channels available only to the isolated update-dialog document. */
 export const UPDATE_DIALOG_IPC = { status: 'dsh-update-dialog:status', changed: 'dsh-update-dialog:changed', respond: 'dsh-update-dialog:respond' } as const
@@ -19,11 +20,14 @@ export interface UpdateDialogView {
   readonly closeLabel: string
   readonly technicalDetails: string
   readonly technicalDetailsLabel: string
+  readonly applicationTheme?: ApplicationDialogTheme
 }
 
 /** Electron message options with separately expandable, main-owned diagnostics. */
 export interface UpdateDialogOptions extends MessageBoxOptions {
   readonly technicalDetails?: string
+  /** Main-captured application colors for companion management; absent preserves update-dialog styling. */
+  readonly applicationTheme?: ApplicationDialogTheme
 }
 
 /** The document can select only a displayed response index. */
@@ -93,7 +97,8 @@ export class DesktopUpdateDialog {
     this.parent = parent
     const view: UpdateDialogView = { revision: ++this.revision, locale: locale.id, title: options.title ?? '', message: options.message,
       detail: options.detail ?? '', buttons, cancelId, closeLabel: locale.messages.updateClose,
-      technicalDetails: options.technicalDetails ?? '', technicalDetailsLabel: locale.messages.updateTechnicalDetails }
+      technicalDetails: options.technicalDetails ?? '', technicalDetailsLabel: locale.messages.updateTechnicalDetails,
+      ...options.applicationTheme === undefined ? {} : { applicationTheme: options.applicationTheme } }
     return new Promise((resolve) => {
       const abort = (): void => { finish(cancelId) }
       const finish = (response: number, retain = false): void => {

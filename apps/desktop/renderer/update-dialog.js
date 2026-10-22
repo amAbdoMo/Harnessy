@@ -27,6 +27,17 @@ function render(state) {
   if (view !== undefined && state.revision <= view.revision) return
   responding = false
   view = state
+  const theme = state.applicationTheme
+  document.body.classList.toggle('application-dialog', theme !== undefined)
+  document.documentElement.style.colorScheme = theme?.dark ? 'dark' : 'light'
+  if (theme !== undefined) {
+    for (const name of ['surface', 'text', 'muted', 'border', 'primary', 'primaryText', 'secondary']) {
+      document.body.style.setProperty(`--dialog-${name}`, theme[name])
+    }
+    document.body.dataset.dialogTheme = theme.dark ? 'dark' : 'light'
+  } else {
+    delete document.body.dataset.dialogTheme
+  }
   document.documentElement.lang = state.locale
   document.title = state.title
   document.getElementById('title').textContent = state.message

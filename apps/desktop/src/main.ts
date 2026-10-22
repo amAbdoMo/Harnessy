@@ -59,6 +59,7 @@ import { desktopClientMetadata, desktopClientVersion } from './client-metadata.t
 import { DesktopMandatoryUpdateWindow } from './mandatory-update-window.ts'
 import { DesktopPolicyTestAuth } from './policy-test-auth.ts'
 import { DesktopUpdateDialog, type UpdateDialogOptions } from './update-dialog.ts'
+import { readApplicationDialogTheme } from './application-dialog-theme.ts'
 import { readDesktopRuntime } from './runtime-tree.ts'
 import { DesktopBrowserGuests } from './browser-guests.ts'
 import { DesktopDevicePreviews } from './device-preview.ts'
@@ -618,12 +619,14 @@ async function main(): Promise<void> {
     if (isQuitting() || shuttingDown || window === undefined || window.isDestroyed() || host === undefined) return undefined
     return { host, window }
   }, () => locale.id, {
-    show(owner, options) {
+    async show(owner, options) {
       const window = mainWindow
       if (window === undefined || window !== owner.window || window.isDestroyed()) {
         return Promise.reject(new Error('Companion native window retired'))
       }
-      return dialog.showMessageBox(window, options)
+      const applicationTheme = await readApplicationDialogTheme(window.webContents, options.signal)
+      if (window !== mainWindow || window.isDestroyed()) throw new Error('Companion native window retired')
+      return updateDialog.show(window, { ...options, applicationTheme })
     },
     copy(text) { return clipboard.writeText(text) },
   })

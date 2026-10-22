@@ -163,7 +163,7 @@ macOS 上自定义菜单保留 Electron 的标准 Window 菜单及应用隐藏�
 
 普通 Desktop 启动选择已打包的[伴侣部署配置](../desktop-host/companion-deployment.json)。手机设置会在创建电脑身份或联系中继前请求明确的一次性本地许可；后续启动恢复健康且绑定来源的许可，无需专用启动器。运维方只有同时提供 `DSH_DESKTOP_COMPANION_HTTPS_ORIGIN` 与 `DSH_DESKTOP_COMPANION_BUDGETS` 才能覆盖产品部署配置；部分或无效配置会失败。PC 主动出站连接，操作者端点仍仅供本机访问；已批准手机可查看已有普通会话，并按这些会话的现有工具权限排队追加文本任务，不增加远程工具批准权限。
 
-通用设置打开 Main 拥有的配对与移除对话框。Main 复制限时邀请、比较手机完整指纹并批准准确候选；renderer 仅接收可用性、连接状态和配对数量。托管 TLS／代理配置、已签名 Android 应用与运行验收属于[原生设置指南](../../HARNESSY-ANDROID-COMPANION.md)规定的发布／运营责任。源码变更需先安全离线重建／更新，再启用；[启用升级指南](../../docs/upgrade-guide/v0.1.15/native-companion-activation/guide.zh.md)说明这次一次性迁移，而非日常启动要求。
+通用设置在隔离的 shell overlay 中打开 Main 拥有的配对与移除对话框，使用应用当前主题的已解析颜色，替代原生消息框。Main 复制限时邀请、比较手机完整指纹并批准准确候选；产品文档仅接收可用性、连接状态和配对数量。独立 shell 文档只能返回当前显示的响应索引，不接收配对链接或管理命令。取消操作和过期响应无法批准手机。托管 TLS／代理配置、已签名 Android 应用与运行验收属于[原生设置指南](../../HARNESSY-ANDROID-COMPANION.md)规定的发布／运营责任。源码变更需先安全离线重建／更新，再启用；[启用升级指南](../../docs/upgrade-guide/v0.1.15/native-companion-activation/guide.zh.md)说明这次一次性迁移，而非日常启动要求。
 
 <a id="legacy-private-browser-access"></a>
 ### 传统私有浏览器访问

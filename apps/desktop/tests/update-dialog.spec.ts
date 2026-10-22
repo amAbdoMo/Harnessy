@@ -47,8 +47,9 @@ afterEach(() => {
 
 function setup(locale: DesktopLocale | (() => DesktopLocale) = resolveDesktopLocale('zh-CN')) {
   const parent = new fixture.FakeWindow({})
+  const ownedParent = parent as unknown as BrowserWindow
   dialogs = new DesktopUpdateDialog('preload-update-dialog.cjs', locale, new DesktopUpdateOverlays())
-  const show = (signal?: AbortSignal) => dialogs!.show(parent as unknown as BrowserWindow, {
+  const show = (signal?: AbortSignal) => dialogs!.show(ownedParent, {
     message: '下载完成', buttons: ['安装并重启'], cancelId: 1, ...(signal === undefined ? {} : { signal }),
   })
   const invoke = (channel: string, ...args: unknown[]) => {
@@ -57,7 +58,7 @@ function setup(locale: DesktopLocale | (() => DesktopLocale) = resolveDesktopLoc
     const view = fixture.handlers.get(UPDATE_DIALOG_IPC.status)!(event) as { revision: number }
     return fixture.handlers.get(channel)!(event, ...(channel === UPDATE_DIALOG_IPC.respond ? [view.revision, ...args] : args))
   }
-  return { parent, show, invoke }
+  return { parent, ownedParent, show, invoke }
 }
 
 it('accepts only a displayed choice from its own main frame and retains cancellation outside the button list', async () => {
@@ -213,4 +214,20 @@ it('reads the current locale for each presentation', async () => {
     dialogs!.cancel()
     await pending
   }
+})
+
+it('keeps companion palette data separate from choices and clears it for subsequent update prompts', async () => {
+  const f = setup()
+  const applicationTheme = { dark: true, surface: '#0d2731ff', text: '#f1fbfcff', muted: '#b7ccd1ff', border: '#a9e5e930',
+    primary: '#37c4c9ff', primaryText: '#052831ff', secondary: '#133440ff' }
+  const pending = dialogs!.show(f.ownedParent, {
+    message: 'Android companion', buttons: ['Pair Android phone', 'Close'], cancelId: 1, applicationTheme,
+  })
+  expect(f.invoke(UPDATE_DIALOG_IPC.status)).toMatchObject({ applicationTheme, buttons: ['Pair Android phone', 'Close'], cancelId: 1 })
+  f.invoke(UPDATE_DIALOG_IPC.respond, 1)
+  expect((await pending).response).toBe(1)
+  const next = f.show()
+  expect(f.invoke(UPDATE_DIALOG_IPC.status)).not.toHaveProperty('applicationTheme')
+  dialogs!.cancel()
+  await next
 })

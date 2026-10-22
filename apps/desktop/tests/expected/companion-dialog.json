@@ -1,0 +1,32 @@
+{
+  "content": {
+    "title": "Link your Android phone or manage its access.",
+    "detail": "The PC is not connected to the relay. Pairing needs an online PC.\n\nAn approved phone can read existing sessions and queue follow-up tasks. Those tasks can run the PC agent’s existing tools and permissions. The phone cannot approve tools remotely.",
+    "buttons": ["Pair Android phone", "Approve pairing request", "Paired phones", "Close"]
+  },
+  "themes": {
+    "dark": {
+      "--dsw-alias-bg-layer-2": "#0d2731",
+      "--dsw-alias-label-primary": "#f1fbfc",
+      "--dsw-alias-label-secondary": "#b7ccd1",
+      "--dsw-alias-border-l3": "rgba(169, 229, 233, 0.19)",
+      "--dsw-alias-brand-primary": "#37c4c9",
+      "--dsw-alias-brand-primary-invert": "#052831",
+      "--dsw-alias-bg-layer-3": "#133440"
+    },
+    "light": {
+      "--dsw-alias-bg-layer-2": "#eaf3f4",
+      "--dsw-alias-label-primary": "#102f3a",
+      "--dsw-alias-label-secondary": "#4a636b",
+      "--dsw-alias-border-l3": "rgba(0, 64, 96, 0.18)",
+      "--dsw-alias-brand-primary": "#00677a",
+      "--dsw-alias-brand-primary-invert": "#ffffff",
+      "--dsw-alias-bg-layer-3": "#dcecee"
+    }
+  },
+  "states": [
+    { "theme": "dark", "viewportWidth": 900, "surface": "rgb(13, 39, 49)", "primary": "rgb(55, 196, 201)", "width": 440 },
+    { "theme": "light", "viewportWidth": 900, "surface": "rgb(234, 243, 244)", "primary": "rgb(0, 103, 122)", "width": 440 },
+    { "theme": "dark", "viewportWidth": 360, "surface": "rgb(13, 39, 49)", "primary": "rgb(55, 196, 201)", "width": 312 }
+  ]
+}

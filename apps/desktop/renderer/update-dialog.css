@@ -29,3 +29,23 @@ body.update-dialog { opacity: 0; transition: opacity 150ms ease; }
 body.update-dialog.visible { opacity: 1; }
 @starting-style { body.update-dialog.visible { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { body.update-dialog { transition: none; } }
+
+body.application-dialog {
+  color: var(--dialog-text);
+  font-family: 'Segoe UI Variable Text', 'Aptos', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Microsoft YaHei', sans-serif;
+}
+.application-dialog main {
+  width: min(440px, calc(100vw - 48px));
+  max-height: calc(100vh - 48px);
+  border: 1px solid var(--dialog-border);
+  border-radius: 28px;
+  background: var(--dialog-surface);
+}
+.application-dialog #detail { color: var(--dialog-muted); }
+.application-dialog #actions { background: var(--dialog-surface); }
+.application-dialog .primary { background: var(--dialog-primary); color: var(--dialog-primaryText); }
+.application-dialog .secondary { background: var(--dialog-secondary); color: var(--dialog-text); border: 1px solid var(--dialog-border); }
+.application-dialog .close { color: var(--dialog-muted); }
+.application-dialog .close:hover { background: var(--dialog-secondary); }
+.application-dialog[data-dialog-theme='dark'] .close img { filter: invert(1); }
+.application-dialog button:focus-visible { outline-color: var(--dialog-primary); }
