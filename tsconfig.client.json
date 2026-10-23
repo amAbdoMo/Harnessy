@@ -24,6 +24,7 @@
     "apps/desktop/src/browser-human-command.ts",
     "apps/desktop/src/browser-preview-viewport.ts",
     "apps/desktop/src/website-profiles.ts",
+    "apps/desktop/src/website-profile-errors.ts",
     "apps/desktop/src/ipc.ts",
     "apps/desktop/src/update-overlay.ts",
     "apps/desktop/tests/**/*.client.spec.tsx",
