@@ -73,6 +73,15 @@ async function execute(host: CompanionHost,
     case 'setSessionManagement':
       await host.setSessionManagement(command)
       return { kind: 'completed' }
+    case 'setModelSelection':
+      await host.setModelSelection(command)
+      return { kind: 'completed' }
+    case 'setToolDetails':
+      await host.setToolDetails(command)
+      return { kind: 'completed' }
+    case 'setSessionActivation':
+      await host.setSessionActivation(command)
+      return { kind: 'completed' }
     default: return assertNever(command)
   }
 }

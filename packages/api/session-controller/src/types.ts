@@ -311,6 +311,32 @@ export interface SessionSelectModelValue {
   readonly selected: ModelSelection
 }
 
+/**
+ * Model-only choice a trusted Host caller may commit for one live ordinary
+ * Agent. It carries no reasoning effort: the selected model owns the effort
+ * that applies to it.
+ */
+export interface AgentModelChoice {
+  readonly provider: string
+  readonly model: string
+}
+
+/** Trusted Host admission for opening an existing ordinary Session without submitting work. */
+export interface ExistingAgentActivationOptions {
+  /** Caller lifetime before admission only; an admitted resume does not inherit this signal. */
+  readonly signal?: AbortSignal
+  /** Synchronous current-authority check, repeated after asynchronous preflight and immediately before resume. */
+  readonly requireAdmission: () => void
+  /** Synchronous notification immediately before writable resume; throwing prevents resume. Not called for an already-live Agent. */
+  readonly onAdmitted: () => void
+}
+
+/** Committed Session-local model selection and the durable event position that recorded it. */
+export interface AgentModelCommit {
+  readonly selected: ModelSelection
+  readonly seq: number
+}
+
 /** Session rename request. */
 export interface SessionRenameRequest {
   readonly sessionId: SessionId

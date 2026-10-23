@@ -54,6 +54,14 @@ PC 必须原子地预留/消耗有效邀请、核对目标 PC/源及过期时间
 
 封闭的[应用请求／结果类型](src/application-types.ts)新增受权限控制的 `listManagementWorkspaces` 和四条命令：`createSession`、`renameSession`、`archiveSession` 与 `setSessionPinned`。目录以 ID、标题和顺序包含已注册的空 Workspace，绝不包含 PC 路径；普通 Session 列表仍省略空分组。精确字段解析不接受通用 RPC、提供方秘密或 Delete 操作。创建将手机预先知道的 Session ID 绑定为 `mobile-${operationId}`；置顶使用明确的目标布尔值，而非切换。`managed` 区分 `applied`、确定的 `rejected` 和 `unknown`；操作 ID 是单次关联标识，不是持久重放键。PC 许可与完成语义归[Host 集成](../../host/companion-host/INTEGRATION.md)所有；请遵循[PC 优先升级指南](../../../docs/upgrade-guide/v0.1.15/companion-chat-management/guide.zh.md)。
 
+### 应用模型兼容性
+
+`listSessionModels` 和 `selectSessionModel` 需要独立的电脑模型授权与匹配 Host 支持。选项及修订使用不透明的 16 字节标识；签名分页游标属于签发它的通道。`sessionModels` 携带固定可用状态、净化的显示标签及有界选项；`modelSelected` 区分已应用、已拒绝及结果未知，不导出路由或凭据。旧电脑会拒绝这些操作标签。请先更新电脑；参见[模型与工具授权](../../../docs/upgrade-guide/v0.1.17/companion-model-and-tool-consent/guide.zh.md)。工具详情使用现有的纯文本 `HistoryRow.text` 字段，不新增协议成员；电脑负责单独授权此类披露。
+
+### 应用会话激活
+
+`getSessionActivation` 报告该手机当前单独的电脑权限；`openSession` 显式请求打开已有聊天。列出会话、读取历史及观察进度都不会激活 Agent。`openSession` 仅携带一个请求 ID、一个操作 ID 和已有 Session ID，不携带文本或创建请求。Host 必须执行独立的手机授权检查，并且只准入符合条件的普通 Session。`sessionOpened` 区分已应用、确定拒绝和结果未知；对于冷态 Session，初始化和目标持久化完成后才返回包含未关闭 Session 摘要的已应用结果。操作 ID 只是一次性关联标识，不是持久重放键：未知结果应通过读取对账，绝不可自动重发。旧电脑会拒绝这些操作标签；请先更新电脑并遵循[会话激活升级指南](../../../docs/upgrade-guide/v0.1.17/companion-session-activation/guide.zh.md)。
+
 ### 基础编码
 
 `LP(x)` 为 `uint32BE(byteLength(x)) || x`，不带终止符。`C(domain; fields...)` 为 `LP(UTF8(domain)) || LP(field1) || ...`。普通文本字段使用确切 UTF-8。十进制字段使用无前导零的最短无符号 ASCII 十进制。下文原始字段使用解码后的字节，而非 base64url 文本。嵌套转录作为一个原始字段，包含其所有内部长度前缀。任何认证转录都不包含 JSON 序列化、空白、排序、Unicode 规范化或分隔符拼接。

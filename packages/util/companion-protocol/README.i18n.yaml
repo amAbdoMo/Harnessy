@@ -26,6 +26,12 @@
 /dsh-companion-protocol/wire-reference/application-management-compatibility:
   en: 3842d7f060f9364e
   zh: 7a68d36130baded1
+/dsh-companion-protocol/wire-reference/application-model-compatibility:
+  en: abb7d752237ea523
+  zh: f8015da4e1849588
+/dsh-companion-protocol/wire-reference/application-session-activation:
+  en: a1bd61a184e44184
+  zh: 692f01900b86a264
 /dsh-companion-protocol/wire-reference/primitive-encoding:
   en: 10d7e3dd84f12a1a
   zh: 17bcf94adc43b194

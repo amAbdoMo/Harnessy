@@ -3,29 +3,41 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write apps/android/README.md
 /:
-  en: 01ca8df35c699913
-  zh: 9e3ed9c6eae24045
+  en: b2b0f048e3a8a722
+  zh: 57f42a32e8bf96a5
 /harnessy-android-companion:
   en: e5eb1e1c0e61f812
   zh: 604c1723a603db1b
 /harnessy-android-companion/summary:
-  en: 4f4f28d72173dbdb
-  zh: ed3689fb0be830b9
+  en: 680939c723db1de4
+  zh: 679a09e850d1f8ca
 /harnessy-android-companion/table-of-contents:
-  en: 32cf16c90884049a
-  zh: 4311aca72381b27c
+  en: 456b0ba5d1d53f6a
+  zh: 4c29c8a0e6e19382
 /harnessy-android-companion/application-assembly:
-  en: bb0d28d3fd7966e3
-  zh: 6cc4f012beae0adf
+  en: 7e461bb804726287
+  zh: 8d1872dacb228f18
+/harnessy-android-companion/workspace-navigation:
+  en: 65f2b5bedf8f3f7c
+  zh: 6c97ef97a99c9638
+/harnessy-android-companion/model-selection:
+  en: 0f7c5c34bcb95b56
+  zh: ebab24e6e07f6ce3
+/harnessy-android-companion/session-activation:
+  en: b766d27f680c8a30
+  zh: 9533e3e23198d186
 /harnessy-android-companion/pairing-and-storage:
-  en: a2e068d5244c78f8
-  zh: 6814041053b66ac3
+  en: 85613902fb4e9904
+  zh: c5e6125dbffa1b11
 /harnessy-android-companion/reads-and-delivery:
-  en: 815472bb992b65c0
-  zh: 4d8b70cc7b78f36e
+  en: a0a9fcbc332446b4
+  zh: e4049b8028c1befe
 /harnessy-android-companion/limits-and-verification:
-  en: 27b341217dc0c5e4
-  zh: 7e993cddc646c32f
+  en: 0fb5c782e5fbecd9
+  zh: 26194b71c1e3a29b
+/harnessy-android-companion/known-limitations:
+  en: 5d894a026c9f6d24
+  zh: 777f11f1077f0028
 /harnessy-android-companion/dev-note:
   en: b75c8458928b72b9
   zh: 003ba4e17b4b5269

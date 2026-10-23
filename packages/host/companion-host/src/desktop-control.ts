@@ -53,9 +53,12 @@ export function parseCompanionControlCommand(input: unknown): CompanionControlCo
       const row = exactRecord(input, ['kind', 'grantId'])
       return { kind: 'revokeGrant', grantId: parseId<GrantId>(row.grantId) }
     }
-    case 'setSessionManagement': {
+    case 'setSessionManagement':
+    case 'setModelSelection':
+    case 'setToolDetails':
+    case 'setSessionActivation': {
       const row = exactRecord(input, ['kind', 'grantId', 'expectedGeneration', 'fingerprint', 'enabled'])
-      return { kind: 'setSessionManagement', grantId: parseId<GrantId>(row.grantId),
+      return { kind: input.kind, grantId: parseId<GrantId>(row.grantId),
         expectedGeneration: parseGeneration(row.expectedGeneration), fingerprint: fingerprint(row.fingerprint),
         enabled: boolean(row.enabled) }
     }
@@ -73,11 +76,12 @@ function status(input: unknown): CompanionStatus {
   if (!Array.isArray(row.paired) || row.paired.length > MAX_PUBLIC_ROWS
     || !Array.isArray(row.candidates) || row.candidates.length > MAX_PUBLIC_ROWS) throw new Error('Companion roster exceeds limit')
   const paired: PairedDevice[] = row.paired.map((item: unknown) => {
-    const device = exactRecord(item, ['grantId', 'generation', 'fingerprint', 'displayName', 'pairedAt', 'sessionManagement'])
+    const device = exactRecord(item, ['grantId', 'generation', 'fingerprint', 'displayName', 'pairedAt', 'sessionManagement', 'modelSelection', 'toolDetails', 'sessionActivation'])
     return {
       grantId: parseId<GrantId>(device.grantId), generation: parseGeneration(device.generation),
       fingerprint: fingerprint(device.fingerprint), displayName: label(device.displayName), pairedAt: timestamp(device.pairedAt),
-      sessionManagement: boolean(device.sessionManagement),
+      sessionManagement: boolean(device.sessionManagement), modelSelection: boolean(device.modelSelection),
+      toolDetails: boolean(device.toolDetails), sessionActivation: boolean(device.sessionActivation),
     }
   })
   const candidates = row.candidates.map((item: unknown) => {

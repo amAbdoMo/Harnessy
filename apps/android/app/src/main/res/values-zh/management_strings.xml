@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="native_manage_cancel">取消</string>
+    <string name="native_manage_create_title">在电脑上新建对话</string>
+    <string name="native_manage_create_confirm">新对话</string>
+    <string name="native_manage_rename_title">重命名对话</string>
+    <string name="native_manage_rename_confirm">重命名</string>
+    <string name="native_manage_archive_title">归档此对话？</string>
+    <string name="native_manage_archive_confirm">归档</string>
+    <string name="native_manage_pin">置顶</string>
+    <string name="native_manage_unpin">取消置顶</string>
+    <string name="native_manage_chat_actions">对话操作</string>
+    <string name="native_manage_workspace_explanation">选择电脑上的工作区，包括尚无对话的工作区。新建对话不会发送消息，也不会启动模型任务。</string>
+    <string name="native_manage_workspaces_loading">正在加载电脑工作区…</string>
+    <string name="native_manage_workspaces_empty">尚未加载任何电脑工作区。请刷新列表，或先在电脑上创建工作区。</string>
+    <string name="native_manage_refresh_workspaces">刷新工作区</string>
+    <string name="native_manage_load_workspaces">加载更多工作区</string>
+    <string name="native_manage_untitled_workspace">未命名工作区</string>
+    <string name="native_manage_untitled_chat">未命名对话</string>
+    <string name="native_manage_title_label">对话标题</string>
+    <string name="native_manage_title_limit">最多 %1$d 个 UTF-8 字节。将去除首尾空白。</string>
+    <string name="native_manage_title_invalid">请输入有效文本，且不超过 %1$d 个 UTF-8 字节。仍显示之前的有效标题；请编辑后继续。</string>
+    <string name="native_manage_title_blank">请输入非空白标题。</string>
+    <string name="native_manage_archive_explanation">仅归档电脑上所示名称的对话。历史记录会保留，此操作不是删除。归档不会停止正在运行的任务。</string>
+    <string name="native_manage_archive_busy">此对话正在忙碌。请等待任务结束后再归档；此弹窗无法停止任务。</string>
+    <string name="native_manage_target_unavailable">已加载的电脑列表中不再包含此对话。请取消并刷新侧栏后再试。</string>
+    <string name="native_manage_draft_title">保留当前草稿</string>
+    <string name="native_manage_draft_required">开始新对话或归档当前对话之前，请先完成或清空当前草稿。此弹窗绝不会丢弃草稿。</string>
+    <string name="native_manage_permission_title">需要电脑端授权</string>
+    <string name="native_manage_permission_required">请在电脑上打开「设置 → 通用设置 → 手机设置 → 已配对手机 → 启用聊天管理」。请在电脑原生应用中确认手机指纹。此手机无法授予权限，也无需重新配对。</string>
+    <string name="native_manage_access_checking">正在检查电脑上的对话管理权限…</string>
+    <string name="native_manage_unavailable">对话管理或工作区列表暂不可用。请在电脑上检查连接、权限及应用兼容性。</string>
+    <string name="native_manage_connection_required">请保持此应用可见并重新连接电脑，再管理对话。</string>
+    <string name="native_manage_busy">电脑请求正在进行中。请等待后再作其他更改。</string>
+    <string name="native_manage_uncertain_hint">如果结果不确定，请先在电脑上检查该对话，再决定是否重试。更改绝不会自动重发。</string>
+</resources>

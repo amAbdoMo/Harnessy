@@ -1,6 +1,7 @@
 /** Session commands whose activation policy is explicit at each Remote method. */
 
 import { modelAvailable } from './catalog.ts'
+import { settleModelWait } from './model-selection-wait.ts'
 import { randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import { brandString } from '@deepseek-ai/dsh-brand'
@@ -35,6 +36,9 @@ import {
   inspectApiSession,
 } from './agent.ts'
 import type {
+  AgentModelChoice,
+  AgentModelCommit,
+  ModelSelection as SessionModelSelection,
   SessionAttachmentRequest,
   SessionAttachmentValue,
   SessionCancelRequest,
@@ -206,12 +210,72 @@ export class SessionCommandController {
   }
 
   /**
+   * Validate and install one model-only choice for an explicitly supplied live
+   * ordinary Agent.
+   *
+   * The choice names no reasoning effort: the selected model owns the effort
+   * that applies to it, so an effort that belonged to another model is never
+   * carried over. The selection is serialized with Desktop selection on the
+   * same per-Agent admission queue, and the caller's authorization check runs
+   * after every asynchronous wait, immediately before the durable append.
+   * @param agent - live ordinary Agent that owns the selection.
+   * @param choice - model-only provider and model choice.
+   * @param beforeCommit - synchronous authorization check for the normalized selection.
+   * @param signal - optional caller lifetime; cancellation withdraws queued or uncommitted selection.
+   * @returns the normalized committed selection and its durable event position.
+   */
+  async selectModelForAgent(
+    agent: Agent,
+    choice: AgentModelChoice,
+    beforeCommit: (selected: SessionModelSelection) => void,
+    signal?: AbortSignal,
+  ): Promise<AgentModelCommit> {
+    this.agents.assertIdleSelectionOwner(agent)
+    const routing = new AbortController()
+    const lifetime = signal === undefined ? routing.signal : AbortSignal.any([signal, routing.signal])
+    const withdraw = this.ctx.on('llm/adapters-updated', () => {
+      routing.abort(new RemoteError('session/model-unavailable', 'Model providers changed before selection.', choice))
+    })
+    try {
+      return await settleModelWait(() => this.agents.serializeImageAdmission(agent, async () => {
+        lifetime.throwIfAborted()
+        const selected = await this.resolveModelChoice(choice, lifetime)
+        lifetime.throwIfAborted()
+        this.agents.assertIdleSelectionOwner(agent)
+        beforeCommit(selected)
+        const committed = this.agents.selectForNextRequest(agent, selected)
+        const flushing = this.ctx.sessions.flush(agent.session)
+        if (!await settleModelWait(() => flushing, lifetime)) {
+          throw new RemoteError('session/model-unavailable', 'Model selection persistence was not confirmed.', choice)
+        }
+        return { selected: { ...selected }, seq: committed.seq }
+      }), lifetime)
+    } finally { withdraw() }
+  }
+
+  /**
    * Normalize and append a user-owned Session title.
    * @param request - Session identity and proposed title.
    * @returns the accepted title and durable event sequence.
    */
   async rename(request: SessionRenameRequest): Promise<SessionRenameValue> {
     const agent = await this.resolveAgent(request.sessionId)
+    return this.renameAgent(agent, request)
+  }
+
+  /**
+   * Rename only an already-live ordinary Agent without obtaining cold ownership.
+   * @param request - Session identity and proposed title.
+   * @returns the accepted title and durable event sequence.
+   */
+  renameLive(request: SessionRenameRequest): SessionRenameValue {
+    const agent = this.ctx.agents.get(request.sessionId)
+    if (agent === undefined) throw new RemoteError('session/not-found', 'Open the chat before renaming it.', request)
+    this.agents.assertLiveSelectionOwner(agent)
+    return this.renameAgent(agent, request)
+  }
+
+  private renameAgent(agent: Agent, request: SessionRenameRequest): SessionRenameValue {
     const titles = this.ctx.get('sessionTitle')
     if (titles === undefined) {
       throw new RemoteError('gateway/internal', 'renaming is unavailable: this deployment mounts no session-title service', {})
@@ -326,7 +390,7 @@ export class SessionCommandController {
   /**
    * Reject empty content, then admit one prompt after Agent and attachment validation.
    * @param request - Session identity, prompt content, source metadata, and delivery mode.
-   * @param checkAdmission - synchronous caller authorization check, including cancellation; no check follows inbox insertion.
+   * @param checkAdmission - synchronous authorization/cancellation before Agent resolution and through inbox insertion, never afterward.
    * @returns acknowledgement of in-memory inbox admission, not durable checkpoint or task completion.
    */
   async prompt(request: SessionPromptRequest, checkAdmission: () => void): Promise<SessionPromptValue> {
@@ -403,10 +467,44 @@ export class SessionCommandController {
     return hasImage ? this.agents.serializeImageAdmission(agent, admit) : admit()
   }
 
-  private async requireModel(selection: Pick<AgentModelSelection, 'provider' | 'model'>): Promise<void> {
-    if (!await modelAvailable(this.ctx, selection)) {
+  private async requireModel(selection: Pick<AgentModelSelection, 'provider' | 'model'>, signal?: AbortSignal): Promise<void> {
+    if (!await modelAvailable(this.ctx, selection, signal)) {
       throw new RemoteError('session/model-unavailable', 'Select an available model before sending a message.',
         { provider: selection.provider, model: selection.model })
+    }
+  }
+
+  /**
+   * Resolve one model-only choice into the selection the selected model owns.
+   * @param choice - model-only provider and model choice.
+   * @param signal - selection lifetime, including provider-registration withdrawal.
+   * @returns the normalized selection, with the model's own default effort.
+   * @throws RemoteError when the model is unavailable or its route cannot be resolved.
+   */
+  private async resolveModelChoice(choice: AgentModelChoice, signal: AbortSignal): Promise<AgentModelSelection> {
+    try {
+      await this.requireModel(choice, signal)
+      const resolved = await settleModelWait(() => this.ctx.llm.resolveCallConfig({
+        provider: choice.provider,
+        model: choice.model,
+      }, signal), signal)
+      await this.requireModel(choice, signal)
+      signal.throwIfAborted()
+      return {
+        provider: resolved.provider,
+        model: resolved.model,
+        ...(resolved.reasoningEffort === undefined
+          ? {}
+          : { reasoningEffort: resolved.reasoningEffort }),
+      }
+    } catch (error) {
+      signal.throwIfAborted()
+      if (remoteErrorOf(error) !== undefined) throw error
+      throw new RemoteError(
+        'session/model-unavailable',
+        error instanceof Error ? error.message : String(error),
+        { provider: choice.provider, model: choice.model },
+      )
     }
   }
 

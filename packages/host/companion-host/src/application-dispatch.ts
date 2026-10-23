@@ -18,9 +18,15 @@ import {
   listMobileSessions, MobileViewError, mobileActivityRow, mobileHistoryPage, mobileHistoryRow,
   mobileSessionStatus, requireVisibleSession, sanitizedText,
 } from './session-view.ts'
-import type { SessionListPosition } from './session-view.ts'
+import type { MobileHistoryOptions, SessionListPosition } from './session-view.ts'
+import type { SessionSeq } from '@deepseek-ai/dsh-session'
+import { mobileToolCall } from './tool-activity.ts'
+import type { MobileToolActivityContext, MobileToolCall } from './tool-activity.ts'
 import { executeManagement, rejectManagement } from './session-management.ts'
 import type { ManagementRequest } from './session-management.ts'
+import { createSessionModels, rejectModelSelection } from './session-models.ts'
+import { executeSessionOpen, rejectSessionOpen } from './session-activation.ts'
+import type { SessionOpenRequest } from './session-activation.ts'
 
 /** Explicit per-channel policy supplied by the service that owns authorization and transport. */
 export interface ApplicationDispatcherOptions {
@@ -30,12 +36,18 @@ export interface ApplicationDispatcherOptions {
   readonly requireCurrent: () => void
   /** Check current channel authority and read the fresh grant's management permission; never capture a boolean. */
   readonly managementAccess: () => boolean
+  /** Fresh independent model-selection permission; chat management never implies it. */
+  readonly modelAccess: () => boolean
+  /** Fresh independent permission for historical and live tool location/status summaries. */
+  readonly toolDetailsAccess: () => boolean
+  /** Fresh independent permission to obtain writable ownership of an existing ordinary chat. */
+  readonly activationAccess: () => boolean
   readonly grantId: GrantId
   readonly generation: number
   readonly budget: ApplicationBudget
   readonly maxWatches: number
   readonly maxPendingRequests: number
-  /** Maximum queued complete progress messages per watch; the in-flight send is separate. */
+  /** Bounds queued progress messages, pending compact call identities and setup settlements per watch; in-flight send is separate. */
   readonly maxProgressBuffer: number
   /** Send a complete result; the carrier must bound send time and settle sends on channel abort. */
   readonly sendProgress: (result: ApplicationResult) => Promise<void>
@@ -96,8 +108,9 @@ export function createApplicationDispatcher(
   const requests = new Set<Promise<ApplicationResult>>()
   const sends = new Set<Promise<void>>()
   const submissions = new Map<SessionRequestId, Promise<void>>()
-  const managementOperations = new Set<MobileOperationId>()
+  const mutationOperations = new Set<MobileOperationId>()
   let closing: Promise<void> | undefined
+  const models = createSessionModels(ctx, { budget, requireCurrent, modelAccess: options.modelAccess })
 
   function requireCurrent(): void {
     if (signal.aborted) throw new RemoteError('gateway/cancelled', 'companion admission was cancelled', {})
@@ -119,6 +132,8 @@ export function createApplicationDispatcher(
   }
 
   function failure(request: ApplicationRequest, code: ErrorCode): ApplicationResult {
+    if (request.type === 'selectSessionModel') return checked(rejectModelSelection(request, code))
+    if (request.type === 'openSession') return checked(rejectSessionOpen(request, code))
     return checked('operationId' in request
       ? rejectManagement(request, code)
       : { v: 1, type: 'error', requestId: request.requestId, code })
@@ -235,8 +250,8 @@ export function createApplicationDispatcher(
       requireRead(read)
     }
     requireAdmission()
-    if (managementOperations.has(request.operationId)) return checked(rejectManagement(request, 'conflict'))
-    managementOperations.add(request.operationId)
+    if (mutationOperations.has(request.operationId)) return checked(rejectManagement(request, 'conflict'))
+    mutationOperations.add(request.operationId)
     try {
       const result = await executeManagement(ctx, request, {
         budget, signal: read.signal, requireAdmission, errorCode: error => errorCode(error, read),
@@ -249,7 +264,31 @@ export function createApplicationDispatcher(
         }
       }
       return checked(result)
-    } finally { managementOperations.delete(request.operationId) }
+    } finally { mutationOperations.delete(request.operationId) }
+  }
+
+  async function openSession(request: SessionOpenRequest, read: ReadScope): Promise<ApplicationResult> {
+    const requireAdmission = (): void => {
+      requireRead(read)
+      if (!options.activationAccess()) throw new MobileViewError('denied')
+      requireRead(read)
+    }
+    requireAdmission()
+    if (mutationOperations.has(request.operationId)) return checked(rejectSessionOpen(request, 'conflict'))
+    mutationOperations.add(request.operationId)
+    try {
+      return checked(await executeSessionOpen(ctx, request, {
+        budget, signal: read.signal, requireAdmission, errorCode: error => errorCode(error, read),
+      }))
+    } finally { mutationOperations.delete(request.operationId) }
+  }
+
+  function toolDetailsRead(cwd: string, read: ReadScope): MobileHistoryOptions['toolDetails'] {
+    if (!options.toolDetailsAccess()) return undefined
+    return { cwd, requireCurrent: () => {
+      requireRead(read)
+      if (!options.toolDetailsAccess()) throw new MobileViewError('denied')
+    } }
   }
 
   async function history(
@@ -261,8 +300,10 @@ export function createApplicationDispatcher(
     const count = observation.cursor + 1
     const cut = request.cursor === undefined ? { offset: 0, through: count } : historyPosition(request.cursor, request.sessionId)
     if (cut.through > count) throw new MobileViewError('expired')
+    const toolDetails = toolDetailsRead(observation.header.cwd, read)
     const page = mobileHistoryPage(observation.events, {
       ...cut, limit: request.limit, budget, requireCurrent: () => { requireRead(read) },
+      ...(toolDetails === undefined ? {} : { toolDetails }),
     })
     const rows = [...page.rows]
     let nextOffset = page.nextOffset
@@ -288,6 +329,10 @@ export function createApplicationDispatcher(
     using observation = await ctx.sessionQuery.observeSession(request.sessionId, { signal: admissionSignal, projectionMode: 'none' })
     requireRead(read)
     requireVisibleSession(ctx, observation.header)
+    const targetAgent = ctx.agents.get(request.sessionId)
+    if (targetAgent === undefined || ctx.sessions.get(request.sessionId) !== targetAgent.session) {
+      throw new MobileViewError('unavailable')
+    }
     const requestId = brandString<SessionRequestId>(`phone-${createHash('sha256')
       .update(JSON.stringify(['phoneSubmissionId', options.grantId, request.sessionId, request.submissionId]))
       .digest('hex')}`)
@@ -296,6 +341,9 @@ export function createApplicationDispatcher(
       if (submissions.size >= budget.maxPendingSubmissionsPerGrant) throw new MobileViewError('limit')
       const admission = (): void => {
         requireCurrent()
+        if (ctx.agents.get(request.sessionId) !== targetAgent || ctx.sessions.get(request.sessionId) !== targetAgent.session) {
+          throw new MobileViewError('unavailable')
+        }
         if (admissionSignal.aborted || Date.now() >= read.deadlineAt) {
           throw new RemoteError('gateway/cancelled', 'companion admission was cancelled', {})
         }
@@ -333,6 +381,9 @@ export function createApplicationDispatcher(
     const acknowledgement = checked({ v: 1, type: 'watching', requestId: request.requestId, sessionId: request.sessionId, subscriptionId })
     const queue: ApplicationResult[] = []
     const disposers: (() => void)[] = []
+    const calls = new Map<SessionSeq, MobileToolCall>()
+    const settledDuringSetup = new Set<SessionSeq>()
+    const cwd = session.header.cwd
     let stopped = false
     let initialized = false
     let sending = false
@@ -351,6 +402,8 @@ export function createApplicationDispatcher(
       detach()
       watches.delete(subscriptionId)
       queue.length = 0
+      calls.clear()
+      settledDuringSetup.clear()
       if (immediate !== undefined) clearImmediate(immediate)
       immediate = undefined
     }
@@ -419,6 +472,18 @@ export function createApplicationDispatcher(
       }
     }
 
+    function retainCall(call: MobileToolCall): void {
+      if (calls.size >= options.maxProgressBuffer) throw new MobileViewError('limit')
+      calls.set(call.seq, call)
+    }
+    function rememberSettlement(sequence: SessionSeq): void {
+      calls.delete(sequence)
+      if (!initialized) {
+        if (settledDuringSetup.size >= options.maxProgressBuffer) throw new MobileViewError('limit')
+        settledDuringSetup.add(sequence)
+      }
+    }
+
     const timer = setTimeout(() => { terminate('expired') }, budget.subscriptionLifetimeMs)
     timer.unref()
     watches.set(subscriptionId, { stop })
@@ -428,7 +493,16 @@ export function createApplicationDispatcher(
       try {
         requireWatch()
         if (event.seq < cut) return
-        const row = mobileHistoryRow(event, budget) ?? mobileActivityRow(event, budget)
+        const detailsAllowed = options.toolDetailsAccess()
+        const call = mobileToolCall(event)
+        if (detailsAllowed && call !== undefined) retainCall(call)
+        const context: MobileToolActivityContext | undefined = detailsAllowed
+          ? { cwd, budget, callAt: sequence => calls.get(sequence) } : undefined
+        const row = mobileHistoryRow(event, budget) ?? mobileActivityRow(event, budget, context)
+        if (detailsAllowed && event.type === 'tool/result' && event.sourceEventSeqs?.length === 1) {
+          const source = event.sourceEventSeqs[0]
+          if (source !== undefined) rememberSettlement(source)
+        }
         if (row !== undefined || event.type === 'agent/inbox/spliced' || event.type === 'turn/end') {
           enqueue(progress(row === undefined ? [] : [row], event.seq + 1))
         }
@@ -454,11 +528,29 @@ export function createApplicationDispatcher(
       if (observation.source !== 'live') throw new MobileViewError('unavailable')
       requireVisibleSession(ctx, observation.header)
       cut = observation.cursor + 1
+      if (options.toolDetailsAccess()) {
+        const laterCalls = [...calls.values()].filter(call => call.seq >= cut)
+        calls.clear()
+        for (const event of observation.events) {
+          requireRead(read)
+          const call = mobileToolCall(event)
+          if (call !== undefined) retainCall(call)
+          else if (event.type === 'tool/result' && event.sourceEventSeqs?.length === 1) {
+            const source = event.sourceEventSeqs[0]
+            if (source !== undefined) calls.delete(source)
+          }
+        }
+        for (const call of laterCalls) retainCall(call)
+        for (const sequence of settledDuringSetup) calls.delete(sequence)
+      }
+      settledDuringSetup.clear()
+      const toolDetails = toolDetailsRead(observation.header.cwd, read)
       const replay = request.cursor === undefined ? cut : historyPosition(request.cursor, request.sessionId).offset
       if (replay > cut) throw new MobileViewError('expired')
       const page = request.cursor === undefined ? { rows: [], nextOffset: cut } : mobileHistoryPage(
         observation.events, {
           offset: replay, through: cut, limit: budget.maxRows, budget, requireCurrent: () => { requireRead(read) },
+          ...(toolDetails === undefined ? {} : { toolDetails }),
         },
       )
       if (page.nextOffset < cut) throw new MobileViewError('limit')
@@ -487,6 +579,11 @@ export function createApplicationDispatcher(
       throw error
     }
     switch (request.type) {
+      case 'listSessionModels': return models.list(request, () => { requireRead(read) }, read.signal)
+      case 'selectSessionModel': return models.select(request, () => { requireRead(read) }, read.signal)
+      case 'getSessionActivation': return checked({ v: 1, type: 'sessionActivation', requestId: request.requestId,
+        enabled: options.activationAccess() })
+      case 'openSession': return openSession(request, read)
       case 'listManagementWorkspaces': return managementCatalog(request, read)
       case 'createSession':
       case 'renameSession':
@@ -530,10 +627,11 @@ export function createApplicationDispatcher(
     return 'unavailable'
   }
 
-  function stopWatches(): void {
+  function stopReaders(): void {
+    models.close()
     for (const owned of [...watches.values()]) owned.stop()
   }
-  signal.addEventListener('abort', stopWatches, { once: true })
+  signal.addEventListener('abort', stopReaders, { once: true })
 
   return {
     dispatch(request) {
@@ -554,9 +652,9 @@ export function createApplicationDispatcher(
     },
     close() {
       closing ??= (async () => {
-        stopWatches()
+        stopReaders()
         lifetime.abort()
-        signal.removeEventListener('abort', stopWatches)
+        signal.removeEventListener('abort', stopReaders)
         await Promise.allSettled([...requests, ...sends])
         cursorKey.fill(0)
       })()

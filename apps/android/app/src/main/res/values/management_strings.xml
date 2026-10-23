@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="native_manage_cancel">Cancel</string>
+    <string name="native_manage_create_title">New chat on your PC</string>
+    <string name="native_manage_create_confirm">New chat</string>
+    <string name="native_manage_rename_title">Rename chat</string>
+    <string name="native_manage_rename_confirm">Rename</string>
+    <string name="native_manage_archive_title">Archive this chat?</string>
+    <string name="native_manage_archive_confirm">Archive</string>
+    <string name="native_manage_pin">Pin</string>
+    <string name="native_manage_unpin">Unpin</string>
+    <string name="native_manage_chat_actions">Chat actions</string>
+    <string name="native_manage_workspace_explanation">Choose a workspace from your PC, including workspaces with no chats. Creating a chat does not send a message or start a model run.</string>
+    <string name="native_manage_workspaces_loading">Loading PC workspaces…</string>
+    <string name="native_manage_workspaces_empty">No PC workspaces are loaded. Refresh the list, or create a workspace on your PC first.</string>
+    <string name="native_manage_refresh_workspaces">Refresh workspaces</string>
+    <string name="native_manage_load_workspaces">Load more workspaces</string>
+    <string name="native_manage_untitled_workspace">Untitled workspace</string>
+    <string name="native_manage_untitled_chat">Untitled chat</string>
+    <string name="native_manage_title_label">Chat title</string>
+    <string name="native_manage_title_limit">Up to %1$d UTF-8 bytes. Leading and trailing whitespace will be trimmed.</string>
+    <string name="native_manage_title_invalid">Use valid text within %1$d UTF-8 bytes. The previous valid title is still shown; edit it to continue.</string>
+    <string name="native_manage_title_blank">Enter a title that is not blank.</string>
+    <string name="native_manage_archive_explanation">Archive only the named chat on your PC. Its history is preserved; this is not deletion. Archiving does not stop running work.</string>
+    <string name="native_manage_archive_busy">This chat is busy. Wait for its work to finish before archiving; this dialog cannot stop it.</string>
+    <string name="native_manage_target_unavailable">This chat is no longer in the loaded PC list. Cancel and refresh the sidebar before trying again.</string>
+    <string name="native_manage_draft_title">Keep your current draft</string>
+    <string name="native_manage_draft_required">Finish or clear the current draft before starting a new chat or archiving the current chat. This dialog never discards your draft.</string>
+    <string name="native_manage_permission_title">PC permission required</string>
+    <string name="native_manage_permission_required">On your PC, open Settings → General → Phone settings → Paired phones → Enable chat management. Confirm the phone fingerprint in the native PC app. This phone cannot grant permission, and no re-pairing is needed.</string>
+    <string name="native_manage_access_checking">Checking chat-management permission on your PC…</string>
+    <string name="native_manage_unavailable">Chat management or the workspace list is unavailable. Check the connection, permission and app compatibility on your PC.</string>
+    <string name="native_manage_connection_required">Keep this app visible and reconnect to your PC before managing chats.</string>
+    <string name="native_manage_busy">A PC request is in progress. Wait before making another change.</string>
+    <string name="native_manage_uncertain_hint">If a result is uncertain, check the chat on your PC before trying again. Changes are never resent automatically.</string>
+</resources>

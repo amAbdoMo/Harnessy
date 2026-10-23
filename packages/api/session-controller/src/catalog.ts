@@ -5,6 +5,7 @@ import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type {} from '@deepseek-ai/dsh-settings'
 import type { LlmModelInfo } from '@deepseek-ai/dsh-llm'
 import type { Context } from '@deepseek-ai/cordis'
+import { settleModelWait } from './model-selection-wait.ts'
 import type {
   ModelCatalog,
   ModelReasoning,
@@ -15,18 +16,21 @@ import type {
  * Build the browser model catalog without requiring a Session.
  * @param ctx - Host context carrying the live LLM registry.
  * @param defaultSelection - deployment default used before a Session selects a model.
+ * @param signal - optional caller cancellation; late adapter work cannot publish this catalog.
  * @returns successful non-empty provider groups and isolated provider failures.
  */
 export async function buildModelCatalog(
   ctx: Context,
   defaultSelection: ModelSelection = ctx.agentDefaultModel.currentSelection(),
+  signal?: AbortSignal,
 ): Promise<ModelCatalog> {
+  signal?.throwIfAborted()
   const providers = ctx.llm.listProviders()
   const catalog = await Promise.all(providers.map(async (provider) => {
     try {
-      const models = await ctx.llm.listModels(provider.id)
+      const models = await settleModelWait(() => ctx.llm.listModels(provider.id), signal)
       const entries = await Promise.all(models.map(async (model) => {
-        const resolved = await ctx.llm.resolveModelInfo(provider.id, model.id)
+        const resolved = await settleModelWait(() => ctx.llm.resolveModelInfo(provider.id, model.id, signal), signal)
         const reasoning: ModelReasoning | undefined = resolved.reasoning === undefined
           ? undefined
           : {
@@ -51,6 +55,7 @@ export async function buildModelCatalog(
         group: { id: provider.id, name: provider.name, models: entries },
       }
     } catch (error) {
+      signal?.throwIfAborted()
       return {
         kind: 'failure' as const,
         failure: {
@@ -61,6 +66,7 @@ export async function buildModelCatalog(
       }
     }
   }))
+  signal?.throwIfAborted()
   const groups = catalog.flatMap(item => item.kind === 'group' ? [item.group] : [])
     .filter(group => group.models.length > 0)
   return {
@@ -75,18 +81,23 @@ export async function buildModelCatalog(
  * Check a GUI selection against the current available provider catalog.
  * @param ctx - Host LLM registry.
  * @param selection - stored or explicitly requested selection.
+ * @param signal - optional caller lifetime for the advertised-model lookup.
  * @returns whether the exact model is currently advertised as available.
  */
-export async function modelAvailable(ctx: Context, selection: ModelSelection): Promise<boolean> {
+export async function modelAvailable(ctx: Context, selection: ModelSelection, signal?: AbortSignal): Promise<boolean> {
+  signal?.throwIfAborted()
   if (!ctx.llm.listProviders().some(provider => provider.id === selection.provider)) return false
   let models: readonly LlmModelInfo[]
-  try { models = await ctx.llm.listModels(selection.provider) }
+  try { models = await settleModelWait(() => ctx.llm.listModels(selection.provider), signal) }
   catch (error) {
+    signal?.throwIfAborted()
     throw new RemoteError('session/model-unavailable',
       error instanceof Error ? error.message : String(error),
       { provider: selection.provider, model: selection.model })
   }
-  return models.some(model => model.id === selection.model)
+  signal?.throwIfAborted()
+  return ctx.llm.listProviders().some(provider => provider.id === selection.provider)
+    && models.some(model => model.id === selection.model)
 }
 
 /**

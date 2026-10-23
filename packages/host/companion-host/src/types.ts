@@ -14,6 +14,12 @@ export interface PairedDevice {
   readonly pairedAt: number
   /** Actual committed per-phone permission, independent of connection availability. */
   readonly sessionManagement: boolean
+  /** Independent committed permission to select models for live idle chats. */
+  readonly modelSelection: boolean
+  /** Independent consent for historical and live tool location/status summaries. */
+  readonly toolDetails: boolean
+  /** Separate consent to open existing ordinary Sessions through PC initialization. */
+  readonly sessionActivation: boolean
 }
 
 /** Main-only status; no pairing link, identity private key, or credential payload. */
@@ -41,6 +47,29 @@ export type CompanionControlCommand =
   | { readonly kind: 'revokeGrant'; readonly grantId: GrantId }
   | {
     readonly kind: 'setSessionManagement'
+    readonly grantId: GrantId
+    readonly expectedGeneration: number
+    readonly fingerprint: string
+    readonly enabled: boolean
+  }
+  | {
+    readonly kind: 'setModelSelection'
+    readonly grantId: GrantId
+    readonly expectedGeneration: number
+    readonly fingerprint: string
+    readonly enabled: boolean
+  }
+
+  | {
+    readonly kind: 'setToolDetails'
+    readonly grantId: GrantId
+    readonly expectedGeneration: number
+    readonly fingerprint: string
+    readonly enabled: boolean
+  }
+
+  | {
+    readonly kind: 'setSessionActivation'
     readonly grantId: GrantId
     readonly expectedGeneration: number
     readonly fingerprint: string

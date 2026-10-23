@@ -43,6 +43,21 @@ const en = {
   managementWarning: 'Allows exactly these chat actions: Create, Rename, Archive and Pin/unpin. Archive preserves chat history; permanent deletion is not supported. This does not grant access to credentials, remote approvals or model controls.',
   disableManagementWarning: 'Withdraws this phone’s Create, Rename, Archive and Pin/unpin permission. Already completed changes are not undone. Reading sessions and sending follow-up tasks stay available while this phone remains paired. Credentials, remote approvals and model controls are not granted.',
   confirm: 'Confirm', cancelDecision: 'Cancel', managementChanged: 'Chat management permission updated.',
+  enableModels: 'Enable model selection', disableModels: 'Disable model selection',
+  enableModelsTitle: 'Enable model selection for this phone?', disableModelsTitle: 'Disable model selection for this phone?',
+  modelsWarning: 'Allows choosing a PC-configured model for a live idle chat. A choice changes only that chat’s next model request, not your global default. This does not grant chat management, account changes, credential access or remote tool approvals.',
+  disableModelsWarning: 'Withdraws this phone’s model-selection permission. Already applied choices are not undone. Pairing, chat management and global model defaults are unchanged.',
+  modelsChanged: 'Model selection permission updated.',
+  enableTools: 'Enable tool details', disableTools: 'Disable tool details',
+  enableToolsTitle: 'Enable tool details for this phone?', disableToolsTitle: 'Disable tool details for this phone?',
+  toolsWarning: 'Allows file labels and bounded tool status/count summaries from historical and live chat activity. Filenames can be sensitive. It does not grant tool execution, contents, raw commands, credentials or remote approvals.',
+  disableToolsWarning: 'Stops future tool-detail delivery. Previously received details cannot be erased. Pairing, model selection and chat management are unchanged.',
+  toolsChanged: 'Tool details permission updated.',
+  enableActivation: 'Enable opening chats', disableActivation: 'Disable opening chats',
+  enableActivationTitle: 'Allow this phone to open existing chats?', disableActivationTitle: 'Stop this phone opening chats?',
+  activationWarning: 'Allows explicitly opening existing ordinary chats without a desktop tab. Opening obtains writable Session ownership and runs normal PC initialization and recovery, which can update history or run SessionStart plugins. It does not restore archived chats, rearm goals, send a message, select a model or approve tools. Other permissions remain separate.',
+  disableActivationWarning: 'Stops future chat openings. Already opened PC Agents remain running; this does not close chats or cancel admitted work. Pairing and other permissions stay unchanged.',
+  activationChanged: 'Chat opening permission updated.',
 }
 const zh: typeof en = {
   title: 'Android 伴随应用', menu: '连接 Android 手机或管理其访问权限。',
@@ -66,6 +81,21 @@ const zh: typeof en = {
   managementWarning: '仅允许这些聊天操作：创建、重命名、归档和置顶/取消置顶。归档会保留聊天历史；不支持永久删除。此权限不允许访问凭据、远程批准或模型控制。',
   disableManagementWarning: '撤销这台手机创建、重命名、归档和置顶/取消置顶聊天的权限。已完成的更改不会撤销。手机保持配对时，仍可读取会话和发送后续任务。此权限不允许访问凭据、远程批准或模型控制。',
   confirm: '确认', cancelDecision: '取消', managementChanged: '聊天管理权限已更新。',
+  enableModels: '启用模型选择', disableModels: '禁用模型选择',
+  enableModelsTitle: '为这台手机启用模型选择？', disableModelsTitle: '为这台手机禁用模型选择？',
+  modelsWarning: '允许为正在运行且空闲的聊天选择电脑端已配置的模型。选择仅影响该聊天的下一次模型请求，不更改全局默认模型。此权限不授予聊天管理、账号更改、凭据访问或远程工具批准权限。',
+  disableModelsWarning: '撤销这台手机的模型选择权限。已应用的选择不会撤销，配对、聊天管理和全局默认模型均保持不变。',
+  modelsChanged: '模型选择权限已更新。',
+  enableTools: '启用工具详情', disableTools: '禁用工具详情',
+  enableToolsTitle: '为这台手机启用工具详情？', disableToolsTitle: '为这台手机禁用工具详情？',
+  toolsWarning: '允许传送历史及实时聊天活动中的文件标签与有界工具状态／计数摘要。文件名可能敏感。此权限不授予工具执行、内容、原始命令、凭据或远程批准。',
+  disableToolsWarning: '停止后续工具详情传送，无法抹去先前已接收的详情。配对、模型选择和聊天管理保持不变。',
+  toolsChanged: '工具详情权限已更新。',
+  enableActivation: '启用打开聊天', disableActivation: '禁用打开聊天',
+  enableActivationTitle: '允许这台手机打开已有聊天？', disableActivationTitle: '停止这台手机打开聊天？',
+  activationWarning: '允许显式打开已有普通聊天，无须打开桌面标签页。打开会取得会话写入所有权并执行电脑常规初始化与恢复，可能更新历史或运行 SessionStart 插件。不会恢复已归档聊天、重新启用目标、发送消息、选择模型或批准工具。其他权限仍须单独授予。',
+  disableActivationWarning: '阻止后续打开聊天。已打开的电脑 Agent 继续运行，不会关闭聊天或取消已准入的工作。配对与其他权限保持不变。',
+  activationChanged: '打开聊天权限已更新。',
 }
 
 /** Native presentation injected by Main; every dialog has a captured parent window and abort signal. */
@@ -233,17 +263,32 @@ export class DesktopCompanion {
     }
   }
 
-  private async changeSessionManagement(operation: Operation, device: PairedDevice): Promise<boolean> {
+  private async changePermission(operation: Operation, device: PairedDevice,
+    kind: 'setSessionManagement' | 'setModelSelection' | 'setToolDetails' | 'setSessionActivation'): Promise<boolean> {
     const text = this.locale() === 'zh-CN' ? zh : en
-    const title = device.sessionManagement ? text.disableManagementTitle : text.enableManagementTitle
-    const warning = device.sessionManagement ? text.disableManagementWarning : text.managementWarning
-    if (await this.dialog(operation, title, [text.confirm, text.cancelDecision], `${device.fingerprint}\n\n${warning}`) !== 0) return false
+    const permission = {
+      setModelSelection: { enabled: device.modelSelection,
+        title: device.modelSelection ? text.disableModelsTitle : text.enableModelsTitle,
+        warning: device.modelSelection ? text.disableModelsWarning : text.modelsWarning, changed: text.modelsChanged },
+      setToolDetails: { enabled: device.toolDetails,
+        title: device.toolDetails ? text.disableToolsTitle : text.enableToolsTitle,
+        warning: device.toolDetails ? text.disableToolsWarning : text.toolsWarning, changed: text.toolsChanged },
+      setSessionActivation: { enabled: device.sessionActivation,
+        title: device.sessionActivation ? text.disableActivationTitle : text.enableActivationTitle,
+        warning: device.sessionActivation ? text.disableActivationWarning : text.activationWarning,
+        changed: text.activationChanged },
+      setSessionManagement: { enabled: device.sessionManagement,
+        title: device.sessionManagement ? text.disableManagementTitle : text.enableManagementTitle,
+        warning: device.sessionManagement ? text.disableManagementWarning : text.managementWarning, changed: text.managementChanged },
+    }[kind]
+    if (await this.dialog(operation, permission.title, [text.confirm, text.cancelDecision],
+      `${device.fingerprint}\n\n${permission.warning}`) !== 0) return false
     this.assertCurrent(operation)
-    const changed = await operation.owner.host.companionControl({ kind: 'setSessionManagement', grantId: device.grantId,
-      expectedGeneration: device.generation, fingerprint: device.fingerprint, enabled: !device.sessionManagement })
+    const changed = await operation.owner.host.companionControl({ kind, grantId: device.grantId,
+      expectedGeneration: device.generation, fingerprint: device.fingerprint, enabled: !permission.enabled })
     this.assertCurrent(operation)
     if (changed.kind !== 'completed') throw new Error('Companion permission change was not confirmed')
-    await this.dialog(operation, text.managementChanged, [text.close])
+    await this.dialog(operation, permission.changed, [text.close])
     return true
   }
 
@@ -258,13 +303,19 @@ export class DesktopCompanion {
       const device = status.paired[index]
       if (device === undefined) throw new Error('Companion device unavailable')
       const management = device.sessionManagement ? text.disableManagement : text.enableManagement
-      const choice = await this.dialog(operation, text.devices, [management, text.remove, text.next, text.close], device.fingerprint)
-      if (choice === 2) { index++; continue }
-      if (choice === 0) {
-        if (await this.changeSessionManagement(operation, device)) continue
+      const models = device.modelSelection ? text.disableModels : text.enableModels
+      const tools = device.toolDetails ? text.disableTools : text.enableTools
+      const activation = device.sessionActivation ? text.disableActivation : text.enableActivation
+      const choice = await this.dialog(operation, text.devices,
+        [management, models, tools, activation, text.remove, text.next, text.close], device.fingerprint)
+      if (choice === 5) { index++; continue }
+      if (choice === 0 || choice === 1 || choice === 2 || choice === 3) {
+        const kind = choice === 0 ? 'setSessionManagement' : choice === 1 ? 'setModelSelection'
+          : choice === 2 ? 'setToolDetails' : 'setSessionActivation'
+        if (await this.changePermission(operation, device, kind)) continue
         return
       }
-      if (choice === 1 && await this.dialog(operation, text.removeTitle, [text.remove, text.close],
+      if (choice === 4 && await this.dialog(operation, text.removeTitle, [text.remove, text.close],
         `${device.fingerprint}\n\n${text.removeWarning}`) === 0) {
         await operation.owner.host.companionControl({ kind: 'revokeGrant', grantId: device.grantId })
         this.assertCurrent(operation)

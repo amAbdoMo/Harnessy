@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Harnessy" parent="@style/Base.Theme.Harnessy">
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:navigationBarColor">@color/harnessy_surface</item>
+    </style>
+</resources>

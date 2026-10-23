@@ -10,6 +10,7 @@
     "src/types.ts",
     "src/remote-events.ts",
     "src/agent.ts",
+    "src/activation.ts",
     "src/assistant-stream.ts",
     "src/catalog.ts",
     "src/commands.ts",
@@ -19,6 +20,7 @@
     "src/list.ts",
     "src/media-references.ts",
     "src/model-selection-projection.ts",
+    "src/model-selection-wait.ts",
     "src/archived-session-gate.ts",
     "src/skill-catalog.ts"
   ],

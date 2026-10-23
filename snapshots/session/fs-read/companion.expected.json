@@ -1,0 +1,12 @@
+{
+  "withoutDetails": [
+    { "role": "user", "text": "Use the read tool (NOT bash) to read the file greeting.txt in the current directory, then reply with exactly the single word DONE." },
+    { "role": "assistant", "text": "DONE" }
+  ],
+  "withDetails": [
+    { "role": "user", "text": "Use the read tool (NOT bash) to read the file greeting.txt in the current directory, then reply with exactly the single word DONE." },
+    { "role": "tool", "text": "read" },
+    { "role": "notice", "text": "read — completed\ngreeting.txt\nReturned 1 lines from 1; total 1" },
+    { "role": "assistant", "text": "DONE" }
+  ]
+}

@@ -1,6 +1,7 @@
 /** Agent activation, composition, and model-selection policy owned by API Session. */
 
-import { mkdir } from 'node:fs/promises'
+import { mkdir, stat } from 'node:fs/promises'
+import { isAbsolute } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { installModelSelection } from '@deepseek-ai/dsh-agent'
 import type {
@@ -9,12 +10,14 @@ import type {
 import type {} from '@deepseek-ai/dsh-agent-default-model'
 import type {} from '@deepseek-ai/dsh-agent-preset-registry'
 import { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
-import type { Session, SessionId } from '@deepseek-ai/dsh-session'
+import type { Session, SessionEvent, SessionHeader, SessionId } from '@deepseek-ai/dsh-session'
 import type { SessionInspection } from '@deepseek-ai/dsh-session-persistence'
 import { SessionQueryError, type SessionObservation } from '@deepseek-ai/dsh-session-query'
 import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
 import type {} from '@deepseek-ai/dsh-typert-registry'
-import type { ModelSelection } from './types.ts'
+import type {} from '@deepseek-ai/dsh-workspace'
+import { awaitActivationPreparation } from './activation.ts'
+import type { ExistingAgentActivationOptions, ModelSelection } from './types.ts'
 
 /** Cold Session identity absent from persistence. */
 export class ApiSessionNotFound extends Error {}
@@ -140,9 +143,18 @@ export class ApiSessionAgentController {
   private readonly creations = new Map<SessionId, Promise<Agent>>()
   private readonly selections = new WeakMap<Agent, InstalledSelection>()
   private readonly imageAdmissionChains = new WeakMap<Agent, Promise<void>>()
+  private readonly activationOwner = new AbortController()
+  private readonly activations = new Set<Promise<Agent>>()
 
-  /** @param ctx - Host context carrying Agent, model, persistence, and Typert services. */
-  constructor(private readonly ctx: Context) {
+  /**
+   * @param ctx - Host context carrying Agent, model, persistence, and Typert services.
+   * @param maxPendingActivations - Validated deployment capacity for retained existing-chat operations.
+   */
+  constructor(private readonly ctx: Context, private readonly maxPendingActivations: number) {
+    ctx.effect(() => async () => {
+      this.activationOwner.abort(new Error('api-session: activation owner disposed'))
+      await Promise.allSettled([...this.activations])
+    }, 'api-session.activations')
     ctx.typert.lookups.configure('agent', async (sessionId: SessionId) => {
       const found = await this.resolveAgent(sessionId)
       if ('error' in found) throw found.error
@@ -176,6 +188,138 @@ export class ApiSessionAgentController {
    */
   async resolveObservedAgent(observation: SessionObservation): Promise<ApiSessionAgentResult> {
     return this.resolve(observation.header.id, observation)
+  }
+
+  /**
+   * Open an existing ordinary Session for a trusted Host without submitting input.
+   * The existing resume reservation owns preparation and completion even if the caller stops waiting.
+   * @param sessionId - existing ordinary Session identity; never created on absence.
+   * @param options - pre-admission caller lifetime and synchronous Host authorization callbacks.
+   * @returns the current live root Agent, or the newly resumed root Agent after initialization.
+   */
+  async activateExistingAgent(sessionId: SessionId, options: ExistingAgentActivationOptions): Promise<Agent> {
+    this.checkActivationAdmission(sessionId, options)
+    if (this.resumes.has(sessionId) || this.creations.has(sessionId)) {
+      throw this.activationBusy(sessionId, 'the Session is already being activated')
+    }
+    const live = this.ctx.agents.get(sessionId)
+    if (live !== undefined) {
+      this.assertActivationHeader(sessionId, live.session.header, live)
+      this.assertLiveSelectionOwner(live)
+      options.requireAdmission()
+      return live
+    }
+    if (this.activations.size >= this.maxPendingActivations) {
+      throw this.activationBusy(sessionId, 'the Host activation capacity is full')
+    }
+    const reply = Promise.withResolvers<Agent>()
+    const withdraw = (): void => { reply.reject(options.signal?.reason) }
+    const detach = (): void => { options.signal?.removeEventListener('abort', withdraw) }
+    options.signal?.addEventListener('abort', withdraw, { once: true })
+    const operation = Promise.resolve().then(() => this.activateCold(sessionId, options))
+    this.resumes.set(sessionId, operation)
+    this.activations.add(operation)
+    const release = (): void => {
+      detach()
+      this.resumes.delete(sessionId)
+      this.activations.delete(operation)
+    }
+    void operation.then((agent) => { release(); reply.resolve(agent) }, (error: unknown) => {
+      release()
+      reply.reject(error)
+    })
+    return reply.promise
+  }
+
+  private async activateCold(sessionId: SessionId, options: ExistingAgentActivationOptions): Promise<Agent> {
+    this.checkActivationAdmission(sessionId, options)
+    try {
+      using observation = await awaitActivationPreparation(
+        this.ctx.sessionQuery.observeSession(sessionId, {
+          signal: AbortSignal.any([this.activationOwner.signal, ...options.signal === undefined ? [] : [options.signal]]),
+        }),
+        this.activationOwner.signal,
+        abandoned => abandoned[Symbol.dispose](),
+      )
+      this.checkActivationAdmission(sessionId, options)
+      this.assertActivationHeader(sessionId, observation.header, undefined)
+      const cwd = observation.header.cwd
+      const directory = await awaitActivationPreparation(stat(cwd), this.activationOwner.signal)
+      this.checkActivationAdmission(sessionId, options)
+      if (!directory.isDirectory()) throw new Error(`session "${sessionId}" cwd is not a directory`)
+      const presetId = this.presetForObservation(observation)
+      const composition = await awaitActivationPreparation(this.composeAgent(presetId), this.activationOwner.signal)
+      this.checkActivationAdmission(sessionId, options)
+      this.assertActivationHeader(sessionId, observation.header, undefined)
+      if (this.ctx.agents.get(sessionId) !== undefined || this.ctx.sessions.get(sessionId) !== undefined) {
+        throw this.activationBusy(sessionId, 'Session ownership changed during preparation')
+      }
+      const setup: AgentSetup = async (agentCtx, agent) => {
+        this.assertActivationHeader(sessionId, agent.session.header, agent)
+        this.assertActivationIdentity(agent, cwd, presetId)
+        const commit = await composition.setup(agentCtx, agent)
+        this.assertActivationHeader(sessionId, agent.session.header, agent)
+        this.assertActivationIdentity(agent, cwd, presetId)
+        return { commit: () => {
+          this.assertActivationHeader(sessionId, agent.session.header, agent)
+          this.assertActivationIdentity(agent, cwd, presetId)
+          commit?.commit()
+        } }
+      }
+      const agentOptions = this.agentOptions()
+      options.signal?.throwIfAborted()
+      options.requireAdmission()
+      options.onAdmitted()
+      const { agent } = await this.ctx.agents.resume({
+        resumeSessionId: sessionId, agentOptions, setup, signal: this.activationOwner.signal,
+      })
+      await this.ctx.sessions.flush(agent.session)
+      this.assertActivationHeader(sessionId, agent.session.header, agent)
+      this.assertLiveSelectionOwner(agent)
+      return agent
+    } catch (error: unknown) {
+      if (error instanceof SessionQueryError && error.code === 'SESSION_QUERY_SESSION_NOT_FOUND') {
+        throw new RemoteError('session/not-found', error.message, { sessionId })
+      }
+      if (error instanceof Error && error.name === 'SessionAlreadyOwnedError') {
+        throw new RemoteError('session/writer-held', error.message, { sessionId })
+      }
+      throw error
+    }
+  }
+
+  private checkActivationAdmission(sessionId: SessionId, options: ExistingAgentActivationOptions): void {
+    this.activationOwner.signal.throwIfAborted()
+    this.ctx.fiber.assertActive()
+    options.signal?.throwIfAborted()
+    options.requireAdmission()
+    if (this.ctx.workspaceRegistry.archivedSessionIds.includes(sessionId)) {
+      throw this.activationBusy(sessionId, 'the Session is archived')
+    }
+    const attached = this.ctx.sessions.get(sessionId)
+    if (attached !== undefined) this.assertActivationHeader(sessionId, attached.header, this.ctx.agents.get(sessionId))
+  }
+
+  private assertActivationHeader(
+    sessionId: SessionId, header: SessionHeader, agent: Agent | undefined,
+  ): asserts header is SessionHeader & { cwd: string } {
+    if (header.id !== sessionId || header.cwd === undefined || !isAbsolute(header.cwd)) {
+      throw new RemoteError('session/not-found', `session "${sessionId}" has no usable existing cwd`, { sessionId })
+    }
+    if (hasApiSessionSubagentOwner(this.ctx, { header }, agent)) throw apiSessionSubagentOwnershipError(sessionId)
+    if (this.ctx.workspaceRegistry.archivedSessionIds.includes(sessionId)) {
+      throw this.activationBusy(sessionId, 'the Session is archived')
+    }
+  }
+
+  private assertActivationIdentity(agent: Agent, cwd: string, presetId: string | undefined): void {
+    if (agent.session.header.cwd !== cwd || this.presetForSession(agent.session) !== presetId) {
+      throw this.activationBusy(agent.id, 'the Session cwd or preset changed during activation')
+    }
+  }
+
+  private activationBusy(sessionId: SessionId, reason: string): RemoteError<'session/agent-busy'> {
+    return new RemoteError('session/agent-busy', `session "${sessionId}" cannot be activated: ${reason}`, { reason })
   }
 
   private async resolve(
@@ -240,7 +384,7 @@ export class ApiSessionAgentController {
     checkPersistedIdentity: boolean,
     presetId?: string,
   ): Promise<Agent> {
-    let creation = this.creations.get(sessionId)
+    let creation = this.creations.get(sessionId) ?? this.resumes.get(sessionId)
     if (creation === undefined) {
       creation = this.createOrAdopt(sessionId, cwd, checkPersistedIdentity, presetId)
         .catch((error: unknown) => {
@@ -346,10 +490,74 @@ export class ApiSessionAgentController {
    * Commit and cache one validated selection for the next prompt assembly.
    * @param agent - live Agent that owns the selection.
    * @param selection - validated selection to record and apply.
+   * @returns the durable event that recorded the selection.
    */
-  selectForNextRequest(agent: Agent, selection: AgentModelSelection): void {
-    agent.session.append('model/selection', selection)
+  selectForNextRequest(
+    agent: Agent,
+    selection: AgentModelSelection,
+  ): SessionEvent<'model/selection'> {
+    const event = agent.session.append('model/selection', selection)
     this.selectionFor(agent).current = selection
+    return event
+  }
+
+  /**
+   * Read the effective model selection of one live ordinary Agent.
+   * @param agent - live ordinary Agent that owns the selection.
+   * @returns a detached copy of the effective selection.
+   * @throws RemoteError when the Agent is not a live ordinary Session owner.
+   */
+  currentSelection(agent: Agent): ModelSelection {
+    this.assertLiveSelectionOwner(agent)
+    const current = this.selectionFor(agent).current
+    return {
+      provider: current.provider,
+      model: current.model,
+      ...(current.reasoningEffort === undefined ? {} : { reasoningEffort: current.reasoningEffort }),
+    }
+  }
+
+  /**
+   * Reject a supplied Agent that no longer owns a live ordinary Session.
+   *
+   * Both live registries must still identify this exact Agent and Session;
+   * runtime-owned children belong to subagent routing rather than to ordinary selection.
+   * @param agent - live Agent the caller supplied.
+   * @returns the same Agent when it owns a live ordinary Session.
+   * @throws RemoteError when the Agent is absent from the registry or owned by subagent routing.
+   */
+  assertLiveSelectionOwner(agent: Agent): Agent {
+    if (this.ctx.agents.get(agent.id) !== agent || this.ctx.sessions.get(agent.id) !== agent.session) {
+      throw new RemoteError(
+        'session/not-found',
+        `session "${agent.id}" is not the current live Session owner`,
+        { sessionId: agent.id },
+      )
+    }
+    if (hasApiSessionSubagentOwner(this.ctx, agent.session, agent)) {
+      throw apiSessionSubagentOwnershipError(agent.id)
+    }
+    return agent
+  }
+
+  /**
+   * Reject a supplied Agent that is running or holds queued work.
+   * @param agent - live ordinary Agent that owns the selection.
+   * @returns the same Agent when it is idle with no queued work.
+   * @throws RemoteError when the Agent is running or holds queued work.
+   */
+  assertIdleSelectionOwner(agent: Agent): Agent {
+    this.assertLiveSelectionOwner(agent)
+    if (agent.status !== 'idle'
+      || agent.inbox.nextTurn.length > 0
+      || agent.inbox.nextStep.length > 0) {
+      throw new RemoteError(
+        'session/agent-busy',
+        `session "${agent.id}" is not idle`,
+        { reason: 'the Agent is running or holds queued work' },
+      )
+    }
+    return agent
   }
 
   /**

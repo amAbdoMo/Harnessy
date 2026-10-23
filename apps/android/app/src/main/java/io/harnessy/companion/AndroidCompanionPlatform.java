@@ -118,7 +118,7 @@ public final class AndroidCompanionPlatform implements CompanionPlatform {
     public void forget(String pcId) throws IOException { pairingStore().remove(pcId); }
     public List<Fence> fences() throws IOException { return operationStore().fences(); }
     public void putFence(Fence fence) throws IOException { operationStore().putFence(fence); }
-    public void clearFence(String pcId) throws IOException { operationStore().clearFence(pcId); }
+    public void clearFence(Fence expected) throws IOException { operationStore().clearFence(expected); }
     public void repair(String pcId, String alias) throws IOException { operationStore().repair(pcId, alias); }
     public void clearRepair(String pcId) throws IOException { operationStore().clearRepair(pcId); }
     public List<Repair> repairs() throws IOException { return operationStore().repairs(); }

@@ -63,7 +63,7 @@ declare module '@deepseek-ai/cordis' {
 /** No Typert Remote decorations: this API is callable only by trusted same-process native controls. */
 export default class CompanionHost extends Service {
   static Config = Config
-  static inject = ['credentials', 'sessionController', 'sessionQuery', 'sessions', 'agents']
+  static inject = ['credentials', 'sessionController', 'sessionQuery', 'sessions', 'agents', 'llm']
   private readonly life = new AbortController()
   private readonly resolved: ReturnType<typeof resolveConfig>
   private records: HostRecords | undefined
@@ -192,7 +192,9 @@ export default class CompanionHost extends Service {
 
   private publicDevice(grant: DeviceRecord): PairedDevice {
     return { grantId: grant.grantId, generation: grant.generation, fingerprint: fingerprint(grant.phoneIdentityKey),
-      displayName: grant.displayName, pairedAt: grant.pairedAt, sessionManagement: grant.sessionManagementV1 === true }
+      displayName: grant.displayName, pairedAt: grant.pairedAt, sessionManagement: grant.sessionManagementV1 === true,
+      modelSelection: grant.modelSelectionV1 === true, toolDetails: grant.toolDetailsV1 === true,
+      sessionActivation: grant.sessionActivationV1 === true }
   }
 
   /**
@@ -319,6 +321,40 @@ export default class CompanionHost extends Service {
    * @returns Provider commit and channel teardown; any failure disables this Host until explicit recovery.
    */
   setSessionManagement(command: Extract<CompanionControlCommand, { readonly kind: 'setSessionManagement' }>): Promise<void> {
+    return this.setPhonePermission(command, 'sessionManagementV1')
+  }
+
+  /**
+   * Commit independent native-confirmed model-selection consent without changing chat-management permission or pairing.
+   * @param command - Current grant identity, generation, full fingerprint, and explicit permission choice.
+   * @returns Credential commit and retired-channel teardown; failure withdraws this Host incarnation.
+   */
+  setModelSelection(command: Extract<CompanionControlCommand, { readonly kind: 'setModelSelection' }>): Promise<void> {
+    return this.setPhonePermission(command, 'modelSelectionV1')
+  }
+
+  /**
+   * Commit independent consent for phone-visible tool locations and fixed summaries, including past events.
+   * @param command - Current grant identity, generation, full fingerprint and explicit permission choice.
+   * @returns Credential commit and affected channel retirement; other permissions and pairing remain unchanged.
+   */
+  setToolDetails(command: Extract<CompanionControlCommand, { readonly kind: 'setToolDetails' }>): Promise<void> {
+    return this.setPhonePermission(command, 'toolDetailsV1')
+  }
+
+  /**
+   * Commit native-confirmed permission to open existing ordinary chats without desktop tab navigation.
+   * @param command - Current grant identity, generation, full fingerprint and explicit activation decision.
+   * @returns Credential commit and channel retirement; pairing and all other capabilities are preserved.
+   */
+  setSessionActivation(command: Extract<CompanionControlCommand, { readonly kind: 'setSessionActivation' }>): Promise<void> {
+    return this.setPhonePermission(command, 'sessionActivationV1')
+  }
+
+  private setPhonePermission(
+    command: Extract<CompanionControlCommand, { readonly kind: 'setSessionManagement' | 'setModelSelection' | 'setToolDetails' | 'setSessionActivation' }>,
+    permission: 'sessionManagementV1' | 'modelSelectionV1' | 'toolDetailsV1' | 'sessionActivationV1',
+  ): Promise<void> {
     // A queued handshake must not reacquire authority while this native decision waits for its commit.
     const change = { grantId: command.grantId }
     this.permissionChanges.add(change)
@@ -334,8 +370,8 @@ export default class CompanionHost extends Service {
         }
         return grants.map((grant) => {
           if (grant !== current) return grant
-          const { sessionManagementV1: _permission, ...denied } = grant
-          return command.enabled ? { ...denied, sessionManagementV1: true as const } : denied
+          const { [permission]: _permission, ...denied } = grant
+          return command.enabled ? { ...denied, [permission]: true as const } : denied
         })
       })
       if (!this.life.signal.aborted) this.available = true
@@ -443,6 +479,21 @@ export default class CompanionHost extends Service {
         this.requireCurrent(channel)
         return this.requireAvailable().snapshot().grants.some(row => row.grantId === grant.grantId
           && row.generation === grant.generation && row.phoneIdentityKey === channel.phoneKey && row.sessionManagementV1 === true)
+      },
+      modelAccess: () => {
+        this.requireCurrent(channel)
+        return this.requireAvailable().snapshot().grants.some(row => row.grantId === grant.grantId
+          && row.generation === grant.generation && row.phoneIdentityKey === channel.phoneKey && row.modelSelectionV1 === true)
+      },
+      activationAccess: () => {
+        this.requireCurrent(channel)
+        return this.requireAvailable().snapshot().grants.some(row => row.grantId === grant.grantId
+          && row.generation === grant.generation && row.phoneIdentityKey === channel.phoneKey && row.sessionActivationV1 === true)
+      },
+      toolDetailsAccess: () => {
+        this.requireCurrent(channel)
+        return this.requireAvailable().snapshot().grants.some(row => row.grantId === grant.grantId
+          && row.generation === grant.generation && row.phoneIdentityKey === channel.phoneKey && row.toolDetailsV1 === true)
       },
       generation: grant.generation, budget: this.budget().application, maxWatches: this.budget().application.maxSubscriptionsPerGrant,
       maxPendingRequests: this.budget().maxPendingMessages, maxProgressBuffer: this.budget().maxProgressBuffer,

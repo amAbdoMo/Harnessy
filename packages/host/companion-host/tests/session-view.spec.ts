@@ -51,7 +51,7 @@ function dispatcher(fixture: Composition, options: {
 } = {}) {
   const current = createApplicationDispatcher(fixture.ctx, {
     signal: options.signal ?? fixture.owner.signal, requireCurrent: options.requireCurrent ?? (() => {}),
-    managementAccess: () => false,
+    managementAccess: () => false, modelAccess: () => false, toolDetailsAccess: () => false, activationAccess: () => false,
     grantId: parseId<GrantId>('navigation-grant'), generation: 1, budget: options.budget ?? budget,
     maxWatches: 1, maxPendingRequests: 2, maxProgressBuffer: 2,
     sendProgress: () => { throw new Error('Listing must not publish progress') },

@@ -1,5 +1,6 @@
 package io.harnessy.companion.presentation;
 
+import io.harnessy.companion.CompanionPlatform;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -14,10 +15,13 @@ public final class DisplayModels {
     public enum Role { USER, ASSISTANT, TOOL, NOTICE }
     public enum SendState { READY, OFFLINE, BUSY, CLOSED, DELIVERY_UNKNOWN, NO_SELECTION }
     public enum PairingState { EDITING, ENROLLING }
+    public enum ManagementAccess { CHECKING, DISABLED, ENABLED, UNAVAILABLE }
+    public enum ActivationAccess { CHECKING, DISABLED, ENABLED, UNAVAILABLE }
     public enum Feedback {
         NONE, REFRESH_FAILED, SEND_FAILED, PAIRING_FAILED, PAIRING_INVALID,
         REPAIR_REQUIRED, STORAGE_FAILED, PAIRING_CORRUPT, FORGET_FAILED, DISCONNECTED,
-        DELIVERY_UNKNOWN, INBOX_ADMITTED, ALREADY_PAIRED
+        DELIVERY_UNKNOWN, INBOX_ADMITTED, ALREADY_PAIRED,
+        MANAGEMENT_DENIED, MANAGEMENT_BUSY, MANAGEMENT_DRAFT_REQUIRED, MANAGEMENT_REJECTED, MODEL_REJECTED, OPEN_REJECTED, DRAFT_LIMIT
     }
 
     public static final class Pc {
@@ -32,15 +36,47 @@ public final class DisplayModels {
         }
     }
 
+    public static final class WorkspaceInfo {
+        public final String id;
+        public final String title;
+        public final long order;
+
+        public WorkspaceInfo(String id, String title, long order) {
+            this.id = Objects.requireNonNull(id);
+            this.title = Objects.requireNonNull(title);
+            this.order = order;
+        }
+    }
+
+    /** PC-owned read-only navigation metadata; null workspace/pinOrder mean unassigned/unpinned. */
+    public static final class SessionNavigation {
+        public final WorkspaceInfo workspace;
+        public final Long pinOrder;
+        public final long updatedAt;
+
+        public SessionNavigation(WorkspaceInfo workspace, Long pinOrder, long updatedAt) {
+            this.workspace = workspace;
+            this.pinOrder = pinOrder;
+            this.updatedAt = updatedAt;
+        }
+    }
+
     public static final class SessionRow {
         public final String id;
         public final String title;
         public final SessionStatus status;
+        /** Null means metadata was not supplied, not a fabricated group, pin or activity time. */
+        public final SessionNavigation navigation;
 
         public SessionRow(String id, String title, SessionStatus status) {
+            this(id, title, status, null);
+        }
+
+        public SessionRow(String id, String title, SessionStatus status, SessionNavigation navigation) {
             this.id = Objects.requireNonNull(id);
             this.title = Objects.requireNonNull(title);
             this.status = Objects.requireNonNull(status);
+            this.navigation = navigation;
         }
     }
 
@@ -57,16 +93,38 @@ public final class DisplayModels {
         }
     }
 
+    public static final class ManagementPane {
+        public static final ManagementPane NOT_READY = new ManagementPane(
+            ManagementAccess.CHECKING, Collections.emptyList(), false, false);
+        public final ManagementAccess access;
+        public final List<WorkspaceInfo> workspaces;
+        public final boolean canLoadMore;
+        public final boolean busy;
+
+        public ManagementPane(ManagementAccess access, List<WorkspaceInfo> workspaces, boolean canLoadMore, boolean busy) {
+            this.access = Objects.requireNonNull(access);
+            this.workspaces = snapshot(workspaces);
+            this.canLoadMore = canLoadMore;
+            this.busy = busy;
+        }
+    }
+
     public static final class SessionPane {
         public final List<SessionRow> rows;
         /** Null means no selection. IDs are presentation strings, not wire declarations. */
         public final String selectedId;
         public final boolean canLoadMore;
+        public final ManagementPane management;
 
         public SessionPane(List<SessionRow> rows, String selectedId, boolean canLoadMore) {
+            this(rows, selectedId, canLoadMore, ManagementPane.NOT_READY);
+        }
+
+        public SessionPane(List<SessionRow> rows, String selectedId, boolean canLoadMore, ManagementPane management) {
             this.rows = snapshot(rows);
             this.selectedId = selectedId;
             this.canLoadMore = canLoadMore;
+            this.management = Objects.requireNonNull(management);
         }
     }
 
@@ -103,10 +161,26 @@ public final class DisplayModels {
         public final String pcId;
         public final String sessionId;
         public final String submissionId;
+        public final CompanionPlatform.OperationKind kind;
         public DeliveryReview(String pcId, String sessionId, String submissionId) {
+            this(pcId, sessionId, submissionId, CompanionPlatform.OperationKind.SUBMIT_TEXT);
+        }
+        public DeliveryReview(String pcId, String sessionId, String submissionId, CompanionPlatform.OperationKind kind) {
             this.pcId = Objects.requireNonNull(pcId);
             this.sessionId = Objects.requireNonNull(sessionId);
             this.submissionId = Objects.requireNonNull(submissionId);
+            this.kind = Objects.requireNonNull(kind);
+        }
+    }
+
+    /** Separate PC permission and the currently pending explicit opening, never inferred from history reads. */
+    public static final class ActivationPane {
+        public static final ActivationPane NOT_READY = new ActivationPane(ActivationAccess.CHECKING, false);
+        public final ActivationAccess access;
+        public final boolean busy;
+        public ActivationPane(ActivationAccess access, boolean busy) {
+            this.access = Objects.requireNonNull(access);
+            this.busy = busy;
         }
     }
 
@@ -116,12 +190,28 @@ public final class DisplayModels {
         public final SessionPane sessions;
         public final Conversation conversation;
         public final Composer composer;
+        public final boolean metadataLoading;
+        public final ModelSelectionPane models;
+        public final ActivationPane activation;
 
-        public Screen(Pc pc, SessionPane sessions, Conversation conversation, Composer composer) {
+        public Screen(Pc pc, SessionPane sessions, Conversation conversation, Composer composer, boolean metadataLoading) {
+            this(pc, sessions, conversation, composer, metadataLoading, ModelSelectionPane.empty());
+        }
+
+        public Screen(Pc pc, SessionPane sessions, Conversation conversation, Composer composer, boolean metadataLoading,
+            ModelSelectionPane models) {
+            this(pc, sessions, conversation, composer, metadataLoading, models, ActivationPane.NOT_READY);
+        }
+
+        public Screen(Pc pc, SessionPane sessions, Conversation conversation, Composer composer, boolean metadataLoading,
+            ModelSelectionPane models, ActivationPane activation) {
             this.pc = pc;
             this.sessions = Objects.requireNonNull(sessions);
             this.conversation = Objects.requireNonNull(conversation);
             this.composer = Objects.requireNonNull(composer);
+            this.metadataLoading = metadataLoading;
+            this.models = Objects.requireNonNull(models);
+            this.activation = Objects.requireNonNull(activation);
         }
     }
 

@@ -1,6 +1,8 @@
 /** Non-activating, bounded phone projections; raw tool payloads and reasoning stay PC-local. */
 import { createHash } from 'node:crypto'
 import { statSync } from 'node:fs'
+import { mobileToolResultText, observedToolCall } from './tool-activity.ts'
+import type { MobileToolActivityContext } from './tool-activity.ts'
 import type { Context } from '@deepseek-ai/cordis'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import type {} from '@deepseek-ai/dsh-agent'
@@ -37,6 +39,8 @@ export interface MobileSessionListOptions {
 
 /** Explicit cut, row budget, and authorization check for one history projection. */
 export interface MobileHistoryOptions {
+  /** Omission preserves message-only history; opt-in rechecks current tool-detail consent while projecting. */
+  readonly toolDetails?: { readonly cwd: string; readonly requireCurrent: () => void }
   readonly offset: number
   readonly through: number
   readonly limit: number
@@ -68,7 +72,7 @@ export interface MobileHistoryPage {
  * @param header - Existing Session identity being addressed.
  * @returns normally only for an ordinary visible Session.
  */
-export function requireVisibleSession(ctx: Context, header: SessionHeader): void {
+export function requireVisibleSession(ctx: Context, header: SessionHeader): asserts header is SessionHeader & { readonly cwd: string } {
   const workspaces = ctx.get('workspaceRegistry')
   if (workspaces === undefined) throw new MobileViewError('unavailable')
   if (header.cwd === undefined || header.origin === 'subagent' || (header.delegationDepth ?? 0) > 0
@@ -261,37 +265,51 @@ export function mobileHistoryPage(
 ): MobileHistoryPage {
   const { offset, through, limit, budget, requireCurrent } = options
   const rows: HistoryRow[] = []
+  const toolContext: MobileToolActivityContext | undefined = options.toolDetails === undefined ? undefined : {
+    cwd: options.toolDetails.cwd, budget, callAt: sequence => observedToolCall(events, sequence),
+  }
   let nextOffset = offset
   for (; nextOffset < through; nextOffset++) {
     requireCurrent()
+    options.toolDetails?.requireCurrent()
     const event = events[nextOffset]
     if (event === undefined) throw new MobileViewError('expired')
     if (rows.length === limit) {
       const content = event.type === 'user/message' && event.data.source.kind === 'user'
         ? event.data.content : event.type === 'assistant/message' ? event.data.message.content : undefined
-      if (content?.some(block => block.type === 'text') === true) break
+      const activity = toolContext !== undefined && (event.type === 'tool/call' || event.type === 'tool/result'
+        || (event.type === 'turn/end' && event.data.reason.kind === 'error'))
+      if (content?.some(block => block.type === 'text') === true || activity) break
       continue
     }
     const projected = mobileHistoryRow(event, budget)
+      ?? (toolContext === undefined ? undefined : mobileActivityRow(event, budget, toolContext))
     if (projected !== undefined) rows.push(projected)
   }
   return { rows, nextOffset }
 }
 
 /**
- * Project live tool activity using a restricted name or a fixed notice, never payloads.
- * @param event - One committed live event.
+ * Project tool activity; absent detail context preserves legacy name/fixed-notice behavior.
+ * @param event - One committed event.
  * @param budget - Explicit phone text limit.
- * @returns a tool/notice row only for safe activity categories.
+ * @param context - Separately authorized call correlation and working directory; never raw payloads.
+ * @returns a literal tool/notice row only for declared activity categories.
  */
-export function mobileActivityRow(event: SessionEvent, budget: ApplicationBudget): HistoryRow | undefined {
+export function mobileActivityRow(
+  event: SessionEvent, budget: ApplicationBudget, context?: MobileToolActivityContext,
+): HistoryRow | undefined {
   switch (event.type) {
     case 'tool/call': {
       const name = /^[A-Za-z][A-Za-z0-9_-]*(?:\.[A-Za-z][A-Za-z0-9_-]*)*$/u.test(event.data.name)
         ? event.data.name : 'tool'
       return row(event.seq, 'tool', sanitizedText(name, budget.maxTextBytes))
     }
-    case 'tool/result': return row(event.seq, 'notice', sanitizedText('Tool completed', budget.maxTextBytes))
+    case 'tool/result': {
+      const details = context === undefined ? undefined : mobileToolResultText(event, context)
+      return row(event.seq, 'notice', details ?? sanitizedText(
+        context !== undefined && event.data.message.isError ? 'Tool failed' : 'Tool completed', budget.maxTextBytes))
+    }
     case 'turn/end':
       if (event.data.reason.kind === 'error') return row(event.seq, 'notice', sanitizedText('Turn failed', budget.maxTextBytes))
       return undefined

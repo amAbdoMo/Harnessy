@@ -5,6 +5,9 @@ import io.harnessy.companion.protocol.Invitation;
 import io.harnessy.companion.protocol.Protocol;
 import io.harnessy.companion.protocol.StrictJson;
 import io.harnessy.companion.presentation.CompanionActions;
+import io.harnessy.companion.presentation.ModelAccess;
+import io.harnessy.companion.presentation.ModelOption;
+import io.harnessy.companion.presentation.ModelSelectionPane;
 import io.harnessy.companion.transport.PhoneTransport;
 import java.io.IOException;
 import java.math.BigInteger;
@@ -35,6 +38,7 @@ public final class CompanionController implements CompanionActions {
     private final CompanionPlatform platform;
     private final ControllerLimits limits;
     private final String pcLabel;
+    private final ConversationMemory conversations;
     private Output output;
     private volatile long epoch;
     private long metadataReadyEpoch;
@@ -57,6 +61,14 @@ public final class CompanionController implements CompanionActions {
     private String selected;
     private String sessionsCursor;
     private String historyCursor;
+    private String managementCursor;
+    private ModelSelectionPane models = ModelSelectionPane.empty();
+    private ManagementAccess managementAccess = ManagementAccess.CHECKING;
+    private ActivationAccess activationAccess = ActivationAccess.CHECKING;
+    private final Map<String, WorkspaceInfo> managementWorkspaces = new LinkedHashMap<>();
+    private final java.util.Set<String> visibleSessions = new java.util.HashSet<>();
+    private boolean sessionListingReady;
+    private long interactionVersion;
     private ActiveWatch activeWatch;
     private SessionScan sessionScan;
     private String statusSession;
@@ -70,6 +82,7 @@ public final class CompanionController implements CompanionActions {
     private Cancellable expiry;
     private Cancellable watchRenewal;
     private Feedback feedback = Feedback.NONE;
+    private long readFailureVersion;
     private final Map<String, SessionRow> sessions = new LinkedHashMap<>();
     private final Map<String, ApplicationCodec.HistoryRow> history = new LinkedHashMap<>();
     private final Map<String, Read> reads = new LinkedHashMap<>();
@@ -78,6 +91,7 @@ public final class CompanionController implements CompanionActions {
         this.platform = Objects.requireNonNull(platform);
         this.limits = Objects.requireNonNull(limits);
         this.pcLabel = Objects.requireNonNull(pcLabel);
+        this.conversations = new ConversationMemory(limits.sessionWindow);
     }
 
     /** Main-thread attachment does not start network activity. */
@@ -101,13 +115,15 @@ public final class CompanionController implements CompanionActions {
                 paired = chosen;
                 if (pendingRepair != null || !storageBlocked) repairTarget = pendingRepair;
                 repairRequired |= pendingRepair != null;
-                Fence retainedFence = fence;
-                fence = retainedFence != null && (paired == null || retainedFence.pcId.equals(paired.pcId))
-                    ? retainedFence : paired == null && !uncertain.isEmpty() ? uncertain.get(0) : null;
-                if (paired != null) for (Fence previous : uncertain) {
-                    if (previous.pcId.equals(paired.pcId)) fence = previous;
+                conversations.restoreFences(uncertain);
+                if (fence != null) conversations.rememberFence(fence);
+                if (selected == null) {
+                    Fence recovery = conversations.firstFence(paired == null ? null : paired.pcId);
+                    if (recovery != null) selected = recovery.sessionId;
                 }
-                if (fence != null) { selected = fence.sessionId; feedback = Feedback.DELIVERY_UNKNOWN; }
+                fence = selectedFence();
+                draft = conversations.draft(paired == null ? null : paired.pcId, selected);
+                if (fence != null) feedback = Feedback.DELIVERY_UNKNOWN;
                 if (repairRequired || storageBlocked) feedback = Feedback.REPAIR_REQUIRED;
                 metadataReadyEpoch = current;
                 if (!imported.isEmpty()) {
@@ -152,7 +168,11 @@ public final class CompanionController implements CompanionActions {
         for (Read read : reads.values()) read.deadline.cancel();
         reads.clear(); activeWatch = null; statusSession = null;
         // Cursors are signed by this PC channel; retained text has no such lifetime.
-        sessionsCursor = historyCursor = null; sessionScan = null;
+        sessionsCursor = historyCursor = managementCursor = null; sessionScan = null;
+        managementWorkspaces.clear(); managementAccess = ManagementAccess.CHECKING;
+        activationAccess = ActivationAccess.CHECKING;
+        models = ModelSelectionPane.empty();
+        visibleSessions.clear(); sessionListingReady = false;
         if (watchRenewal != null) watchRenewal.cancel();
         watchRenewal = null;
         if (mutation != null) deliveryUnknown();
@@ -254,6 +274,8 @@ public final class CompanionController implements CompanionActions {
         confirmed = true;
         feedback = fence == null ? Feedback.NONE : Feedback.DELIVERY_UNKNOWN;
         refresh();
+        // Deployment requires the matching PC runtime first; there is no legacy capability probe or fallback.
+        refreshManagementWorkspaces();
         scheduleHeartbeat();
         publish();
     }
@@ -392,8 +414,9 @@ public final class CompanionController implements CompanionActions {
             return () -> {
                 enrolling = pairingVisible = false; fingerprint = ""; pairingLink = "";
                 repairTarget = null;
-                fence = null;
-                for (Fence previous : uncertain) if (previous.pcId.equals(candidate.pcId)) fence = previous;
+                conversations.restoreFences(uncertain);
+                fence = selectedFence();
+                draft = conversations.draft(candidate.pcId, selected);
                 feedback = fence == null ? Feedback.NONE : Feedback.DELIVERY_UNKNOWN;
                 if (current(owner, connection)) confirm(candidate.grantId, candidate.generation, candidate.pcKey);
             };
@@ -446,13 +469,65 @@ public final class CompanionController implements CompanionActions {
             platform.clearRepair(forgotten.pcId);
             return () -> {
                 paired = null; repairTarget = null; selected = null; sessions.clear(); history.clear();
+                draft = conversations.draft(null, null);
+                fence = selectedFence();
                 repairRequired = storageBlocked = false; feedback = Feedback.NONE; publish();
             };
         }, Feedback.FORGET_FAILED, StorageKind.PAIRING);
         publish();
     }
 
-    @Override public void draftChanged(String text) { draft = text; }
+    @Override public void draftChanged(String text) {
+        Fence targetFence = conversations.fence(paired == null ? null : paired.pcId, selected);
+        if (targetFence != null && targetFence.kind == OperationKind.ARCHIVE_SESSION) {
+            feedback = Feedback.MANAGEMENT_BUSY; publish(); return;
+        }
+        if (!conversations.setDraft(paired == null ? null : paired.pcId, selected, text)) {
+            feedback = Feedback.DRAFT_LIMIT; publish(); return;
+        }
+        if (!draft.equals(text)) ++interactionVersion;
+        draft = text;
+    }
+
+    public void refreshManagementWorkspaces() {
+        if (!foreground || !confirmed || hasRead(ApplicationCodec.Type.MANAGEMENT_WORKSPACES)) return;
+        managementWorkspaces.clear(); managementCursor = null;
+        managementAccess = ManagementAccess.CHECKING;
+        listManagementWorkspaces(null);
+    }
+
+    public void loadMoreManagementWorkspaces() {
+        if (confirmed && managementAccess == ManagementAccess.ENABLED && managementCursor != null
+            && !hasRead(ApplicationCodec.Type.MANAGEMENT_WORKSPACES)) listManagementWorkspaces(managementCursor);
+    }
+
+    private void listManagementWorkspaces(String cursor) {
+        String request = Protocol.randomId(16);
+        Read read = new Read(request, ApplicationCodec.Type.MANAGEMENT_WORKSPACES, null, cursor);
+        if (!sendRead(read, ApplicationCodec.listManagementWorkspaces(request, limits.pageSize, cursor))) {
+            managementWorkspaces.clear(); managementCursor = null;
+            managementAccess = ManagementAccess.UNAVAILABLE; publish();
+        }
+    }
+
+    private void acceptManagementWorkspaces(Read read, ApplicationCodec.Result message) {
+        if (read.cursor == null) managementWorkspaces.clear();
+        if (!message.enabled) {
+            managementWorkspaces.clear(); managementCursor = null;
+            managementAccess = ManagementAccess.DISABLED; return;
+        }
+        for (ApplicationCodec.WorkspaceInfo workspace : message.workspaces) {
+            if (managementWorkspaces.containsKey(workspace.id)) {
+                managementWorkspaces.clear(); managementCursor = null;
+                managementAccess = ManagementAccess.UNAVAILABLE; return;
+            }
+            if (managementWorkspaces.size() < limits.sessionWindow) {
+                managementWorkspaces.put(workspace.id, new WorkspaceInfo(workspace.id, workspace.title, workspace.order));
+            }
+        }
+        managementAccess = ManagementAccess.ENABLED;
+        managementCursor = managementWorkspaces.size() < limits.sessionWindow ? message.cursor : null;
+    }
 
     @Override public void refresh() {
         if (confirmed && !hasRead(ApplicationCodec.Type.SESSIONS)) {
@@ -477,19 +552,34 @@ public final class CompanionController implements CompanionActions {
     private void listSessions(String cursor) {
         String request = Protocol.randomId(16);
         Read listing = new Read(request, ApplicationCodec.Type.SESSIONS, null, cursor);
-        listing.baseline = cursor == null && activeWatch == null;
-        sendRead(listing, ApplicationCodec.listSessions(request, limits.pageSize, cursor));
+        listing.baseline = activeWatch == null;
+        listing.recoveryVersion = readFailureVersion;
+        sendRead(listing, ApplicationCodec.listSessionNavigation(request, limits.pageSize, cursor));
+    }
+
+    private Fence selectedFence() {
+        if (mutation != null) return mutation.fence;
+        if (paired == null || selected == null) return conversations.firstFence(paired == null ? null : paired.pcId);
+        return conversations.fence(paired.pcId, selected);
     }
 
     @Override public void selectSession(String sessionId) {
         if (!sessions.containsKey(sessionId) || Objects.equals(selected, sessionId)) return;
+        ++interactionVersion;
         cancelSelectionReads(); selected = sessionId;
+        draft = conversations.draft(paired == null ? null : paired.pcId, selected);
+        fence = selectedFence();
+        if (repairRequired || storageBlocked) feedback = Feedback.REPAIR_REQUIRED;
+        else if (fence != null && mutation == null) feedback = Feedback.DELIVERY_UNKNOWN;
+        else if (feedback != Feedback.REFRESH_FAILED) feedback = Feedback.NONE;
+        models = ModelSelectionPane.empty();
         history.clear(); historyCursor = null; statusSession = null;
-        if (confirmed) watch();
+        if (confirmed) readSelection(readFailureVersion);
         publish();
     }
 
     private void cancelSelectionReads() {
+        models = models.invalidated();
         if (watchRenewal != null) watchRenewal.cancel();
         watchRenewal = null;
         boolean unknownWatch = hasRead(ApplicationCodec.Type.WATCHING);
@@ -497,7 +587,7 @@ public final class CompanionController implements CompanionActions {
             if (read.session != null) { reads.remove(read.id); read.deadline.cancel(); }
         }
         ActiveWatch previous = activeWatch;
-        activeWatch = null;
+        activeWatch = null; statusSession = null;
         if (unknownWatch) { disconnectedAttempt(); return; }
         if (previous != null && previous.subscription != null && confirmed) cancelSubscription(previous.subscription);
     }
@@ -509,28 +599,76 @@ public final class CompanionController implements CompanionActions {
         if (!sendRead(cancel, ApplicationCodec.cancelRead(request, previous))) disconnectedAttempt();
     }
 
-    private void readHistory(String cursor) {
+    private void readHistory(String cursor) { readHistory(cursor, readFailureVersion); }
+
+    private void readHistory(String cursor, long recoveryVersion) {
         String request = Protocol.randomId(16);
-        sendRead(new Read(request, ApplicationCodec.Type.HISTORY, selected, cursor),
-            ApplicationCodec.readHistory(request, selected, limits.pageSize, cursor));
+        Read read = new Read(request, ApplicationCodec.Type.HISTORY, selected, cursor);
+        read.recoveryVersion = recoveryVersion;
+        sendRead(read, ApplicationCodec.readHistory(request, selected, limits.pageSize, cursor));
     }
 
-    private void watch() {
+    /** Closed rows read history directly; active rows retire older reads and await a watch cut before a fresh baseline. */
+    private void readSelection(long recoveryVersion) {
         if (selected == null || activeWatch != null || hasRead(ApplicationCodec.Type.WATCHING)) return;
+        SessionRow session = sessions.get(selected);
+        if (session != null && session.status == SessionStatus.CLOSED) {
+            if (!hasRead(ApplicationCodec.Type.HISTORY)) readHistory(null, recoveryVersion);
+            return;
+        }
+        cancelSelectionReads();
+        historyCursor = null;
         String request = Protocol.randomId(16);
-        if (sendRead(new Read(request, ApplicationCodec.Type.WATCHING, selected, null),
-            ApplicationCodec.watchProgress(request, selected, null))) {
+        Read read = new Read(request, ApplicationCodec.Type.WATCHING, selected, null);
+        read.recoveryVersion = recoveryVersion;
+        if (sendRead(read, ApplicationCodec.watchProgress(request, selected, null))) {
             activeWatch = new ActiveWatch(request, selected, epoch, attempt);
         }
     }
 
     private void renewWatch() {
         ActiveWatch watched = activeWatch;
+        SessionRow session = sessions.get(watched.session);
+        if (session != null && session.status == SessionStatus.CLOSED) return;
         watchRenewal = platform.later(limits.watchMs, () -> {
             if (!current(watched.owner, watched.attempt) || activeWatch != watched) return;
             cancelSelectionReads();
-            if (confirmed && selected != null) watch();
+            if (confirmed && selected != null) readSelection(-1);
         });
+    }
+
+    /** Refreshes independent PC consent without activating any Session. */
+    public void refreshActivationAccess() {
+        if (!foreground || !confirmed || hasRead(ApplicationCodec.Type.SESSION_ACTIVATION)) return;
+        activationAccess = ActivationAccess.CHECKING;
+        String request = Protocol.randomId(16);
+        Read read = new Read(request, ApplicationCodec.Type.SESSION_ACTIVATION, null, null);
+        if (!sendRead(read, ApplicationCodec.getSessionActivation(request))) {
+            activationAccess = ActivationAccess.UNAVAILABLE; publish();
+        }
+    }
+
+    public void refreshModels() { readModels(null); }
+
+    public void loadNextModels() {
+        if (models.cursor != null) readModels(models.cursor);
+    }
+
+    private boolean canReadModels() {
+        return foreground && confirmed && paired != null && metadataReadyEpoch == epoch && sessionListingReady
+            && !storageBlocked && !repairRequired && !storagePending() && fence == null && mutation == null
+            && selected != null && visibleSessions.contains(selected) && sendState() == SendState.READY;
+    }
+
+    private void readModels(String cursor) {
+        if (!canReadModels() || hasRead(ApplicationCodec.Type.SESSION_MODELS)) return;
+        String request = Protocol.randomId(16);
+        Read read = new Read(request, ApplicationCodec.Type.SESSION_MODELS, selected, cursor);
+        read.modelRevision = models.revision;
+        models = models.loading();
+        if (!sendRead(read, ApplicationCodec.listSessionModels(request, selected, limits.pageSize, cursor))) {
+            models = models.failed(); publish();
+        }
     }
 
     private boolean hasRead(ApplicationCodec.Type type) {
@@ -541,12 +679,19 @@ public final class CompanionController implements CompanionActions {
     private boolean sendRead(Read read, byte[] bytes) {
         if (!foreground || !confirmed || reads.size() >= limits.pendingReads) return false;
         if (link.send(bytes) != PhoneTransport.Admission.ADMITTED_MAY_WRITE) {
-            feedback = Feedback.REFRESH_FAILED; publish(); return false;
+            if (read.type == ApplicationCodec.Type.SESSION_MODELS) models = models.failed();
+            else if (read.type == ApplicationCodec.Type.SESSION_ACTIVATION) activationAccess = ActivationAccess.UNAVAILABLE;
+            else readFailed();
+            publish(); return false;
         }
         long owner = epoch, connection = attempt;
         reads.put(read.id, read);
         read.deadline = platform.later(limits.readMs, () -> {
             if (!current(owner, connection) || reads.remove(read.id) == null) return;
+            if (read.type == ApplicationCodec.Type.SESSION_MODELS) { models = models.failed(); publish(); return; }
+            if (read.type == ApplicationCodec.Type.SESSION_ACTIVATION) {
+                activationAccess = ActivationAccess.UNAVAILABLE; publish(); return;
+            }
             // A watch may exist remotely even if its ACK was lost. Closing prevents accumulating subscriptions.
             disconnectedAttempt();
         });
@@ -574,23 +719,56 @@ public final class CompanionController implements CompanionActions {
         if (message.type == ApplicationCodec.Type.ERROR) {
             if (read.type == ApplicationCodec.Type.CANCELLED) disconnectedAttempt();
             else if (read.type == ApplicationCodec.Type.WATCHING) watchFailed(message.code);
-            else {
+            else if (read.type == ApplicationCodec.Type.MANAGEMENT_WORKSPACES) {
+                managementWorkspaces.clear(); managementCursor = null;
+                managementAccess = ManagementAccess.UNAVAILABLE; publish();
+            } else if (read.type == ApplicationCodec.Type.SESSION_ACTIVATION) {
+                activationAccess = ActivationAccess.UNAVAILABLE; publish();
+            } else if (read.type == ApplicationCodec.Type.SESSION_MODELS) {
+                models = models.failed(); publish();
+            } else {
                 if (read.session != null && "notFound".equals(message.code)) removeSelection();
-                feedback = Feedback.REFRESH_FAILED; publish();
+                readFailed(); publish();
             }
             return;
         }
         switch (message.type) {
-            case SESSIONS: if (!read.heartbeat) acceptSessions(read, message); break;
+            case SESSION_ACTIVATION:
+                activationAccess = message.enabled ? ActivationAccess.ENABLED : ActivationAccess.DISABLED;
+                break;
+            case SESSIONS:
+                if (!read.heartbeat) {
+                    acceptSessions(read, message);
+                    if (selected == null) recoverRead(read);
+                }
+                break;
             case HISTORY:
-                appendRows(message.rows); historyCursor = message.cursor; break;
+                appendRows(message.rows); historyCursor = message.cursor; recoverRead(read); break;
             case WATCHING:
-                activeWatch.subscription = message.subscriptionId;
-                for (ApplicationCodec.Result early : activeWatch.early) progress(early);
-                activeWatch.early.clear();
-                renewWatch();
+                ActiveWatch watched = activeWatch;
+                watched.subscription = message.subscriptionId;
+                if (watched.managementClosed) {
+                    for (ApplicationCodec.Result early : watched.early) {
+                        if (watched.subscription.equals(early.subscriptionId)) appendRows(early.rows);
+                    }
+                    watched.early.clear();
+                    retireClosedWatch(watched);
+                    SessionRow resumed = sessions.get(selected);
+                    if (resumed != null && resumed.status != SessionStatus.CLOSED) {
+                        readSelection(read.recoveryVersion); break;
+                    }
+                } else {
+                    for (ApplicationCodec.Result early : watched.early) progress(early);
+                    watched.early.clear();
+                    if (activeWatch == watched) renewWatch();
+                }
                 // A cursorless watch establishes its cut before this independently paged history read.
-                if (!hasRead(ApplicationCodec.Type.HISTORY)) readHistory(null);
+                if (confirmed && !hasRead(ApplicationCodec.Type.HISTORY)) readHistory(null, read.recoveryVersion);
+                break;
+            case MANAGEMENT_WORKSPACES: acceptManagementWorkspaces(read, message); break;
+            case SESSION_MODELS:
+                if (read.cursor != null && "ready".equals(message.modelState) && !Objects.equals(read.modelRevision, message.modelRevision)) models = models.failed();
+                else models = ModelSelectionPane.from(message);
                 break;
             case CANCELLED: break;
             default: throw new AssertionError(message.type);
@@ -599,36 +777,64 @@ public final class CompanionController implements CompanionActions {
     }
 
     private void acceptSessions(Read read, ApplicationCodec.Result message) {
+        Map<String, SessionRow> previousRows = new LinkedHashMap<>(sessions);
         if (read.cursor == null) {
             SessionRow retained = sessions.get(selected);
             sessions.clear();
             if (retained != null) sessions.put(retained.id, retained);
             sessionScan = new SessionScan(selected);
+            visibleSessions.clear();
         }
+        // Listing visibility cannot restore active send authority after a denied watch.
         for (ApplicationCodec.SessionSummary summary : message.sessions) {
-            sessions.put(summary.sessionId, new SessionRow(summary.sessionId, summary.title, status(summary.status)));
-            if (summary.sessionId.equals(selected)) statusSession = selected;
+            visibleSessions.add(summary.sessionId);
+            SessionRow previous = previousRows.get(summary.sessionId);
+            // Legacy omission cannot clear previously supplied metadata; explicit nullable fields can.
+            SessionNavigation navigation = summary.navigation == null && previous != null
+                ? previous.navigation : navigation(summary.navigation);
+            sessions.put(summary.sessionId, new SessionRow(summary.sessionId, summary.title, status(summary.status), navigation));
             if (sessionScan != null && summary.sessionId.equals(sessionScan.selected)) sessionScan.found = true;
         }
-        trimSessions(); sessionsCursor = message.cursor;
+        trimSessions(); visibleSessions.retainAll(sessions.keySet());
+        sessionListingReady = true; sessionsCursor = message.cursor;
         if (message.cursor == null && sessionScan != null && !sessionScan.found
             && Objects.equals(selected, sessionScan.selected)) removeSelection();
-        if (read.baseline && selected != null) watch();
+        // A page requested under a live watch cannot revive it after later closure or denial.
+        SessionRow previous = previousRows.get(selected), current = sessions.get(selected);
+        if (read.baseline && selected != null && (read.cursor == null
+            || previous != null && previous.status == SessionStatus.CLOSED
+                && current != null && current.status != SessionStatus.CLOSED)) readSelection(read.recoveryVersion);
     }
 
     private void removeSelection() {
         cancelSelectionReads();
         sessions.remove(selected); selected = statusSession = null;
+        draft = conversations.draft(paired == null ? null : paired.pcId, null);
+        fence = selectedFence();
+        models = ModelSelectionPane.empty();
         history.clear(); historyCursor = null;
     }
 
     private void watchFailed(String code) {
         activeWatch = null; statusSession = null;
         cancelSelectionReads();
+        readFailed();
         if ("notFound".equals(code)) removeSelection();
-        else if (selected != null) readHistory(null);
+        else if (selected != null) readHistory(null, -1);
         // Recovery requires a new explicit refresh; denied/limit cannot create a retry loop.
-        feedback = Feedback.REFRESH_FAILED; publish();
+        publish();
+    }
+
+    private void readFailed() {
+        ++readFailureVersion;
+        if (feedback == Feedback.NONE || feedback == Feedback.INBOX_ADMITTED || feedback == Feedback.REFRESH_FAILED) {
+            feedback = Feedback.REFRESH_FAILED;
+        }
+    }
+
+    /** Only a recovery started after the current failure may clear it; other warnings have independent owners. */
+    private void recoverRead(Read read) {
+        if (read.recoveryVersion == readFailureVersion && feedback == Feedback.REFRESH_FAILED) feedback = Feedback.NONE;
     }
 
     private void trimSessions() {
@@ -648,11 +854,23 @@ public final class CompanionController implements CompanionActions {
         if (!watched.subscription.equals(message.subscriptionId)) return;
         SessionRow previous = sessions.get(selected);
         if (previous == null) return;
-        sessions.put(selected, new SessionRow(selected, previous.title, status(message.status)));
+        sessions.put(selected, new SessionRow(selected, previous.title, status(message.status), previous.navigation));
         statusSession = selected;
+        if (mutation != null && mutation.result != null && mutation.fence.sessionId.equals(selected)) {
+            mutation.laterProgressStatus = status(message.status);
+        }
         appendRows(message.rows);
+        if (sessions.get(selected).status == SessionStatus.CLOSED) retireClosedWatch(watched);
         // Progress cursors belong to watchProgress, never to readHistory paging.
         publish();
+    }
+
+    /** Retire only the acknowledged closed watch; independent history reads retain their deadlines and recovery metadata. */
+    private void retireClosedWatch(ActiveWatch watched) {
+        activeWatch = null; statusSession = null;
+        if (watchRenewal != null) watchRenewal.cancel();
+        watchRenewal = null;
+        cancelSubscription(watched.subscription);
     }
 
     private void bufferProgress(ActiveWatch watched, ApplicationCodec.Result message) {
@@ -667,6 +885,13 @@ public final class CompanionController implements CompanionActions {
             rows -= discarded.rows.size();
             for (ApplicationCodec.HistoryRow row : discarded.rows) bytes -= StrictJson.utf8Length(row.text);
         }
+    }
+
+    private static SessionNavigation navigation(ApplicationCodec.SessionNavigation navigation) {
+        if (navigation == null) return null;
+        ApplicationCodec.WorkspaceInfo workspace = navigation.workspace;
+        return new SessionNavigation(workspace == null ? null : new WorkspaceInfo(workspace.id, workspace.title, workspace.order),
+            navigation.pinOrder, navigation.updatedAt);
     }
 
     private static SessionStatus status(String status) {
@@ -697,6 +922,98 @@ public final class CompanionController implements CompanionActions {
         }
     }
 
+    public void createSession(String workspaceId) {
+        manageSession(OperationKind.CREATE_SESSION, null, workspaceId,
+            (request, operation, session) -> ApplicationCodec.createSession(request, operation, session, workspaceId));
+    }
+    public void renameSession(String sessionId, String title) {
+        manageSession(OperationKind.RENAME_SESSION, sessionId, null,
+            (request, operation, session) -> ApplicationCodec.renameSession(request, operation, session, title));
+    }
+    public void archiveSession(String sessionId) {
+        manageSession(OperationKind.ARCHIVE_SESSION, sessionId, null, ApplicationCodec::archiveSession);
+    }
+    public void setSessionPinned(String sessionId, boolean pinned) {
+        manageSession(OperationKind.SET_SESSION_PINNED, sessionId, null,
+            (request, operation, session) -> ApplicationCodec.setSessionPinned(request, operation, session, pinned));
+    }
+
+    /** An explicit, fenced lifecycle gesture; browsing a cold chat never calls this method. */
+    public void openSession(String sessionId) {
+        SessionRow target = sessions.get(selected);
+        if (!foreground || !confirmed || paired == null || metadataReadyEpoch != epoch || !sessionListingReady
+            || storageBlocked || repairRequired || storagePending() || fence != null || mutation != null
+            || activationAccess != ActivationAccess.ENABLED || !Objects.equals(selected, sessionId)
+            || !visibleSessions.contains(sessionId) || target == null || target.status != SessionStatus.CLOSED) {
+            mutationFeedback(Feedback.OPEN_REJECTED); return;
+        }
+        String request = Protocol.randomId(16), operation = Protocol.randomId(16);
+        byte[] application = ApplicationCodec.openSession(request, operation, sessionId);
+        fence = new Fence(paired.pcId, sessionId, operation, OperationKind.OPEN_SESSION);
+        mutation = new Mutation(request, fence, null);
+        mutation.selection = selected; mutation.interactionVersion = interactionVersion;
+        admitMutation(mutation, application, Feedback.OPEN_REJECTED);
+    }
+
+    /** The rendered revision and choice are channel-scoped; no model route or retry payload is saved. */
+    public void selectModel(String sessionId, String revision, String choiceId) {
+        SessionRow target = sessions.get(selected);
+        boolean advertised = false;
+        for (ModelOption choice : models.choices) if (choice.id.equals(choiceId)) advertised = true;
+        if (!canReadModels() || hasRead(ApplicationCodec.Type.SESSION_MODELS) || !Objects.equals(selected, sessionId)
+            || target == null || target.status != SessionStatus.IDLE || models.access != ModelAccess.READY
+            || !Objects.equals(models.revision, revision) || revision == null || !advertised) {
+            models = models.rejected(); mutationFeedback(Feedback.MODEL_REJECTED); return;
+        }
+        String request = Protocol.randomId(16), operation = Protocol.randomId(16);
+        byte[] application = ApplicationCodec.selectSessionModel(request, operation, sessionId, revision, choiceId);
+        fence = new Fence(paired.pcId, sessionId, operation, OperationKind.SELECT_SESSION_MODEL);
+        mutation = new Mutation(request, fence, null);
+        mutation.selection = selected; mutation.interactionVersion = interactionVersion; mutation.modelChoiceId = choiceId;
+        models = models.loading();
+        admitMutation(mutation, application, Feedback.MODEL_REJECTED);
+    }
+
+    private void mutationFeedback(Feedback notice) {
+        if (fence == null && !storageBlocked && !repairRequired && feedback != Feedback.STORAGE_FAILED
+            && feedback != Feedback.PAIRING_CORRUPT && feedback != Feedback.REPAIR_REQUIRED) feedback = notice;
+        publish();
+    }
+
+    private interface ManagementEncoder { byte[] encode(String request, String operation, String session); }
+
+    private void manageSession(OperationKind kind, String sessionId, String workspaceId, ManagementEncoder encoder) {
+        if (!foreground || !confirmed || paired == null || metadataReadyEpoch != epoch || !sessionListingReady
+            || storageBlocked || repairRequired || storagePending() || managementAccess != ManagementAccess.ENABLED) {
+            mutationFeedback(Feedback.MANAGEMENT_DENIED); return;
+        }
+        boolean create = kind == OperationKind.CREATE_SESSION;
+        if (mutation != null || (create ? fence != null : conversations.fence(paired.pcId, sessionId) != null)
+            || hasRead(ApplicationCodec.Type.MANAGEMENT_WORKSPACES)) {
+            mutationFeedback(Feedback.MANAGEMENT_BUSY); return;
+        }
+        SessionRow target = sessions.get(sessionId);
+        if (create ? !managementWorkspaces.containsKey(workspaceId) : target == null || !visibleSessions.contains(sessionId)) {
+            mutationFeedback(Feedback.MANAGEMENT_DENIED); return;
+        }
+        if (create && !draft.isEmpty() || kind == OperationKind.ARCHIVE_SESSION
+            && !conversations.draft(paired.pcId, sessionId).isEmpty()) {
+            mutationFeedback(Feedback.MANAGEMENT_DRAFT_REQUIRED); return;
+        }
+        if (kind == OperationKind.ARCHIVE_SESSION && target.status == SessionStatus.BUSY) {
+            mutationFeedback(Feedback.MANAGEMENT_BUSY); return;
+        }
+        String request = Protocol.randomId(16), operation = Protocol.randomId(16);
+        String targetId = create ? "mobile-" + operation : sessionId;
+        final byte[] application;
+        try { application = encoder.encode(request, operation, targetId); }
+        catch (IllegalArgumentException invalidCommand) { mutationFeedback(Feedback.MANAGEMENT_REJECTED); return; }
+        fence = new Fence(paired.pcId, targetId, operation, kind);
+        mutation = new Mutation(request, fence, null);
+        mutation.selection = selected; mutation.interactionVersion = interactionVersion;
+        admitMutation(mutation, application, Feedback.MANAGEMENT_REJECTED);
+    }
+
     @Override public void sendText(String text) {
         if (sendState() != SendState.READY) return;
         String request = Protocol.randomId(16), submission = Protocol.randomId(16);
@@ -705,15 +1022,37 @@ public final class CompanionController implements CompanionActions {
         catch (IllegalArgumentException invalidText) { feedback = Feedback.SEND_FAILED; publish(); return; }
         fence = new Fence(paired.pcId, selected, submission);
         mutation = new Mutation(request, fence, text);
-        Mutation pending = mutation;
+        admitMutation(mutation, application, Feedback.SEND_FAILED);
+    }
+
+    private void admitMutation(Mutation pending, byte[] application, Feedback admissionFailure) {
+        conversations.rememberFence(pending.fence);
         long owner = epoch, connection = attempt;
         work(owner, () -> {
             platform.putFence(pending.fence);
             return () -> {
                 if (!current(owner, connection) || mutation != pending || !confirmed) return;
+                if (pending.fence.kind == OperationKind.SELECT_SESSION_MODEL) {
+                    SessionRow target = sessions.get(selected);
+                    if (!Objects.equals(selected, pending.selection) || interactionVersion != pending.interactionVersion
+                        || target == null || target.status != SessionStatus.IDLE || !Objects.equals(statusSession, selected)) {
+                        finishFence(pending, Feedback.MODEL_REJECTED); return;
+                    }
+                }
+                if (pending.fence.kind == OperationKind.ARCHIVE_SESSION
+                    && !conversations.draft(pending.fence.pcId, pending.fence.sessionId).isEmpty()) {
+                    finishFence(pending, Feedback.MANAGEMENT_DRAFT_REQUIRED); return;
+                }
+                if (pending.fence.kind == OperationKind.OPEN_SESSION) {
+                    SessionRow target = sessions.get(selected);
+                    if (!Objects.equals(selected, pending.selection) || interactionVersion != pending.interactionVersion
+                        || activationAccess != ActivationAccess.ENABLED || target == null || target.status != SessionStatus.CLOSED) {
+                        finishFence(pending, Feedback.OPEN_REJECTED); return;
+                    }
+                }
                 if (link.send(application) != PhoneTransport.Admission.ADMITTED_MAY_WRITE) {
                     // No local admission; clearing still needs a confirmed preference commit.
-                    finishFence(pending, Feedback.SEND_FAILED); return;
+                    finishFence(pending, admissionFailure); return;
                 }
                 pending.deadline = platform.later(limits.mutationMs, () -> {
                     if (current(owner, connection) && mutation == pending) { deliveryUnknown(); publish(); }
@@ -726,6 +1065,10 @@ public final class CompanionController implements CompanionActions {
 
     private void mutationReply(ApplicationCodec.Result message) {
         Mutation pending = mutation;
+        if (pending.settling) return;
+        if (pending.fence.kind == OperationKind.SELECT_SESSION_MODEL) { modelReply(pending, message); return; }
+        if (pending.fence.kind == OperationKind.OPEN_SESSION) { openReply(pending, message); return; }
+        if (pending.fence.kind != OperationKind.SUBMIT_TEXT) { managementReply(pending, message); return; }
         if (message.type != ApplicationCodec.Type.SUBMITTED || !pending.fence.sessionId.equals(message.sessionId)
             || !pending.fence.submissionId.equals(message.submissionId) || !"inMemoryInbox".equals(message.admission)) {
             if (message.type == ApplicationCodec.Type.ERROR) { deliveryUnknown(); publish(); }
@@ -735,22 +1078,124 @@ public final class CompanionController implements CompanionActions {
         finishFence(pending, Feedback.INBOX_ADMITTED);
     }
 
+    private void openReply(Mutation pending, ApplicationCodec.Result message) {
+        if (message.type != ApplicationCodec.Type.SESSION_OPENED || !pending.fence.operationId.equals(message.operationId)
+            || !pending.fence.sessionId.equals(message.sessionId) || "unknown".equals(message.outcome)) {
+            deliveryUnknown(); publish(); return;
+        }
+        if (pending.deadline != null) pending.deadline.cancel();
+        pending.result = message;
+        if ("rejected".equals(message.outcome) && "denied".equals(message.code)) activationAccess = ActivationAccess.DISABLED;
+        finishFence(pending, "applied".equals(message.outcome) ? Feedback.NONE : Feedback.OPEN_REJECTED);
+    }
+
+    private void modelReply(Mutation pending, ApplicationCodec.Result message) {
+        if (message.type != ApplicationCodec.Type.MODEL_SELECTED || !pending.fence.operationId.equals(message.operationId)
+            || !pending.fence.sessionId.equals(message.sessionId) || "unknown".equals(message.outcome)
+            || "applied".equals(message.outcome) && !pending.modelChoiceId.equals(message.selectedModel.id)) {
+            deliveryUnknown(); publish(); return;
+        }
+        if (pending.deadline != null) pending.deadline.cancel();
+        pending.result = message;
+        finishFence(pending, "applied".equals(message.outcome) ? Feedback.NONE : Feedback.MODEL_REJECTED);
+    }
+
+    private void managementReply(Mutation pending, ApplicationCodec.Result message) {
+        String action;
+        switch (pending.fence.kind) {
+            case CREATE_SESSION: action = "create"; break;
+            case RENAME_SESSION: action = "rename"; break;
+            case ARCHIVE_SESSION: action = "archive"; break;
+            case SET_SESSION_PINNED: action = "pin"; break;
+            default: throw new AssertionError(pending.fence.kind);
+        }
+        if (message.type != ApplicationCodec.Type.MANAGED || !pending.fence.submissionId.equals(message.operationId)
+            || !pending.fence.sessionId.equals(message.sessionId) || !action.equals(message.action)
+            || "unknown".equals(message.outcome)) { deliveryUnknown(); publish(); return; }
+        if (pending.deadline != null) pending.deadline.cancel();
+        pending.result = message;
+        finishFence(pending, "applied".equals(message.outcome) ? Feedback.NONE : Feedback.MANAGEMENT_REJECTED);
+    }
+
+    private void applyMutationOutcome(Mutation pending) {
+        ApplicationCodec.Result result = pending.result;
+        if (pending.fence.kind == OperationKind.SELECT_SESSION_MODEL) {
+            if (Objects.equals(selected, pending.fence.sessionId)) {
+                models = result != null && "applied".equals(result.outcome) ? models.applied(result.selectedModel) : models.rejected();
+            }
+            return;
+        }
+        if (result == null || !"applied".equals(result.outcome)) return;
+        // An older listing cannot replace metadata returned by this definitive mutation.
+        Read interruptedBaseline = null;
+        for (Read read : new ArrayList<>(reads.values())) {
+            if (read.type == ApplicationCodec.Type.SESSIONS && !read.heartbeat) {
+                if (read.baseline) interruptedBaseline = read;
+                reads.remove(read.id); read.deadline.cancel();
+            }
+        }
+        sessionsCursor = null; sessionScan = null;
+        String sessionId = pending.fence.sessionId;
+        if (pending.fence.kind == OperationKind.ARCHIVE_SESSION) {
+            visibleSessions.remove(sessionId);
+            if (Objects.equals(selected, sessionId)) removeSelection();
+            else sessions.remove(sessionId);
+            if (confirmed) listSessions(null);
+            return;
+        }
+        ApplicationCodec.SessionSummary row = result.session;
+        SessionStatus latestStatus = pending.laterProgressStatus == null ? status(row.status) : pending.laterProgressStatus;
+        sessions.put(row.sessionId, new SessionRow(row.sessionId, row.title, latestStatus, navigation(row.navigation)));
+        if (Objects.equals(selected, row.sessionId) && latestStatus == SessionStatus.CLOSED && activeWatch != null) {
+            if (activeWatch.subscription == null) activeWatch.managementClosed = true;
+            else retireClosedWatch(activeWatch);
+        }
+        visibleSessions.add(row.sessionId);
+        trimSessions(); visibleSessions.retainAll(sessions.keySet());
+        if (pending.fence.kind == OperationKind.CREATE_SESSION && interactionVersion == pending.interactionVersion
+            && Objects.equals(selected, pending.selection) && draft.isEmpty()) selectSession(row.sessionId);
+        SessionRow selectedRow = sessions.get(selected);
+        if (confirmed && selectedRow != null && (interruptedBaseline != null
+            || selectedRow.status != SessionStatus.CLOSED && activeWatch == null)) {
+            readSelection(interruptedBaseline == null ? readFailureVersion : interruptedBaseline.recoveryVersion);
+        }
+        // Restart cancelled pages against the committed PC state, retaining selection and draft.
+        if (confirmed) listSessions(null);
+    }
+
     private void finishFence(Mutation pending, Feedback outcome) {
         if (storagePending()) return;
+        pending.settling = true;
+        long owner = epoch, connection = attempt;
         transactStorage(() -> {
-            platform.clearFence(pending.fence.pcId);
+            platform.clearFence(pending.fence);
             return () -> {
-                if (fence != pending.fence) return;
-                if (outcome == Feedback.INBOX_ADMITTED && draft.equals(pending.text)) draft = "";
-                mutation = null; fence = null;
-                feedback = repairRequired || storageBlocked ? Feedback.REPAIR_REQUIRED : outcome;
+                conversations.clearFence(pending.fence);
+                boolean selectedTarget = paired != null && paired.pcId.equals(pending.fence.pcId)
+                    && Objects.equals(selected, pending.fence.sessionId);
+                if (outcome == Feedback.INBOX_ADMITTED) {
+                    conversations.clearSubmittedDraft(pending.fence.pcId, pending.fence.sessionId, pending.text);
+                    if (selectedTarget && draft.equals(pending.text)) draft = "";
+                }
+                if (mutation == pending) mutation = null;
+                fence = selectedFence();
+                boolean retainReadFailure = pending.fence.kind != OperationKind.SUBMIT_TEXT
+                    && outcome == Feedback.NONE && feedback == Feedback.REFRESH_FAILED;
+                if (repairRequired || storageBlocked) feedback = Feedback.REPAIR_REQUIRED;
+                else if (selectedTarget && !retainReadFailure) feedback = outcome;
+                else if (fence != null && mutation == null) feedback = Feedback.DELIVERY_UNKNOWN;
+                else if (feedback == Feedback.DELIVERY_UNKNOWN) feedback = Feedback.NONE;
+                if (current(owner, connection) && !repairRequired && !storageBlocked) applyMutationOutcome(pending);
             };
         }, Feedback.STORAGE_FAILED, StorageKind.DELIVERY);
     }
 
     private void deliveryUnknown() {
         if (mutation != null && mutation.deadline != null) mutation.deadline.cancel();
-        mutation = null; feedback = Feedback.DELIVERY_UNKNOWN;
+        if (mutation != null && mutation.fence.kind == OperationKind.SELECT_SESSION_MODEL) models = models.invalidated();
+        mutation = null;
+        fence = selectedFence();
+        feedback = fence == null ? Feedback.NONE : Feedback.DELIVERY_UNKNOWN;
     }
 
     /** User must first check the original Session; clearing never sends the previous task. */
@@ -758,12 +1203,12 @@ public final class CompanionController implements CompanionActions {
         if (!foreground || fence == null || mutation != null || storagePending()) return;
         Fence reviewed = fence;
         transactStorage(() -> {
-            platform.clearFence(reviewed.pcId);
+            platform.clearFence(reviewed);
             return () -> {
-                if (fence == reviewed) {
-                    fence = null;
-                    feedback = repairRequired || storageBlocked ? Feedback.REPAIR_REQUIRED : Feedback.NONE;
-                }
+                conversations.clearFence(reviewed);
+                fence = selectedFence();
+                feedback = repairRequired || storageBlocked ? Feedback.REPAIR_REQUIRED
+                    : fence == null ? Feedback.NONE : Feedback.DELIVERY_UNKNOWN;
             };
         }, Feedback.STORAGE_FAILED, StorageKind.DELIVERY);
     }
@@ -792,11 +1237,18 @@ public final class CompanionController implements CompanionActions {
         Pc pc = pcId == null ? null : new Pc(pcId, pcLabel,
             confirmed ? Connection.ONLINE : connecting ? Connection.CONNECTING : Connection.OFFLINE);
         output.companion(new Screen(pc, new SessionPane(new ArrayList<>(sessions.values()), selected,
-            confirmed && sessionsCursor != null && !hasRead(ApplicationCodec.Type.SESSIONS)),
+            confirmed && sessionsCursor != null && !hasRead(ApplicationCodec.Type.SESSIONS),
+            new ManagementPane(managementAccess, new ArrayList<>(managementWorkspaces.values()),
+                confirmed && managementCursor != null && !hasRead(ApplicationCodec.Type.MANAGEMENT_WORKSPACES),
+                fence != null || storagePending() || storageBlocked || repairRequired || !sessionListingReady
+                    || hasRead(ApplicationCodec.Type.MANAGEMENT_WORKSPACES))),
             new Conversation(sessions.get(selected), text,
                 confirmed && historyCursor != null && !hasRead(ApplicationCodec.Type.HISTORY)),
             new Composer(draft, sendState(), feedback,
-                fence == null ? null : new DeliveryReview(fence.pcId, fence.sessionId, fence.submissionId))));
+                fence == null ? null : new DeliveryReview(fence.pcId, fence.sessionId, fence.submissionId, fence.kind)),
+            metadataReadyEpoch != epoch && !storageBlocked && !repairRequired, models,
+            new ActivationPane(activationAccess, mutation != null && mutation.fence.kind == OperationKind.OPEN_SESSION
+                && Objects.equals(selected, mutation.fence.sessionId))));
 
     }
 
@@ -902,6 +1354,7 @@ public final class CompanionController implements CompanionActions {
         final long owner;
         final long attempt;
         String subscription;
+        boolean managementClosed;
         final List<ApplicationCodec.Result> early = new ArrayList<>();
         ActiveWatch(String request, String session, long owner, long attempt) {
             this.request = request; this.session = session; this.owner = owner; this.attempt = attempt;
@@ -913,8 +1366,10 @@ public final class CompanionController implements CompanionActions {
         final String session;
         final String cursor;
         String subscription;
+        String modelRevision;
         boolean baseline;
         boolean heartbeat;
+        long recoveryVersion = -1;
         Cancellable deadline;
         Read(String id, ApplicationCodec.Type type, String session, String cursor) {
             this.id = id; this.type = type; this.session = session; this.cursor = cursor;
@@ -924,6 +1379,12 @@ public final class CompanionController implements CompanionActions {
         final String request;
         final Fence fence;
         final String text;
+        String selection;
+        String modelChoiceId;
+        long interactionVersion;
+        ApplicationCodec.Result result;
+        SessionStatus laterProgressStatus;
+        boolean settling;
         Cancellable deadline;
         Mutation(String request, Fence fence, String text) { this.request = request; this.fence = fence; this.text = text; }
     }

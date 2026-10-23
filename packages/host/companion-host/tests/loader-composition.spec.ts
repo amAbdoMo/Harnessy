@@ -6,17 +6,18 @@ import { dirname, join } from 'node:path'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import Tools from '@deepseek-ai/dsh-tools'
-import { createMessage, createUserMessage, LlmAdapter } from '@deepseek-ai/dsh-llm'
+import { createMessage, createToolResultMessage, createUserMessage, LlmAdapter } from '@deepseek-ai/dsh-llm'
+import { ToolCallId } from '@deepseek-ai/dsh-llm/brand'
 import SessionProjectionCache from '@deepseek-ai/dsh-session-projection-cache'
 import SessionTitle from '@deepseek-ai/dsh-session-title'
-import type { GenerateOptions, LlmResolvedModelInfo, StreamChunk } from '@deepseek-ai/dsh-llm'
+import type { GenerateOptions, LlmModelInfo, LlmResolvedModelInfo, StreamChunk } from '@deepseek-ai/dsh-llm'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import { credentialKey } from '@deepseek-ai/dsh-credentials'
 import {
   createPhoneHandshake, createRelayChallenge, exactRecord, exportPublicKey, generateP256KeyPair,
   parseApplicationRequest, parseApplicationResult, parseHttpsOrigin, parseId, parsePairingInvitation, parsePublicKey, verifyRelayChallenge,
 } from '@deepseek-ai/dsh-companion-protocol'
-import type { ApplicationRequest, ChannelId, PhoneHandshake, SocketGeneration } from '@deepseek-ai/dsh-companion-protocol'
+import type { ApplicationRequest, ApplicationResult, ChannelId, PhoneHandshake, SocketGeneration } from '@deepseek-ai/dsh-companion-protocol'
 import { RECORD_KEY } from '../src/records.ts'
 import type { PrivateRecord } from '../src/records.ts'
 import { composition, config } from './composition.ts'
@@ -178,7 +179,7 @@ async function listSessions(approved: Awaited<ReturnType<typeof approvedChannel>
   return { result, plaintext }
 }
 
-async function managementExchange(approved: Awaited<ReturnType<typeof approvedChannel>>, request: ApplicationRequest) {
+async function applicationExchange(approved: Awaited<ReturnType<typeof approvedChannel>>, request: ApplicationRequest) {
   const { route, phone, channel } = approved
   const before = payloads(route.ws).length
   await channel.sendApplication(Buffer.from(JSON.stringify(request)), async (frame) => { phone.deliver(frame) })
@@ -210,12 +211,19 @@ class RegressionBarrier {
 
 class RegressionModel extends LlmAdapter {
   readonly streamBarrier = new RegressionBarrier()
+  streamStarts = 0
+
+  override listModels(provider: string): Promise<readonly LlmModelInfo[]> {
+    return Promise.resolve([{ provider, id: 'fixture', name: 'Initial fixture model' },
+      { provider, id: 'fixture-next', name: 'Other fixture model' }])
+  }
 
   override resolveModel(provider: string, model: string): Promise<LlmResolvedModelInfo> {
     return Promise.resolve({ provider, id: model, name: model, inputModalities: ['text'] })
   }
 
   override async *stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
+    this.streamStarts++
     await this.streamBarrier.enter()
     options.signal?.throwIfAborted()
     yield { type: 'block-start', index: 0, blockType: 'text' }
@@ -274,9 +282,9 @@ describe('companion Host source Loader composition', () => {
         ? { v: 1, type, requestId, limit: 10 }
         : { v: 1, type, requestId, operationId: requestId, sessionId: session.id, pinned }), config.budgets.application)
     }
-    expect(await managementExchange(approved, request('listManagementWorkspaces')))
+    expect(await applicationExchange(approved, request('listManagementWorkspaces')))
       .toMatchObject({ type: 'managementWorkspaces', enabled: false, workspaces: [] })
-    expect(await managementExchange(approved, request('setSessionPinned', true)))
+    expect(await applicationExchange(approved, request('setSessionPinned', true)))
       .toMatchObject({ type: 'managed', outcome: 'rejected', code: 'denied' })
     expect(fixture.ctx.workspaceRegistry.pinnedSessionIds).not.toContain(session.id)
     await fixture.ctx.companionHost.setSessionManagement({ kind: 'setSessionManagement', grantId: original.grantId,
@@ -284,19 +292,19 @@ describe('companion Host source Loader composition', () => {
     approved = await resumeChannel(fixture, approved)
     expect(approved.grant).toMatchObject({ grantId: original.grantId, generation: original.generation,
       fingerprint: original.fingerprint, sessionManagement: true })
-    expect(await managementExchange(approved, request('listManagementWorkspaces'))).toMatchObject({
+    expect(await applicationExchange(approved, request('listManagementWorkspaces'))).toMatchObject({
       type: 'managementWorkspaces', enabled: true, workspaces: [{ id: workspace.id, title: workspace.title }],
     })
-    expect(await managementExchange(approved, request('setSessionPinned', true))).toMatchObject({
+    expect(await applicationExchange(approved, request('setSessionPinned', true))).toMatchObject({
       type: 'managed', action: 'pin', outcome: 'applied', session: { sessionId: session.id, navigation: { pinOrder: 0 } },
     })
     expect(fixture.ctx.workspaceRegistry.pinnedSessionIds).toContain(session.id)
     await fixture.ctx.companionHost.setSessionManagement({ kind: 'setSessionManagement', grantId: original.grantId,
       expectedGeneration: original.generation, fingerprint: original.fingerprint, enabled: false })
     approved = await resumeChannel(fixture, approved)
-    expect(await managementExchange(approved, request('listManagementWorkspaces')))
+    expect(await applicationExchange(approved, request('listManagementWorkspaces')))
       .toMatchObject({ type: 'managementWorkspaces', enabled: false, workspaces: [] })
-    expect(await managementExchange(approved, request('setSessionPinned', false)))
+    expect(await applicationExchange(approved, request('setSessionPinned', false)))
       .toMatchObject({ type: 'managed', outcome: 'rejected', code: 'denied' })
     expect(fixture.ctx.workspaceRegistry.pinnedSessionIds).toContain(session.id)
   })
@@ -347,6 +355,218 @@ describe('companion Host source Loader composition', () => {
       .rejects.toThrow('mismatched candidate')
   })
 
+  it('sends tool locations only under separate consent in encrypted history and live activity, then withdraws the channel', async () => {
+    const fixture = await boot()
+    const initial = await approvedChannel(fixture)
+    const { agent } = await sessionAgent(fixture)
+    const privateText = 'PRIVATE-ARGUMENT-CONTENT-DIFF-ERROR'
+    const recordRead = (id: string) => {
+      const callId = ToolCallId(id)
+      const call = agent.session.append('tool/call', { turn: 1, step: 1, callId, name: 'read', arguments: privateText })
+      return agent.session.append('tool/result', { turn: 1, step: 1,
+        message: createToolResultMessage({ callId, content: [{ type: 'text', text: privateText }], isError: false }),
+        meta: { path: join(fixture.home, 'src', 'visible.ts'), offset: 4, totalLines: 12,
+          lines: [{ number: 4, text: privateText }, { number: 5, text: privateText }] },
+      }, { surfaceOp: 'append', sourceEventSeqs: [call.seq] })
+    }
+    recordRead('historical-read')
+    await fixture.ctx.sessions.flush(agent.session)
+    const historyRequest = (ordinal: number) => parseApplicationRequest(JSON.stringify({ v: 1, type: 'readHistory',
+      requestId: Buffer.alloc(16, ordinal).toString('base64url'), sessionId: agent.id, limit: 10 }), config.budgets.application)
+    expect(await applicationExchange(initial, historyRequest(1))).toMatchObject({ type: 'history', rows: [] })
+    const consent = { kind: 'setToolDetails' as const, grantId: initial.grant.grantId,
+      expectedGeneration: initial.grant.generation, fingerprint: initial.grant.fingerprint }
+    await fixture.ctx.companionHost.setToolDetails({ ...consent, enabled: true })
+    const approved = await resumeChannel(fixture, initial)
+    expect(approved.grant).toMatchObject({ toolDetails: true, modelSelection: false, sessionManagement: false })
+    const history = await applicationExchange(approved, historyRequest(2))
+    if (history.type !== 'history') throw new Error('Expected bounded history')
+    expect(history.rows.map(row => row.text)).toEqual(['read', 'read — completed\nsrc/visible.ts\nReturned 2 lines from 4; total 12'])
+    expect(JSON.stringify(history)).not.toContain(privateText)
+
+    const decodeFrom = async (offset: number, count: number): Promise<ApplicationResult[]> => {
+      await vi.waitFor(() => { expect(payloads(approved.route.ws).length).toBeGreaterThanOrEqual(offset + count) })
+      const decoded: ApplicationResult[] = []
+      for (const frame of payloads(approved.route.ws).slice(offset)) {
+        const received = await approved.channel.receive(frame)
+        if (received.kind !== 'application') throw new Error('Expected encrypted progress or acknowledgement')
+        decoded.push(parseApplicationResult(received.plaintext.toString('utf8'), config.budgets.application))
+      }
+      return decoded
+    }
+    const baseline = payloads(approved.route.ws).length
+    await approved.channel.sendApplication(Buffer.from(JSON.stringify({ v: 1, type: 'watchProgress', sessionId: agent.id,
+      requestId: Buffer.alloc(16, 3).toString('base64url') })), async (frame) => { approved.phone.deliver(frame) })
+    expect((await decodeFrom(baseline, 2)).some(result => result.type === 'watching')).toBe(true)
+    const liveStart = payloads(approved.route.ws).length
+    const liveResult = recordRead('live-read')
+    const live = await decodeFrom(liveStart, 2)
+    const rows = live.flatMap(result => result.type === 'progress' ? result.rows : [])
+    expect(rows.find(row => row.id === `event-${liveResult.seq}`)?.text).toBe(history.rows[1]?.text)
+    expect(JSON.stringify(live)).not.toContain(privateText)
+    await fixture.ctx.companionHost.setToolDetails({ ...consent, enabled: false })
+    const withdrawn = payloads(approved.route.ws).length
+    recordRead('after-withdrawal')
+    expect(payloads(approved.route.ws)).toHaveLength(withdrawn)
+    const resumed = await resumeChannel(fixture, approved)
+    expect(await applicationExchange(resumed, historyRequest(4))).toMatchObject({ type: 'history', rows: [] })
+  })
+
+  it('opens two cold chats and changes only one model through the encrypted phone channel without Desktop navigation', async () => {
+    const fixture = await boot()
+    const initial = await approvedChannel(fixture)
+    const unrelated = await sessionAgent(fixture)
+    const cold = async (id: string) => {
+      const handle = await fixture.ctx.agents.create({ sessionId: SessionId(id), meta: { cwd: fixture.home },
+        agentOptions: { provider: 'fixture', model: 'fixture' } })
+      handle.agent.session.append('turn/start', { turn: 1 })
+      handle.agent.session.append('user/message', createUserMessage({ content: [{ type: 'text', text: `Existing ${id}` }],
+        source: { kind: 'user' } }), { surfaceOp: 'append' })
+      handle.agent.session.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
+      await fixture.ctx.sessions.flush(handle.agent.session)
+      await handle.dispose()
+      return SessionId(id)
+    }
+    const a = await cold('phone-cold-a'), b = await cold('phone-cold-b')
+    const defaults = fixture.ctx.agentDefaultModel.currentSelection()
+    let ordinal = 1
+    const request = (fields: object) => parseApplicationRequest(JSON.stringify({ v: 1,
+      requestId: Buffer.alloc(16, ordinal++).toString('base64url'), ...fields }), config.budgets.application)
+    const opening = (sessionId: string) => request({ type: 'openSession', sessionId,
+      operationId: Buffer.alloc(16, ordinal + 32).toString('base64url') })
+    expect(await applicationExchange(initial, request({ type: 'getSessionActivation' })))
+      .toMatchObject({ type: 'sessionActivation', enabled: false })
+    expect(await applicationExchange(initial, request({ type: 'readHistory', sessionId: a, limit: 10 })))
+      .toMatchObject({ type: 'history', rows: [{ role: 'user', text: `Existing ${a}` }] })
+    expect(fixture.ctx.agents.get(a)).toBeUndefined()
+    expect(fixture.ctx.agents.get(b)).toBeUndefined()
+    expect(await applicationExchange(initial, request({ type: 'submitText', sessionId: a,
+      submissionId: Buffer.alloc(16, 91).toString('base64url'), text: 'Must not activate a cold Agent' })))
+      .toMatchObject({ type: 'error', code: 'unavailable' })
+    expect(fixture.ctx.agents.get(a)).toBeUndefined()
+    expect(await applicationExchange(initial, opening(a))).toMatchObject({ type: 'sessionOpened', outcome: 'rejected', code: 'denied' })
+    const identity = { grantId: initial.grant.grantId, expectedGeneration: initial.grant.generation,
+      fingerprint: initial.grant.fingerprint }
+    await fixture.ctx.companionHost.setSessionActivation({ kind: 'setSessionActivation', ...identity, enabled: true })
+    const activated = await resumeChannel(fixture, initial)
+    expect(activated.grant).toMatchObject({ sessionActivation: true, modelSelection: false, sessionManagement: false })
+    expect(await applicationExchange(activated, opening(a)))
+      .toMatchObject({ type: 'sessionOpened', outcome: 'applied', session: { sessionId: a, status: 'idle' } })
+    const first = fixture.ctx.agents.get(a)
+    expect(first).toBeDefined()
+    expect(fixture.ctx.agents.get(b)).toBeUndefined()
+    expect(await applicationExchange(activated, request({ type: 'listSessionModels', sessionId: a, limit: 10 })))
+      .toMatchObject({ type: 'sessionModels', state: 'denied' })
+    expect(await applicationExchange(activated, opening(b))).toMatchObject({ type: 'sessionOpened', outcome: 'applied' })
+    const second = fixture.ctx.agents.get(b)
+    expect(second).toBeDefined()
+    await fixture.ctx.companionHost.setModelSelection({ kind: 'setModelSelection', ...identity, enabled: true })
+    const modeled = await resumeChannel(fixture, activated)
+    const catalog = await applicationExchange(modeled, request({ type: 'listSessionModels', sessionId: a, limit: 10 }))
+    if (catalog.type !== 'sessionModels' || catalog.state !== 'ready') {
+      throw new Error(`Expected an idle chat model catalog: ${JSON.stringify(catalog)}`)
+    }
+    const choice = catalog.models.find(model => model.title === 'Other fixture model')
+    if (choice === undefined || first === undefined || second === undefined) throw new Error('Expected real PC model choices and Agents')
+    expect(await applicationExchange(modeled, request({ type: 'selectSessionModel', sessionId: a,
+      operationId: Buffer.alloc(16, 90).toString('base64url'), revision: catalog.revision, choiceId: choice.id })))
+      .toMatchObject({ type: 'modelSelected', outcome: 'applied', selected: choice })
+    expect(fixture.ctx.sessionController.currentModelSelection(first)).toMatchObject({ provider: 'fixture', model: 'fixture-next' })
+    expect(fixture.ctx.sessionController.currentModelSelection(second)).toMatchObject({ provider: 'fixture', model: 'fixture' })
+    expect(fixture.ctx.agentDefaultModel.currentSelection()).toEqual(defaults)
+    expect(fixture.ctx.agents.get(unrelated.agent.id)).toBe(unrelated.agent)
+    expect(unrelated.model.streamStarts).toBe(0)
+    expect(first.inbox.nextStep).toHaveLength(0)
+    expect(first.inbox.nextTurn).toHaveLength(0)
+    await fixture.ctx.companionHost.setSessionActivation({ kind: 'setSessionActivation', ...identity, enabled: false })
+    expect(fixture.ctx.agents.get(a)).toBe(first)
+    expect(fixture.ctx.agents.get(b)).toBe(second)
+    expect(fixture.ctx.companionHost.describe().paired).toEqual([{ ...initial.grant, modelSelection: true }])
+  })
+
+  it('keeps native model consent independent of management and preserves the paired identity across withdrawal', async () => {
+    const fixture = await boot()
+    const approved = await approvedChannel(fixture)
+    const original = approved.grant
+    const identity = { grantId: original.grantId, expectedGeneration: original.generation, fingerprint: original.fingerprint }
+    expect(original).toMatchObject({ sessionManagement: false, modelSelection: false })
+    await fixture.ctx.companionHost.setModelSelection({ kind: 'setModelSelection', ...identity, enabled: true })
+    expect(fixture.ctx.companionHost.describe().paired).toEqual([{ ...original, modelSelection: true }])
+    await fixture.ctx.companionHost.setSessionManagement({ kind: 'setSessionManagement', ...identity, enabled: true })
+    await fixture.ctx.companionHost.setModelSelection({ kind: 'setModelSelection', ...identity, enabled: false })
+    expect(fixture.ctx.companionHost.describe().paired).toEqual([{ ...original, sessionManagement: true }])
+    const record = await stored(fixture)
+    expect(record.v).toBe(5)
+    expect(record.grants).toHaveLength(1)
+    expect(record.grants[0]).toMatchObject({ grantId: original.grantId, generation: original.generation, sessionManagementV1: true })
+    expect(record.grants[0]).not.toHaveProperty('modelSelectionV1')
+  })
+
+  it('reads v2 management consent without rewriting or granting models, then preserves it on a v5 model-consent write', async () => {
+    const fixture = await boot()
+    const approved = await approvedChannel(fixture)
+    const original = await stored(fixture)
+    await disableHost(fixture)
+    const legacy = { ...original, v: 2, grants: original.grants.map(grant => ({ ...grant, sessionManagementV1: true })) }
+    await fixture.ctx.credentials.modifyRecord(RECORD_KEY, async () => ({ kind: 'grant', payload: legacy }))
+    const bytes = await readFile(credentialsPath(fixture), 'utf8')
+    const restarted = await boot(config, fixture.home)
+    expect(restarted.ctx.companionHost.describe().paired).toEqual([{ ...approved.grant, sessionManagement: true, modelSelection: false }])
+    expect(await readFile(credentialsPath(restarted), 'utf8')).toBe(bytes)
+    await restarted.ctx.companionHost.setModelSelection({ kind: 'setModelSelection', grantId: approved.grant.grantId,
+      expectedGeneration: approved.grant.generation, fingerprint: approved.grant.fingerprint, enabled: true })
+    expect(await stored(restarted)).toEqual({ ...original,
+      grants: original.grants.map(grant => ({ ...grant, sessionManagementV1: true, modelSelectionV1: true })) })
+  })
+
+  it.each([2, 3])('preserves v%s pairing and other consents until an explicit independent tool-details decision', async (version) => {
+    const fixture = await boot()
+    const approved = await approvedChannel(fixture)
+    const original = await stored(fixture)
+    await disableHost(fixture)
+    const legacy = { ...original, v: version, grants: original.grants.map(grant => ({ ...grant,
+      sessionManagementV1: true, ...(version === 3 ? { modelSelectionV1: true } : {}) })) }
+    await fixture.ctx.credentials.modifyRecord(RECORD_KEY, async () => ({ kind: 'grant', payload: legacy }))
+    const bytes = await readFile(credentialsPath(fixture), 'utf8')
+    const restarted = await boot(config, fixture.home)
+    const before = { ...approved.grant, sessionManagement: true, modelSelection: version === 3, toolDetails: false }
+    expect(restarted.ctx.companionHost.describe().paired).toEqual([before])
+    expect(await readFile(credentialsPath(restarted), 'utf8')).toBe(bytes)
+    const identity = { grantId: before.grantId, expectedGeneration: before.generation, fingerprint: before.fingerprint }
+    await restarted.ctx.companionHost.setToolDetails({ kind: 'setToolDetails', ...identity, enabled: true })
+    expect(restarted.ctx.companionHost.describe().paired).toEqual([{ ...before, toolDetails: true }])
+    expect(await stored(restarted)).toEqual({ ...legacy, v: 5,
+      grants: legacy.grants.map(grant => ({ ...grant, toolDetailsV1: true })) })
+    await restarted.ctx.companionHost.setToolDetails({ kind: 'setToolDetails', ...identity, enabled: false })
+    expect(restarted.ctx.companionHost.describe().paired).toEqual([before])
+    expect((await stored(restarted)).grants[0]).not.toHaveProperty('toolDetailsV1')
+  })
+
+  it.each([1, 2, 3, 4])('reads v%s without enabling activation or rewriting, then preserves prior grants on explicit v5 activation consent', async (version) => {
+    const fixture = await boot()
+    const approved = await approvedChannel(fixture)
+    const original = await stored(fixture)
+    await disableHost(fixture)
+    const grants = original.grants.map(grant => ({ ...grant,
+      ...(version >= 2 ? { sessionManagementV1: true } : {}),
+      ...(version >= 3 ? { modelSelectionV1: true } : {}),
+      ...(version >= 4 ? { toolDetailsV1: true } : {}),
+    }))
+    const legacy = { ...original, v: version, grants }
+    await fixture.ctx.credentials.modifyRecord(RECORD_KEY, async () => ({ kind: 'grant', payload: legacy }))
+    const bytes = await readFile(credentialsPath(fixture), 'utf8')
+    const restarted = await boot(config, fixture.home)
+    const before = { ...approved.grant, sessionManagement: version >= 2, modelSelection: version >= 3,
+      toolDetails: version >= 4, sessionActivation: false }
+    expect(restarted.ctx.companionHost.describe().paired).toEqual([before])
+    expect(await readFile(credentialsPath(restarted), 'utf8')).toBe(bytes)
+    await restarted.ctx.companionHost.setSessionActivation({ kind: 'setSessionActivation', grantId: before.grantId,
+      expectedGeneration: before.generation, fingerprint: before.fingerprint, enabled: true })
+    expect(restarted.ctx.companionHost.describe().paired).toEqual([{ ...before, sessionActivation: true }])
+    expect(await stored(restarted)).toEqual({ ...legacy, v: 5,
+      grants: grants.map(grant => ({ ...grant, sessionActivationV1: true })) })
+  })
+
   it('reads a legacy grant as denied without rewriting and upgrades only explicit consent while preserving all identities', async () => {
     const fixture = await boot()
     const approved = await approvedChannel(fixture)
@@ -356,7 +576,7 @@ describe('companion Host source Loader composition', () => {
     const retained = await fixture.ctx.companionHost.approveCandidate(second.current.candidateId, second.current.fingerprint)
     await confirm(second.attempt, approved.route.ws, second.deliver, offset)
     const original = await stored(fixture)
-    expect(original.v).toBe(2)
+    expect(original.v).toBe(5)
     expect(original.grants[0]).not.toHaveProperty('sessionManagementV1')
     await disableHost(fixture)
     const legacy = { ...original, v: 1 }
@@ -466,13 +686,28 @@ describe('companion Host source Loader composition', () => {
   })
 
   it.each([
-    ['future version', { v: 3 }],
+    ['future version', { v: 6 }],
     ['unknown version', { v: 0 }],
     ['legacy authority field', { v: 1, permission: true }],
     ['explicit false', { v: 2, permission: false }],
     ['null permission', { v: 2, permission: null }],
     ['string permission', { v: 2, permission: 'true' }],
     ['unknown grant field', { v: 2, extra: true }],
+    ['model permission on v1', { v: 1, modelPermission: true }],
+    ['model permission on v2', { v: 2, modelPermission: true }],
+    ['false model permission', { v: 3, modelPermission: false }],
+    ['null model permission', { v: 3, modelPermission: null }],
+    ['string model permission', { v: 3, modelPermission: 'true' }],
+    ['tool details on v1', { v: 1, toolPermission: true }],
+    ['tool details on v2', { v: 2, toolPermission: true }],
+    ['tool details on v3', { v: 3, toolPermission: true }],
+    ['false tool details', { v: 4, toolPermission: false }],
+    ['null tool details', { v: 4, toolPermission: null }],
+    ['string tool details', { v: 4, toolPermission: 'true' }],
+    ['activation on v4', { v: 4, activationPermission: true }],
+    ['false activation', { v: 5, activationPermission: false }],
+    ['null activation', { v: 5, activationPermission: null }],
+    ['string activation', { v: 5, activationPermission: 'true' }],
   ] as const)('refuses %s durable authority without resetting or rewriting', async (_name, corruption) => {
     const fixture = await boot()
     await approvedChannel(fixture)
@@ -480,6 +715,9 @@ describe('companion Host source Loader composition', () => {
     await disableHost(fixture)
     const corrupt = { ...original, v: corruption.v, grants: original.grants.map(grant => ({ ...grant,
       ...('permission' in corruption ? { sessionManagementV1: corruption.permission } : {}),
+      ...('modelPermission' in corruption ? { modelSelectionV1: corruption.modelPermission } : {}),
+      ...('toolPermission' in corruption ? { toolDetailsV1: corruption.toolPermission } : {}),
+      ...('activationPermission' in corruption ? { sessionActivationV1: corruption.activationPermission } : {}),
       ...('extra' in corruption ? { unknownAuthority: corruption.extra } : {}) })) }
     await fixture.ctx.credentials.modifyRecord(RECORD_KEY, async () => ({ kind: 'grant', payload: corrupt }))
     const before = await readFile(credentialsPath(fixture), 'utf8')

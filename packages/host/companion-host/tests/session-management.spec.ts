@@ -140,7 +140,7 @@ function dispatcher(fixture: Composition, settings: {
   const current = createApplicationDispatcher(fixture.ctx, {
     signal: fixture.owner.signal,
     requireCurrent: () => { if (!authority.current) throw new Error('private grant diagnostic') },
-    managementAccess: () => authority.enabled,
+    managementAccess: () => authority.enabled, modelAccess: () => false, toolDetailsAccess: () => false, activationAccess: () => false,
     grantId: parseId<GrantId>('management-grant'), generation: 1,
     budget: settings.budget ?? budget, maxWatches: 1,
     maxPendingRequests: settings.maxPendingRequests ?? 4, maxProgressBuffer: 2,
@@ -273,6 +273,22 @@ describe('companion supported PC management', () => {
     expect(await dispatch.dispatch(request({ ...cold, type: 'createSession', workspaceId: fixture.workspace.id })))
       .toMatchObject({ outcome: 'rejected', code: 'conflict' })
     expect(createCall).not.toHaveBeenCalled()
+  })
+
+  it('does not activate a cold chat through management consent or live-only rename', async () => {
+    const fixture = await boot()
+    const dispatch = dispatcher(fixture, { enabled: true })
+    const session = fixture.ctx.sessions.prepare(SessionId('cold-management-target'), { meta: { cwd: fixture.home } })
+    await using writer = await fixture.ctx.sessionPersistence.create(session.header)
+    await writer.flush()
+    const before = (await durableLog(fixture, session.id)).text
+    expect(await dispatch.dispatch(command('renameSession', session.id, { title: 'Must not initialize' })))
+      .toMatchObject({ outcome: 'rejected', code: 'unavailable' })
+    expect(() => fixture.ctx.sessionController.renameLiveSession({ sessionId: session.id, title: 'Still cold' })).toThrow()
+    expect(fixture.ctx.agents.get(session.id)).toBeUndefined()
+    expect(fixture.ctx.sessions.get(session.id)).toBeUndefined()
+    expect((await durableLog(fixture, session.id)).text).toBe(before)
+    expect(fixture.model.calls).toBe(0)
   })
 
   it('persists rename, preserves other pins, applies desired pin state, and archives without deleting the log', async () => {

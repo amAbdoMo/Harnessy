@@ -224,7 +224,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-api-session-controller`
 
 - `inject`: `agentDefaultModel` · `agents` · `attachments` · `fileUploads` · `fs` · `llm` · `sessions` · `sessionProjections` · `sessionQuery` · `typert` · `workspaceRegistry`
-- `source`: [`packages/api/session-controller/src/index.ts:69`](../packages/api/session-controller/src/index.ts)
+- `source`: [`packages/api/session-controller/src/index.ts:73`](../packages/api/session-controller/src/index.ts)
 
 ```ts config-catalog
 /** Optional deployment values accepted by the Session Remote owner. */
@@ -236,6 +236,8 @@ export interface Config {
   readonly nativeOpen?: boolean
   /** Positive integral milliseconds of list work before yielding between complete rows. */
   readonly listWorkSliceMs?: number
+  /** Maximum retained preparations and admitted existing-chat activations across Host callers. */
+  readonly maxPendingActivations?: number
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-api-session-controller -->
@@ -771,7 +773,7 @@ export interface ToolResultPruneConfig {
 
 ## `@deepseek-ai/dsh-companion-host`
 
-- `inject`: `credentials` · `sessionController` · `sessionQuery` · `sessions` · `agents`
+- `inject`: `credentials` · `sessionController` · `sessionQuery` · `sessions` · `agents` · `llm`
 - `refs`: [`ApplicationBudget`](../packages/util/companion-protocol/src/index.ts) · [`ChannelBudget`](../packages/util/companion-protocol/src/index.ts)
 - `source`: [`packages/host/companion-host/src/config.ts:51`](../packages/host/companion-host/src/config.ts)
 

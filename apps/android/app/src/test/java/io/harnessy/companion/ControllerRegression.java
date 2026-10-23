@@ -36,6 +36,23 @@ public final class ControllerRegression {
         foregroundMetadataLoadPreventsStaleForgetSnapshot();
         clearingDeliveryFenceCannotClearPairingRepair();
         historyBaselineMergesWatchProgressAndRefreshRetainsOlderSelection();
+        closedSelectionReadsApprovedHistoryWithoutWatchingOrSending();
+        closedRefreshAndReconnectNeverSubscribeOrRenew();
+        laterPageResumptionRetiresClosedHistoryAndWaitsForWatchAcknowledgement();
+        laterPageResumptionPreservesPendingClosedWatchCancellation();
+        idleAndBusySelectionsKeepWatchBeforeHistoryAndLiveMerge();
+        closedProgressBeforeOrAfterAcknowledgementStopsRenewal();
+        closedWatchRetirementPreservesHistoryRecovery();
+        bufferedClosureCannotBypassDeniedOrMissingWatchAcknowledgement();
+        closedWatchCancellationRemainsCorrelatedAndFailClosed();
+        explicitReadRecoveryRequiresMatchingHistoryAndFailureVersion();
+        listingRecoveryWithoutSelectionClearsItsReadFailure();
+        deniedWatchFallbackCannotClearFailureOrAuthorizeSend();
+        readRecoveryPreservesSendStorageRepairAndFenceWarnings();
+        staleHistoryCallbacksCannotReplaceSelectionOrRecoverFailures();
+        uncertainWatchCancellationStillClosesTheConnection();
+        ordinaryReadsOptInWhileHeartbeatStaysLegacyAndDenialNeverDowngrades();
+        navigationSurvivesRefreshPagingAndReconnectWithoutInventingLegacyMetadata();
     }
 
     private static void lostAckNeverResendsAndRetiredCallbacksCannotAcknowledge() throws Exception {
@@ -201,7 +218,7 @@ public final class ControllerRegression {
         Fixture oversized = new Fixture(); oversized.saved.clear(); oversized.controller.start();
         char[] wide = new char[1366]; java.util.Arrays.fill(wide, '界');
         oversized.controller.importLink(new String(wide));
-        check(oversized.screen.feedback == Feedback.PAIRING_INVALID, "Loading-time imports count complete UTF-8 bytes, not characters");
+        check(oversized.screen.composer.feedback == Feedback.PAIRING_INVALID, "Loading-time imports count complete UTF-8 bytes, not characters");
         oversized.pump();
         check(oversized.pairing == null && oversized.createdKeys.isEmpty(), "Over-budget intents are not retained or enrolled");
     }
@@ -248,6 +265,484 @@ public final class ControllerRegression {
             "A terminal error after WATCHING retires the correlated watch but preserves displayed text");
     }
 
+    private static void closedSelectionReadsApprovedHistoryWithoutWatchingOrSending() throws Exception {
+        Fixture fixture = new Fixture(); fixture.startWithSessions(Collections.singletonList(session("s1", "closed")));
+        fixture.controller.selectSession("s1");
+        check(fixture.latest().last("readHistory") != null && fixture.latest().last("watchProgress") == null,
+            "Closed Add Mobile and Tablet Previews selection reads history without a rejected live watch");
+        String markdown = "# Preview\n\n`native`";
+        fixture.historyPage(Collections.singletonList(row(1, "r1", markdown)), "cGFnZQ");
+        fixture.controller.loadMoreHistory();
+        check("cGFnZQ".equals(fixture.latest().last("readHistory").get("cursor")), "Closed history preserves opaque paging");
+        fixture.latest().result(error(fixture.latest().last("readHistory"), "unavailable"));
+        check(fixture.screen.composer.feedback == Feedback.REFRESH_FAILED, "A genuine closed-history read failure still reports failure");
+        fixture.controller.loadMoreHistory();
+        fixture.historyPage(Collections.singletonList(row(2, "r2", "approved")), null);
+        fixture.controller.draftChanged("blocked"); fixture.controller.sendText("blocked"); fixture.pump();
+        check(fixture.screen.conversation.rows.size() == 2 && fixture.screen.conversation.rows.get(0).text.equals(markdown)
+            && fixture.screen.composer.feedback == Feedback.NONE, "Approved Markdown is retained without a refresh-failure banner");
+        check(fixture.screen.conversation.session.status == SessionStatus.CLOSED && fixture.screen.composer.state == SendState.CLOSED
+            && fixture.latest().last("submitText") == null && fixture.fences.isEmpty(), "Closed history never authorizes a mutation");
+    }
+
+    private static void closedRefreshAndReconnectNeverSubscribeOrRenew() throws Exception {
+        Fixture fixture = new Fixture(); fixture.closedReady();
+        fixture.controller.refresh();
+        fixture.sessions(Collections.singletonList(session("newer", "idle")), "cGFnZQ");
+        fixture.historyPage(Collections.singletonList(row(1, "retained", "history")), null);
+        check(fixture.screen.conversation.session.id.equals("s1"), "Incomplete refreshed listings retain an older closed selection");
+        fixture.controller.loadMoreSessions(); fixture.sessions(Collections.singletonList(session("s1", "closed")), null);
+        for (int heartbeat = 0; heartbeat < 3; heartbeat++) {
+            fixture.advance(20000); fixture.sessions(Collections.singletonList(session("s1", "closed")), null);
+        }
+        check(fixture.latest().last("watchProgress") == null && fixture.latest().last("cancelRead") == null
+            && fixture.screen.pc.connection == Connection.ONLINE, "Closed sessions have neither watches nor renewals while heartbeats remain live");
+        fixture.latest().events.disconnected(); fixture.advance(5000); fixture.confirm();
+        fixture.sessions(Collections.singletonList(session("s1", "closed")), null);
+        check(fixture.latest().last("readHistory") != null && fixture.latest().last("watchProgress") == null,
+            "Reconnect refreshes closed history directly");
+        fixture.historyPage(Collections.emptyList(), null);
+        check(fixture.screen.conversation.rows.size() == 1 && fixture.screen.composer.state == SendState.CLOSED
+            && fixture.screen.composer.feedback == Feedback.NONE, "Reconnect preserves closed text and no-send state without false failure");
+    }
+
+    private static void laterPageResumptionRetiresClosedHistoryAndWaitsForWatchAcknowledgement() throws Exception {
+        for (boolean completed : new boolean[] { false, true }) {
+            Fixture fixture = new Fixture(); fixture.controller.start(); fixture.pump(); fixture.confirm();
+            fixture.sessions(Collections.singletonList(session("newer", "idle")), "cGFnZQ");
+            fixture.controller.loadMoreSessions(); fixture.sessions(Collections.singletonList(navigationSession("s1", "closed", 42)), null);
+            fixture.controller.selectSession("s1"); fixture.historyPage(Collections.singletonList(row(1, "retained", "approved")), null);
+            fixture.latest().events.disconnected(); fixture.advance(5000); fixture.confirm();
+            fixture.sessions(Collections.singletonList(session("newer", "idle")), "cGFnZQ");
+            Map<String, Object> oldHistory = fixture.latest().last("readHistory");
+            check(oldHistory != null && fixture.latest().last("watchProgress") == null
+                && fixture.screen.conversation.session.navigation.updatedAt == 42,
+                "Reconnect first-page retention reads the older closed selection without inventing new metadata");
+            if (completed) fixture.historyPage(Collections.emptyList(), "aGlzdG9yeQ");
+            fixture.controller.loadMoreSessions(); fixture.sessions(Collections.singletonList(navigationSession("s1", "running", 84)), null);
+            Map<String, Object> watch = fixture.latest().last("watchProgress");
+            SessionNavigation navigation = fixture.screen.conversation.session.navigation;
+            check(watch != null && fixture.latest().last("readHistory") == oldHistory && !fixture.screen.conversation.canLoadMore
+                && fixture.screen.conversation.session.status == SessionStatus.BUSY && navigation.updatedAt == 84,
+                "A later-page resumption establishes a watch and suspends closed-history paging until its acknowledgement");
+            fixture.controller.selectSession("s1"); fixture.controller.loadMoreHistory();
+            fixture.latest().result(history(oldHistory.get("requestId"), "s1", Collections.singletonList(row(2, "stale", "ignored")), "aGlzdG9yeQ"));
+            fixture.latest().result(error(oldHistory, "unavailable"));
+            fixture.controller.loadMoreHistory(); fixture.controller.sendText("blocked"); fixture.pump();
+            check(fixture.latest().last("watchProgress") == watch && fixture.latest().last("readHistory") == oldHistory
+                && fixture.screen.conversation.rows.size() == 1 && fixture.screen.composer.feedback == Feedback.NONE
+                && fixture.screen.composer.state == SendState.OFFLINE && fixture.latest().last("submitText") == null && fixture.fences.isEmpty(),
+                "Reselecting and stale closed-history callbacks cannot bypass the watch cut, recover paging or authorize sends");
+            String subscription = Protocol.randomId(16);
+            fixture.latest().result(Protocol.object("v", 1, "type", "watching", "requestId", watch.get("requestId"),
+                "sessionId", "s1", "subscriptionId", subscription));
+            Map<String, Object> baseline = fixture.latest().last("readHistory");
+            check(baseline != oldHistory && !baseline.containsKey("cursor") && fixture.screen.composer.state == SendState.OFFLINE,
+                "WATCHING acknowledgement precedes a fresh cursorless baseline and alone grants no send authority");
+            fixture.latest().result(history(oldHistory.get("requestId"), "s1", Collections.singletonList(row(2, "stale", "ignored")), null));
+            fixture.historyPage(Collections.singletonList(row(2, "between-cuts", "approved")), null);
+            fixture.latest().result(Protocol.object("v", 1, "type", "progress", "subscriptionId", Protocol.randomId(16),
+                "sessionId", "s1", "rows", Collections.emptyList(), "status", "idle"));
+            fixture.controller.sendText("still blocked"); fixture.pump();
+            check(fixture.screen.conversation.rows.size() == 2 && fixture.screen.conversation.rows.get(1).id.equals("between-cuts")
+                && fixture.screen.composer.state == SendState.OFFLINE && fixture.latest().last("submitText") == null && fixture.fences.isEmpty(),
+                "Fresh history covers the interval between closed history and the watch; unrelated progress cannot authorize sends");
+            fixture.latest().result(Protocol.object("v", 1, "type", "progress", "subscriptionId", subscription,
+                "sessionId", "s1", "rows", Collections.emptyList(), "status", "running"));
+            check(fixture.screen.composer.state == SendState.READY && fixture.screen.conversation.session.navigation == navigation
+                && fixture.screen.sessions.rows.stream().anyMatch(session -> session.id.equals("s1") && session.navigation == navigation)
+                && navigation.workspace.id.equals("workspace._:-1")
+                && navigation.workspace.title.equals("工作 🧭") && navigation.workspace.order == 7 && navigation.pinOrder == 0L,
+                "Only exact live progress restores readiness while preserving later-page workspace, pin and activity metadata");
+            for (int heartbeat = 0; heartbeat < 3; heartbeat++) {
+                fixture.advance(20000); fixture.sessions(Collections.singletonList(session("s1", "running")), null);
+            }
+            Map<String, Object> cancel = fixture.latest().last("cancelRead");
+            check(fixture.latest().last("watchProgress") != watch && fixture.latest().last("readHistory") == baseline
+                && subscription.equals(cancel.get("subscriptionId")), "The resumed watch renews through cancellation and ACK-before-history");
+            fixture.latest().result(Protocol.object("v", 1, "type", "cancelled", "requestId", cancel.get("requestId"),
+                "subscriptionId", subscription));
+            fixture.watching(); fixture.historyPage(Collections.emptyList(), null);
+            check(fixture.screen.pc.connection == Connection.ONLINE && fixture.screen.conversation.session.navigation == navigation,
+                "Renewal and legacy heartbeats preserve resumed navigation without reviving retired history deadlines");
+        }
+    }
+
+    private static void laterPageResumptionPreservesPendingClosedWatchCancellation() throws Exception {
+        for (String outcome : new String[] { "denied", "timeout", "wrongSubscription", "lateAck" }) {
+            Fixture fixture = new Fixture(); fixture.ready();
+            Map<String, Object> retiredWatch = fixture.latest().last("watchProgress");
+            fixture.latest().result(Protocol.object("v", 1, "type", "progress", "subscriptionId", fixture.subscription,
+                "sessionId", "s1", "rows", Collections.emptyList(), "status", "closed"));
+            Map<String, Object> cancel = fixture.latest().last("cancelRead");
+            fixture.controller.refresh(); fixture.sessions(Collections.singletonList(session("newer", "idle")), "cGFnZQ");
+            Map<String, Object> closedHistory = fixture.latest().last("readHistory");
+            fixture.controller.loadMoreSessions(); fixture.sessions(Collections.singletonList(navigationSession("s1", "running", 84)), null);
+            Map<String, Object> watch = fixture.latest().last("watchProgress");
+            check(watch != retiredWatch && fixture.latest().last("readHistory") == closedHistory
+                && fixture.latest().last("cancelRead") == cancel, "Reopening retires only closed history, not independent cancellation");
+            fixture.watching(); Map<String, Object> baseline = fixture.latest().last("readHistory");
+            fixture.historyPage(Collections.emptyList(), null);
+            fixture.latest().result(error(retiredWatch, "expired"));
+            fixture.latest().result(Protocol.object("v", 1, "type", "watching", "requestId", retiredWatch.get("requestId"),
+                "sessionId", "s1", "subscriptionId", cancel.get("subscriptionId")));
+            check(fixture.screen.composer.state == SendState.READY && fixture.latest().last("readHistory") == baseline,
+                "Retired watch expiry and late watch acknowledgement cannot disturb the replacement watch");
+            if (outcome.equals("denied")) fixture.latest().result(error(cancel, "denied"));
+            else {
+                if (outcome.equals("wrongSubscription")) fixture.latest().result(Protocol.object("v", 1, "type", "cancelled",
+                    "requestId", cancel.get("requestId"), "subscriptionId", Protocol.randomId(16)));
+                if (outcome.equals("lateAck")) {
+                    fixture.advance(9999);
+                    fixture.latest().result(Protocol.object("v", 1, "type", "cancelled", "requestId", cancel.get("requestId"),
+                        "subscriptionId", cancel.get("subscriptionId")));
+                    fixture.advance(1);
+                    check(!fixture.latest().closed && fixture.screen.composer.state == SendState.READY,
+                        "An exact late cancellation acknowledgement retires its deadline without touching the new watch");
+                    continue;
+                }
+                fixture.advance(10000);
+            }
+            check(fixture.latest().closed && fixture.screen.pc.connection == Connection.OFFLINE,
+                "Resumption cannot discard a closed-watch cancellation denial, deadline or subscription correlation");
+        }
+    }
+
+    private static void idleAndBusySelectionsKeepWatchBeforeHistoryAndLiveMerge() throws Exception {
+        for (String status : new String[] { "idle", "running" }) {
+            Fixture fixture = new Fixture(); fixture.startWithSessions(Collections.singletonList(navigationSession("s1", status, 42)));
+            SessionNavigation navigation = fixture.screen.sessions.rows.get(0).navigation;
+            fixture.controller.selectSession("s1");
+            check(fixture.latest().last("watchProgress") != null && fixture.latest().last("readHistory") == null,
+                "Active selections wait for the live cut acknowledgement");
+            String subscription = Protocol.randomId(16);
+            fixture.latest().result(Protocol.object("v", 1, "type", "progress", "subscriptionId", Protocol.randomId(16),
+                "sessionId", "s1", "rows", Collections.singletonList(row(1, "unrelated", "ignored")), "status", "closed"));
+            fixture.latest().result(Protocol.object("v", 1, "type", "progress", "subscriptionId", subscription,
+                "sessionId", "s1", "rows", Collections.singletonList(row(2, "live", "live")), "status", status));
+            Map<String, Object> watch = fixture.latest().last("watchProgress");
+            fixture.latest().result(Protocol.object("v", 1, "type", "watching", "requestId", watch.get("requestId"),
+                "sessionId", "s1", "subscriptionId", subscription));
+            fixture.historyPage(Collections.singletonList(row(1, "baseline", "baseline")), null);
+            check(fixture.screen.conversation.rows.size() == 2 && fixture.screen.conversation.rows.get(1).id.equals("live")
+                && fixture.screen.composer.state == SendState.READY, "Idle and busy baselines merge buffered live rows without losing send authority");
+            check(fixture.screen.conversation.session.status == (status.equals("idle") ? SessionStatus.IDLE : SessionStatus.BUSY)
+                && fixture.latest().last("cancelRead") == null, "Unrelated buffered closure cannot retire the acknowledged active watch");
+            check(fixture.screen.conversation.session.navigation == navigation
+                && fixture.screen.sessions.rows.get(0).navigation == navigation, "Active progress preserves the immutable navigation in both projections");
+        }
+    }
+
+    private static void closedProgressBeforeOrAfterAcknowledgementStopsRenewal() throws Exception {
+        for (boolean beforeAck : new boolean[] { true, false }) {
+            Fixture fixture = new Fixture(); fixture.startWithSessions(Collections.singletonList(navigationSession("s1", "running", 42)));
+            SessionNavigation navigation = fixture.screen.sessions.rows.get(0).navigation;
+            fixture.controller.selectSession("s1"); Map<String, Object> watch = fixture.latest().last("watchProgress");
+            String subscription = Protocol.randomId(16);
+            Map<String, Object> closed = Protocol.object("v", 1, "type", "progress", "subscriptionId", subscription,
+                "sessionId", "s1", "rows", Collections.singletonList(row(1, "final", "done")), "status", "closed");
+            Map<String, Object> late = Protocol.object("v", 1, "type", "progress", "subscriptionId", subscription,
+                "sessionId", "s1", "rows", Collections.singletonList(row(3, "late", "ignored")), "status", "running");
+            if (beforeAck) {
+                fixture.latest().result(closed); fixture.latest().result(late);
+                check(fixture.latest().last("cancelRead") == null && fixture.latest().last("readHistory") == null
+                    && fixture.screen.composer.state == SendState.OFFLINE, "Buffered closure cannot retire an unacknowledged subscription");
+            }
+            fixture.latest().result(Protocol.object("v", 1, "type", "watching", "requestId", watch.get("requestId"),
+                "sessionId", "s1", "subscriptionId", subscription));
+            if (!beforeAck) fixture.latest().result(closed);
+            Map<String, Object> baseline = fixture.latest().last("readHistory");
+            Map<String, Object> cancel = fixture.latest().last("cancelRead");
+            check(cancel != null && subscription.equals(cancel.get("subscriptionId")), "Closure cancels exactly the acknowledged subscription");
+            fixture.latest().result(error(watch, "expired")); fixture.latest().result(late);
+            check(fixture.latest().last("readHistory").get("requestId").equals(baseline.get("requestId"))
+                && fixture.screen.composer.feedback == Feedback.NONE && fixture.screen.composer.state == SendState.CLOSED,
+                "Late closed-watch expiry and progress cannot cancel pending history, revive send authority or create a failure");
+            fixture.latest().result(Protocol.object("v", 1, "type", "cancelled", "requestId", cancel.get("requestId"),
+                "subscriptionId", subscription));
+            fixture.historyPage(Collections.emptyList(), "cGFnZQ");
+            fixture.controller.loadMoreHistory(); Map<String, Object> page = fixture.latest().last("readHistory");
+            check("cGFnZQ".equals(page.get("cursor")), "Closed-watch retirement retains independent history paging");
+            fixture.latest().result(error(watch, "expired")); fixture.latest().result(closed); fixture.latest().result(late);
+            fixture.historyPage(Collections.singletonList(row(2, "history", "approved")), null);
+            fixture.controller.draftChanged("blocked"); fixture.controller.sendText("blocked"); fixture.pump();
+            for (int heartbeat = 0; heartbeat < 3; heartbeat++) {
+                fixture.advance(20000); fixture.sessions(Collections.singletonList(session("s1", "closed")), null);
+            }
+            check(fixture.latest().last("watchProgress").get("requestId").equals(watch.get("requestId"))
+                && fixture.latest().last("readHistory").get("requestId").equals(page.get("requestId"))
+                && fixture.latest().last("cancelRead").get("requestId").equals(cancel.get("requestId"))
+                && fixture.screen.pc.connection == Connection.ONLINE && fixture.screen.composer.feedback == Feedback.NONE,
+                "Closing progress retires only its watch without retrying or replacing independently paged history");
+            check(fixture.screen.composer.state == SendState.CLOSED && fixture.screen.conversation.rows.size() == 2
+                && fixture.screen.conversation.rows.get(0).id.equals("final") && fixture.screen.conversation.rows.get(1).id.equals("history")
+                && fixture.latest().last("submitText") == null && fixture.fences.isEmpty(),
+                "Closing progress retains final and paged text without sending or persisting a fence");
+            check(fixture.screen.conversation.session.navigation == navigation
+                && fixture.screen.sessions.rows.get(0).navigation == navigation,
+                "Buffered/direct closure and legacy heartbeat cannot erase workspace, pin or activity metadata");
+        }
+    }
+
+    private static void closedWatchRetirementPreservesHistoryRecovery() throws Exception {
+        Fixture fixture = new Fixture(); fixture.closedReady(); fixture.controller.refresh();
+        fixture.sessions(Collections.singletonList(session("s1", "closed")), null);
+        fixture.latest().result(error(fixture.latest().last("readHistory"), "unavailable"));
+        fixture.controller.refresh(); fixture.sessions(Collections.singletonList(session("s1", "running")), "cGFnZQ"); fixture.watching();
+        fixture.controller.loadMoreSessions();
+        Map<String, Object> watch = fixture.latest().last("watchProgress"), baseline = fixture.latest().last("readHistory");
+        fixture.latest().result(Protocol.object("v", 1, "type", "progress", "subscriptionId", fixture.subscription,
+            "sessionId", "s1", "rows", Collections.emptyList(), "status", "closed"));
+        fixture.latest().result(error(watch, "expired"));
+        check(fixture.screen.composer.feedback == Feedback.REFRESH_FAILED
+            && fixture.latest().last("readHistory").get("requestId").equals(baseline.get("requestId")),
+            "Closure retains the pending recovery without prematurely clearing its genuine failure");
+        fixture.historyPage(Collections.singletonList(row(1, "recovered", "approved")), null);
+        fixture.latest().result(error(watch, "expired"));
+        check(fixture.screen.composer.feedback == Feedback.NONE && fixture.screen.composer.state == SendState.CLOSED
+            && fixture.screen.conversation.rows.get(0).id.equals("recovered"),
+            "The original history recovery metadata still clears its failure and retired expiry cannot restore it");
+        fixture.sessions(java.util.Arrays.asList(session("s1", "running"), session("s2", "closed")), null);
+        fixture.controller.sendText("blocked"); fixture.pump();
+        check(fixture.screen.sessions.rows.size() == 2 && fixture.screen.conversation.rows.get(0).id.equals("recovered")
+            && fixture.screen.composer.state == SendState.OFFLINE && fixture.latest().last("submitText") == null
+            && fixture.latest().last("watchProgress").get("requestId").equals(watch.get("requestId")) && fixture.fences.isEmpty(),
+            "A pending listing retains its metadata but stale active visibility cannot restore retired send authority");
+    }
+
+    private static void bufferedClosureCannotBypassDeniedOrMissingWatchAcknowledgement() throws Exception {
+        for (boolean denied : new boolean[] { true, false }) {
+            Fixture fixture = new Fixture(); fixture.startWithSessions(Collections.singletonList(session("s1", "running")));
+            fixture.controller.selectSession("s1");
+            fixture.latest().result(Protocol.object("v", 1, "type", "progress", "subscriptionId", Protocol.randomId(16),
+                "sessionId", "s1", "rows", Collections.singletonList(row(1, "unconfirmed", "ignored")), "status", "closed"));
+            if (denied) {
+                fixture.latest().result(error(fixture.latest().last("watchProgress"), "denied"));
+                fixture.historyPage(Collections.emptyList(), null);
+                check(fixture.screen.composer.feedback == Feedback.REFRESH_FAILED && fixture.screen.composer.state == SendState.OFFLINE,
+                    "Buffered closure cannot suppress a watch denial or make fallback history authorize sends");
+            } else {
+                fixture.advance(10000);
+                check(fixture.latest().closed && fixture.screen.pc.connection == Connection.OFFLINE,
+                    "Buffered closure cannot suppress the unacknowledged watch deadline");
+            }
+            check(fixture.latest().last("cancelRead") == null && fixture.screen.conversation.rows.isEmpty()
+                && fixture.screen.conversation.session.status == SessionStatus.BUSY,
+                "An unacknowledged closure grants neither a subscription to cancel nor approved status or text");
+        }
+    }
+
+    private static void closedWatchCancellationRemainsCorrelatedAndFailClosed() throws Exception {
+        for (String outcome : new String[] { "denied", "timeout", "wrongSubscription" }) {
+            Fixture fixture = new Fixture(); fixture.ready();
+            fixture.latest().result(Protocol.object("v", 1, "type", "progress", "subscriptionId", fixture.subscription,
+                "sessionId", "s1", "rows", Collections.emptyList(), "status", "closed"));
+            Map<String, Object> cancel = fixture.latest().last("cancelRead");
+            if (outcome.equals("denied")) fixture.latest().result(error(cancel, "denied"));
+            else {
+                if (outcome.equals("wrongSubscription")) {
+                    fixture.latest().result(Protocol.object("v", 1, "type", "cancelled", "requestId", cancel.get("requestId"),
+                        "subscriptionId", Protocol.randomId(16)));
+                }
+                fixture.advance(10000);
+            }
+            check(fixture.latest().closed && fixture.screen.pc.connection == Connection.OFFLINE,
+                "Closed-watch cancellation denial, timeout and mismatched acknowledgement retain fail-closed transport retirement");
+        }
+    }
+
+    private static void explicitReadRecoveryRequiresMatchingHistoryAndFailureVersion() throws Exception {
+        Fixture fixture = new Fixture(); fixture.closedReady(); fixture.controller.refresh();
+        fixture.sessions(Collections.singletonList(session("s1", "closed")), null);
+        fixture.latest().result(error(fixture.latest().last("readHistory"), "unavailable"));
+        check(fixture.screen.composer.feedback == Feedback.REFRESH_FAILED, "Failed closed history reports refresh failure");
+        fixture.advance(19999);
+        fixture.controller.refresh(); fixture.sessions(Collections.singletonList(session("s1", "closed")), null);
+        Map<String, Object> recovery = fixture.latest().last("readHistory");
+        fixture.advance(1); Map<String, Object> heartbeat = fixture.latest().last("listSessions");
+        fixture.latest().result(history(Protocol.randomId(16), "s1", Collections.emptyList(), null));
+        fixture.latest().result(history(recovery.get("requestId"), "other", Collections.emptyList(), null));
+        check(fixture.screen.composer.feedback == Feedback.REFRESH_FAILED, "Listing success and uncorrelated history cannot clear a selected-history failure");
+        fixture.latest().result(error(heartbeat, "unavailable"));
+        fixture.historyPage(Collections.emptyList(), null);
+        check(fixture.screen.composer.feedback == Feedback.REFRESH_FAILED, "A recovery started before a newer read failure cannot clear it");
+        fixture.controller.refresh(); fixture.sessions(Collections.singletonList(session("s1", "closed")), null);
+        fixture.historyPage(Collections.emptyList(), null);
+        check(fixture.screen.composer.feedback == Feedback.NONE, "Matching explicit history recovery clears only the current read failure");
+        fixture.controller.refresh(); fixture.latest().result(error(fixture.latest().last("listSessions"), "unavailable"));
+        fixture.advance(20000); fixture.sessions(Collections.singletonList(session("s1", "closed")), null);
+        check(fixture.screen.composer.feedback == Feedback.REFRESH_FAILED, "Successful automatic heartbeat is not explicit recovery");
+    }
+
+    private static void listingRecoveryWithoutSelectionClearsItsReadFailure() throws Exception {
+        Fixture fixture = new Fixture(); fixture.controller.start(); fixture.pump(); fixture.confirm();
+        fixture.latest().result(error(fixture.latest().last("listSessions"), "unavailable"));
+        check(fixture.screen.composer.feedback == Feedback.REFRESH_FAILED, "A failed listing without a selection reports read failure");
+        fixture.controller.refresh(); fixture.sessions(Collections.emptyList(), null);
+        check(fixture.screen.composer.feedback == Feedback.NONE && fixture.screen.composer.state == SendState.NO_SELECTION,
+            "An explicitly recovered listing needs no history when nothing is selected");
+    }
+
+    private static void deniedWatchFallbackCannotClearFailureOrAuthorizeSend() throws Exception {
+        for (boolean acknowledged : new boolean[] { false, true }) {
+            Fixture fixture = new Fixture();
+            if (acknowledged) fixture.ready();
+            else {
+                fixture.startWithSessions(Collections.singletonList(session("s1", "running")));
+                fixture.controller.selectSession("s1");
+            }
+            fixture.latest().result(error(fixture.latest().last("watchProgress"), "denied"));
+            fixture.historyPage(Collections.singletonList(row(1, "approved", "history")), null);
+            check(fixture.screen.composer.feedback == Feedback.REFRESH_FAILED && fixture.screen.composer.state == SendState.OFFLINE,
+                "Approved fallback text neither clears a denied watch nor grants active send authority");
+            fixture.controller.refresh(); fixture.sessions(Collections.singletonList(session("s1", "running")), null);
+            fixture.controller.sendText("blocked"); fixture.pump();
+            check(fixture.latest().last("submitText") == null && fixture.screen.composer.state == SendState.OFFLINE,
+                "Fresh list visibility alone cannot authorize an active session after a denied watch");
+            fixture.watching(); fixture.historyPage(Collections.emptyList(), null);
+            check(fixture.screen.composer.feedback == Feedback.NONE && fixture.screen.composer.state == SendState.READY,
+                "An explicitly refreshed authorized watch and history recover the active path");
+        }
+    }
+
+    private static void readRecoveryPreservesSendStorageRepairAndFenceWarnings() throws Exception {
+        Fixture fixture = new Fixture(); fixture.ready();
+        fixture.controller.refresh(); fixture.sessions(Collections.singletonList(session("s1", "running")), null); fixture.watching();
+        fixture.controller.sendText(""); fixture.historyPage(Collections.emptyList(), null);
+        check(fixture.screen.composer.feedback == Feedback.SEND_FAILED, "Read success cannot clear a send failure");
+        fixture.controller.refresh(); fixture.latest().result(error(fixture.latest().last("listSessions"), "unavailable"));
+        check(fixture.screen.composer.feedback == Feedback.SEND_FAILED, "A read failure cannot replace an independent send warning");
+        fixture.controller.refresh(); fixture.sessions(Collections.singletonList(session("s1", "running")), null); fixture.watching();
+        fixture.controller.sendText("uncertain"); fixture.pump();
+        fixture.latest().result(error(fixture.latest().last("submitText"), "unavailable"));
+        fixture.historyPage(Collections.emptyList(), null);
+        check(fixture.screen.composer.feedback == Feedback.DELIVERY_UNKNOWN && fixture.screen.composer.state == SendState.DELIVERY_UNKNOWN
+            && fixture.fences.size() == 1, "History success cannot clear an uncertain delivery fence");
+        fixture.controller.refresh(); fixture.sessions(Collections.singletonList(session("s1", "running")), null); fixture.watching();
+        Map<String, Object> pending = fixture.latest().last("readHistory");
+        fixture.failForget = true; fixture.controller.forgetPairing(fixture.pair.pcId); fixture.pump();
+        fixture.latest().result(history(pending.get("requestId"), "s1", Collections.emptyList(), null));
+        check(fixture.screen.composer.feedback == Feedback.FORGET_FAILED && fixture.screen.pc.connection == Connection.OFFLINE,
+            "Retired read success cannot clear a failed storage commit");
+        fixture.controller.resolveUnknown(); fixture.pump();
+        fixture.latest().result(history(pending.get("requestId"), "s1", Collections.emptyList(), null));
+        check(fixture.screen.composer.feedback == Feedback.REPAIR_REQUIRED && !fixture.repairs.isEmpty(),
+            "Read recovery cannot clear the independent pairing repair after delivery review");
+    }
+
+    private static void staleHistoryCallbacksCannotReplaceSelectionOrRecoverFailures() throws Exception {
+        Fixture fixture = new Fixture(); List<?> closed = java.util.Arrays.asList(session("s1", "closed"), session("s2", "closed"));
+        fixture.startWithSessions(closed); fixture.controller.selectSession("s1");
+        Map<String, Object> first = fixture.latest().last("readHistory"); fixture.controller.selectSession("s2");
+        fixture.latest().result(error(fixture.latest().last("readHistory"), "unavailable"));
+        fixture.controller.selectSession("s1");
+        fixture.latest().result(history(first.get("requestId"), "s1", Collections.singletonList(row(1, "stale", "stale")), null));
+        check(fixture.screen.conversation.rows.isEmpty() && fixture.screen.composer.feedback == Feedback.REFRESH_FAILED,
+            "Returning to the same selection cannot revive a retired request or clear its newer failure");
+        FakeLink old = fixture.latest(); old.events.disconnected(); fixture.advance(5000); fixture.confirm(); fixture.sessions(closed, null);
+        Map<String, Object> current = fixture.latest().last("readHistory");
+        old.result(history(current.get("requestId"), "s1", Collections.singletonList(row(1, "old-attempt", "stale")), null));
+        check(fixture.screen.conversation.rows.isEmpty(), "Retired attempt callbacks cannot satisfy a current request");
+        FakeLink second = fixture.latest(); fixture.controller.stop(); fixture.controller.start(); fixture.pump(); fixture.advance(5000);
+        fixture.confirm(); fixture.sessions(closed, null); current = fixture.latest().last("readHistory");
+        second.result(history(current.get("requestId"), "s1", Collections.singletonList(row(1, "old-epoch", "stale")), null));
+        fixture.historyPage(Collections.singletonList(row(1, "current", "approved")), null);
+        check(fixture.screen.conversation.rows.size() == 1 && fixture.screen.conversation.rows.get(0).id.equals("current")
+            && fixture.screen.composer.state == SendState.CLOSED, "Only the current foreground epoch can restore selected closed history");
+    }
+
+    private static void uncertainWatchCancellationStillClosesTheConnection() throws Exception {
+        Fixture fixture = new Fixture(); fixture.ready(); fixture.controller.refresh();
+        Map<String, Object> cancel = fixture.latest().last("cancelRead");
+        fixture.latest().result(error(cancel, "unavailable"));
+        check(fixture.latest().closed && fixture.screen.pc.connection == Connection.OFFLINE,
+            "Uncertain cancellation closes transport instead of leaking a remote subscription");
+        Fixture awaiting = new Fixture(); awaiting.startWithSessions(java.util.Arrays.asList(session("s1", "running"), session("s2", "closed")));
+        awaiting.controller.selectSession("s1"); awaiting.controller.selectSession("s2");
+        check(awaiting.latest().closed && awaiting.latest().last("readHistory") == null,
+            "Changing selection before a watch acknowledgement retires the uncertain connection");
+    }
+
+    private static void ordinaryReadsOptInWhileHeartbeatStaysLegacyAndDenialNeverDowngrades() throws Exception {
+        Fixture fixture = new Fixture(); fixture.controller.start(); fixture.pump(); fixture.confirm();
+        Map<String, Object> baseline = fixture.latest().last("listSessions");
+        check("navigation".equals(baseline.get("view")), "Ordinary baseline opts into navigation on the existing listSessions verb");
+        fixture.sessions(Collections.singletonList(session("s1", "closed")), "cGFnZQ");
+        fixture.controller.loadMoreSessions(); Map<String, Object> page = fixture.latest().last("listSessions");
+        check("navigation".equals(page.get("view")) && "cGFnZQ".equals(page.get("cursor"))
+            && !page.get("requestId").equals(baseline.get("requestId")), "Navigation paging retains opaque cursors and fresh correlations");
+        fixture.sessions(Collections.emptyList(), null);
+        fixture.controller.selectSession("s1"); fixture.historyPage(Collections.emptyList(), null);
+        fixture.advance(20000); Map<String, Object> heartbeat = fixture.latest().last("listSessions");
+        check(!heartbeat.containsKey("view") && !heartbeat.containsKey("cursor")
+            && Protocol.integer(heartbeat.get("limit"), 1, 128) == 1, "Heartbeat stays an exact legacy bounded read");
+        fixture.sessions(Collections.singletonList(navigationSession("s1", "running", 99)), null);
+        check(fixture.screen.conversation.session.navigation == null && fixture.screen.composer.state == SendState.CLOSED,
+            "A heartbeat result neither upgrades legacy rows nor changes selection authority");
+        fixture.controller.refresh(); Map<String, Object> refresh = fixture.latest().last("listSessions");
+        check("navigation".equals(refresh.get("view")), "Explicit refresh uses navigation, not the heartbeat encoder");
+        int sent = fixture.latest().requests.size();
+        fixture.latest().result(error(refresh, "unavailable")); fixture.pump();
+        check(fixture.latest().requests.size() == sent && fixture.screen.composer.feedback == Feedback.REFRESH_FAILED,
+            "Rejected navigation reads do not probe or fall back to legacy requests");
+    }
+
+    private static void navigationSurvivesRefreshPagingAndReconnectWithoutInventingLegacyMetadata() throws Exception {
+        Fixture fixture = new Fixture(); fixture.startWithSessions(java.util.Arrays.asList(
+            navigationSession("s1", "closed", 42), session("legacy", "closed")));
+        check(fixture.screen.sessions.rows.get(1).navigation == null, "Legacy rows have no invented workspace, pins or timestamps");
+        fixture.controller.selectSession("s1"); fixture.historyPage(Collections.emptyList(), null);
+        SessionNavigation original = fixture.screen.conversation.session.navigation;
+        check(original.updatedAt == 42 && original.pinOrder == 0L && original.workspace.order == 7
+            && original.workspace.id.equals("workspace._:-1") && original.workspace.title.equals("工作 🧭"),
+            "Approved navigation fields project without interpreting workspace IDs");
+        fixture.controller.refresh(); fixture.sessions(Collections.singletonList(session("newer", "closed")), "cGFnZQ");
+        fixture.historyPage(Collections.emptyList(), null);
+        check(fixture.screen.conversation.session.navigation == original, "An incomplete refresh retains selected navigation alongside its row");
+        fixture.controller.loadMoreSessions(); fixture.sessions(Collections.singletonList(navigationSession("s1", "closed", 84)), null);
+        SessionNavigation refreshed = fixture.screen.conversation.session.navigation;
+        check(refreshed.updatedAt == 84 && fixture.screen.sessions.rows.size() == 2,
+            "A same-epoch page replaces navigation from the authoritative row without retaining removed rows");
+        fixture.controller.refresh(); fixture.sessions(Collections.singletonList(session("s1", "closed")), null);
+        fixture.historyPage(Collections.emptyList(), null);
+        check(fixture.screen.conversation.session.navigation == refreshed, "Legacy row replacements preserve previously supplied navigation");
+        FakeLink retired = fixture.latest(); retired.events.disconnected();
+        check(fixture.screen.conversation.session.navigation == refreshed && fixture.screen.composer.state == SendState.OFFLINE,
+            "Disconnect retains memory-only navigation without retaining send authority");
+        fixture.advance(5000); fixture.confirm();
+        Map<String, Object> current = fixture.latest().last("listSessions");
+        check("navigation".equals(current.get("view")), "Reconnect baseline opts into navigation");
+        retired.result(Protocol.object("v", 1, "type", "sessions", "requestId", current.get("requestId"),
+            "sessions", Collections.singletonList(navigationSession("s1", "running", 999))));
+        check(fixture.screen.conversation.session.navigation == refreshed, "A retired callback cannot replace current-attempt navigation");
+        fixture.sessions(Collections.singletonList(session("newer", "closed")), "cGFnZQ");
+        fixture.historyPage(Collections.emptyList(), null);
+        check(fixture.screen.conversation.session.navigation == refreshed, "Reconnect first-page retention keeps older selected metadata");
+        fixture.controller.loadMoreSessions(); fixture.sessions(Collections.singletonList(navigationSession("s1", "closed", 126)), null);
+        check(fixture.screen.conversation.session.navigation.updatedAt == 126 && fixture.screen.composer.state == SendState.CLOSED
+            && fixture.latest().last("watchProgress") == null && fixture.fences.isEmpty(),
+            "Reconnect paging updates navigation while closed history stays read-only and unpersisted");
+        fixture.controller.refresh(); fixture.sessions(Collections.singletonList(Protocol.object("sessionId", "s1", "title", "s1",
+            "status", "closed", "navigation", Protocol.object("updatedAt", 0, "pinOrder", null, "workspace", null))), null);
+        fixture.historyPage(Collections.emptyList(), null);
+        SessionNavigation unassigned = fixture.screen.conversation.session.navigation;
+        check(unassigned.updatedAt == 0 && unassigned.pinOrder == null && unassigned.workspace == null,
+            "Explicit null workspace and pin replace old metadata without inventing a group or rank");
+        fixture.controller.refresh(); fixture.sessions(Collections.singletonList(session("newer", "closed")), null);
+        check(fixture.screen.conversation.session == null && fixture.screen.sessions.rows.size() == 1
+            && fixture.screen.sessions.rows.get(0).navigation == null, "Completed removal discards the actual row and its navigation");
+    }
+
+    private static Map<String, Object> navigationSession(String id, String status, long updatedAt) {
+        return Protocol.object("sessionId", id, "title", id, "status", status, "navigation",
+            Protocol.object("updatedAt", updatedAt, "pinOrder", 0, "workspace",
+                Protocol.object("id", "workspace._:-1", "title", "工作 🧭", "order", 7)));
+    }
+
+    private static Map<String, Object> error(Map<String, Object> request, String code) {
+        return Protocol.object("v", 1, "type", "error", "requestId", request.get("requestId"), "code", code);
+    }
+
     private static Map<String, Object> session(String id, String status) {
         return Protocol.object("sessionId", id, "title", id, "status", status);
     }
@@ -265,7 +760,7 @@ public final class ControllerRegression {
     }
     private static void check(boolean condition, String requirement) { if (!condition) throw new AssertionError(requirement); }
 
-    private static final class Fixture implements CompanionPlatform, CompanionController.Output {
+    static final class Fixture implements CompanionPlatform, CompanionController.Output {
         final ArrayDeque<Runnable> io = new ArrayDeque<>();
         final ArrayDeque<Runnable> main = new ArrayDeque<>();
         final List<Timer> timers = new ArrayList<>();
@@ -306,7 +801,29 @@ public final class ControllerRegression {
             controller.selectSession("s1"); watching(); Map<String, Object> read = latest().last("readHistory");
             latest().result(history(read.get("requestId"), "s1", Collections.emptyList(), null));
         }
-        void confirm() { latest().events.confirmed(pair.grantId, pair.generation, pair.pcKey); }
+        void startWithSessions(List<?> rows) {
+            controller.start(); pump(); confirm(); sessions(rows, null);
+        }
+        void closedReady() {
+            startWithSessions(Collections.singletonList(session("s1", "closed")));
+            controller.selectSession("s1"); historyPage(Collections.emptyList(), null);
+        }
+        void sessions(List<?> rows, String cursor) {
+            Map<String, Object> response = new LinkedHashMap<>(Protocol.object("v", 1, "type", "sessions",
+                "requestId", latest().last("listSessions").get("requestId"), "sessions", rows));
+            if (cursor != null) response.put("cursor", cursor);
+            latest().result(response);
+        }
+        void historyPage(List<?> rows, String cursor) {
+            Map<String, Object> read = latest().last("readHistory");
+            latest().result(ControllerRegression.history(read.get("requestId"), (String) read.get("sessionId"), rows, cursor));
+        }
+        void confirm() {
+            latest().events.confirmed(pair.grantId, pair.generation, pair.pcKey);
+            Map<String, Object> catalog = latest().last("listManagementWorkspaces");
+            if (catalog != null) latest().result(Protocol.object("v", 1, "type", "managementWorkspaces",
+                "requestId", catalog.get("requestId"), "enabled", false, "workspaces", Collections.emptyList()));
+        }
         void watching() {
             Map<String, Object> watch = latest().last("watchProgress"); subscription = Protocol.randomId(16);
             latest().result(Protocol.object("v", 1, "type", "watching", "requestId", watch.get("requestId"), "sessionId", watch.get("sessionId"), "subscriptionId", subscription));
@@ -366,10 +883,15 @@ public final class ControllerRegression {
         }
         public List<Fence> fences() { return new ArrayList<>(fences.values()); }
         public void putFence(Fence fence) throws IOException {
-            fences.put(fence.pcId, fence); if (failPut) throw new IOException("Fence commit failed");
+            Fence stored = fences.get(fence.targetKey());
+            if (stored != null && !stored.sameIdentity(fence)) throw new IOException("Unresolved operation");
+            fences.put(fence.targetKey(), fence); if (failPut) throw new IOException("Fence commit failed");
         }
-        public void clearFence(String pcId) throws IOException {
-            fences.remove(pcId); if (failClear) throw new IOException("Clear failed after memory changed");
+        public void clearFence(Fence expected) throws IOException {
+            Fence stored = fences.get(expected.targetKey());
+            if (stored != null && !stored.sameIdentity(expected)) throw new IOException("Fence identity mismatch");
+            // A prior failed commit may already have removed the preference-memory entry.
+            fences.remove(expected.targetKey()); if (failClear) throw new IOException("Clear failed after memory changed");
         }
         public void repair(String pcId, String alias) { repairs.put(pcId, new Repair(pcId, alias)); }
         public void clearRepair(String pcId) { repairs.remove(pcId); }
@@ -385,7 +907,7 @@ public final class ControllerRegression {
         boolean cancelled;
         Timer(long at, Runnable callback) { this.at = at; this.callback = callback; }
     }
-    private static final class FakeLink implements Link {
+    static final class FakeLink implements Link {
         final Protocol.Inputs inputs;
         final Events events;
         final List<Map<String, Object>> requests = new ArrayList<>();

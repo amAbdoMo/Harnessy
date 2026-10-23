@@ -2,8 +2,9 @@
 import { brandString } from '@deepseek-ai/dsh-brand'
 import type {
   ApplicationBudget, ApplicationRequest, ApplicationResult, HistoryRow, HistorySequence, ManagementAction, ManagementResult,
-  MobileOperationId, MobileRequestId, MobileSessionId, MobileWorkspaceId, ReadCursor, SessionSummary, SubmissionId, SubscriptionId,
-  WorkspaceSummary,
+  MobileModelChoice, MobileModelChoiceId, MobileModelRevision, MobileOperationId, MobileRequestId, MobileSessionId,
+  MobileWorkspaceId, ModelSelectionResult, MutationIdentity, MutationRefusalCode, ReadCursor, SessionModelsResult,
+  SessionOpenedResult, SessionSummary, SubmissionId, SubscriptionId, WorkspaceSummary,
 } from './application-types.ts'
 
 /** Fixed protocol plaintext ceiling, including JSON wrappers and UTF-8 metadata. */
@@ -40,9 +41,16 @@ function fixed(value: unknown, bytes: number): string {
   if (decoded.length !== bytes || decoded.toString('base64url') !== result) fail()
   return result
 }
+function mutationRefusal(value: unknown): MutationRefusalCode {
+  if (value !== 'denied' && value !== 'expired' && value !== 'notFound' && value !== 'busy'
+    && value !== 'conflict' && value !== 'limit' && value !== 'unavailable') fail()
+  return value
+}
 function requestId(value: unknown): MobileRequestId { return brandString<MobileRequestId>(fixed(value, 16)) }
 function sessionId(value: unknown): MobileSessionId { return brandString<MobileSessionId>(token(value)) }
 function operationId(value: unknown): MobileOperationId { return brandString<MobileOperationId>(fixed(value, 16)) }
+function modelChoiceId(value: unknown): MobileModelChoiceId { return brandString<MobileModelChoiceId>(fixed(value, 16)) }
+function modelRevision(value: unknown): MobileModelRevision { return brandString<MobileModelRevision>(fixed(value, 16)) }
 function workspaceId(value: unknown): MobileWorkspaceId { return brandString<MobileWorkspaceId>(token(value)) }
 function subscriptionId(value: unknown): SubscriptionId { return brandString<SubscriptionId>(fixed(value, 16)) }
 function cursor(value: unknown): ReadCursor {
@@ -108,8 +116,11 @@ function rows(value: unknown, budget: ApplicationBudget): HistoryRow[] {
   })
 }
 
+function mutationIdentity(value: Record<string, unknown>): Pick<MutationIdentity, 'operationId' | 'sessionId'> {
+  return { operationId: operationId(value.operationId), sessionId: sessionId(value.sessionId) }
+}
 function managementTarget(value: Record<string, unknown>): Pick<ManagementResult, 'operationId' | 'sessionId'> {
-  const target = { operationId: operationId(value.operationId), sessionId: sessionId(value.sessionId) }
+  const target = mutationIdentity(value)
   if ((value.type === 'createSession' || value.action === 'create') && target.sessionId !== `mobile-${target.operationId}`) fail()
   return target
 }
@@ -154,9 +165,98 @@ function managed(value: Record<string, unknown>, budget: ApplicationBudget): Man
     }
     case 'rejected':
       exact(value, [...keys, 'code'])
-      if (value.code !== 'denied' && value.code !== 'expired' && value.code !== 'notFound' && value.code !== 'busy'
-        && value.code !== 'conflict' && value.code !== 'limit' && value.code !== 'unavailable') fail()
-      return { ...common, outcome: value.outcome, code: value.code }
+      return { ...common, outcome: value.outcome, code: mutationRefusal(value.code) }
+    case 'unknown':
+      exact(value, keys)
+      return { ...common, outcome: value.outcome }
+    default: return fail()
+  }
+}
+
+function modelChoice(value: unknown, budget: ApplicationBudget): MobileModelChoice {
+  const row = object(value)
+  exact(row, ['id', 'title', 'providerTitle'])
+  return {
+    id: modelChoiceId(row.id),
+    title: text(row.title, budget.maxTitleBytes, true),
+    providerTitle: text(row.providerTitle, budget.maxTitleBytes, true),
+  }
+}
+function modelChoices(value: unknown, budget: ApplicationBudget): MobileModelChoice[] {
+  if (!Array.isArray(value) || value.length > budget.maxRows) fail()
+  const ids = new Set<MobileModelChoiceId>()
+  return value.map((item: unknown) => {
+    const row = modelChoice(item, budget)
+    if (ids.has(row.id)) fail()
+    ids.add(row.id)
+    return row
+  })
+}
+function noModels(value: unknown): readonly [] {
+  if (!Array.isArray(value) || value.length !== 0) fail()
+  return []
+}
+function currentChoice(value: unknown, budget: ApplicationBudget): MobileModelChoice | null {
+  return value === null ? null : modelChoice(value, budget)
+}
+function sessionModels(value: Record<string, unknown>, budget: ApplicationBudget): SessionModelsResult {
+  const common = {
+    v: 1 as const, type: 'sessionModels' as const, requestId: requestId(value.requestId), sessionId: sessionId(value.sessionId),
+  }
+  const keys = ['v', 'type', 'requestId', 'sessionId', 'state', 'models', 'current']
+  switch (value.state) {
+    case 'ready': {
+      exact(value, [...keys, 'revision'], ['cursor'])
+      return {
+        ...common, state: value.state, models: modelChoices(value.models, budget), current: currentChoice(value.current, budget),
+        revision: modelRevision(value.revision), ...optionalCursor(value),
+      }
+    }
+    case 'busy':
+      exact(value, keys)
+      return { ...common, state: value.state, models: noModels(value.models), current: currentChoice(value.current, budget) }
+    case 'denied':
+    case 'closed':
+      exact(value, keys)
+      if (value.current !== null) fail()
+      return { ...common, state: value.state, models: noModels(value.models), current: null }
+    default: return fail()
+  }
+}
+function modelSelection(value: Record<string, unknown>, budget: ApplicationBudget): ModelSelectionResult {
+  const common = {
+    v: 1 as const, type: 'modelSelected' as const, requestId: requestId(value.requestId),
+    operationId: operationId(value.operationId), sessionId: sessionId(value.sessionId),
+  }
+  const keys = ['v', 'type', 'requestId', 'operationId', 'sessionId', 'outcome']
+  switch (value.outcome) {
+    case 'applied':
+      exact(value, [...keys, 'selected'])
+      return { ...common, outcome: value.outcome, selected: modelChoice(value.selected, budget) }
+    case 'rejected':
+      exact(value, [...keys, 'code'])
+      return { ...common, outcome: value.outcome, code: mutationRefusal(value.code) }
+    case 'unknown':
+      exact(value, keys)
+      return { ...common, outcome: value.outcome }
+    default: return fail()
+  }
+}
+
+function sessionOpened(value: Record<string, unknown>, budget: ApplicationBudget): SessionOpenedResult {
+  const common = { v: 1 as const, type: 'sessionOpened' as const, requestId: requestId(value.requestId),
+    operationId: operationId(value.operationId), sessionId: sessionId(value.sessionId) }
+  const keys = ['v', 'type', 'requestId', 'operationId', 'sessionId', 'outcome']
+  switch (value.outcome) {
+    case 'applied': {
+      exact(value, [...keys, 'session'])
+      const session = sessionSummary(value.session, budget)
+      if (session.sessionId !== common.sessionId || session.status === 'closed' || session.navigation === undefined) fail()
+      return { ...common, outcome: value.outcome, session: { ...session, status: session.status, navigation: session.navigation } }
+    }
+    case 'rejected':
+      exact(value, [...keys, 'code'])
+      return { ...common, outcome: value.outcome, code: mutationRefusal(value.code) }
     case 'unknown':
       exact(value, keys)
       return { ...common, outcome: value.outcome }
@@ -207,12 +307,25 @@ export function parseApplicationRequest(json: string, budget: ApplicationBudget)
     case 'listManagementWorkspaces':
       exact(value, ['v', 'type', 'requestId', 'limit'], ['cursor'])
       return { ...common, type: value.type, limit: integer(value.limit, 1, budget.maxSessions), ...optionalCursor(value) }
+    case 'listSessionModels':
+    case 'readHistory':
+      exact(value, ['v', 'type', 'requestId', 'sessionId', 'limit'], ['cursor'])
+      return {
+        ...common, type: value.type, sessionId: sessionId(value.sessionId),
+        limit: integer(value.limit, 1, budget.maxRows), ...optionalCursor(value),
+      }
     case 'createSession':
       exact(value, ['v', 'type', 'requestId', 'operationId', 'sessionId', 'workspaceId'])
       return { ...common, type: value.type, ...managementTarget(value), workspaceId: workspaceId(value.workspaceId) }
     case 'renameSession':
       exact(value, ['v', 'type', 'requestId', 'operationId', 'sessionId', 'title'])
       return { ...common, type: value.type, ...managementTarget(value), title: text(value.title, budget.maxTitleBytes) }
+    case 'getSessionActivation':
+      exact(value, ['v', 'type', 'requestId'])
+      return { ...common, type: value.type }
+    case 'openSession':
+      exact(value, ['v', 'type', 'requestId', 'operationId', 'sessionId'])
+      return { ...common, type: value.type, ...mutationIdentity(value) }
     case 'archiveSession':
       exact(value, ['v', 'type', 'requestId', 'operationId', 'sessionId'])
       return { ...common, type: value.type, ...managementTarget(value) }
@@ -220,11 +333,11 @@ export function parseApplicationRequest(json: string, budget: ApplicationBudget)
       exact(value, ['v', 'type', 'requestId', 'operationId', 'sessionId', 'pinned'])
       if (typeof value.pinned !== 'boolean') fail()
       return { ...common, type: value.type, ...managementTarget(value), pinned: value.pinned }
-    case 'readHistory':
-      exact(value, ['v', 'type', 'requestId', 'sessionId', 'limit'], ['cursor'])
+    case 'selectSessionModel':
+      exact(value, ['v', 'type', 'requestId', 'operationId', 'sessionId', 'revision', 'choiceId'])
       return {
-        ...common, type: value.type, sessionId: sessionId(value.sessionId),
-        limit: integer(value.limit, 1, budget.maxRows), ...optionalCursor(value),
+        ...common, type: value.type, ...mutationIdentity(value),
+        revision: modelRevision(value.revision), choiceId: modelChoiceId(value.choiceId),
       }
     case 'watchProgress':
       exact(value, ['v', 'type', 'requestId', 'sessionId'], ['cursor'])
@@ -261,6 +374,13 @@ export function parseApplicationResult(json: string, budget: ApplicationBudget):
   switch (value.type) {
     case 'managementWorkspaces': return managementWorkspaces(value, budget)
     case 'managed': return managed(value, budget)
+    case 'sessionModels': return sessionModels(value, budget)
+    case 'modelSelected': return modelSelection(value, budget)
+    case 'sessionOpened': return sessionOpened(value, budget)
+    case 'sessionActivation':
+      exact(value, ['v', 'type', 'requestId', 'enabled'])
+      if (typeof value.enabled !== 'boolean') fail()
+      return { ...common, type: value.type, enabled: value.enabled }
     case 'sessions': {
       exact(value, ['v', 'type', 'requestId', 'sessions'], ['cursor'])
       if (!Array.isArray(value.sessions) || value.sessions.length > budget.maxSessions) fail()

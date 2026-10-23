@@ -140,7 +140,7 @@ export async function promptAdmissionComposition() {
     inject: ['agents', 'agentDefaultModel', 'sessions', 'sessionQuery', 'llm', 'attachments', 'fileUploads', 'sessionProjections', 'typert'],
     apply(ownerContext: Context) {
       installModelSelectionProjection(ownerContext)
-      const agents = new ApiSessionAgentController(ownerContext)
+      const agents = new ApiSessionAgentController(ownerContext, 32)
       agentController = agents
       commands = new SessionCommandController(ownerContext, agents, root)
       control = new SessionControlController(ownerContext)

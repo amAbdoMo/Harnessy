@@ -14,7 +14,8 @@ import { assertNever } from '@deepseek-ai/dsh-util-values'
 import { MobileViewError, mobileSessionSummary, requireVisibleSession } from './session-view.ts'
 
 /** Parsed closed management request, never an arbitrary RPC invocation. */
-export type ManagementRequest = Extract<ApplicationRequest, { operationId: string }>
+export type ManagementRequest = Extract<ApplicationRequest,
+  { type: 'createSession' | 'renameSession' | 'archiveSession' | 'setSessionPinned' }>
 /** Fixed refusal codes; diagnostics and paths remain PC-local. */
 export type ManagementRejectionCode = Extract<ManagementResult, { outcome: 'rejected' }>['code']
 
@@ -123,12 +124,17 @@ export async function executeManagement(
       options.requireAdmission()
       if (header === undefined) return rejectManagement(request, 'notFound')
       requireVisibleSession(ctx, ctx.sessions.get(request.sessionId)?.header ?? header)
+      if (request.type === 'renameSession' && ctx.agents.get(request.sessionId) === undefined) {
+        return rejectManagement(request, 'unavailable')
+      }
       // Visibility checks are synchronous; no preflight await separates authority from PC-call admission.
       options.requireAdmission()
       admitted = true
       switch (request.type) {
         case 'renameSession':
-          await settleSessionWrite(() => ctx.sessionController.rename({ sessionId: request.sessionId, title: request.title }))
+          await settleSessionWrite(async () => ctx.sessionController.renameLiveSession({
+            sessionId: request.sessionId, title: request.title,
+          }))
           break
         case 'archiveSession':
           await invokeOwner(() => registry.archiveSession(request.sessionId), request)

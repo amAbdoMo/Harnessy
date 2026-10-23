@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Native adaptation of the existing Desktop IconApiOutlineRegular (ui-primitives/icons/index.tsx). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="18dp" android:height="18dp" android:viewportWidth="16" android:viewportHeight="16">
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#FF000000" android:strokeWidth="1"
+        android:pathData="M3 4L7 8L3 12" />
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#FF000000" android:strokeWidth="1"
+        android:pathData="M9 12H13" />
+</vector>

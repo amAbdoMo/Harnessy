@@ -22,11 +22,17 @@ export interface DeviceRecord {
   readonly pairedAt: number
   /** Only explicit local consent grants chat management; absence denies it. */
   readonly sessionManagementV1?: true
+  /** Separate explicit local consent for changing an idle chat's model; absence denies it. */
+  readonly modelSelectionV1?: true
+  /** Independent local consent for file labels and bounded tool summaries, including history. */
+  readonly toolDetailsV1?: true
+  /** Explicit consent to open an existing ordinary chat through normal PC initialization/recovery. */
+  readonly sessionActivationV1?: true
 }
 
-/** Current v2 payload; v1 reads normalize only in memory. identityPkcs8 never enters describe(). */
+/** Current v5 payload; v1–v4 reads normalize only in memory. identityPkcs8 never enters describe(). */
 export interface PrivateRecord {
-  readonly v: 2
+  readonly v: 5
   readonly httpsOrigin: HttpsOrigin
   readonly pcId: PcId
   readonly identityPublicKey: PublicKeySpki
@@ -65,7 +71,10 @@ function parse(record: CredentialRecord | undefined, origin: HttpsOrigin, budget
   if (Buffer.byteLength(JSON.stringify(row)) > budgets.maxRecordBytes) {
     throw new Error('companion-host: credential record exceeds budget')
   }
-  if (row.v !== 1 && row.v !== 2) throw new Error('companion-host: unsupported identity record version')
+  const version = row.v
+  if (version !== 1 && version !== 2 && version !== 3 && version !== 4 && version !== 5) {
+    throw new Error('companion-host: unsupported identity record version')
+  }
   if (parseHttpsOrigin(row.httpsOrigin) !== origin || typeof row.identityPkcs8 !== 'string'
     || !Array.isArray(row.grants) || row.grants.length > budgets.maxGrants) {
     throw new Error('companion-host: invalid identity or changed origin; local reset and pairing required')
@@ -77,12 +86,30 @@ function parse(record: CredentialRecord | undefined, origin: HttpsOrigin, budget
   const phoneKeys = new Set<PublicKeySpki>()
   const grants = row.grants.map((value: unknown): DeviceRecord => {
     const keys = ['grantId', 'generation', 'phoneIdentityKey', 'displayName', 'pairedAt']
-    if (row.v === 2 && typeof value === 'object' && value !== null && Object.hasOwn(value, 'sessionManagementV1')) {
+    if ((version >= 2) && typeof value === 'object' && value !== null && Object.hasOwn(value, 'sessionManagementV1')) {
       keys.push('sessionManagementV1')
+    }
+    if ((version >= 3) && typeof value === 'object' && value !== null && Object.hasOwn(value, 'modelSelectionV1')) {
+      keys.push('modelSelectionV1')
+    }
+    if (version >= 4 && typeof value === 'object' && value !== null && Object.hasOwn(value, 'toolDetailsV1')) {
+      keys.push('toolDetailsV1')
+    }
+    if (version >= 5 && typeof value === 'object' && value !== null && Object.hasOwn(value, 'sessionActivationV1')) {
+      keys.push('sessionActivationV1')
     }
     const grant = exactRecord(value, keys)
     if (Object.hasOwn(grant, 'sessionManagementV1') && grant.sessionManagementV1 !== true) {
       throw new Error('companion-host: invalid chat management permission')
+    }
+    if (Object.hasOwn(grant, 'modelSelectionV1') && grant.modelSelectionV1 !== true) {
+      throw new Error('companion-host: invalid model selection permission')
+    }
+    if (Object.hasOwn(grant, 'toolDetailsV1') && grant.toolDetailsV1 !== true) {
+      throw new Error('companion-host: invalid tool details permission')
+    }
+    if (Object.hasOwn(grant, 'sessionActivationV1') && grant.sessionActivationV1 !== true) {
+      throw new Error('companion-host: invalid session activation permission')
     }
     const grantId = parseId<GrantId>(grant.grantId)
     const phoneIdentityKey = parsePublicKey(grant.phoneIdentityKey)
@@ -94,9 +121,12 @@ function parse(record: CredentialRecord | undefined, origin: HttpsOrigin, budget
     phoneKeys.add(phoneIdentityKey)
     return Object.freeze({ grantId, generation: parseGeneration(grant.generation), phoneIdentityKey,
       displayName: grant.displayName, pairedAt: grant.pairedAt,
-      ...(row.v === 2 && Object.hasOwn(grant, 'sessionManagementV1') ? { sessionManagementV1: true as const } : {}) })
+      ...((version >= 2) && Object.hasOwn(grant, 'sessionManagementV1') ? { sessionManagementV1: true as const } : {}),
+      ...((version >= 3) && Object.hasOwn(grant, 'modelSelectionV1') ? { modelSelectionV1: true as const } : {}),
+      ...(version >= 4 && Object.hasOwn(grant, 'toolDetailsV1') ? { toolDetailsV1: true as const } : {}),
+      ...(version >= 5 && Object.hasOwn(grant, 'sessionActivationV1') ? { sessionActivationV1: true as const } : {}) })
   })
-  const result: PrivateRecord = Object.freeze({ v: 2, httpsOrigin: origin, pcId, identityPublicKey: publicKey,
+  const result: PrivateRecord = Object.freeze({ v: 5, httpsOrigin: origin, pcId, identityPublicKey: publicKey,
     identityPkcs8: row.identityPkcs8, grants: Object.freeze(grants) })
   identity(result)
   return result
@@ -109,7 +139,7 @@ export class HostRecords {
     private readonly budgets: HostBudgets) {}
 
   /**
-   * Validate existing storage without rewriting v1, or create a v2 identity; malformed records never permit regeneration.
+   * Validate existing storage without rewriting v1–v4, or create a v5 identity; malformed records never permit regeneration.
    * @param authority - Startup lifetime, rechecked inside the durable mutation after source reconciliation.
    * @returns Initialized validated state.
    */
@@ -120,7 +150,7 @@ export class HostRecords {
       if (current !== undefined) { parse(current, this.origin, this.budgets); return Promise.resolve(undefined) }
       const pair = generateP256KeyPair()
       const publicKey = exportPublicKey(pair.publicKey)
-      const payload: PrivateRecord = { v: 2, httpsOrigin: this.origin, pcId: derivePcId(publicKey),
+      const payload: PrivateRecord = { v: 5, httpsOrigin: this.origin, pcId: derivePcId(publicKey),
         identityPublicKey: publicKey, identityPkcs8: encodeBase64Url(pair.privateKey.export({ format: 'der', type: 'pkcs8' })), grants: [] }
       if (Buffer.byteLength(JSON.stringify(payload)) > this.budgets.maxRecordBytes) throw new Error('companion-host: identity budget')
       return Promise.resolve<CredentialRecord>({ kind: 'grant', payload })
@@ -155,7 +185,7 @@ export class HostRecords {
   }
 
   /**
-   * Replace current grant rows as v2 through the provider's cross-process update lock, preserving identity and generations.
+   * Replace current grant rows as v5 through the provider's cross-process update lock, preserving identity and generations.
    * @param mutate - Synchronous owner decision using freshly parsed durable rows.
    * @returns Committed state; failure leaves the cache unchanged and the caller must keep authority withdrawn.
    */

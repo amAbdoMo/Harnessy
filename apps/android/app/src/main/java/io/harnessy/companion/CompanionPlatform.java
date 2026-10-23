@@ -23,7 +23,8 @@ public interface CompanionPlatform {
     void forget(String pcId) throws IOException;
     List<Fence> fences() throws IOException;
     void putFence(Fence fence) throws IOException;
-    void clearFence(String pcId) throws IOException;
+    /** Clears only the exact stored operation; absent or mismatched fences fail closed. */
+    void clearFence(Fence expected) throws IOException;
     void repair(String pcId, String alias) throws IOException;
     void clearRepair(String pcId) throws IOException;
     List<Repair> repairs() throws IOException;
@@ -71,15 +72,45 @@ public interface CompanionPlatform {
         public final String alias;
         public Repair(String pcId, String alias) { this.pcId = Protocol.parsePcId(pcId); this.alias = alias; }
     }
+    enum OperationKind {
+        SUBMIT_TEXT("submitText"), CREATE_SESSION("createSession"), RENAME_SESSION("renameSession"),
+        ARCHIVE_SESSION("archiveSession"), SET_SESSION_PINNED("setSessionPinned"), SELECT_SESSION_MODEL("selectSessionModel"),
+        OPEN_SESSION("openSession");
+
+        public final String wireName;
+        OperationKind(String wireName) { this.wireName = wireName; }
+
+        public static OperationKind fromWireName(String wireName) {
+            for (OperationKind kind : values()) if (kind.wireName.equals(wireName)) return kind;
+            throw new IllegalArgumentException("Invalid operation kind");
+        }
+    }
     /** No task text, invitation, secret, or retry payload. */
     final class Fence {
         public final String pcId;
         public final String sessionId;
+        /** Legacy alias for operationId, including non-text operations. */
         public final String submissionId;
+        public final String operationId;
+        public final OperationKind kind;
         public Fence(String pcId, String sessionId, String submissionId) {
+            this(pcId, sessionId, submissionId, OperationKind.SUBMIT_TEXT);
+        }
+        public Fence(String pcId, String sessionId, String operationId, OperationKind kind) {
             this.pcId = Protocol.parsePcId(pcId);
             this.sessionId = io.harnessy.companion.protocol.ApplicationCodec.sessionId(sessionId);
-            this.submissionId = Protocol.parseId16(submissionId);
+            this.operationId = Protocol.parseId16(operationId);
+            this.submissionId = this.operationId;
+            this.kind = java.util.Objects.requireNonNull(kind);
+            if (kind == OperationKind.CREATE_SESSION && !("mobile-" + this.operationId).equals(this.sessionId)) {
+                throw new IllegalArgumentException("Created session must match operation ID");
+            }
+        }
+        /** Collision-free PC/chat slot; validated wire identifiers cannot contain the separator. */
+        public String targetKey() { return pcId + '\0' + sessionId; }
+        public boolean sameIdentity(Fence other) {
+            return other != null && kind == other.kind && pcId.equals(other.pcId)
+                && sessionId.equals(other.sessionId) && operationId.equals(other.operationId);
         }
     }
 }

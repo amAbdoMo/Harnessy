@@ -53,6 +53,9 @@ import {
 import { LOADER_SMOKE_TEST_TIMEOUT_MS, runLoaderSmoke } from '@deepseek-ai/dsh-loader-smoke'
 import { resolvePwshPath } from '@deepseek-ai/dsh-pwsh-local'
 import { parseSessionLog, prepareSessionSnapshotFixtureForComparison } from '@deepseek-ai/dsh-llm-replay'
+import {
+  verifyCompanionColdSessionControl, verifyCompanionReadHistory,
+} from '../../packages/host/companion-host/tests/recorded-session-fixture.ts'
 
 const repoRoot = fileURLToPath(new URL('../../', import.meta.url))
 const snapshotsRoot = fileURLToPath(new URL('./', import.meta.url))
@@ -1075,20 +1078,25 @@ describe('headless recorded-session snapshots', () => {
       .toThrow('native tool-result messages match migration output')
   })
 
-  const runs = scenarios.flatMap((scenario): { scenario: HeadlessScenario; retainedToolInput?: string }[] => [
-    { scenario },
+  const runs = scenarios.flatMap((scenario): {
+    scenario: HeadlessScenario; retainedToolInput?: string; surface: 'session' | 'companion-history'
+  }[] => [
+    { scenario, surface: 'session' },
+    ...mode === 'replay' && scenario.name === 'fs-read'
+      ? [{ scenario, surface: 'companion-history' as const }] : [],
     // This comparison retains its own V3 input even after the ordinary scenario records a newer generation.
     ...mode === 'replay' && scenario.name === 'tool-call-turn'
-      ? [{ scenario, retainedToolInput: 'session.v3.jsonl' }] : [],
+      ? [{ scenario, retainedToolInput: 'session.v3.jsonl', surface: 'session' as const }] : [],
   ])
-  for (const { scenario, retainedToolInput } of runs) {
+  for (const { scenario, retainedToolInput, surface } of runs) {
     const skipped = scenario.manifest.platform === 'posix' && process.platform === 'win32'
       || scenario.manifest.platform === 'pwsh' && !hasPwsh
       || mode === 'record' && scenario.manifest.recording === 'authored'
       || mode === 'record' && scenario.manifest.sessionFormat !== undefined
     const scenarioTest = skipped ? it.skip : mode === 'replay' ? it.concurrent : it
     const inputLabel = retainedToolInput === undefined ? '' : ' from retained V3 input'
-    scenarioTest(`${mode}s ${scenario.name}${inputLabel} through dsh --profile headless`, async () => {
+    const surfaceLabel = surface === 'companion-history' ? ' for companion history' : ''
+    scenarioTest(`${mode}s ${scenario.name}${inputLabel} through dsh --profile headless${surfaceLabel}`, async () => {
       let fixtureFiles = retainedToolInput === undefined
         ? sessionFixtureNames(await readdir(scenario.dir)) : [retainedToolInput]
       let fixtures = await fixtureSessions(scenario, fixtureFiles)
@@ -1128,6 +1136,8 @@ describe('headless recorded-session snapshots', () => {
       try {
         result = await runLoaderSmoke({
           label: `${scenario.name} headless snapshot`,
+          // Source CLI startup and replay share the 120s lane; retain 30s for observation and cleanup.
+          processTimeoutMs: 90_000,
           tempDirPrefix: 'dsh-log-snap-',
           ...(scenario.manifest.workspace?.parent === 'outside-temp' ? { tempDirParent: outsideTempWorkspaceParent() } : {}),
           binScript: dshBin,
@@ -1187,6 +1197,15 @@ describe('headless recorded-session snapshots', () => {
           },
           inspect: async (cwd) => {
             actualLogs = await persistedSessions(cwd)
+            if (surface === 'companion-history') {
+              const primaryLog = actualLogs[0]
+              if (primaryLog === undefined || typeof primaryLog.header.id !== 'string' || typeof primaryLog.header.cwd !== 'string') {
+                throw new Error('fs-read persisted no Session identity or directory for companion rendering')
+              }
+              const events = parseSessionLog(primaryLog.content)
+              await verifyCompanionReadHistory(events, primaryLog.header.cwd, join(scenario.dir, 'companion.expected.json'))
+              await verifyCompanionColdSessionControl(primaryLog.content, primaryLog.header.id, primaryLog.header.cwd, events)
+            }
             if (retainedToolInput !== undefined) {
               verifyToolResultWriterParity(primaryFixture, actualLogs[0]!.content)
             }
@@ -1224,6 +1243,12 @@ describe('headless recorded-session snapshots', () => {
       } finally {
         await mcpDemo?.close()
         await rm(spillRoot, { recursive: true, force: true })
+      }
+
+      if (surface === 'companion-history') {
+        expect(result.stdout).toBe(`${finalTextFromSession(primaryFixture)}\n`)
+        expect(result.stderr).toBe(stderrFromSession(primaryFixture))
+        return
       }
 
       const stderrLog = mode === 'replay' ? primaryFixture : actualLogs[0]?.content

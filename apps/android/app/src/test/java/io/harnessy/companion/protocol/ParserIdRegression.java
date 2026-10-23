@@ -2,7 +2,9 @@ package io.harnessy.companion.protocol;
 
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /** Dependency-free JVM parser regressions; fixtures contain public keys and synthetic invitation bytes only. */
@@ -23,6 +25,12 @@ public final class ParserIdRegression {
         identifiersOutsideNodeSchemaAreRejected();
         subscriptionsRetainNode16ByteSchema();
         phoneOwnedIdentifiersRetain16ByteSchema();
+        navigationRequestsOptInWithoutChangingLegacyReads();
+        navigationRowsPreserveLegacyAndNullableMetadata();
+        navigationRequiresAtomicExactNestedFields();
+        navigationNumbersRequireNonnegativeSafeIntegers();
+        navigationUnicodeAndEnvelopeBudgetsRemainStrict();
+        ManagementCodecRegression.main(args);
     }
 
     private static void pcIssued32ByteIdentifiersAreAccepted() throws GeneralSecurityException {
@@ -97,6 +105,119 @@ public final class ParserIdRegression {
         }
     }
 
+    private static void navigationRequestsOptInWithoutChangingLegacyReads() throws GeneralSecurityException {
+        for (String cursor : new String[] { null, "cGFnZQ" }) {
+            Map<String, Object> legacy = ApplicationCodec.parseRequest(ApplicationCodec.listSessions(ID16, 1, cursor));
+            Map<String, Object> navigation = ApplicationCodec.parseRequest(ApplicationCodec.listSessionNavigation(ID16, 1, cursor));
+            equal(false, legacy.containsKey("view"));
+            equal(cursor == null ? 4 : 5, legacy.size());
+            equal("listSessions", navigation.get("type"));
+            equal("navigation", navigation.get("view"));
+            equal(cursor == null ? 5 : 6, navigation.size());
+            if (cursor != null) equal(cursor, navigation.get("cursor"));
+        }
+        for (Object view : new Object[] { null, true, 1, "", "Navigation", "legacy", Collections.emptyList() }) {
+            rejected(() -> ApplicationCodec.parseRequest(StrictJson.stringify(Protocol.object("v", 1, "type", "listSessions",
+                "requestId", ID16, "limit", 1, "view", view))));
+        }
+        rejected(() -> ApplicationCodec.listSessionNavigation(ID32, 1, null));
+        rejected(() -> ApplicationCodec.parseRequest(StrictJson.stringify(Protocol.object("v", 1, "type", "readHistory",
+            "requestId", ID16, "sessionId", "s1", "limit", 1, "view", "navigation"))));
+    }
+
+    private static void navigationRowsPreserveLegacyAndNullableMetadata() {
+        Map<String, Object> legacy = Protocol.object("sessionId", "legacy", "title", "old", "status", "closed");
+        Map<String, Object> rich = Protocol.object("sessionId", "rich", "title", "new", "status", "idle", "navigation",
+            Protocol.object("updatedAt", 9_007_199_254_740_991L, "pinOrder", 0, "workspace",
+                Protocol.object("id", "W._:-1", "title", "工作 🧭", "order", 9_007_199_254_740_991L)));
+        ApplicationCodec.Result parsed = ApplicationCodec.result(StrictJson.stringify(Protocol.object("v", 1, "type", "sessions",
+            "requestId", ID16, "sessions", java.util.Arrays.asList(legacy, rich))));
+        equal(ApplicationCodec.Type.SESSIONS, parsed.type);
+        equal(true, parsed.sessions.get(0).navigation == null);
+        ApplicationCodec.SessionNavigation navigation = parsed.sessions.get(1).navigation;
+        equal(9_007_199_254_740_991L, navigation.updatedAt);
+        equal(0L, navigation.pinOrder);
+        equal("W._:-1", navigation.workspace.id);
+        equal("工作 🧭", navigation.workspace.title);
+        equal(9_007_199_254_740_991L, navigation.workspace.order);
+        ApplicationCodec.SessionNavigation loose = ApplicationCodec.result(navigationResult(
+            "{\"updatedAt\":0,\"pinOrder\":null,\"workspace\":null}")).sessions.get(0).navigation;
+        equal(0L, loose.updatedAt);
+        equal(true, loose.pinOrder == null && loose.workspace == null);
+    }
+
+    private static void navigationRequiresAtomicExactNestedFields() throws GeneralSecurityException {
+        String[] malformed = {
+            "null", "false", "[]", "\"navigation\"", "{}",
+            "{\"pinOrder\":null,\"workspace\":null}",
+            "{\"updatedAt\":0,\"workspace\":null}",
+            "{\"updatedAt\":0,\"pinOrder\":null}",
+            "{\"updatedAt\":0,\"pinOrder\":null,\"workspace\":null,\"extra\":0}",
+            "{\"updatedAt\":0,\"updatedAt\":1,\"pinOrder\":null,\"workspace\":null}"
+        };
+        for (String navigation : malformed) rejected(() -> ApplicationCodec.result(navigationResult(navigation)));
+        for (String workspace : new String[] { "false", "[]", "\"workspace\"", "{}",
+            "{\"title\":\"W\",\"order\":0}", "{\"id\":\"w\",\"order\":0}", "{\"id\":\"w\",\"title\":\"W\"}",
+            "{\"id\":\"w\",\"title\":\"W\",\"order\":0,\"extra\":0}",
+            "{\"id\":\"w\",\"title\":\"W\",\"title\":\"duplicate\",\"order\":0}" }) {
+            rejected(() -> ApplicationCodec.result(navigationResult(navigationJson("0", "null", workspace))));
+        }
+    }
+
+    private static void navigationNumbersRequireNonnegativeSafeIntegers() throws GeneralSecurityException {
+        // Zero and the safe maximum are inclusive; nullable pin is distinct from absent/invalid numbers.
+        for (String valid : new String[] { "0", "9007199254740991", "1.0", "1e3" }) {
+            ApplicationCodec.result(navigationResult(navigationJson(valid, valid, workspaceJson("\"w\"", "\"W\"", valid))));
+        }
+        for (String invalid : new String[] { "-1", "0.1", "true", "false", "\"0\"", "[]", "{}",
+            "9007199254740992", "9007199254740991.1", "9223372036854775808", "1e309", "NaN", "Infinity" }) {
+            rejected(() -> ApplicationCodec.result(navigationResult(navigationJson(invalid, "null", "null"))));
+            rejected(() -> ApplicationCodec.result(navigationResult(navigationJson("0", invalid, "null"))));
+            rejected(() -> ApplicationCodec.result(navigationResult(navigationJson("0", "null", workspaceJson("\"w\"", "\"W\"", invalid)))));
+        }
+        rejected(() -> ApplicationCodec.result(navigationResult(navigationJson("null", "null", "null"))));
+        rejected(() -> ApplicationCodec.result(navigationResult(navigationJson("0", "null", workspaceJson("\"w\"", "\"W\"", "null")))));
+    }
+
+    private static void navigationUnicodeAndEnvelopeBudgetsRemainStrict() throws GeneralSecurityException {
+        String emoji = new String(Character.toChars(0x1F9ED));
+        String title = String.join("", Collections.nCopies(256, emoji));
+        ApplicationCodec.result(navigationResult(navigationJson("0", "null", workspaceJson(
+            "\"" + repeated('W', 128) + "\"", StrictJson.stringify(title), "0"))));
+        rejected(() -> ApplicationCodec.result(navigationResult(navigationJson("0", "null",
+            workspaceJson("\"w\"", StrictJson.stringify(title + "a"), "0")))));
+        for (String id : new String[] { "", repeated('W', 129), "-w", "w/1", "w 1", "工作" }) {
+            rejected(() -> ApplicationCodec.result(navigationResult(navigationJson("0", "null", workspaceJson(StrictJson.stringify(id), "\"W\"", "0")))));
+        }
+        for (String badTitle : new String[] { "null", "true", "1", "\"\\ud800\"", "\"\\udc00\"" }) {
+            rejected(() -> ApplicationCodec.result(navigationResult(navigationJson("0", "null", workspaceJson("\"w\"", badTitle, "0")))));
+        }
+        String compact = navigationResult(navigationJson("0", "null", "null"));
+        String atLimit = compact + repeated(' ', ApplicationCodec.MAX_JSON_BYTES - compact.getBytes(StandardCharsets.UTF_8).length);
+        ApplicationCodec.result(atLimit.getBytes(StandardCharsets.UTF_8));
+        rejected(() -> ApplicationCodec.result((atLimit + " ").getBytes(StandardCharsets.UTF_8)));
+        List<Object> rows = new ArrayList<>();
+        for (int index = 0; index < 50; index++) rows.add(Protocol.object("sessionId", "s" + index, "title", "S", "status", "idle",
+            "navigation", Protocol.object("updatedAt", 0, "pinOrder", null, "workspace", Protocol.object("id", "w", "title", title, "order", 0))));
+        String multibyteEnvelope = StrictJson.stringify(Protocol.object("v", 1, "type", "sessions", "requestId", ID16, "sessions", rows));
+        equal(true, multibyteEnvelope.length() < ApplicationCodec.MAX_JSON_BYTES);
+        rejected(() -> ApplicationCodec.result(multibyteEnvelope));
+        rejected(() -> ApplicationCodec.result(multibyteEnvelope.getBytes(StandardCharsets.UTF_8)));
+    }
+
+    private static String navigationResult(String navigation) {
+        return "{\"v\":1,\"type\":\"sessions\",\"requestId\":\"" + ID16
+            + "\",\"sessions\":[{\"sessionId\":\"s1\",\"title\":\"S\",\"status\":\"idle\",\"navigation\":" + navigation + "}]}";
+    }
+
+    private static String navigationJson(String updatedAt, String pinOrder, String workspace) {
+        return "{\"updatedAt\":" + updatedAt + ",\"pinOrder\":" + pinOrder + ",\"workspace\":" + workspace + "}";
+    }
+
+    private static String workspaceJson(String id, String title, String order) {
+        return "{\"id\":" + id + ",\"title\":" + title + ",\"order\":" + order + "}";
+    }
+
     private static Map<String, Object> hello(String kind, Object identifier) {
         Map<String, Object> authorization = "grant".equals(kind)
             ? Protocol.object("kind", kind, "grantId", identifier, "generation", 1)
@@ -156,16 +277,16 @@ public final class ParserIdRegression {
     }
 
     private static void equal(Object expected, Object actual) {
-        if (!expected.equals(actual)) throw new AssertionError("Parser did not preserve identifier");
+        if (!expected.equals(actual)) throw new AssertionError("Expected " + expected + ", got " + actual);
     }
 
     private static void rejected(ParserAction action) throws GeneralSecurityException {
         try {
             action.parse();
-        } catch (IllegalArgumentException invalidIdentifier) {
+        } catch (IllegalArgumentException invalidMessage) {
             return;
         }
-        throw new AssertionError("Parser accepted identifier outside its schema");
+        throw new AssertionError("Parser accepted input outside its schema");
     }
 
     private interface ParserAction {

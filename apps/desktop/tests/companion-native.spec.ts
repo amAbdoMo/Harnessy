@@ -15,7 +15,7 @@ const candidates = ['a', 'b'].map(value => ({
 const privateStatus: CompanionStatus = {
   available: true, connected: true, pcId: parseId<PcId>('private-pc'),
   paired: [{ grantId: parseId<GrantId>('private-grant'), generation: 1,
-    fingerprint: 'c'.repeat(64), displayName: 'private-name', pairedAt: 1, sessionManagement: false }],
+    fingerprint: 'c'.repeat(64), displayName: 'private-name', pairedAt: 1, sessionManagement: false, modelSelection: false, toolDetails: false, sessionActivation: false }],
   candidates, invitation: { invitationId: parseId<InvitationId>('private-invitation'), expiresAt: Number.MAX_SAFE_INTEGER },
 }
 const statusResult: CompanionControlResult = { kind: 'status', status: privateStatus }
@@ -192,7 +192,7 @@ describe('native per-phone chat management consent', () => {
       if (command.kind === 'describe') return { kind: 'status', status: { ...privateStatus, paired: [device] } }
       if (command.kind === 'setSessionManagement') { device = { ...device, sessionManagement: command.enabled }; return completed }
       throw new Error('Unexpected permission operation')
-    }, responseAt([2, 0, 0, 0, 3]))
+    }, responseAt([2, 0, 0, 0, 6]))
     await f.companion.open()
     expect(f.commands).toEqual([{ kind: 'describe' }, { kind: 'describe' }, {
       kind: 'setSessionManagement', grantId: device.grantId, expectedGeneration: device.generation,
@@ -219,7 +219,7 @@ describe('native per-phone chat management consent', () => {
         paired: ++reads < 3 ? [first, second] : [first, fresh] } }
       if (command.kind === 'setSessionManagement') return completed
       throw new Error('Unexpected permission operation')
-    }, responseAt([2, 2, 0, 0, 0, 3]))
+    }, responseAt([2, 5, 0, 0, 0, 6]))
     await f.companion.open()
     expect(f.dialogs[2]?.options.detail).toBe(fresh.fingerprint)
     expect(f.commands.filter(command => command.kind === 'setSessionManagement')).toEqual([{
@@ -258,12 +258,79 @@ describe('native per-phone chat management consent', () => {
   })
 })
 
+describe('native per-phone model selection consent', () => {
+  it.each([false, true])('changes only the model permission from enabled=%s after native confirmation', async (enabled) => {
+    let device = { ...privateStatus.paired[0]!, modelSelection: enabled }
+    const f = native((command) => {
+      if (command.kind === 'describe') return { kind: 'status', status: { ...privateStatus, paired: [device] } }
+      if (command.kind === 'setModelSelection') { device = { ...device, modelSelection: command.enabled }; return completed }
+      throw new Error('Model consent cannot change another capability')
+    }, responseAt([2, 1, 0, 0, 6]))
+    await f.companion.open()
+    expect(f.commands).toEqual([{ kind: 'describe' }, { kind: 'describe' }, {
+      kind: 'setModelSelection', grantId: device.grantId, expectedGeneration: device.generation,
+      fingerprint: device.fingerprint, enabled: !enabled,
+    }, { kind: 'describe' }])
+    const consent = f.dialogs[2]!.options
+    expect(consent).toMatchObject({ buttons: ['Confirm', 'Cancel'], defaultId: 1, cancelId: 1 })
+    expect(consent.detail).toContain(device.fingerprint)
+    expect(consent.detail).toContain(enabled ? 'global model defaults are unchanged' : 'not your global default')
+    expect(device.sessionManagement).toBe(false)
+    expect(f.dialogs[4]?.options.buttons?.[1]).toBe(enabled ? 'Enable model selection' : 'Disable model selection')
+    expect(f.clipboard).toEqual([])
+  })
+})
+
+describe('native per-phone tool detail consent', () => {
+  it.each([false, true])('changes only tool details from enabled=%s after fingerprint confirmation', async (enabled) => {
+    let device = { ...privateStatus.paired[0]!, toolDetails: enabled, sessionManagement: true, modelSelection: true }
+    const f = native((command) => {
+      if (command.kind === 'describe') return { kind: 'status', status: { ...privateStatus, paired: [device] } }
+      if (command.kind === 'setToolDetails') { device = { ...device, toolDetails: command.enabled }; return completed }
+      throw new Error('Tool consent cannot change another permission')
+    }, responseAt([2, 2, 0, 0, 6]))
+    await f.companion.open()
+    expect(f.commands).toEqual([{ kind: 'describe' }, { kind: 'describe' }, {
+      kind: 'setToolDetails', grantId: device.grantId, expectedGeneration: device.generation,
+      fingerprint: device.fingerprint, enabled: !enabled,
+    }, { kind: 'describe' }])
+    expect(f.dialogs[2]?.options.detail).toContain(device.fingerprint)
+    expect(f.dialogs[2]?.options.detail).toContain(enabled ? 'Previously received details' : 'Filenames can be sensitive')
+    expect(device).toMatchObject({ sessionManagement: true, modelSelection: true, toolDetails: !enabled })
+    expect(f.clipboard).toEqual([])
+  })
+})
+
+describe('native per-phone session activation consent', () => {
+  it.each([false, true])('changes only opening permission from enabled=%s after full-fingerprint confirmation', async (enabled) => {
+    let device = { ...privateStatus.paired[0]!, sessionActivation: enabled,
+      sessionManagement: true, modelSelection: true, toolDetails: true }
+    const f = native((command) => {
+      if (command.kind === 'describe') return { kind: 'status', status: { ...privateStatus, paired: [device] } }
+      if (command.kind === 'setSessionActivation') { device = { ...device, sessionActivation: command.enabled }; return completed }
+      throw new Error('Opening consent cannot change another permission')
+    }, responseAt([2, 3, 0, 0, 6]))
+    await f.companion.open()
+    expect(f.commands).toEqual([{ kind: 'describe' }, { kind: 'describe' }, {
+      kind: 'setSessionActivation', grantId: device.grantId, expectedGeneration: device.generation,
+      fingerprint: device.fingerprint, enabled: !enabled,
+    }, { kind: 'describe' }])
+    expect(f.dialogs[2]?.options.detail).toContain(device.fingerprint)
+    expect(f.dialogs[2]?.options.detail).toContain(enabled ? 'Already opened PC Agents remain running' : 'initialization and recovery')
+    expect(device).toMatchObject({ sessionManagement: true, modelSelection: true, toolDetails: true, sessionActivation: !enabled })
+    expect(f.clipboard).toEqual([])
+  })
+})
+
 describe('closed private permission IPC parsing', () => {
   const command = { kind: 'setSessionManagement', grantId: 'private-grant', expectedGeneration: 1,
     fingerprint: 'c'.repeat(64), enabled: true }
 
   it('admits only the complete explicit native permission decision and actual public flag', () => {
     expect(parseCompanionControlCommand(command)).toEqual(command)
+    expect(parseCompanionControlCommand({ ...command, kind: 'setModelSelection' })).toEqual({ ...command, kind: 'setModelSelection' })
+    expect(parseCompanionControlCommand({ ...command, kind: 'setToolDetails' })).toEqual({ ...command, kind: 'setToolDetails' })
+    expect(parseCompanionControlCommand({ ...command, kind: 'setSessionActivation' })).toEqual({ ...command, kind: 'setSessionActivation' })
     expect(parseCompanionControlCommand({ ...command, enabled: false })).toEqual({ ...command, enabled: false })
     expect(parseCompanionControlResult(statusResult, Date.now())).toEqual(statusResult)
   })
@@ -281,6 +348,12 @@ describe('closed private permission IPC parsing', () => {
   it.each([undefined, null, 'true', 1])('rejects a status permission flag of %s rather than treating it as allowed', (permission) => {
     const paired = privateStatus.paired.map(device => ({ ...device, sessionManagement: permission }))
     expect(() => parseCompanionControlResult({ kind: 'status', status: { ...privateStatus, paired } }, Date.now())).toThrow()
+    const invalidModels = privateStatus.paired.map(device => ({ ...device, modelSelection: permission }))
+    expect(() => parseCompanionControlResult({ kind: 'status', status: { ...privateStatus, paired: invalidModels } }, Date.now())).toThrow()
+    const invalidTools = privateStatus.paired.map(device => ({ ...device, toolDetails: permission }))
+    expect(() => parseCompanionControlResult({ kind: 'status', status: { ...privateStatus, paired: invalidTools } }, Date.now())).toThrow()
+    const invalidActivation = privateStatus.paired.map(device => ({ ...device, sessionActivation: permission }))
+    expect(() => parseCompanionControlResult({ kind: 'status', status: { ...privateStatus, paired: invalidActivation } }, Date.now())).toThrow()
   })
 })
 

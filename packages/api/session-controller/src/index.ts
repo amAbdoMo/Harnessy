@@ -31,7 +31,11 @@ import { SessionSkillCatalog } from './skill-catalog.ts'
 import { SessionMediaReferences } from './media-references.ts'
 import { ArchivedSessionGate } from './archived-session-gate.ts'
 import type {
+  AgentModelChoice,
+  AgentModelCommit,
+  ExistingAgentActivationOptions,
   ModelCatalog,
+  ModelSelection,
   SessionWorkspacePathApplication,
   SessionAttachmentRequest,
   SessionAttachmentValue,
@@ -86,10 +90,12 @@ export interface Config {
   readonly nativeOpen?: boolean
   /** Positive integral milliseconds of list work before yielding between complete rows. */
   readonly listWorkSliceMs?: number
+  /** Maximum retained preparations and admitted existing-chat activations across Host callers. */
+  readonly maxPendingActivations?: number
 }
 
 /** Deployment policy after schema defaults have been applied. */
-type ResolvedConfig = Config & { readonly listWorkSliceMs: number }
+type ResolvedConfig = Config & { readonly listWorkSliceMs: number; readonly maxPendingActivations: number }
 
 /** Host integrations replaceable by direct unit tests. */
 export interface SessionControllerInternals {
@@ -124,6 +130,7 @@ export class SessionController extends TypertRemoteService {
   static Config: z<Config, ResolvedConfig> = z.object({
     nativeOpen: z.boolean(),
     listWorkSliceMs: z.natural().min(1).default(16),
+    maxPendingActivations: z.natural().min(1).default(32),
   })
 
   private readonly agents: ApiSessionAgentController
@@ -147,7 +154,7 @@ export class SessionController extends TypertRemoteService {
     super(ctx, 'sessionController', { namespace: 'session' })
     const resolved = SessionController.Config(config)
     installModelSelectionProjection(ctx)
-    this.agents = new ApiSessionAgentController(ctx)
+    this.agents = new ApiSessionAgentController(ctx, resolved.maxPendingActivations)
     ctx.inject(['settings'], (settingsCtx) => {
       settingsCtx.effect(() => settingsCtx.settings.configure({ auto: false }, ctx.fiber))
     })
@@ -236,6 +243,24 @@ export class SessionController extends TypertRemoteService {
   }
 
   /**
+   * Explicitly open an existing ordinary Session without submitting input or changing Desktop navigation.
+   *
+   * Host-only and absent from Remote namespaces. Final authority and admission callbacks run
+   * synchronously before writable resume. Already-live eligible Agents return unchanged without
+   * admission, including busy Agents. Same-id activation and deployment-capacity conflicts reject.
+   * Cancellation withdraws the reply; before admission it prevents later mutation. After admission,
+   * the API owns initialization and targeted persistence independently of reply loss or revocation.
+   * Initialization may migrate or repair history and run SessionStart plugins even if it fails.
+   * This method neither disposes a shared Agent on reply loss nor rearms goals or enqueues input.
+   * @param sessionId - existing ordinary Session identity, including an ordinary fork; absence never creates.
+   * @param options - caller lifetime and synchronous Host admission callbacks.
+   * @returns the existing live Agent, or a resumed Agent after initialization and its targeted flush.
+   */
+  activateExistingAgent(sessionId: SessionId, options: ExistingAgentActivationOptions): Promise<Agent> {
+    return this.agents.activateExistingAgent(sessionId, options)
+  }
+
+  /**
    * Inspect one attached or persisted Session without activating its Agent.
    * @param sessionId - durable Session identity.
    * @param signal - optional caller cancellation for persistence reads.
@@ -298,6 +323,44 @@ export class SessionController extends TypertRemoteService {
   @Remote('selectModel')
   selectModel(request: SessionSelectModelRequest): Promise<SessionSelectModelValue> {
     return this.commands.selectModel(request)
+  }
+
+  /**
+   * Read the effective model selection of one live ordinary Agent.
+   *
+   * Host-only: the Agent is supplied by the caller, so this never resumes a
+   * closed Session and never exposes the selection to a remote caller.
+   * @param agent - live ordinary Agent that owns the selection.
+   * @returns a detached copy of the effective selection.
+   * @throws RemoteError when the Agent is not a live ordinary Session owner.
+   */
+  currentModelSelection(agent: Agent): ModelSelection {
+    return this.agents.currentSelection(agent)
+  }
+
+  /**
+   * Validate and install one model-only choice for one explicitly supplied live
+   * ordinary Agent.
+   *
+   * Host-only and absent from Remote namespaces. The caller authorizes inside
+   * the shared queue immediately before append; closed Sessions are never resumed
+   * and the deployment default is untouched. Completion follows targeted flush.
+   * A failure after authorization returns can mean the event committed: callers must treat
+   * that outcome as uncertain, never automatically retry or assume rollback.
+   * @param agent - live ordinary Agent that owns the selection.
+   * @param choice - model-only provider and model choice.
+   * @param beforeCommit - synchronous authorization check for the normalized selection.
+   * @param signal - optional caller lifetime; late metadata cannot commit after cancellation.
+   * @returns the normalized committed selection and its durable event position.
+   * @throws RemoteError when the Agent is not an idle ordinary Session owner, or the model is unavailable.
+   */
+  selectModelForAgent(
+    agent: Agent,
+    choice: AgentModelChoice,
+    beforeCommit: (selected: ModelSelection) => void,
+    signal?: AbortSignal,
+  ): Promise<AgentModelCommit> {
+    return this.commands.selectModelForAgent(agent, choice, beforeCommit, signal)
   }
 
   /**
@@ -421,6 +484,15 @@ export class SessionController extends TypertRemoteService {
   }
 
   /**
+   * Rename an already-live ordinary chat without activating a cold Session; Host-only, not Remote.
+   * @param request - Live Session identity and proposed title.
+   * @returns the accepted title and durable event sequence.
+   */
+  renameLiveSession(request: SessionRenameRequest): SessionRenameValue {
+    return this.commands.renameLive(request)
+  }
+
+  /**
    * Fork one cold-readable exact event prefix into a new Session. An omitted
    * boundary selects the latest completed-turn prefix; an open cut receives
    * synthetic fork closers.
@@ -456,7 +528,7 @@ export class SessionController extends TypertRemoteService {
   /**
    * Admit a Host-owned prompt while rechecking its caller's current authority.
    * @param request - Session identity, prompt content, source metadata, and delivery mode.
-   * @param checkAdmission - synchronous authorization and cancellation check through inbox insertion.
+   * @param checkAdmission - synchronous authorization and cancellation check before Agent resolution and again through inbox insertion.
    * @returns acknowledgement of in-memory admission; an already admitted prompt continues after cancellation.
    */
   admitPrompt(request: SessionPromptRequest, checkAdmission: () => void): Promise<SessionPromptValue> {

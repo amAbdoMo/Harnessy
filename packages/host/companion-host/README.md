@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Monitor ordinary PC Sessions and queue follow-up text from a locally approved native phone. Separate per-phone PC consent enables empty Workspace chat creation, Rename, Archive and Pin/unpin. Pairing requires a one-time invitation and explicit PC approval of the phone fingerprint; it does not grant management. The phone cannot delete Sessions, approve tools, browse files, run arbitrary commands or call the operator API. Source preparation does not update an installed Desktop or Android runtime.
+Monitor ordinary PC chats, open eligible existing chats and queue follow-ups from a locally approved phone. Independent PC grants can enable chat management, opening existing chats, session-only model selection and restricted tool details. Pairing requires a one-time invitation and fingerprint approval; it grants none of those permissions. The phone cannot delete chats, approve tools, browse files, run arbitrary commands or call the operator API. Source preparation does not update installed applications.
 
 ## Table of Contents
 
@@ -42,6 +42,16 @@ The opt-in `listSessions` navigation view mirrors PC Workspace membership and pi
 
 `updatedAt` matches Desktop recency: the later of Session creation and the cached latest durable human prompt, not assistant completion or arbitrary activity. The [Session view](src/session-view.ts) reads cached projections without loading every Session log. Legacy requests omit navigation metadata. Update the PC before using the navigation-requesting phone; see [compatibility and update order](../../../docs/upgrade-guide/v0.1.15/companion-navigation/guide.md).
 
+### Open existing chats
+
+The phone can explicitly open an eligible existing ordinary chat on the running PC without changing Desktop navigation. `getSessionActivation` reports its separate PC permission; only `openSession` invokes activation, while session listing, history and progress reads never activate a cold Agent. The `sessionActivationV1` grant is default-denied and independent of pairing, chat management, model selection and tool details. Desktop Main's native **Paired phones** dialog exposes **Enable opening chats** after fingerprint comparison. Cold activation uses normal PC Agent initialization and flushes only the target Session; initialization may migrate or repair history or run SessionStart plugins, even if it fails. After admission, API ownership continues despite phone cancellation, so the reply may be `unknown`. Opening creates no Session or task and sends no text. See [session activation and update order](../../../docs/upgrade-guide/v0.1.17/companion-session-activation/guide.md).
+
+### Models and tool details
+
+Independent native PC decisions enable model selection and tool details for the exact phone fingerprint. Model choices use PC-configured routes for a live idle ordinary chat with no queued work; they affect that chat's next request, not global defaults. Tool details expose workspace-relative file labels, read windows, fixed write/edit outcomes and search counts from history and live activity. Filenames may be sensitive; withdrawal stops future delivery but cannot erase received text. See [update order and record compatibility](../../../docs/upgrade-guide/v0.1.17/companion-model-and-tool-consent/guide.md).
+
+Details use allowlisted successful-result metadata and exact call correlation, not arguments, contents, diffs, shell commands or error text. External paths and malformed metadata are omitted; unavailable correlation produces a fixed status. Tool names and metadata assume trusted PC tool composition rather than authenticated producer identity. Nested PTC details are unavailable.
+
 ### Pairing and follow-up authority
 
 Desktop Main copies the one-time native URL through private IPC and owns fingerprint approval and removal dialogs; the renderer receives only availability, connection state and paired count. The native app can paste the URL; this package claims no QR generation. The operator approves exactly the displayed candidate and fingerprint. **Follow-up text can cause the existing PC Agent to run its normal tools and tasks under that Session's existing permissions.** The companion does not add tool-approval authority.
@@ -58,7 +68,7 @@ The phone must not automatically retry a submission. A `submitted` result means 
 
 A boot-installed Desktop capability and a non-expiring kernel lock restrict this connector to one owner per canonical local home. A paused or unresponsive process retains exclusion; another process cannot take ownership based on a stale heartbeat. The existing credentials service stores the private PC identity and current grants. The outbound WSS connector signs a fresh relay-issued socket challenge; forwarded relay identities alone never authorize a phone. The shared protocol validates the complete signed phone hello, pairing HMAC, PC welcome and mutual encrypted key confirmations. A current grant generation and a synchronously revocable channel signal authorize each application dispatch and final follow-up admission.
 
-Cold text history uses caller-owned query leases without Agent activation. Mobile results contain bounded summaries, approved literal text and sanitized live activity, never raw tool arguments/results, reasoning, filesystem metadata or arbitrary projections. Complete encoded messages pay the UTF-8 budget. The dispatcher issues context-bound authenticated read cursors rather than retaining an unbounded cursor map.
+Cold text history uses caller-owned query leases without Agent activation. Results contain bounded summaries, approved literal text and separately authorized tool metadata, never raw tool payloads, reasoning or arbitrary projections. Complete encoded messages pay the UTF-8 budget. Read cursors are authenticated and context-bound. Live watches retain only bounded pending call identities; immutable history observations resolve earlier calls without synchronous Session log reads.
 
 The [build configuration](tsdown.config.ts) emits the provider and `/desktop-control` codec as independent Node entries. Desktop's [bundle configuration](../../../apps/desktop/tsdown.config.ts) inlines the codec and its protocol dependency rather than leaving an unpackaged runtime import; Main does not load the Host provider.
 

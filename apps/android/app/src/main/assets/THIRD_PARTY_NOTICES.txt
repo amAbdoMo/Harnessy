@@ -1,0 +1,13 @@
+Harnessy Android native preview
+
+Project license: MIT, Copyright (c) 2026 DeepSeek; see licenses/harnessy-MIT.txt.
+
+Runtime dependency families:
+- AndroidX Jetpack, Jetpack Compose and Material 3: Android Open Source Project / Google and contributors; Apache License 2.0.
+- Kotlin and Kotlin Coroutines: JetBrains and contributors; Apache License 2.0.
+- Dagger and Hilt: Google and contributors; Apache License 2.0.
+- OkHttp and Okio: Square and contributors; Apache License 2.0.
+- CommonMark Java: see licenses/commonmark-BSD.txt for its BSD 2-Clause copyright and terms.
+
+The Apache license text is included at licenses/Apache-2.0.txt. Additional packaged dependency notices are retained in META-INF and okhttp3/internal/publicsuffix/NOTICE.
+Upstream projects: https://developer.android.com/jetpack, https://github.com/JetBrains/kotlin, https://github.com/Kotlin/kotlinx.coroutines, https://github.com/google/dagger, https://github.com/square/okhttp, https://github.com/square/okio, https://github.com/commonmark/commonmark-java.
