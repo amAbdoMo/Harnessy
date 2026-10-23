@@ -1553,10 +1553,7 @@ describe('desktop main startup', () => {
     expect(harness.notifications).toEqual([])
     if (failure === 'unpackaged') {
       expect(harness.app.setAppUserModelId).toHaveBeenCalledWith('com.amabdmo.customharness.development')
-      expect(harness.writeShortcutLink).toHaveBeenCalledWith(expect.stringContaining('Harnessy Development.lnk'), 'create', expect.objectContaining({
-        appUserModelId: 'com.amabdmo.customharness.development',
-        args: `--user-data-dir="${harness.app.getPath('userData')}" "desktop-test-app"`,
-      }))
+      expect(harness.writeShortcutLink).not.toHaveBeenCalled()
     }
   })
 

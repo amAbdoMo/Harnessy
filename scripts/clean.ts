@@ -52,7 +52,8 @@ export class RepositoryCleaner {
   }
 
   /**
-   * Remove generated build state and package directories containing only known residue.
+   * Remove disposable build state and package directories containing only known residue.
+   * A prepared staging store and its development profile remain available for application startup.
    * @returns Repository-relative paths that were removed.
    */
   async clean(): Promise<string[]> {
@@ -68,7 +69,16 @@ export class RepositoryCleaner {
     const canonicalRoot = await realpath(this.root)
 
     await this.addIfPresent(targets, join(this.root, '.dsh-build'), canonicalRoot)
-    await this.addIfPresent(targets, join(this.root, 'apps/desktop/.desktop-build'), canonicalRoot)
+    const desktopBuild = join(this.root, 'apps/desktop/.desktop-build')
+    if (await exists(join(desktopBuild, 'staging-runtime'))) {
+      // The selected runtime and its development profile are retained application state.
+      for (const name of await readdir(desktopBuild)) {
+        if (name === 'staging-runtime' || name === 'development') continue
+        await this.addIfPresent(targets, join(desktopBuild, name), canonicalRoot)
+      }
+    } else {
+      await this.addIfPresent(targets, desktopBuild, canonicalRoot)
+    }
 
     // These checks cover legacy root-level incremental state emitted by older configs.
     await this.addIfPresent(targets, join(this.root, '.typecheck'), canonicalRoot)

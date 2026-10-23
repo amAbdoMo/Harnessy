@@ -432,7 +432,8 @@ async function main(): Promise<void> {
   void pruneCrashReports(app.getPath('logs'))
   const notificationProtocolReady = !protocolNotifications || app.setAsDefaultProtocolClient(NOTIFICATION_ACTIVATION_SCHEME)
   if (!notificationProtocolReady) console.warn('Harnessy could not register its notification activation protocol.')
-  const nativeNotificationsReady = await prepareWindowsNotifications() && notificationProtocolReady
+  const nativeNotificationsReady = process.platform === 'win32' && !app.isPackaged
+    ? false : await prepareWindowsNotifications() && notificationProtocolReady
   const journalDirectory = process.env.DSH_DESKTOP_UPDATE_JOURNAL_DIR
   const updateJournal = journalDirectory === undefined ? undefined : new DesktopUpdateJournal(journalDirectory, app.getVersion())
   const resources = runtimeResources()

@@ -68,6 +68,40 @@ describe('RepositoryCleaner', () => {
     expect(existsSync(join(root, 'products/shell/lib'))).toBe(true)
   })
 
+  it('retains protected staging generations and their profile while cleaning disposable outputs', async () => {
+    const root = fixture()
+    addProject(root, 'products/shell')
+    const desktop = join(root, 'apps/desktop/.desktop-build')
+    write(join(root, 'products/shell/lib/types/index.js'))
+    write(join(desktop, 'targets/win-x64/runtime/node.exe'))
+    write(join(desktop, 'staging-runtime/active.json'))
+    write(join(desktop, 'staging-runtime/generations/verified/app/lib/main.js'))
+    write(join(desktop, 'development/Harness/profiles/desktop/package.json'))
+
+    await new RepositoryCleaner(root).clean()
+
+    expect(existsSync(join(desktop, 'staging-runtime/generations/verified/app/lib/main.js'))).toBe(true)
+    expect(existsSync(join(desktop, 'staging-runtime/active.json'))).toBe(true)
+    expect(existsSync(join(desktop, 'development/Harness/profiles/desktop/package.json'))).toBe(true)
+    expect(existsSync(join(desktop, 'targets'))).toBe(false)
+    expect(existsSync(join(root, 'products/shell/lib'))).toBe(false)
+  })
+
+  it('rejects disposable Desktop children reached through an external directory link before deleting any output', async () => {
+    const root = fixture()
+    const external = fixture()
+    addProject(root, 'products/shell')
+    write(join(root, 'products/shell/lib/types/index.js'))
+    write(join(external, 'staging-runtime/active.json'))
+    write(join(external, 'targets/retain.txt'))
+    mkdirSync(join(root, 'apps/desktop'), { recursive: true })
+    symlinkSync(external, join(root, 'apps/desktop/.desktop-build'), process.platform === 'win32' ? 'junction' : 'dir')
+
+    await expect(new RepositoryCleaner(root).clean()).rejects.toThrow('outside repository')
+    expect(existsSync(join(root, 'products/shell/lib/types/index.js'))).toBe(true)
+    expect(existsSync(join(external, 'targets/retain.txt'))).toBe(true)
+  })
+
   it('removes the native Landlock entry output and solution build info', async () => {
     const root = fixture()
     const entry = 'native/system/packages/entry'
