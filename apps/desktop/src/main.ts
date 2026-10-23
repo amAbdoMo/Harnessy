@@ -19,6 +19,7 @@ import {
   net,
   protocol,
   session,
+  safeStorage,
   shell,
   type IpcMainInvokeEvent,
   type MenuItemConstructorOptions,
@@ -66,6 +67,8 @@ import { DesktopDevicePreviews } from './device-preview.ts'
 import { parseDevicePreviewAcknowledgement, parseDevicePreviewBinding, parseDevicePreviewId, parseDevicePreviewProjectId, parseDevicePreviewUnbinding } from './device-preview-protocol.ts'
 import { DesktopWebsiteAuthority } from './website-authority.ts'
 import { parseWebsiteProfileId } from './website-profiles.ts'
+import { DesktopWebsiteCredentials, electronWebsiteCredentialProtector } from './website-credentials.ts'
+import { DesktopWebsiteLogin, electronWebsiteLoginForm } from './website-login.ts'
 import { installWebsiteRequestIpc } from './website-request-ipc.ts'
 import { installDesktopShortcuts } from './keyboard.ts'
 import { DesktopUpdateOverlays } from './update-overlay.ts'
@@ -552,6 +555,9 @@ async function main(): Promise<void> {
         app.removeListener('before-quit', cancel)
       }
     })
+  const websiteCredentials = new DesktopWebsiteCredentials(join(app.getPath('userData'), 'website-login-vault.json'),
+    electronWebsiteCredentialProtector(safeStorage))
+  const websiteLogin = new DesktopWebsiteLogin(websiteCredentials)
   const websiteProfiles = browserGuests.createProfiles(join(app.getPath('userData'), 'website-profiles.json'), {
     inspect: async (serverName) => {
       const host = backend.host
@@ -576,7 +582,7 @@ async function main(): Promise<void> {
         buttons: [locale.messages.websitePairingConfirm, locale.messages.cancel], defaultId: 1, cancelId: 1 })
       if (result.response !== 0) throw new Error('Website pairing was cancelled')
     },
-  }, account => websiteAuthority.requests.revokeAccount(account))
+  }, account => websiteAuthority.requests.revokeAccount(account), websiteCredentials)
   let websiteHost: DesktopHostProcess | undefined
   let previewHost: DesktopHostProcess | undefined
   const devicePreviews = new DesktopDevicePreviews({ window: () => mainWindow, currentHost: () => previewHost,
@@ -587,6 +593,24 @@ async function main(): Promise<void> {
   const detachPreviewGuests = browserGuests.onInvalidated((owner, lease) => { devicePreviews.invalidate(owner, lease) })
   app.once('will-quit', detachPreviewGuests)
   const websiteAuthority = new DesktopWebsiteAuthority({
+    prepared: (request) => {
+      if (mainWindow === undefined || mainWindow.isDestroyed()) return
+      mainWindow.webContents.send(DESKTOP_IPC.websiteRequestPrepared, request)
+    },
+    prepareLogin: async (guest, profile, signal) => {
+      signal.throwIfAborted()
+      if (profile.access !== 'automatic') return
+      // A competing account reservation can defer the tab's initial navigation.
+      if (guest.getURL().startsWith('about:blank')) await guest.loadURL(profile.url)
+      signal.throwIfAborted()
+      if (!profile.hasSavedLogin) return
+      const cancellation = AbortSignal.any([signal, AbortSignal.timeout(30_000)])
+      let outcome: Awaited<ReturnType<DesktopWebsiteLogin['signInAutomatically']>>
+      try { outcome = await websiteLogin.signInAutomatically(profile, electronWebsiteLoginForm(guest, profile.url), cancellation) }
+      catch (_error: unknown) { throw new Error('Website sign-in could not finish') }
+      if (outcome === 'unavailable') throw new Error('This website needs you to finish signing in')
+      signal.throwIfAborted()
+    },
     currentHost: () => backend.host === undefined ? undefined : websiteHost,
     window: () => mainWindow, applicationUrl, profiles: websiteProfiles, guests: browserGuests,
   })
@@ -1062,6 +1086,19 @@ async function main(): Promise<void> {
     const draining = websiteAuthority.takeover(parseWebsiteProfileId(id))
     return websiteProfiles.setControl(id, 'human').then(() => draining)
   })
+  ipcMain.handle(DESKTOP_IPC.websiteProfilesAccess, (event, id: unknown, access: unknown) => {
+    assertProductSender(event)
+    return websiteProfiles.setAccess(id, access)
+  })
+  ipcMain.handle(DESKTOP_IPC.websiteProfilesSaveLogin, async (event, id: unknown, login: unknown) => {
+    assertProductSender(event)
+    try { await websiteProfiles.saveLogin(id, login) }
+    catch (_error: unknown) { throw new Error('Website login could not be saved securely') }
+  })
+  ipcMain.handle(DESKTOP_IPC.websiteProfilesRemoveLogin, (event, id: unknown) => {
+    assertProductSender(event)
+    return websiteProfiles.removeLogin(id)
+  })
   ipcMain.handle(DESKTOP_IPC.websiteProfilesSignOut, (event, id: unknown) => {
     assertProductSender(event)
     return websiteProfiles.signOut(id)
@@ -1435,7 +1472,7 @@ async function main(): Promise<void> {
   }
 
   const hideMainWindow = (window: BrowserWindow): void => {
-    void websiteAuthority.requests.revokeOwner(window.webContents)
+    void websiteAuthority.requests.revokeOwner(window.webContents, false)
       .catch((_error: unknown) => { /* Hidden guests remain unauthorized after failed settlement. */ })
     if (process.platform === 'darwin' && window.isFullScreen()) {
       // Hiding a fullscreen window leaves an empty black space; leave fullscreen first.
@@ -1454,8 +1491,8 @@ async function main(): Promise<void> {
     browserGuests.bind(window, (guest, name) => shortcuts.attachGuest(window, guest, name))
     shortcuts.attach(window)
     window.on('focus', automaticCheck)
-    const revokeWebsiteOwner = (): void => {
-      void websiteAuthority.requests.revokeOwner(window.webContents)
+    const revokeWebsiteOwner = (includeAutomatic = true): void => {
+      void websiteAuthority.requests.revokeOwner(window.webContents, includeAutomatic)
         .catch((_error: unknown) => { /* Native privacy changes retain failed drainage. */ })
     }
     const revokePreviewOwner = (): void => {
@@ -1474,11 +1511,11 @@ async function main(): Promise<void> {
     window.webContents.on('did-start-navigation', (_event, _url, inPlace, mainFrame) => {
       if (mainFrame && !inPlace) retirePreviewOwner()
     })
-    window.on('hide', revokeWebsiteOwner)
-    window.on('minimize', revokeWebsiteOwner)
-    window.on('close', revokeWebsiteOwner)
-    window.webContents.on('render-process-gone', revokeWebsiteOwner)
-    window.webContents.once('destroyed', revokeWebsiteOwner)
+    window.on('hide', () => { revokeWebsiteOwner(false) })
+    window.on('minimize', () => { revokeWebsiteOwner(false) })
+    window.on('close', () => { revokeWebsiteOwner(false) })
+    window.webContents.on('render-process-gone', () => { revokeWebsiteOwner() })
+    window.webContents.once('destroyed', () => { revokeWebsiteOwner() })
     // Closing hides: the page and the Host keep running, and the next show resumes the same document.
     window.on('close', (event) => {
       if (quitting || shellInstallerOwnsQuit || sessionEnding) return

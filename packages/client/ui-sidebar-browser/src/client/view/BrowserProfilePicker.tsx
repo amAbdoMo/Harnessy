@@ -14,6 +14,7 @@ import type { BrowserInjected } from '../browser/BrowserController.ts'
 import type { WebsiteProfileCommands } from '../browser/profiles.ts'
 import { assertNever } from '@deepseek-ai/dsh-util-values'
 import css from './Browser.module.css'
+import { BrowserAccessPicker } from './BrowserAccessPicker.tsx'
 
 /** Private saved-profile commands and observable facts for the toolbar contribution. */
 export interface BrowserProfilePickerInjected {
@@ -160,12 +161,12 @@ function BrowserProfileCreate({ draft, edit, creating, onCreate, onClose, t }: {
   readonly onClose: () => void
   readonly t: BrowserProfilePickerProps['t']
 }): ReactNode {
-  const { name, accountLabel, url, mcpServerName } = draft
+  const { name, accountLabel, url, mcpServerName, access = 'automatic' } = draft
   const complete = name.trim() !== '' && url.trim() !== '' && mcpServerName.trim() !== ''
   const blocked = creating || !complete
   const submit = (): void => {
     if (blocked) return
-    onCreate({ name: name.trim(), accountLabel: accountLabel.trim(), url: url.trim(), mcpServerName: mcpServerName.trim() })
+    onCreate({ name: name.trim(), accountLabel: accountLabel.trim(), url: url.trim(), mcpServerName: mcpServerName.trim(), access })
   }
   return (
     <Modal
@@ -182,6 +183,11 @@ function BrowserProfileCreate({ draft, edit, creating, onCreate, onClose, t }: {
       )}
     >
       <div className={css.profileForm} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); submit() } }}>
+        <div className={css.profileField}>
+          <span className={css.profileFieldLabel}>{t('profiles.access')}</span>
+          <BrowserAccessPicker access={access} disabled={creating} onChange={(choice) => { edit('access', choice) }} t={t} />
+          <span className={css.profileFieldHint}>{t('profiles.access.hint')}</span>
+        </div>
         <label className={css.profileField}>
           <span className={css.profileFieldLabel}>{t('profiles.create.name')}</span>
           <Input value={name} disabled={creating} data-modal-autofocus onChange={(event) => { edit('name', event.currentTarget.value) }} />

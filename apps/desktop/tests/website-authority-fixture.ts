@@ -24,7 +24,7 @@ export function websiteAuthorityFixture(retirementFailure?: Error) {
     webContents: owner, isDestroyed: () => false, isVisible: vi.fn(() => true), isMinimized: vi.fn(() => false),
   }
   const profile: DesktopWebsiteProfile = { id: 'cd1b6493-c881-4967-a544-b0a49f2d847f' as DesktopWebsiteProfile['id'],
-    name: 'Portal', accountLabel: 'operator', url: 'https://portal.example.test/', mcpServerName: 'portal', control: 'human' }
+    name: 'Portal', accountLabel: 'operator', url: 'https://portal.example.test/', mcpServerName: 'portal', control: 'human', access: 'ask', hasSavedLogin: false }
   const binding = { identity: 'a'.repeat(64), endpoint: 'https://portal.example.test/mcp' }
   const lease = '8d7584ac-c562-44eb-a867-0d21e80cbb05' as DesktopBrowserLeaseId
   let snapshot: DesktopWebsiteHostSnapshot = { id: '38ac2aa4-f8ce-4b37-951c-80a4c0c117ce' as DesktopWebsiteHostSnapshot['id'],
@@ -59,7 +59,7 @@ export function websiteAuthorityFixture(retirementFailure?: Error) {
     currentHost: () => current, window: () => window, applicationUrl: 'dsh-app://app/',
     profiles: { assertAvailable: vi.fn(() => profile), binding: () => binding,
       hostInventory: async () => [{ id: profile.id, name: profile.name, accountLabel: profile.accountLabel, url: profile.url,
-        serverName: profile.mcpServerName, mcpBinding: binding }] },
+        serverName: profile.mcpServerName, access: profile.access, mcpBinding: binding }] },
     guests: { inspectWebsite: vi.fn((sender, id) => sender === owner && id === lease ? { owner, guest, profile: profile.id } : undefined),
       onInvalidated: vi.fn(() => () => {}) },
   }

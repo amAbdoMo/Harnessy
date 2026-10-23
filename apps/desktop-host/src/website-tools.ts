@@ -1,4 +1,4 @@
-/** Discovery and preparation return no live page data; request-scoped page information requires fresh consent. */
+/** Discovery and preparation return no live page data; request-scoped operations follow the saved access policy. */
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-user-approval'
@@ -17,7 +17,7 @@ export function installWebsitePageInfoTool(scope: WebsiteRequestToolScope, paren
   const name = `website_page_info_${scope.request.requestId}`
   return scope.agent.ctx.tools.register(defineTool({
     name,
-    description: `Read the current page title and origin for saved website ${JSON.stringify(scope.profile.name)} / account ${JSON.stringify(scope.profile.accountLabel)}. Asks for fresh approval on every call; returns no login state, page body or full URL. Prefer the paired MCP for website work.`,
+    description: `Read the current page title and origin for saved website ${JSON.stringify(scope.profile.name)} / account ${JSON.stringify(scope.profile.accountLabel)}. Follows the saved access policy; returns no login state, page body or full URL. Prefer the paired MCP for website work.`,
     parameters: {},
     output: {
       schema: { type: 'object', additionalProperties: false, properties: {
@@ -69,6 +69,7 @@ export function installWebsiteTools(ctx: Context, requests: WebsiteRequestsContr
           profileId: { type: 'string', required: true }, name: { type: 'string', required: true },
           accountLabel: { type: 'string', required: true }, url: { type: 'string', required: true },
           mcpServerName: { type: 'string', required: true },
+          access: { type: 'string', enum: ['automatic', 'ask', 'disabled'], required: true },
         } } },
         render: (_args, profiles) => [{ type: 'text', text: JSON.stringify(profiles) }],
       },
@@ -76,31 +77,33 @@ export function installWebsiteTools(ctx: Context, requests: WebsiteRequestsContr
         if (execution.agent === undefined) throw new Error('Website work requires an owning agent session')
         execution.signal.throwIfAborted()
         return Promise.resolve(requests.profiles().map(profile => ({ profileId: profile.id, name: profile.name,
-          accountLabel: profile.accountLabel, url: profile.url, mcpServerName: profile.serverName })))
+          accountLabel: profile.accountLabel, url: profile.url, mcpServerName: profile.serverName, access: profile.access })))
       },
       presentCall: () => ({ card: 'generic', title: 'List saved website accounts', kind: 'read' }),
     }))
     scope.tools.register(defineTool({
       name: 'website_prepare',
-      description: 'Request work on one saved website/account. Returns a paused request; the human must log in and explicitly Resume that request before any MCP or browser observation. Never read passwords, verification codes, or login-page content. Prefer the paired MCP for bulk work.',
+      description: 'Request work on one saved website/account. Automatic access may return ready after trusted desktop preparation; Ask returns waiting until the human continues it. Disabled profiles reject the request. Never read passwords, verification codes, or login-page content. Prefer the paired MCP for bulk work.',
       parameters: { profileId: { type: 'string', required: true,
         description: 'The exact profileId from website_profiles; do not substitute another account.' } },
       output: {
         schema: { type: 'object', additionalProperties: false, properties: {
           requestId: { type: 'string', required: true }, profileId: { type: 'string', required: true },
-          mcpServerName: { type: 'string', required: true }, status: { type: 'string', enum: ['pending'], required: true },
+          mcpServerName: { type: 'string', required: true }, status: { type: 'string', enum: ['ready', 'waiting'], required: true },
         } },
-        render: (_args, request) => [{ type: 'text', text: `${JSON.stringify(request)}\nWaiting for the human to Resume this request. No page access is granted.` }],
+        render: (_args, request) => [{ type: 'text', text: request.status === 'ready'
+          ? `${JSON.stringify(request)}\nSaved website access is ready for this request.`
+          : `${JSON.stringify(request)}\nWaiting for the human to Continue this request. No page access is granted.` }],
       },
       async execute(args, execution) {
         const profile = requests.profiles().find(profile => profile.id === args.profileId)
         if (profile === undefined) throw new Error('Saved website/account was not found; ask the human to create or select its pairing')
         const request = requests.create(execution, profile)
-        await requests.handoff(request, signal => parent.prepare(websiteHostSnapshot(request), signal))
+        const prepared = await requests.handoff(request, signal => parent.prepare(websiteHostSnapshot(request), signal))
         execution.signal.throwIfAborted()
-        requests.assertCurrent(request)
+        requests.assertCurrent(prepared)
         return { requestId: request.requestId, profileId: request.profileId,
-          mcpServerName: request.serverName, status: 'pending' as const }
+          mcpServerName: request.serverName, status: prepared.status === 'granted' ? 'ready' as const : 'waiting' as const }
       },
       presentCall: args => ({ card: 'generic', title: 'Prepare saved website work', kind: 'other', rawInput: args.profileId }),
     }))

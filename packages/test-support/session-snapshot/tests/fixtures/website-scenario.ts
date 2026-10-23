@@ -74,7 +74,7 @@ class WebsiteModel extends LlmAdapter {
     const count = index <= 2 || index === 8 ? 0 : 1
     assert.equal(pageInfo.length, count, 'Page-info is scoped to the resumed request, absent before Resume and after Takeover')
     assert.equal(browser.length, count, 'Browser fallback shares the resumed request lifetime')
-    if (index === 2) assert.ok(JSON.stringify(options.messages).includes('Waiting for the human to Resume'))
+    if (index === 2) assert.ok(JSON.stringify(options.messages).includes('Waiting for the human to Continue'))
     if (index === 5) {
       assert.ok(JSON.stringify(options.messages).includes('Saved guest page'))
       assert.ok(JSON.stringify(options.messages).includes('Guest heading'))

@@ -13,6 +13,15 @@ export type DesktopWebsiteRequestId = Branded<'DesktopWebsiteRequestId'>
 /** Main-created logical visibility occurrence; reopening never restores an old grant. */
 export type DesktopWebsiteVisibilityId = Branded<'DesktopWebsiteVisibilityId'>
 
+/** Saved access choice for a website/account, independent of filesystem permissions. */
+export type DesktopWebsiteAccess = 'automatic' | 'ask' | 'disabled'
+
+/** Human-entered login delivered only to the private native profile bridge. */
+export interface DesktopWebsiteSavedLogin {
+  readonly username: string
+  readonly password: string
+}
+
 /** Exact native generation, logical visibility occurrence and guest lease; preparation grants no observation. */
 export interface DesktopWebsiteRequestReceipt {
   readonly requestId: DesktopWebsiteRequestId
@@ -30,6 +39,8 @@ export interface DesktopWebsiteRequestPreparation {
 
 /** Human-only, request-specific native controls; no operation accepts a profile-wide grant. */
 export interface DesktopWebsiteRequestsBridge {
+  /** @param listener - captured Host request that needs its saved-account tab. @returns unsubscribe callback. */
+  onPrepared(this: void, listener: (request: DesktopWebsiteHostSnapshot) => void): () => void
   /**
    * @param sessionId - initiating Session, never the globally selected Session.
    * @returns captured requests without login data or native objects.
@@ -62,6 +73,7 @@ export interface DesktopWebsiteHostProfile {
   readonly name: string
   readonly accountLabel: string
   readonly url: string
+  readonly access: DesktopWebsiteAccess
   readonly serverName: string
   readonly mcpBinding: { readonly identity: string; readonly endpoint: string }
 }
@@ -136,6 +148,8 @@ export interface DesktopWebsiteProfile {
   readonly url: string
   readonly mcpServerName: string
   readonly control: DesktopWebsiteControl
+  readonly access: DesktopWebsiteAccess
+  readonly hasSavedLogin: boolean
 }
 
 /** User-confirmed website/account association; authentication is entered directly in the page. */
@@ -144,6 +158,8 @@ export interface DesktopWebsiteProfileInput {
   readonly accountLabel: string
   readonly url: string
   readonly mcpServerName: string
+  /** Omitted legacy inputs keep interactive access. */
+  readonly access?: DesktopWebsiteAccess
 }
 
 /** User-only profile operations, never exposed through an agent's browser transport. */
@@ -156,6 +172,12 @@ export interface DesktopWebsiteProfilesBridge {
   acquire(this: void, profile: DesktopWebsiteProfileId): Promise<DesktopBrowserReservation>
   /** @param profile - account being controlled. @param control - user's takeover or explicit resume decision. */
   setControl(this: void, profile: DesktopWebsiteProfileId, control: 'human' | 'agent'): Promise<void>
+  /** @param profile - saved account. @param access - remembered website access choice. */
+  setAccess(this: void, profile: DesktopWebsiteProfileId, access: DesktopWebsiteAccess): Promise<void>
+  /** @param profile - saved account. @param login - private login values encrypted by Main, never returned. */
+  saveLogin(this: void, profile: DesktopWebsiteProfileId, login: DesktopWebsiteSavedLogin): Promise<void>
+  /** @param profile - saved account whose protected login is removed without clearing browser cookies. */
+  removeLogin(this: void, profile: DesktopWebsiteProfileId): Promise<void>
   /** @param profile - account whose guests are closed and authentication/storage cleared before returning. */
   signOut(this: void, profile: DesktopWebsiteProfileId): Promise<void>
   /** @param profile - account cleared before its saved association is removed; cleanup failures retain it. */

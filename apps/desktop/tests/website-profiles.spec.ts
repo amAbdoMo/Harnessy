@@ -5,14 +5,16 @@ import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import type { DesktopWebsiteProfileId } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
 import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
+import { DesktopWebsiteCredentials } from '../src/website-credentials.ts'
 import { DesktopWebsiteProfiles } from '../src/website-profiles.ts'
 
 const MCP_BINDING = { identity: 'a'.repeat(64), endpoint: 'https://portal.example.test/wp-json/mcp' }
 const PAIRING = { inspect: async () => MCP_BINDING, confirm: async () => {}, enroll: async () => {} }
 const PAIRED = { name: 'Portal', accountLabel: 'operations', url: 'https://portal.example.test', mcpServerName: 'portal' }
 const OTHER = { name: 'Console', accountLabel: '', url: 'https://console.example.test', mcpServerName: 'console' }
-const STORED_PORTAL = { id: '11111111-2222-4333-8444-555555555555', name: 'Portal', accountLabel: 'operations',
+const LEGACY_STORED_PORTAL = { id: '11111111-2222-4333-8444-555555555555', name: 'Portal', accountLabel: 'operations',
   url: 'https://portal.example.test/', mcpServerName: 'portal', loginConfirmed: false, cleanupPending: false, mcpBinding: MCP_BINDING }
+const STORED_PORTAL = { ...LEGACY_STORED_PORTAL, access: 'ask' }
 const UNAVAILABLE = 'Website profile is unavailable'
 const BLOCKED = 'Website profile data must be cleared successfully before it can be used'
 const PAUSED = 'Website observation is paused; wait for the user to resume control'
@@ -34,7 +36,7 @@ async function metadataPath(): Promise<string> {
 /** Reads the committed file exactly as the store wrote it. */
 async function storedProfiles(filename: string): Promise<Array<Record<string, unknown>>> {
   const document = JSON.parse(await readFile(filename, 'utf8')) as { version: unknown; profiles: Array<Record<string, unknown>> }
-  expect(document.version).toBe(1)
+  expect(document.version).toBe(2)
   return document.profiles
 }
 
@@ -84,12 +86,12 @@ function heldCleanup() {
 type UnusableFile = readonly [scenario: string, content: string, failure: string | ErrorConstructor]
 
 const unusableFiles: readonly UnusableFile[] = [
-  ['a future version', JSON.stringify({ version: 2, profiles: [] }),
+  ['a future version', JSON.stringify({ version: 3, profiles: [] }),
     'Website profile file has an unsupported version or profile list'],
   ['a malformed document', '{"version":1,"profiles":[}', SyntaxError],
-  ['an unknown profile field', JSON.stringify({ version: 1, profiles: [{ ...STORED_PORTAL, cookies: 'session=1' }] }),
+  ['an unknown profile field', JSON.stringify({ version: 1, profiles: [{ ...LEGACY_STORED_PORTAL, cookies: 'session=1' }] }),
     'Website profile contains unsupported fields'],
-  ['duplicate identities', JSON.stringify({ version: 1, profiles: [STORED_PORTAL, { ...STORED_PORTAL, name: 'Copy' }] }),
+  ['duplicate identities', JSON.stringify({ version: 1, profiles: [LEGACY_STORED_PORTAL, { ...LEGACY_STORED_PORTAL, name: 'Copy' }] }),
     'Website profile identities are duplicated'],
 ]
 
@@ -99,7 +101,7 @@ describe('desktop website profiles', () => {
     const confirm = vi.fn(async () => { throw new Error('Website pairing was cancelled') })
     const profiles = new DesktopWebsiteProfiles(filename, async () => {}, { ...PAIRING, confirm }, async () => {})
     await expect(profiles.create(PAIRED)).rejects.toThrow('Website pairing was cancelled')
-    expect(confirm).toHaveBeenCalledExactlyOnceWith({ ...PAIRED, url: `${PAIRED.url}/` }, MCP_BINDING)
+    expect(confirm).toHaveBeenCalledExactlyOnceWith({ ...PAIRED, url: `${PAIRED.url}/`, access: 'ask' }, MCP_BINDING)
     expect(await profiles.list()).toEqual([])
     expect(existsSync(filename)).toBe(false)
   })
@@ -145,7 +147,7 @@ describe('desktop website profiles', () => {
     installed.resolve()
     const created = await creating
     expect(enroll).toHaveBeenCalledWith([{ id: created.id, name: created.name, accountLabel: created.accountLabel,
-      url: created.url, serverName: 'portal', mcpBinding: MCP_BINDING }])
+      url: created.url, serverName: 'portal', mcpBinding: MCP_BINDING, access: 'ask' }])
     expect(created.control).toBe('human')
     expect(notified).toHaveBeenCalledOnce()
   })
@@ -203,7 +205,8 @@ describe('desktop website profiles', () => {
 
     const created = await profiles.create(PAIRED)
     expect(created.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
-    expect(created).toEqual({ ...PAIRED, id: created.id, url: 'https://portal.example.test/', control: 'human' })
+    expect(created).toEqual({ ...PAIRED, id: created.id, url: 'https://portal.example.test/', access: 'ask',
+      hasSavedLogin: false, control: 'human' })
     expect(() => profiles.assertAgent(created.id)).toThrow(PAUSED)
     expect(await profiles.list()).toEqual([created])
     expect(await storedProfiles(filename)).toEqual([{ ...STORED_PORTAL, id: created.id }])
@@ -229,6 +232,79 @@ describe('desktop website profiles', () => {
 
     await expect(profiles.acquire('22222222-3333-4444-8555-666666666666')).rejects.toThrow(UNAVAILABLE)
     await expect(profiles.acquire('not-a-profile')).rejects.toThrow('Website profile identity is invalid')
+  })
+
+  it('reads legacy metadata as ask access and preserves identity and binding until an atomic v2 mutation', async () => {
+    const filename = await metadataPath()
+    const legacy = `${JSON.stringify({ version: 1, profiles: [LEGACY_STORED_PORTAL] }, null, 2)}\n`
+    await writeFile(filename, legacy)
+    const drain = vi.fn(async () => {})
+    const profiles = new DesktopWebsiteProfiles(filename, async () => {}, PAIRING, drain)
+
+    expect(await profiles.list()).toEqual([{ id: LEGACY_STORED_PORTAL.id, name: 'Portal', accountLabel: 'operations',
+      url: 'https://portal.example.test/', mcpServerName: 'portal', access: 'ask', hasSavedLogin: false, control: 'human' }])
+    expect(await profiles.hostInventory()).toEqual([{ id: LEGACY_STORED_PORTAL.id, name: 'Portal', accountLabel: 'operations',
+      url: 'https://portal.example.test/', serverName: 'portal', mcpBinding: MCP_BINDING, access: 'ask' }])
+    expect(await readFile(filename, 'utf8')).toBe(legacy)
+
+    await profiles.setAccess(LEGACY_STORED_PORTAL.id, 'automatic')
+    expect(drain).toHaveBeenCalledOnce()
+    expect(await storedProfiles(filename)).toEqual([{ ...STORED_PORTAL, access: 'automatic' }])
+  })
+
+  it('fences and joins account work before committing a serialized access change', async () => {
+    const filename = await metadataPath()
+    const drainage: PromiseWithResolvers<void> = Promise.withResolvers()
+    const entered: PromiseWithResolvers<void> = Promise.withResolvers()
+    const profiles = new DesktopWebsiteProfiles(filename, async () => {}, PAIRING, async () => {
+      entered.resolve(); await drainage.promise
+    })
+    const created = await profiles.create(PAIRED)
+    await profiles.setControl(created.id, 'agent')
+    const changing = profiles.setAccess(created.id, 'disabled')
+    await entered.promise
+
+    expect(() => profiles.assertAgent(created.id)).toThrow(PAUSED)
+    await expect(profiles.acquire(created.id)).rejects.toThrow('Website profile access change is in progress')
+    await expect(profiles.setAccess(created.id, 'automatic')).rejects.toThrow('Website profile access change is in progress')
+    expect((await storedProfiles(filename))[0]?.access).toBe('ask')
+    drainage.resolve()
+    await changing
+    expect((await profiles.list())[0]).toMatchObject({ access: 'disabled', control: 'human' })
+    expect((await storedProfiles(filename))[0]?.access).toBe('disabled')
+  })
+
+  it('retains the old access decision when account drainage fails', async () => {
+    const filename = await metadataPath()
+    const profiles = new DesktopWebsiteProfiles(filename, async () => {}, PAIRING,
+      async () => { throw new Error('Host drainage failed') })
+    const created = await profiles.create(PAIRED)
+    await expect(profiles.setAccess(created.id, 'automatic')).rejects.toThrow('Host drainage failed')
+    expect((await profiles.list())[0]).toMatchObject({ access: 'ask', control: 'human' })
+    expect((await storedProfiles(filename))[0]?.access).toBe('ask')
+  })
+
+  it('projects only saved-login presence, retains it on sign out and removes it on forget', async () => {
+    const filename = await metadataPath()
+    const vault = new DesktopWebsiteCredentials(`${filename}.credentials`, {
+      available: async () => true,
+      encrypt: async text => Buffer.from(`protected:${Buffer.from(text).toString('base64')}`),
+      decrypt: async value => Buffer.from(value.toString().slice('protected:'.length), 'base64').toString(),
+    })
+    const profiles = new DesktopWebsiteProfiles(filename, async () => {}, PAIRING, async () => {}, vault)
+    const created = await profiles.create(PAIRED)
+    await profiles.saveLogin(created.id, { username: 'operator', password: 'private-password' })
+
+    expect((await profiles.list())[0]).toMatchObject({ hasSavedLogin: true })
+    const metadata = await readFile(filename, 'utf8')
+    expect(metadata).not.toContain('operator')
+    expect(metadata).not.toContain('private-password')
+    await profiles.signOut(created.id)
+    expect((await profiles.list())[0]).toMatchObject({ hasSavedLogin: true })
+    expect(await vault.has(created.id)).toBe(true)
+    await profiles.forget(created.id)
+    expect(await vault.has(created.id)).toBe(false)
+    expect(await profiles.list()).toEqual([])
   })
 
   it('revokes a captured observation generation when the user takes over', async () => {

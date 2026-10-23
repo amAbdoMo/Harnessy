@@ -93,8 +93,7 @@ function loginFixture(cookieValue = 'signed-in') {
     const signedIn = request.headers.cookie?.split(';').some(cookie => cookie.trim() === `fixture_login=${cookieValue}`) === true
     response.setHeader('content-type', 'text/html; charset=utf-8')
     response.end(`<title>Website login fixture</title><p id="state">${signedIn ? 'authenticated' : 'anonymous'}</p>
-      <form action="/login" method="post"><label>Username<input name="username"></label>
-      <label>Password<input name="password" type="password"></label><button>Sign in</button></form>`)
+      ${signedIn ? '' : '<form action="/login" method="post"><label>Username<input name="username"></label><label>Password<input name="password" type="password"></label><button>Sign in</button></form>'}`)
   })
   return server
 }
@@ -1088,13 +1087,13 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
     }
   }, 300_000)
 
-  it('uses a genuine Agent, fresh approval and the same native guest through Human takeover', async () => {
+  it.each(['ask', 'automatic'] as const)('uses a genuine Agent and the same native guest through Pause and Continue with %s access', async (access) => {
     if (process.platform !== 'win32') throw new Error('Native acceptance requires an interactive Windows desktop')
     expect(readClientBuildRecord(repository).environment.DSH_CLIENT_BUILD_PROFILE).toBe('custom-harness')
     const root = mkdtempSync(join(tmpdir(), 'dsh-website-agent-'))
     const env = childEnvironment(root)
     env.DEEPSEEK_API_KEY = 'fixture-key-not-an-external-credential'
-    const model = websiteModelFixture()
+    const model = websiteModelFixture(access)
     const mcp = mcpFixture()
     const privateCookie = 'HUMAN_PRIVATE_COOKIE_VALUE'
     const humanOnly = ['HUMAN_PRIVATE_TITLE', 'HUMAN_PRIVATE_BODY', 'HUMAN_PRIVATE_PATH', 'HUMAN_PRIVATE_QUERY', 'HUMAN_PRIVATE_INPUT', 'fixture-password', privateCookie]
@@ -1123,19 +1122,31 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
       await configureMcp(page, mcpUrl)
       await page.evaluate(() => { (window as Window & { __DSH_LOCALE__?: { onChange(locale: string): void } }).__DSH_LOCALE__!.onChange('en') })
       const profile = await pairProfile(app, page, origin, mcpUrl, 'Agent fixture account')
+      if (access === 'automatic') {
+        await page.evaluate(async (id) => {
+          const profiles = (window as ProductWindow).dshDesktop!.browser.profiles
+          await profiles.saveLogin(id, { username: 'fixture-user', password: 'fixture-password' })
+          await profiles.setAccess(id, 'automatic')
+        }, profile.id)
+        const protectedLogin = await readFile(join(root, 'cache/DesktopUserData/website-login-vault.json'), 'utf8')
+        expect(protectedLogin).not.toContain('fixture-password')
+        expect(protectedLogin).not.toContain('fixture-user')
+      }
       await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click()
+      if (access === 'automatic') {
+        await page.getByRole('button', { name: /^Access mode, current:/u }).click()
+        await page.getByRole('menuitem', { name: 'Full access', exact: true }).click()
+        const confirmation = page.getByRole('dialog', { name: 'Enable Full access?' })
+        await confirmation.getByRole('checkbox').check()
+        await confirmation.getByRole('button', { name: 'Enable Full access', exact: true }).click()
+      }
       const composer = page.locator('[data-composer-input][contenteditable="true"]').last()
       await composer.fill(`${model.marker}: request the saved Agent fixture account, wait for Human Resume, and read only the approved page title and origin.`)
       await composer.press('Enter')
       await expect.poll(() => { expect(model.errors).toEqual([]); return model.held.has('prepared') }, { timeout: 60_000 }).toBe(true)
       expect(model.receipt?.profileId).toBe(profile.id)
-      const requestId = model.receipt!.requestId
-      await page.locator('[data-sidebar-right-expand]').click()
-      await page.locator('[data-sidebar-right-guide-entry="browser"]').click()
       const right = page.locator('[data-rightbar-col]')
-      await right.getByRole('button', { name: 'Saved website profiles', exact: true }).click()
-      await page.getByRole('menuitem').filter({ hasText: profile.name }).click()
-      await right.getByText('Human control', { exact: true }).waitFor()
+      await right.getByText(access === 'automatic' ? 'Agent control' : 'Human control', { exact: true }).waitFor()
       const guestTag = '[data-sidebar-browser-frame="webview"]'
       await page.locator(guestTag).waitFor()
       const guestId = (): Promise<number> => page.evaluate((selector) => {
@@ -1147,9 +1158,9 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
       const nativeId = await guestId()
       expect(await page.locator(guestTag).getAttribute('partition')).toBe(`persist:dsh-website-${profile.id}`)
       // A native ID exists before the product's initial website navigation has loaded.
-      await expect.poll(() => state(activeApp, nativeId), { timeout: 15_000 }).toBe('anonymous')
+      await expect.poll(() => state(activeApp, nativeId), { timeout: 15_000 }).toBe(access === 'automatic' ? 'authenticated' : 'anonymous')
       // Human login and private-page setup run outside Agent execution.
-      await signIn(app, nativeId, privateCookie)
+      if (access === 'ask') await signIn(app, nativeId, privateCookie)
       await app.evaluate(async ({ webContents }, { id, url, privateData }) => {
         const guest = webContents.fromId(id)
         if (!guest) throw new Error('Product-created Website guest was destroyed')
@@ -1157,7 +1168,7 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
         await guest.executeJavaScript(`
           document.title = ${JSON.stringify(privateData.title)};
           document.body.append(Object.assign(document.createElement('p'), { textContent: ${JSON.stringify(privateData.body)} }));
-          document.querySelector('[name=password]').value = ${JSON.stringify(privateData.input)}; void 0;
+          document.body.append(Object.assign(document.createElement('input'), { type: 'password', value: ${JSON.stringify(privateData.input)} })); void 0;
         `)
       }, { id: nativeId, url: `${origin}/${humanOnly[2]}?secret=${humanOnly[3]}`,
         privateData: { title: humanOnly[0]!, body: humanOnly[1]!, input: humanOnly[4]! } })
@@ -1207,44 +1218,61 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
       }
       noHumanLeak()
       expect(await counts()).toEqual({ title: 0, dom: 0, image: 0 })
-      await right.getByRole('button', { name: 'Choose a request', exact: true }).click()
-      await page.getByRole('menuitem', { name: `Request ${requestId}`, exact: true }).click()
+      expect(await right.getByRole('button', { name: 'Choose a request', exact: true }).count()).toBe(0)
       // The Human chooses which title may be observed; this write is outside Agent measurement.
       await app.evaluate(async (_electron, title) => {
         await (globalThis as ProbedGlobal).__websiteNativeFixture!.setTitle(title)
       }, approvedTitle)
-      await right.getByRole('button', { name: 'Resume', exact: true }).click()
+      if (access === 'ask') await right.getByRole('button', { name: 'Continue', exact: true }).click()
       await right.getByText('Agent control', { exact: true }).waitFor()
       expect(await guestId()).toBe(nativeId)
       model.release('prepared')
       const consent = page.locator('[data-approval-key]')
-      await consent.getByRole('button', { name: 'Allow once', exact: true }).waitFor({ timeout: 30_000 })
-      const firstApproval = await consent.getAttribute('data-approval-key')
-      expect(await counts()).toEqual({ title: 0, dom: 0, image: 0 })
-      await consent.getByRole('button', { name: 'Allow once', exact: true }).click()
-      await expect.poll(() => model.held.has('observed') || model.errors.length > 0, { timeout: 30_000 }).toBe(true)
-      noHumanLeak()
-      expect(model.errors, JSON.stringify(model.observationResult)).toEqual([])
-      expect(model.observed).toEqual({ origin, title: approvedTitle, titleTruncated: false })
-      expect(await counts()).toEqual({ title: 1, dom: 0, image: 0 })
-      noHumanLeak()
-      model.release('observed')
-      await consent.getByRole('button', { name: 'Allow once', exact: true }).waitFor({ timeout: 30_000 })
-      expect(await consent.getAttribute('data-approval-key')).not.toBe(firstApproval)
-      await right.getByRole('button', { name: 'Take control', exact: true }).click()
-      await right.getByText('Human control', { exact: true }).waitFor()
-      await expect.poll(() => { expect(model.errors).toEqual([]); return model.held.has('taken-over') }, { timeout: 30_000 }).toBe(true)
-      expect(model.denied).toBe(true)
-      expect(await consent.count()).toBe(0)
-      expect(await counts()).toEqual({ title: 1, dom: 0, image: 0 })
-      expect(await guestId()).toBe(nativeId)
-      noHumanLeak()
-      await right.getByRole('button', { name: 'Resume', exact: true }).click()
-      await right.getByText('Agent control', { exact: true }).waitFor()
-      model.release('taken-over')
-      await consent.getByRole('button', { name: 'Allow once', exact: true }).waitFor({ timeout: 30_000 })
-      expect(await consent.getAttribute('data-approval-key')).not.toBe(firstApproval)
-      await consent.getByRole('button', { name: 'Allow once', exact: true }).click()
+      if (access === 'ask') {
+        await consent.getByRole('button', { name: 'Allow once', exact: true }).waitFor({ timeout: 30_000 })
+        const firstApproval = await consent.getAttribute('data-approval-key')
+        expect(await counts()).toEqual({ title: 0, dom: 0, image: 0 })
+        await consent.getByRole('button', { name: 'Allow once', exact: true }).click()
+        await expect.poll(() => model.held.has('observed') || model.errors.length > 0, { timeout: 30_000 }).toBe(true)
+        noHumanLeak()
+        expect(model.errors, JSON.stringify(model.observationResult)).toEqual([])
+        expect(model.observed).toEqual({ origin, title: approvedTitle, titleTruncated: false })
+        expect(await counts()).toEqual({ title: 1, dom: 0, image: 0 })
+        noHumanLeak()
+        model.release('observed')
+        await consent.getByRole('button', { name: 'Allow once', exact: true }).waitFor({ timeout: 30_000 })
+        expect(await consent.getAttribute('data-approval-key')).not.toBe(firstApproval)
+        await right.getByRole('button', { name: 'Pause', exact: true }).click()
+        await right.getByText('Human control', { exact: true }).waitFor()
+        await expect.poll(() => { expect(model.errors).toEqual([]); return model.held.has('taken-over') }, { timeout: 30_000 }).toBe(true)
+        expect(model.denied).toBe(true)
+        expect(await consent.count()).toBe(0)
+        expect(await counts()).toEqual({ title: 1, dom: 0, image: 0 })
+        expect(await guestId()).toBe(nativeId)
+        noHumanLeak()
+        await right.getByRole('button', { name: 'Continue', exact: true }).click()
+        await right.getByText('Agent control', { exact: true }).waitFor()
+        model.release('taken-over')
+        await consent.getByRole('button', { name: 'Allow once', exact: true }).waitFor({ timeout: 30_000 })
+        expect(await consent.getAttribute('data-approval-key')).not.toBe(firstApproval)
+        await consent.getByRole('button', { name: 'Allow once', exact: true }).click()
+      } else {
+        await expect.poll(() => model.held.has('observed') || model.errors.length > 0, { timeout: 30_000 }).toBe(true)
+        expect(model.errors).toEqual([])
+        expect(model.observed).toEqual({ origin, title: approvedTitle, titleTruncated: false })
+        expect(await consent.count()).toBe(0)
+        expect(await counts()).toEqual({ title: 1, dom: 0, image: 0 })
+        await right.getByRole('button', { name: 'Pause', exact: true }).click()
+        await right.getByText('Human control', { exact: true }).waitFor()
+        const retainedCookies = await app.evaluate(async ({ webContents }, id) =>
+          webContents.fromId(id)!.session.cookies.get({ name: 'fixture_login' }), nativeId)
+        expect(retainedCookies).toEqual([expect.objectContaining({ value: privateCookie, httpOnly: true })])
+        await page.screenshot({ path: join(repository, '.artifacts/saved-websites-native-paused.png') })
+        expect(await counts()).toEqual({ title: 1, dom: 0, image: 0 })
+        await right.getByRole('button', { name: 'Continue', exact: true }).click()
+        await right.getByText('Agent control', { exact: true }).waitFor()
+        model.release('observed')
+      }
       await page.getByText('WEBSITE_AGENT_COMPLETE', { exact: true }).waitFor({ timeout: 30_000 })
       expect(await guestId()).toBe(nativeId)
       expect(await counts()).toEqual({ title: 2, dom: 0, image: 0 })
@@ -1257,9 +1285,11 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
       const log = logs.find(text => text.includes(model.marker))
       expect(log !== undefined, 'Genuine Agent Session was not durably recorded').toBe(true)
       expect(humanOnly.some(secret => logs.some(text => text.includes(secret))), 'Human-only data entered a durable Session').toBe(false)
-      expect(log).toContain('approval/decided')
-      expect(log).toContain('allowed-once')
-      expect(log).toContain('native_info_denied')
+      if (access === 'ask') {
+        expect(log).toContain('approval/decided')
+        expect(log).toContain('allowed-once')
+        expect(log).toContain('native_info_denied')
+      } else expect(log).not.toContain('approval/requested')
       expect(log).toContain(approvedTitle)
       expect(log).toContain('WEBSITE_AGENT_COMPLETE')
     } catch (error) {

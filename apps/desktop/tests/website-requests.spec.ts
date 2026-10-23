@@ -73,6 +73,85 @@ function fixture() {
 }
 
 describe('Main website request authority', () => {
+  it('retains settled private login when continuing the same attached request after Pause', async () => {
+    const f = fixture()
+    const login = vi.fn<NonNullable<DesktopWebsiteRequestDependencies['prepareLogin']>>(async () => {})
+    f.dependencies.prepareLogin = login
+    const account = f.prepare({ automatic: true })
+    await f.requests.resume(account.input.owner, account.acknowledge())
+    await f.requests.revoke(account.id)
+    await f.requests.resume(account.input.owner, account.acknowledge())
+    expect(login).toHaveBeenCalledOnce()
+    expect(f.spies.commit).toHaveBeenCalledTimes(2)
+    await f.requests.close(account.id)
+  })
+  it('cancels a queued request without admitting it when the active account drains', async () => {
+    const f = fixture()
+    const first = f.prepare({ automatic: true })
+    await f.requests.resume(first.input.owner, first.acknowledge())
+    const next = f.prepare({ automatic: true })
+    const queued = f.requests.resume(next.input.owner, next.acknowledge())
+    const rejected = expect(queued).rejects.toThrow('stale')
+    await f.requests.close(next.id)
+    await rejected
+    await f.requests.revoke(first.id)
+    expect(f.spies.commit).toHaveBeenCalledOnce()
+    await f.requests.close(first.id)
+  })
+  it('queues automatic requests for the same account and admits the next only after physical drainage', async () => {
+    const f = fixture()
+    const first = f.prepare({ automatic: true })
+    await f.requests.resume(first.input.owner, first.acknowledge())
+    const next = f.prepare({ automatic: true })
+    const queued = f.requests.resume(next.input.owner, next.acknowledge())
+    onTestFinished(async () => { await f.requests.revoke(first.id); await queued; await f.requests.revoke(next.id) })
+    expect(f.spies.commit).toHaveBeenCalledTimes(1)
+    await f.requests.revoke(first.id)
+    await queued
+    expect(f.spies.commit).toHaveBeenCalledTimes(2)
+    expect(() =>{  f.requests.assertGranted(f.capturedHost, next.id) }).not.toThrow()
+  })
+
+  it('keeps explicitly automatic work running in the background while interactive work requires a visible window', async () => {
+    const f = fixture()
+    const automatic = f.prepare({ automatic: true })
+    f.guests.set(automatic.input.lease, { ...automatic.native, windowVisible: false, windowMinimized: true })
+    await f.requests.resume(automatic.input.owner, automatic.acknowledge())
+    await f.requests.revokeOwner(f.owner.native, false)
+    expect(() =>{  f.requests.assertGranted(f.capturedHost, automatic.id) }).not.toThrow()
+    await f.requests.revokeOwner(f.owner.native)
+    expect(() =>{  f.requests.assertGranted(f.capturedHost, automatic.id) }).toThrow()
+    const interactive = f.prepare()
+    f.guests.set(interactive.input.lease, { ...interactive.native, windowVisible: false })
+    expect(() => interactive.acknowledge()).toThrow()
+  })
+
+  it('drains a cancelled private login before releasing the account and never grants it to the Host', async () => {
+    const f = fixture()
+    const login: PromiseWithResolvers<void> = Promise.withResolvers()
+    const entered: PromiseWithResolvers<void> = Promise.withResolvers()
+    let cancellation: AbortSignal | undefined
+    f.dependencies.prepareLogin = async (_binding, signal) => {
+      cancellation = signal
+      entered.resolve()
+      await login.promise
+    }
+    const account = f.prepare({ automatic: true })
+    const resuming = f.requests.resume(account.input.owner, account.acknowledge())
+    const rejected = expect(resuming).rejects.toThrow()
+    onTestFinished(async () => { login.resolve(); await Promise.allSettled([resuming, f.requests.revoke(account.id)]) })
+    await entered.promise
+    const draining = f.requests.revoke(account.id)
+    expect(cancellation?.aborted).toBe(true)
+    expect(f.spies.validate).not.toHaveBeenCalled()
+    expect(f.spies.commit).not.toHaveBeenCalled()
+    expect(f.requests.isAccountReserved({ profile: account.input.profile, url: account.input.url,
+      mcpServerName: account.input.mcpServerName, mcpBinding: account.input.mcpBinding })).toBe(true)
+    login.resolve()
+    await Promise.all([rejected, draining])
+    expect(f.spies.commit).not.toHaveBeenCalled()
+  })
+
   it('publishes account reservations during validation and retains them through physical drainage', async () => {
     const f = fixture()
     const a = f.prepare()

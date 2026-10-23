@@ -5,7 +5,7 @@ import type { DesktopWebsiteProfile, DesktopWebsiteProfileId, DesktopWebsiteProf
 
 const id = '11111111-2222-4333-8444-555555555555' as DesktopWebsiteProfileId
 const profile: DesktopWebsiteProfile = { id, name: 'Portal', accountLabel: 'Operations',
-  url: 'https://portal.example.test/', mcpServerName: 'portal', control: 'human' }
+  url: 'https://portal.example.test/', mcpServerName: 'portal', control: 'human', access: 'ask', hasSavedLogin: false }
 
 function deferred<T>() {
   let resolve!: (value: T) => void
@@ -15,7 +15,8 @@ function deferred<T>() {
 
 function bridge(): DesktopWebsiteProfilesBridge {
   return { list: vi.fn(async () => [profile]), create: vi.fn(async () => profile),
-    acquire: vi.fn(), setControl: vi.fn(async () => {}), signOut: vi.fn(async () => {}),
+    acquire: vi.fn(), setAccess: async () => {}, saveLogin: async () => {}, removeLogin: async () => {},
+    setControl: vi.fn(async () => {}), signOut: vi.fn(async () => {}),
     forget: vi.fn(async () => {}), onChanged: vi.fn(() => () => {}) }
 }
 

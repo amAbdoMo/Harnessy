@@ -90,6 +90,54 @@ export function apply(ctx: Context): void {
   const profiles = desktop === undefined ? undefined : createWebsiteProfilesModel(desktop.profiles)
   const profileCommands = profiles?.commands
   const websiteProfiles = profiles?.source ?? absentWebsiteProfilesSource()
+  if (desktop !== undefined && profiles !== undefined) ctx.effect(() => {
+    const pending = new Map<string, import('../types.ts').DesktopWebsiteHostSnapshot>()
+    let retrying = false
+    const retry = (): void => {
+      if (retrying) return
+      retrying = true
+      try {
+        for (const [requestId, request] of pending) {
+          const profile = websiteProfiles.getSnapshot().profiles.find(candidate => candidate.id === request.profile)
+          if (profile === undefined) continue
+          const tabs = ctx.sidebarRight.tabsIn(request.sessionId)
+          let inspectionPending = false
+          let existing: typeof tabs[number] | undefined
+          for (const tab of tabs) {
+            if (tab.kind !== 'browser') continue
+            try {
+              const params = ctx.sidebarRight.tabDomain.occurrence(request.sessionId, { id: tab.id })
+                .navigation.getSnapshot().params
+              if (params?.profileId === profile.id) { existing = tab; break }
+            } catch (_notCommitted) {
+              inspectionPending = true
+            }
+          }
+          if (existing !== undefined) {
+            ctx.sidebarRight.focusIn(request.sessionId, existing.id)
+            pending.delete(requestId)
+            continue
+          }
+          if (inspectionPending) continue
+          const before = tabs.length
+          ctx.sidebarRight.openTabIn(request.sessionId, 'browser', { params: { url: profile.url, profileId: profile.id }, revealIfOpened: false })
+          if (ctx.sidebarRight.tabsIn(request.sessionId).length !== before) pending.delete(requestId)
+        }
+      } finally { retrying = false }
+    }
+    const unsubscribePrepared = desktop.requests.onPrepared((request) => { pending.set(request.id, request); retry() })
+    const unsubscribeProfiles = websiteProfiles.subscribe(retry)
+    const unsubscribeTabs = openTabs.subscribe(retry)
+    const unsubscribeMounted = ctx.sidebarRight.mounted.subscribe(retry)
+    retry()
+    return () => {
+      unsubscribePrepared()
+      unsubscribeProfiles()
+      unsubscribeTabs()
+      unsubscribeMounted()
+      pending.clear()
+    }
+  }, 'ui-sidebar-browser.prepared-tabs')
   ctx.effect(() => ctx.locale.register(namespace, { zh, en }), 'ui-sidebar-browser.copy')
   ctx.effect(() => ctx.sidebarRightTabs.register({ ...browserDefinition(t), keepMounted: desktop !== undefined }), 'ui-sidebar-browser.type')
   const installFrames = (scope: Context): void => {
@@ -104,7 +152,8 @@ export function apply(ctx: Context): void {
         let session = requests.get(sessionId)
         if (session === undefined) {
           session = new WebsiteRequestSession(sessionId, desktop.requests,
-            (profile, outcome) => { profiles?.reportRequest(profile, outcome) })
+            (profile, outcome) => { profiles?.reportRequest(profile, outcome) },
+            profile => websiteProfiles.getSnapshot().profiles.find(candidate => candidate.id === profile)?.access ?? 'ask')
           requests.set(sessionId, session)
         }
         const bridge = leaseChanged === undefined ? desktop : observeBrowserBridge(desktop, leaseChanged)
@@ -115,6 +164,9 @@ export function apply(ctx: Context): void {
     if (native !== undefined) scope.provide('nativeBrowser', native)
     const factory = (sessionId: BrowserBodyProps['sessionId']): BrowserPageFactory =>
       native === undefined ? createIframePage : options => native.createPage({ sessionId, options })
+    scope.effect(() => websiteProfiles.subscribe(() => {
+      for (const session of requests.values()) void session.reload()
+    }), 'ui-sidebar-browser.profile-access')
     scope.effect(() => async () => {
       // Stop every roster listener before joining any page's physical cleanup.
       const results = await Promise.allSettled([

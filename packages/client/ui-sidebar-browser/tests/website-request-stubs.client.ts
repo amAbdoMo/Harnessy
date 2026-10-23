@@ -5,6 +5,7 @@ import type { DesktopWebsiteRequestsBridge } from '../src/types.ts'
 /** @returns isolated spies; unexpected grant or guest-association attempts fail instead of granting a mock permission. */
 export function requestStubs(): DesktopWebsiteRequestsBridge {
   return {
+    onPrepared: vi.fn(() => () => {}),
     list: vi.fn(async () => []),
     prepare: vi.fn(async () => { throw new Error('Unexpected request preparation in navigation fixture') }),
     visible: vi.fn(async () => undefined),

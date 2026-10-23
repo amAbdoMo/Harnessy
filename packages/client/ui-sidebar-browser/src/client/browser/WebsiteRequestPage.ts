@@ -3,7 +3,7 @@ import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { Branded } from '@deepseek-ai/dsh-brand'
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
 import type {
-  DesktopBrowserLeaseId, DesktopWebsiteHostSnapshot, DesktopWebsiteProfileId,
+  DesktopBrowserLeaseId, DesktopWebsiteAccess, DesktopWebsiteHostSnapshot, DesktopWebsiteProfileId,
   DesktopWebsiteRequestId, DesktopWebsiteRequestsBridge,
 } from '../../types.ts'
 
@@ -15,6 +15,7 @@ export interface WebsiteRequestPageState {
   readonly busy: 'resuming' | 'draining' | undefined
   readonly granted: boolean
   readonly blocked: boolean
+  readonly paused: boolean
   readonly canResume: boolean
   readonly canTakeover: boolean
 }
@@ -40,6 +41,7 @@ interface Admission {
   readonly id: DesktopWebsiteRequestId
   readonly binding: WebsitePageBinding
   readonly hostEpoch: number
+  readonly automatic: boolean
   readonly lifetime: AbortController
   readonly settled: Promise<void>
   drain?: Promise<void>
@@ -50,17 +52,21 @@ interface Admission {
 export class WebsiteRequestPage implements HostObservable<WebsiteRequestPageState> {
   private readonly store = createSnapshotStore<WebsiteRequestPageState>({
     phase: 'loading', requests: [], selected: undefined, busy: undefined,
-    granted: false, blocked: false, canResume: false, canTakeover: false,
+    granted: false, blocked: false, paused: false, canResume: false, canTakeover: false,
   })
   private binding: WebsitePageBinding | undefined
   private visible = false
+  private paused = false
+  private scheduled = false
+  private readonly attempted = new Set<DesktopWebsiteRequestId>()
   private closed = false
   private admission: Admission | undefined
   private disposal: Promise<void> | undefined
   private readonly lostGuest = (): void => { this.bind(undefined) }
 
   /** @param owner - initiating Session roster. @param profile - this page's immutable saved account. */
-  constructor(private readonly owner: WebsiteRequestPageOwner, private readonly profile: DesktopWebsiteProfileId) {}
+  constructor(private readonly owner: WebsiteRequestPageOwner, private readonly profile: DesktopWebsiteProfileId,
+    private readonly access: () => DesktopWebsiteAccess = () => 'ask') {}
 
   /** @returns stable request-only render state. */
   getSnapshot: () => WebsiteRequestPageState = () => this.store.getSnapshot()
@@ -80,10 +86,12 @@ export class WebsiteRequestPage implements HostObservable<WebsiteRequestPageStat
     const admission = this.admission
     if (admission !== undefined && (phase !== 'ready'
       || !requests.some(row => row.id === admission.id && !row.terminal && row.epoch === admission.hostEpoch))) this.cancel()
+    if (this.access() === 'disabled') this.cancel()
     if (phase === 'ready' && selected !== undefined && !requests.some(row => row.id === selected && !row.terminal)) {
       this.publish({ selected: undefined })
       if (admission?.id !== selected) this.owner.unclaim(selected, this)
     }
+    this.scheduleAutomatic()
   }
 
   /**
@@ -97,16 +105,18 @@ export class WebsiteRequestPage implements HostObservable<WebsiteRequestPageStat
     this.binding?.signal.addEventListener('abort', this.lostGuest, { once: true })
     if (this.admission !== undefined && this.binding !== this.admission.binding) this.cancel()
     this.publish({})
+    this.scheduleAutomatic()
   }
 
   /**
-   * Revoke access when the logical tab is hidden, without destroying its guest.
+   * Revoke Ask access on hiding; Automatic work retains its attached guest and admission.
    * @param visible - committed logical tab visibility.
    */
   setVisible(visible: boolean): void {
     this.visible = !this.closed && visible
-    if (!this.visible) this.cancel()
+    if (!this.visible && this.admission?.automatic !== true) this.cancel()
     this.publish({})
+    this.scheduleAutomatic()
   }
 
   /**
@@ -127,10 +137,20 @@ export class WebsiteRequestPage implements HostObservable<WebsiteRequestPageStat
   reload(): Promise<void> { return this.owner.reload() }
 
   /**
-   * Admit only the explicitly selected request on this visible attached guest.
-   * @returns after this human action settles; preparation and acknowledgement alone grant nothing.
+   * Continue a waiting request from this page's Session and profile on its attached guest.
+   * @returns after admission settles; preparation and acknowledgement alone grant nothing.
    */
-  resume(): Promise<void> {
+  async resume(): Promise<void> {
+    this.paused = false
+    await this.owner.reload()
+    this.selectFirst()
+    const selected = this.store.getSnapshot().selected
+    if (selected !== undefined) this.attempted.delete(selected)
+    this.publish({})
+    await this.admitSelected()
+  }
+
+  private admitSelected(): Promise<void> {
     const state = this.store.getSnapshot()
     const binding = this.binding
     if (!state.canResume || state.selected === undefined || binding === undefined) return Promise.resolve()
@@ -138,7 +158,7 @@ export class WebsiteRequestPage implements HostObservable<WebsiteRequestPageStat
     if (row === undefined) return Promise.resolve()
     const completion = Promise.withResolvers<void>()
     const admission: Admission = { id: state.selected, binding, hostEpoch: row.epoch,
-      lifetime: new AbortController(), settled: completion.promise, failures: [] }
+      automatic: this.access() === 'automatic', lifetime: new AbortController(), settled: completion.promise, failures: [] }
     this.admission = admission
     this.publish({ busy: 'resuming', granted: false })
     void this.admit(admission).then(completion.resolve, completion.reject)
@@ -150,6 +170,8 @@ export class WebsiteRequestPage implements HostObservable<WebsiteRequestPageStat
    * @returns after revocation and physical drainage, even during pending admission.
    */
   async takeover(): Promise<void> {
+    this.paused = true
+    this.publish({})
     const admission = this.admission
     if (admission === undefined) return
     try {
@@ -179,17 +201,45 @@ export class WebsiteRequestPage implements HostObservable<WebsiteRequestPageStat
   private publish(change: Partial<WebsiteRequestPageState>): void {
     if (this.closed) return
     const state = { ...this.store.getSnapshot(), ...change }
-    const eligible = state.requests.some(row => row.id === state.selected && !row.terminal && row.status !== 'granted')
+    const eligible = state.requests.some(row => (state.selected === undefined || row.id === state.selected) && !row.terminal && row.status !== 'granted')
     this.store.set({ ...state,
-      canResume: this.visible && this.binding !== undefined && !this.binding.signal.aborted
+      paused: this.paused,
+      canResume: this.access() !== 'disabled' && (this.visible || this.access() === 'automatic') && this.binding !== undefined && !this.binding.signal.aborted
         && state.phase === 'ready' && eligible && this.admission === undefined && !state.blocked,
       canTakeover: this.admission !== undefined && this.admission.drain === undefined,
     })
   }
 
+  private selectFirst(): void {
+    const state = this.store.getSnapshot()
+    if (state.requests.some(row => row.id === state.selected && !row.terminal && row.status !== 'granted')) return
+    for (const row of state.requests) {
+      if (row.terminal || row.status === 'granted' || !this.owner.claim(row.id, this)) continue
+      if (state.selected !== undefined) this.owner.unclaim(state.selected, this)
+      this.publish({ selected: row.id })
+      return
+    }
+  }
+
+  private scheduleAutomatic(): void {
+    if (this.closed || this.scheduled || this.paused || this.access() !== 'automatic'
+      || this.binding === undefined || this.admission !== undefined || this.store.getSnapshot().phase !== 'ready') return
+    this.selectFirst()
+    const id = this.store.getSnapshot().selected
+    if (id === undefined || this.attempted.has(id)) return
+    this.scheduled = true
+    queueMicrotask(() => {
+      this.scheduled = false
+      if (this.closed || this.paused || this.access() !== 'automatic' || this.admission !== undefined) return
+      if (this.store.getSnapshot().selected !== id || !this.store.getSnapshot().canResume) return
+      this.attempted.add(id)
+      void this.admitSelected().catch((_error: unknown) => { /* Admission publishes its own bounded failure notice. */ })
+    })
+  }
+
   private current(admission: Admission): void {
     const state = this.store.getSnapshot()
-    if (this.closed || !this.visible || this.admission !== admission || admission.lifetime.signal.aborted
+    if (this.closed || (!this.visible && !admission.automatic) || this.admission !== admission || admission.lifetime.signal.aborted
       || this.binding !== admission.binding || admission.binding.signal.aborted || state.selected !== admission.id
       || state.phase !== 'ready' || !state.requests.some(row => row.id === admission.id && !row.terminal && row.epoch === admission.hostEpoch)) {
       throw new Error('Website request is no longer current')
@@ -228,6 +278,7 @@ export class WebsiteRequestPage implements HostObservable<WebsiteRequestPageStat
   private finish(admission: Admission): void {
     if (this.admission === admission) this.admission = undefined
     if (this.store.getSnapshot().selected !== admission.id) this.owner.unclaim(admission.id, this)
+    this.scheduleAutomatic()
   }
 
   private report(outcome: 'resumed' | 'human' | 'requestFailed'): void {

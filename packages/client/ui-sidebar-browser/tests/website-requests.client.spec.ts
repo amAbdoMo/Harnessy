@@ -25,7 +25,7 @@ function row(id = REQUEST, epoch = 1): DesktopWebsiteHostSnapshot {
   return { id, profile: PROFILE, sessionId: SESSION, epoch, status: 'pending' }
 }
 
-async function fixture() {
+async function fixture(access: 'automatic' | 'ask' | 'disabled' = 'ask') {
   const bridge = requestStubs()
   let rows: readonly DesktopWebsiteHostSnapshot[] = [row()]
   const listeners = new Set<() => void>()
@@ -40,7 +40,7 @@ async function fixture() {
   vi.mocked(bridge.prepare).mockResolvedValue(receipt)
   vi.mocked(bridge.resume).mockImplementation(async current => current)
   const report = vi.fn()
-  const session = new WebsiteRequestSession(SESSION, bridge, report)
+  const session = new WebsiteRequestSession(SESSION, bridge, report, () => access)
   owners.push(session)
   const page = session.createPage(PROFILE)
   const guest = new AbortController()
@@ -64,11 +64,8 @@ afterEach(async () => {
 })
 
 describe('request admission', () => {
-  it('requires explicit selection and uses the captured Session, attached guest and exact receipt', async () => {
+  it('Continue chooses the first waiting request in the captured Session and uses its exact guest receipt', async () => {
     const h = await fixture()
-    await h.page.resume()
-    expect(h.bridge.prepare).not.toHaveBeenCalled()
-    h.page.select(REQUEST)
     await h.page.resume()
     expect(h.bridge.prepare).toHaveBeenCalledExactlyOnceWith({ requestId: REQUEST, sessionId: SESSION, lease: LEASE })
     expect(h.bridge.acknowledge).toHaveBeenCalledExactlyOnceWith(h.receipt)
@@ -81,6 +78,27 @@ describe('request admission', () => {
     h.page.setVisible(true)
     expect(h.page.getSnapshot()).toMatchObject({ granted: false, canResume: true })
     expect(h.bridge.resume).toHaveBeenCalledTimes(1)
+  })
+
+  it('automatically admits a trusted page, retains it when hidden, and stays paused until Continue', async () => {
+    const h = await fixture('automatic')
+    await vi.waitFor(() => { expect(h.page.getSnapshot().granted).toBe(true) })
+    expect(h.bridge.resume).toHaveBeenCalledTimes(1)
+    h.page.setVisible(false)
+    expect(h.page.getSnapshot().granted).toBe(true)
+    await h.page.takeover()
+    h.page.setVisible(true)
+    await h.session.reload()
+    expect(h.page.getSnapshot().paused).toBe(true)
+    expect(h.bridge.resume).toHaveBeenCalledTimes(1)
+    await h.page.resume()
+    expect(h.bridge.resume).toHaveBeenCalledTimes(2)
+  })
+
+  it('disabled profiles never prepare or resume a website request', async () => {
+    const h = await fixture('disabled')
+    await h.page.resume()
+    expect(h.bridge.prepare).not.toHaveBeenCalled()
   })
 
   it.each(['prepare', 'acknowledge', 'resume'] as const)('Takeover revokes immediately while %s is held and drains its late reply', async (stage) => {

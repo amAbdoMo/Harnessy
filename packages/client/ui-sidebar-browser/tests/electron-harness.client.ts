@@ -17,7 +17,7 @@ let sequence = 0
 /** @param id - desired profile identity. @returns a saved profile as main reports it. */
 export function websiteProfile(id: DesktopWebsiteProfileId, name = 'Work account',
   control: DesktopWebsiteProfile['control'] = 'human'): DesktopWebsiteProfile {
-  return { id, name, accountLabel: 'me@example.test', url: 'https://example.test/', mcpServerName: 'website', control }
+  return { id, name, accountLabel: 'me@example.test', url: 'https://example.test/', mcpServerName: 'website', control, access: 'ask', hasSavedLogin: false }
 }
 
 /**
@@ -33,9 +33,10 @@ export function electronFixture(initial?: BrowserTabState, profile?: DesktopWebs
   const profiles = {
     list: vi.fn(async (): Promise<readonly DesktopWebsiteProfile[]> => []),
     create: vi.fn(async (input: DesktopWebsiteProfileInput): Promise<DesktopWebsiteProfile> =>
-      ({ ...input, id: `created-${String(sequence)}` as DesktopWebsiteProfileId, control: 'human' }),
+      ({ ...input, id: `created-${String(sequence)}` as DesktopWebsiteProfileId, control: 'human', access: 'ask', hasSavedLogin: false }),
     ),
     acquire: vi.fn(async (_profile: DesktopWebsiteProfileId) => reservation),
+    setAccess: async () => {}, saveLogin: async () => {}, removeLogin: async () => {},
     setControl: vi.fn(async (_profile: DesktopWebsiteProfileId, _control: 'human' | 'agent') => {}),
     signOut: vi.fn(async (_profile: DesktopWebsiteProfileId) => {}),
     forget: vi.fn(async (_profile: DesktopWebsiteProfileId) => {}),

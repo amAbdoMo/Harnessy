@@ -21,6 +21,7 @@ function profile(value: unknown): DesktopWebsiteHostProfile {
     || /[\x00-\x1f\x7f]/.test(candidate.name)
     || typeof candidate.accountLabel !== 'string' || candidate.accountLabel.length > 120 || /[\x00-\x1f\x7f]/.test(candidate.accountLabel)
     || typeof candidate.url !== 'string' || candidate.url.length > 2048 || !URL.canParse(candidate.url)
+    || (candidate.access !== 'automatic' && candidate.access !== 'ask' && candidate.access !== 'disabled')
     || typeof candidate.serverName !== 'string' || !/^[A-Za-z0-9_-]{1,32}$/.test(candidate.serverName)
     || typeof binding.identity !== 'string' || !/^[0-9a-f]{64}$/.test(binding.identity)
     || typeof binding.endpoint !== 'string' || binding.endpoint.length === 0 || binding.endpoint.length > 2048
@@ -30,7 +31,8 @@ function profile(value: unknown): DesktopWebsiteHostProfile {
     throw new Error('Website control address contains unsupported navigation or authentication data')
   }
   return { id: candidate.id as DesktopWebsiteProfileId, name: candidate.name, accountLabel: candidate.accountLabel,
-    url: url.href, serverName: candidate.serverName, mcpBinding: { identity: binding.identity, endpoint: binding.endpoint } }
+    url: url.href, access: candidate.access, serverName: candidate.serverName,
+    mcpBinding: { identity: binding.identity, endpoint: binding.endpoint } }
 }
 
 /** @param value - untrusted IPC command. @returns bounded command with only the supported control fields. */

@@ -4,7 +4,7 @@ import type { DesktopWebsiteProfileInput } from '../../types.ts'
 
 type WebsiteProfileDraft = { -readonly [K in keyof DesktopWebsiteProfileInput]: DesktopWebsiteProfileInput[K] }
 type DraftActions = {
-  edit: (draft: WebsiteProfileDraft, field: keyof DesktopWebsiteProfileInput, value: string) => void
+  edit: <K extends keyof WebsiteProfileDraft>(draft: WebsiteProfileDraft, field: K, value: WebsiteProfileDraft[K]) => void
   discard: (draft: WebsiteProfileDraft) => void
 }
 
@@ -14,10 +14,12 @@ type DraftActions = {
  */
 export function createWebsiteProfileDraftStore(): EngineStoreHandle<WebsiteProfileDraft, DraftActions> {
   return defineStore({
-    init: (): WebsiteProfileDraft => ({ name: '', accountLabel: '', url: '', mcpServerName: '' }),
+    init: (): WebsiteProfileDraft => ({ name: '', accountLabel: '', url: '', mcpServerName: '', access: 'automatic' }),
     actions: {
-      edit: (draft, field: keyof DesktopWebsiteProfileInput, value: string) => { draft[field] = value },
-      discard: (draft) => { draft.name = ''; draft.accountLabel = ''; draft.url = ''; draft.mcpServerName = '' },
+      edit: <K extends keyof WebsiteProfileDraft>(draft: WebsiteProfileDraft, field: K, value: WebsiteProfileDraft[K]) => {
+        draft[field] = value
+      },
+      discard: (draft) => { draft.name = ''; draft.accountLabel = ''; draft.url = ''; draft.mcpServerName = ''; draft.access = 'automatic' },
     },
   })
 }

@@ -55,9 +55,10 @@ export interface WebsiteRequestsController {
    * Join private Main capture to pending preparation drainage; grants nothing.
    * @param request - current pending receipt.
    * @param capture - cancellable native handoff.
-   * @returns after a still-current handoff; failure propagates to the preparation's final result and drainage joins its settlement.
+   * @returns the still-current request after Main finishes capture or automatic admission; failure propagates to the preparation's
+   * final result and drainage joins its settlement.
    */
-  handoff(request: WebsiteRequestSnapshot, capture: (signal: AbortSignal) => Promise<void>): Promise<void>
+  handoff(request: WebsiteRequestSnapshot, capture: (signal: AbortSignal) => Promise<void>): Promise<WebsiteRequestSnapshot>
   /**
    * Check the exact owner and current MCP binding; grants nothing. A successfully drained revocation may start a new pending epoch.
    * @param requestId - domain request.
@@ -127,6 +128,8 @@ interface Request {
   status: WebsiteRequestSnapshot['status']
   terminal: boolean
   preparing: boolean
+  captureStarted: boolean
+  ready: PromiseWithResolvers<void>
   cancellation: AbortController
   validatedEpoch: number | undefined
   drained: boolean
@@ -138,6 +141,12 @@ interface Request {
 }
 
 const STALE = 'Website request is not authorized for this owner and generation'
+
+function readiness(): PromiseWithResolvers<void> {
+  const ready = Promise.withResolvers<void>()
+  void ready.promise.catch((_error: unknown) => { /* The active automatic handoff observes rejection. */ })
+  return ready
+}
 
 /**
  * Install one global MCP guard with an effect-owned, quiescent teardown.
@@ -179,7 +188,8 @@ export function installWebsiteRequests(
 
   function sameProfile(left: WebsiteRequestProfile, right: WebsiteRequestProfile): boolean {
     return left.name === right.name && left.accountLabel === right.accountLabel && left.url === right.url
-      && left.serverName === right.serverName && left.mcpBinding.identity === right.mcpBinding.identity
+      && left.serverName === right.serverName && left.access === right.access
+      && left.mcpBinding.identity === right.mcpBinding.identity
       && left.mcpBinding.endpoint === right.mcpBinding.endpoint
   }
 
@@ -195,6 +205,7 @@ export function installWebsiteRequests(
     request.status = 'revoked'
     request.epoch++
     request.validatedEpoch = undefined
+    request.ready.reject(new Error(STALE))
     detachTool(request)
     // Drainage is published before abort/notification callbacks can reenter.
     void drain(request).catch((_error: unknown) => { /* Failed settlement retains the account reservation. */ })
@@ -314,15 +325,17 @@ export function installWebsiteRequests(
     ctx.tools.guardResult(execution, assertInvocation)
     const result = await tracked(request, async () => {
       assertInvocation()
-      const approval = agent.ctx.get('approval')
-      if (approval === undefined) throw new Error('Website operations require available human approval')
-      const reason = consent === 'mcp'
-        ? `Run paired website MCP tool ${JSON.stringify(execution.name)} for ${JSON.stringify(request.profile.name)} / ${JSON.stringify(request.profile.accountLabel)}. This may read sensitive website data or change the site. Tool arguments are hidden; approve only if you intend this operation. Permission applies only to this call.`
-        : websiteBrowserConsentReason(consent)
-      const outcome = await approval.request({ agent, toolName: execution.name, callId: execution.callId,
-        signal: currentSignal(), reason, detailMode: 'summary-only' })
-      assertInvocation()
-      if (outcome !== 'allowed-once') throw new Error('Website operation was not approved')
+      if (request.profile.access !== 'automatic') {
+        const approval = agent.ctx.get('approval')
+        if (approval === undefined) throw new Error('Website operations require available human approval')
+        const reason = consent === 'mcp'
+          ? `Run paired website MCP tool ${JSON.stringify(execution.name)} for ${JSON.stringify(request.profile.name)} / ${JSON.stringify(request.profile.accountLabel)}. This may read sensitive website data or change the site. Tool arguments are hidden; approve only if you intend this operation. Permission applies only to this call.`
+          : websiteBrowserConsentReason(consent)
+        const outcome = await approval.request({ agent, toolName: execution.name, callId: execution.callId,
+          signal: currentSignal(), reason, detailMode: 'summary-only' })
+        assertInvocation()
+        if (outcome !== 'allowed-once') throw new Error('Website operation was not approved')
+      }
       await checkBinding(request, epoch, true)
       assertInvocation()
       await checkNative(request, epoch, currentSignal())
@@ -386,11 +399,13 @@ export function installWebsiteRequests(
       if (ctx.agents.get(agent.id) !== agent) throw new Error(STALE)
       const saved = profiles.get(profile.id)
       if (saved === undefined || !sameProfile(saved, profile)) throw new Error('Website pairing is not enrolled')
+      if (saved.access === 'disabled') throw new Error('Saved website access is disabled')
       if (requests.size >= 64) throw new Error('Website pending request limit reached')
       const request: Request = {
         id: randomUUID() as WebsiteRequestId, agent, session, callerSignal,
         profile: { ...profile, mcpBinding: { ...profile.mcpBinding } }, operations: new Set(), failures: [],
-        epoch: 1, status: 'pending', terminal: false, preparing: true, cancellation: new AbortController(), validatedEpoch: undefined,
+        epoch: 1, status: 'pending', terminal: false, preparing: true, captureStarted: false, ready: readiness(),
+        cancellation: new AbortController(), validatedEpoch: undefined,
         drained: false, drainage: undefined, detachOwner: undefined,
         detachCaller: () => {}, detachPreparation: () => {}, detachTool: undefined,
       }
@@ -423,23 +438,29 @@ export function installWebsiteRequests(
       const request = requireRequest(receipt.requestId)
       controller.assertCurrent(receipt)
       if (!request.preparing || request.status !== 'pending') throw new Error('Website request is not awaiting capture')
+      request.captureStarted = true
       await tracked(request, async () => {
         await checkBinding(request, receipt.epoch, false)
         await capture(request.cancellation.signal)
         await checkBinding(request, receipt.epoch, false)
+        if (request.profile.access === 'automatic') await request.ready.promise
       })
-      controller.assertCurrent(receipt)
+      assertGeneration(request, receipt.epoch, false)
+      return snapshot(request)
     },
     validate(id, epoch) {
       const request = requireRequest(id)
       assertOwner(request)
-      if (request.preparing) throw new Error('Website preparation has not settled')
+      if (request.preparing && !(request.profile.access === 'automatic' && request.captureStarted)) {
+        throw new Error('Website preparation has not settled')
+      }
       if (request.epoch !== epoch) return Promise.reject(new Error(STALE))
       if (request.status === 'granted') return Promise.reject(new Error('Website request is already granted'))
       if (request.status === 'revoked') {
         if (!request.drained) return Promise.reject(new Error('Website request drainage is incomplete'))
         request.status = 'pending'
         request.cancellation = new AbortController()
+        request.ready = readiness()
         request.drained = false
         request.drainage = undefined
       }
@@ -481,6 +502,7 @@ export function installWebsiteRequests(
             }, consent),
           })
           assertGeneration(request, epoch, true)
+          request.ready.resolve()
           return snapshot(request)
         } catch (error) {
           // An installer may revoke synchronously before returning its disposer.
@@ -534,7 +556,11 @@ export function installWebsiteRequests(
       if (request !== undefined) {
         request.preparing = false
         request.detachPreparation()
-        if (result.isError && requests.get(request.id) === request) terminate(request)
+        const saved = profiles.get(request.profile.id)
+        const pausedAutomatic = request.profile.access === 'automatic' && request.captureStarted
+          && request.status === 'revoked' && !stopped && !request.callerSignal.aborted && !execution.signal.aborted
+          && saved !== undefined && sameProfile(saved, request.profile)
+        if (result.isError && !pausedAutomatic && requests.get(request.id) === request) terminate(request)
       }
       return undefined
     })

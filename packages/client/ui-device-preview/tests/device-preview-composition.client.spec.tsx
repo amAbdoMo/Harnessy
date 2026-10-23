@@ -84,10 +84,12 @@ async function bench() {
   const browser: DesktopBrowserBridge = {
     acquire: async () => ({ lease: `composition-lease-${++leaseSequence}` as DesktopBrowserLeaseId, partition: 'test' }),
     command: async () => {}, release: async () => {}, onOpenRequested: () => () => {}, onReacquireRequested: () => () => {},
-    profiles: { list: async () => [], create: async input => ({ ...input, id: 'profile' as DesktopWebsiteProfileId, control: 'human' }),
+    profiles: { list: async () => [], create: async input => ({ ...input, id: 'profile' as DesktopWebsiteProfileId, control: 'human', access: 'ask', hasSavedLogin: false }),
       acquire: async () => ({ lease: 'profile-lease' as DesktopBrowserLeaseId, partition: 'profile' }),
+      setAccess: async () => {}, saveLogin: async () => {}, removeLogin: async () => {},
       setControl: async () => {}, signOut: async () => {}, forget: async () => {}, onChanged: () => () => {} },
-    requests: { list: async () => [], prepare: async () => { throw new Error('No profile handoff requested') },
+    requests: {
+      onPrepared: () => () => {}, list: async () => [], prepare: async () => { throw new Error('No profile handoff requested') },
       visible: async () => undefined, acknowledge: async () => {}, resume: async receipt => receipt,
       takeover: async () => {}, onChanged: () => () => {} },
   }

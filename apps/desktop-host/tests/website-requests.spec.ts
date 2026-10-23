@@ -17,6 +17,7 @@ import { websiteAuthorityFixture } from '../../desktop/tests/website-authority-f
 
 async function fixture(
   notice: (request: WebsiteRequestSnapshot) => void | Promise<void> = () => {}, wrapperSignal?: AbortSignal, meta?: JsonValue,
+  access: 'automatic' | 'ask' | 'disabled' = 'ask',
 ) {
   const ctx = new Context()
   const barriers: PromiseWithResolvers<void>[] = []
@@ -62,7 +63,7 @@ async function fixture(
   const nativeAdmission = vi.fn(async (_request: WebsiteRequestSnapshot, _signal: AbortSignal) => {})
   const requests = installWebsiteRequests(ctx, inspected, notify, nativeAdmission)
   const profile = { id: 'cd1b6493-c881-4967-a544-b0a49f2d847f' as DesktopWebsiteProfileId,
-    name: 'Portal', accountLabel: 'operator', url: 'https://portal.example.test/', serverName: 'portal', mcpBinding: binding }
+    name: 'Portal', accountLabel: 'operator', url: 'https://portal.example.test/', serverName: 'portal', access, mcpBinding: binding }
   requests.syncProfiles([profile])
   let receipt: WebsiteRequestSnapshot | undefined
   let preparation: ToolRunContext | undefined
@@ -125,6 +126,28 @@ it.each(['MCP', 'browser'] as const)(
     expect(f.agent.session.snapshotEvents().filter(event => event.type === 'approval/decided')).toHaveLength(2)
   },
 )
+
+it.each(['MCP', 'browser'] as const)(
+  'runs %s operations for automatic access without consulting per-call approval', async (kind) => {
+    const f = await fixture(undefined, undefined, undefined, 'automatic')
+    await f.requests.validate(f.request.requestId, f.request.epoch)
+    await f.requests.commit(f.request.requestId, f.request.epoch)
+    f.detachAnswerer()
+    f.agent.session.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
+    const result = kind === 'MCP' ? await f.call() : await f.browser(async () => 'automatic observation')
+    expect(result.isError).toBe(false)
+    expect(f.approvals).not.toHaveBeenCalled()
+    expect(f.nativeAdmission).toHaveBeenCalledTimes(2)
+  },
+)
+
+it('does not turn automatic policy into profile-wide MCP authority', async () => {
+  const f = await fixture(undefined, undefined, undefined, 'automatic')
+  expect((await f.call()).isError).toBe(true)
+  expect(f.approvals).not.toHaveBeenCalled()
+  expect(f.nativeAdmission).not.toHaveBeenCalled()
+  expect(f.upstream).not.toHaveBeenCalled()
+})
 
 it.each(['rejected', 'cancelled', 'unavailable'] as const)(
   'never dispatches paired MCP work after a %s decision', async (outcome) => {
@@ -630,6 +653,17 @@ it('cannot unguard an enrolled namespace through removed or stale empty inventor
   expect((await f.call()).isError).toBe(true)
   expect(f.upstream).not.toHaveBeenCalled()
   expect(f.notify).toHaveBeenCalledOnce()
+})
+
+it('revokes an existing grant when its saved access policy changes', async () => {
+  const f = await fixture()
+  await f.requests.validate(f.request.requestId, f.request.epoch)
+  await f.requests.commit(f.request.requestId, f.request.epoch)
+  f.requests.syncProfiles([{ ...f.profile, access: 'automatic' }])
+  expect((await f.call()).isError).toBe(true)
+  expect(f.upstream).not.toHaveBeenCalled()
+  expect(f.notify).toHaveBeenCalledOnce()
+  await f.requests.drain(f.request.requestId)
 })
 
 it('cannot regrant a request to a replacement Agent sharing the same durable Session id', async () => {

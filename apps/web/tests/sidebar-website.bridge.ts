@@ -34,7 +34,7 @@ export function installWebsiteBridge(): void {
   const requestId = 'website-fixture-request' as DesktopWebsiteRequestId
   const profile: DesktopWebsiteProfile = {
     id: profileId, name: 'Fixture site', accountLabel: 'Test account', url: 'https://example.test/',
-    mcpServerName: 'fixture-mcp', control: 'human',
+    mcpServerName: 'fixture-mcp', control: 'human', access: 'ask', hasSavedLogin: false,
   }
   const profileListeners = new Set<() => void>()
   const requestListeners = new Set<() => void>()
@@ -64,12 +64,14 @@ export function installWebsiteBridge(): void {
       list: async () => [profile],
       create: async () => { throw new Error('This scenario opens an existing external profile') },
       acquire: async () => reserve(true),
+      setAccess: async () => {}, saveLogin: async () => {}, removeLogin: async () => {},
       setControl: async () => { throw new Error('Only request-specific admission is supported') },
       signOut: async () => { throw new Error('Sign out is outside this scenario') },
       forget: async () => { throw new Error('Forget is outside this scenario') },
       onChanged: listener => subscribe(profileListeners, listener),
     },
     requests: {
+      onPrepared: () => () => {},
       list: async (sessionId) => {
         sessionIds.push(sessionId)
         const row: DesktopWebsiteHostSnapshot = {

@@ -27,7 +27,7 @@ declare module '@deepseek-ai/dsh-llm' {
 
 const PROFILE = { id: 'cd1b6493-c881-4967-a544-b0a49f2d847f' as DesktopWebsiteProfileId,
   name: 'Portal', accountLabel: 'operator', url: 'https://portal.example.test/', serverName: 'portal',
-  mcpBinding: { identity: 'a'.repeat(64), endpoint: 'https://portal.example.test/private-mcp' } }
+  access: 'ask' as const, mcpBinding: { identity: 'a'.repeat(64), endpoint: 'https://portal.example.test/private-mcp' } }
 
 async function fixture(services: { attachments?: boolean; llm?: boolean } = {}) {
   const root = await mkdtemp(join(tmpdir(), 'dsh-website-tools-'))
@@ -54,7 +54,7 @@ async function fixture(services: { attachments?: boolean; llm?: boolean } = {}) 
     parent?.receive({ type: 'website-operation-result', operationId: message.operationId, snapshot: message.snapshot,
       outcome: 'success', value: { origin: 'https://portal.example.test', title: 'Current page', titleTruncated: false } })
   }
-  let capture: (snapshot: DesktopWebsiteHostSnapshot) => void = (snapshot) => {
+  let capture: (snapshot: DesktopWebsiteHostSnapshot) => void | Promise<void> = (snapshot) => {
     if (parent === undefined) throw new Error('Website parent channel is not installed')
     parent.receive({ type: 'website-prepared-ack', id: snapshot.id })
   }
@@ -70,7 +70,7 @@ async function fixture(services: { attachments?: boolean; llm?: boolean } = {}) 
       }
       const snapshot = message.snapshot as DesktopWebsiteHostSnapshot
       captured.push(snapshot)
-      capture(snapshot)
+      await capture(snapshot)
     })
     requests = installWebsiteRequests(owner, async () => PROFILE.mcpBinding,
       (request) => { revoked.push(request.requestId) }, async () => {}, scope => install(scope))
@@ -110,7 +110,7 @@ async function fixture(services: { attachments?: boolean; llm?: boolean } = {}) 
   const invoke = (name: string, args: object) => ctx.tools.execute({ agent, signal: caller.signal,
     callId: ToolCallId(name), name, arguments: args })
   return { ctx, requests, parent, agent, captured, revoked, observations, caller, invoke,
-    captureWith: (operation: (snapshot: DesktopWebsiteHostSnapshot) => void) => { capture = operation },
+    captureWith: (operation: (snapshot: DesktopWebsiteHostSnapshot) => void | Promise<void>) => { capture = operation },
     observeWith: (operation: (message: object) => void) => { observe = operation },
     installWith: (operation: typeof install) => { install = operation } }
 }
@@ -120,8 +120,9 @@ it('publishes saved labels and an ungranted request through actual loaded deskto
   expect((await f.invoke('website_profiles', {})).isError).toBe(true)
   f.requests.syncProfiles([PROFILE])
   expect(await f.invoke('website_profiles', {})).toMatchObject({ isError: false,
-    value: [{ profileId: PROFILE.id, name: 'Portal', accountLabel: 'operator', url: 'https://portal.example.test/', mcpServerName: 'portal' }],
-    content: [{ type: 'text', text: '[{"profileId":"cd1b6493-c881-4967-a544-b0a49f2d847f","name":"Portal","accountLabel":"operator","url":"https://portal.example.test/","mcpServerName":"portal"}]' }],
+    value: [{ profileId: PROFILE.id, name: 'Portal', accountLabel: 'operator', url: 'https://portal.example.test/',
+      mcpServerName: 'portal', access: 'ask' }],
+    content: [{ type: 'text', text: '[{"profileId":"cd1b6493-c881-4967-a544-b0a49f2d847f","name":"Portal","accountLabel":"operator","url":"https://portal.example.test/","mcpServerName":"portal","access":"ask"}]' }],
   })
   const prepared = await f.invoke('website_prepare', { profileId: PROFILE.id })
   expect(f.captured).toHaveLength(1)
@@ -130,8 +131,8 @@ it('publishes saved labels and an ungranted request through actual loaded deskto
   expect(request).toEqual({ id: request.id, profile: PROFILE.id,
     sessionId: f.agent.session.id, epoch: 1, status: 'pending' })
   expect(prepared).toMatchObject({ isError: false,
-    value: { requestId: request.id, profileId: PROFILE.id, mcpServerName: 'portal', status: 'pending' },
-    content: [{ type: 'text', text: `{"requestId":"${request.id}","profileId":"${PROFILE.id}","mcpServerName":"portal","status":"pending"}\nWaiting for the human to Resume this request. No page access is granted.` }],
+    value: { requestId: request.id, profileId: PROFILE.id, mcpServerName: 'portal', status: 'waiting' },
+    content: [{ type: 'text', text: `{"requestId":"${request.id}","profileId":"${PROFILE.id}","mcpServerName":"portal","status":"waiting"}\nWaiting for the human to Continue this request. No page access is granted.` }],
   })
   expect(JSON.stringify(prepared)).not.toContain(PROFILE.mcpBinding.endpoint)
   expect(f.revoked).toEqual([])
@@ -139,6 +140,71 @@ it('publishes saved labels and an ungranted request through actual loaded deskto
   await f.ctx.fiber.dispose()
   expect(tools.get('website_profiles')).toBeUndefined()
   expect(tools.get('website_prepare')).toBeUndefined()
+})
+
+it('publishes ready only after automatic admission commits the exact captured request', async () => {
+  const f = await fixture()
+  const profile = { ...PROFILE, access: 'automatic' as const }
+  f.requests.syncProfiles([profile])
+  f.captureWith(async (snapshot) => {
+    f.parent.receive({ type: 'website-prepared-ack', id: snapshot.id })
+    await f.requests.validate(snapshot.id, snapshot.epoch)
+    await f.requests.commit(snapshot.id, snapshot.epoch)
+  })
+  const prepared = await f.invoke('website_prepare', { profileId: profile.id })
+  const request = f.captured[0]!
+  expect(prepared).toMatchObject({ isError: false,
+    value: { requestId: request.id, profileId: profile.id, mcpServerName: 'portal', status: 'ready' },
+    content: [{ type: 'text', text: `{"requestId":"${request.id}","profileId":"${profile.id}","mcpServerName":"portal","status":"ready"}\nSaved website access is ready for this request.` }],
+  })
+  expect(f.ctx.tools.get(`website_page_info_${request.id}`, f.agent)).toBeDefined()
+})
+
+it('rejects disabled saved access before native preparation', async () => {
+  const f = await fixture()
+  f.requests.syncProfiles([{ ...PROFILE, access: 'disabled' }])
+  const prepared = await f.invoke('website_prepare', { profileId: PROFILE.id })
+  expect(prepared).toMatchObject({ isError: true, error: { message: 'Saved website access is disabled' } })
+  expect(f.captured).toEqual([])
+})
+
+it.each(['caller cancellation', 'inventory disable', 'Host disposal'] as const)(
+  'settles automatic preparation waiting for admission after %s', async (change) => {
+    const f = await fixture()
+    const entered = Promise.withResolvers<DesktopWebsiteHostSnapshot>()
+    f.requests.syncProfiles([{ ...PROFILE, access: 'automatic' }])
+    f.captureWith((snapshot) => {
+      f.parent.receive({ type: 'website-prepared-ack', id: snapshot.id })
+      entered.resolve(snapshot)
+    })
+    const preparing = f.invoke('website_prepare', { profileId: PROFILE.id })
+    const request = await entered.promise
+    if (change === 'caller cancellation') f.caller.abort(new Error('Preparation canceled'))
+    else if (change === 'inventory disable') f.requests.syncProfiles([{ ...PROFILE, access: 'disabled' }])
+    else await f.ctx.fiber.dispose()
+    expect((await preparing).isError).toBe(true)
+    if (change !== 'Host disposal') await f.requests.drain(request.id)
+  },
+)
+
+it('keeps an automatic request renewable when Pause revokes it during preparation', async () => {
+  const f = await fixture()
+  const entered = Promise.withResolvers<DesktopWebsiteHostSnapshot>()
+  f.requests.syncProfiles([{ ...PROFILE, access: 'automatic' }])
+  f.captureWith((snapshot) => {
+    f.parent.receive({ type: 'website-prepared-ack', id: snapshot.id })
+    entered.resolve(snapshot)
+  })
+  const preparing = f.invoke('website_prepare', { profileId: PROFILE.id })
+  const request = await entered.promise
+  const paused = f.requests.revoke(request.id)
+  expect((await preparing).isError).toBe(true)
+  expect(paused.terminal).toBeUndefined()
+  await f.requests.drain(request.id)
+  await f.requests.validate(request.id, paused.epoch)
+  const continued = await f.requests.commit(request.id, paused.epoch)
+  expect(continued).toMatchObject({ status: 'granted', epoch: paused.epoch })
+  expect(f.ctx.tools.get(`website_page_info_${request.id}`, f.agent)).toBeDefined()
 })
 
 it('publishes only an authorization error when a loaded paired MCP result outlives takeover and renewal', async () => {

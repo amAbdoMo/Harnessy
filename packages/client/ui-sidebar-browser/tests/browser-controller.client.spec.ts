@@ -91,7 +91,7 @@ describe('BrowserController', () => {
       pages.push(requests)
       return { ...createIframePage(options), requests }
     }, () => false, () => ({ phase: 'ready', profiles: [{ id: profile, name: 'Account', accountLabel: '',
-      url: 'https://work.example/', mcpServerName: 'website', control: 'human' }], busy: undefined, creating: false, notice: null }))
+      url: 'https://work.example/', mcpServerName: 'website', control: 'human', access: 'ask', hasSavedLogin: false }], busy: undefined, creating: false, notice: null }))
     disposables.push({ dispose: async () => { await expect(face.dispose()).rejects.toMatchObject({
       errors: [{ errors: [{ errors: [diagnostic] }] }],
     }) } })

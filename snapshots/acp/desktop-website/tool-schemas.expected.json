@@ -235,7 +235,7 @@
           },
           "workdir": {
             "type": "string",
-            "description": "Working directory for this command. Defaults to the session workspace; a relative path is resolved against it."
+            "description": "Working directory for this command. Defaults to the Session current directory; a relative path is resolved against it."
           },
           "run_in_background": {
             "type": "boolean",
@@ -508,7 +508,7 @@
     },
     {
       "name": "website_prepare",
-      "description": "Request work on one saved website/account. Returns a paused request; the human must log in and explicitly Resume that request before any MCP or browser observation. Never read passwords, verification codes, or login-page content. Prefer the paired MCP for bulk work.",
+      "description": "Request work on one saved website/account. Automatic access may return ready after trusted desktop preparation; Ask returns waiting until the human continues it. Disabled profiles reject the request. Never read passwords, verification codes, or login-page content. Prefer the paired MCP for bulk work.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -606,6 +606,19 @@
           "script",
           "meta"
         ]
+      }
+    },
+    {
+      "name": "working_directory",
+      "description": "Read the current working directory, or change it with cd. Relative paths use the current directory. Existing shells and running processes keep their own directories.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "cd": {
+            "type": "string",
+            "description": "Existing directory to enter. Omit to read the current directory."
+          }
+        }
       }
     },
     {
@@ -879,7 +892,7 @@
             },
             "workdir": {
               "type": "string",
-              "description": "Working directory for this command. Defaults to the session workspace; a relative path is resolved against it."
+              "description": "Working directory for this command. Defaults to the Session current directory; a relative path is resolved against it."
             },
             "run_in_background": {
               "type": "boolean",
@@ -1152,7 +1165,7 @@
       },
       {
         "name": "website_browser_{{sessionId}}",
-        "description": "Work in the approved saved website \"Saved website\" / account \"Human account\". Prefer its paired MCP. Use browser fallback only when MCP cannot perform the task; provide the reason and obtain fresh one-call approval. Never access passwords, verification codes, login content or authentication secrets. DOM reads return bounded top-document text, omitting controls and commonly hidden subtrees. Click/fill/navigation can mutate the website. Arbitrary JavaScript is unavailable; scripts or workers could outlive Human takeover. Screenshots persist in this conversation and require an image-capable active model. Actions report attempted, not successful.",
+        "description": "Work in the approved saved website \"Saved website\" / account \"Human account\". Prefer its paired MCP. Use browser fallback only when MCP cannot perform the task and provide the reason. The saved access policy determines whether each fallback asks for approval. Never access passwords, verification codes, login content or authentication secrets. DOM reads return bounded top-document text, omitting controls and commonly hidden subtrees. Click/fill/navigation can mutate the website. Arbitrary JavaScript is unavailable; scripts or workers could outlive Human takeover. Screenshots persist in this conversation and require an image-capable active model. Actions report attempted, not successful.",
         "parameters": {
           "type": "object",
           "properties": {
@@ -1228,7 +1241,7 @@
       },
       {
         "name": "website_page_info_{{sessionId}}",
-        "description": "Read the current page title and origin for saved website \"Saved website\" / account \"Human account\". Asks for fresh approval on every call; returns no login state, page body or full URL. Prefer the paired MCP for website work.",
+        "description": "Read the current page title and origin for saved website \"Saved website\" / account \"Human account\". Follows the saved access policy; returns no login state, page body or full URL. Prefer the paired MCP for website work.",
         "parameters": {
           "type": "object",
           "properties": {}
@@ -1236,7 +1249,7 @@
       },
       {
         "name": "website_prepare",
-        "description": "Request work on one saved website/account. Returns a paused request; the human must log in and explicitly Resume that request before any MCP or browser observation. Never read passwords, verification codes, or login-page content. Prefer the paired MCP for bulk work.",
+        "description": "Request work on one saved website/account. Automatic access may return ready after trusted desktop preparation; Ask returns waiting until the human continues it. Disabled profiles reject the request. Never read passwords, verification codes, or login-page content. Prefer the paired MCP for bulk work.",
         "parameters": {
           "type": "object",
           "properties": {
@@ -1334,6 +1347,19 @@
             "script",
             "meta"
           ]
+        }
+      },
+      {
+        "name": "working_directory",
+        "description": "Read the current working directory, or change it with cd. Relative paths use the current directory. Existing shells and running processes keep their own directories.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "cd": {
+              "type": "string",
+              "description": "Existing directory to enter. Omit to read the current directory."
+            }
+          }
         }
       },
       {
@@ -1606,7 +1632,7 @@
             },
             "workdir": {
               "type": "string",
-              "description": "Working directory for this command. Defaults to the session workspace; a relative path is resolved against it."
+              "description": "Working directory for this command. Defaults to the Session current directory; a relative path is resolved against it."
             },
             "run_in_background": {
               "type": "boolean",
@@ -1879,7 +1905,7 @@
       },
       {
         "name": "website_prepare",
-        "description": "Request work on one saved website/account. Returns a paused request; the human must log in and explicitly Resume that request before any MCP or browser observation. Never read passwords, verification codes, or login-page content. Prefer the paired MCP for bulk work.",
+        "description": "Request work on one saved website/account. Automatic access may return ready after trusted desktop preparation; Ask returns waiting until the human continues it. Disabled profiles reject the request. Never read passwords, verification codes, or login-page content. Prefer the paired MCP for bulk work.",
         "parameters": {
           "type": "object",
           "properties": {
@@ -1977,6 +2003,19 @@
             "script",
             "meta"
           ]
+        }
+      },
+      {
+        "name": "working_directory",
+        "description": "Read the current working directory, or change it with cd. Relative paths use the current directory. Existing shells and running processes keep their own directories.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "cd": {
+              "type": "string",
+              "description": "Existing directory to enter. Omit to read the current directory."
+            }
+          }
         }
       },
       {

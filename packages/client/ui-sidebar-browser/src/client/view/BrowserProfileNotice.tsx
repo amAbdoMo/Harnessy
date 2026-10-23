@@ -29,6 +29,7 @@ function noticeText(notice: WebsiteProfileNotice, t: BrowserProfileNoticeProps['
     case 'human': return t('profiles.notice.human', { name: notice.name })
     case 'signedOut': return t('profiles.notice.signedOut', { name: notice.name })
     case 'forgotten': return t('profiles.notice.forgotten', { name: notice.name })
+    case 'updated': return t('profiles.notice.updated', { name: notice.name })
     case 'failed': return t('profiles.notice.failed')
     case 'requestFailed': return t('requests.notice.failed')
     /* v8 ignore next 2 -- closed-union backstop; only reached if a notice kind is forged */

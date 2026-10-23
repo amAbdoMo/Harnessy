@@ -361,6 +361,19 @@ export class SidebarRightController implements ISidebarRight {
   }
 
   /**
+   * Focus a tab in one Session without consulting the globally selected Session.
+   * Nothing happens when that Session has not been adopted or the tab is gone.
+   * @param sessionId - Session owning the tab.
+   * @param tabId - committed tab to focus.
+   */
+  focusIn(sessionId: SessionId, tabId: TabId): void {
+    const actions = this.actionsFor(sessionId)
+    const layout = this.adopted.get(sessionId)?.store.getSnapshot().bySession[sessionId]?.layout
+    if (actions === undefined || layout?.tabs[tabId] === undefined) return
+    actions.focusTab(sessionId, tabId)
+  }
+
+  /**
    * Close a tab of one session, preserving the sole docked guide; nothing happens
    * for a session whose store was never adopted or whose adoption was released.
    * Not part of `ISidebarRight`: the Tab domain's path.

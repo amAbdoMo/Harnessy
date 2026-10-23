@@ -21,9 +21,11 @@ export interface DesktopWebsiteRequestInput {
   readonly mcpBinding: DesktopWebsiteMcpBinding
   readonly owner: WebContents
   readonly lease: DesktopBrowserLeaseId
+  /** Main derives this from the saved profile; renderers cannot enable background access. */
+  readonly automatic?: true
 }
 
-/** A receipt returned only after explicit Resume commits; every operation still checks current authority. */
+/** A receipt returned after request admission commits; every operation still checks current authority. */
 export type DesktopWebsiteRequestGrant = DesktopWebsiteRequestReceipt
 
 /** Native inspection of the exact lease, not renderer-supplied visibility or guest metadata. */
@@ -45,6 +47,8 @@ export interface DesktopWebsiteRequestBinding extends DesktopWebsiteRequestInput
 
 /** Native/Host adapters; all callbacks must target binding.host, never a later current Host. */
 export interface DesktopWebsiteRequestDependencies {
+  /** @param binding - reserved account guest. @param signal - admission cancellation. @returns after private sign-in work settles. */
+  prepareLogin?(binding: DesktopWebsiteRequestBinding, signal: AbortSignal): Promise<void>
   /** @returns the currently running Host object, or undefined during replacement/shutdown. */
   currentHost(): DesktopHostProcess | undefined
   /** Notify renderer inventory after reservation acquisition or physical release; grants no authority. */
@@ -96,6 +100,7 @@ interface WebsiteRequest {
   acknowledgedGuest: WebContents | undefined
   transaction: GrantTransaction | undefined
   closed: boolean
+  loginPrepared: boolean
 }
 
 const STALE = 'Website request is stale or not acknowledged'
@@ -104,13 +109,18 @@ const LOCKED = 'Website account is controlled by another request or still draini
 
 /**
  * One coordinator per Main process, shared by all profiles and windows. Prepare and acknowledgement grant nothing.
- * Main must call setVisible(false) or revoke before native hide/minimize, guest release, profile cleanup, renderer
- * loss, Host replacement, or Agent/Session invalidation; call close when the Host request ends. This module does
+ * Main revokes Ask work on hide/minimize and all work on guest release, profile cleanup, renderer loss,
+ * Host replacement or Agent/Session invalidation; call close when the Host request ends. This module does
  * not install IPC handlers or intercept alternate browser/MCP executors: those consumers must enforce its grants.
  */
 export class DesktopWebsiteRequests {
   private readonly requests = new Map<DesktopWebsiteRequestId, WebsiteRequest>()
   private readonly accounts = new Map<string, GrantTransaction>()
+  private readonly waiting = new Map<DesktopWebsiteRequestId, {
+    readonly keys: readonly string[]
+    readonly start: () => void
+    readonly reject: (error: Error) => void
+  }>()
 
   /** @param dependencies - trusted native inspection and exact-Host validation/admission/teardown callbacks. */
   constructor(private readonly dependencies: DesktopWebsiteRequestDependencies) {}
@@ -131,6 +141,7 @@ export class DesktopWebsiteRequests {
       if (request.closed || original.host !== input.host || original.owner !== input.owner
         || original.agentId !== input.agentId || original.sessionId !== input.sessionId || original.profile !== input.profile
         || original.url !== input.url || original.mcpServerName !== input.mcpServerName || original.lease !== input.lease
+        || original.automatic !== input.automatic
         || original.mcpBinding.identity !== input.mcpBinding.identity || original.mcpBinding.endpoint !== input.mcpBinding.endpoint) {
         throw new Error(STALE)
       }
@@ -146,7 +157,7 @@ export class DesktopWebsiteRequests {
     const captured = Object.freeze({ ...input, mcpBinding: Object.freeze({ ...input.mcpBinding }) })
     const keys = accountKeys(input)
     this.requests.set(id, { id, input: captured, guest, keys, epoch: 0, visibility: undefined,
-      acknowledgedGuest: undefined, transaction: undefined, closed: false })
+      acknowledgedGuest: undefined, transaction: undefined, closed: false, loginPrepared: false })
     return id
   }
 
@@ -178,11 +189,18 @@ export class DesktopWebsiteRequests {
   }
 
   /**
-   * @param owner - authenticated sender making an explicit human Resume. @param receipt - acknowledged visible occurrence.
+   * @param owner - authenticated sender continuing work under the saved access choice.
+   * @param receipt - acknowledged attached occurrence.
    * @returns request-specific grant after validation and acknowledged Host commit; races, locks and teardown failures reject.
    */
   async resume(owner: WebContents, receipt: DesktopWebsiteRequestReceipt): Promise<DesktopWebsiteRequestGrant> {
     const request = this.owned(owner, receipt.requestId)
+    if (request.input.automatic === true && request.keys.some(key => this.accounts.has(key))) {
+      if (this.waiting.has(request.id)) throw new Error(LOCKED)
+      await new Promise<void>((resolve, reject) => {
+        this.waiting.set(request.id, { keys: request.keys, start: resolve, reject })
+      })
+    }
     const guest = this.assertAcknowledged(request, receipt)
     if (request.transaction !== undefined || request.keys.some(key => this.accounts.has(key))) throw new Error(LOCKED)
     const binding = Object.freeze({ ...request.input, ...this.receipt(request), guest })
@@ -192,6 +210,12 @@ export class DesktopWebsiteRequests {
     for (const key of transaction.keys) this.accounts.set(key, transaction)
     transaction.admission = Promise.resolve().then(async () => {
       transaction.controller.signal.throwIfAborted()
+      if (!request.loginPrepared && this.dependencies.prepareLogin !== undefined) {
+        await this.dependencies.prepareLogin(binding, transaction.controller.signal)
+        this.assertTransaction(request, transaction, receipt)
+        request.loginPrepared = true
+      }
+      this.assertTransaction(request, transaction, receipt)
       await this.dependencies.validate(binding, transaction.controller.signal)
       this.assertTransaction(request, transaction, receipt)
       await this.dependencies.commit(binding, transaction.controller.signal)
@@ -229,6 +253,17 @@ export class DesktopWebsiteRequests {
   private notifyReservation(): void {
     try { this.dependencies.reservationChanged?.() }
     catch (_error: unknown) { /* Renderer invalidation cannot affect native reservation lifetime. */ }
+  }
+
+  private startWaiting(): void {
+    for (const [id, next] of this.waiting) {
+      if (next.keys.some(key => this.accounts.has(key))) continue
+      this.waiting.delete(id)
+      next.start()
+      queueMicrotask(() => { this.startWaiting() })
+      // The resumed promise reserves synchronously before another queue member is admitted.
+      break
+    }
   }
 
   /**
@@ -292,6 +327,8 @@ export class DesktopWebsiteRequests {
    * @returns shared drainage promise; failure retains locks permanently rather than permitting an unsafe new grant.
    */
   revoke(id: DesktopWebsiteRequestId): Promise<void> {
+    const waiting = this.waiting.get(id)
+    if (waiting !== undefined) { this.waiting.delete(id); waiting.reject(new Error(STALE)) }
     const request = this.requests.get(id)
     if (request === undefined) return Promise.resolve()
     request.epoch += 1
@@ -312,6 +349,7 @@ export class DesktopWebsiteRequests {
       }
       if (request.transaction === transaction) request.transaction = undefined
       this.notifyReservation()
+      this.startWaiting()
     })
     transaction.controller.abort(new Error(STALE))
     try { this.dependencies.revoke(transaction.binding) }
@@ -321,9 +359,13 @@ export class DesktopWebsiteRequests {
     return transaction.drain
   }
 
-  /** @param owner - hidden, minimized or disconnected native owner. @returns drainage after synchronous revocation of all its requests. */
-  revokeOwner(owner: WebContents): Promise<void> {
-    return this.revokeMatching(request => request.input.owner === owner)
+  /**
+   * @param owner - native owner.
+   * @param includeAutomatic - false only for window hiding/minimization.
+   * @returns after matching requests drain.
+   */
+  revokeOwner(owner: WebContents, includeAutomatic = true): Promise<void> {
+    return this.revokeMatching(request => request.input.owner === owner && (includeAutomatic || request.input.automatic !== true))
   }
 
   /**
@@ -413,7 +455,9 @@ export class DesktopWebsiteRequests {
       if (this.dependencies.currentHost() !== input.host) throw new Error(UNAVAILABLE)
       this.dependencies.assertProfile(input)
       const native = this.attachedGuest(input)
-      if (native.guest !== request.guest || !native.windowVisible || native.windowMinimized) throw new Error(UNAVAILABLE)
+      if (native.guest !== request.guest || (input.automatic !== true && (!native.windowVisible || native.windowMinimized))) {
+        throw new Error(UNAVAILABLE)
+      }
       return native.guest
     } catch (error) {
       void this.revoke(request.id)

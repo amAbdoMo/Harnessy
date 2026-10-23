@@ -1,7 +1,7 @@
 /** Lease-scoped browser operations and one main-process subscription per event per window. */
 import { ipcRenderer } from 'electron'
 import type {
-  DesktopBrowserBridge, DesktopBrowserLeaseId, DesktopWebsiteProfilesBridge, DesktopWebsiteRequestsBridge,
+  DesktopBrowserBridge, DesktopBrowserLeaseId, DesktopWebsiteProfilesBridge, DesktopWebsiteRequestsBridge, DesktopWebsiteHostSnapshot,
 } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
 import { DESKTOP_IPC } from './ipc.ts'
 
@@ -55,6 +55,13 @@ export function createDesktopBrowserBridge(): DesktopBrowserBridge {
     }
   })
   const requestListeners = new Set<() => void>()
+  const preparedListeners = new Set<(request: DesktopWebsiteHostSnapshot) => void>()
+  ipcRenderer.on(DESKTOP_IPC.websiteRequestPrepared, (_event, request: DesktopWebsiteHostSnapshot) => {
+    for (const listener of [...preparedListeners]) {
+      try { listener(request) }
+      catch (_error: unknown) { console.error('Website request could not open its saved profile') }
+    }
+  })
   ipcRenderer.on(DESKTOP_IPC.websiteRequestsChanged, () => {
     for (const listener of [...requestListeners]) {
       try { listener() }
@@ -63,6 +70,7 @@ export function createDesktopBrowserBridge(): DesktopBrowserBridge {
   })
   return {
     requests: {
+      onPrepared: (listener) => { preparedListeners.add(listener); return () => { preparedListeners.delete(listener) } },
       list: session => ipcRenderer.invoke(DESKTOP_IPC.websiteRequestsList, session) as ReturnType<DesktopWebsiteRequestsBridge['list']>,
       prepare: input => ipcRenderer.invoke(DESKTOP_IPC.websiteRequestsPrepare, input) as ReturnType<DesktopWebsiteRequestsBridge['prepare']>,
       visible: (id, visible) => ipcRenderer.invoke(DESKTOP_IPC.websiteRequestsVisible, id, visible) as ReturnType<DesktopWebsiteRequestsBridge['visible']>,
@@ -76,6 +84,9 @@ export function createDesktopBrowserBridge(): DesktopBrowserBridge {
       create: input => ipcRenderer.invoke(DESKTOP_IPC.websiteProfilesCreate, input) as ReturnType<DesktopWebsiteProfilesBridge['create']>,
       acquire: id => ipcRenderer.invoke(DESKTOP_IPC.websiteProfilesAcquire, id) as ReturnType<DesktopWebsiteProfilesBridge['acquire']>,
       setControl: (id, control) => ipcRenderer.invoke(DESKTOP_IPC.websiteProfilesControl, id, control) as Promise<void>,
+      setAccess: (id, access) => ipcRenderer.invoke(DESKTOP_IPC.websiteProfilesAccess, id, access) as Promise<void>,
+      saveLogin: (id, login) => ipcRenderer.invoke(DESKTOP_IPC.websiteProfilesSaveLogin, id, login) as Promise<void>,
+      removeLogin: id => ipcRenderer.invoke(DESKTOP_IPC.websiteProfilesRemoveLogin, id) as Promise<void>,
       signOut: id => ipcRenderer.invoke(DESKTOP_IPC.websiteProfilesSignOut, id) as Promise<void>,
       forget: id => ipcRenderer.invoke(DESKTOP_IPC.websiteProfilesForget, id) as Promise<void>,
       onChanged: (listener) => { profileListeners.add(listener); return () => { profileListeners.delete(listener) } },

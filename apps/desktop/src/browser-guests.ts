@@ -70,7 +70,8 @@ export class DesktopBrowserGuests {
    * @returns profiles whose cleanup revokes all related guests before clearing authentication.
    */
   createProfiles(filename: string, pairing: DesktopWebsitePairing,
-    drainAccount: (account: DesktopWebsiteAccount) => Promise<void>): DesktopWebsiteProfiles {
+    drainAccount: (account: DesktopWebsiteAccount) => Promise<void>,
+    credentials?: ConstructorParameters<typeof DesktopWebsiteProfiles>[4]): DesktopWebsiteProfiles {
     return new DesktopWebsiteProfiles(filename, async (id) => {
       const releases = [...this.leases].filter(([, lease]) => lease.profile === id)
         .map(([lease, held]) => this.release(held.owner, lease))
@@ -84,7 +85,7 @@ export class DesktopBrowserGuests {
       await storage.clearCache()
       await storage.clearAuthCache()
       await storage.closeAllConnections()
-    }, pairing, drainAccount)
+    }, pairing, drainAccount, credentials)
   }
 
   /**

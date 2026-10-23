@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import type { TranslateNS } from '@deepseek-ai/dsh-client-locale/client'
-import { Button, Menu, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, Input, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsHooks } from '@deepseek-ai/dsh-client-ui-slots'
 import { assertNever } from '@deepseek-ai/dsh-util-values'
 import type { DesktopWebsiteControl, DesktopWebsiteProfileId, DesktopWebsiteRequestId } from '../../types.ts'
@@ -10,6 +10,7 @@ import type { WebsiteRequestPageState } from '../browser/WebsiteRequestPage.ts'
 import type { BrowserInjected } from '../browser/BrowserController.ts'
 import type { WebsiteProfileCommands } from '../browser/profiles.ts'
 import css from './Browser.module.css'
+import { BrowserAccessPicker } from './BrowserAccessPicker.tsx'
 
 /** Bar inputs: this tab's profile, the profile share, and its actions. */
 export interface BrowserProfileBarProps {
@@ -43,15 +44,17 @@ function controlCopy(control: DesktopWebsiteControl, t: BrowserProfileBarProps['
 /**
  * Show who controls this signed-in page and let the user change that.
  *
- * Resume is the only way back to agent observation, so a human login never hands
- * over silently; Sign out and Forget clear the account's stored sign-in data,
- * and Forget confirms first because it removes the saved profile itself.
+ * Automatic access follows the saved account choice; Pause retains its login.
+ * Sign out clears browser authentication and selects Ask. Forget also removes
+ * the saved profile and protected login after confirming with the user.
  */
-export function BrowserProfileBar({ profileId, profiles, useWebsiteProfiles, requests, selectRequest,
+export function BrowserProfileBar({ profileId, profiles, useWebsiteProfiles, requests,
   resumeRequest, takeoverRequest, reloadRequests, t }: BrowserProfileBarProps): ReactNode {
   const state = useWebsiteProfiles(current => current)
   const [confirming, setConfirming] = useState(false)
-  const [choosingRequest, setChoosingRequest] = useState(false)
+  const [editingLogin, setEditingLogin] = useState(false)
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
   const profile = state.profiles.find(candidate => candidate.id === profileId)
   if (profile === undefined) {
     return <div className={css.profileBar}><p className={css.profileHint}>{t('profiles.missing')}</p></div>
@@ -63,9 +66,11 @@ export function BrowserProfileBar({ profileId, profiles, useWebsiteProfiles, req
     : controlCopy(clearing ? profile.control : requests?.granted ? 'agent' : 'human', t)
   const localAdmission = requests !== undefined && (requests.granted || requests.busy !== undefined || requests.blocked)
   const accountTakeover = !clearing && profile.control === 'agent' && !localAdmission
-  const available = requests?.requests.filter(request => !request.terminal) ?? []
-  const requestLabel = requests?.selected === undefined
-    ? t('requests.choose') : t('requests.label', { id: requests.selected })
+  const closeLogin = (): void => { setEditingLogin(false); setUsername(''); setPassword('') }
+  const saveLogin = (): void => {
+    if (blocked || password.length === 0) return
+    void profiles.saveLogin(profile.id, { username, password }).finally(closeLogin)
+  }
   return (
     <div className={css.profileBar}>
       <div className={css.profileHead}>
@@ -75,15 +80,8 @@ export function BrowserProfileBar({ profileId, profiles, useWebsiteProfiles, req
       </div>
       <p className={css.profileHint}>{copy.hint}</p>
       <div className={css.profileActions}>
-        {!clearing && <Menu portal open={choosingRequest} onClose={() => { setChoosingRequest(false) }}
-          items={available.length === 0 ? [{ type: 'label', id: 'empty', text: t('requests.empty') }]
-            : available.map(request => ({ id: request.id, label: t('requests.label', { id: request.id }),
-              disabled: requests?.phase !== 'ready' || requests.busy !== undefined || blocked,
-            }))}
-          onSelect={(id) => { selectRequest(available.find(request => request.id === id)?.id); setChoosingRequest(false) }}
-          anchor={<Button size="sm" variant="outline" disabled={blocked || requests === undefined}
-            aria-haspopup="menu" aria-expanded={choosingRequest}
-            onClick={() => { setChoosingRequest(open => !open) }}>{requestLabel}</Button>} />}
+        {!clearing && <BrowserAccessPicker access={profile.access} disabled={blocked}
+          onChange={(access) => { void profiles.setAccess(profile.id, access) }} t={t} />}
         {!clearing && <Button size="sm" variant="primary" disabled={blocked || profile.control !== 'human' || !requests?.canResume}
           title={t('requests.resume.title')} onClick={() => { void resumeRequest() }}>{t('profiles.resume')}</Button>}
         {(requests?.canTakeover || accountTakeover) && <Button size="sm" variant="outline" disabled={accountTakeover && blocked}
@@ -92,6 +90,8 @@ export function BrowserProfileBar({ profileId, profiles, useWebsiteProfiles, req
             else void profiles.takeover(profile.id)
           }}>{t('profiles.takeControl')}</Button>}
         {!clearing && <Button size="sm" variant="outline" disabled={blocked}
+          onClick={() => { setEditingLogin(true) }}>{t(profile.hasSavedLogin ? 'profiles.login.saved' : 'profiles.login.save')}</Button>}
+        {!clearing && <Button size="sm" variant="outline" disabled={blocked}
           title={t('profiles.signOut.title')} onClick={() => { void profiles.signOut(profile.id) }}>{t('profiles.signOut')}</Button>}
         {!clearing && <Button size="sm" variant="outline" disabled={blocked}
           title={t('profiles.forget.title')} onClick={() => { setConfirming(true) }}>{t('profiles.forget')}</Button>}
@@ -99,6 +99,24 @@ export function BrowserProfileBar({ profileId, profiles, useWebsiteProfiles, req
       {requests?.phase === 'failed' && <p className={css.profileHint} role="status">{t('requests.loadFailed')} {' '}
         <Button size="sm" variant="outline" onClick={() => { void reloadRequests() }}>{t('retry')}</Button></p>}
       {requests?.blocked && <p className={css.profileHint} role="status">{t('requests.blocked')}</p>}
+      {editingLogin && <Modal open onClose={() => { if (!blocked) closeLogin() }} closeLabel={t('close')}
+        title={t('profiles.login.title')} description={t('profiles.login.description')}
+        footer={<>
+          {profile.hasSavedLogin && <Button variant="outline" disabled={blocked} onClick={() => {
+            void profiles.removeLogin(profile.id).finally(closeLogin)
+          }}>{t('profiles.login.remove')}</Button>}
+          <Button variant="outline" disabled={blocked} onClick={closeLogin}>{t('cancel')}</Button>
+          <Button variant="primary" disabled={blocked || password.length === 0} onClick={saveLogin}>{t('profiles.login.action')}</Button>
+        </>}>
+        <div className={css.profileForm}>
+          <label className={css.profileField}><span className={css.profileFieldLabel}>{t('profiles.login.username')}</span>
+            <Input value={username} autoComplete="off" disabled={blocked} data-modal-autofocus
+              onChange={(event) => { setUsername(event.currentTarget.value) }} /></label>
+          <label className={css.profileField}><span className={css.profileFieldLabel}>{t('profiles.login.password')}</span>
+            <Input type="password" value={password} autoComplete="off" disabled={blocked}
+              onChange={(event) => { setPassword(event.currentTarget.value) }} /></label>
+        </div>
+      </Modal>}
       {confirming && (
         <Modal
           open

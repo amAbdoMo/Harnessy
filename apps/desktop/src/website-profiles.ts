@@ -3,8 +3,14 @@ import { randomUUID } from 'node:crypto'
 import { open } from 'node:fs/promises'
 import { writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import type {
-  DesktopWebsiteControl, DesktopWebsiteHostProfile, DesktopWebsiteProfile, DesktopWebsiteProfileId, DesktopWebsiteProfileInput,
+  DesktopWebsiteAccess, DesktopWebsiteControl, DesktopWebsiteHostProfile, DesktopWebsiteProfile, DesktopWebsiteProfileId,
+  DesktopWebsiteProfileInput,
 } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
+interface WebsiteProfileCredentials {
+  has(profile: DesktopWebsiteProfileId): Promise<boolean>
+  save(profile: DesktopWebsiteProfileId, login: unknown): Promise<void>
+  remove(profile: DesktopWebsiteProfileId): Promise<void>
+}
 
 /** Current MCP endpoint binding; authentication values are never returned to the shell. */
 export interface DesktopWebsiteMcpBinding {
@@ -34,7 +40,11 @@ export function websiteAccountKeys(account: Omit<DesktopWebsiteAccount, 'profile
     `binding:${account.mcpBinding.identity}`, `endpoint:${account.mcpBinding.endpoint}`])]
 }
 
-interface StoredProfile extends DesktopWebsiteProfileInput {
+interface ProfileFields extends Omit<DesktopWebsiteProfileInput, 'access'> {
+  readonly access: DesktopWebsiteAccess
+}
+
+interface StoredProfile extends ProfileFields {
   readonly id: DesktopWebsiteProfileId
   readonly loginConfirmed: boolean
   readonly cleanupPending: boolean
@@ -47,8 +57,9 @@ interface ProfileControl {
 }
 
 const PROFILE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
-const INPUT_KEYS = ['name', 'accountLabel', 'url', 'mcpServerName']
-const STORED_KEYS = [...INPUT_KEYS, 'id', 'loginConfirmed', 'cleanupPending', 'mcpBinding']
+const INPUT_KEYS = ['name', 'accountLabel', 'url', 'mcpServerName', 'access']
+const V1_STORED_KEYS = ['name', 'accountLabel', 'url', 'mcpServerName', 'id', 'loginConfirmed', 'cleanupPending', 'mcpBinding']
+const V2_STORED_KEYS = [...INPUT_KEYS, 'id', 'loginConfirmed', 'cleanupPending', 'mcpBinding']
 const MAX_PROFILES = 64
 const MAX_FILE_BYTES = 256 * 1024
 
@@ -69,7 +80,13 @@ function label(input: unknown, name: string, required: boolean): string {
   return trimmed
 }
 
-function pairingFields(input: Record<string, unknown>): DesktopWebsiteProfileInput {
+function access(input: unknown, defaultAsk = true): DesktopWebsiteAccess {
+  if (input === undefined && defaultAsk) return 'ask'
+  if (input !== 'automatic' && input !== 'ask' && input !== 'disabled') throw new Error('Website profile access is invalid')
+  return input
+}
+
+function pairingFields(input: Record<string, unknown>): ProfileFields {
   const name = label(input.name, 'name', true)
   const accountLabel = label(input.accountLabel, 'account label', false)
   if (typeof input.mcpServerName !== 'string' || !/^[A-Za-z0-9_-]{1,32}$/.test(input.mcpServerName)) {
@@ -82,7 +99,7 @@ function pairingFields(input: Record<string, unknown>): DesktopWebsiteProfileInp
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) {
     throw new Error('Website profile address cannot contain credentials, query parameters or fragments')
   }
-  return { name, accountLabel, url: url.href, mcpServerName: input.mcpServerName }
+  return { name, accountLabel, url: url.href, mcpServerName: input.mcpServerName, access: access(input.access) }
 }
 
 /** @param input - untrusted IPC or file identity. @returns a validated main-issued profile ID. */
@@ -91,15 +108,15 @@ export function parseWebsiteProfileId(input: unknown): DesktopWebsiteProfileId {
   return input as DesktopWebsiteProfileId
 }
 
-function storedProfile(input: unknown): StoredProfile {
-  const fields = record(input, STORED_KEYS)
+function storedProfile(input: unknown, version: 1 | 2): StoredProfile {
+  const fields = record(input, version === 1 ? V1_STORED_KEYS : V2_STORED_KEYS)
   if (typeof fields.loginConfirmed !== 'boolean') throw new Error('Website profile login confirmation is invalid')
   if (typeof fields.cleanupPending !== 'boolean') throw new Error('Website profile cleanup state is invalid')
   const binding = record(fields.mcpBinding, ['identity', 'endpoint'])
   if (typeof binding.identity !== 'string' || !/^[0-9a-f]{64}$/.test(binding.identity)
     || typeof binding.endpoint !== 'string' || binding.endpoint.length === 0 || binding.endpoint.length > 2048
     || /[\x00-\x1f\x7f]/.test(binding.endpoint)) throw new Error('Website MCP endpoint binding is invalid')
-  return { ...pairingFields(fields), id: parseWebsiteProfileId(fields.id),
+  return { ...pairingFields(version === 1 ? { ...fields, access: 'ask' } : fields), id: parseWebsiteProfileId(fields.id),
     loginConfirmed: fields.loginConfirmed, cleanupPending: fields.cleanupPending,
     mcpBinding: { identity: binding.identity, endpoint: binding.endpoint } }
 }
@@ -107,10 +124,11 @@ function storedProfile(input: unknown): StoredProfile {
 function storedProfiles(text: string): StoredProfile[] {
   if (Buffer.byteLength(text) > MAX_FILE_BYTES) throw new Error('Website profile file exceeds its size limit')
   const document = record(JSON.parse(text), ['version', 'profiles'])
-  if (document.version !== 1 || !Array.isArray(document.profiles) || document.profiles.length > MAX_PROFILES) {
+  if ((document.version !== 1 && document.version !== 2)
+    || !Array.isArray(document.profiles) || document.profiles.length > MAX_PROFILES) {
     throw new Error('Website profile file has an unsupported version or profile list')
   }
-  const profiles = document.profiles.map(storedProfile)
+  const profiles = document.profiles.map(profile => storedProfile(profile, document.version as 1 | 2))
   if (new Set(profiles.map(profile => profile.id)).size !== profiles.length) throw new Error('Website profile identities are duplicated')
   return profiles
 }
@@ -122,6 +140,8 @@ export class DesktopWebsiteProfiles {
   private queue: Promise<void> = Promise.resolve()
   private readonly controls = new Map<DesktopWebsiteProfileId, ProfileControl>()
   private readonly listeners = new Set<() => void>()
+  private readonly savedLogins = new Set<DesktopWebsiteProfileId>()
+  private readonly changingAccess = new Set<DesktopWebsiteProfileId>()
 
   /**
    * @param filename - metadata file.
@@ -134,6 +154,7 @@ export class DesktopWebsiteProfiles {
     private readonly clearStorage: (id: DesktopWebsiteProfileId) => Promise<void>,
     private readonly pairing: DesktopWebsitePairing,
     private readonly drainAccount: (account: DesktopWebsiteAccount) => Promise<void>,
+    private readonly credentials?: WebsiteProfileCredentials,
   ) {}
 
   /** @returns saved associations and control state; malformed, future or unreadable files reject without replacement. */
@@ -150,7 +171,7 @@ export class DesktopWebsiteProfiles {
 
   private hostProfile(profile: StoredProfile): DesktopWebsiteHostProfile {
     return { id: profile.id, name: profile.name, accountLabel: profile.accountLabel, url: profile.url,
-      serverName: profile.mcpServerName, mcpBinding: { ...profile.mcpBinding } }
+      serverName: profile.mcpServerName, mcpBinding: { ...profile.mcpBinding }, access: profile.access }
   }
 
   /** @param id - loaded association. @returns saved non-secret endpoint binding; it is not proof of current MCP connectivity. */
@@ -218,6 +239,80 @@ export class DesktopWebsiteProfiles {
     })
   }
 
+  /**
+   * Saves protected login values without adding them to profile metadata or public results.
+   * @param input - saved profile identity.
+   * @param login - private login values from the trusted editor.
+   * @returns after the protected login has been committed.
+   */
+  saveLogin(input: unknown, login: unknown): Promise<void> {
+    const id = parseWebsiteProfileId(input)
+    const credentials = this.credentials
+    if (credentials === undefined) return Promise.reject(new Error('Protected website credential storage is unavailable'))
+    return this.serial(async () => {
+      await this.load()
+      this.requireProfile(id)
+      this.requireEditable(id)
+      await credentials.save(id, login)
+      this.savedLogins.add(id)
+      this.notify()
+    })
+  }
+
+  /**
+   * Removes protected login values while retaining the website profile and its browser storage.
+   * @param input - saved profile identity.
+   * @returns after removal of the protected login.
+   */
+  removeLogin(input: unknown): Promise<void> {
+    const id = parseWebsiteProfileId(input)
+    const credentials = this.credentials
+    if (credentials === undefined) return Promise.reject(new Error('Protected website credential storage is unavailable'))
+    return this.serial(async () => {
+      await this.load()
+      this.requireProfile(id)
+      this.requireEditable(id)
+      await credentials.remove(id)
+      this.savedLogins.delete(id)
+      this.notify()
+    })
+  }
+
+  /**
+   * Revokes and joins existing account work before committing a new persistent admission preference.
+   * @param input - saved profile identity. @param requested - new persistent access decision.
+   */
+  async setAccess(input: unknown, requested: unknown): Promise<void> {
+    const id = parseWebsiteProfileId(input)
+    const next = access(requested, false)
+    await this.load()
+    const profile = this.requireProfile(id)
+    if (profile.access === next) return
+    const state = this.requireEditable(id)
+    if (this.changingAccess.has(id)) throw new Error('Website profile access change is already in progress')
+    this.changingAccess.add(id)
+    state.epoch++
+    state.control = 'human'
+    this.notify()
+    let draining: Promise<void>
+    try {
+      draining = this.drainAccount({ profile: id, url: profile.url, mcpServerName: profile.mcpServerName,
+        mcpBinding: profile.mcpBinding })
+    } catch (error) {
+      draining = Promise.reject(error instanceof Error ? error : new Error('Website account revocation failed', { cause: error }))
+    }
+    void draining.catch((_error: unknown) => { /* The serialized change joins drainage before releasing its fence. */ })
+    try {
+      await this.serial(async () => {
+        await draining
+        await this.save(this.profiles.map(candidate => candidate.id === id ? { ...candidate, access: next } : candidate))
+      })
+    } finally {
+      this.changingAccess.delete(id)
+      this.notify()
+    }
+  }
+
   /** @param input - account to retain after all guests/authentication/storage are cleared. */
   signOut(input: unknown): Promise<void> { return this.clear(input, 'retain') }
 
@@ -252,6 +347,7 @@ export class DesktopWebsiteProfiles {
     if (!this.controls.has(id)) await this.load()
     const profile = this.requireProfile(id)
     const state = this.requireControl(id)
+    if (this.changingAccess.has(id)) throw new Error('Website profile access change is in progress')
     if (state.control === 'clearing') throw new Error('Website profile cleanup is already in progress')
     state.epoch++
     state.control = 'clearing'
@@ -268,13 +364,15 @@ export class DesktopWebsiteProfiles {
       await this.serial(async () => {
         // Persist the cleanup fence before deleting authentication; persistence failure still joins physical work.
         const outcomes = await Promise.allSettled([draining, this.save(this.profiles.map(candidate =>
-          candidate.id === id ? { ...candidate, loginConfirmed: false, cleanupPending: true } : candidate))])
+          candidate.id === id ? { ...candidate, access: 'ask', loginConfirmed: false, cleanupPending: true } : candidate))])
         const failures = outcomes.filter(outcome => outcome.status === 'rejected').map((outcome): unknown => outcome.reason)
         if (failures.length === 1) throw failures[0]
         if (failures.length > 1) throw new AggregateError(failures, 'Website account cleanup failed')
         await this.clearStorage(id)
         if (disposition === 'forget') {
+          await this.credentials?.remove(id)
           await this.save(this.profiles.filter(profile => profile.id !== id))
+          this.savedLogins.delete(id)
           this.controls.delete(id)
         } else {
           await this.save(this.profiles.map(profile => profile.id === id ? { ...profile, cleanupPending: false } : profile))
@@ -311,7 +409,12 @@ export class DesktopWebsiteProfiles {
       }
       const profiles = storedProfiles(text)
       this.profiles = profiles
-      // Remembered authentication never restores observation permission after a process restart.
+      const credentials = this.credentials
+      if (credentials !== undefined) {
+        const loginStates = await Promise.all(profiles.map(async profile => [profile.id, await credentials.has(profile.id)] as const))
+        for (const [id, saved] of loginStates) if (saved) this.savedLogins.add(id)
+      }
+      // Each process needs fresh request receipts even when the saved profile permits Automatic admission.
       for (const profile of profiles) this.controls.set(profile.id, { control: profile.cleanupPending ? 'cleanup-failed' : 'human', epoch: 0 })
     })()
   }
@@ -330,6 +433,7 @@ export class DesktopWebsiteProfiles {
 
   private requireEditable(id: DesktopWebsiteProfileId): ProfileControl {
     const state = this.requireControl(id)
+    if (this.changingAccess.has(id)) throw new Error('Website profile access change is in progress')
     const keys = new Set(websiteAccountKeys(this.requireProfile(id)))
     if (this.profiles.some((profile) => {
       const control = this.requireControl(profile.id).control
@@ -348,11 +452,11 @@ export class DesktopWebsiteProfiles {
 
   private view(profile: StoredProfile): DesktopWebsiteProfile {
     const { loginConfirmed: _loginConfirmed, cleanupPending: _cleanupPending, mcpBinding: _mcpBinding, ...fields } = profile
-    return { ...fields, control: this.requireControl(profile.id).control }
+    return { ...fields, control: this.requireControl(profile.id).control, hasSavedLogin: this.savedLogins.has(profile.id) }
   }
 
   private async save(profiles: readonly StoredProfile[]): Promise<void> {
-    const text = `${JSON.stringify({ version: 1, profiles }, null, 2)}\n`
+    const text = `${JSON.stringify({ version: 2, profiles }, null, 2)}\n`
     if (Buffer.byteLength(text, 'utf8') > MAX_FILE_BYTES) throw new Error('Website profile file exceeds its size limit')
     await writeFileAtomic(this.filename, text, { mode: 0o600, dirMode: 0o700 })
     this.profiles = profiles

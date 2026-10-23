@@ -179,10 +179,16 @@ const harness = await vi.hoisted(async () => {
   class FakeHost {
     readonly updateTasks = vi.fn(async (_action: 'inspect' | 'lock' | 'unlock') => false)
     readonly inspectQuit = vi.fn(async () => ({ activeTasks: false, scheduledTasks: false }))
-    websitePrepared: ((snapshot: DesktopWebsiteHostSnapshot) => void) | undefined
+    private readonly websitePreparedListeners = new Set<(snapshot: DesktopWebsiteHostSnapshot) => void>()
+    get websitePrepared(): ((snapshot: DesktopWebsiteHostSnapshot) => void) | undefined {
+      if (this.websitePreparedListeners.size > 1) throw new Error('Website preparation requires one native owner')
+      return this.websitePreparedListeners.size === 0 ? undefined : (snapshot) => {
+        for (const listener of this.websitePreparedListeners) listener(snapshot)
+      }
+    }
     readonly onWebsitePrepared = vi.fn((listener: (snapshot: DesktopWebsiteHostSnapshot) => void) => {
-      this.websitePrepared = listener
-      return () => { this.websitePrepared = undefined }
+      this.websitePreparedListeners.add(listener)
+      return () => { this.websitePreparedListeners.delete(listener) }
     })
     readonly onWebsiteRevoked = vi.fn((_listener: (snapshot: DesktopWebsiteHostSnapshot) => void) => () => undefined)
     readonly onWebsiteCheck = vi.fn((_listener: (snapshot: DesktopWebsiteHostSnapshot) => void) => () => undefined)
@@ -372,6 +378,8 @@ vi.mock('../src/policy-test-auth.ts', () => ({ DesktopPolicyTestAuth: class {
 } }))
 
 vi.mock('electron', () => ({
+  safeStorage: { isAsyncEncryptionAvailable: vi.fn(async () => true), encryptStringAsync: vi.fn(async () => Buffer.from('fixture')),
+    decryptStringAsync: vi.fn(async () => ({ result: '' })), getSelectedStorageBackend: vi.fn(() => 'dpapi') },
   app: harness.app,
   BrowserWindow: harness.FakeWindow,
   dialog: harness.dialog,

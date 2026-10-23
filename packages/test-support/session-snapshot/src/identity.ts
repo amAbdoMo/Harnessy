@@ -4,6 +4,11 @@ const UUID_FRAGMENT_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-
 const LEGACY_TOKEN_RE = /^\{\{(?:sessionId|messageId)\}\}$/
 const CANONICAL_TOKEN_RE = /^\{\{(session|message|approval|workflow|command|rpc|retry|id):([1-9]\d*)\}\}$/
 const ID_KEY_RE = /(?:^id$|Id$|Ids$)/
+const WEBSITE_PREPARATION_CHECKPOINTS = [
+  { status: 'pending', suffix: '\nWaiting for the human to Resume this request. No page access is granted.' },
+  { status: 'waiting', suffix: '\nWaiting for the human to Continue this request. No page access is granted.' },
+  { status: 'ready', suffix: '\nSaved website access is ready for this request.' },
+] as const
 
 type IdentityKind = 'session' | 'message' | 'approval' | 'workflow' | 'command' | 'rpc' | 'retry' | 'id'
 
@@ -35,16 +40,16 @@ function messageId(value: unknown): string | undefined {
 }
 
 function websitePreparationRequestId(text: string): string | undefined {
-  const suffix = '\nWaiting for the human to Resume this request. No page access is granted.'
-  if (!text.endsWith(suffix)) return undefined
+  const checkpoint = WEBSITE_PREPARATION_CHECKPOINTS.find(candidate => text.endsWith(candidate.suffix))
+  if (checkpoint === undefined) return undefined
   let value: unknown
-  try { value = JSON.parse(text.slice(0, -suffix.length)) }
+  try { value = JSON.parse(text.slice(0, -checkpoint.suffix.length)) }
   catch (_error) { // Non-JSON tool text is not a preparation receipt.
     return undefined
   }
   if (!isRecord(value) || Object.keys(value).length !== 4
     || typeof value.requestId !== 'string' || typeof value.profileId !== 'string'
-    || typeof value.mcpServerName !== 'string' || value.status !== 'pending') return undefined
+    || typeof value.mcpServerName !== 'string' || value.status !== checkpoint.status) return undefined
   if (UUID_FRAGMENT_RE.exec(value.requestId)?.[0] !== value.requestId
     && !CANONICAL_TOKEN_RE.test(value.requestId)) return undefined
   return value.requestId

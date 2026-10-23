@@ -7,14 +7,15 @@ import { expect, it, vi } from 'vitest'
 const ID = '38ac2aa4-f8ce-4b37-951c-80a4c0c117ce' as WebsiteRequestId
 const PROFILE = 'cd1b6493-c881-4967-a544-b0a49f2d847f' as DesktopWebsiteProfileId
 const PAIRING = { id: PROFILE, name: 'Portal', accountLabel: 'operator', url: 'https://portal.example.test/',
-  serverName: 'portal', mcpBinding: { identity: 'a'.repeat(64), endpoint: 'https://portal.example.test/mcp' } }
+  serverName: 'portal', access: 'ask' as const, mcpBinding: { identity: 'a'.repeat(64), endpoint: 'https://portal.example.test/mcp' } }
 
 function fixture() {
   const snapshot: WebsiteRequestSnapshot = { requestId: ID, profileId: PROFILE, serverName: 'portal',
     sessionId: 'owner' as WebsiteRequestSnapshot['sessionId'], epoch: 1, status: 'pending', signal: new AbortController().signal }
   const controller = {
     syncProfiles: vi.fn(), profiles: () => [PAIRING], assertCurrent: vi.fn(), assertDrained: vi.fn(),
-    create: vi.fn(() => snapshot), handoff: async (receipt, capture) => capture(receipt.signal), validate: vi.fn(async () => snapshot),
+    create: vi.fn(() => snapshot), handoff: async (receipt, capture) => { await capture(receipt.signal); return receipt },
+    validate: vi.fn(async () => snapshot),
     commit: vi.fn<WebsiteRequestsController['commit']>(async () => ({ ...snapshot, status: 'granted' })),
     revoke: vi.fn<WebsiteRequestsController['revoke']>(() => ({ ...snapshot, epoch: 2, status: 'revoked' })), drain: vi.fn(async () => {}), remove: vi.fn(async () => {}),
     run: (_execution, _id, _epoch, operation) => operation(new AbortController().signal),

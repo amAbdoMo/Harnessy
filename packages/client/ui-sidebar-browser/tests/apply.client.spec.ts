@@ -18,7 +18,7 @@ import { createBrowserStore } from '../src/client/browser/store.ts'
 import type { TabId } from '@deepseek-ai/dsh-client-ui-dockkit'
 import type {
   DesktopBrowserBridge, DesktopBrowserLeaseId, DesktopWebsiteProfile, DesktopWebsiteProfileId,
-  DesktopWebsiteProfileInput, DesktopWebsiteProfilesBridge,
+  DesktopWebsiteProfileInput, DesktopWebsiteProfilesBridge, DesktopWebsiteHostSnapshot,
 } from '../src/types.ts'
 
 const contexts: Context[] = []
@@ -33,8 +33,9 @@ function profileStubs() {
   return {
     list: vi.fn<DesktopWebsiteProfilesBridge['list']>(async () => []),
     create: vi.fn(async (input: DesktopWebsiteProfileInput): Promise<DesktopWebsiteProfile> =>
-      ({ ...input, id: 'created-profile' as DesktopWebsiteProfileId, control: 'human' })),
+      ({ ...input, id: 'created-profile' as DesktopWebsiteProfileId, control: 'human', access: 'ask', hasSavedLogin: false })),
     acquire: vi.fn(async () => ({ lease: 'profile-lease' as DesktopBrowserLeaseId, partition: 'persist:dsh-website-created-profile' })),
+    setAccess: async () => {}, saveLogin: async () => {}, removeLogin: async () => {},
     setControl: vi.fn(async () => {}),
     signOut: vi.fn(async () => {}),
     forget: vi.fn(async () => {}),
@@ -77,8 +78,13 @@ async function boot(platform: ShortcutPlatform = 'macos', runtime: 'desktop' | '
   }
   const openTabs = createSnapshotStore<readonly { sessionId: string; tabId: TabId }[]>([])
   const target = { sessionId: 'session', paneId: 'pane' }
-  const sidebar = { openTabs, commandTarget: vi.fn<() => typeof target | undefined>(() => target),
-    openTabFromTarget: vi.fn() }
+  const sidebar = { openTabs, mounted: createSnapshotStore<string | undefined>(undefined),
+    commandTarget: vi.fn<() => typeof target | undefined>(() => target),
+    openTabFromTarget: vi.fn(),
+    tabsIn: vi.fn((_session: string): { id: TabId; kind: string }[] => []),
+    focusIn: vi.fn(), openTabIn: vi.fn(),
+    tabDomain: { occurrence: vi.fn() },
+  }
   const registry = new ShortcutRegistry(runtime, platform)
   ctx.provide('sidebarRight', sidebar as never)
   ctx.provide('shortcuts', { register: (command: ShortcutCommand) => registry.register(command) } as never)
@@ -92,6 +98,38 @@ async function boot(platform: ShortcutPlatform = 'macos', runtime: 'desktop' | '
 }
 
 describe('ui-sidebar-browser apply', () => {
+  it('opens a prepared account in its initiating Session once despite synchronous tab notifications', async () => {
+    const profiles = profileStubs()
+    const id = 'profile-1' as DesktopWebsiteProfileId
+    profiles.list.mockResolvedValue([{ id, name: 'Work', accountLabel: '', url: 'https://work.example/',
+      mcpServerName: 'website', control: 'human', access: 'automatic', hasSavedLogin: false }])
+    const requests = requestStubs()
+    vi.stubGlobal('dshDesktop', { protocolVersion: 1, browser: { profiles, requests } })
+    const h = await boot()
+    await vi.waitFor(() => { expect(profiles.list).toHaveBeenCalled() })
+    const tab = 'prepared-tab' as TabId
+    let committed = false
+    h.sidebar.tabsIn.mockImplementation(session => committed && session === 'initiating-session' ? [{ id: tab, kind: 'browser' }] : [])
+    h.sidebar.tabDomain.occurrence.mockReturnValue({ navigation: { getSnapshot: () => ({ params: { profileId: id } }) } })
+    h.sidebar.openTabIn.mockImplementation(() => {
+      committed = true
+      h.openTabs.set([{ sessionId: 'initiating-session', tabId: tab }])
+    })
+    const prepared = vi.mocked(requests.onPrepared).mock.calls[0]?.[0]
+    expect(prepared).toBeTypeOf('function')
+    const snapshot: DesktopWebsiteHostSnapshot = {
+      id: 'request' as DesktopWebsiteHostSnapshot['id'], profile: id,
+      sessionId: 'initiating-session' as DesktopWebsiteHostSnapshot['sessionId'], status: 'pending', epoch: 1,
+    }
+    prepared!(snapshot)
+    await vi.waitFor(() => { expect(h.sidebar.openTabIn).toHaveBeenCalledOnce() })
+    expect(h.sidebar.openTabIn).toHaveBeenCalledWith('initiating-session', 'browser', {
+      params: { url: 'https://work.example/', profileId: id }, revealIfOpened: false,
+    })
+    prepared!({ ...snapshot, id: 'request-two' as DesktopWebsiteHostSnapshot['id'] })
+    expect(h.sidebar.focusIn).toHaveBeenCalledExactlyOnceWith('initiating-session', tab)
+    expect(h.sidebar.openTabIn).toHaveBeenCalledOnce()
+  })
   it.each([0, 1])('binds and rebinds session controllers under desktop protocol %s', async (protocolVersion) => {
     const acquire = vi.fn(async () => ({ lease: 'test-lease' as DesktopBrowserLeaseId, partition: 'test-partition' }))
     const bridge: DesktopBrowserBridge = { profiles: profileStubs(), requests: requestStubs(), acquire, command: vi.fn(async () => {}),
@@ -172,10 +210,10 @@ describe('ui-sidebar-browser apply', () => {
     const unsubscribe = vi.fn()
     profiles.onChanged.mockReturnValue(unsubscribe)
     const id = 'profile-1' as DesktopWebsiteProfileId
-    profiles.list.mockResolvedValue([{ id, name: 'Work', accountLabel: '', url: 'https://work.example/', mcpServerName: 'website', control: 'human' }])
+    profiles.list.mockResolvedValue([{ id, name: 'Work', accountLabel: '', url: 'https://work.example/', mcpServerName: 'website', control: 'human', access: 'ask', hasSavedLogin: false }])
     vi.stubGlobal('dshDesktop', {
       protocolVersion: 1,
-      browser: { profiles, acquire: vi.fn(), command: vi.fn(async () => {}), release: vi.fn(),
+      browser: { profiles, requests: requestStubs(), acquire: vi.fn(), command: vi.fn(async () => {}), release: vi.fn(),
         onOpenRequested: vi.fn(() => () => {}), onReacquireRequested: vi.fn(() => () => {}) },
     })
     const h = await boot()

@@ -45,6 +45,7 @@ function profileState(state: Partial<WebsiteProfilesState> = {}): SnapshotStore<
 /** @param overrides - per-command behavior. @returns recorded profile commands with defaults. */
 function profileCommands(overrides: Partial<WebsiteProfileCommands> = {}): WebsiteProfileCommands {
   return {
+    setAccess: vi.fn(async () => {}), saveLogin: vi.fn(async () => {}), removeLogin: vi.fn(async () => {}),
     create: vi.fn(async (_input: DesktopWebsiteProfileInput) => undefined),
     takeover: vi.fn(async (_profile: DesktopWebsiteProfileId) => {}),
     signOut: vi.fn(async (_profile: DesktopWebsiteProfileId) => {}),
@@ -365,7 +366,7 @@ describe('BrowserBody', () => {
 const PROFILE_ID = 'profile-1' as DesktopWebsiteProfileId
 const PROFILE: DesktopWebsiteProfile = {
   id: PROFILE_ID, name: 'Work account', accountLabel: 'me@example.test',
-  url: 'https://work.example/', mcpServerName: 'website', control: 'human',
+  url: 'https://work.example/', mcpServerName: 'website', control: 'human', access: 'ask', hasSavedLogin: false,
 }
 
 /** @param profileIds - saved profiles this tab may pick from. @returns one occurrence of a profile tab. */
@@ -416,7 +417,7 @@ describe('BrowserBody saved profiles', () => {
     expect(navigation).toHaveBeenCalledOnce()
   })
 
-  it('requires explicit request selection, keeps Takeover immediate, and never resumes on showing a hidden tab', async () => {
+  it('Continue selects the waiting request, Pause acts immediately, and Ask does not resume on showing a hidden tab', async () => {
     const requestId = 'request-1' as DesktopWebsiteRequestId
     const bridge = requestStubs()
     vi.mocked(bridge.list).mockResolvedValue([{ id: requestId, sessionId: SESSION, profile: PROFILE_ID, epoch: 1, status: 'pending' }])
@@ -438,13 +439,10 @@ describe('BrowserBody saved profiles', () => {
     })
     await act(async () => { await session.reload() })
     const resume = mounted.view.getByRole('button', { name: zh['profiles.resume'] })
-    expect(resume).toHaveProperty('disabled', true)
+    expect(resume).toHaveProperty('disabled', false)
     expect(mounted.view.getByText(zh['profiles.bar.human'])).toBeDefined()
     mounted.view.container.style.overflow = 'hidden'
-    fireEvent.click(mounted.view.getByRole('button', { name: zh['requests.choose'] }))
-    expect(mounted.view.container.contains(mounted.view.getByRole('menu'))).toBe(false)
-    const selectedLabel = zh['requests.label'].replace('{id}', requestId)
-    fireEvent.click(mounted.view.getByRole('menuitem', { name: selectedLabel }))
+    expect(mounted.view.queryByText(requestId)).toBeNull()
     expect(resume).toHaveProperty('disabled', false)
     expect(bridge.resume).not.toHaveBeenCalled()
     act(() => { mounted.websiteProfiles.set({ ...mounted.websiteProfiles.getSnapshot(), profiles: [{ ...PROFILE, control: 'agent' }] }) })
@@ -468,7 +466,7 @@ describe('BrowserBody saved profiles', () => {
     await waitFor(() => { expect(resume).toHaveProperty('disabled', false) })
     expect(mounted.view.getByText(zh['profiles.bar.human'])).toBeDefined()
     expect(bridge.resume).toHaveBeenCalledTimes(2)
-    expect(mounted.view.getByRole('button', { name: selectedLabel })).toBeDefined()
+    expect(mounted.view.queryByText(requestId)).toBeNull()
   })
 
   it('never substitutes account Takeover for this page’s failed drainage', async () => {
@@ -557,6 +555,37 @@ describe('BrowserBody saved profiles', () => {
     })
   })
 
+  it('keeps login fields private to the masked editor and clears them after closing', async () => {
+    const profiles = profileCommands()
+    const source = profileState({ profiles: [PROFILE] })
+    const mounted = mountBrowser({ url: PROFILE.url, profileId: PROFILE_ID }, { profiles, websiteProfiles: source })
+    fireEvent.click(mounted.view.getByRole('button', { name: zh['profiles.login.save'] }))
+    const dialog = mounted.view.getByRole('dialog')
+    const username = within(dialog).getByLabelText(zh['profiles.login.username'])
+    const password = within(dialog).getByLabelText(zh['profiles.login.password'])
+    expect(password.getAttribute('type')).toBe('password')
+    fireEvent.change(username, { target: { value: 'fixture-account' } })
+    fireEvent.change(password, { target: { value: 'fixture-password' } })
+    expect(JSON.stringify(source.getSnapshot())).not.toContain('fixture-password')
+    fireEvent.click(within(dialog).getByRole('button', { name: zh['profiles.login.action'] }))
+    await waitFor(() => { expect(mounted.view.queryByRole('dialog')).toBeNull() })
+    expect(profiles.saveLogin).toHaveBeenCalledExactlyOnceWith(PROFILE_ID, { username: 'fixture-account', password: 'fixture-password' })
+    fireEvent.click(mounted.view.getByRole('button', { name: zh['profiles.login.save'] }))
+    expect((mounted.view.getByLabelText(zh['profiles.login.password']) as HTMLInputElement).value).toBe('')
+    expect((mounted.view.getByLabelText(zh['profiles.login.username']) as HTMLInputElement).value).toBe('')
+  })
+
+  it('changes access through the account menu without displaying request identities', () => {
+    const profiles = profileCommands()
+    const mounted = mountProfileTab(profiles, { profiles: [PROFILE] })
+    fireEvent.click(mounted.view.getByRole('button', { name: zh['profiles.access'] }))
+    const menu = mounted.view.getByRole('menu')
+    expect(mounted.view.container.contains(menu)).toBe(false)
+    fireEvent.click(within(menu).getByRole('menuitem', { name: zh['profiles.access.automatic'] }))
+    expect(profiles.setAccess).toHaveBeenCalledExactlyOnceWith(PROFILE_ID, 'automatic')
+    expect(mounted.view.queryByRole('menu')).toBeNull()
+  })
+
   it('keeps a link opened from a profile page inside that profile', () => {
     const providers: BrowserPageOptions[] = []
     const frames = createSnapshotStore<BrowserFrameState>(emptyBrowserFrame())
@@ -598,7 +627,7 @@ describe('BrowserBody saved profiles', () => {
     fireEvent.change(mounted.view.getByLabelText(zh['profiles.create.mcp']), { target: { value: 'website' } })
     fireEvent.click(mounted.view.getByRole('button', { name: zh['profiles.create.action'] }))
     await waitFor(() => {
-      expect(create).toHaveBeenCalledWith({ name: 'New account', accountLabel: '', url: 'https://new.example/', mcpServerName: 'website' })
+      expect(create).toHaveBeenCalledWith({ name: 'New account', accountLabel: '', url: 'https://new.example/', mcpServerName: 'website', access: 'automatic' })
     })
     await waitFor(() => { expect(mounted.view.queryByRole('dialog')).toBeNull() })
     expect(mounted.tabActions.openTab).toHaveBeenCalledExactlyOnceWith('browser', {
@@ -636,7 +665,7 @@ describe('BrowserBody saved profiles', () => {
     const mounted = mountProfileTab(profileCommands(), { profiles: [{ ...PROFILE, control: 'agent' }] })
     expect(mounted.view.getByText(zh['profiles.bar.reserved'])).toBeDefined()
     expect(mounted.view.getByRole('button', { name: zh['profiles.resume'] })).toHaveProperty('disabled', true)
-    expect(mounted.view.getByRole('button', { name: zh['requests.choose'] })).toHaveProperty('disabled', true)
+    expect(mounted.view.queryByRole('button', { name: zh['requests.choose'] })).toBeNull()
     expect(mounted.view.getByRole('button', { name: zh['profiles.takeControl'] })).toBeDefined()
   })
 

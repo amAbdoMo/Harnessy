@@ -2,7 +2,8 @@
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
 import type {
-  DesktopWebsiteProfile, DesktopWebsiteProfileId, DesktopWebsiteProfileInput, DesktopWebsiteProfilesBridge,
+  DesktopWebsiteAccess, DesktopWebsiteProfile, DesktopWebsiteProfileId, DesktopWebsiteProfileInput,
+  DesktopWebsiteProfilesBridge, DesktopWebsiteSavedLogin,
 } from '../../types.ts'
 
 /** A settled saved-profile action the Browser chrome announces. */
@@ -12,6 +13,7 @@ export type WebsiteProfileNotice =
   | { readonly kind: 'human'; readonly seq: number; readonly name: string }
   | { readonly kind: 'signedOut'; readonly seq: number; readonly name: string }
   | { readonly kind: 'forgotten'; readonly seq: number; readonly name: string }
+  | { readonly kind: 'updated'; readonly seq: number; readonly name: string }
   | { readonly kind: 'failed'; readonly seq: number }
   | { readonly kind: 'requestFailed'; readonly seq: number }
 
@@ -38,6 +40,12 @@ export interface WebsiteProfileCommands {
   create(this: void, input: DesktopWebsiteProfileInput): Promise<DesktopWebsiteProfile | undefined>
   /** @param profile - account whose reservations, including aliases, are revoked without clearing sign-in data. */
   takeover(this: void, profile: DesktopWebsiteProfileId): Promise<void>
+  /** @param profile - saved account whose access policy is changed. */
+  setAccess(this: void, profile: DesktopWebsiteProfileId, access: DesktopWebsiteAccess): Promise<void>
+  /** @param profile - saved account receiving protected login values. */
+  saveLogin(this: void, profile: DesktopWebsiteProfileId, login: DesktopWebsiteSavedLogin): Promise<void>
+  /** @param profile - saved account whose protected login values are removed. */
+  removeLogin(this: void, profile: DesktopWebsiteProfileId): Promise<void>
   /** @param profile - account whose guests close and whose sign-in data is cleared; the saved pairing stays. */
   signOut(this: void, profile: DesktopWebsiteProfileId): Promise<void>
   /** @param profile - account cleared and then removed; a failed cleanup keeps it saved. */
@@ -146,7 +154,7 @@ export function createWebsiteProfilesModel(profiles: DesktopWebsiteProfilesBridg
   }
 
   const act = (profile: DesktopWebsiteProfileId, work: () => Promise<void>,
-    kind: 'human' | 'signedOut' | 'forgotten'): Promise<void> => {
+    kind: 'human' | 'signedOut' | 'forgotten' | 'updated'): Promise<void> => {
     const name = nameOf(profile)
     return operate(profile, work, () => ({ kind, seq: ++sequence, name }))
   }
@@ -155,6 +163,9 @@ export function createWebsiteProfilesModel(profiles: DesktopWebsiteProfilesBridg
     create: input => operate(undefined, () => profiles.create(input),
       created => ({ kind: 'created', seq: ++sequence, name: created.name })),
     takeover: profile => act(profile, () => profiles.setControl(profile, 'human'), 'human'),
+    setAccess: (profile, access) => act(profile, () => profiles.setAccess(profile, access), 'updated'),
+    saveLogin: (profile, login) => act(profile, () => profiles.saveLogin(profile, login), 'updated'),
+    removeLogin: profile => act(profile, () => profiles.removeLogin(profile), 'updated'),
     signOut: profile => act(profile, () => profiles.signOut(profile), 'signedOut'),
     forget: profile => act(profile, () => profiles.forget(profile), 'forgotten'),
     reload: async () => { publish({ phase: 'loading' }); await track(read()) },

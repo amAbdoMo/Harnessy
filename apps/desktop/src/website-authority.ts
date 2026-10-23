@@ -20,6 +20,10 @@ interface CapturedRequest {
 
 /** Trusted Main adapters; native objects never cross renderer or Host IPC. */
 export interface DesktopWebsiteAuthorityDependencies {
+  /** @param snapshot - request captured by the sole native preparation owner. */
+  prepared?(snapshot: DesktopWebsiteHostSnapshot): void
+  /** @param guest - reserved saved-account guest. @param profile - saved profile. @param signal - admission cancellation. */
+  prepareLogin?(guest: WebContents, profile: DesktopWebsiteProfile, signal: AbortSignal): Promise<void>
   currentHost(this: void): DesktopHostProcess | undefined
   window(): Pick<BrowserWindow, 'webContents' | 'isDestroyed' | 'isVisible' | 'isMinimized'> | undefined
   readonly applicationUrl: string
@@ -40,6 +44,10 @@ export class DesktopWebsiteAuthority {
   /** @param dependencies - primary native window, profile metadata, guest ownership and captured Host routing. */
   constructor(private readonly dependencies: DesktopWebsiteAuthorityDependencies) {
     this.requests = new DesktopWebsiteRequests({
+      prepareLogin: async (binding, signal) => {
+        const profile = dependencies.profiles.assertAvailable(binding.profile)
+        await dependencies.prepareLogin?.(binding.guest, profile, signal)
+      },
       currentHost: dependencies.currentHost,
       reservationChanged: () => { this.notify() },
       inspectGuest: (owner, lease) => {
@@ -52,6 +60,9 @@ export class DesktopWebsiteAuthority {
       },
       assertProfile: (input) => {
         const profile = dependencies.profiles.assertAvailable(input.profile)
+        if (profile.access === 'disabled' || (input.automatic === true && profile.access !== 'automatic')) {
+          throw new Error('Website access is disabled or changed')
+        }
         const binding = dependencies.profiles.binding(input.profile)
         if (profile.mcpServerName !== input.mcpServerName || profile.url !== input.url
           || binding.identity !== input.mcpBinding.identity || binding.endpoint !== input.mcpBinding.endpoint) {
@@ -123,6 +134,7 @@ export class DesktopWebsiteAuthority {
       }
       this.captured.set(snapshot.id, { host, snapshot: { ...snapshot } })
       this.notify()
+      this.dependencies.prepared?.({ ...snapshot })
     })
     const check = host.onWebsiteCheck((snapshot) => {
       const entry = this.domain(snapshot.id, host)
@@ -257,7 +269,8 @@ export class DesktopWebsiteAuthority {
     const profile = this.dependencies.profiles.assertAvailable(entry.snapshot.profile)
     this.requests.prepare({ requestId: id, host: entry.host, agentId: entry.snapshot.sessionId,
       sessionId: entry.snapshot.sessionId, profile: profile.id, url: profile.url, mcpServerName: profile.mcpServerName,
-      mcpBinding: this.dependencies.profiles.binding(profile.id), owner, lease })
+      mcpBinding: this.dependencies.profiles.binding(profile.id), owner, lease,
+      ...(profile.access === 'automatic' ? { automatic: true } : {}) })
     const receipt = this.requests.setVisible(owner, id, true)
     if (receipt === undefined) throw new Error('Website request has no visible occurrence')
     this.requests.acknowledge(owner, receipt)

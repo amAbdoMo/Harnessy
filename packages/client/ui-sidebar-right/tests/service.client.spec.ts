@@ -439,6 +439,30 @@ describe('SidebarRightController — layout operations', () => {
     expect(entries()).toBe(before + 1)
   })
 
+  it('focuses the named Session after another Session is shown and ignores released adoption', () => {
+    const h = harness()
+    h.expand()
+    h.publish()
+    h.controller.openResource('dsh-resource://file/session/s-test/a.txt')
+    const seed = h.tabOf('seed')
+    const otherSession = 'other-session' as SessionId
+    const other = createSidebarRightStore(() => ({ kind: 'guide', title: 'other' })).create()
+    const releaseOther = h.adopt(otherSession, other)
+    other.actions.setExpanded(otherSession, true)
+    h.show(otherSession)
+    const beforeOther = other.getSnapshot()
+    h.controller.focusIn(SESSION, seed)
+    expect(getPane(h.layout(), h.layout().activePaneId).activeTabId).toBe(seed)
+    expect(other.getSnapshot()).toBe(beforeOther)
+    h.unadopt()
+    const before = h.instance.getSnapshot()
+    h.controller.focusIn(SESSION, seed)
+    h.controller.focusIn(otherSession, 'missing' as TabId)
+    expect(h.instance.getSnapshot()).toBe(before)
+    expect(other.getSnapshot()).toBe(beforeOther)
+    releaseOther()
+  })
+
   it('splits nothing before the seat has materialized the surface', () => {
     const { controller, publish } = harness()
     publish()

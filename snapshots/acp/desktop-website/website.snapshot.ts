@@ -48,7 +48,7 @@ it('desktop website: real preparation, Human Resume, allow_once, fresh denial an
   const log = result.sessionLogs[0]
   assert.ok(log)
   expect(log.content).not.toContain('UNKNOWN_TOOL')
-  expect(log.content).toContain('Waiting for the human to Resume this request. No page access is granted.')
+  expect(log.content).toContain('Waiting for the human to Continue this request. No page access is granted.')
   expect(log.content).toContain('Saved guest page')
   const ctx = { cwd: result.cwd, cwdAliases: result.cwdAliases, sessionIds: result.sessionLogs.map(item => item.id) }
   const sessions = normalizeSessionSnapshots(result.sessionLogs.map(item => item.content), ctx, { nativeWriterOutput: true })
@@ -157,7 +157,7 @@ function websiteDriver(): NonNullable<RunOptions['privateDriver']> & { operation
       }
       if (step.op === 'newSession') {
         await command('sync', { profiles: [{ id: '11111111-1111-4111-8111-111111111111', name: 'Saved website',
-          accountLabel: 'Human account', url: 'https://website.example', serverName: 'saved-site',
+          accountLabel: 'Human account', url: 'https://website.example', serverName: 'saved-site', access: 'ask',
           mcpBinding: { identity: 'a'.repeat(64), endpoint: 'https://website.example/mcp' } }] })
       }
       if (step.op !== 'prompt') return

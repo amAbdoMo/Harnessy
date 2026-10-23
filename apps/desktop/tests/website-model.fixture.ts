@@ -50,9 +50,10 @@ function textEvents(text: string): object[] {
 /**
  * Script only the marked conversation with advertised Website tools; unrelated title requests receive text.
  * Holds provider responses after completed tool results, keeping a genuine Agent turn open for Human gestures.
+ * @param access - saved website admission exercised by this owned scenario.
  * @returns an unbound loopback server, bounded-scenario observations and release/disposal controls.
  */
-export function websiteModelFixture() {
+export function websiteModelFixture(access: 'ask' | 'automatic' = 'ask') {
   const requests: Record<string, unknown>[] = []
   const errors: string[] = []
   const held = new Map<Phase, { response: ServerResponse; events: object[] }>()
@@ -117,7 +118,7 @@ export function websiteModelFixture() {
           if (info.is_error === true || !object(output)) throw new Error('Website page information result is missing')
           observed = output
           if (!receipt) throw new Error('Website preparation receipt is missing')
-          hold('observed', response, call('native_info_denied', `website_page_info_${receipt.requestId}`)); return
+          hold('observed', response, call(access === 'automatic' ? 'native_info_two' : 'native_info_denied', `website_page_info_${receipt.requestId}`)); return
         }
         if (result(body, 'native_refresh_one')) {
           if (!receipt) throw new Error('Website preparation receipt is missing')
@@ -126,8 +127,9 @@ export function websiteModelFixture() {
         const preparation = result(body, 'native_prepare')
         if (preparation) {
           const output = value(preparation)
-          if (!object(output) || typeof output.requestId !== 'string' || typeof output.profileId !== 'string' || output.status !== 'pending') {
-            throw new Error('Website preparation did not return its pending receipt')
+          if (!object(output) || typeof output.requestId !== 'string' || typeof output.profileId !== 'string'
+            || output.status !== (access === 'automatic' ? 'ready' : 'waiting')) {
+            throw new Error('Website preparation did not return its access receipt')
           }
           receipt = { requestId: output.requestId, profileId: output.profileId }
           hold('prepared', response, call('native_refresh_one', 'website_profiles')); return

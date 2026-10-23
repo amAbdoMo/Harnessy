@@ -1,6 +1,6 @@
 /** Session-local request roster; native identities belong to pages and never to the globally selected Session. */
 import type { Branded } from '@deepseek-ai/dsh-brand'
-import type { DesktopWebsiteHostSnapshot, DesktopWebsiteProfileId, DesktopWebsiteRequestId, DesktopWebsiteRequestsBridge } from '../../types.ts'
+import type { DesktopWebsiteAccess, DesktopWebsiteHostSnapshot, DesktopWebsiteProfileId, DesktopWebsiteRequestId, DesktopWebsiteRequestsBridge } from '../../types.ts'
 import { WebsiteRequestPage, type WebsiteRequestPageOwner, type WebsiteRequestPageState } from './WebsiteRequestPage.ts'
 
 /** Follows captured Host requests only while the initiating Session has a saved-profile page. */
@@ -22,7 +22,8 @@ export class WebsiteRequestSession implements WebsiteRequestPageOwner {
    * @param report - frame-wide settled feedback.
    */
   constructor(readonly sessionId: Branded<'SessionId'>, readonly bridge: DesktopWebsiteRequestsBridge,
-    readonly report: WebsiteRequestPageOwner['report']) {}
+    readonly report: WebsiteRequestPageOwner['report'],
+    readonly accessForProfile: (profile: DesktopWebsiteProfileId) => DesktopWebsiteAccess = () => 'ask') {}
 
   /**
    * Create an account-bound page and follow requests owned by this initiating Session.
@@ -31,7 +32,7 @@ export class WebsiteRequestSession implements WebsiteRequestPageOwner {
    */
   createPage(profile: DesktopWebsiteProfileId): WebsiteRequestPage {
     if (this.closed) throw new Error('Website request Session is closed')
-    const page = new WebsiteRequestPage(this, profile)
+    const page = new WebsiteRequestPage(this, profile, () => this.accessForProfile(profile))
     this.pages.add(page)
     if (this.unsubscribe === undefined) {
       this.generation++

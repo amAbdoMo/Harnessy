@@ -9,8 +9,11 @@ const runId = '55555555-5555-4555-8555-555555555555'
 const otherId = '66666666-6666-4666-8666-666666666666'
 const proseUuid = '77777777-7777-4777-8777-777777777777'
 
-function preparationReceipt(requestId: string): string {
-  return `${JSON.stringify({ requestId, profileId: 'saved-account', mcpServerName: 'paired-mcp', status: 'pending' })}\nWaiting for the human to Resume this request. No page access is granted.`
+function preparationReceipt(requestId: string, status: 'pending' | 'waiting' | 'ready' = 'pending'): string {
+  const checkpoint = status === 'pending' ? 'Waiting for the human to Resume this request. No page access is granted.'
+    : status === 'waiting' ? 'Waiting for the human to Continue this request. No page access is granted.'
+      : 'Saved website access is ready for this request.'
+  return `${JSON.stringify({ requestId, profileId: 'saved-account', mcpServerName: 'paired-mcp', status })}\n${checkpoint}`
 }
 
 function preparationRecords(text: string, name = 'website_prepare', isError = false): Record<string, unknown>[] {
@@ -55,6 +58,16 @@ describe('session snapshot identity redaction', () => {
     expect(redactSessionSnapshotIds(redacted)).toEqual(redacted)
   })
 
+  it.each(['pending', 'waiting', 'ready'] as const)('claims request identity from a %s preparation receipt', (status) => {
+    const source = jsonl([
+      ...preparationRecords(preparationReceipt(otherId, status)),
+      { type: 'example', data: { requestId: otherId } },
+    ])
+    const [redacted] = redactSessionSnapshotIds([source])
+    expect(redacted).toContain('"requestId":"{{id:1}}"')
+    expect(redacted).not.toContain(otherId)
+  })
+
   it.each<[string, Record<string, unknown>[]]>([
     ['unrelated tool', preparationRecords(preparationReceipt(proseUuid), 'another_tool')],
     ['failed preparation', preparationRecords(preparationReceipt(proseUuid), 'website_prepare', true)],
@@ -63,7 +76,7 @@ describe('session snapshot identity redaction', () => {
     ['missing receipt fields', preparationRecords(`{\"requestId\":\"${proseUuid}\"}\nWaiting for the human to Resume this request. No page access is granted.`)],
     ['UUID prose', preparationRecords(`Request ${proseUuid}`)],
     ['JSON without checkpoint text', preparationRecords(JSON.stringify({ requestId: proseUuid, profileId: 'saved-account', mcpServerName: 'paired-mcp', status: 'pending' }))],
-    ['wrong pending status', preparationRecords(preparationReceipt(proseUuid).replace('pending', 'granted'))],
+    ['mismatched checkpoint status', preparationRecords(preparationReceipt(proseUuid).replace('"pending"', '"ready"'))],
   ])('leaves %s identifiers unclaimed', (_scenario, records) => {
     const source = jsonl(records)
     expect(redactSessionSnapshotIds([source])).toEqual([source])

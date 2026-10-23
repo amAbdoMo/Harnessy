@@ -3288,11 +3288,12 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     doc: 'Replace the Browser toolbar\'s saved-profile picker. The owner passes the current\nprofile identity and a callback opening the selected account in its own tab.\nThe session-scoped contribution receives standard hooks; absence leaves no picker.',
     registerOptions: [],
     ownerProps: [
-      '/** Non-secret website/account association and current main-process control state. */\nexport interface DesktopWebsiteProfile {\n  readonly id: DesktopWebsiteProfileId\n  readonly name: string\n  readonly accountLabel: string\n  readonly url: string\n  readonly mcpServerName: string\n  readonly control: DesktopWebsiteControl\n}',
+      '/** Non-secret website/account association and current main-process control state. */\nexport interface DesktopWebsiteProfile {\n  readonly id: DesktopWebsiteProfileId\n  readonly name: string\n  readonly accountLabel: string\n  readonly url: string\n  readonly mcpServerName: string\n  readonly control: DesktopWebsiteControl\n  readonly access: DesktopWebsiteAccess\n  readonly hasSavedLogin: boolean\n}',
       '/** Main-issued identity of a persistent website/account profile. */\nexport type DesktopWebsiteProfileId = Branded<\'DesktopWebsiteProfileId\'>',
     ],
     ownerPropsReferences: [
       'Branded',
+      'DesktopWebsiteAccess',
       'DesktopWebsiteControl',
     ],
     standardProps: [
@@ -3321,7 +3322,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'sidebar.right.pane.tab.browser.profiles\', () => ctx.slots.register(\n      { name: \'sidebar.right.pane.tab.browser.profiles\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-sidebar-browser/src/client/view/BrowserProfilePicker.tsx:31',
+    source: 'packages/client/ui-sidebar-browser/src/client/view/BrowserProfilePicker.tsx:32',
   },
   {
     key: 'sidebar.right.pane.tab.browser.responsive',

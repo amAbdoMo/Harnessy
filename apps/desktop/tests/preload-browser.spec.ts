@@ -21,7 +21,7 @@ beforeEach(() => { ipc.on.mockClear(); ipc.invoke.mockClear() })
 it('exposes no arbitrary IPC, native objects, or Agent control through profile-wide permissions', async () => {
   const bridge = createDesktopBrowserBridge()
   expect(Object.keys(bridge).sort()).toEqual(['acquire', 'command', 'onOpenRequested', 'onReacquireRequested', 'profiles', 'release', 'requests'])
-  expect(Object.keys(bridge.requests).sort()).toEqual(['acknowledge', 'list', 'onChanged', 'prepare', 'resume', 'takeover', 'visible'])
+  expect(Object.keys(bridge.requests).sort()).toEqual(['acknowledge', 'list', 'onChanged', 'onPrepared', 'prepare', 'resume', 'takeover', 'visible'])
   await bridge.acquire('cwd:/workspace', 'https://192.168.1.10/')
   expect(ipc.invoke).toHaveBeenLastCalledWith(DESKTOP_IPC.browserAcquire, 'cwd:/workspace', 'https://192.168.1.10/')
   await bridge.acquire('cwd:/workspace')
@@ -44,6 +44,12 @@ it('exposes no arbitrary IPC, native objects, or Agent control through profile-w
   expect(ipc.invoke).toHaveBeenLastCalledWith(DESKTOP_IPC.websiteRequestsResume, RECEIPT)
   await bridge.requests.takeover(REQUEST)
   expect(ipc.invoke).toHaveBeenLastCalledWith(DESKTOP_IPC.websiteRequestsTakeover, REQUEST)
+  await bridge.profiles.setAccess('profile' as Parameters<typeof bridge.profiles.setAccess>[0], 'automatic')
+  expect(ipc.invoke).toHaveBeenLastCalledWith(DESKTOP_IPC.websiteProfilesAccess, 'profile', 'automatic')
+  await bridge.profiles.saveLogin('profile' as Parameters<typeof bridge.profiles.saveLogin>[0], { username: 'fixture', password: 'private-fixture' })
+  expect(ipc.invoke).toHaveBeenLastCalledWith(DESKTOP_IPC.websiteProfilesSaveLogin, 'profile', { username: 'fixture', password: 'private-fixture' })
+  await bridge.profiles.removeLogin('profile' as Parameters<typeof bridge.profiles.removeLogin>[0])
+  expect(ipc.invoke).toHaveBeenLastCalledWith(DESKTOP_IPC.websiteProfilesRemoveLogin, 'profile')
 })
 
 it('subscribes once per preload bridge and stops disposed request listeners without affecting profile or link listeners', () => {
