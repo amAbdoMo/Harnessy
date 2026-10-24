@@ -48,6 +48,8 @@ The `browser.new` command opens a separate Browser page in the focused dock pane
 
 The toolbar provides Back, Forward, Reload, Go, and Open in system browser. Ordinary Desktop tabs retain title/URL checkpoints; saved-account tabs retain their configured landing URL. Saved websites offer Automatic, Ask each time, and Disabled access. Automatic opens the account for a requesting agent without repeated approvals; Continue selects waiting work and Pause retains sign-in while stopping agent input. Save login encrypts credentials locally for conventional same-origin sign-in; unsupported flows and MFA need user interaction. Sign out clears browser authentication and selects Ask; Forget removes the profile and its protected login after cleanup. Profile menus stay outside pane clipping and within the window.
 
+The saved-profile form accepts a bare host name as HTTPS and requires the exact connected MCP server name from Settings. Invalid fields show a correction beside the input and retain the draft; saved landing URLs cannot contain credentials, query parameters or fragments. Desktop failures use localized recovery messages selected by allowlisted identifiers; raw diagnostics and account values never enter profile notices.
+
 -----
 
 <a id="understand-the-implementation"></a>

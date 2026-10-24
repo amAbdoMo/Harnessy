@@ -67,6 +67,7 @@ import { DesktopDevicePreviews } from './device-preview.ts'
 import { parseDevicePreviewAcknowledgement, parseDevicePreviewBinding, parseDevicePreviewId, parseDevicePreviewProjectId, parseDevicePreviewUnbinding } from './device-preview-protocol.ts'
 import { DesktopWebsiteAuthority } from './website-authority.ts'
 import { parseWebsiteProfileId } from './website-profiles.ts'
+import { WebsiteProfileError } from './website-profile-errors.ts'
 import { DesktopWebsiteCredentials, electronWebsiteCredentialProtector } from './website-credentials.ts'
 import { DesktopWebsiteLogin, electronWebsiteLoginForm } from './website-login.ts'
 import { installWebsiteRequestIpc } from './website-request-ipc.ts'
@@ -562,17 +563,23 @@ async function main(): Promise<void> {
   const websiteProfiles = browserGuests.createProfiles(join(app.getPath('userData'), 'website-profiles.json'), {
     inspect: async (serverName) => {
       const host = backend.host
-      if (host === undefined) throw new Error('Website MCP registry is unavailable while the Host is restarting')
-      const binding = await host.inspectWebsiteMcp(serverName)
-      if (backend.host !== host) throw new Error('Website MCP Host changed during pairing')
+      if (host === undefined) throw new WebsiteProfileError('host-unavailable', 'Website MCP registry is unavailable while the Host is restarting')
+      let binding: Awaited<ReturnType<DesktopHostProcess['inspectWebsiteMcp']>>
+      try { binding = await host.inspectWebsiteMcp(serverName) }
+      catch (error) {
+        if (backend.host !== host) throw new WebsiteProfileError('host-unavailable', 'Website MCP Host changed during pairing', { cause: error })
+        throw new WebsiteProfileError('mcp-unavailable', 'Website pairing requires an enabled, connected MCP server', { cause: error })
+      }
+      if (backend.host !== host) throw new WebsiteProfileError('host-unavailable', 'Website MCP Host changed during pairing')
       return binding
     },
     enroll: async (profiles) => {
       const host = websiteHost
       const backendHost = backend.host
-      if (host === undefined || backendHost === undefined) throw new Error('Website MCP Host is unavailable for enrollment')
-      await host.websiteControl({ action: 'sync', profiles })
-      if (websiteHost !== host || backend.host !== backendHost) throw new Error('Website MCP Host changed during enrollment')
+      if (host === undefined || backendHost === undefined) throw new WebsiteProfileError('host-unavailable', 'Website MCP Host is unavailable for enrollment')
+      try { await host.websiteControl({ action: 'sync', profiles }) }
+      catch (error) { throw new WebsiteProfileError('host-unavailable', 'Website MCP Host could not enroll the pairing', { cause: error }) }
+      if (websiteHost !== host || backend.host !== backendHost) throw new WebsiteProfileError('host-unavailable', 'Website MCP Host changed during enrollment')
     },
     confirm: async (input, binding) => {
       const result = await ordinaryMessageBox({ type: 'question', title: locale.messages.websitePairingTitle,
@@ -581,7 +588,7 @@ async function main(): Promise<void> {
           { server: input.mcpServerName, endpoint: binding.endpoint, website: input.url,
             account: input.accountLabel || locale.messages.websitePairingUnnamedAccount }),
         buttons: [locale.messages.websitePairingConfirm, locale.messages.cancel], defaultId: 1, cancelId: 1 })
-      if (result.response !== 0) throw new Error('Website pairing was cancelled')
+      if (result.response !== 0) throw new WebsiteProfileError('cancelled', 'Website pairing was cancelled')
     },
   }, account => websiteAuthority.requests.revokeAccount(account), websiteCredentials)
   let websiteHost: DesktopHostProcess | undefined
@@ -1070,7 +1077,7 @@ async function main(): Promise<void> {
     assertProductSender(event)
     return websiteAuthority.projectProfiles(await websiteProfiles.list())
   })
-  ipcMain.handle(DESKTOP_IPC.websiteProfilesCreate, (event, input: unknown) => {
+  ipcMain.handle(DESKTOP_IPC.websiteProfilesCreate, async (event, input: unknown) => {
     assertProductSender(event)
     return websiteProfiles.create(input)
   })

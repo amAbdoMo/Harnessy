@@ -21,6 +21,17 @@ function bridge(): DesktopWebsiteProfilesBridge {
 }
 
 describe('website profile operations', () => {
+  it('retains only a recognized failure reason from an Electron-wrapped diagnostic', async () => {
+    const api = bridge()
+    vi.mocked(api.create).mockRejectedValueOnce(new Error('Error invoking remote method: Error: [website-profile/mcp-unavailable] private account token'))
+    const model = createWebsiteProfilesModel(api)
+    try {
+      await model.commands.create(profile)
+      expect(model.source.getSnapshot().notice).toMatchObject({ kind: 'failed', reason: 'mcp-unavailable' })
+      expect(JSON.stringify(model.source.getSnapshot())).not.toContain('private account token')
+    } finally { await model.dispose() }
+  })
+
   it.each(['create', 'takeover', 'signOut', 'forget'] as const)('keeps failed %s feedback free of Main-process diagnostics and retryable', async (action) => {
     const api = bridge()
     const error = new Error('private account token')

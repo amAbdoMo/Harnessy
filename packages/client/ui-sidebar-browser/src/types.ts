@@ -152,6 +152,11 @@ export interface DesktopWebsiteProfile {
   readonly hasSavedLogin: boolean
 }
 
+/** Non-secret profile failure categories translated by the Browser UI. */
+export type DesktopWebsiteProfileFailureReason = 'invalid-name' | 'invalid-account-label' | 'invalid-url' | 'unsafe-url'
+  | 'invalid-mcp-name' | 'mcp-unavailable' | 'host-unavailable' | 'cancelled' | 'profile-limit' | 'pairing-changed'
+  | 'save-failed' | 'unknown'
+
 /** User-confirmed website/account association; authentication is entered directly in the page. */
 export interface DesktopWebsiteProfileInput {
   readonly name: string

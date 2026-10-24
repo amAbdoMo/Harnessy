@@ -3322,7 +3322,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'sidebar.right.pane.tab.browser.profiles\', () => ctx.slots.register(\n      { name: \'sidebar.right.pane.tab.browser.profiles\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-sidebar-browser/src/client/view/BrowserProfilePicker.tsx:32',
+    source: 'packages/client/ui-sidebar-browser/src/client/view/BrowserProfilePicker.tsx:34',
   },
   {
     key: 'sidebar.right.pane.tab.browser.responsive',

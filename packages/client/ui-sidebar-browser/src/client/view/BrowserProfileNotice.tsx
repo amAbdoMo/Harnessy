@@ -5,6 +5,7 @@ import type { HostObservable, InjectFace, PropsLocale, PropsRuntime } from '@dee
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import { assertNever } from '@deepseek-ai/dsh-util-values'
 import type { WebsiteProfileNotice, WebsiteProfilesState } from '../browser/profiles.ts'
+import { websiteProfileFailureText } from './profile-failure-text.ts'
 
 /** Full-opacity hold for a failed account or request action. */
 const FAILURE_HOLD_MS = 6000
@@ -30,7 +31,7 @@ function noticeText(notice: WebsiteProfileNotice, t: BrowserProfileNoticeProps['
     case 'signedOut': return t('profiles.notice.signedOut', { name: notice.name })
     case 'forgotten': return t('profiles.notice.forgotten', { name: notice.name })
     case 'updated': return t('profiles.notice.updated', { name: notice.name })
-    case 'failed': return t('profiles.notice.failed')
+    case 'failed': return websiteProfileFailureText(notice.reason, t)
     case 'requestFailed': return t('requests.notice.failed')
     /* v8 ignore next 2 -- closed-union backstop; only reached if a notice kind is forged */
     default: return assertNever(notice)

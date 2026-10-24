@@ -1742,6 +1742,30 @@ describe('desktop main startup', () => {
     },
   )
 
+  it('reports safe profile creation reasons through the real Desktop IPC handler', async () => {
+    const host = await readyWorkspace()
+    const fields = { name: 'Portal', accountLabel: '', url: 'https://portal.example.test/', mcpServerName: 'portal' }
+    await expect(invoke(DESKTOP_IPC.websiteProfilesCreate, 'app', { ...fields, url: 'abdom.me' }))
+      .rejects.toThrow('[website-profile/invalid-url]')
+    host.inspectWebsiteMcp.mockRejectedValueOnce(new Error('private authentication token'))
+    await expect(invoke(DESKTOP_IPC.websiteProfilesCreate, 'app', fields)).rejects.toThrow('[website-profile/mcp-unavailable]')
+    harness.dialog.showMessageBox.mockResolvedValue({ response: 1 })
+    await expect(invoke(DESKTOP_IPC.websiteProfilesCreate, 'app', fields)).rejects.toThrow('[website-profile/cancelled]')
+  })
+
+  it('reports Host unavailability when MCP inspection rejects after that Host retires', async () => {
+    const host = await readyWorkspace()
+    const inspection = Promise.withResolvers<{ identity: string; endpoint: string }>()
+    host.inspectWebsiteMcp.mockReturnValueOnce(inspection.promise)
+    const creating = Promise.resolve(invoke(DESKTOP_IPC.websiteProfilesCreate, 'app', {
+      name: 'Portal', accountLabel: '', url: 'https://portal.example.test/', mcpServerName: 'portal',
+    }))
+    await vi.waitFor(() => { expect(host.inspectWebsiteMcp).toHaveBeenCalledOnce() })
+    host.onFailure!(new Error('backend exited during MCP inspection'))
+    inspection.reject(new Error('private transport diagnostic'))
+    await expect(creating).rejects.toThrow('[website-profile/host-unavailable]')
+  })
+
   it('settles and removes captured website requests before stopping the private Host channel', async () => {
     const host = await readyWorkspace()
     harness.dialog.showMessageBox.mockResolvedValue({ response: 0 })

@@ -8,6 +8,15 @@ import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { DesktopWebsiteCredentials } from '../src/website-credentials.ts'
 import { DesktopWebsiteProfiles } from '../src/website-profiles.ts'
 
+const atomicWriteFailures = vi.hoisted((): Error[] => [])
+vi.mock('@deepseek-ai/dsh-atomic-write', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@deepseek-ai/dsh-atomic-write')>()
+  return { ...actual, writeFileAtomic: (...args: Parameters<typeof actual.writeFileAtomic>) => {
+    const failure = atomicWriteFailures.shift()
+    return failure === undefined ? actual.writeFileAtomic(...args) : Promise.reject(failure)
+  } }
+})
+
 const MCP_BINDING = { identity: 'a'.repeat(64), endpoint: 'https://portal.example.test/wp-json/mcp' }
 const PAIRING = { inspect: async () => MCP_BINDING, confirm: async () => {}, enroll: async () => {} }
 const PAIRED = { name: 'Portal', accountLabel: 'operations', url: 'https://portal.example.test', mcpServerName: 'portal' }
@@ -23,6 +32,7 @@ const UNSAFE_ADDRESS = 'Website profile address cannot contain credentials, quer
 const roots: string[] = []
 
 afterEach(async () => {
+  atomicWriteFailures.length = 0
   for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true })
 })
 
@@ -96,6 +106,25 @@ const unusableFiles: readonly UnusableFile[] = [
 ]
 
 describe('desktop website profiles', () => {
+  it('keeps an unreadable profile document distinct from a save failure', async () => {
+    const filename = await metadataPath()
+    await writeFile(filename, '{"version":2,"profiles":[}', 'utf8')
+    const profiles = new DesktopWebsiteProfiles(filename, async () => {}, PAIRING, async () => {})
+    const failure = profiles.create(PAIRED)
+    await expect(failure).rejects.toBeInstanceOf(SyntaxError)
+    await expect(failure).rejects.not.toThrow('[website-profile/save-failed]')
+  })
+
+  it('classifies a failed atomic profile write without exposing its diagnostic', async () => {
+    const filename = await metadataPath()
+    atomicWriteFailures.push(new Error('private storage path is full'))
+    const profiles = new DesktopWebsiteProfiles(filename, async () => {}, PAIRING, async () => {})
+    const failure = profiles.create(PAIRED)
+    await expect(failure).rejects.toThrow('[website-profile/save-failed] Could not save website profile')
+    await expect(failure).rejects.not.toThrow('private storage path is full')
+    expect(existsSync(filename)).toBe(false)
+  })
+
   it('does not save a pairing after the human cancels confirmation', async () => {
     const filename = await metadataPath()
     const confirm = vi.fn(async () => { throw new Error('Website pairing was cancelled') })
@@ -134,7 +163,7 @@ describe('desktop website profiles', () => {
     const filename = await metadataPath()
     const entered: PromiseWithResolvers<void> = Promise.withResolvers()
     const installed: PromiseWithResolvers<void> = Promise.withResolvers()
-    onTestFinished(() =>{  installed.resolve() })
+    onTestFinished(() => { installed.resolve() })
     const enroll = vi.fn(async () => { entered.resolve(); await installed.promise })
     const profiles = new DesktopWebsiteProfiles(filename, async () => {}, { ...PAIRING, enroll }, async () => {})
     const notified = vi.fn()

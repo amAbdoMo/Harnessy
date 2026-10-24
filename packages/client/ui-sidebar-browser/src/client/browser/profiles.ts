@@ -2,9 +2,10 @@
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
 import type {
-  DesktopWebsiteAccess, DesktopWebsiteProfile, DesktopWebsiteProfileId, DesktopWebsiteProfileInput,
+  DesktopWebsiteAccess, DesktopWebsiteProfile, DesktopWebsiteProfileFailureReason, DesktopWebsiteProfileId, DesktopWebsiteProfileInput,
   DesktopWebsiteProfilesBridge, DesktopWebsiteSavedLogin,
 } from '../../types.ts'
+import { websiteProfileFailureReason } from './profile-failure.ts'
 
 /** A settled saved-profile action the Browser chrome announces. */
 export type WebsiteProfileNotice =
@@ -14,7 +15,7 @@ export type WebsiteProfileNotice =
   | { readonly kind: 'signedOut'; readonly seq: number; readonly name: string }
   | { readonly kind: 'forgotten'; readonly seq: number; readonly name: string }
   | { readonly kind: 'updated'; readonly seq: number; readonly name: string }
-  | { readonly kind: 'failed'; readonly seq: number }
+  | { readonly kind: 'failed'; readonly seq: number; readonly reason: DesktopWebsiteProfileFailureReason }
   | { readonly kind: 'requestFailed'; readonly seq: number }
 
 /** Everything the picker, the profile bar, and the notice overlay read. */
@@ -138,11 +139,10 @@ export function createWebsiteProfilesModel(profiles: DesktopWebsiteProfilesBridg
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         if (disposed) return undefined
         await read()
-        // Main-process diagnostics can contain account data; only a generic outcome reaches the UI.
-        void error
+        const reason = websiteProfileFailureReason(error)
         // dispose() can close the model during the awaited list IPC.
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        if (!disposed) announce({ kind: 'failed', seq: ++sequence })
+        if (!disposed) announce({ kind: 'failed', seq: ++sequence, reason })
         return undefined
       } finally {
         publish(profile === undefined ? { creating: false } : { busy: undefined })

@@ -2,6 +2,7 @@
 import { randomUUID } from 'node:crypto'
 import { open } from 'node:fs/promises'
 import { writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
+import { WebsiteProfileError } from './website-profile-errors.ts'
 import type {
   DesktopWebsiteAccess, DesktopWebsiteControl, DesktopWebsiteHostProfile, DesktopWebsiteProfile, DesktopWebsiteProfileId,
   DesktopWebsiteProfileInput,
@@ -71,12 +72,12 @@ function record(input: unknown, keys: readonly string[]): Record<string, unknown
   return input as Record<string, unknown>
 }
 
-function label(input: unknown, name: string, required: boolean): string {
+function label(input: unknown, name: 'name' | 'account label', required: boolean): string {
   if (typeof input !== 'string' || input.length > 120 || /[\x00-\x1f\x7f]/.test(input)) {
-    throw new Error(`Website profile ${name} must be a short label`)
+    throw new WebsiteProfileError(name === 'name' ? 'invalid-name' : 'invalid-account-label', `Website profile ${name} must be a short label`)
   }
   const trimmed = input.trim()
-  if (required && trimmed.length === 0) throw new Error(`Website profile ${name} is required`)
+  if (required && trimmed.length === 0) throw new WebsiteProfileError('invalid-name', `Website profile ${name} is required`)
   return trimmed
 }
 
@@ -90,14 +91,14 @@ function pairingFields(input: Record<string, unknown>): ProfileFields {
   const name = label(input.name, 'name', true)
   const accountLabel = label(input.accountLabel, 'account label', false)
   if (typeof input.mcpServerName !== 'string' || !/^[A-Za-z0-9_-]{1,32}$/.test(input.mcpServerName)) {
-    throw new Error('Website profile requires an existing MCP server name')
+    throw new WebsiteProfileError('invalid-mcp-name', 'Website profile requires an existing MCP server name')
   }
   if (typeof input.url !== 'string' || input.url.length > 2048 || !URL.canParse(input.url)) {
-    throw new Error('Website profile requires an HTTP(S) website address')
+    throw new WebsiteProfileError('invalid-url', 'Website profile requires an HTTP(S) website address')
   }
   const url = new URL(input.url)
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) {
-    throw new Error('Website profile address cannot contain credentials, query parameters or fragments')
+    throw new WebsiteProfileError('unsafe-url', 'Website profile address cannot contain credentials, query parameters or fragments')
   }
   return { name, accountLabel, url: url.href, mcpServerName: input.mcpServerName, access: access(input.access) }
 }
@@ -184,7 +185,7 @@ export class DesktopWebsiteProfiles {
     const fields = pairingFields(record(input, INPUT_KEYS))
     return this.serial(async () => {
       await this.load()
-      if (this.profiles.length >= MAX_PROFILES) throw new Error('Website profile limit reached')
+      if (this.profiles.length >= MAX_PROFILES) throw new WebsiteProfileError('profile-limit', 'Website profile limit reached')
       const mcpBinding = await this.pairing.inspect(fields.mcpServerName)
       await this.pairing.confirm(fields, mcpBinding)
       const profile: StoredProfile = { ...fields, id: randomUUID() as DesktopWebsiteProfileId,
@@ -446,7 +447,7 @@ export class DesktopWebsiteProfiles {
   private async verifyPairing(profile: StoredProfile): Promise<void> {
     const current = await this.pairing.inspect(profile.mcpServerName)
     if (current.identity !== profile.mcpBinding.identity) {
-      throw new Error('Website MCP endpoint or project changed; clear and pair the account again')
+      throw new WebsiteProfileError('pairing-changed', 'Website MCP endpoint or project changed; clear and pair the account again')
     }
   }
 
@@ -458,7 +459,8 @@ export class DesktopWebsiteProfiles {
   private async save(profiles: readonly StoredProfile[]): Promise<void> {
     const text = `${JSON.stringify({ version: 2, profiles }, null, 2)}\n`
     if (Buffer.byteLength(text, 'utf8') > MAX_FILE_BYTES) throw new Error('Website profile file exceeds its size limit')
-    await writeFileAtomic(this.filename, text, { mode: 0o600, dirMode: 0o700 })
+    try { await writeFileAtomic(this.filename, text, { mode: 0o600, dirMode: 0o700 }) }
+    catch (error) { throw new WebsiteProfileError('save-failed', 'Could not save website profile', { cause: error }) }
     this.profiles = profiles
   }
 

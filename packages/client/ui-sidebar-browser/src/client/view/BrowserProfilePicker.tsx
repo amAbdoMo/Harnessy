@@ -1,5 +1,5 @@
 /** Saved-profile picker and create form inside the Browser toolbar. */
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   Button, IconCheckOutlineRegular, IconUserOutlineRegular, Input, Menu, MenuItemButton, Modal, Tooltip,
@@ -15,6 +15,8 @@ import type { WebsiteProfileCommands } from '../browser/profiles.ts'
 import { assertNever } from '@deepseek-ai/dsh-util-values'
 import css from './Browser.module.css'
 import { BrowserAccessPicker } from './BrowserAccessPicker.tsx'
+import { resolveWebsiteProfileInput, type WebsiteProfileInputIssue } from '../browser/profile-input.ts'
+import { websiteProfileFailureText } from './profile-failure-text.ts'
 
 /** Private saved-profile commands and observable facts for the toolbar contribution. */
 export interface BrowserProfilePickerInjected {
@@ -162,11 +164,23 @@ function BrowserProfileCreate({ draft, edit, creating, onCreate, onClose, t }: {
   readonly t: BrowserProfilePickerProps['t']
 }): ReactNode {
   const { name, accountLabel, url, mcpServerName, access = 'automatic' } = draft
+  const [submitted, setSubmitted] = useState(false)
+  const errorId = useId()
+  const resolved = resolveWebsiteProfileInput({ ...draft, access })
+  const issue = submitted && !resolved.ok ? resolved.issue : undefined
+  const errorProps = (field: WebsiteProfileInputIssue['field']) => ({
+    'aria-invalid': issue?.field === field ? true : undefined,
+    'aria-describedby': issue?.field === field ? errorId : undefined,
+  })
+  const fieldError = (field: WebsiteProfileInputIssue['field']): ReactNode => issue?.field === field
+    ? <span id={errorId} role="alert" className={css.profileFieldError}>{websiteProfileFailureText(issue.reason, t)}</span> : null
   const complete = name.trim() !== '' && url.trim() !== '' && mcpServerName.trim() !== ''
   const blocked = creating || !complete
   const submit = (): void => {
     if (blocked) return
-    onCreate({ name: name.trim(), accountLabel: accountLabel.trim(), url: url.trim(), mcpServerName: mcpServerName.trim(), access })
+    setSubmitted(true)
+    if (!resolved.ok) return
+    onCreate(resolved.value)
   }
   return (
     <Modal
@@ -190,21 +204,25 @@ function BrowserProfileCreate({ draft, edit, creating, onCreate, onClose, t }: {
         </div>
         <label className={css.profileField}>
           <span className={css.profileFieldLabel}>{t('profiles.create.name')}</span>
-          <Input value={name} disabled={creating} data-modal-autofocus onChange={(event) => { edit('name', event.currentTarget.value) }} />
+          <Input value={name} {...errorProps('name')} disabled={creating} data-modal-autofocus onChange={(event) => { edit('name', event.currentTarget.value) }} />
+          {fieldError('name')}
         </label>
         <label className={css.profileField}>
           <span className={css.profileFieldLabel}>{t('profiles.create.accountLabel')}</span>
-          <Input value={accountLabel} disabled={creating} onChange={(event) => { edit('accountLabel', event.currentTarget.value) }} />
+          <Input value={accountLabel} {...errorProps('accountLabel')} disabled={creating} onChange={(event) => { edit('accountLabel', event.currentTarget.value) }} />
+          {fieldError('accountLabel')}
         </label>
         <label className={css.profileField}>
           <span className={css.profileFieldLabel}>{t('profiles.create.url')}</span>
-          <Input value={url} aria-label={t('profiles.create.url')} disabled={creating} onChange={(event) => { edit('url', event.currentTarget.value) }} />
+          <Input value={url} {...errorProps('url')} aria-label={t('profiles.create.url')} disabled={creating} onChange={(event) => { edit('url', event.currentTarget.value) }} />
           <span className={css.profileFieldHint}>{t('profiles.create.urlHint')}</span>
+          {fieldError('url')}
         </label>
         <label className={css.profileField}>
           <span className={css.profileFieldLabel}>{t('profiles.create.mcp')}</span>
-          <Input value={mcpServerName} aria-label={t('profiles.create.mcp')} disabled={creating} onChange={(event) => { edit('mcpServerName', event.currentTarget.value) }} />
+          <Input value={mcpServerName} {...errorProps('mcpServerName')} aria-label={t('profiles.create.mcp')} disabled={creating} onChange={(event) => { edit('mcpServerName', event.currentTarget.value) }} />
           <span className={css.profileFieldHint}>{t('profiles.create.mcpHint')}</span>
+          {fieldError('mcpServerName')}
         </label>
       </div>
     </Modal>

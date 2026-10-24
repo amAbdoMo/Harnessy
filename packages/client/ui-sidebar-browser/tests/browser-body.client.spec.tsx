@@ -618,7 +618,7 @@ describe('BrowserBody saved profiles', () => {
     fireEvent.click(mounted.view.getByRole('menuitem', { name: zh['profiles.new'] }))
 
     fireEvent.change(mounted.view.getByLabelText(zh['profiles.create.name']), { target: { value: ' New account ' } })
-    fireEvent.change(mounted.view.getByLabelText(zh['profiles.create.url']), { target: { value: 'https://new.example/' } })
+    fireEvent.change(mounted.view.getByLabelText(zh['profiles.create.url']), { target: { value: 'new.example' } })
     fireEvent.click(mounted.view.getByRole('button', { name: zh['profiles.create.action'] }))
     expect(create).not.toHaveBeenCalled()
     fireEvent.keyDown(mounted.view.getByLabelText(zh['profiles.create.url']), { key: 'Enter' })
@@ -633,6 +633,30 @@ describe('BrowserBody saved profiles', () => {
     expect(mounted.tabActions.openTab).toHaveBeenCalledExactlyOnceWith('browser', {
       params: { url: 'https://new.example/', profileId: created.id }, revealIfOpened: false,
     })
+  })
+
+  it('shows corrections beside invalid fields and submits the retained draft after correction', async () => {
+    const create = vi.fn(async (_input: DesktopWebsiteProfileInput) => undefined)
+    const mounted = mountBrowser(undefined, { profiles: profileCommands({ create }), websiteProfiles: profileState() })
+    fireEvent.click(mounted.view.getByRole('button', { name: zh['profiles.button'] }))
+    fireEvent.click(mounted.view.getByRole('menuitem', { name: zh['profiles.new'] }))
+    fireEvent.change(mounted.view.getByLabelText(zh['profiles.create.name']), { target: { value: 'Work' } })
+    const address = mounted.view.getByLabelText(zh['profiles.create.url'])
+    const server = mounted.view.getByLabelText(zh['profiles.create.mcp'])
+    fireEvent.change(address, { target: { value: 'https://work.example/?token=private' } })
+    fireEvent.change(server, { target: { value: 'invalid name' } })
+    fireEvent.click(mounted.view.getByRole('button', { name: zh['profiles.create.action'] }))
+    expect(create).not.toHaveBeenCalled()
+    expect(mounted.view.getByRole('alert').textContent).toBe(zh['profiles.failure.unsafe-url'])
+    expect(address.getAttribute('aria-invalid')).toBe('true')
+    expect(address.getAttribute('aria-describedby')).toBe(mounted.view.getByRole('alert').id)
+    fireEvent.change(address, { target: { value: 'work.example' } })
+    expect(mounted.view.getByRole('alert').textContent).toBe(zh['profiles.failure.invalid-mcp-name'])
+    expect(server.getAttribute('aria-invalid')).toBe('true')
+    fireEvent.change(server, { target: { value: 'website' } })
+    expect(mounted.view.queryByRole('alert')).toBeNull()
+    fireEvent.keyDown(server, { key: 'Enter' })
+    await waitFor(() => { expect(create).toHaveBeenCalledWith({ name: 'Work', accountLabel: '', url: 'https://work.example/', mcpServerName: 'website', access: 'automatic' }) })
   })
 
   it('keeps the create form open when the desktop app refuses the pairing', async () => {
