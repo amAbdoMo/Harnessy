@@ -291,7 +291,9 @@ pnpm run package:desktop:win:x64
 
 macOS arm64 命令要求 Apple Silicon。macOS x64 命令可以在 Intel macOS 或带 Rosetta 的 Apple Silicon 上运行。Windows x64 命令要求 Windows x64。Linux 不是受支持的 Desktop 发布目标。
 
-每个目标都在 `apps/desktop/.desktop-build/targets/<target>/` 下持有自己的打包输入、已准备运行时、包集合、dsh 依赖树、pnpm 准备状态、未打包应用、更新元数据和最终产物。Electron 归档缓存继续由 `.desktop-build/downloads` 共享，因为每个归档文件名都包含版本、平台和架构，并且在解包前经过验证。目标构建绝不读取其他目标的可变准备状态。
+每个目标都在 `apps/desktop/.desktop-build/targets/<target>/` 下持有自己的打包输入、已准备运行时、包集合、dsh 依赖树、pnpm 准备状态、未打包应用、更新元数据和最终产物。目标构建绝不读取其他目标的可变准备状态。
+
+可复用下载文件和 pnpm 内容存储分别位于 `.desktop-build/downloads` 和 `.desktop-build/pnpm-store`。将 `DSH_DESKTOP_PACKAGE_CACHE_DIR` 设置为绝对目录，可在不同检出目录之间共享这些缓存。下载文件在解包前经过验证；冻结依赖安装会验证存储完整性，并在签名前将包文件复制到每次新建的准备目录中。准备阶段的清理会保留这些缓存；磁盘占用由操作者管理。
 
 ### 运行时文件筛选
 

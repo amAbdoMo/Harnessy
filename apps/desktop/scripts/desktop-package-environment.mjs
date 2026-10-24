@@ -4,6 +4,7 @@ import { accessSync, constants, readFileSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseEnv } from 'node:util'
+import { resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
 import { resolveDesktopAppId, resolveMacOSNotarizationEnvironment, resolveMacOSSigningEnvironment, resolveNpmRegistry } from './desktop-release-environment.mjs'
 import { resolveDesktopAutoUpdateConfig } from './desktop-auto-update-environment.mjs'
 import { createWindowsTokenSigner } from './windows-sign.mjs'
@@ -77,6 +78,11 @@ function requireReadableFile(environment, name) {
  * @returns {void}
  */
 export function validateDesktopPackageEnvironment(environment, target, options = {}) {
+  resolveDesktopTargetBuildPaths({
+    ...environment,
+    DSH_DESKTOP_TARGET_PLATFORM: target.platform,
+    DSH_DESKTOP_TARGET_ARCH: target.arch,
+  })
   const signatureMode = options.signatureMode ?? 'signed'
   resolveDesktopAppId(environment)
   resolveNpmRegistry(environment)

@@ -34,11 +34,30 @@ describe('desktop build paths', () => {
     expect(windows.runtime).toContain(join('targets', 'win-x64', 'runtime'))
   })
 
-  it('shares only the immutable upstream download cache', () => {
+  it('shares upstream downloads and the integrity-checked package store', () => {
     const arm64 = desktopTargetBuildPaths('mac-arm64')
     const x64 = desktopTargetBuildPaths('mac-x64')
     expect(arm64.downloads).toBe(x64.downloads)
+    expect(arm64.pnpmStore).toBe(x64.pnpmStore)
     expect(arm64.downloads).not.toContain(`${sep}targets${sep}`)
+    expect(arm64.pnpmStore).not.toContain(`${sep}targets${sep}`)
+  })
+
+  it('uses an absolute external package cache without moving target outputs', () => {
+    const packageCacheRoot = join(process.cwd(), 'external-build-cache')
+    const paths = desktopTargetBuildPaths('win-x64', {
+      DSH_DESKTOP_PACKAGE_CACHE_DIR: packageCacheRoot,
+    })
+
+    expect(paths.downloads).toBe(join(packageCacheRoot, 'downloads'))
+    expect(paths.pnpmStore).toBe(join(packageCacheRoot, 'pnpm-store'))
+    expect(paths.root).toContain(join('.desktop-build', 'targets', 'win-x64'))
+  })
+
+  it.each(['', 'relative-cache'])('rejects a non-absolute package cache path (%j)', (value) => {
+    expect(() => {
+      desktopTargetBuildPaths('win-x64', { DSH_DESKTOP_PACKAGE_CACHE_DIR: value })
+    }).toThrow('DSH_DESKTOP_PACKAGE_CACHE_DIR must be an absolute path')
   })
 
   it('resolves the development primary runtime from the build target rather than the host architecture', () => {

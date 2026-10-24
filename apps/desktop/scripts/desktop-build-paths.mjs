@@ -1,6 +1,6 @@
 /** Resolve build-owned Desktop paths without sharing mutable state across release targets. */
 
-import { join, resolve } from 'node:path'
+import { isAbsolute, join, resolve } from 'node:path'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const BUILD_ROOT = join(APP_ROOT, '.desktop-build')
@@ -38,10 +38,16 @@ function assertSupportedTarget(target) {
 /**
  * Return the mutable preparation and artifact directories owned by one release target.
  * @param {'mac-arm64' | 'mac-x64' | 'win-x64'} target - Supported Desktop target name.
- * @returns {{ root: string, artifacts: string, unsignedArtifacts: string, runtime: string, packageSet: string, dsh: string, dshPnpm: string, electron: string, packedDsh: string, packedVendor: string, packedLandlock: string, downloads: string }} Target paths plus the shared immutable download cache.
+ * @param {NodeJS.ProcessEnv} environment - Environment with an optional package-cache root.
+ * @returns {{ root: string, artifacts: string, unsignedArtifacts: string, runtime: string, packageSet: string, dsh: string, dshPnpm: string, electron: string, packedDsh: string, packedVendor: string, packedLandlock: string, downloads: string, pnpmStore: string }} Target paths plus shared reusable package caches.
  */
-export function desktopTargetBuildPaths(target) {
+export function desktopTargetBuildPaths(target, environment = process.env) {
   assertSupportedTarget(target)
+  const configuredPackageCache = environment.DSH_DESKTOP_PACKAGE_CACHE_DIR
+  if (configuredPackageCache !== undefined && !isAbsolute(configuredPackageCache)) {
+    throw new Error('DSH_DESKTOP_PACKAGE_CACHE_DIR must be an absolute path')
+  }
+  const packageCacheRoot = configuredPackageCache ?? BUILD_ROOT
   const root = join(BUILD_ROOT, 'targets', target)
   const packed = join(root, 'packed')
   return {
@@ -56,7 +62,8 @@ export function desktopTargetBuildPaths(target) {
     packedDsh: join(packed, 'dsh'),
     packedVendor: join(packed, 'vendor'),
     packedLandlock: join(packed, 'landlock'),
-    downloads: join(BUILD_ROOT, 'downloads'),
+    downloads: join(packageCacheRoot, 'downloads'),
+    pnpmStore: join(packageCacheRoot, 'pnpm-store'),
   }
 }
 
@@ -86,7 +93,7 @@ export function resolveDesktopTargetBuildPaths(
   hostPlatform = process.platform,
   hostArch = process.arch,
 ) {
-  return desktopTargetBuildPaths(resolveDesktopBuildTarget(env, hostPlatform, hostArch))
+  return desktopTargetBuildPaths(resolveDesktopBuildTarget(env, hostPlatform, hostArch), env)
 }
 
 /**

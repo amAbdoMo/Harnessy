@@ -24,6 +24,16 @@ async function withDirectory(action: (directory: string) => Promise<void>): Prom
 }
 
 describe('Desktop local packaging configuration', () => {
+  it.each(['', 'relative-cache'])('rejects an invalid package cache path during preflight (%j)', (value) => {
+    expect(() => {
+      validateDesktopPackageEnvironment(
+        { ...RELEASE, DSH_DESKTOP_PACKAGE_CACHE_DIR: value },
+        WINDOWS,
+        { signatureMode: 'local-unsigned' },
+      )
+    }).toThrow('DSH_DESKTOP_PACKAGE_CACHE_DIR must be an absolute path')
+  })
+
   it('takes cache concurrency from the Windows file and defaults to four without ambient overrides', async () => {
     await withDirectory(async (directory) => {
       const parent = { DSH_DESKTOP_WINDOWS_SIGNATURE_CACHE_CONCURRENCY: '8' }
