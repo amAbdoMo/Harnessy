@@ -2978,7 +2978,7 @@
       ],
       "tree": "32aa3d632e6c820c1ca12245e5c19960a015d4c4",
       "subject": "fix(client): drop stale shown zoom when the committed zoom changes",
-      "review": null
+      "review": "harnessy-document-zoom-scale-20261024"
     },
     {
       "sha": "0b5ff6ff0220c29a9afc27491c595322fbc1c87e",
@@ -40589,6 +40589,44 @@
         "Full product validation passed the static guard, two Node tests and all 140 Vitest tests in a fresh final run. An earlier concurrent build run timed out welcome startup and cascaded into its next case; the final run passed without changing the timeout. The older full local-updater aggregate fails its pre-existing manual-download available-state expectation under Harnessy automatic download; only the declared ordinary-dialog presentation selection is claimed here.",
         "Full Host/artifact build completed. Initial full source lint found four unbound test-method references and an unnecessary input assertion; those were corrected and the final full source lint passed. Initial doc-sync passed 39/43; overlapping artifact builds caused an inspector directory lock, one type-equivalence process terminated, and a documentation-standard test timed out. Fresh sequential contract-ready doc typechecks, type equivalence, repository references and all 22 documentation-standard tests passed. The old Session-summary note commit identity was moved into the authoritative ledger and its bilingual pair refreshed. Final documentation quick checks passed.",
         "No upstream ancestry acquired or checkpoint advanced. Other ancestors and follow-ups remain pending; no release, installed staging-runtime update or main-app update was performed. Foreign Android edits are excluded. macOS/Linux native execution, complete updater flows and full workspace-update qualification are not claimed."
+      ]
+    },
+    "harnessy-document-zoom-scale-20261024": {
+      "status": "adopted",
+      "summary": "Adapt committed-versus-gesture zoom display to Harnessy existing document controls without relocating or restyling its PDF/image UI.",
+      "files": [
+        {
+          "path": "packages/client/ui-primitives/README.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Exclude the new public-primitive table, className positioning promises and matching metadata because Harnessy has not adopted that relocation/API. Document the implemented transient-percentage rule in the existing preview README pair and re-record its sidecar. Shared-control extraction and owner-class styling commits remain pending for a consumer-led review."
+        },
+        {
+          "path": "packages/client/ui-primitives/README.md",
+          "disposition": "excluded",
+          "reason": "Exclude the new public-primitive table, className positioning promises and matching metadata because Harnessy has not adopted that relocation/API. Document the implemented transient-percentage rule in the existing preview README pair and re-record its sidecar. Shared-control extraction and owner-class styling commits remain pending for a consumer-led review."
+        },
+        {
+          "path": "packages/client/ui-primitives/README.zh.md",
+          "disposition": "excluded",
+          "reason": "Exclude the new public-primitive table, className positioning promises and matching metadata because Harnessy has not adopted that relocation/API. Document the implemented transient-percentage rule in the existing preview README pair and re-record its sidecar. Shared-control extraction and owner-class styling commits remain pending for a consumer-led review."
+        },
+        {
+          "path": "packages/client/ui-primitives/src/ZoomControls.tsx",
+          "disposition": "adopted",
+          "reason": "Implement committed scale tracking and transient gesture clearing in the existing ui-sidebar-documentpreview ZoomControls owner. Preserve its fit-width API, styling, icons, labels and activity behavior; document the ref behavior locally. Do not import a relocated public primitive merely for this correction."
+        },
+        {
+          "path": "packages/client/ui-primitives/tests/zoom-controls.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt the regression to the current private toolbar and add fit-width resize, old-scale return, current incremental action, limits and unchanged preset assertions. Both tests fail on the previous implementation and pass after the fix; all existing viewport/store/renderer tests retain their owners."
+        }
+      ],
+      "evidence": [
+        "Exact upstream commit a2bfffad2406b699b6ef21a6b7543543a42ee90d inspected across all five changed paths. Local implementation 02d179081203abd927bfee57314a0c7036d9b3e9; verified 2026-10-24 on Windows, Node 24.14.0 and Harnessy 0.1.17.",
+        "Before the correction, both new regressions failed: a committed 200% still displayed 80%, and a resized fit-width 70% still displayed 150%. After adaptation, the preview package run passed 563 tests in 56 files; its unchanged license packaging case timed out at five seconds under the aggregate, then passed unchanged on focused recheck in 1.52 seconds. All 564 selected cases have passing evidence; the initial aggregate itself is not reported as clean.",
+        "Preserve the current private toolbar, CSS, menu entries, fit-width callbacks, locale-owned copy, zoom limits and viewport gesture/scroll behavior. The only production change is transient versus committed percentage state and its local JSDoc. No shared public API, settings or persistence change is introduced.",
+        "Full source lint, export JSDoc, paired documentation and all 22 documentation quick gates passed. This is component-render and source evidence; no new built-browser replay, installed staging-window or main update verification is claimed.",
+        "No ancestry acquired or checkpoint advanced. Related extraction f70a511cca33bb42ac76a833ddc5f3c8ffb76c8b, review cleanup 0b5ff6ff0220c29a9afc27491c595322fbc1c87e, owner CSS a740d8edc2d4b95f85e414fefa312cb1372f4ade and image interaction work remain pending; this record does not account for them. No app update, release or foreign Android edits included."
       ]
     }
   }
