@@ -1889,7 +1889,7 @@
       ],
       "tree": "3e42b6a5abb7426e84ed318ea5d4844fa0bf2c2a",
       "subject": "feat(llm): follow the official /models listing on the DeepSeek API-key route (#6944)",
-      "review": null
+      "review": "harnessy-live-deepseek-model-listing-20261024"
     },
     {
       "sha": "77b2d919c46c7f82588a450cfac20da6f36461c9",
@@ -27953,7 +27953,7 @@
       ],
       "tree": "ae1a8c06b2cac972e75bf330550ee0adf17c17ca",
       "subject": "feat(llm): cache the DeepSeek account listing per credential",
-      "review": null
+      "review": "harnessy-live-deepseek-model-listing-20261024"
     },
     {
       "sha": "2817b9e205f03840962b9dbd9e6697b961f7a95f",
@@ -28016,7 +28016,7 @@
       ],
       "tree": "158b478fd3d53c3adcec54bb91512dd24db0b007",
       "subject": "feat(llm): let DeepSeek providers await their connection and refuse models before I/O",
-      "review": null
+      "review": "harnessy-live-deepseek-model-listing-20261024"
     },
     {
       "sha": "7f38c1b099aeef8d5ad3c1382b4b97496d6a21c9",
@@ -39913,6 +39913,356 @@
         "pnpm run build:custom-harness passed with 369 client artifacts and 11 public values. pnpm run doc-sync passed all 43 gates. Normal staged lint, translation-pairing, notices and whitespace hooks passed.",
         "Desktop-locale browser scenario passed after adapting its stale label/expectations to current Settings, then passed unchanged read-only replay. It verifies OS language fallback to current Chinese, explicit English preference, reload persistence, document language and clean console. Japanese and the five added languages are absent. No PTC suite pass, physical macOS app, installed staging-window or main update is claimed.",
         "No upstream ancestry acquired, no checkpoint advanced, no app update/release performed. Other language-related ancestor/follow-up commits remain pending until independently accounted for."
+      ]
+    },
+    "harnessy-live-deepseek-model-listing-20261024": {
+      "status": "adopted",
+      "summary": "Adapt live official DeepSeek catalog discovery and async admission to both existing Harnessy providers; retain complete custom model records and conservative bundled fallbacks, explicitly exclude the account override-format migration.",
+      "files": [
+        {
+          "path": ".agents/notes/implemented/architecture/2026-09-24-deepseek-account-remote-model-catalog.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Do not import the upstream account modelOverrides migration or duplicate decision notes. The existing 2026-09-15-custom-model-reasoning-capability triplet now records shared discovery while preserving whole saved models arrays, raw reasoning/unknown metadata and current Harnessy account ownership."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-09-24-deepseek-account-remote-model-catalog.md",
+          "disposition": "excluded",
+          "reason": "Do not import the upstream account modelOverrides migration or duplicate decision notes. The existing 2026-09-15-custom-model-reasoning-capability triplet now records shared discovery while preserving whole saved models arrays, raw reasoning/unknown metadata and current Harnessy account ownership."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-09-24-deepseek-account-remote-model-catalog.zh.md",
+          "disposition": "excluded",
+          "reason": "Do not import the upstream account modelOverrides migration or duplicate decision notes. The existing 2026-09-15-custom-model-reasoning-capability triplet now records shared discovery while preserving whole saved models arrays, raw reasoning/unknown metadata and current Harnessy account ownership."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-10-22-deepseek-official-model-listing.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Do not import the upstream account modelOverrides migration or duplicate decision notes. The existing 2026-09-15-custom-model-reasoning-capability triplet now records shared discovery while preserving whole saved models arrays, raw reasoning/unknown metadata and current Harnessy account ownership."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-10-22-deepseek-official-model-listing.md",
+          "disposition": "excluded",
+          "reason": "Do not import the upstream account modelOverrides migration or duplicate decision notes. The existing 2026-09-15-custom-model-reasoning-capability triplet now records shared discovery while preserving whole saved models arrays, raw reasoning/unknown metadata and current Harnessy account ownership."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-10-22-deepseek-official-model-listing.zh.md",
+          "disposition": "excluded",
+          "reason": "Do not import the upstream account modelOverrides migration or duplicate decision notes. The existing 2026-09-15-custom-model-reasoning-capability triplet now records shared discovery while preserving whole saved models arrays, raw reasoning/unknown metadata and current Harnessy account ownership."
+        },
+        {
+          "path": "apps/cli/tests/built-bin.e2e.ts",
+          "disposition": "adopted",
+          "reason": "Keep the built SDK no-request smoke offline with its fixture key and loopback endpoint; passed the actual built smoke without contacting the official catalog."
+        },
+        {
+          "path": "apps/web/tests/expected/onboarding-deepseek-config/default-models.expected.md",
+          "disposition": "excluded",
+          "reason": "Preserve the current bundled model names and conservative 1,000,000-token fallback instead of importing the upstream default-capacity/name bump and its onboarding expectation. A successful live listing supplies authoritative names and capacity; custom saved values remain authoritative."
+        },
+        {
+          "path": "docs/config-catalog.md",
+          "disposition": "adopted",
+          "reason": "Regenerate current configuration, event and module catalogs from the actual adapted source. Verify generated owners in place; preserve unrelated Harnessy graphs and all frozen persistence generations."
+        },
+        {
+          "path": "docs/config-catalog.zh.md",
+          "disposition": "adopted",
+          "reason": "Regenerate current configuration, event and module catalogs from the actual adapted source. Verify generated owners in place; preserve unrelated Harnessy graphs and all frozen persistence generations."
+        },
+        {
+          "path": "docs/event-producer-consumer.md",
+          "disposition": "adopted",
+          "reason": "Regenerate current configuration, event and module catalogs from the actual adapted source. Verify generated owners in place; preserve unrelated Harnessy graphs and all frozen persistence generations."
+        },
+        {
+          "path": "docs/event-producer-consumer.zh.md",
+          "disposition": "adopted",
+          "reason": "Regenerate current configuration, event and module catalogs from the actual adapted source. Verify generated owners in place; preserve unrelated Harnessy graphs and all frozen persistence generations."
+        },
+        {
+          "path": "docs/module-graph.md",
+          "disposition": "adopted",
+          "reason": "Regenerate current configuration, event and module catalogs from the actual adapted source. Verify generated owners in place; preserve unrelated Harnessy graphs and all frozen persistence generations."
+        },
+        {
+          "path": "docs/module-graph.zh.md",
+          "disposition": "adopted",
+          "reason": "Regenerate current configuration, event and module catalogs from the actual adapted source. Verify generated owners in place; preserve unrelated Harnessy graphs and all frozen persistence generations."
+        },
+        {
+          "path": "docs/user/guide/providers.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update the current English/Chinese provider documentation and pairing metadata for both route discovery conditions, timing, custom whole-list precedence, restore-defaults invalidation and limitations; omit the incompatible upstream override-format migration and bundled default-capacity claim."
+        },
+        {
+          "path": "docs/user/guide/providers.md",
+          "disposition": "adopted",
+          "reason": "Update the current English/Chinese provider documentation and pairing metadata for both route discovery conditions, timing, custom whole-list precedence, restore-defaults invalidation and limitations; omit the incompatible upstream override-format migration and bundled default-capacity claim."
+        },
+        {
+          "path": "docs/user/guide/providers.zh.md",
+          "disposition": "adopted",
+          "reason": "Update the current English/Chinese provider documentation and pairing metadata for both route discovery conditions, timing, custom whole-list precedence, restore-defaults invalidation and limitations; omit the incompatible upstream override-format migration and bundled default-capacity claim."
+        },
+        {
+          "path": "packages/llm/llm-deepseek-account/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update the current English/Chinese provider documentation and pairing metadata for both route discovery conditions, timing, custom whole-list precedence, restore-defaults invalidation and limitations; omit the incompatible upstream override-format migration and bundled default-capacity claim."
+        },
+        {
+          "path": "packages/llm/llm-deepseek-account/README.md",
+          "disposition": "adopted",
+          "reason": "Update the current English/Chinese provider documentation and pairing metadata for both route discovery conditions, timing, custom whole-list precedence, restore-defaults invalidation and limitations; omit the incompatible upstream override-format migration and bundled default-capacity claim."
+        },
+        {
+          "path": "packages/llm/llm-deepseek-account/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Update the current English/Chinese provider documentation and pairing metadata for both route discovery conditions, timing, custom whole-list precedence, restore-defaults invalidation and limitations; omit the incompatible upstream override-format migration and bundled default-capacity claim."
+        },
+        {
+          "path": "packages/llm/llm-deepseek-account/package.json",
+          "disposition": "retained-newer",
+          "reason": "The obsolete account-owned listing dependencies and compiler references were never added on this baseline. Shared listing dependencies and semver types belong to llm-deepseek; existing account quota, credential and current manifest owners remain valid."
+        },
+        {
+          "path": "packages/llm/llm-deepseek-account/src/catalog.ts",
+          "disposition": "adopted",
+          "reason": "Implement request decoding, per-endpoint/credential single-flight cache, cancellation, version gating and last-good fallback in the later shared listing/listing-cache/listed-catalog owners and tests instead of creating obsolete account-only modules. Exclude modelOverrides migration/API and its diagnostics/tests; whole saved model records remain the customization owner."
+        },
+        {
+          "path": "packages/llm/llm-deepseek-account/src/config.ts",
+          "disposition": "adopted",
+          "reason": "Adapt live discovery into the existing account provider while retaining editable models, custom endpoints, account selection and credential/quota owners. Discovery is enabled only for the official origin and uncustomized raw records. Await disposal, reject incompatible listed models before Messages/Files, and retain current inference authentication failure behavior. Exclude mandatory modelOverrides conversion."
+        },
+        {
+          "path": "packages/llm/llm-deepseek-account/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Adapt live discovery into the existing account provider while retaining editable models, custom endpoints, account selection and credential/quota owners. Discovery is enabled only for the official origin and uncustomized raw records. Await disposal, reject incompatible listed models before Messages/Files, and retain current inference authentication failure behavior. Exclude mandatory modelOverrides conversion."
+        },
+        {
+          "path": "packages/llm/llm-deepseek-account/src/listing.ts",
+          "disposition": "adopted",
+          "reason": "Implement request decoding, per-endpoint/credential single-flight cache, cancellation, version gating and last-good fallback in the later shared listing/listing-cache/listed-catalog owners and tests instead of creating obsolete account-only modules. Exclude modelOverrides migration/API and its diagnostics/tests; whole saved model records remain the customization owner."
+        },
+        {
+          "path": "packages/llm/llm-deepseek-account/src/resolve-catalog.ts",
+          "disposition": "adopted",
+          "reason": "Implement request decoding, per-endpoint/credential single-flight cache, cancellation, version gating and last-good fallback in the later shared listing/listing-cache/listed-catalog owners and tests instead of creating obsolete account-only modules. Exclude modelOverrides migration/API and its diagnostics/tests; whole saved model records remain the customization owner."
+        },
+        {
+          "path": "packages/llm/llm-deepseek-account/tests/account-quota.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt current account/listing/quota/provider tests to deterministic explicit fixture catalogs. Verify official discovery, custom-record precedence, credential scoping, cancellation and refusal with the retained account owner; no live service requests."
+        },
+        {
+          "path": "packages/llm/llm-deepseek-account/tests/catalog.spec.ts",
+          "disposition": "adopted",
+          "reason": "Implement request decoding, per-endpoint/credential single-flight cache, cancellation, version gating and last-good fallback in the later shared listing/listing-cache/listed-catalog owners and tests instead of creating obsolete account-only modules. Exclude modelOverrides migration/API and its diagnostics/tests; whole saved model records remain the customization owner."
+        },
+        {
+          "path": "packages/llm/llm-deepseek-account/tests/listing.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt current account/listing/quota/provider tests to deterministic explicit fixture catalogs. Verify official discovery, custom-record precedence, credential scoping, cancellation and refusal with the retained account owner; no live service requests."
+        },
+        {
+          "path": "packages/llm/llm-deepseek-account/tests/provider.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt current account/listing/quota/provider tests to deterministic explicit fixture catalogs. Verify official discovery, custom-record precedence, credential scoping, cancellation and refusal with the retained account owner; no live service requests."
+        },
+        {
+          "path": "packages/llm/llm-deepseek-account/tests/resolve-catalog.spec.ts",
+          "disposition": "adopted",
+          "reason": "Implement request decoding, per-endpoint/credential single-flight cache, cancellation, version gating and last-good fallback in the later shared listing/listing-cache/listed-catalog owners and tests instead of creating obsolete account-only modules. Exclude modelOverrides migration/API and its diagnostics/tests; whole saved model records remain the customization owner."
+        },
+        {
+          "path": "packages/llm/llm-deepseek-account/tsconfig.json",
+          "disposition": "retained-newer",
+          "reason": "The obsolete account-owned listing dependencies and compiler references were never added on this baseline. Shared listing dependencies and semver types belong to llm-deepseek; existing account quota, credential and current manifest owners remain valid."
+        },
+        {
+          "path": "packages/llm/llm-deepseek-api-key/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update the current English/Chinese provider documentation and pairing metadata for both route discovery conditions, timing, custom whole-list precedence, restore-defaults invalidation and limitations; omit the incompatible upstream override-format migration and bundled default-capacity claim."
+        },
+        {
+          "path": "packages/llm/llm-deepseek-api-key/README.md",
+          "disposition": "adopted",
+          "reason": "Update the current English/Chinese provider documentation and pairing metadata for both route discovery conditions, timing, custom whole-list precedence, restore-defaults invalidation and limitations; omit the incompatible upstream override-format migration and bundled default-capacity claim."
+        },
+        {
+          "path": "packages/llm/llm-deepseek-api-key/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Update the current English/Chinese provider documentation and pairing metadata for both route discovery conditions, timing, custom whole-list precedence, restore-defaults invalidation and limitations; omit the incompatible upstream override-format migration and bundled default-capacity claim."
+        },
+        {
+          "path": "packages/llm/llm-deepseek-api-key/src/config.ts",
+          "disposition": "adopted",
+          "reason": "Adapt optional live listing into the existing API-key owner, retaining custom endpoint and saved complete-model precedence, malformed-key prompt recording, auth-failure propagation and current connection behavior. Regression tests cover raw reasoning-only/hidden metadata, forced reload, listing diagnostics and credentials without production requests."
+        },
+        {
+          "path": "packages/llm/llm-deepseek-api-key/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Adapt optional live listing into the existing API-key owner, retaining custom endpoint and saved complete-model precedence, malformed-key prompt recording, auth-failure propagation and current connection behavior. Regression tests cover raw reasoning-only/hidden metadata, forced reload, listing diagnostics and credentials without production requests."
+        },
+        {
+          "path": "packages/llm/llm-deepseek-api-key/tests/config.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt optional live listing into the existing API-key owner, retaining custom endpoint and saved complete-model precedence, malformed-key prompt recording, auth-failure propagation and current connection behavior. Regression tests cover raw reasoning-only/hidden metadata, forced reload, listing diagnostics and credentials without production requests."
+        },
+        {
+          "path": "packages/llm/llm-deepseek-api-key/tests/discovery.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt optional live listing into the existing API-key owner, retaining custom endpoint and saved complete-model precedence, malformed-key prompt recording, auth-failure propagation and current connection behavior. Regression tests cover raw reasoning-only/hidden metadata, forced reload, listing diagnostics and credentials without production requests."
+        },
+        {
+          "path": "packages/llm/llm-deepseek-api-key/tests/listing.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt optional live listing into the existing API-key owner, retaining custom endpoint and saved complete-model precedence, malformed-key prompt recording, auth-failure propagation and current connection behavior. Regression tests cover raw reasoning-only/hidden metadata, forced reload, listing diagnostics and credentials without production requests."
+        },
+        {
+          "path": "packages/llm/llm-deepseek/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update the current English/Chinese provider documentation and pairing metadata for both route discovery conditions, timing, custom whole-list precedence, restore-defaults invalidation and limitations; omit the incompatible upstream override-format migration and bundled default-capacity claim."
+        },
+        {
+          "path": "packages/llm/llm-deepseek/README.md",
+          "disposition": "adopted",
+          "reason": "Update the current English/Chinese provider documentation and pairing metadata for both route discovery conditions, timing, custom whole-list precedence, restore-defaults invalidation and limitations; omit the incompatible upstream override-format migration and bundled default-capacity claim."
+        },
+        {
+          "path": "packages/llm/llm-deepseek/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Update the current English/Chinese provider documentation and pairing metadata for both route discovery conditions, timing, custom whole-list precedence, restore-defaults invalidation and limitations; omit the incompatible upstream override-format migration and bundled default-capacity claim."
+        },
+        {
+          "path": "packages/llm/llm-deepseek/package.json",
+          "disposition": "adopted",
+          "reason": "Declare semver and its types in the shared listing owner. Preserve unrelated resolved packages; frozen offline installation and all hygiene gates passed with only the legitimate importer additions."
+        },
+        {
+          "path": "packages/llm/llm-deepseek/src/adapter.ts",
+          "disposition": "adopted",
+          "reason": "Adopt asynchronous connection/admission hooks and shared typed listing decode, capability layering, actual APP_IDENTITY.version gating and scoped cache. Preserve cancellation through pending credential lookup, await all retired load generations on disposal, and keep prior successful listings after transient refresh failures. Exclude unused override-format APIs/tests because current providers retain whole-list customization. Focused owner tests, real Loader cases and recorded-session replay verify the adapted implementation."
+        },
+        {
+          "path": "packages/llm/llm-deepseek/src/config.ts",
+          "disposition": "adopted",
+          "reason": "Adopt asynchronous connection/admission hooks and shared typed listing decode, capability layering, actual APP_IDENTITY.version gating and scoped cache. Preserve cancellation through pending credential lookup, await all retired load generations on disposal, and keep prior successful listings after transient refresh failures. Exclude unused override-format APIs/tests because current providers retain whole-list customization. Focused owner tests, real Loader cases and recorded-session replay verify the adapted implementation."
+        },
+        {
+          "path": "packages/llm/llm-deepseek/src/host.ts",
+          "disposition": "adopted",
+          "reason": "Adopt asynchronous connection/admission hooks and shared typed listing decode, capability layering, actual APP_IDENTITY.version gating and scoped cache. Preserve cancellation through pending credential lookup, await all retired load generations on disposal, and keep prior successful listings after transient refresh failures. Exclude unused override-format APIs/tests because current providers retain whole-list customization. Focused owner tests, real Loader cases and recorded-session replay verify the adapted implementation."
+        },
+        {
+          "path": "packages/llm/llm-deepseek/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Adopt asynchronous connection/admission hooks and shared typed listing decode, capability layering, actual APP_IDENTITY.version gating and scoped cache. Preserve cancellation through pending credential lookup, await all retired load generations on disposal, and keep prior successful listings after transient refresh failures. Exclude unused override-format APIs/tests because current providers retain whole-list customization. Focused owner tests, real Loader cases and recorded-session replay verify the adapted implementation."
+        },
+        {
+          "path": "packages/llm/llm-deepseek/src/listed-catalog.ts",
+          "disposition": "adopted",
+          "reason": "Adopt asynchronous connection/admission hooks and shared typed listing decode, capability layering, actual APP_IDENTITY.version gating and scoped cache. Preserve cancellation through pending credential lookup, await all retired load generations on disposal, and keep prior successful listings after transient refresh failures. Exclude unused override-format APIs/tests because current providers retain whole-list customization. Focused owner tests, real Loader cases and recorded-session replay verify the adapted implementation."
+        },
+        {
+          "path": "packages/llm/llm-deepseek/src/listing-cache.ts",
+          "disposition": "adopted",
+          "reason": "Adopt asynchronous connection/admission hooks and shared typed listing decode, capability layering, actual APP_IDENTITY.version gating and scoped cache. Preserve cancellation through pending credential lookup, await all retired load generations on disposal, and keep prior successful listings after transient refresh failures. Exclude unused override-format APIs/tests because current providers retain whole-list customization. Focused owner tests, real Loader cases and recorded-session replay verify the adapted implementation."
+        },
+        {
+          "path": "packages/llm/llm-deepseek/src/listing-config.ts",
+          "disposition": "adopted",
+          "reason": "Adopt asynchronous connection/admission hooks and shared typed listing decode, capability layering, actual APP_IDENTITY.version gating and scoped cache. Preserve cancellation through pending credential lookup, await all retired load generations on disposal, and keep prior successful listings after transient refresh failures. Exclude unused override-format APIs/tests because current providers retain whole-list customization. Focused owner tests, real Loader cases and recorded-session replay verify the adapted implementation."
+        },
+        {
+          "path": "packages/llm/llm-deepseek/src/listing.ts",
+          "disposition": "adopted",
+          "reason": "Adopt asynchronous connection/admission hooks and shared typed listing decode, capability layering, actual APP_IDENTITY.version gating and scoped cache. Preserve cancellation through pending credential lookup, await all retired load generations on disposal, and keep prior successful listings after transient refresh failures. Exclude unused override-format APIs/tests because current providers retain whole-list customization. Focused owner tests, real Loader cases and recorded-session replay verify the adapted implementation."
+        },
+        {
+          "path": "packages/llm/llm-deepseek/src/models.ts",
+          "disposition": "excluded",
+          "reason": "Preserve the current bundled model names and conservative 1,000,000-token fallback instead of importing the upstream default-capacity/name bump and its onboarding expectation. A successful live listing supplies authoritative names and capacity; custom saved values remain authoritative."
+        },
+        {
+          "path": "packages/llm/llm-deepseek/src/types.ts",
+          "disposition": "adopted",
+          "reason": "Adopt asynchronous connection/admission hooks and shared typed listing decode, capability layering, actual APP_IDENTITY.version gating and scoped cache. Preserve cancellation through pending credential lookup, await all retired load generations on disposal, and keep prior successful listings after transient refresh failures. Exclude unused override-format APIs/tests because current providers retain whole-list customization. Focused owner tests, real Loader cases and recorded-session replay verify the adapted implementation."
+        },
+        {
+          "path": "packages/llm/llm-deepseek/tests/built-in-catalog.spec.ts",
+          "disposition": "adopted",
+          "reason": "Recognizing default versus customized catalogs is covered in current config tests and both route listing suites. Adapt recognition to raw complete records: reasoning-only and unknown metadata must disable live replacement, even when protocol normalization drops those fields."
+        },
+        {
+          "path": "packages/llm/llm-deepseek/tests/listed-catalog.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adopt asynchronous connection/admission hooks and shared typed listing decode, capability layering, actual APP_IDENTITY.version gating and scoped cache. Preserve cancellation through pending credential lookup, await all retired load generations on disposal, and keep prior successful listings after transient refresh failures. Exclude unused override-format APIs/tests because current providers retain whole-list customization. Focused owner tests, real Loader cases and recorded-session replay verify the adapted implementation."
+        },
+        {
+          "path": "packages/llm/llm-deepseek/tests/listing-cache.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adopt asynchronous connection/admission hooks and shared typed listing decode, capability layering, actual APP_IDENTITY.version gating and scoped cache. Preserve cancellation through pending credential lookup, await all retired load generations on disposal, and keep prior successful listings after transient refresh failures. Exclude unused override-format APIs/tests because current providers retain whole-list customization. Focused owner tests, real Loader cases and recorded-session replay verify the adapted implementation."
+        },
+        {
+          "path": "packages/llm/llm-deepseek/tests/listing.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adopt asynchronous connection/admission hooks and shared typed listing decode, capability layering, actual APP_IDENTITY.version gating and scoped cache. Preserve cancellation through pending credential lookup, await all retired load generations on disposal, and keep prior successful listings after transient refresh failures. Exclude unused override-format APIs/tests because current providers retain whole-list customization. Focused owner tests, real Loader cases and recorded-session replay verify the adapted implementation."
+        },
+        {
+          "path": "packages/llm/llm-deepseek/tests/loader-composition.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adopt asynchronous connection/admission hooks and shared typed listing decode, capability layering, actual APP_IDENTITY.version gating and scoped cache. Preserve cancellation through pending credential lookup, await all retired load generations on disposal, and keep prior successful listings after transient refresh failures. Exclude unused override-format APIs/tests because current providers retain whole-list customization. Focused owner tests, real Loader cases and recorded-session replay verify the adapted implementation."
+        },
+        {
+          "path": "packages/llm/llm-deepseek/tests/official-route-turn.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adopt asynchronous connection/admission hooks and shared typed listing decode, capability layering, actual APP_IDENTITY.version gating and scoped cache. Preserve cancellation through pending credential lookup, await all retired load generations on disposal, and keep prior successful listings after transient refresh failures. Exclude unused override-format APIs/tests because current providers retain whole-list customization. Focused owner tests, real Loader cases and recorded-session replay verify the adapted implementation."
+        },
+        {
+          "path": "packages/llm/llm-deepseek/tests/provider-hooks.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adopt asynchronous connection/admission hooks and shared typed listing decode, capability layering, actual APP_IDENTITY.version gating and scoped cache. Preserve cancellation through pending credential lookup, await all retired load generations on disposal, and keep prior successful listings after transient refresh failures. Exclude unused override-format APIs/tests because current providers retain whole-list customization. Focused owner tests, real Loader cases and recorded-session replay verify the adapted implementation."
+        },
+        {
+          "path": "packages/llm/llm-deepseek/tests/runtime.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adopt asynchronous connection/admission hooks and shared typed listing decode, capability layering, actual APP_IDENTITY.version gating and scoped cache. Preserve cancellation through pending credential lookup, await all retired load generations on disposal, and keep prior successful listings after transient refresh failures. Exclude unused override-format APIs/tests because current providers retain whole-list customization. Focused owner tests, real Loader cases and recorded-session replay verify the adapted implementation."
+        },
+        {
+          "path": "packages/sdk/server/tests/server.spec.ts",
+          "disposition": "adopted",
+          "reason": "Keep SDK source initialize fixtures deterministic using explicit fixture models and loopback configuration; all 32 SDK source tests passed."
+        },
+        {
+          "path": "pnpm-lock.yaml",
+          "disposition": "adopted",
+          "reason": "Declare semver and its types in the shared listing owner. Preserve unrelated resolved packages; frozen offline installation and all hygiene gates passed with only the legitimate importer additions."
+        },
+        {
+          "path": "scripts/test-official-listing-guard.spec.ts",
+          "disposition": "adopted",
+          "reason": "Add an exact official /models URL guard to unit-lane setup. Listing tests supply deterministic responses, other requests pass through, and inherited credentials cannot initiate a production unit-test catalog request."
+        },
+        {
+          "path": "scripts/test-official-listing-guard.ts",
+          "disposition": "adopted",
+          "reason": "Add an exact official /models URL guard to unit-lane setup. Listing tests supply deterministic responses, other requests pass through, and inherited credentials cannot initiate a production unit-test catalog request."
+        },
+        {
+          "path": "vitest.config.ts",
+          "disposition": "adopted",
+          "reason": "Add an exact official /models URL guard to unit-lane setup. Listing tests supply deterministic responses, other requests pass through, and inherited credentials cannot initiate a production unit-test catalog request."
+        }
+      ],
+      "evidence": [
+        "Exact upstream roots 20f99ffb0c6d7840abdfa8c0baffed68a05f463b, 31ce1ad5f18e2ddcd71e5f7cb90b162f5f6ebd0b and c48f8523f22a35a452c38db51ca1c21f572b2593 inspected, including their source, test and documentation changes and current Harnessy consumers. Supporting implementation: 82bd492c82ae79b9758327a8e4e6470f01c4219f (2026-10-24, Harnessy 0.1.17). These nonmerge roots do not account for their unreviewed ancestors or followups.",
+        "Demonstrated adaptation defect: protocol-normalized catalog comparison discarded raw reasoning-only/hidden metadata and wrongly enabled live replacement. Both route regression cases failed before the raw-record fix and passed afterward. The selected official origin/default records condition preserves current custom UI, models, account/quota ownership, credentials and endpoints. Actual build version is used; no compatibility bypass.",
+        "Final focused provider run: 675 tests in 28 files passed, including six real Loader compositions, metadata precedence, cache cancellation/disposal across retired scopes, version admission and exact official-URL guard. SDK source suite: 32 tests passed. Built SDK smoke: one selected case passed (32 other cases skipped). No live-API provider check was performed.",
+        "New keyless deepseek-model-listing recorded Session refreshed only its new fixture then passed unchanged read-only replay. Real listModels/resolveModelInfo results persist listed-fixture with name, 4321 context and text modality, exactly one mocked catalog request and one announcement, no skill-catalog entries and no tool error. External listing response alone is mocked; no production request. Windows evidence only.",
+        "Harnessy product checks passed: static checks, two Node tests and 140 Vitest tests across 12 files. Full build:custom-harness passed (369 client artifacts, 11 public values); final Host build after unused API removal passed. Frozen offline install passed; full lint passed; hygiene passed all 16 gates. Normal staged lint, notices, whitespace and vendor hooks passed.",
+        "doc-sync initially passed 40/43; corrected the typed test wrapper and regenerated source-owned catalogs/graphs. Owning rechecks passed: doc typecheck (80 blocks, 63 ignored; 941 type-equivalence/catalog; 1084 paired derivatives), configuration catalog (three artifacts current), graph catalog (seven current), budgets, Markdown wrapping, five affected documentation pairs and Agent Note format. No fresh full aggregate pass is claimed.",
+        "Account modelOverrides conversion and its unused helper API/tests, obsolete account-only modules, duplicate upstream notes and bundled default-capacity/name bump are explicitly omitted. Existing complete models arrays remain authoritative, and listed data changes only an uncustomized official route. No upstream ancestry acquired/checkpoint advanced, installed staging runtime or main update verified, release performed, or foreign Android work included."
       ]
     }
   }
