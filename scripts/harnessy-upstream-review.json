@@ -3939,7 +3939,7 @@
       ],
       "tree": "6af6c2d7859749d424bebd83657c9704bd592d97",
       "subject": "feat(settings): support reordering provider models",
-      "review": null
+      "review": "harnessy-model-order-20261024"
     },
     {
       "sha": "ad340232fadef9ae2738fe7d31aed60657051b76",
@@ -6593,7 +6593,7 @@
       ],
       "tree": "3ff86af87393254bbcdb30aefe2af5b98fd31230",
       "subject": "feat(schedule): remove every ended task from the automation page",
-      "review": null
+      "review": "harnessy-clear-ended-20261024"
     },
     {
       "sha": "84a6d2bcafe823cef5213cd3645457f3910ad5f8",
@@ -6962,7 +6962,7 @@
       ],
       "tree": "7df2ae3ebdae821a7b241227e4568297d76aa52b",
       "subject": "fix(prompt): end the turn while waiting on subagents",
-      "review": null
+      "review": "harnessy-subagent-waiting-20261024"
     },
     {
       "sha": "31bd06d50394427f307706d7c447622938925ebb",
@@ -7688,7 +7688,7 @@
       ],
       "tree": "c721643337b0eebef75badd1eafd0a34b3247ea1",
       "subject": "feat(web): give the model Search API summaries",
-      "review": null
+      "review": "harnessy-search-summaries-20261024"
     },
     {
       "sha": "2f01ad549c9dc7ecf480439f8e6801cc45ca14a0",
@@ -12035,7 +12035,7 @@
       ],
       "tree": "32af6172276111ad7ea40ca27a6bb13c487e2a31",
       "subject": "feat(web): add DeepSeek Search and Fetch APIs behind a settings switch (#6103)",
-      "review": null
+      "review": "harnessy-deepseek-retrieval-20261024"
     },
     {
       "sha": "f98a206b0185a45ecb99fd450aa9511be7301a20",
@@ -29835,6 +29835,955 @@
         "Additional source regression: a synchronous iterator.next failure left an orphaned deadline rejection in the imported implementation (Vitest reported one unhandled TimeoutReason). Abort-listener removal is in the outer demand finally, covering synchronous failure as well as normal promise settlement.",
         "Final focused timeout/retry run: 36 passed, including the synchronous-failure regression, abandoned transport recovery and the existing cancellation/retry cases. The normal headless idle-timeout-recovery replay passed after that cleanup adaptation.",
         "One post-adaptation source CLI replay reached its unchanged 30-second process deadline with empty output. A preserved-directory diagnostic replay and a subsequent unmodified-harness replay both passed. No timeout increase, built-in retry, assertion relaxation, normalizer edit, or diagnostic hook is retained."
+      ]
+    },
+    "harnessy-clear-ended-20261024": {
+      "status": "adopted",
+      "summary": "Adapt Host-wide ended-task cleanup with confirmation and settled outcome notices; retain Harnessy toolbar styling, all active tasks, and existing detail ownership.",
+      "files": [
+        {
+          "path": "apps/web/tests/schedule-after.e2e.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "docs/event-producer-consumer.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "docs/event-producer-consumer.zh.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "docs/persistence-catalog.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "docs/persistence-catalog.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "docs/persistence-catalog.zh.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "docs/subsystems/schedule.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Retain the current owner or generated projection instead of importing unrelated upstream context; the selected behavior is covered by the local source and tests named below."
+        },
+        {
+          "path": "docs/subsystems/schedule.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "docs/subsystems/schedule.zh.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/client/ui-schedule/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/client/ui-schedule/README.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/client/ui-schedule/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/client/ui-schedule/src/client/DeleteToast.tsx",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/client/ui-schedule/src/client/TaskManagerPage.module.css",
+          "disposition": "excluded",
+          "reason": "Keep the current Harnessy newButton capsule and CSS owner; the upstream headerAction rename and its radius-golden churn are unnecessary."
+        },
+        {
+          "path": "packages/client/ui-schedule/src/client/TaskManagerPage.tsx",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/client/ui-schedule/src/client/clear-ended.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/client/ui-schedule/src/client/index.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/client/ui-schedule/src/client/task-manager-locales.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/client/ui-schedule/tests/browser-plugin.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/client/ui-schedule/tests/clear-ended.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/client/ui-schedule/tests/delete-toast.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/client/ui-schedule/tests/task-detail.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/client/ui-schedule/tests/task-manager-page.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/client/ui-theme/tests/expected/radius-exceptions.expected.json",
+          "disposition": "excluded",
+          "reason": "Keep the current Harnessy newButton capsule and CSS owner; the upstream headerAction rename and its radius-golden churn are unnecessary."
+        },
+        {
+          "path": "packages/extensions/tool-cordis/src/api-catalog.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/schedule/schedule/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/schedule/schedule/README.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/schedule/schedule/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/schedule/schedule/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/schedule/schedule/src/types.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/schedule/schedule/tests/delete-inactive.spec.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "scripts/gen-cordis-catalog.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        }
+      ],
+      "evidence": [
+        "Implementation: 97af48298332944a722ffd1740c6636aaa10210c; shipped base composition: 8e8a547cbfbaba038498cdad6f902b39f652737a.",
+        "Schedule and UI focused cases: 359 passed; the imported class-name metric was adapted to the retained newButton owner and its one focused case passed.",
+        "Assembled schedule-after browser suite: 9 passed, including cancellation, confirmed bulk cleanup, durable removal and active-task retention.",
+        "The original per-row durable deletion semantics are retained and documented; later atomic storage batching is not claimed adopted.",
+        "The pinned upstream checkpoint is unchanged; this manual adaptation acquires no unchecked upstream ancestry."
+      ]
+    },
+    "harnessy-subagent-waiting-20261024": {
+      "status": "adopted",
+      "summary": "Adapt waiting guidance into Harnessy continuable delegation without replacing its routing, availability checks, foreground work or custom tool names.",
+      "files": [
+        {
+          "path": "packages/subagent/tool-subagent/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/subagent/tool-subagent/tests/tool-subagent.spec.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        }
+      ],
+      "evidence": [
+        "Implementation: 97af48298332944a722ffd1740c6636aaa10210c; shipped base composition: 8e8a547cbfbaba038498cdad6f902b39f652737a.",
+        "tool-subagent focused source suite: 67 passed.",
+        "Current prompt sidecars include the waiting sentence; both new direct-retrieval headless cases passed in read-only replay with their current-profile prompt headers.",
+        "No real-model sampling was repeated and no behavioral guarantee about model compliance is claimed.",
+        "The pinned upstream checkpoint is unchanged; this manual adaptation acquires no unchecked upstream ancestry."
+      ]
+    },
+    "harnessy-deepseek-retrieval-20261024": {
+      "status": "adopted",
+      "summary": "Adapt opt-in direct DeepSeek Search and Fetch providers, live paired selection and auxiliary Messages disabled thinking into the current Web Search owner; preserve Messages/http defaults and existing locale support.",
+      "files": [
+        {
+          "path": ".agents/notes/implemented/architecture/2026-06-24-web-capability-seam.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Do not import upstream decision prose or its external probe claims; current package/subsystem READMEs document the adapted behavior and local verification."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-06-24-web-capability-seam.md",
+          "disposition": "excluded",
+          "reason": "Do not import upstream decision prose or its external probe claims; current package/subsystem READMEs document the adapted behavior and local verification."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-06-24-web-capability-seam.zh.md",
+          "disposition": "excluded",
+          "reason": "Do not import upstream decision prose or its external probe claims; current package/subsystem READMEs document the adapted behavior and local verification."
+        },
+        {
+          "path": ".agents/notes/implemented/feature/2026-10-15-deepseek-search-fetch-api.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Do not import upstream decision prose or its external probe claims; current package/subsystem READMEs document the adapted behavior and local verification."
+        },
+        {
+          "path": ".agents/notes/implemented/feature/2026-10-15-deepseek-search-fetch-api.md",
+          "disposition": "excluded",
+          "reason": "Do not import upstream decision prose or its external probe claims; current package/subsystem READMEs document the adapted behavior and local verification."
+        },
+        {
+          "path": ".agents/notes/implemented/feature/2026-10-15-deepseek-search-fetch-api.zh.md",
+          "disposition": "excluded",
+          "reason": "Do not import upstream decision prose or its external probe claims; current package/subsystem READMEs document the adapted behavior and local verification."
+        },
+        {
+          "path": "apps/cli/composition.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "apps/web/tests/expected/plugin-config/web-search.expected.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "apps/web/tests/plugin-config.e2e.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "apps/web/tests/scaffold.ts",
+          "disposition": "excluded",
+          "reason": "Keep the current scaffold API; independent headless loopback fixtures and the current Plugins browser scenario exercise the chosen feature without adding unused scaffold options."
+        },
+        {
+          "path": "apps/web/tests/web-search-round.e2e.ts",
+          "disposition": "excluded",
+          "reason": "Keep those existing recorded owners/generations. New direct Search/Fetch headless scenarios and focused endpoint-guidance tests provide local evidence for this adaptation."
+        },
+        {
+          "path": "docs/capability-seams.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "docs/capability-seams.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "docs/capability-seams.zh.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "docs/config-catalog.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "docs/config-catalog.zh.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "docs/module-graph.md",
+          "disposition": "retained-newer",
+          "reason": "Retain the current owner or generated projection instead of importing unrelated upstream context; the selected behavior is covered by the local source and tests named below."
+        },
+        {
+          "path": "docs/module-graph.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Retain the current owner or generated projection instead of importing unrelated upstream context; the selected behavior is covered by the local source and tests named below."
+        },
+        {
+          "path": "docs/persistence-catalog.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "docs/persistence-catalog.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "docs/persistence-catalog.zh.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "docs/persistence-changes/2026-10-13-deepseek-search-thinking.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Preserve existing acknowledgement history; the optional thinking field is recorded as a new local same-version successor instead."
+        },
+        {
+          "path": "docs/persistence-changes/2026-10-13-deepseek-search-thinking.md",
+          "disposition": "excluded",
+          "reason": "Preserve existing acknowledgement history; the optional thinking field is recorded as a new local same-version successor instead."
+        },
+        {
+          "path": "docs/persistence-changes/2026-10-13-deepseek-search-thinking.schema.json",
+          "disposition": "excluded",
+          "reason": "Preserve existing acknowledgement history; the optional thinking field is recorded as a new local same-version successor instead."
+        },
+        {
+          "path": "docs/persistence-changes/2026-10-13-deepseek-search-thinking.zh.md",
+          "disposition": "excluded",
+          "reason": "Preserve existing acknowledgement history; the optional thinking field is recorded as a new local same-version successor instead."
+        },
+        {
+          "path": "docs/persistence-changes/historical-formats/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "docs/persistence-changes/historical-formats/README.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "docs/persistence-changes/historical-formats/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "docs/persistence-schema.json",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "docs/subsystems/web.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "docs/subsystems/web.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "docs/subsystems/web.zh.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/bundle/base/cordis.patch.yml",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/bundle/base/package.json",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/client/ui-settings-web-search/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/client/ui-settings-web-search/README.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/client/ui-settings-web-search/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/client/ui-settings-web-search/src/client/WebSearchCard.module.css",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/client/ui-settings-web-search/src/client/WebSearchCard.tsx",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/client/ui-settings-web-search/src/client/index.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/client/ui-settings-web-search/src/client/locales.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/client/ui-settings-web-search/src/client/web-search-card-controller.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/client/ui-settings-web-search/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/client/ui-settings-web-search/tests/card.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/client/ui-settings-web-search/tests/controller.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/preset/agent-preset/skills/cordis-composition-reference/references/packages.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/README.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/tool-web/tests/tool-web.spec.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web-deepseek-api/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web-deepseek-api/README.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web-deepseek-api/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web-deepseek-api/locale/en.json",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web-deepseek-api/locale/zh.json",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web-deepseek-api/package.json",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web-deepseek-api/src/fetch.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web-deepseek-api/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web-deepseek-api/src/search.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web-deepseek-api/src/transport.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web-deepseek-api/tests/credentials.spec.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web-deepseek-api/tests/egress.spec.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web-deepseek-api/tests/fetch.spec.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web-deepseek-api/tests/redirect.spec.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web-deepseek-api/tests/search.spec.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web-deepseek-api/tests/transport.spec.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web-deepseek-api/tests/web-deepseek-api.e2e.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web-deepseek-api/tsconfig.json",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web-search-deepseek/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web-search-deepseek/README.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web-search-deepseek/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web-search-deepseek/src/provider.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web-search-deepseek/tests/deepseek.spec.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web/tests/web.spec.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "pnpm-lock.yaml",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "scripts/gen-doc-graphs.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "snapshots/session/deepseek-fetch/cordis.snapshot.yml",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "snapshots/session/deepseek-fetch/cordis.yml",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "snapshots/session/deepseek-fetch/deepseek-fetch-fixture.mjs",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "snapshots/session/deepseek-fetch/session.v4.jsonl",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "snapshots/session/deepseek-fetch/snapshot.yml",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "snapshots/session/web-search-endpoint-guidance/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Keep those existing recorded owners/generations. New direct Search/Fetch headless scenarios and focused endpoint-guidance tests provide local evidence for this adaptation."
+        },
+        {
+          "path": "snapshots/web/web-search-round/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Keep those existing recorded owners/generations. New direct Search/Fetch headless scenarios and focused endpoint-guidance tests provide local evidence for this adaptation."
+        },
+        {
+          "path": "tsconfig.base.json",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "tsconfig.host.json",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        }
+      ],
+      "evidence": [
+        "Implementation: 97af48298332944a722ffd1740c6636aaa10210c; shipped base composition: 8e8a547cbfbaba038498cdad6f902b39f652737a.",
+        "Web runtime/providers/tool/settings focused suites: 311 passed across 12 files, including credential scope, redirect rejection, cancellation, API mapping, limits, live selection and staged settings.",
+        "Plugins browser suite: 11 passed; model/settings combined read-only browser replay: 26 passed.",
+        "New authored deepseek-fetch and deepseek-search fixtures use shipped headless composition, atomic loopback port allocation and scoped transport rewriting. Both passed read-only replay; Search pins a model-facing summary while display metadata retains its snippet.",
+        "Added same-version persistence acknowledgement docs/persistence-changes/2026-10-24-harnessy-search-thinking.md; accepted historical schema generations are preserved.",
+        "Full source build passed. No live API probe, installed staging-window update, release publication or main-app update was performed. Later provider-readiness changes remain pending.",
+        "The pinned upstream checkpoint is unchanged; this manual adaptation acquires no unchecked upstream ancestry."
+      ]
+    },
+    "harnessy-search-summaries-20261024": {
+      "status": "adopted",
+      "summary": "Adapt optional Search summaries for bounded model reading while keeping short display snippets in presentation metadata and preserving existing result-count limits.",
+      "files": [
+        {
+          "path": ".agents/notes/implemented/feature/2026-10-15-deepseek-search-fetch-api.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Keep rationale with the adapted current provider/tool READMEs rather than importing upstream-only decision prose."
+        },
+        {
+          "path": ".agents/notes/implemented/feature/2026-10-15-deepseek-search-fetch-api.md",
+          "disposition": "excluded",
+          "reason": "Keep rationale with the adapted current provider/tool READMEs rather than importing upstream-only decision prose."
+        },
+        {
+          "path": ".agents/notes/implemented/feature/2026-10-15-deepseek-search-fetch-api.zh.md",
+          "disposition": "excluded",
+          "reason": "Keep rationale with the adapted current provider/tool READMEs rather than importing upstream-only decision prose."
+        },
+        {
+          "path": "apps/web/tests/web-search-round.e2e.ts",
+          "disposition": "excluded",
+          "reason": "Use the new authored headless Search recording for the model/display summary split; preserve this older browser Session generation."
+        },
+        {
+          "path": "docs/config-catalog.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "docs/config-catalog.zh.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "docs/subsystems/web.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "docs/subsystems/web.zh.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/extensions/tool-cordis/src/api-catalog.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/tool-web/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/tool-web/README.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/tool-web/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/tool-web/package.json",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/tool-web/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/tool-web/src/search.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/tool-web/tests/tool-web.spec.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/tool-web/tsconfig.json",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web-deepseek-api/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web-deepseek-api/README.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web-deepseek-api/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web-deepseek-api/src/search.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web-deepseek-api/tests/search.spec.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "packages/web/web/src/types.ts",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "pnpm-lock.yaml",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "snapshots/sdk/tool-error-details/system-prompt.expected.md",
+          "disposition": "excluded",
+          "reason": "No current owner at this upstream path; use the current local implementation and owning fixtures named below rather than introducing a duplicate."
+        },
+        {
+          "path": "snapshots/session/advanced-toolchain/system-prompt.expected.md",
+          "disposition": "excluded",
+          "reason": "No current owner at this upstream path; use the current local implementation and owning fixtures named below rather than introducing a duplicate."
+        },
+        {
+          "path": "snapshots/session/both-mode-turn/system-prompt.expected.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "snapshots/session/cua-ptc/system-prompt.expected.md",
+          "disposition": "excluded",
+          "reason": "No current owner at this upstream path; use the current local implementation and owning fixtures named below rather than introducing a duplicate."
+        },
+        {
+          "path": "snapshots/session/mcp-resources-ptc/system-prompt.expected.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "snapshots/session/office-progressive-ptc/system-prompt.expected.md",
+          "disposition": "excluded",
+          "reason": "No current owner at this upstream path; use the current local implementation and owning fixtures named below rather than introducing a duplicate."
+        },
+        {
+          "path": "snapshots/session/ptc-node-read-only/system-prompt.expected.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "snapshots/session/ptc-node-workspace/system-prompt.expected.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "snapshots/session/ptc-persistent/system-prompt.expected.md",
+          "disposition": "excluded",
+          "reason": "No current owner at this upstream path; use the current local implementation and owning fixtures named below rather than introducing a duplicate."
+        },
+        {
+          "path": "snapshots/session/ptc-policy-change/system-prompt.expected.md",
+          "disposition": "excluded",
+          "reason": "No current owner at this upstream path; use the current local implementation and owning fixtures named below rather than introducing a duplicate."
+        },
+        {
+          "path": "snapshots/session/ptc-python-turn/system-prompt.expected.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "snapshots/session/ptc-read-image/system-prompt.expected.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "snapshots/session/ptc-turn/system-prompt.expected.md",
+          "disposition": "adopted",
+          "reason": "Implement or regenerate this path in the current Harnessy owners, with the group adaptations and verification below."
+        },
+        {
+          "path": "snapshots/web/web-search-round/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Use the new authored headless Search recording for the model/display summary split; preserve this older browser Session generation."
+        }
+      ],
+      "evidence": [
+        "Implementation: 97af48298332944a722ffd1740c6636aaa10210c; shipped base composition: 8e8a547cbfbaba038498cdad6f902b39f652737a.",
+        "The 311 passing focused web/settings cases include optional summary validation, whitespace normalization, the configurable 800-character default cap and surrogate-pair-safe truncation.",
+        "The new deepseek-search headless recording passed read-only replay with a multi-line provider summary rendered on its source line, and the original short snippet retained in presentation metadata.",
+        "Affected current PTC prompt sidecars include the optional summary field. A broader existing ptc-turn replay still fails on Windows shell/skill-context differences and is not reported as passing.",
+        "The pinned upstream checkpoint is unchanged; this manual adaptation acquires no unchecked upstream ancestry."
+      ]
+    },
+    "harnessy-model-order-20261024": {
+      "status": "adopted",
+      "summary": "Adapt model-row drag and keyboard ordering into both current model editors. Preserve custom reasoning and capability controls, complete model metadata, disclosure state, typed capacity drafts, provider ownership and Save/Cancel semantics.",
+      "files": [
+        {
+          "path": "apps/web/tests/expected/deepseek-messages-settings/cards.expected.md",
+          "disposition": "adopted",
+          "reason": "Adapt this owner or regenerate its browser expectation against Harnessy current controls; keep the current comboboxes, model picker, branding, styling and custom reasoning rather than replacing them with upstream defaults."
+        },
+        {
+          "path": "apps/web/tests/expected/models-settings/catalog-inputs.expected.md",
+          "disposition": "adopted",
+          "reason": "Adapt this owner or regenerate its browser expectation against Harnessy current controls; keep the current comboboxes, model picker, branding, styling and custom reasoning rather than replacing them with upstream defaults."
+        },
+        {
+          "path": "apps/web/tests/expected/models-settings/declared-edit.expected.md",
+          "disposition": "adopted",
+          "reason": "Adapt this owner or regenerate its browser expectation against Harnessy current controls; keep the current comboboxes, model picker, branding, styling and custom reasoning rather than replacing them with upstream defaults."
+        },
+        {
+          "path": "apps/web/tests/expected/models-settings/image-only.expected.md",
+          "disposition": "excluded",
+          "reason": "No separate current fixture exists at this upstream path. The current Models browser scenario verifies image-only save/reopen and complete record preservation without introducing a duplicate golden owner."
+        },
+        {
+          "path": "apps/web/tests/expected/models-settings/reordered.expected.md",
+          "disposition": "adopted",
+          "reason": "Adapt this owner or regenerate its browser expectation against Harnessy current controls; keep the current comboboxes, model picker, branding, styling and custom reasoning rather than replacing them with upstream defaults."
+        },
+        {
+          "path": "apps/web/tests/expected/onboarding-deepseek-config/default-models.expected.md",
+          "disposition": "adopted",
+          "reason": "Adapt this owner or regenerate its browser expectation against Harnessy current controls; keep the current comboboxes, model picker, branding, styling and custom reasoning rather than replacing them with upstream defaults."
+        },
+        {
+          "path": "apps/web/tests/expected/onboarding-deepseek-config/models.expected.md",
+          "disposition": "adopted",
+          "reason": "Adapt this owner or regenerate its browser expectation against Harnessy current controls; keep the current comboboxes, model picker, branding, styling and custom reasoning rather than replacing them with upstream defaults."
+        },
+        {
+          "path": "apps/web/tests/models-settings.e2e.ts",
+          "disposition": "adopted",
+          "reason": "Adapt this owner or regenerate its browser expectation against Harnessy current controls; keep the current comboboxes, model picker, branding, styling and custom reasoning rather than replacing them with upstream defaults."
+        },
+        {
+          "path": "packages/client/ui-settings-models/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adapt this owner or regenerate its browser expectation against Harnessy current controls; keep the current comboboxes, model picker, branding, styling and custom reasoning rather than replacing them with upstream defaults."
+        },
+        {
+          "path": "packages/client/ui-settings-models/README.md",
+          "disposition": "adopted",
+          "reason": "Adapt this owner or regenerate its browser expectation against Harnessy current controls; keep the current comboboxes, model picker, branding, styling and custom reasoning rather than replacing them with upstream defaults."
+        },
+        {
+          "path": "packages/client/ui-settings-models/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Adapt this owner or regenerate its browser expectation against Harnessy current controls; keep the current comboboxes, model picker, branding, styling and custom reasoning rather than replacing them with upstream defaults."
+        },
+        {
+          "path": "packages/client/ui-settings-models/src/client/DeepSeekModelsEditor.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt this owner or regenerate its browser expectation against Harnessy current controls; keep the current comboboxes, model picker, branding, styling and custom reasoning rather than replacing them with upstream defaults."
+        },
+        {
+          "path": "packages/client/ui-settings-models/src/client/ModelListEditor.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt this owner or regenerate its browser expectation against Harnessy current controls; keep the current comboboxes, model picker, branding, styling and custom reasoning rather than replacing them with upstream defaults."
+        },
+        {
+          "path": "packages/client/ui-settings-models/src/client/ModelRow.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt this owner or regenerate its browser expectation against Harnessy current controls; keep the current comboboxes, model picker, branding, styling and custom reasoning rather than replacing them with upstream defaults."
+        },
+        {
+          "path": "packages/client/ui-settings-models/src/client/ModelsSection.module.css",
+          "disposition": "adopted",
+          "reason": "Adapt this owner or regenerate its browser expectation against Harnessy current controls; keep the current comboboxes, model picker, branding, styling and custom reasoning rather than replacing them with upstream defaults."
+        },
+        {
+          "path": "packages/client/ui-settings-models/src/client/locales.ts",
+          "disposition": "adopted",
+          "reason": "Adapt this owner or regenerate its browser expectation against Harnessy current controls; keep the current comboboxes, model picker, branding, styling and custom reasoning rather than replacing them with upstream defaults."
+        },
+        {
+          "path": "packages/client/ui-settings-models/src/client/useModelRows.ts",
+          "disposition": "adopted",
+          "reason": "Adapt this owner or regenerate its browser expectation against Harnessy current controls; keep the current comboboxes, model picker, branding, styling and custom reasoning rather than replacing them with upstream defaults."
+        },
+        {
+          "path": "packages/client/ui-settings-models/tests/model-order.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt this owner or regenerate its browser expectation against Harnessy current controls; keep the current comboboxes, model picker, branding, styling and custom reasoning rather than replacing them with upstream defaults."
+        }
+      ],
+      "evidence": [
+        "Implementation: 97af48298332944a722ffd1740c6636aaa10210c; adjacent consumer fixtures: e46f860644fb7bc0aad61f642091b0720196ec6f.",
+        "All 14 ui-settings-models source test files passed: 378 tests, including stable row elements, unfinished capacity text, reasoning declarations and unknown metadata through moves, removals, disabled states, Save and Cancel.",
+        "Current Models browser suite: 15 passed, including native drag with Cancel and keyboard reorder with Save, persisted order, image-only metadata and retained focus. Models plus Plugins read-only browser replay: 26 passed.",
+        "DeepSeek Messages and onboarding consumers: 6 passed in refresh and then unchanged read-only replay. Fixtures use the existing Harnessy welcome copy, current dialog/radio model picker and supported in-page directory overlay; application owners were not replaced.",
+        "Full source build and focused model bundle passed. Shared focus styling is reused by the handle. No installed staging-window, release or main-app update was performed.",
+        "The three-line handle reuses an existing icon. Later shared drag-preview/animation and broader review-fix commits are not claimed completely adopted by this root review.",
+        "No upstream ancestry was acquired and the reviewedThrough checkpoint remains unchanged."
       ]
     }
   }
