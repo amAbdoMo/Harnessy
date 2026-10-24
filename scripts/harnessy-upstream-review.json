@@ -13327,7 +13327,7 @@
       ],
       "tree": "9faf6ce1d9faf13e63ae1db9c3616e52db08bdfa",
       "subject": "feat(models): edit reasoning levels of custom model API models",
-      "review": null
+      "review": "harnessy-model-reasoning-api-values-20261024"
     },
     {
       "sha": "755c52fd77908793c60dbb7aa23d75f9fcc35128",
@@ -41162,6 +41162,90 @@
         "The real dsh --profile sdk serial-created recording passed qualified refresh and unchanged replay with ordinary/nested fork probes and no subagent.started. Its private V4 fixture/header owners remove platform shell/catalog assumptions; a runtime-directory field was normalized in the new fixture only. Shared normalizers, text-turn owners and historical generations are unchanged. All 44 snapshot layout/corpus checks passed. Nine Python client notification/subagent tests passed with isolated test dependencies; no full packaged Python runtime run is claimed.",
         "Complete source lint and all 43 doc-sync gates passed. The final prose-only Session fork correction was additionally checked through paired documentation and the doc-quick checks. The Harnessy product static guard and both Node checks passed; its broad run passed 138 Vitest cases but timed out one unchanged welcome case and disturbed its companion case. Both unchanged welcome cases passed on focused recheck, so all 140 selected product cases have passing evidence; the initial aggregate is not reported as clean.",
         "Retaining source metadata is deliberate: exclude the upstream writer/placeholder removals, manual-order replacement and parentless-delivery validator change. No existing source link or log is erased, no continuation authority is inferred from origin or parent metadata, and real runtime ownership/descriptor checks remain intact. No checkpoint, ancestry merge, app update, release, main-app update verification or foreign Android changes are included."
+      ]
+    },
+    "harnessy-model-reasoning-api-values-20261024": {
+      "status": "adopted",
+      "summary": "Adapt per-level reasoning API values into Harnessy model settings while preserving its controls, stable rows, custom declarations, defaults and explicit Off values.",
+      "files": [
+        {
+          "path": "apps/web/tests/expected/models-settings/declared-edit.expected.md",
+          "disposition": "adopted",
+          "reason": "Qualify creation, persisted API values, re-opened declarations, temporary disable/restore, default retention and continued protocol/input editing in the current 15-case Models scenario. Explicitly compose Harnessy and use its account-menu Settings navigation; keep custom account, MCP and Subagents surfaces in inspected expectations. The upstream image-only expectation has no separate current owner; its continuing input-edit behavior remains in this scenario rather than importing a stale duplicate golden."
+        },
+        {
+          "path": "apps/web/tests/expected/models-settings/image-only.expected.md",
+          "disposition": "adopted",
+          "reason": "Qualify creation, persisted API values, re-opened declarations, temporary disable/restore, default retention and continued protocol/input editing in the current 15-case Models scenario. Explicitly compose Harnessy and use its account-menu Settings navigation; keep custom account, MCP and Subagents surfaces in inspected expectations. The upstream image-only expectation has no separate current owner; its continuing input-edit behavior remains in this scenario rather than importing a stale duplicate golden."
+        },
+        {
+          "path": "apps/web/tests/models-settings.e2e.ts",
+          "disposition": "adopted",
+          "reason": "Qualify creation, persisted API values, re-opened declarations, temporary disable/restore, default retention and continued protocol/input editing in the current 15-case Models scenario. Explicitly compose Harnessy and use its account-menu Settings navigation; keep custom account, MCP and Subagents surfaces in inspected expectations. The upstream image-only expectation has no separate current owner; its continuing input-edit behavior remains in this scenario rather than importing a stale duplicate golden."
+        },
+        {
+          "path": "packages/client/ui-settings-models/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Document current per-model API values, exact blank/Off semantics, preservation of metadata/defaults, row-local restoration and pi-ai-only validation in the maintained bilingual README and recorded pairing. Exclude upstream claims that Off takes no value or that all catalog routes must lose the existing reasoning editor."
+        },
+        {
+          "path": "packages/client/ui-settings-models/README.md",
+          "disposition": "adopted",
+          "reason": "Document current per-model API values, exact blank/Off semantics, preservation of metadata/defaults, row-local restoration and pi-ai-only validation in the maintained bilingual README and recorded pairing. Exclude upstream claims that Off takes no value or that all catalog routes must lose the existing reasoning editor."
+        },
+        {
+          "path": "packages/client/ui-settings-models/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Document current per-model API values, exact blank/Off semantics, preservation of metadata/defaults, row-local restoration and pi-ai-only validation in the maintained bilingual README and recorded pairing. Exclude upstream claims that Off takes no value or that all catalog routes must lose the existing reasoning editor."
+        },
+        {
+          "path": "packages/client/ui-settings-models/src/client/CustomProviderCard.tsx",
+          "disposition": "adopted",
+          "reason": "Extend the existing per-model capability owner with editable API values and pi-ai validation. Preserve current custom provider form, three-state reasoning selection, dynamic level checkboxes, default selection, catalog inheritance and complete row records. ProviderEditor receives the matching validation adaptation; no provider-scoped reasoning setting is introduced."
+        },
+        {
+          "path": "packages/client/ui-settings-models/src/client/DeepSeekModelsEditor.tsx",
+          "disposition": "adopted",
+          "reason": "Match existing pi-ai backend admission by refusing empty and Off-only reasoning declarations in pi-ai forms. Retain the shared validator default for DeepSeek and preserve unknown metadata; expose the existing guarded map reader so editing one level never rebuilds and erases other custom API values."
+        },
+        {
+          "path": "packages/client/ui-settings-models/src/client/ModelListEditor.tsx",
+          "disposition": "adopted",
+          "reason": "Extend the existing per-model capability owner with editable API values and pi-ai validation. Preserve current custom provider form, three-state reasoning selection, dynamic level checkboxes, default selection, catalog inheritance and complete row records. ProviderEditor receives the matching validation adaptation; no provider-scoped reasoning setting is introduced."
+        },
+        {
+          "path": "packages/client/ui-settings-models/src/client/ModelReasoningEfforts.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt API value editing, trimming, blank defaults, remembered declarations and contextual help into the existing ModelListEditor capability fields and row-owned state. Exclude the duplicate component, native selects, guessed initial levels, fixed seven-level vocabulary and disabled Off field. Harnessy retains its current three-state reasoning control, default picker and dynamic adapter vocabulary; its pi-ai backend supports explicit Off API values such as none."
+        },
+        {
+          "path": "packages/client/ui-settings-models/src/client/ModelRow.tsx",
+          "disposition": "retained-newer",
+          "reason": "Keep the existing expanded row and capability slot owned by ModelListEditor. Add API inputs inside that current slot instead of introducing a second reasoning prop, switch or model-row owner; stable row identities retain unfinished values and remembered defaults through reordering."
+        },
+        {
+          "path": "packages/client/ui-settings-models/src/client/ModelsSection.module.css",
+          "disposition": "adopted",
+          "reason": "Use existing input, label and checkbox styling with a responsive API-value grid and token-based help focus. Exclude upstream switch-row, native-select and delete-row styles; preserve Harnessy model layout and compact controls."
+        },
+        {
+          "path": "packages/client/ui-settings-models/src/client/locales.ts",
+          "disposition": "adopted",
+          "reason": "Add typed English and Chinese API-value, help and pi-ai thinking-level validation copy. Explain actual provider behavior: a blank thinking value uses its id, blank Off omits the parameter and an explicit Off value remains supported. Omit unused upstream layout copy; no excluded language is added."
+        },
+        {
+          "path": "packages/client/ui-settings-models/tests/model-reasoning-efforts.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt regression coverage into the existing provider-form and components owners: preserved custom values and metadata, declaration/default restoration after reorder, Off-only pi-ai refusal, trimmed or blank thinking values, and editable explicit or omitted Off values. Keep existing declaration, default, read-only and catalog cases. Exclude tests that mandate the omitted switch/native-select layout or guessed initial levels."
+        }
+      ],
+      "evidence": [
+        "Exact upstream root f61d9982f818a9ac31e1c49d180663e4d2fb74df reviewed across all 14 changed paths; local implementation 2cc8568a19ba10cb026f2e454716c436136f6408. Verified 2026-10-24 on Windows, Harnessy 0.1.17, Node 24.14.0 and pnpm 11.7.0.",
+        "All 385 ui-settings-models owner tests passed in fourteen files. Dedicated restoration negative control failed when only the row declaration restoration was disabled, then restored the exact source. New regressions cover wire-value preservation, unknown metadata, reorder/default restoration, pi-ai Off-only validation, trimmed/blank thinking values and editable Off values. The first exploratory aggregate included an incomplete jsdom scrolling fixture and is not claimed as clean evidence.",
+        "Two existing llm-pi-ai HTTP-mock adapter cases passed: declared High maps to its custom wire spelling, undeclared levels are rejected before network I/O, and explicit Off none is sent. Off omission versus explicit values is based on the current backend rather than the upstream UI assumption. No live provider API request is claimed.",
+        "The complete custom-harness build passed with 369 Client artifacts and eleven public values. All fifteen Models browser cases passed qualified refresh and unchanged replay against an explicit Harnessy overlay. Saved profile data contains high: ultra and off: none; reopening and temporary disable/restore retain those values and the selected High default. All six changed owner expectations were inspected and preserve custom navigation/account UI.",
+        "Complete source lint and all 43 doc-sync gates passed; final comment/navigation edits passed focused repository oxlint. A mistaken direct ESLint invocation found no ESLint configuration and was replaced by the repository lint runner; no ESLint pass is claimed. Full build initially exposed exact-optional field typing and passed after the row-state type correction.",
+        "No upstream checkpoint or ancestry is advanced. No installed staging-window rebuild/update, release, main-app update verification, new checkout or foreign Android change is included. API-value UI is source/built-Web verified; physical Desktop interaction and live provider compatibility beyond declared adapter semantics remain unverified."
       ]
     }
   }
