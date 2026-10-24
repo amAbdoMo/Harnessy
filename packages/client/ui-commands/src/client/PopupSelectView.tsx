@@ -1,8 +1,8 @@
 /**
  * Official popupSelect shell: renders one session's PopupSelectController
  * store into the conversation.input.overlay anchor. Unlike the slash menu
- * (combobox — textarea keeps focus), this shell HOLDS focus while open: the
- * inner search input takes focus, plain typing filters the loaded options
+ * (combobox — textarea keeps focus), this shell focuses its search input on
+ * desktop; phones and tablets require explicit search focus. Typing filters the loaded options
  * locally, Enter and Tab accept the filtered highlight, ↑↓ walk it (wrapping,
  * scrolled into view), and Escape and Shift+Tab dismiss back to the composer.
  * ←→ keep the search input's native caret. Any pointer interaction outside the
@@ -14,7 +14,7 @@ import { MenuGroup, MenuSurface, observeStickyMenuGroups } from '@deepseek-ai/ds
 import { Fragment, useEffect, useMemo, useRef } from 'react'
 import { useSyncExternalStore } from 'react'
 import clsx from 'clsx'
-import { IconCheckOutlineRegular, RiskConfirmation, useAnchoredMaxHeight } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconCheckOutlineRegular, isMobileDevice, RiskConfirmation, useAnchoredMaxHeight } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import { filterOptions } from './popup.ts'
 import type { SelectOption } from './contract.ts'
@@ -84,7 +84,7 @@ export function PopupSelectView({ popup, t }: PopupSelectViewProps) {
 
   // Focus the search input after it mounts (separate effect so the ref is populated).
   useEffect(() => {
-    if (state.open && state.confirming === null) searchRef.current?.focus()
+    if (state.open && state.confirming === null && !isMobileDevice()) searchRef.current?.focus()
   }, [state.open, state.confirming])
 
   if (!state.open) return null

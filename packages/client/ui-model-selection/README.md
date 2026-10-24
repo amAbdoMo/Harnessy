@@ -27,6 +27,8 @@ The Web GUI lets users switch an existing session's model and reasoning effort t
 <a id="use-this-package"></a>
 ## Use this package
 
+On identified phones and tablets, opening the model dialog focuses its close button instead of the search field, keeping the keyboard closed until the user focuses search. Desktop entry still focuses search.
+
 DeepSeek account and API-key routes appear as separate provider groups, each exposing the same configured model catalog.
 
 The unselected model label uses the same regular weight as an available model name and retains the saved reasoning effort caption for existing and new sessions; effort editing requires an available model. Clicking the unselected trigger opens the model list directly; Escape closes it.

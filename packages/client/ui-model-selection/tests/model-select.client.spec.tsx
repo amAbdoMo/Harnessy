@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
+import * as uiPrimitives from '@deepseek-ai/dsh-client-ui-primitives'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi, onTestFinished } from 'vitest'
 import type { ComponentProps } from 'react'
 import type { ModelSelection } from '@deepseek-ai/dsh-api-remotes/client'
 import { makeTranslate, RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
@@ -433,4 +434,22 @@ it('restores the catalog name after account login without changing the saved rou
   act(() => { directory.update((snapshot) => { snapshot.groups = groups; snapshot.routable = true }) })
   expect(screen.getByRole('button', { name: /选择模型，当前/ }).textContent).toBe('DeepSeek FlashHigh')
   expect(directory.getSnapshot().current).toEqual(selected)
+})
+
+
+it('opens the existing model dialog without mobile search focus and permits explicit typing', () => {
+  const detection = vi.spyOn(uiPrimitives, 'isMobileDevice').mockReturnValue(true)
+  onTestFinished(() => { detection.mockRestore() })
+  mount()
+  fireEvent.click(screen.getByRole('button', { name: /DeepSeek-V4-Flash/ }))
+  const dialog = screen.getByRole('dialog')
+  const search = within(dialog).getByRole('textbox')
+  expect(document.activeElement).not.toBe(search)
+  expect(dialog.contains(document.activeElement)).toBe(true)
+  act(() => { search.focus() })
+  expect(document.activeElement).toBe(search)
+  fireEvent.change(search, { target: { value: 'absent-model' } })
+  expect(within(dialog).queryByRole('radio', { name: /DeepSeek-V4-Flash/ })).toBeNull()
+  fireEvent.keyDown(search, { key: 'Escape' })
+  expect(screen.queryByRole('dialog')).toBeNull()
 })

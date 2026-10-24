@@ -25,6 +25,8 @@ Typing a `/` command opens a registered popup, a client action, a host command's
 <a id="use-this-package"></a>
 ## Use this package
 
+On identified phones and tablets, popup search waits for explicit user focus; desktop popups focus search automatically. Filtering and keyboard selection remain available after focus.
+
 Mount this plugin alongside `ui-input-trigger` and `ui-conversation`; the `/` source then appears in the trigger menu, and business packages register their command surfaces through `ctx.commandUi`. Typing `/model` opens the registered popup; a host command with an argument claim opens its input or executes directly. The popup holds composer focus: typing filters the loaded rows locally, `↑`/`↓` walk them, Enter and `Tab` accept the highlighted row, and Escape and `Shift+Tab` return to the composer. The highlight opens on the row the options mark as the session's current value, so accepting on a freshly opened panel confirms it. The composer's `+` button and a typed `/` open the same menu: an Add section (File, Goal, Plan, Feedback) and a Commands section (Compact, Permission, Model, Fast mode, Export) in usage order, each row with a glyph, a localized title and description, and the command name as an alias where the localized title differs from it.
 
 ### Kinds and decorations

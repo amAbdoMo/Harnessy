@@ -10,7 +10,7 @@ import clsx from 'clsx'
 import type { ModelReasoningEffort, ModelSelection } from '@deepseek-ai/dsh-api-remotes/client'
 import {
   IconCheckOutlineRegular, IconChevronDownOutlineRegular, IconDataOutlineRegular, IconLightningFilledRegular,
-  IconSearchOutlineRegular, IconWarningOutlineRegular, Input, Modal, rankByName, StateDot, Toast,
+  IconSearchOutlineRegular, IconWarningOutlineRegular, Input, isMobileDevice, Modal, rankByName, StateDot, Toast,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ModelSelectInjected } from './slots.ts'
@@ -221,7 +221,7 @@ export function ModelSelect(
           <section className={css.modelsPanel} aria-labelledby={`${id}-models`}>
             <h3 className={css.panelTitle} id={`${id}-models`}>{t('dialog.models')}</h3>
             <Input
-              data-modal-autofocus
+              data-modal-autofocus={isMobileDevice() ? undefined : true}
               className={clsx(css.search)}
               icon={<IconSearchOutlineRegular />}
               value={query}

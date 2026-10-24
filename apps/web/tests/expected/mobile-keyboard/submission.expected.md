@@ -1,0 +1,2 @@
+- Desktop: automatic model and command search focus retained; explicit focus available; Send clears the draft; editor focused through response completion
+- Mobile: automatic model and command search focus suppressed; explicit focus available; Send clears the draft; editor unfocused through response completion

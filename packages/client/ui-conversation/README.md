@@ -27,6 +27,8 @@ Desktop product events use the optional [product analytics service](../product-a
 <a id="conversation-assembly"></a>
 ## Conversation assembly
 
+On identified mobile devices, mounting or switching the composer leaves text-input focus to the user. An accepted submission that empties the draft dismisses the keyboard; newer draft suffixes and rejected submissions retain focus. Desktop focus and explicit user focus remain available.
+
 `UiConversation.events` is the single registry for event Definitions, and `UiConversation.views` is the single registry for target snapshot builders. Both registries reject duplicate keys, preserve registration order, return idempotent disposers, and rebuild existing bindings when their contribution roster changes. `UiConversation.binding(bindingOrSessionId)` returns one identity-stable Conversation binding for the current Session Controller binding. It does not open another event source. A View Definition may declare `toolCallFocus` to translate a tool-call id into its focus identity. Conversation supplies an Inspect callback only while such a target has a visible View entry; Chat consumes this callback without selecting a target.
 
 `UiConversation.contextKey(kind, id)` resolves a Definition's stable node key for indexed target-node lookup. Consumers need neither serialize the key themselves nor scan the target's node collection.

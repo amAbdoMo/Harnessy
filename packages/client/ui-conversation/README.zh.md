@@ -27,6 +27,8 @@ kind: "package-reference"
 <a id="conversation-assembly"></a>
 ## Conversation 组装
 
+在识别出的移动设备上，composer 挂载或切换时由用户主动聚焦文本输入框。已接受的提交清空草稿后会收起键盘；较新的草稿后缀和被拒绝的提交保留焦点。桌面聚焦和用户主动聚焦仍然可用。
+
 `UiConversation.events` 是 event Definition 的唯一 registry，`UiConversation.views` 是 target snapshot builder 的唯一 registry。两者都拒绝重复 key、保持注册顺序、返回幂等 disposer，并在 contribution roster 变化时重建现有 binding。`UiConversation.binding(bindingOrSessionId)` 为当前 Session Controller binding 返回 identity 稳定的 Conversation binding，不会另开事件源。 View Definition 可以声明 `toolCallFocus`，将工具调用 id 转换为自身的焦点标识。仅当此目标拥有可见的 View 条目时，Conversation 才提供 Inspect 回调；Chat 直接使用回调，不选择目标。
 
 `UiConversation.contextKey(kind, id)` 解析 Definition 的稳定节点键，供按索引查找目标节点。使用方无需自行序列化键，也无需扫描目标的节点集合。

@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 /** Composer selection survives focus transfers and background editor reconciliation. */
+import * as uiPrimitives from '@deepseek-ai/dsh-client-ui-primitives'
 import { expect, it, onTestFinished, vi } from 'vitest'
 import { $getRoot, $getSelection, $isRangeSelection, SELECTION_CHANGE_COMMAND, UNDO_COMMAND } from 'lexical'
 import { DraftEditorRuntime } from '../src/client/input/editor/runtime.ts'
-import { focusDraftEditor } from '../src/client/input/editor/view-binding.ts'
+import { focusDraftEditor, installDraftKeyboardDismissal } from '../src/client/input/editor/view-binding.ts'
 
 function fixture(start = 1, end = 4) {
   // jsdom has no Range geometry; these cases observe selection and focus, not scrolling.
@@ -149,4 +150,20 @@ it('removes focus preservation and update subscriptions when registration is dis
   f.editor.update(() => { $getRoot().getFirstDescendant()!.markDirty() }, { discrete: true })
   expect(document.activeElement).toBe(f.root)
   expect(f.onUpdate).not.toHaveBeenCalled()
+})
+
+
+it('retains mobile focus for a newer draft suffix and removes dismissal with the view', () => {
+  const detection = vi.spyOn(uiPrimitives, 'isMobileDevice').mockReturnValue(true)
+  onTestFinished(() => { detection.mockRestore() })
+  const f = fixture()
+  const dispose = installDraftKeyboardDismissal(f.editor)
+  onTestFinished(dispose)
+  f.runtime.clearCommittedDraft(() => 6)
+  expect(f.root.textContent).toBe('beta')
+  expect(document.activeElement).toBe(f.root)
+  dispose()
+  f.runtime.clearCommittedDraft(() => null)
+  expect(f.root.textContent).toBe('')
+  expect(document.activeElement).toBe(f.root)
 })

@@ -9,6 +9,7 @@
 // the shell (jsdom's beforeinput lacks the ranges Lexical needs).
 
 import './control-row-dom.ts'
+import * as uiPrimitives from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InboxState } from '@deepseek-ai/dsh-agent/types'
 import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
 import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
@@ -1776,4 +1777,50 @@ it('places context usage below the composer and hides it until the activity clos
   fireEvent.click(view.getByRole('button', { name: '上下文已用 25%' }))
   expect(view.getByRole('dialog', { name: '上下文已用' })).toBeTruthy()
   expect(view.getByRole('button', { name: '发送消息' })).toBeTruthy()
+})
+
+
+it.each([true, false])('composer automatic focus and accepted submissions respect mobile=%s', async (mobile) => {
+  const detection = vi.spyOn(uiPrimitives, 'isMobileDevice').mockReturnValue(mobile)
+  onTestFinished(() => { detection.mockRestore() })
+  const outside = document.createElement('button')
+  document.body.append(outside)
+  onTestFinished(() => { outside.remove() })
+  outside.focus()
+  const { view, textarea, props, shell, button, sink } = bench({ draft: 'draft' })
+  expect(document.activeElement).toBe(mobile ? outside : textarea)
+  act(() => { outside.focus() })
+  act(() => { view.rerender(<InputBar {...props} sessionId={'s2' as SessionId} />) })
+  expect(document.activeElement).toBe(mobile ? outside : textarea)
+  act(() => { textarea.focus() })
+  expect(document.activeElement).toBe(textarea)
+  writeDraft(shell, '')
+  fireEvent.keyDown(textarea, { key: 'Enter' })
+  expect(sink).not.toHaveBeenCalled()
+  expect(document.activeElement).toBe(textarea)
+  for (const gesture of ['click', 'enter'] as const) {
+    writeDraft(shell, 'send by ' + gesture)
+    act(() => { textarea.focus() })
+    if (gesture === 'click') {
+      fireEvent.mouseDown(button, { button: 0 })
+      fireEvent.click(button)
+    } else fireEvent.keyDown(textarea, { key: 'Enter' })
+    await act(async () => {})
+    expect(sink).toHaveBeenLastCalledWith('send by ' + gesture, [], 'queue', expect.any(AbortSignal))
+    expect(shell.snapshot.draft).toBe('')
+    expect(document.activeElement === textarea).toBe(!mobile)
+  }
+  writeDraft(shell, '/goal ')
+  act(() => {
+    shell.beginCommand(
+      { name: 'goal', token: '/goal ', submit: () => Promise.resolve({ kind: 'error', text: 'Missing goal' }) },
+      { start: 0, end: 6, draftRev: shell.snapshot.draftRev },
+    )
+    textarea.focus()
+  })
+  fireEvent.keyDown(textarea, { key: 'Enter' })
+  await act(async () => {})
+  expect(shell.snapshot.phase).toBe('claimed')
+  expect(shell.snapshot.draft).toBe('/goal ')
+  expect(document.activeElement).toBe(textarea)
 })

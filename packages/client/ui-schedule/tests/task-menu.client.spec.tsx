@@ -4,9 +4,10 @@
  * handover a portaled list performs once it is placed, the row walk, and the
  * dismissal and focus-return paths the task manager's four menus rely on.
  */
+import * as uiPrimitives from '@deepseek-ai/dsh-client-ui-primitives'
 import { useState } from 'react'
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi, onTestFinished } from 'vitest'
 import { TaskMenu } from '../src/client/TaskMenu.tsx'
 import type { TaskMenuEntry } from '../src/client/TaskMenu.tsx'
 import taskMenuCss from '../src/client/TaskMenu.module.css'
@@ -400,4 +401,24 @@ describe('TaskMenu', () => {
     }
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'trigger' }))
   })
+})
+
+
+it('leaves the mobile task-menu header search for explicit focus after placement', () => {
+  const detection = vi.spyOn(uiPrimitives, 'isMobileDevice').mockReturnValue(true)
+  onTestFinished(() => { detection.mockRestore() })
+  const menu = (open: boolean) => <TaskMenu open={open} portal
+    anchor={<button type="button">trigger</button>}
+    header={<input data-menu-field aria-label="Filter" />} items={ITEMS}
+    onSelect={() => {}} onClose={() => {}} />
+  const { rerender } = render(menu(false))
+  const trigger = screen.getByRole('button', { name: 'trigger' })
+  trigger.focus()
+  rerender(menu(true))
+  const field = screen.getByRole('textbox', { name: 'Filter' })
+  expect(document.activeElement).toBe(trigger)
+  act(() => { field.focus() })
+  expect(document.activeElement).toBe(field)
+  fireEvent.change(field, { target: { value: 'query' } })
+  expect(field).toHaveProperty('value', 'query')
 })
