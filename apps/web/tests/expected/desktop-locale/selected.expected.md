@@ -4,7 +4,6 @@
     - button "General"
     - button "Models"
     - button "Built-in plugins"
-    - button "Agent presets"
   - button "Open configuration file"
   - button "Close"
   - text: Permission Choose the default permission mode for new sessions
@@ -20,8 +19,8 @@
   - button "Decrease font size"
   - text: px Work details Choose how much detail to show for tool calls
   - button "Standard"
-  - text: Show coding view Shows trajectory, code diffs, and all Agent presets
-  - switch "Show coding view" [checked]
+  - text: Coding Tools Shows trajectory, code diffs, and all Agent presets
+  - switch "Coding Tools" [checked]
   - text: Keyboard shortcuts
   - paragraph: View and edit available shortcuts and input actions
   - button "Edit shortcuts"

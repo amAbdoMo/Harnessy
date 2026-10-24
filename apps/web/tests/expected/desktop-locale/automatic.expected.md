@@ -4,24 +4,23 @@
     - button "通用设置"
     - button "模型"
     - button "内置插件"
-    - button "Agent 预设"
   - button "打开配置文件"
   - button "关闭"
   - text: 权限 选择新会话的默认权限模式
   - button "工作区内修改"
   - text: 语言
-  - button "中文"
-  - text: 外观
-  - button "浅色"
-  - button "深色"
-  - button "跟随系统" [pressed]
-  - text: 字号大小 仅影响会话内容的字号 14
-  - button "增大字号"
-  - button "减小字号"
+  - button "简体中文"
+  - text: Appearance
+  - button "Light"
+  - button "Dark"
+  - button "System" [pressed]
+  - text: Font size Only affects conversation content 14
+  - button "Increase font size"
+  - button "Decrease font size"
   - text: px 工作步骤展示 选择希望看到多少工具调用细节
   - button "标准"
-  - text: 显示代码工作视图 开启后，显示轨迹、本轮代码差异，可选择完整的 Agent 预设切换
-  - switch "显示代码工作视图" [checked]
+  - text: 代码工作工具 开启后，显示轨迹、本轮代码差异，可选择完整的 Agent 预设切换
+  - switch "代码工作工具" [checked]
   - text: 快捷键
   - paragraph: 查看和编辑当前可用的快捷键和输入操作
   - button "编辑快捷键"

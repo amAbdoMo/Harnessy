@@ -65,6 +65,28 @@ function faceOf(slots: SlotRegistry) {
 }
 
 describe('locale apply', () => {
+  it('releases the shipped dictionaries with the plugin and restores them on reload', async () => {
+    const b = await bench('en')
+    try {
+      const fiber = b.ctx.plugin({ inject: [...inject], apply })
+      await fiber.await()
+      const locale = b.ctx.get('locale') as LocaleRuntime
+      expect(locale.bind('common')('cancel')).toBe('Cancel')
+      expect(locale.bind(SETTINGS_NS)('language.title')).toBe('Language')
+      await fiber.dispose()
+      expect(locale.bind('common')('cancel')).toBe('cancel')
+      expect(locale.bind(SETTINGS_NS)('language.title')).toBe('language.title')
+      const reloaded = b.ctx.plugin({ inject: [...inject], apply })
+      await reloaded.await()
+      const current = b.ctx.get('locale') as LocaleRuntime
+      expect(current.getSnapshot().locales.map(option => option.id)).toEqual(['zh', 'en'])
+      expect(current.bind('common')('cancel')).toBe('Cancel')
+      expect(current.bind(SETTINGS_NS)('language.title')).toBe('Language')
+    } finally {
+      await b.ctx.fiber.dispose()
+    }
+  })
+
   it.each(['resolve', 'reject'] as const)('contains a late native initialization %s after unloading', async (outcome) => {
     const b = await bench()
     const ready = Promise.withResolvers<unknown>()
