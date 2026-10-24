@@ -1,2 +1,6 @@
+- Desktop: responsive resize retains the editor, focus, draft and caret
+- Desktop: typing with a keyboard-panned viewport preserves page scroll and composer position
 - Desktop: automatic model and command search focus retained; explicit focus available; Send clears the draft; editor focused through response completion
+- Mobile: responsive resize retains the editor, focus, draft and caret
+- Mobile: typing with a keyboard-panned viewport preserves page scroll and composer position
 - Mobile: automatic model and command search focus suppressed; explicit focus available; Send clears the draft; editor unfocused through response completion
