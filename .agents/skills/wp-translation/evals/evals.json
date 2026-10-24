@@ -39,6 +39,19 @@
         "Searches existing records and uses expected revisions/reconciliation to prevent duplicate or conflicting updates.",
         "Does not claim a persistent save occurred or promise autonomous permanent learning in this offline exercise."
       ]
+    },
+    {
+      "id": 4,
+      "prompt": "Offline learning exercise; do not access a site or save real knowledge. A saved WPML procedure has verification evidence but no check date or versions. The current site's Elementor version differs from a version mentioned in an older note. A new repair was checked on 2026-10-20 with WordPress 6.8.3, WPML 4.7.6 and Elementor 3.32.1; content and relationships were re-read, but no browser checkout test was possible. Today is 2026-10-23. Explain how to use the old lesson, represent the new evidence in the existing record format, and handle a failed save or a saved unverified candidate in the completion message. These versions and dates are fictional exercise inputs, not live compatibility claims.",
+      "expected_output": "Revalidates version-sensitive old guidance, preserves unknown historical details, records the actual check date and observed versions in bounded verification evidence, reports browser limits, and avoids a confirmed-update notice without a verified write.",
+      "files": [],
+      "assertions": [
+        "Does not infer a historical verification date from creation time or today.",
+        "Rechecks changed component conditions before applying the old procedure.",
+        "Uses existing evidence fields with 2026-10-20, supplied versions and the unavailable browser check.",
+        "Does not claim current cross-version compatibility or successful live-site work.",
+        "Emits no successful memory-update notice for failed or hypothetical writes; identifies a confirmed saved candidate as unverified."
+      ]
     }
   ]
 }

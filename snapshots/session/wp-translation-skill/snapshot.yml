@@ -7,6 +7,5 @@ header:
   class: wp-translation-skill
   pin: true
   systemPromptSource: text-turn
-  toolSchemasSource: text-turn
 workspace:
   setup: wp-translation-skill

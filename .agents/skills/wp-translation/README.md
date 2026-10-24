@@ -14,15 +14,17 @@ Use the existing WordPress MCP connection with a small translation workflow, pro
 
 ## Activation
 
-In a Harnessy session whose workspace is this staging checkout, the existing filesystem skill provider discovers this directory under `.agents/skills`. Load `wp-translation` explicitly for the first task and confirm the returned resource directory points here. No application build or new WordPress plugin is required.
+The maintained source is `.agents/skills/wp-translation` in the canonical Harnessy staging repository. The shared installation is the complete bundle under the configured shared skills folder, normally `~/.agents/skills/wp-translation`. Project and shared copies use the same external lesson store unless explicitly configured otherwise. Project skills can override a same-name shared skill, so both bundles must carry the same reviewed instructions and helper files.
 
-For use across unrelated local or remote-site sessions, install a copy of the complete `wp-translation` directory in the shared skills folder selected in Harnessy Settings > General, normally `~/.agents/skills`. Preserve the `references` and `scripts` directories. Check for an existing same-name skill before copying; project skills can override shared ones. The existing loader watches skill roots, but actual availability must be confirmed in the target session's skill catalog. The staged implementation does not change your shared folder, active settings, or installed application.
+For a skill update, compare both bundles first and reconcile any independent edits into the repository source. Preserve a recoverable copy before replacing differing installed files. After validation, synchronize the complete reviewed bundle into the shared directory and compare relative file lists and contents, excluding generated Python caches. Do not copy the external lesson database into either bundle or overwrite unrelated skills. Confirm the resource directory in the target session; filesystem discovery does not guarantee that an existing conversation has refreshed. This is an update procedure, not a background synchronization service.
+
+Load `wp-translation` explicitly for the first task and check the returned resource directory. No application build or WordPress plugin installation is required. Remote machines need their own installed bundle and authorized connection.
 
 Other agents can load the same portable directory if they support instruction skills and Python execution. They need separate authorized WordPress access. The skill does not bundle an MCP server or assume one site's credentials.
 
 ## Using corrections
 
-Ask for a normal translation task, or explicitly say “Use wp-translation.” State the site and languages. When correcting the result, say whether the preference is for this site or all your sites. The agent searches for matching knowledge, updates a stable record with an expected revision, and reports what it saved. Technical guesses remain candidates until verified.
+Ask for a normal translation task, or explicitly say “Use wp-translation.” State the site and languages. When correcting the result, say whether the preference is for this site or all your sites. The agent searches for matching knowledge, updates a stable record with an expected revision, and confirms the saved record. Meaningful confirmed changes receive the brain-icon **Memory updated:** blockquote defined in the [completion instructions](SKILL.md#completion); candidates are labeled unverified and unchanged memory produces no notice. Technical guesses remain candidates until verified. Technical lessons record actual verification dates and relevant observed plugin versions using the [learning format](references/learning.md#verification-details); missing historical details stay unknown until rechecked.
 
 Examples:
 
@@ -40,10 +42,10 @@ Nothing synchronizes to another computer or uploads to a service automatically. 
 
 ## Verification
 
-Run the local helper checks from the repository root, replacing `python` with the bundled interpreter when available:
+Run the local helper checks from the skill directory, replacing `python` with the bundled interpreter when available:
 
 ```text
-python -B -m unittest discover -s .agents/skills/wp-translation/tests -v
+python -B -m unittest discover -s tests -v
 ```
 
 The tests use temporary SQLite databases, not the user's default store. The repository's `wp-translation-skill` recorded-session scenario loads the current instruction source through the shipped headless profile. [Offline evaluation prompts](evals/evals.json) exercise catalog translation, Polylang/CPT mapping, and scoped learning with an untrusted instruction. They do not establish live-site compatibility or measure long-term correction reduction.

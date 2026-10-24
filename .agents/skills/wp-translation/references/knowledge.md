@@ -44,7 +44,7 @@ Use `--include-candidates` only to investigate unresolved lessons, not to activa
 }
 ```
 
-This is a fictitious format example, not a lesson to install. Read [learning](learning.md) before writing real records. For a new ID use expected revision `0`; for an update use the revision just read. Do not send the `get` wrapper: save its `record` object after justified changes. Global scope requires `site: null` and `--allow-global`, with explicit human intent for cross-site reuse. New technical procedures/site profiles need declared verification evidence before active status; the helper checks evidence categories, not truth.
+This is a fictitious format example, not a lesson to install. Read [learning](learning.md) before writing real records. For a new ID use expected revision `0`; for an update use the revision just read. Do not send the `get` wrapper: save its `record` object after justified changes. Global scope requires `site: null` and `--allow-global`, with explicit human intent for cross-site reuse. New technical procedures/site profiles need declared verification evidence before active status; include check dates and observed component versions using the [verification-details format](learning.md#verification-details). These details use the existing evidence note, so older records and schema remain compatible. The helper checks evidence categories, not truth or freshness.
 
 ## History, recovery, and failure
 

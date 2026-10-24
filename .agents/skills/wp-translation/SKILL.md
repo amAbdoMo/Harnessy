@@ -11,7 +11,7 @@ Use existing WordPress/MCP capabilities. This skill supplies procedures and pers
 
 1. Identify the exact site (including a WordPress subdirectory), requested languages, task, and allowed changes. Discover the active translation provider, relevant integrations, versions, content types, and available read/write tools. Do not infer provider or language from tool names alone.
 2. Read [knowledge](references/knowledge.md) to retrieve applicable saved lessons. Use the bundled interpreter when available. Search by site, provider, task tags, and language; fetch only relevant records. An unavailable store is a visible limitation, not a reason to stop otherwise safe work.
-3. Load only the relevant modules below. Refresh saved site facts against live configuration before using identifiers or compatibility-sensitive procedures. Do not replay old conversations or load the whole library.
+3. Load only the relevant modules below. Refresh saved site facts against live configuration before using identifiers or compatibility-sensitive procedures; compare recorded verification dates and relevant versions, treating missing details as unknown. Do not replay old conversations or load the whole library.
 
 | Task | Read |
 |---|---|
@@ -35,4 +35,10 @@ For an unsupported provider, use discovery and structured-content guidance, then
 
 ## Completion
 
-Report translated/repaired scope, checks actually performed, remaining issues, and any saved lesson IDs and scope. Distinguish frontend scans from browser checks and data integrity from functional verification. If persistence failed, say the correction is applied only to this session. Never claim the skill learns autonomously, guarantees compliance, or has retrained the model.
+Report translated/repaired scope, checks actually performed, and remaining issues. Distinguish frontend scans from browser checks and data integrity from functional verification. If persistence failed, report that the lesson was not saved for future sessions separately from whether the site correction succeeded. Never claim the skill learns autonomously, guarantees compliance, or has retrained the model.
+
+After a meaningful memory change succeeds and is read back, add one short sentence in a separate Markdown blockquote with the brain icon and bold **Memory updated:** label, using the response language. Summarize what was saved and its scope; include the lesson ID when useful for retrieval. For example, after an actual verified save:
+
+> 🧠 **Memory updated:** Saved your approved Arabic terminology for this site (`shop-ar-terms`).
+
+Use this format for saved preferences, glossary choices, verified procedures, revisions and retirements. If only a candidate was saved, say it is **unverified** and not active guidance. Combine multiple saved changes into one notice. Omit the notice when nothing changed, the save/read-back failed, or the task only proposed a lesson. A successful save without read-back confirmation must be reported as unconfirmed. Keep the notice outside code blocks; colors are controlled by the renderer/theme, with no custom HTML or styling claims.
