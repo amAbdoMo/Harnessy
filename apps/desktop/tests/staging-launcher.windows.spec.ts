@@ -1,18 +1,100 @@
-import { execFile, spawn } from 'node:child_process'
+import { execFile, spawn, type ChildProcess } from 'node:child_process'
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { promisify } from 'node:util'
 import { describe, expect, it, onTestFinished } from 'vitest'
 import { updateStagingRuntime } from '../scripts/staging-runtime-store.ts'
 
+interface OwnedProcess {
+  readonly child: ChildProcess
+  readonly closed: Promise<void>
+}
+
+function execute(
+  owned: Set<OwnedProcess>, file: string, args: readonly string[], env: NodeJS.ProcessEnv,
+): Promise<{ stdout: string; stderr: string }> {
+  let child!: ChildProcess
+  let close!: () => void
+  const closed = new Promise<void>((resolveClose) => { close = resolveClose })
+  const result = new Promise<{ stdout: string; stderr: string }>((resolveResult, rejectResult) => {
+    child = execFile(file, args, { env, encoding: 'utf8', windowsHide: true }, (error, stdout, stderr) => {
+      if (error === null) resolveResult({ stdout, stderr })
+      else {
+        rejectResult(Object.assign(new Error(error.message, { cause: error }), {
+          stdout, stderr, code: error.code, killed: error.killed, signal: error.signal,
+        }))
+      }
+    })
+  })
+  child.once('close', close)
+  owned.add({ child, closed })
+  return result
+}
+
+async function stopOwnedProcesses(owned: Set<OwnedProcess>): Promise<void> {
+  for (const { child } of owned) {
+    if (child.exitCode !== null || child.signalCode !== null || child.pid === undefined) continue
+    await new Promise<void>((resolveStop) => {
+      execFile('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true }, () => { resolveStop() })
+    })
+  }
+  await Promise.allSettled([...owned].map(({ closed }) => closed))
+}
+
 describe.skipIf(process.platform !== 'win32')('Windows protected staging launcher', () => {
+  it.each(['Start', 'Stop', 'Build', 'Update'])('rejects %s from another checkout without changing its registered location', async (action) => {
+    const root = mkdtempSync(join(tmpdir(), 'staging registration '))
+    const owned = new Set<OwnedProcess>()
+    onTestFinished(async () => {
+      await stopOwnedProcesses(owned)
+      rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+    })
+    const repository = join(root, 'duplicate')
+    const launcher = join(repository, 'apps', 'desktop', 'scripts', 'staging-launcher.ps1')
+    mkdirSync(dirname(launcher), { recursive: true })
+    copyFileSync(resolve('apps/desktop/scripts/staging-launcher.ps1'), launcher)
+    const localData = join(root, 'local-app-data')
+    const registration = join(localData, 'CustomHarnessStaging', 'StagingDesktopLauncher', 'repository.txt')
+    mkdirSync(dirname(registration), { recursive: true })
+    const canonical = join(root, 'canonical')
+    writeFileSync(registration, canonical)
+
+    await expect(execute(owned, 'powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', launcher, '-Action', action],
+      { ...process.env, LOCALAPPDATA: localData })).rejects.toHaveProperty(
+      'stderr', expect.stringContaining('staging is already registered'))
+    expect(readFileSync(registration, 'utf8')).toBe(canonical)
+  }, 30_000)
+
+  it.each(['same repository', 'invalid registration'])('validates %s before native startup', async (scenario) => {
+    const repository = mkdtempSync(join(tmpdir(), 'staging canonical '))
+    const owned = new Set<OwnedProcess>()
+    onTestFinished(async () => {
+      await stopOwnedProcesses(owned)
+      rmSync(repository, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+    })
+    const launcher = join(repository, 'apps', 'desktop', 'scripts', 'staging-launcher.ps1')
+    mkdirSync(dirname(launcher), { recursive: true })
+    copyFileSync(resolve('apps/desktop/scripts/staging-launcher.ps1'), launcher)
+    const localData = join(repository, 'local-app-data')
+    const registration = join(localData, 'CustomHarnessStaging', 'StagingDesktopLauncher', 'repository.txt')
+    mkdirSync(dirname(registration), { recursive: true })
+    writeFileSync(registration, scenario === 'same repository' ? repository.toUpperCase() : '../duplicate')
+
+    await expect(execute(owned, 'powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', launcher, '-Action', 'Start'],
+      { ...process.env, LOCALAPPDATA: localData })).rejects.toHaveProperty(
+      'stderr', expect.stringContaining(scenario === 'same repository' ? 'No verified staging runtime exists' : 'repository registration is invalid'))
+  }, 30_000)
+
   it('isolates a sealed runtime alongside installed Harnessy and reports its actual exit code without workspace build tools', async () => {
     const repository = realpathSync.native(mkdtempSync(join(tmpdir(), 'staging launcher with spaces ')))
+    const owned = new Set<OwnedProcess>()
     const cleanup: { disposeInstalled?: () => Promise<void> } = {}
     onTestFinished(async () => {
       try { await cleanup.disposeInstalled?.() }
-      finally { rmSync(repository, { recursive: true, force: true }) }
+      finally {
+        await stopOwnedProcesses(owned)
+        rmSync(repository, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+      }
     })
     const launcher = join(repository, 'apps', 'desktop', 'scripts', 'staging-launcher.ps1')
     mkdirSync(dirname(launcher), { recursive: true })
@@ -71,6 +153,7 @@ process.stdout.write('ready\\n')
     const installedExit = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolveExit) => {
       installed.once('close', (code, signal) => { resolveExit({ code, signal }) })
     })
+    owned.add({ child: installed, closed: installedExit.then(() => undefined) })
     cleanup.disposeInstalled = async () => {
       if (!installed.stdin.writableEnded) installed.stdin.end()
       await installedExit
@@ -112,8 +195,8 @@ process.stdout.write('ready\\n')
     ]) {
       let diagnostic = ''
       try {
-        await promisify(execFile)('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', launcher, '-Action', 'Start', ...remote.args],
-          { env: inheritedEnvironment, windowsHide: true, timeout: 20_000 })
+        await execute(owned, 'powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', launcher, '-Action', 'Start', ...remote.args],
+          inheritedEnvironment)
       } catch (error) {
         if (typeof error !== 'object' || error === null || !('stderr' in error)) throw error
         expect(error).toHaveProperty('killed', false)
@@ -126,6 +209,7 @@ process.stdout.write('ready\\n')
         DSH_DESKTOP_REMOTE_URL: remote.url,
         DSH_DESKTOP_LISTEN_PORT: remote.port,
       })
+      expect(readFileSync(join(localData, 'CustomHarnessStaging', 'StagingDesktopLauncher', 'repository.txt'), 'utf8').trim()).toBe(repository)
       expect(installed.exitCode).toBeNull()
       expect(installed.signalCode).toBeNull()
     }
@@ -136,12 +220,12 @@ process.stdout.write('ready\\n')
     mkdirSync(join(bootstrap, 'pnpm', 'bin'), { recursive: true })
     copyFileSync(process.execPath, join(bootstrap, 'node', 'bin', 'node.exe'))
     writeFileSync(join(bootstrap, 'pnpm', 'bin', 'pnpm.mjs'), 'process.exit(0)\n')
-    await expect(promisify(execFile)('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', launcher, '-Action', 'Update'],
-      { env: { ...environment, LOCALAPPDATA: localData }, windowsHide: true, timeout: 20_000 })).rejects.toHaveProperty(
+    await expect(execute(owned, 'powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', launcher, '-Action', 'Update'],
+      { ...environment, LOCALAPPDATA: localData })).rejects.toHaveProperty(
       'stderr', expect.stringContaining('did not select a new verified runtime'))
     writeFileSync(join(store, 'generations', generation, 'app', 'lib', 'main.js'), 'throw new Error("must not run")\n')
-    await expect(promisify(execFile)('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', launcher, '-Action', 'Start'],
-      { env: { ...environment, LOCALAPPDATA: localData }, windowsHide: true, timeout: 20_000 })).rejects.toHaveProperty(
+    await expect(execute(owned, 'powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', launcher, '-Action', 'Start'],
+      { ...environment, LOCALAPPDATA: localData })).rejects.toHaveProperty(
       'stderr', expect.stringContaining('protected staging file app/lib/main.js changed'))
-  })
+  }, 90_000)
 })

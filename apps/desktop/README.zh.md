@@ -83,7 +83,7 @@ Windows 任务栏应用图标通过透明的 16×16 原生叠加图标显示带�
 
 发布活动通知前，已安装的 Desktop 会规范化自身的开始菜单快捷方式，明确清空启动参数，并注册当前用户的显示信息。仅当冲突的 `Electron.lnk` 的 AUMID 属于 Harnessy、目标是未附带应用参数的 Electron，且匹配的当前用户 COM 命令可被验证并重定向到已安装可执行文件时，才移除该快捷方式。无关快捷方式和激活器保持不变。注册无法验证时，活动仍保留在应用内通知中心。未打包 Windows 版本的活动只在应用内显示，且不创建通知快捷方式，因此暂存版本不会增加重复的 Development 项。
 
-Harnessy 使用一个[受保护的 Windows 暂存启动器](../../HARNESSY-STAGING-DELIVERY.md#safe-builds)，与已安装应用并存。Update 在选择独立运行环境前完成准备和验证；Start 直接打开选中的运行环境，不重新构建。暂存数据独立保存在 `%LOCALAPPDATA%/CustomHarnessStaging`。开始菜单项指向启动器，而非某个生成的 Electron 可执行文件。
+Harnessy 使用一个[受保护的 Windows 暂存启动器](../../HARNESSY-STAGING-DELIVERY.md#safe-builds)，与已安装应用并存。Update 在选择独立运行环境前完成准备和验证；Start 直接打开选中的运行环境，不重新构建。暂存数据独立保存在 `%LOCALAPPDATA%/CustomHarnessStaging`。启动器只接受已登记的工作树。开始菜单项指向启动器，而非某个生成的 Electron 可执行文件。
 
 从源码构建或推送 staging 不会替换正在运行的已安装可执行文件。测试新通知前，请安装重新构建的 Desktop 并重启；现有通知可能保留旧品牌，也可能不含 Session 目标。原生 Windows 验收必须检查应用可见、最小化、处于托盘以及完全停止时的新通知和点击；单元测试不能验证 Windows 展示或激活行为。
 

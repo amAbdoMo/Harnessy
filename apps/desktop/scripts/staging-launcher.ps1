@@ -22,6 +22,7 @@ $nodeExe = Join-Path $nodeDir 'node.exe'
 $pnpmFile = Join-Path $runtimeRoot 'pnpm\bin\pnpm.mjs'
 $stateDir = Join-Path $env:LOCALAPPDATA 'CustomHarnessStaging\StagingDesktopLauncher'
 $pidFile = Join-Path $stateDir 'desktop.pid'
+$registrationFile = Join-Path $stateDir 'repository.txt'
 $storeRoot = Join-Path $repoRoot 'apps\desktop\.desktop-build\staging-runtime'
 $scopeHash = [System.Security.Cryptography.SHA256]::Create()
 try { $mutexScope = [BitConverter]::ToString($scopeHash.ComputeHash([Text.Encoding]::UTF8.GetBytes($stateDir.ToLowerInvariant()))).Replace('-', '') }
@@ -60,6 +61,24 @@ function Get-StagingDesktopProcess {
   $protectedElectron = [Regex]::Escape((Join-Path $storeRoot 'generations')) + '\\[a-f0-9-]+\\electron\\electron\.exe$'
   if ($oldLauncher -or $candidateProcess.ExecutablePath -match $protectedElectron) { return $candidateProcess }
   return $null
+}
+
+function Assert-StagingRepository {
+  if (-not (Test-Path -LiteralPath $registrationFile)) { return }
+  $registeredRoot = (Get-Content -LiteralPath $registrationFile -Raw).Trim()
+  if (-not [IO.Path]::IsPathRooted($registeredRoot)) {
+    throw 'The staging repository registration is invalid. Restore its canonical repository path before launching.'
+  }
+  if (-not [string]::Equals([IO.Path]::GetFullPath($registeredRoot).TrimEnd('\'), $repoRoot.TrimEnd('\'), [StringComparison]::OrdinalIgnoreCase)) {
+    throw "Harnessy staging is already registered at $registeredRoot. Use that folder's launcher instead of this extra copy."
+  }
+}
+
+function Register-StagingRepository {
+  Assert-StagingRepository
+  if (-not (Test-Path -LiteralPath $registrationFile)) {
+    [IO.File]::WriteAllText($registrationFile, $repoRoot + [Environment]::NewLine)
+  }
 }
 
 function Get-VerifiedStagingRuntime {
@@ -111,6 +130,8 @@ function Get-StagingWebProcess {
   }
   return $null
 }
+
+Assert-StagingRepository
 
 if ($Action -eq 'Stop') {
   $stagingProcess = Get-StagingDesktopProcess
@@ -203,6 +224,7 @@ try {
           throw "Staging update did not select a new verified runtime. Full output: $updateLog"
         }
         $null = Get-VerifiedStagingRuntime
+        Register-StagingRepository
       } finally {
         Pop-Location
         Stop-Transcript | Out-Null
@@ -214,6 +236,7 @@ try {
       exit 0
     }
     $verifiedRuntime = Get-VerifiedStagingRuntime
+    Register-StagingRepository
     $selectedRuntime = $verifiedRuntime.Directory
     # Never inherit installed-app state, including aliases with higher resolution priority.
     $dataRoot = Join-Path $env:LOCALAPPDATA 'CustomHarnessStaging'

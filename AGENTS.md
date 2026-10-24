@@ -8,7 +8,7 @@ Public APIs are pre-stable; update every consumer. Follow [version/status](docs/
 
 Acknowledge [declared persistence-type changes](docs/cookbook/reviewing-persistence-type-changes.md).
 
-**Harnessy workflow.** On staging, push completed commits to origin/staging; never push master, tags, or releases without request. Follow [delivery](HARNESSY-STAGING-DELIVERY.md) and [synchronization](HARNESSY-UPSTREAM-HANDOFF.md). Never rebuild browser artifacts or run full Desktop builds underneath the active staging app; use the [safe build workflow](HARNESSY-STAGING-DELIVERY.md#safe-builds). Before any release/update-publication task, read the [release handoff](HARNESSY-RELEASE-HANDOFF.md) and follow its saved in-app-update preferences.
+**Harnessy workflow.** On staging, push completed commits to origin/staging; never push master, tags, or releases without request. Follow [two-app delivery](HARNESSY-STAGING-DELIVERY.md) and [synchronization](HARNESSY-UPSTREAM-HANDOFF.md). Never rebuild browser artifacts or run full Desktop builds underneath the active staging app; use the [safe build workflow](HARNESSY-STAGING-DELIVERY.md#safe-builds). Before any release/update-publication task, read the [release handoff](HARNESSY-RELEASE-HANDOFF.md) and follow its saved in-app-update preferences.
 
 Record each externally perceptible breaking change immediately in an [upgrade guide](.agents/skills/dsh-create-upgrade-guide/SKILL.md).
 
