@@ -1,13 +1,16 @@
 /** Floating controls shared by every zoomable document renderer. */
+import clsx from 'clsx'
 import { forwardRef, useEffect, useImperativeHandle, useState, type ReactNode } from 'react'
-import { Button, IconChevronDownOutlineRegular, IconPlusOutlineRegular, Menu, Tooltip,
-  type MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
-import { MAX_FIXED_ZOOM, MIN_FIXED_ZOOM, ZOOM_OPTIONS, ZOOM_STEP, type ZoomLabels } from './types.ts'
+import { Button } from './Button.tsx'
+import { IconChevronDownOutlineRegular, IconPlusOutlineRegular } from './icons/index.tsx'
+import { Menu, type MenuEntry } from './Menu.tsx'
+import { Tooltip } from './Tooltip.tsx'
+import { DOCUMENT_ZOOM, type DocumentZoomLabels } from './document-zoom.ts'
 import css from './ZoomControls.module.css'
 
 function steppedZoom(zoom: number, direction: -1 | 1): number {
-  const step = direction === -1 ? Math.ceil(zoom / ZOOM_STEP) - 1 : Math.floor(zoom / ZOOM_STEP) + 1
-  return Math.min(MAX_FIXED_ZOOM, Math.max(MIN_FIXED_ZOOM, step * ZOOM_STEP))
+  const step = direction === -1 ? Math.ceil(zoom / DOCUMENT_ZOOM.step) - 1 : Math.floor(zoom / DOCUMENT_ZOOM.step) + 1
+  return Math.min(DOCUMENT_ZOOM.maximum, Math.max(DOCUMENT_ZOOM.minimum, step * DOCUMENT_ZOOM.step))
 }
 
 /** Live percentage display updated independently from the document tree. */
@@ -17,20 +20,23 @@ export interface ZoomControlsHandle {
 }
 
 /**
- * Present fit-width, fixed presets, and incremental controls.
- * @param props - committed zoom, preference mode, labels, and callbacks.
- * @param ref - displays a transient gesture percentage until the committed zoom changes.
+ * Present optional fitting, fixed presets, and incremental controls.
+ * @param props - committed `zoom`, optional `fit` row (omitted: no fitting row), localized labels, `visible`, optional
+ *   owner `className`, and zoom and activity callbacks.
+ * @param ref - `showZoom` displays a transient scale until `zoom` changes.
  * @returns a localized zoom toolbar.
  */
 export const ZoomControls = forwardRef<ZoomControlsHandle, {
   readonly zoom: number
-  readonly fitWidth: boolean
-  readonly labels: ZoomLabels
+  readonly fit?: { readonly label: string; readonly selected: boolean; readonly onSelect: () => void } | undefined
+  readonly className?: string | undefined
+  readonly labels: DocumentZoomLabels
   readonly visible: boolean
   readonly onZoom: (zoom: number) => void
-  readonly onFitWidth: () => void
   readonly onActiveChange: (active: boolean) => void
-}>(function ZoomControls({ zoom, fitWidth, labels, visible, onZoom, onFitWidth, onActiveChange }, ref): ReactNode {
+}>(function ZoomControls({
+  zoom, fit, className, labels, visible, onZoom, onActiveChange,
+}, ref): ReactNode {
   const [committed, setCommitted] = useState(zoom)
   const [transient, setTransient] = useState<number>()
   const [open, setOpen] = useState(false)
@@ -44,19 +50,20 @@ export const ZoomControls = forwardRef<ZoomControlsHandle, {
   useImperativeHandle(ref, () => ({ showZoom: setTransient }), [])
   useEffect(() => { onActiveChange(open || hovered || focused) }, [focused, hovered, onActiveChange, open])
   const items: readonly MenuEntry[] = [
-    { id: 'fit-width', label: labels.fitWidth },
-    { type: 'separator', id: 'fit-scale' },
-    ...ZOOM_OPTIONS.map(value => ({ id: String(value), label: labels.value(value * 100) })),
+    ...(fit === undefined ? [] : [{ id: 'fit', label: fit.label }, { type: 'separator' as const, id: 'fit-scale' }]),
+    ...DOCUMENT_ZOOM.presets.map(value => ({ id: String(value), label: labels.value(value * 100) })),
   ]
-  const selectedId = fitWidth ? 'fit-width'
-    : ZOOM_OPTIONS.includes(displayZoom as typeof ZOOM_OPTIONS[number]) ? String(displayZoom) : undefined
-  return <div className={`${css.panel} ${visible ? css.visible : ''}`} role="toolbar" aria-label={labels.controls}
+  const selectedId = fit?.selected === true ? 'fit'
+    : DOCUMENT_ZOOM.presets.some(value => value === displayZoom) ? String(displayZoom) : undefined
+  return <div className={clsx(css.panel, visible && css.visible, className)} role="toolbar" aria-label={labels.controls}
     data-document-zoom-controls data-document-zoom-visible={visible || undefined}
-    onPointerEnter={() => { setHovered(true) }} onPointerLeave={() => { setHovered(false) }}
-    onFocusCapture={() => { setFocused(true) }} onBlurCapture={() => { setFocused(false) }}>
+    onPointerEnter={(event) => { if (event.pointerType !== 'touch') setHovered(true) }} onPointerLeave={() => { setHovered(false) }}
+    onFocusCapture={() => { setFocused(true) }} onBlurCapture={(event) => {
+      if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false)
+    }}>
     <Tooltip label={labels.out} side="top">
       <span className={css.controlAnchor}><Button size="sm" className={css.zoomButton} aria-label={labels.out}
-        disabled={displayZoom <= MIN_FIXED_ZOOM} onMouseDown={(event) => { event.preventDefault() }}
+        disabled={displayZoom <= DOCUMENT_ZOOM.minimum} onMouseDown={(event) => { event.preventDefault() }}
         onClick={() => { onZoom(steppedZoom(displayZoom, -1)) }}>
         <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
           <path d="M2 8h12" fill="none" stroke="currentColor" strokeWidth="1.5" />
@@ -71,12 +78,12 @@ export const ZoomControls = forwardRef<ZoomControlsHandle, {
       </Button>}
       items={items} selectedId={selectedId} onClose={() => { setOpen(false) }} onSelect={(selected) => {
         setOpen(false)
-        if (selected === 'fit-width') onFitWidth()
+        if (selected === 'fit') fit?.onSelect()
         else onZoom(Number(selected))
       }} />
     <Tooltip label={labels.into} side="top">
       <span className={css.controlAnchor}><Button size="sm" className={css.zoomButton} aria-label={labels.into}
-        disabled={displayZoom >= MAX_FIXED_ZOOM} onMouseDown={(event) => { event.preventDefault() }}
+        disabled={displayZoom >= DOCUMENT_ZOOM.maximum} onMouseDown={(event) => { event.preventDefault() }}
         onClick={() => { onZoom(steppedZoom(displayZoom, 1)) }}>
         <IconPlusOutlineRegular size={14} />
       </Button></span>

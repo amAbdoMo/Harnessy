@@ -1,8 +1,12 @@
+/* Zero specificity lets an owner className move the toolbar regardless of stylesheet order. */
+:where(.panel) {
+  bottom: 14px;
+}
+
 .panel {
   position: absolute;
   z-index: 2;
   inset-inline-start: 50%;
-  bottom: 14px;
   display: flex;
   align-items: center;
   gap: 2px;
