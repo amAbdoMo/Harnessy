@@ -10966,7 +10966,7 @@
       ],
       "tree": "c1e905f2e3708a14f26be740afbf71b038630870",
       "subject": "perf(session-controller): exclude the shared image limits from session summaries",
-      "review": null
+      "review": "harnessy-session-list-summaries-20261024"
     },
     {
       "sha": "c458eab0a0473da5c57b96bc7b4f059117bd80d7",
@@ -11048,7 +11048,7 @@
       ],
       "tree": "0814c1ebf1cb0c52fd239e0d5946e969223b8d34",
       "subject": "perf(session-projection): serve session-list rows from a summary key set",
-      "review": null
+      "review": "harnessy-session-list-summaries-20261024"
     },
     {
       "sha": "c651566a49af924dc172c2896f70ff1ae877c596",
@@ -40263,6 +40263,212 @@
         "Harnessy product checks passed: static checks, two Node tests and 140 Vitest tests across 12 files. Full build:custom-harness passed (369 client artifacts, 11 public values); final Host build after unused API removal passed. Frozen offline install passed; full lint passed; hygiene passed all 16 gates. Normal staged lint, notices, whitespace and vendor hooks passed.",
         "doc-sync initially passed 40/43; corrected the typed test wrapper and regenerated source-owned catalogs/graphs. Owning rechecks passed: doc typecheck (80 blocks, 63 ignored; 941 type-equivalence/catalog; 1084 paired derivatives), configuration catalog (three artifacts current), graph catalog (seven current), budgets, Markdown wrapping, five affected documentation pairs and Agent Note format. No fresh full aggregate pass is claimed.",
         "Account modelOverrides conversion and its unused helper API/tests, obsolete account-only modules, duplicate upstream notes and bundled default-capacity/name bump are explicitly omitted. Existing complete models arrays remain authoritative, and listed data changes only an uncustomized official route. No upstream ancestry acquired/checkpoint advanced, installed staging runtime or main update verified, release performed, or foreign Android work included."
+      ]
+    },
+    "harnessy-session-list-summaries-20261024": {
+      "status": "adopted",
+      "summary": "Adapt session-list summary selection and omit repeated image limits while preserving Harnessy notifications, custom navigation and complete opened-Session details.",
+      "files": [
+        {
+          "path": ".agents/notes/implemented/architecture/2026-10-18-session-list-summary-projections.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adapt the summary-selection decision to actual Harnessy consumers and measured Windows evidence. Preserve custom task notifications through a constant-size turnOutcome projection; omit the upstream estimated compression claims. Existing cache identity/merge rationale remains in its original note."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-10-18-session-list-summary-projections.md",
+          "disposition": "adopted",
+          "reason": "Adapt the summary-selection decision to actual Harnessy consumers and measured Windows evidence. Preserve custom task notifications through a constant-size turnOutcome projection; omit the upstream estimated compression claims. Existing cache identity/merge rationale remains in its original note."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-10-18-session-list-summary-projections.zh.md",
+          "disposition": "adopted",
+          "reason": "Adapt the summary-selection decision to actual Harnessy consumers and measured Windows evidence. Preserve custom task notifications through a constant-size turnOutcome projection; omit the upstream estimated compression claims. Existing cache identity/merge rationale remains in its original note."
+        },
+        {
+          "path": "docs/persistence-catalog.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Regenerate current catalogs and inventory from the unwrapped view types rather than importing upstream artifacts verbatim. Only source-location metadata changes; all 64 declared roots still match 12 history records. No new Session generation or acknowledgement is needed, and historical records remain untouched."
+        },
+        {
+          "path": "docs/persistence-catalog.md",
+          "disposition": "adopted",
+          "reason": "Regenerate current catalogs and inventory from the unwrapped view types rather than importing upstream artifacts verbatim. Only source-location metadata changes; all 64 declared roots still match 12 history records. No new Session generation or acknowledgement is needed, and historical records remain untouched."
+        },
+        {
+          "path": "docs/persistence-catalog.zh.md",
+          "disposition": "adopted",
+          "reason": "Regenerate current catalogs and inventory from the unwrapped view types rather than importing upstream artifacts verbatim. Only source-location metadata changes; all 64 declared roots still match 12 history records. No new Session generation or acknowledgement is needed, and historical records remain untouched."
+        },
+        {
+          "path": "docs/persistence-schema.json",
+          "disposition": "adopted",
+          "reason": "Regenerate current catalogs and inventory from the unwrapped view types rather than importing upstream artifacts verbatim. Only source-location metadata changes; all 64 declared roots still match 12 history records. No new Session generation or acknowledgement is needed, and historical records remain untouched."
+        },
+        {
+          "path": "docs/subsystems/session-projection.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Document selected summary reads versus full Session reads and the type-only mark, with current source-equivalent declarations and paired English/Chinese prose. Do not claim that unfiltered callers cannot request excluded keys."
+        },
+        {
+          "path": "docs/subsystems/session-projection.md",
+          "disposition": "adopted",
+          "reason": "Document selected summary reads versus full Session reads and the type-only mark, with current source-equivalent declarations and paired English/Chinese prose. Do not claim that unfiltered callers cannot request excluded keys."
+        },
+        {
+          "path": "docs/subsystems/session-projection.zh.md",
+          "disposition": "adopted",
+          "reason": "Document selected summary reads versus full Session reads and the type-only mark, with current source-equivalent declarations and paired English/Chinese prose. Do not claim that unfiltered callers cannot request excluded keys."
+        },
+        {
+          "path": "packages/api/session-controller/src/client/sessions/lineage.ts",
+          "disposition": "adopted",
+          "reason": "Narrow list-facing types to summary values and keep opened-Session values plain and complete. Preserve current Harnessy format classifications, lineage, ordering, reconnect and custom consumers; the client projection store exposes the derived unwrapped view type."
+        },
+        {
+          "path": "packages/api/session-controller/src/client/sessions/manager.ts",
+          "disposition": "adopted",
+          "reason": "Narrow list-facing types to summary values and keep opened-Session values plain and complete. Preserve current Harnessy format classifications, lineage, ordering, reconnect and custom consumers; the client projection store exposes the derived unwrapped view type."
+        },
+        {
+          "path": "packages/api/session-controller/src/client/sessions/service.ts",
+          "disposition": "adopted",
+          "reason": "Narrow list-facing types to summary values and keep opened-Session values plain and complete. Preserve current Harnessy format classifications, lineage, ordering, reconnect and custom consumers; the client projection store exposes the derived unwrapped view type."
+        },
+        {
+          "path": "packages/api/session-controller/src/list.ts",
+          "disposition": "adopted",
+          "reason": "Select registry-derived summary keys for both live and cold list rows before producing views; omit shared boot image limits as well as outline/statistics/todos. Preserve predecessor-title fallback, cold zero-I/O behavior, list metadata, cancellation, work slicing, sorting and error handling."
+        },
+        {
+          "path": "packages/api/session-controller/src/types.ts",
+          "disposition": "adopted",
+          "reason": "Mark imageLimits as summary-excluded and unwrap full projection value types without changing JSON. Existing partial list hints remain optional; full follow/control/projections reads retain the complete values."
+        },
+        {
+          "path": "packages/api/session-controller/tests/list-scheduling.host.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt tests to the current controller vocabulary, summary versus full types, cold/attached scheduling, scoped reads and reconnect replacement. Summary/follow tests use real tool and projection owners, retain todos/image limits on full reads and assert compact notification outcomes in list rows. Existing stale sequenced-result expectation is corrected to the already-shipped API."
+        },
+        {
+          "path": "packages/api/session-controller/tests/manager.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt tests to the current controller vocabulary, summary versus full types, cold/attached scheduling, scoped reads and reconnect replacement. Summary/follow tests use real tool and projection owners, retain todos/image limits on full reads and assert compact notification outcomes in list rows. Existing stale sequenced-result expectation is corrected to the already-shipped API."
+        },
+        {
+          "path": "packages/api/session-controller/tests/session-cold.host.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt tests to the current controller vocabulary, summary versus full types, cold/attached scheduling, scoped reads and reconnect replacement. Summary/follow tests use real tool and projection owners, retain todos/image limits on full reads and assert compact notification outcomes in list rows. Existing stale sequenced-result expectation is corrected to the already-shipped API."
+        },
+        {
+          "path": "packages/api/session-controller/tests/session-projections.host.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt tests to the current controller vocabulary, summary versus full types, cold/attached scheduling, scoped reads and reconnect replacement. Summary/follow tests use real tool and projection owners, retain todos/image limits on full reads and assert compact notification outcomes in list rows. Existing stale sequenced-result expectation is corrected to the already-shipped API."
+        },
+        {
+          "path": "packages/api/session-controller/tests/summary-list.host.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt tests to the current controller vocabulary, summary versus full types, cold/attached scheduling, scoped reads and reconnect replacement. Summary/follow tests use real tool and projection owners, retain todos/image limits on full reads and assert compact notification outcomes in list rows. Existing stale sequenced-result expectation is corrected to the already-shipped API."
+        },
+        {
+          "path": "packages/api/session-controller/tests/summary-types.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt tests to the current controller vocabulary, summary versus full types, cold/attached scheduling, scoped reads and reconnect replacement. Summary/follow tests use real tool and projection owners, retain todos/image limits on full reads and assert compact notification outcomes in list rows. Existing stale sequenced-result expectation is corrected to the already-shipped API."
+        },
+        {
+          "path": "packages/extensions/cordis-client-runner/src/client/api-catalog.ts",
+          "disposition": "adopted",
+          "reason": "Regenerate the actual current Host and Client API catalogs; link ProjectionKeySelection and SessionProjectionViewValues to their owner and recognize the standard ReadonlySet foundation type. Preserve other current Harnessy APIs instead of copying an upstream catalog."
+        },
+        {
+          "path": "packages/extensions/tool-cordis/src/api-catalog.ts",
+          "disposition": "adopted",
+          "reason": "Regenerate the actual current Host and Client API catalogs; link ProjectionKeySelection and SessionProjectionViewValues to their owner and recognize the standard ReadonlySet foundation type. Preserve other current Harnessy APIs instead of copying an upstream catalog."
+        },
+        {
+          "path": "packages/session/session-projection-cache/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Accept a derived ReadonlySet without a per-row copy and filter before checkpoint state parsing/view generation. Tests preserve cached lifecycle identity, predecessor-title behavior, full reads and watermarks computed from only served rows."
+        },
+        {
+          "path": "packages/session/session-projection-cache/tests/cache.spec.ts",
+          "disposition": "adopted",
+          "reason": "Accept a derived ReadonlySet without a per-row copy and filter before checkpoint state parsing/view generation. Tests preserve cached lifecycle identity, predecessor-title behavior, full reads and watermarks computed from only served rows."
+        },
+        {
+          "path": "packages/session/session-projection/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adopt type-only summary exclusion, plain full-view values, stable derived summary key selection, selection-aware reads and registration/final-disposal invalidation. Keep current registry lifecycle and restore behavior. Current summary tests cover marks, nullability, stable selection, disposal, full versus selected reads and missing rows; paired README describes the implemented behavior."
+        },
+        {
+          "path": "packages/session/session-projection/README.md",
+          "disposition": "adopted",
+          "reason": "Adopt type-only summary exclusion, plain full-view values, stable derived summary key selection, selection-aware reads and registration/final-disposal invalidation. Keep current registry lifecycle and restore behavior. Current summary tests cover marks, nullability, stable selection, disposal, full versus selected reads and missing rows; paired README describes the implemented behavior."
+        },
+        {
+          "path": "packages/session/session-projection/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Adopt type-only summary exclusion, plain full-view values, stable derived summary key selection, selection-aware reads and registration/final-disposal invalidation. Keep current registry lifecycle and restore behavior. Current summary tests cover marks, nullability, stable selection, disposal, full versus selected reads and missing rows; paired README describes the implemented behavior."
+        },
+        {
+          "path": "packages/session/session-projection/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Adopt type-only summary exclusion, plain full-view values, stable derived summary key selection, selection-aware reads and registration/final-disposal invalidation. Keep current registry lifecycle and restore behavior. Current summary tests cover marks, nullability, stable selection, disposal, full versus selected reads and missing rows; paired README describes the implemented behavior."
+        },
+        {
+          "path": "packages/session/session-projection/src/types.ts",
+          "disposition": "adopted",
+          "reason": "Adopt type-only summary exclusion, plain full-view values, stable derived summary key selection, selection-aware reads and registration/final-disposal invalidation. Keep current registry lifecycle and restore behavior. Current summary tests cover marks, nullability, stable selection, disposal, full versus selected reads and missing rows; paired README describes the implemented behavior."
+        },
+        {
+          "path": "packages/session/session-projection/tests/summary.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adopt type-only summary exclusion, plain full-view values, stable derived summary key selection, selection-aware reads and registration/final-disposal invalidation. Keep current registry lifecycle and restore behavior. Current summary tests cover marks, nullability, stable selection, disposal, full versus selected reads and missing rows; paired README describes the implemented behavior."
+        },
+        {
+          "path": "packages/session/session-stats/src/projection.ts",
+          "disposition": "adopted",
+          "reason": "Mark whole-session statistics and current todos as summary-excluded, require summary:false on their wire registrations, and preserve all fold/state-version/full-read behavior. Keep null outside the todo exclusion marker."
+        },
+        {
+          "path": "packages/session/session-stats/src/types.ts",
+          "disposition": "adopted",
+          "reason": "Mark whole-session statistics and current todos as summary-excluded, require summary:false on their wire registrations, and preserve all fold/state-version/full-read behavior. Keep null outside the todo exclusion marker."
+        },
+        {
+          "path": "packages/session/session-turn-outline/src/projection.ts",
+          "disposition": "adopted",
+          "reason": "Omit the growing outline from list responses while keeping complete outlines on opened Sessions. Adapt the domain owner with a separate constant-size turnOutcome projection so Harnessy completion/stopped/failure notifications keep their recorded outcome. A new turn clears the previous outcome; real Loader and lifecycle tests verify it."
+        },
+        {
+          "path": "packages/session/session-turn-outline/src/types.ts",
+          "disposition": "adopted",
+          "reason": "Omit the growing outline from list responses while keeping complete outlines on opened Sessions. Adapt the domain owner with a separate constant-size turnOutcome projection so Harnessy completion/stopped/failure notifications keep their recorded outcome. A new turn clears the previous outcome; real Loader and lifecycle tests verify it."
+        },
+        {
+          "path": "packages/todo/tool-todo/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Mark whole-session statistics and current todos as summary-excluded, require summary:false on their wire registrations, and preserve all fold/state-version/full-read behavior. Keep null outside the todo exclusion marker."
+        },
+        {
+          "path": "packages/todo/tool-todo/src/types.ts",
+          "disposition": "adopted",
+          "reason": "Mark whole-session statistics and current todos as summary-excluded, require summary:false on their wire registrations, and preserve all fold/state-version/full-read behavior. Keep null outside the todo exclusion marker."
+        },
+        {
+          "path": "scripts/gen-cordis-catalog.ts",
+          "disposition": "adopted",
+          "reason": "Regenerate the actual current Host and Client API catalogs; link ProjectionKeySelection and SessionProjectionViewValues to their owner and recognize the standard ReadonlySet foundation type. Preserve other current Harnessy APIs instead of copying an upstream catalog."
+        }
+      ],
+      "evidence": [
+        "Exact nonmerge upstream roots 92f9e79fac99c02fd82426e3934c394689ca719c and 8e2dd67de8a3a1ae2b0511cf23ba529326ccb9f1 inspected across their complete source, tests and docs. Implementation: 3f7986adeabde61f85500bcbdf42c302c8cc0770; scoped recorded-fixture qualification: 5256e968966253dbe52810a0ea9d87255634cc4b. Verified 2026-10-24 on Windows, Node 24.14.0, Harnessy 0.1.17.",
+        "Harnessy adaptation: the notification observer consumed the full outline indirectly through an unknown-valued helper. The Client typecheck exposed its fixture dependency before delivery. A separate turnOutcome projection retains the newest turn and recorded outcome without history-sized payloads; typed notification consumption, the existing dependency compiler reference, real Loader verification and disposal tests preserve custom behavior. No production layout or CSS reset.",
+        "Focused owning suites passed 1142 tests in 60 files (two skipped). Full build:custom-harness passed, recording 369 client artifacts and 11 public values. Full source lint passed. Hygiene passed all 16 gates. Product validation passed the static guard, two Node tests and all 140 Vitest cases in a fresh final run; an earlier concurrent run timed out an unchanged welcome-startup case, whose two cases also passed focused recheck without a timeout change.",
+        "Explicit Harnessy browser composition passed all three paged-history cases after reviewed golden refresh, then all three unchanged read-only replay. Stable Session row identities replace stale positional/group assumptions; the fixture asserts Harnessy notification controls, full turn navigation/statistics after paging, omission of four detailed list keys and retained terminal turnOutcome. The golden retains current MCP/header controls and disabled stock feedback buttons. A readiness assertion prevents refresh after a behavior failure.",
+        "Measured warm attached-list preparation plus JSON serialization, not full product latency: 20 Sessions x 30 turns improved median 3.536 to 1.690 ms and 49232 to 6492 bytes; 100 x 300 improved 37.830 to 7.940 ms and 2154393 to 32693 bytes. Seven samples after three warmups; full-selection negative control restored 36.731 ms and 2159293 bytes. Checked-in diagnostic independently measured 7.934 ms versus 40.012 ms control. No private corpus, timing budget, retained-memory or browser-paint claim.",
+        "Persistence verifier passed: 64 roots match 12 history records, with no schema changes. doc-sync passed 42/43; its sole stale Cordis inspect catalog was regenerated and passed its owning freshness recheck. The earlier doc-quick type-equivalence drift was repaired in both source-equivalent excerpts; the final full doc-sync type-equivalence gate passed. Final note budgets and bilingual pairing passed. Normal staged lint, seven paired records, notices, whitespace and vendor hooks passed.",
+        "Additional replay exposed an older Cordis fixture with stale working-directory context and a missing existing tools.guardResult API in its result. Source inspection confirms both existed before this port. Its dedicated introspection composition excludes unrelated shell/skill bindings, retains the current real API result and uses its own header class. Original advanced composition and readable headers were preserved byte-for-byte under advanced-toolchain-runtime, with aliases retargeted; historical V2/V3 logs are unchanged. The new model-listing fixture also excludes unused platform shell bindings. Both selected recorded Sessions passed unchanged replay, and all three repository corpus ownership/redaction/header checks passed. Other advanced runtime scenarios and macOS/Linux execution are not claimed.",
+        "No upstream ancestry acquired, no checkpoint advanced, no release/app update performed, no installed staging-window or main update verification, and no foreign Android work included. Other ancestor and follow-up commits remain pending until independently reviewed."
       ]
     }
   }
