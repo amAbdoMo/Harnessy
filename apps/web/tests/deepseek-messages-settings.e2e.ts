@@ -19,7 +19,10 @@ describe.skipIf(webSnapshotMode() === 'record')('web e2e: DeepSeek Messages sett
   let tripwire: ReturnType<typeof watchConsole>
 
   beforeAll(async () => {
-    scaffold = await launchWebScaffold({ deepSeekMissingCredential: true })
+    scaffold = await launchWebScaffold({
+      deepSeekMissingCredential: true,
+      extraOverlayPath: fileURLToPath(new URL('./pin-browse-picker.overlay.yml', import.meta.url)),
+    })
     browser = await chromium.launch()
     page = await browser.newPage({ viewport: { width: 1680, height: 1000 }, locale: ZH_BROWSER_LOCALE })
     tripwire = watchConsole(page)
@@ -77,16 +80,16 @@ describe.skipIf(webSnapshotMode() === 'record')('web e2e: DeepSeek Messages sett
     await page.keyboard.press('Escape')
     await connectFreshWorkspaceZh(page, scaffold.workspaceCwd, 'messages-settings-e2e')
     await page.getByRole('button', { name: /^选择模型/ }).click()
-    await page.getByRole('menuitem', { name: /模型/ }).click()
-    await page.getByRole('menuitemradio', { name: 'Messages Flash', exact: true }).waitFor()
+    const picker = page.getByRole('dialog', { name: '模型与推理等级', exact: true })
+    await picker.getByRole('radio', { name: /^Messages Flash / }).waitFor()
     await compareOrRefreshGolden(join(EXPECTED, 'picker.expected.md'),
-      await captureStableAria(page, '[role="group"][aria-label="模型与推理等级"]', scaffold.workspaceCwd), webSnapshotMode())
-    await page.keyboard.press('Escape')
-    await page.getByRole('menuitem', { name: /推理等级/ }).click()
-    const effortWeights = await page.getByRole('menuitemradio').evaluateAll(rows => rows.map(row =>
-      getComputedStyle(row.querySelector('span span')!).fontWeight,
-    ))
+      await captureStableAria(page, '[role="dialog"]', scaffold.workspaceCwd), webSnapshotMode())
+    const effortWeights = await picker.getByRole('radiogroup', { name: '推理等级', exact: true }).getByRole('radio')
+      .evaluateAll(rows => rows.map(row =>
+        getComputedStyle(row.querySelector('span')!).fontWeight,
+      ))
     expect(new Set(effortWeights)).toEqual(new Set(['400']))
+    await page.keyboard.press('Escape')
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)
 
@@ -100,10 +103,12 @@ describe.skipIf(webSnapshotMode() === 'record')('web e2e: DeepSeek Messages sett
     await trigger.waitFor()
     await expect.poll(() => input.getAttribute('contenteditable')).toBe('true')
     await trigger.click()
-    await page.getByRole('menuitem', { name: /模型/ }).click()
-    await page.getByRole('menuitemradio', { name: 'Messages Flash', exact: true }).click()
+    const picker = page.getByRole('dialog', { name: '模型与推理等级', exact: true })
+    await picker.getByRole('radio', { name: /^Messages Flash / }).dblclick()
+    await picker.waitFor({ state: 'detached' })
     await expect.poll(() => input.getAttribute('contenteditable')).toBe('true')
     await expect.poll(() => scaffold.ctx.agentDefaultModel.currentSelection().provider).toBe('deepseek-official')
+    expect(scaffold.ctx.agentDefaultModel.currentSelection().model).toBe('deepseek-flash')
     const settings = await readFile(join(scaffold.harnessHome, 'profiles', 'scaffold', 'cordis.patch.yml'), 'utf8')
     expect(settings).toContain('provider: deepseek-official')
     expect(tripwire.pageErrors).toEqual([])

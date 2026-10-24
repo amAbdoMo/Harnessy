@@ -7,6 +7,7 @@ import { assertModelInputLayout } from './model-input-layout.ts'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
+import { readClientBuildRecord } from '../../../scripts/client-build-environment.ts'
 import type { Browser, Page } from 'playwright'
 import { chromium } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it, onTestFailed } from 'vitest'
@@ -16,7 +17,7 @@ import {
   WELCOME_NOTICE_ACK_FIELD, WELCOME_NOTICE_COPY, WELCOME_NOTICE_SETTINGS_NAMESPACE,
   WELCOME_NOTICE_VERSION,
 } from './scaffold.ts'
-import { openSettings, ZH_BROWSER_LOCALE, connectFreshWorkspaceZh, saveFailureShot } from './support.ts'
+import { openSettings, REPO_ROOT, ZH_BROWSER_LOCALE, connectFreshWorkspaceZh, saveFailureShot } from './support.ts'
 
 const SNAPSHOT_DIR = fileURLToPath(new URL('./expected/onboarding-deepseek-config', import.meta.url))
 const WELCOME_EXPECTED = join(SNAPSHOT_DIR, 'welcome.expected.md')
@@ -31,9 +32,25 @@ describe.skipIf(MODE === 'record')('web e2e: first-run DeepSeek credential setup
   let page: Page
   let tripwire: ReturnType<typeof watchConsole>
   const browserConsole: string[] = []
+  let noticeCopy: { title: string; body: string; continueLabel: string } = WELCOME_NOTICE_COPY.zh
 
   beforeAll(async () => {
-    scaffold = await launchWebScaffold({ deepSeekMissingCredential: true, welcomeNoticePending: true })
+    const { environment } = readClientBuildRecord(REPO_ROOT)
+    if (environment.DSH_CLIENT_BUILD_PROFILE === 'custom-harness') {
+      const productName = environment.DSH_CLIENT_PRODUCT_NAME
+      noticeCopy = {
+        title: `${productName} 预览版`,
+        body: [
+          `${productName} 是基于开源 DeepSeek Harness 项目的独立本地开发版本。此预览版使用独立的应用数据，并可能随着产品演进而发生变化。`,
+          '在将其用于重要工作之前，请先查看“设置 > 通用”中的项目和支持链接。',
+        ].join('\n\n'),
+        continueLabel: '继续',
+      }
+    }
+    scaffold = await launchWebScaffold({
+      deepSeekMissingCredential: true, welcomeNoticePending: true,
+      extraOverlayPath: fileURLToPath(new URL('./pin-browse-picker.overlay.yml', import.meta.url)),
+    })
     browser = await chromium.launch()
     // The scenario asserts the shipped Chinese copy, so the browser asks for it.
     page = await browser.newPage({ viewport: { width: 1440, height: 960 }, locale: ZH_BROWSER_LOCALE })
@@ -50,14 +67,14 @@ describe.skipIf(MODE === 'record')('web e2e: first-run DeepSeek credential setup
 
   it('stores a key write-only and observes configured state without restarting', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-onboarding-deepseek-config'))
-    const welcome = page.getByRole('dialog', { name: WELCOME_NOTICE_COPY.zh.title })
+    const welcome = page.getByRole('dialog', { name: noticeCopy.title })
     await welcome.waitFor({ timeout: 15_000 })
     expect(await page.locator('#root').evaluate(root => (root as HTMLElement).inert)).toBe(true)
-    for (const paragraph of WELCOME_NOTICE_COPY.zh.body.split('\n\n')) {
+    for (const paragraph of noticeCopy.body.split('\n\n')) {
       expect(await welcome.getByText(paragraph, { exact: true }).count()).toBe(1)
     }
     expect(await welcome.getByRole('button').allTextContents()).toEqual([
-      WELCOME_NOTICE_COPY.zh.continueLabel,
+      noticeCopy.continueLabel,
     ])
     const welcomeAria = await captureStableAria(page, '[role="dialog"]', scaffold.workspaceCwd)
     await compareOrRefreshGolden(WELCOME_EXPECTED, welcomeAria, MODE)
@@ -69,7 +86,7 @@ describe.skipIf(MODE === 'record')('web e2e: first-run DeepSeek credential setup
     acknowledgeReloadConnectionLoss(tripwire, firstReloadWarnings)
     await welcome.waitFor({ timeout: 15_000 })
 
-    await welcome.getByRole('button', { name: WELCOME_NOTICE_COPY.zh.continueLabel }).click()
+    await welcome.getByRole('button', { name: noticeCopy.continueLabel }).click()
     await welcome.waitFor({ state: 'detached', timeout: 15_000 })
 
     const credentialStep = page.getByRole('dialog', { name: '添加一个 API Key 开始使用' })
@@ -116,7 +133,7 @@ describe.skipIf(MODE === 'record')('web e2e: first-run DeepSeek credential setup
     await page.reload({ waitUntil: 'load' })
     acknowledgeReloadConnectionLoss(tripwire, secondReloadWarnings)
     await page.waitForSelector('[class*="frame"]', { timeout: 15_000 })
-    expect(await page.getByRole('dialog', { name: WELCOME_NOTICE_COPY.zh.title }).count()).toBe(0)
+    expect(await page.getByRole('dialog', { name: noticeCopy.title }).count()).toBe(0)
     expect(await page.getByRole('dialog', { name: '添加一个 API Key 开始使用' }).count()).toBe(0)
 
     // An old acknowledgement means materially revised copy: welcome returns,
@@ -128,7 +145,7 @@ describe.skipIf(MODE === 'record')('web e2e: first-run DeepSeek credential setup
     await page.reload({ waitUntil: 'load' })
     acknowledgeReloadConnectionLoss(tripwire, thirdReloadWarnings)
     await welcome.waitFor({ timeout: 15_000 })
-    await welcome.getByRole('button', { name: WELCOME_NOTICE_COPY.zh.continueLabel }).click()
+    await welcome.getByRole('button', { name: noticeCopy.continueLabel }).click()
     await welcome.waitFor({ state: 'detached', timeout: 15_000 })
     expect(await page.getByRole('dialog', { name: '添加一个 API Key 开始使用' }).count()).toBe(0)
 
@@ -190,7 +207,7 @@ describe.skipIf(MODE === 'record')('web e2e: first-run DeepSeek credential setup
     acknowledgeReloadConnectionLoss(tripwire, warningsBefore)
     expect(await page.evaluate(() =>
       (window as unknown as { __takeoverSightings: string[] }).__takeoverSightings)).toEqual([])
-    expect(await page.getByRole('dialog', { name: WELCOME_NOTICE_COPY.zh.title }).count()).toBe(0)
+    expect(await page.getByRole('dialog', { name: noticeCopy.title }).count()).toBe(0)
     expect(await page.getByRole('dialog', { name: '添加一个 API Key 开始使用' }).count()).toBe(0)
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)
@@ -281,9 +298,9 @@ describe.skipIf(MODE === 'record')('web e2e: first-run DeepSeek credential setup
     const modelTrigger = page.getByRole('button', { name: /^选择模型.*deepseek-official\// })
     await modelTrigger.waitFor({ timeout: 10_000 })
     await modelTrigger.click()
-    await page.getByRole('menuitem', { name: /模型/ }).click()
+    const picker = page.getByRole('dialog', { name: '模型与推理等级', exact: true })
     expect(await page.getByText('Configured Flash', { exact: true }).count()).toBe(0)
-    await page.getByRole('menuitemradio', { name: 'Private Preview' }).waitFor({ timeout: 10_000 })
+    await picker.getByRole('radio', { name: /^Private Preview / }).waitFor({ timeout: 10_000 })
     expect(tripwire.warnings).toEqual([])
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)

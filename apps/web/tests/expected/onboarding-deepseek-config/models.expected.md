@@ -4,7 +4,6 @@
     - button "通用设置"
     - button "模型"
     - button "内置插件"
-    - button "Agent 预设"
   - button "打开配置文件"
   - button "关闭"
   - heading "模型" [level=2]
@@ -25,6 +24,7 @@
         - region "模型目录":
           - text: 模型目录 已自定义模型目录
           - button "恢复默认模型"
+          - button "调整模型顺序 1"
           - textbox "模型 ID 1":
             - /placeholder: 模型 ID
             - text: private-preview

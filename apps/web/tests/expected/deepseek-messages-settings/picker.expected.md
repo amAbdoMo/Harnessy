@@ -1,6 +1,21 @@
-- group "模型与推理等级":
-  - menu "模型":
-    - group "DeepSeek":
-      - text: DeepSeek
-      - menuitemradio "Messages Flash" [checked]
-      - menuitemradio "DeepSeek-V4-Pro"
+- dialog "模型与推理等级":
+  - heading "模型与推理等级" [level=2]
+  - button "关闭模型选择器"
+  - region "可用模型":
+    - heading "可用模型" [level=3]
+    - textbox "搜索可用模型":
+      - /placeholder: 搜索模型…
+    - radiogroup "可用模型":
+      - group "DeepSeek":
+        - text: DeepSeek
+        - radio "Messages Flash DeepSeek · deepseek-flash" [checked]
+        - radio "DeepSeek-V4-Pro DeepSeek · deepseek-v4-pro"
+  - region "推理等级":
+    - heading "推理等级" [level=3]
+    - paragraph: 选择此模型使用的思考深度。
+    - radiogroup "推理等级":
+      - radio "Off"
+      - radio "Low"
+      - radio "High" [checked]
+      - radio "Max"
+  - paragraph: 选择模型和推理等级后应用；双击可单独应用一项。
