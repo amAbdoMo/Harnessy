@@ -7232,7 +7232,7 @@
       ],
       "tree": "aa2d7318a9807cfb18a1da7a90fbc08538128368",
       "subject": "perf(desktop): persist download and pnpm packaging caches",
-      "review": null
+      "review": "harnessy-desktop-package-cache-20261024"
     },
     {
       "sha": "534aafce7ae2c2e45c376f58fd475466783bf8d7",
@@ -7848,7 +7848,7 @@
       ],
       "tree": "2dc911c6faa7de8bb191986d5b5204207a35a7d7",
       "subject": "fix(client): preserve composer position above mobile keyboards",
-      "review": null
+      "review": "harnessy-mobile-caret-viewport-20261024"
     },
     {
       "sha": "91c4ed3cd65cdcfebee0a07b6f9a5fc09888e679",
@@ -40627,6 +40627,147 @@
         "Preserve the current private toolbar, CSS, menu entries, fit-width callbacks, locale-owned copy, zoom limits and viewport gesture/scroll behavior. The only production change is transient versus committed percentage state and its local JSDoc. No shared public API, settings or persistence change is introduced.",
         "Full source lint, export JSDoc, paired documentation and all 22 documentation quick gates passed. This is component-render and source evidence; no new built-browser replay, installed staging-window or main update verification is claimed.",
         "No ancestry acquired or checkpoint advanced. Related extraction f70a511cca33bb42ac76a833ddc5f3c8ffb76c8b, review cleanup 0b5ff6ff0220c29a9afc27491c595322fbc1c87e, owner CSS a740d8edc2d4b95f85e414fefa312cb1372f4ade and image interaction work remain pending; this record does not account for them. No app update, release or foreign Android edits included."
+      ]
+    },
+    "harnessy-mobile-caret-viewport-20261024": {
+      "status": "adopted",
+      "summary": "Adapt Lexical caret coordinates and responsive editor regressions to the existing Harnessy composer, retaining its custom mobile and desktop UI.",
+      "files": [
+        {
+          "path": "THIRD_PARTY_NOTICES.md",
+          "disposition": "adopted",
+          "reason": "Disclose the Lexical patch. The unrelated floating-ui/dom notice hunk is excluded because this checkout has no such dependency; no new dependency is added merely for that notice."
+        },
+        {
+          "path": "apps/web/tests/composer-focus.e2e.ts",
+          "disposition": "adopted",
+          "reason": "Implement the resize, editor identity, draft/selection and keyboard-panning assertions in the existing mobile-keyboard browser owner and its expected output. Mount the actual Harnessy bundle. Account for its compact layout and pan only enough to keep the caret visible; retain the existing model, command and Send focus assertions. Do not introduce a duplicate composer-focus fixture."
+        },
+        {
+          "path": "apps/web/tests/expected/composer-focus/focus.expected.md",
+          "disposition": "adopted",
+          "reason": "Implement the resize, editor identity, draft/selection and keyboard-panning assertions in the existing mobile-keyboard browser owner and its expected output. Mount the actual Harnessy bundle. Account for its compact layout and pan only enough to keep the caret visible; retain the existing model, command and Send focus assertions. Do not introduce a duplicate composer-focus fixture."
+        },
+        {
+          "path": "packages/client/ui-conversation/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Document viewport-coordinate behavior in the existing ui-conversation README pair and re-record the pairing sidecar without replacing custom composer documentation."
+        },
+        {
+          "path": "packages/client/ui-conversation/README.md",
+          "disposition": "adopted",
+          "reason": "Document viewport-coordinate behavior in the existing ui-conversation README pair and re-record the pairing sidecar without replacing custom composer documentation."
+        },
+        {
+          "path": "packages/client/ui-conversation/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Document viewport-coordinate behavior in the existing ui-conversation README pair and re-record the pairing sidecar without replacing custom composer documentation."
+        },
+        {
+          "path": "packages/client/ui-conversation/tests/editor-viewport.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Exercise the real DraftEditorRuntime and Lexical with browser geometry fixtures: visible caret, below-keyboard caret, relative viewport panning and absent visualViewport. Restore fixture globals and dispose the runtime."
+        },
+        {
+          "path": "patches/lexical@0.49.0.patch",
+          "disposition": "adopted",
+          "reason": "Apply the exact Lexical 0.49.0 source/development/production patch and its workspace registration. Narrow the lockfile update to that patch identity; preserve every existing package version and unrelated peer resolution."
+        },
+        {
+          "path": "pnpm-lock.yaml",
+          "disposition": "adopted",
+          "reason": "Apply the exact Lexical 0.49.0 source/development/production patch and its workspace registration. Narrow the lockfile update to that patch identity; preserve every existing package version and unrelated peer resolution."
+        },
+        {
+          "path": "pnpm-workspace.yaml",
+          "disposition": "adopted",
+          "reason": "Apply the exact Lexical 0.49.0 source/development/production patch and its workspace registration. Narrow the lockfile update to that patch identity; preserve every existing package version and unrelated peer resolution."
+        }
+      ],
+      "evidence": [
+        "All ten upstream paths inspected. Local implementation 920d2527e2c2aac9bc1756bbff36c317669b1e9f; verification 2026-10-24, Windows, Harnessy 0.1.17, Node 24.14.0 and pnpm 11.7.0.",
+        "Before the patch, two of four new caret regressions failed: an already visible caret moved, and a below-keyboard caret was not revealed. All four passed after the patch and again after the test cleanup correction. The combined affected-owner run passed 688 tests in 46 files, including all ui-conversation tests and the two Desktop cache owners.",
+        "Offline frozen installation succeeded without dependency version changes. The complete custom-harness build passed and recorded 369 client artifacts and eleven public values. The explicit Harnessy browser scenario passed refresh, its six expected observations were inspected, and the same scenario passed unchanged read-only replay for desktop and emulated mobile.",
+        "Full source lint, documentation synchronization and dependency hygiene were checked for the combined mobile/cache batch; detailed passing results and the initial empty-directory constraints failure are recorded in the adjacent cache review. No physical phone keyboard, installed staging window, publication or main-app update verification is claimed.",
+        "The runtime-composition readiness assertion was adapted for compact Harnessy, and the panning fixture keeps the caret visible instead of moving the custom composer off screen. These fixture corrections do not change product controls. No checkpoint or ancestry advancement, app update, release or foreign Android changes are included."
+      ]
+    },
+    "harnessy-desktop-package-cache-20261024": {
+      "status": "adopted",
+      "summary": "Retain verified downloads and an integrity-checked pnpm store for Desktop preparation without sharing mutable target output or importing upstream release infrastructure.",
+      "files": [
+        {
+          "path": ".github/workflows/macos-package.yml",
+          "disposition": "excluded",
+          "reason": "Exclude upstream private macOS/Windows packaging-runner cache configuration and its workflow-specific tests. Preserve the personal Windows x64 unsigned release workflow and current runner settings; this task does not enable or publish upstream release infrastructure."
+        },
+        {
+          "path": ".github/workflows/windows-package.yml",
+          "disposition": "excluded",
+          "reason": "Exclude upstream private macOS/Windows packaging-runner cache configuration and its workflow-specific tests. Preserve the personal Windows x64 unsigned release workflow and current runner settings; this task does not enable or publish upstream release infrastructure."
+        },
+        {
+          "path": "apps/desktop/packaging/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adapt the cache documentation into the current apps/desktop README pair and its pairing sidecar. The upstream split packaging guide does not exist here; do not create a duplicate. Document local defaults, absolute override, copied installs, integrity checks and operator-managed retention without claiming the fork workflows set that override."
+        },
+        {
+          "path": "apps/desktop/packaging/README.md",
+          "disposition": "adopted",
+          "reason": "Adapt the cache documentation into the current apps/desktop README pair and its pairing sidecar. The upstream split packaging guide does not exist here; do not create a duplicate. Document local defaults, absolute override, copied installs, integrity checks and operator-managed retention without claiming the fork workflows set that override."
+        },
+        {
+          "path": "apps/desktop/packaging/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Adapt the cache documentation into the current apps/desktop README pair and its pairing sidecar. The upstream split packaging guide does not exist here; do not create a duplicate. Document local defaults, absolute override, copied installs, integrity checks and operator-managed retention without claiming the fork workflows set that override."
+        },
+        {
+          "path": "apps/desktop/scripts/desktop-build-paths.d.mts",
+          "disposition": "adopted",
+          "reason": "Add the optional absolute package-cache root and pnpmStore to current target path resolution and declarations; validate it during existing signature-aware preflight. Reuse that store in prepare-dsh, verifying integrity and copying package bytes into fresh target preparation before signing. Preserve Harnessy target outputs, environment isolation and cleanup owners."
+        },
+        {
+          "path": "apps/desktop/scripts/desktop-build-paths.mjs",
+          "disposition": "adopted",
+          "reason": "Add the optional absolute package-cache root and pnpmStore to current target path resolution and declarations; validate it during existing signature-aware preflight. Reuse that store in prepare-dsh, verifying integrity and copying package bytes into fresh target preparation before signing. Preserve Harnessy target outputs, environment isolation and cleanup owners."
+        },
+        {
+          "path": "apps/desktop/scripts/desktop-package-environment.mjs",
+          "disposition": "adopted",
+          "reason": "Add the optional absolute package-cache root and pnpmStore to current target path resolution and declarations; validate it during existing signature-aware preflight. Reuse that store in prepare-dsh, verifying integrity and copying package bytes into fresh target preparation before signing. Preserve Harnessy target outputs, environment isolation and cleanup owners."
+        },
+        {
+          "path": "apps/desktop/scripts/prepare-dsh.ts",
+          "disposition": "adopted",
+          "reason": "Add the optional absolute package-cache root and pnpmStore to current target path resolution and declarations; validate it during existing signature-aware preflight. Reuse that store in prepare-dsh, verifying integrity and copying package bytes into fresh target preparation before signing. Preserve Harnessy target outputs, environment isolation and cleanup owners."
+        },
+        {
+          "path": "apps/desktop/tests/desktop-build-paths.spec.ts",
+          "disposition": "adopted",
+          "reason": "Retain target isolation and extend current path/preflight tests for shared download and package stores, absolute external cache paths, and rejection of empty/relative paths before packaging."
+        },
+        {
+          "path": "apps/desktop/tests/desktop-package-environment.spec.ts",
+          "disposition": "adopted",
+          "reason": "Retain target isolation and extend current path/preflight tests for shared download and package stores, absolute external cache paths, and rejection of empty/relative paths before packaging."
+        },
+        {
+          "path": "scripts/macos-package-workflow.spec.ts",
+          "disposition": "excluded",
+          "reason": "Exclude upstream private macOS/Windows packaging-runner cache configuration and its workflow-specific tests. Preserve the personal Windows x64 unsigned release workflow and current runner settings; this task does not enable or publish upstream release infrastructure."
+        },
+        {
+          "path": "scripts/windows-package-workflow.spec.ts",
+          "disposition": "excluded",
+          "reason": "Exclude upstream private macOS/Windows packaging-runner cache configuration and its workflow-specific tests. Preserve the personal Windows x64 unsigned release workflow and current runner settings; this task does not enable or publish upstream release infrastructure."
+        }
+      ],
+      "evidence": [
+        "All thirteen upstream paths inspected. Local implementation 8762485fb683e1b2da8d3ceacf38708895abba48; verified 2026-10-24 on Windows with Node 24.14.0, pnpm 11.7.0 and Harnessy 0.1.17.",
+        "The combined affected-owner run passed 688 tests in 46 files, including desktop-build-paths.spec.ts and desktop-package-environment.spec.ts. The full custom-harness source/artifact build passed; declarations and existing consumers compiled. This does not claim a full installer build or measured packaging speedup.",
+        "The complete source lint check passed after correcting new test cleanup-variable and arrow-parentheses diagnostics. All 43 doc-sync gates passed, including bilingual pairing, documentation build/typecheck and export JSDoc. All sixteen hygiene leaves have passing evidence: the initial aggregate found two empty package directories left by preserved image WIP and one retired unknown-cast allowance from the earlier update-dialog tests. Removing only the empty directories made unchanged constraints pass; pruning only the retired allowance made the unchanged cast guard pass. The other fourteen leaves passed in the aggregate. The initial aggregate itself is not reported as clean.",
+        "Source inspection confirms temporary installations are still recreated and cleaned independently from reusable caches, store integrity remains enabled, and package-import-method=copy avoids signing mutations reaching cached package bytes. Cache path behavior and validation are tested; no signed installation, external persistent-runner execution, physical staging-window check, app update, main delivery or release was performed.",
+        "No ancestry or checkpoint advancement. The interrupted image work remains on the existing local recovery branch and is not counted as implemented by this review. Foreign Android files remain outside these implementation commits."
       ]
     }
   }
