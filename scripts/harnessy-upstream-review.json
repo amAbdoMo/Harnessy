@@ -6511,7 +6511,7 @@
       ],
       "tree": "b09b0417f1d08498130a51a2925a6f5b0f3554f1",
       "subject": "fix(desktop): embed mandatory updates without native child windows",
-      "review": null
+      "review": "harnessy-in-window-update-dialogs-20261024"
     },
     {
       "sha": "65d4afafd6b91e9ee68e45efcf46c56289f07e67",
@@ -6620,7 +6620,7 @@
       ],
       "tree": "618cf570950ac88d63c434bd40aea74b63d5a921",
       "subject": "fix(desktop): embed ordinary update dialogs in owner windows",
-      "review": null
+      "review": "harnessy-in-window-update-dialogs-20261024"
     },
     {
       "sha": "62f78d82f2b49b7296a4197e3addb17dd461c759",
@@ -40469,6 +40469,126 @@
         "Persistence verifier passed: 64 roots match 12 history records, with no schema changes. doc-sync passed 42/43; its sole stale Cordis inspect catalog was regenerated and passed its owning freshness recheck. The earlier doc-quick type-equivalence drift was repaired in both source-equivalent excerpts; the final full doc-sync type-equivalence gate passed. Final note budgets and bilingual pairing passed. Normal staged lint, seven paired records, notices, whitespace and vendor hooks passed.",
         "Additional replay exposed an older Cordis fixture with stale working-directory context and a missing existing tools.guardResult API in its result. Source inspection confirms both existed before this port. Its dedicated introspection composition excludes unrelated shell/skill bindings, retains the current real API result and uses its own header class. Original advanced composition and readable headers were preserved byte-for-byte under advanced-toolchain-runtime, with aliases retargeted; historical V2/V3 logs are unchanged. The new model-listing fixture also excludes unused platform shell bindings. Both selected recorded Sessions passed unchanged replay, and all three repository corpus ownership/redaction/header checks passed. Other advanced runtime scenarios and macOS/Linux execution are not claimed.",
         "No upstream ancestry acquired, no checkpoint advanced, no release/app update performed, no installed staging-window or main update verification, and no foreign Android work included. Other ancestor and follow-up commits remain pending until independently reviewed."
+      ]
+    },
+    "harnessy-in-window-update-dialogs-20261024": {
+      "status": "adopted",
+      "summary": "Adapt in-window update confirmations and mandatory document ownership without replacing Harnessy themes, Windows tray behavior, update policy or explicit installation approval.",
+      "files": [
+        {
+          "path": "apps/desktop/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update paired ordinary and non-Windows mandatory presentation contracts while preserving Harnessy custom content and Windows embedded/tray policy. Do not import the intermediate native-window input scheme, overwrite unrelated update policy, or claim macOS native execution."
+        },
+        {
+          "path": "apps/desktop/README.md",
+          "disposition": "adopted",
+          "reason": "Update paired ordinary and non-Windows mandatory presentation contracts while preserving Harnessy custom content and Windows embedded/tray policy. Do not import the intermediate native-window input scheme, overwrite unrelated update policy, or claim macOS native execution."
+        },
+        {
+          "path": "apps/desktop/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Update paired ordinary and non-Windows mandatory presentation contracts while preserving Harnessy custom content and Windows embedded/tray policy. Do not import the intermediate native-window input scheme, overwrite unrelated update policy, or claim macOS native execution."
+        },
+        {
+          "path": "apps/desktop/src/main.ts",
+          "disposition": "adopted",
+          "reason": "Keep Harnessy shared overlay injection and existing shortcut input accounting instead of the intermediate upstream duplicate ordinary-dialog counter. Add only non-Windows mandatory-owner close through the normal quit/task-confirmation path. Preserve custom Windows hide-to-tray acknowledgement, explicit Quit and installer-owned exit."
+        },
+        {
+          "path": "apps/desktop/src/mandatory-update-window.ts",
+          "disposition": "adopted",
+          "reason": "Adopt in-window non-Windows mandatory documents, parent-change retirement, cancellation of destroyed-view approvals and owner confirmation tracking. Preserve the existing Windows embedded shell frame, policy and second-click approval. Reopen a destroyed mandatory document without clearing policy; background state updates do not show/focus an owner."
+        },
+        {
+          "path": "apps/desktop/src/update-dialog.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared overlay API, cancellation on load/preload/renderer failure, exact private sender/revision/choice checks, blocked redirects and retained fading/replacement. Preserve Harnessy applicationTheme payload and its injected shared overlay owner; exclude the upstream private duplicate helper and input method."
+        },
+        {
+          "path": "apps/desktop/src/update-overlay.ts",
+          "disposition": "adopted",
+          "reason": "Adopt isolated WebContentsView attachment, native caption clearance, resize/owner-destruction cleanup and nonactivating background loads. Adapt the shared Harnessy helper with a topmost document stack: only that document receives focus/input and closing a nested confirmation returns focus to the underlying view. No independent native window or separate input owner."
+        },
+        {
+          "path": "apps/desktop/tests/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update the paired native-view qualification description and document the verified narrow Windows ordinary/tray/companion presentation selection, cached Electron path and limits. No claim of complete update, installed staging or main-app qualification."
+        },
+        {
+          "path": "apps/desktop/tests/README.md",
+          "disposition": "adopted",
+          "reason": "Update the paired native-view qualification description and document the verified narrow Windows ordinary/tray/companion presentation selection, cached Electron path and limits. No claim of complete update, installed staging or main-app qualification."
+        },
+        {
+          "path": "apps/desktop/tests/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Update the paired native-view qualification description and document the verified narrow Windows ordinary/tray/companion presentation selection, cached Electron path and limits. No claim of complete update, installed staging or main-app qualification."
+        },
+        {
+          "path": "apps/desktop/tests/expected/update-overlay-visibility.json",
+          "disposition": "adopted",
+          "reason": "Adopt owner-local native qualification for visible/hidden parents, absence of native child windows, a separate control window retaining focus and complete view/input release including destroyed parents. Windows Electron 44 passed exact expected replay using a private profile."
+        },
+        {
+          "path": "apps/desktop/tests/fixtures/local-updater.mjs",
+          "disposition": "adopted",
+          "reason": "Adapt overlay injection and web-contents capture/destruction for non-Windows policy documents; preserve Windows frame checks. Explicitly select the existing qualification-only prerelease mode and add an ordinary-dialog-only selection through the runner. The full old updater aggregate still assumes a manual-download available state and is not qualified by the selected presentation run."
+        },
+        {
+          "path": "apps/desktop/tests/fixtures/update-dialogs.mjs",
+          "disposition": "adopted",
+          "reason": "Observe web-contents-created/destroyed instead of native child windows. Preserve Harnessy shared helper and companion presentation qualification. Keep actual isolated preload/renderer, cancellation, tab focus, expandable diagnostics and intercepted install approval."
+        },
+        {
+          "path": "apps/desktop/tests/fixtures/update-overlay-visibility.mjs",
+          "disposition": "adopted",
+          "reason": "Adopt owner-local native qualification for visible/hidden parents, absence of native child windows, a separate control window retaining focus and complete view/input release including destroyed parents. Windows Electron 44 passed exact expected replay using a private profile."
+        },
+        {
+          "path": "apps/desktop/tests/fixtures/workspace-updates.mjs",
+          "disposition": "adopted",
+          "reason": "Find ordinary and non-Windows mandatory documents by owned web contents while keeping the Windows frame driver. Retain custom fixture code; the full workspace-update scenario is not claimed as executed for this batch."
+        },
+        {
+          "path": "apps/desktop/tests/keyboard.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt only overlay fixture capabilities and creation signature, remove the now-unnecessary input-owner assertion, and retain custom browser/profile shortcut tests and native permission controls."
+        },
+        {
+          "path": "apps/desktop/tests/main-startup.spec.ts",
+          "disposition": "adopted",
+          "reason": "Extend the current Harnessy native mocks with WebContentsView/contentView and preserve all custom tray, notifications, account, browser and companion tests. Add the non-Windows mandatory-owner close regression; retain existing Windows close-to-tray cases."
+        },
+        {
+          "path": "apps/desktop/tests/mandatory-update-window.spec.ts",
+          "disposition": "adopted",
+          "reason": "Replace obsolete child-window-close expectations with background-view and destroyed-approval cases. Main-entry tests own native-owner close/quit; preserve existing policy, second approval, Windows frame and deferral cases."
+        },
+        {
+          "path": "apps/desktop/tests/update-dialog.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt real helper tests to in-window views and shared input tracking; preserve the custom companion palette and reset test. Cover private IPC, stale/invalid response rejection, abort/disposal/load/preload/render failures, focus, resizing, fade retention, replacement and denied navigation."
+        },
+        {
+          "path": "apps/desktop/tests/update-overlay.spec.ts",
+          "disposition": "adopted",
+          "reason": "Replace native child-window assumptions with attached-view lifetime/input/visibility checks. Add two negative-controlled nested focus regressions; both fail with the unadapted upstream helper and pass after the topmost-stack adaptation."
+        },
+        {
+          "path": "tsconfig.client.json",
+          "disposition": "adopted",
+          "reason": "Include the existing Cordis-free windows-layout owner reached by the keyboard overlay fixture; retain all current Harnessy compiler entries."
+        }
+      ],
+      "evidence": [
+        "Exact nonmerge upstream roots 495977f9d7858791d51466b7c85ee5eb7c87c980 and c4f49704a13b28a6dc1604d6d379a1e1eb718036 reviewed across every changed path, including the interim and final implementations. Local implementation 6e6b40d106f61509e927624c3e2d065270c0a995. Verified 2026-10-24 on Windows, Harnessy 0.1.17, Node 24.14.0, Electron 44.0.0.",
+        "Five focused Desktop files passed 309 tests; with documentation standards, the final focused run passed 331 tests in six files. Two new nested-focus cases failed against the unadapted upstream overlay helper, then passed unchanged against the adaptation. Original source was restored after the negative control. The Host compiler passed.",
+        "Native cached-Electron overlay fixture passed all three exact expected cases: visible and hidden owners, zero native child windows, control-window focus retention, released view/input state, and owner destruction. The ordinary-dialog-only real Electron fixture passed cancellation and separate intercepted install approval, diagnostics, tray acknowledgement and all three companion dark/light/narrow presentations. Eight screenshots were captured; representative update and narrow companion renders were visually inspected. No installer executed and no phone mutation occurred.",
+        "Harnessy adaptation keeps one main-owned overlay/input helper, the optional applicationTheme payload, all existing custom main-entry tests and Windows embedded policy/tray owners. A companion fixture now explicitly shows its owner before visual assertions; unlike native child windows, in-window views correctly do not reveal a hidden parent.",
+        "Full product validation passed the static guard, two Node tests and all 140 Vitest tests in a fresh final run. An earlier concurrent build run timed out welcome startup and cascaded into its next case; the final run passed without changing the timeout. The older full local-updater aggregate fails its pre-existing manual-download available-state expectation under Harnessy automatic download; only the declared ordinary-dialog presentation selection is claimed here.",
+        "Full Host/artifact build completed. Initial full source lint found four unbound test-method references and an unnecessary input assertion; those were corrected and the final full source lint passed. Initial doc-sync passed 39/43; overlapping artifact builds caused an inspector directory lock, one type-equivalence process terminated, and a documentation-standard test timed out. Fresh sequential contract-ready doc typechecks, type equivalence, repository references and all 22 documentation-standard tests passed. The old Session-summary note commit identity was moved into the authoritative ledger and its bilingual pair refreshed. Final documentation quick checks passed.",
+        "No upstream ancestry acquired or checkpoint advanced. Other ancestors and follow-ups remain pending; no release, installed staging-runtime update or main-app update was performed. Foreign Android edits are excluded. macOS/Linux native execution, complete updater flows and full workspace-update qualification are not claimed."
       ]
     }
   }
