@@ -14,6 +14,8 @@ Status: implemented
 
 ## 决策
 
+DeepSeek 实时发现保留模型页对已保存目录的所有权。两种鉴权路由仅在原始模型行与本构建默认值一致且没有额外元数据时跟随远端默认目录。只有推理声明变化，或包含 Messages 传输不解释的字段，也属于自定义：只比较标准化后的协议字段会丢失这一区别。账号路由保留可编辑的 `models` 数组，包括已保存顺序和隐藏字段。远端客户端版本要求使用应用的实际版本；能力声明不能作为声称其他版本的依据。
+
 扩展既有抽象，不新增第二套推理词汇。`LlmResolvedModelInfo.reasoning` 仍是唯一事实来源，由组合器选择器、会话模型目录、ACP 与子代理预检共同读取；提供方适配器仍是把归一化等级变成请求字段的唯一位置。
 
 `PiAiModelProfile.defaultReasoningEffort` 指定某模型的请求在未指明等级时派发的等级。它优先于路由级的 `reasoning`，后者继续作为所有未自行声明的模型的回退。`RouteCatalog.configuredReasoningDefaults` 按模型 id 承载它，这正是 `configuredMaxTokens` 已经采用的分工：提供的等级是模型的能力，落在物化后的 pi-ai `Model` 上成为 `thinkingLevelMap`；请求默认值则是部署的选择，绝不进入该模型。解析会拒绝不是该条目自身 `reasoningEfforts` 键的默认值，也会拒绝与省略或 `false` 的等级声明并存的默认值，因为这两种状态都没有可提供过线拼写的等级。
@@ -45,6 +47,8 @@ Status: implemented
 `packages/llm/llm-pi-ai/tests/catalog.spec.ts` 覆盖无声明的模型、显式 `false`、同一条路由下逐模型的等级集合与默认值、以 `off` 为默认值，以及每一条拒绝分支。`packages/llm/llm-pi-ai/tests/config.spec.ts` 覆盖 schema 边界与解析后的逐模型映射。`packages/llm/llm-pi-ai/tests/adapter.spec.ts` 证明模型自身的默认值优先于路由的，同一路由上的另一个模型仍沿用路由的，并证明请求未指明等级时声明的拼写会作为 `reasoning_effort` 抵达线上。`packages/llm/llm-pi-ai/tests/discovery.spec.ts` 覆盖以两种拼写声明等级的列表、重复项与不可用成员、仅含 `off` 的集合、不在声明集合内的默认值、沉默条目，以及已安装目录对标记为推理与未标记为推理的模型各自的回答。`packages/llm/llm/tests/topology.spec.ts` 覆盖该回答在 seam 处的归一化、能力来源为适配器未描述的模型补全、适配器自身声明优先于来源、来源回答经过同一归一化、向来源提出的问题携带请求，以及注册冲突与撤回。`packages/subagent/subagent-commandcode/tests/models.spec.ts` 覆盖目录读取器：包含并非 `low`/`medium`/`high` 的确切逐模型集合、破折号与空单元格表示不作声明、不可用成员与未知等级名、两个平台上的入口点解析、不可读目录、路由归属，以及按插件生命周期的记忆化。`packages/client/ui-settings-models/tests/provider-form.client.spec.tsx` 覆盖声明、等级勾选、默认值选项、取消勾选默认等级时一并撤销默认值、`false` 与适配器默认两条路径、逐行独立、编辑后仍不替未声明的模型声明、适配器没有词汇表的情形、在沉默候选旁采纳已声明的等级、两种路由各自的来源说明，以及两种未声明提示。`packages/client/ui-model-selection/tests/model-select.client.spec.tsx` 覆盖暂存另一个模型会替换可用等级，以及新选模型不支持的等级会重置为该模型自身的默认值。`packages/subagent/tool-subagent/tests/model-selection.spec.ts` 覆盖父级请求的子代理等级不被所选模型提供时，在创建任何子代理之前即被拒绝。
 
 ## 考虑过的替代方案
+
+**用纯远端模型和第二种覆盖格式替换账号目录。** 不采用：当前编辑器拥有完整的已保存行，并通过移除数组覆盖来恢复默认值。保留这一所有者可以保留推理声明和元数据，无需迁移用户配置或新增相互竞争的编辑器。
 
 **提供方级的推理控件。** 放弃：同一提供方下的模型等级各不相同，提供方级开关只可能被设成某些模型会拒绝的集合，从而把整条路由踢出所有选择器。
 

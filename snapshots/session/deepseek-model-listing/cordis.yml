@@ -1,0 +1,24 @@
+- id: llm-deepseek
+  disabled: true
+
+- insert:
+    - id: llm-model-listing-replay
+      name: '@deepseek-ai/dsh-llm-replay'
+      config:
+        providers:
+          - id: model-listing-replay
+            name: Recorded model
+            models:
+              - id: fixture
+    - id: live-model-listing
+      name: '@deepseek-ai/dsh-llm-deepseek-api-key'
+      config:
+        apiKeyEnv: SNAPSHOT_LISTING_KEY
+    - id: model-listing-fixture
+      name: './model-listing-fixture.mjs'
+
+- id: skill-badge
+  disabled: true
+
+- id: tool-skill
+  disabled: true

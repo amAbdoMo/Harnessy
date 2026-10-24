@@ -8,6 +8,8 @@ This guide assumes you started the Web UI through the [root README](../../../REA
 
 Open **Settings → Models**. The DeepSeek card exposes one API-key field; enter the key and save it.
 
+The official API-key and account routes discover current models when their catalogs retain this build’s defaults. Edited model lists and custom endpoints keep their saved choices; Restore defaults resumes live discovery. Discovery uses the route’s own credential and honors the actual client version required by a listed model. See [live model catalogs](../../../packages/llm/llm-deepseek/README.md#live-model-catalogs) for refresh and fallback behavior.
+
 ![The Models page: the DeepSeek card, with Add model provider below it](providers-models-page.png)
 
 Keys are write-only. The page receives a redacted descriptor after saving, never the literal secret. The key is stored in `$DSH_HOME/.credentials.yaml`, while settings retain only its credential reference.

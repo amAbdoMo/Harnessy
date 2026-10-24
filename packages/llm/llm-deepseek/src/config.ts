@@ -3,6 +3,7 @@ import type { Volatile } from '@deepseek-ai/cordis'
 
 import z from '@deepseek-ai/schemastery'
 import { isVolatile } from '@deepseek-ai/cosmokit'
+import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
 import { resolveRetryPolicy, RetryPolicySchema } from '@deepseek-ai/dsh-llm'
 import type { ModelModality, RetryPolicyConfig } from '@deepseek-ai/dsh-llm'
 import type { LaunchEnvironmentSnapshot } from '@deepseek-ai/dsh-launch-environment'
@@ -110,6 +111,20 @@ const BASE_URL_ENV = 'DEEPSEEK_BASE_URL'
 
 /** Complete protocol settings captured for one request operation. */
 export type ResolvedDeepSeekOptions = DeepSeekConnectionOptions
+
+/**
+ * Whether a catalog matches this build's defaults without additional model metadata.
+ * Fields the protocol does not interpret still make a saved catalog customized.
+ * @param models - model rows from the provider configuration.
+ * @returns true when the catalog has not been customized for this build.
+ */
+export function isBuiltInCatalog(models: readonly DeepSeekCatalogModel[]): boolean {
+  const resolvedWithMetadata = models.flatMap(model => resolveModels([model]).map(resolved => ({
+    ...Object.fromEntries(Object.entries(model).filter(([, value]) => value !== undefined)),
+    ...resolved,
+  })))
+  return deepEqualJson(resolvedWithMetadata, resolveModels(DEFAULT_MODELS))
+}
 
 /** Resolve, validate, and detach the advisory model catalog. */
 function resolveModels(models: readonly DeepSeekCatalogModel[] | undefined): DeepSeekCatalogModel[] {

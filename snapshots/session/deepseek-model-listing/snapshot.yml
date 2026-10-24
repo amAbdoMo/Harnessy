@@ -1,0 +1,11 @@
+version: 1
+scenario: deepseek-model-listing
+profile: headless
+composition: deepseek-model-listing
+recording: authored
+permission: danger-full-access
+environment:
+  SNAPSHOT_LISTING_KEY: fixture-only
+header:
+  class: deepseek-model-listing
+  pin: true

@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用此包
 
-`apiKeyEnv` 默认为 `DEEPSEEK_API_KEY`，在每次请求和模型发现时解析凭据。已组合 credentials 服务时，按其优先级解析；只有未组合该服务时才直接读取启动环境。请求时凭据缺失以 `MISSING_CREDENTIAL` 失败；格式错误以 `INVALID_CREDENTIAL` 失败。模型发现在该路由的密钥可用时返回配置的目录，密钥缺失时返回空目录；其设置入口保持注册。凭据格式错误和其他读取失败继续上报。添加或删除密钥会影响下一次模型发现。
+`apiKeyEnv` 默认为 `DEEPSEEK_API_KEY`，在每次请求和模型发现时解析凭据。已组合 credentials 服务时，按其优先级解析；只有未组合该服务时才直接读取启动环境。请求时凭据缺失以 `MISSING_CREDENTIAL` 失败；格式错误以 `INVALID_CREDENTIAL` 失败。密钥可用时，模型发现遵循[共用的实时目录规则](../llm-deepseek/README.zh.md#live-model-catalogs)，保留自定义列表和端点。密钥缺失时返回空目录；其设置入口保持注册。凭据格式错误和其他读取失败继续上报。添加或删除密钥会影响下一次模型发现。
 
 ```yaml
 - id: llm-deepseek

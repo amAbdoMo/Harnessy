@@ -36,7 +36,7 @@ Only `deepseekAccount.resolveToken(baseURL)` supplies the token; the account ser
 
 An account request HTTP 401 maps to `ACCOUNT_TOKEN_INVALID` independently of the response body. The account service removes the credential only if it still matches the request token. HTTP 403 and other failures do not clear the login. The account module owns task cancellation after sign-out; this plugin does not inspect Agents.
 
-`models` is an independently configurable catalog for this provider; defaults and protocol capabilities come from the shared transport. Discovery does not probe inference endpoints. The settings namespace is the Cordis entry id, or the plugin name without an entry. Product profiles retain the official entry id `llm-deepseek` and use `llm-deepseek-account` for the account route.
+`models` remains an independently configurable catalog for this provider. Its unmodified defaults follow the [shared live-catalog rules](../llm-deepseek/README.md#live-model-catalogs) on the official origin; edited lists and custom endpoints keep their configured catalog. Discovery does not probe inference endpoints. The settings namespace is the Cordis entry id, or the plugin name without an entry. Product profiles retain the official entry id `llm-deepseek` and use `llm-deepseek-account` for the account route.
 
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
@@ -71,7 +71,7 @@ Credentials and catalog availability do not enter model input; the protocol tran
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- The catalog is configuration metadata, not remote validation that a model is accepted; actual calls can still fail.
+- The catalog supplies declared capabilities, not a guarantee that inference is accepted; actual calls can still fail.
 
 <a id="dev-note"></a>
 ### Dev Note

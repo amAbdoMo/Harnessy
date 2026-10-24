@@ -31,6 +31,15 @@ This package exports the transport library; the provider plugins register routes
 
 The adapter accepts the LLM service's [request-only user inputs](../llm/README.md#use-this-package) alongside durable history; omitting request-only identity and attribution does not alter provider content.
 
+<a id="live-model-catalogs"></a>
+### Live model catalogs
+
+The API-key and account providers follow authenticated `GET /models` only on the official DeepSeek origin while `models` equals this build's default catalog. Customized lists keep their order, names and settings and request no listing; custom endpoints retain configured discovery. Restoring defaults resumes live discovery and discards the previous cached listing. A saved list matching an older build's defaults counts as customized if the defaults have changed.
+
+`modelsTimeoutMs` bounds the first listing request and wait (5,000 ms by default). After `modelsMaxAgeMs` (600,000 ms), the next access returns the last successful listing and refreshes it in the background. Failure retains that credential's last successful listing, or the bundled catalog before any success. Endpoint and credential changes discard the previous scope. A cancelled caller stops waiting without cancelling another caller's shared load; plugin disposal aborts and awaits its loads. Listing failures do not invalidate stored account credentials.
+
+Listing order, names, modalities, capacities and declared Messages update modes supply current model information. Unknown entries need usable Messages capabilities and a satisfied minimum client version; known entries without a requirement use this build's supported catalog. Version checks use the actual application version. Refused entries fail before Messages or Files requests. Omitted built-in models remain resolvable for existing selections. A listing describes capabilities; it does not guarantee that an inference request will succeed.
+
 ### When to choose it
 
 Choose this adapter for DeepSeek's official API or a Messages-compatible gateway through `baseURL`. Choose `dsh-llm-pi-ai` when the same composition also routes other providers or hand-declared gateways through pi-ai's catalogs; the two adapters can be mounted together because their route names do not collide. Registering any other adapter for `deepseek-official` fails with `DUPLICATE_ADAPTER`.

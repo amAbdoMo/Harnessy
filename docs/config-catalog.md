@@ -1732,12 +1732,12 @@ export interface Config {
 ## `@deepseek-ai/dsh-llm-deepseek-account`
 
 - `inject`: `llm`
-- `refs`: [`ProtocolConfig`](../packages/llm/llm-deepseek/src/index.ts)
-- `source`: [`packages/llm/llm-deepseek-account/src/config.ts:5`](../packages/llm/llm-deepseek-account/src/config.ts)
+- `refs`: [`ModelListingConfig`](../packages/llm/llm-deepseek/src/index.ts) · [`ProtocolConfig`](../packages/llm/llm-deepseek/src/index.ts)
+- `source`: [`packages/llm/llm-deepseek-account/src/config.ts:14`](../packages/llm/llm-deepseek-account/src/config.ts)
 
 ```ts config-catalog
-/** Account route configuration; authentication comes exclusively from the account service. */
-export type Config = ProtocolConfig
+/** Account configuration; authentication comes exclusively from the account service. */
+export type Config = ProtocolConfig & ModelListingConfig
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-llm-deepseek-account -->
 
@@ -1747,13 +1747,13 @@ export type Config = ProtocolConfig
 ## `@deepseek-ai/dsh-llm-deepseek-api-key`
 
 - `inject`: `llm`
-- `refs`: [`ProtocolConfig`](../packages/llm/llm-deepseek/src/index.ts) · `Volatile` (`@deepseek-ai/cordis`)
-- `source`: [`packages/llm/llm-deepseek-api-key/src/config.ts:10`](../packages/llm/llm-deepseek-api-key/src/config.ts)
+- `refs`: [`ModelListingConfig`](../packages/llm/llm-deepseek/src/index.ts) · [`ProtocolConfig`](../packages/llm/llm-deepseek/src/index.ts) · `Volatile` (`@deepseek-ai/cordis`)
+- `source`: [`packages/llm/llm-deepseek-api-key/src/config.ts:18`](../packages/llm/llm-deepseek-api-key/src/config.ts)
 
 ```ts config-catalog
-/** Messages configuration with an operation-local API-key reference. */
-export interface Config extends ProtocolConfig {
-  /** Credential reference resolved per request and model discovery; defaults to DEEPSEEK_API_KEY. */
+/** Messages configuration with a per-request API-key reference. */
+export interface Config extends ProtocolConfig, ModelListingConfig {
+  /** Credential reference resolved per request; defaults to DEEPSEEK_API_KEY. */
   apiKeyEnv: Volatile<string>
 }
 ```

@@ -29,7 +29,7 @@ async function routeFor(token: string | undefined, provider: 'deepseek-account' 
     resolveToken: async (_baseURL: string): Promise<string | undefined> => token,
     rejectToken: async (_token: string): Promise<void> => {},
   } as DeepSeekAccount)
-  await ctx.plugin(provider === 'deepseek-account' ? Account : ApiKey)
+  await ctx.plugin(provider === 'deepseek-account' ? Account : ApiKey, { models: [{ id: 'deepseek-flash' }] })
   return ctx
 }
 
@@ -67,7 +67,7 @@ it('still expires the stored credential on an account-route 401', async () => {
     resolveToken: async (_baseURL: string): Promise<string | undefined> => 'account-token',
     rejectToken: (token: string): Promise<void> => rejectToken(token),
   } as DeepSeekAccount)
-  await ctx.plugin(Account)
+  await ctx.plugin(Account, { models: [{ id: 'deepseek-flash' }] })
   vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('Unauthorized', { status: 401 }))
   await expect(finishOf(ctx, 'deepseek-account')).resolves.toMatchObject({
     kind: 'error', failure: { code: 'ACCOUNT_TOKEN_INVALID' },

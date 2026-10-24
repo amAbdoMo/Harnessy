@@ -8,6 +8,8 @@
 
 打开**设置 → 模型**。DeepSeek 卡片提供一个 API 密钥字段；输入密钥并保存。
 
+官方 API key 和账号路由在目录保留本构建默认值时发现当前模型。编辑过的模型列表和自定义端点保留已保存的选择；恢复默认值会恢复实时发现。发现使用该路由自己的凭据，并遵循目录模型要求的实际客户端版本。刷新和回退行为见[实时模型目录](../../../packages/llm/llm-deepseek/README.zh.md#live-model-catalogs)。
+
 ![模型页：DeepSeek 卡片，及其下方的添加模型提供商入口](providers-models-page.zh.png)
 
 密钥是只写的。保存后，页面只会收到脱敏描述符，永远不会收到明文密钥。密钥存储在 `$DSH_HOME/.credentials.yaml` 中，settings 只保留它的凭据引用。

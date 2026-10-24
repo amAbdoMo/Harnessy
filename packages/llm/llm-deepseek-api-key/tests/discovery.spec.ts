@@ -25,7 +25,7 @@ async function boot(config: ApiKey.Options = {}, credentialSeed?: Record<string,
   contexts.push(ctx)
   await ctx.plugin(LlmRuntime)
   if (credentialSeed !== undefined) await ctx.plugin(MemoryCredentials, credentialSeed)
-  await ctx.plugin(ApiKey, config)
+  await ctx.plugin(ApiKey, { baseURL: 'https://fixture.example/anthropic', ...config })
   return ctx
 }
 

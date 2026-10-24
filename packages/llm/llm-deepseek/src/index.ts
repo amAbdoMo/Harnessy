@@ -1,5 +1,5 @@
 /** DeepSeek Messages transport, request configuration, and model capabilities. */
-export { deepSeekConfigFields, Config, plainOptions, resolveAdapterOptions, PUBLIC_BASE_URL } from './config.ts'
+export { deepSeekConfigFields, Config, isBuiltInCatalog, plainOptions, resolveAdapterOptions, PUBLIC_BASE_URL } from './config.ts'
 export type { Options, ResolvedDeepSeekOptions } from './config.ts'
 export {
   DEFAULT_CONTEXT_WINDOW,
@@ -39,3 +39,12 @@ export type { RequestDefaults } from './types.ts'
 
 export { catalogModelInfo } from './model-info.ts'
 export { registerDeepSeekProvider } from './host.ts'
+
+export { ModelListingCache } from './listing-cache.ts'
+export type { ListingCacheDependencies, ListingView } from './listing-cache.ts'
+export { modelListingURL, parseModelListing, requestModelListing, LISTING_TIMEOUT } from './listing.ts'
+export type { ClientRequirement, ListedFacts, ListedCapabilities, ListingEntry, ModelListing } from './listing.ts'
+export { resolveListedCatalog, refuseListedModel } from './listed-catalog.ts'
+export type { ListedCatalogInput, ListedCatalog, CatalogRefusal } from './listed-catalog.ts'
+export { modelListingConfigFields, resolveListingTiming, DEFAULT_MODELS_TIMEOUT_MS, DEFAULT_MODELS_MAX_AGE_MS } from './listing-config.ts'
+export type { ModelListingConfig, ModelListingOptions, ListingSettings, ListingTiming } from './listing-config.ts'

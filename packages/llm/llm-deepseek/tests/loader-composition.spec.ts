@@ -36,6 +36,7 @@ afterEach(async () => {
   root = undefined
   await closeMockServers()
   vi.unstubAllEnvs()
+  vi.restoreAllMocks()
 })
 
 async function loadComposition(
@@ -125,6 +126,34 @@ async function loadComposition(
 
 
 describe('llm-deepseek real dynamic composition', () => {
+  it('follows the official model listing and reloads it once the customized catalog is restored', async () => {
+    vi.stubEnv('DEEPSEEK_API_KEY', '')
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const keys: Array<string | null> = []
+    const messages = { api_capabilities: { anthropic_messages: {} } }
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const request = new Request(input, init)
+      if (request.url !== 'https://api.deepseek.com/models') return Promise.reject(new Error(`unexpected request to ${request.url}`))
+      keys.push(request.headers.get('x-api-key'))
+      return Promise.resolve(new Response(JSON.stringify({ data: [
+        { id: 'deepseek-flash', ...messages },
+        { id: 'deepseek-v5', ...messages, client_requirements: { 'deepseek-harness': { min_version: '0.0.1' } } },
+      ] })))
+    })
+    const { ctx } = await loadComposition({ withDynamic: true, baseURL: 'https://api.deepseek.com/anthropic' })
+    const ids = async () => (await ctx.llm.listModels('deepseek-official')).map(model => model.id)
+    expect(await ids()).toEqual(['deepseek-flash', 'deepseek-v5'])
+
+    // The Models page writes these path operations for an edited catalog and for Restore defaults.
+    await ctx.settings.mutate(NS, [{ op: 'set', path: ['models'], value: [{ id: 'custom' }] }])
+    expect(await ids()).toEqual(['custom'])
+    expect(keys).toEqual(['boot-key'])
+    await ctx.settings.mutate(NS, [{ op: 'unset', path: ['models'] }])
+    expect(await ids()).toEqual(['deepseek-flash', 'deepseek-v5'])
+    expect(keys).toEqual(['boot-key', 'boot-key'])
+  })
+
+
   it('keeps package inventory on when the Loader composition disables session upload', async () => {
     vi.stubEnv('DEEPSEEK_API_KEY', 'entry-key')
     const server = await mockServer([{ kind: 'sse', events: textEvents }])

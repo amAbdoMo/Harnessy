@@ -466,6 +466,7 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
         DSH_HOME: home,
         DSH_TELEMETRY_DISABLED: '1',
         DEEPSEEK_API_KEY: 'built-sdk-profile-no-call',
+        DEEPSEEK_BASE_URL: 'http://127.0.0.1:1/anthropic',
       },
       extendEnv: false,
     })

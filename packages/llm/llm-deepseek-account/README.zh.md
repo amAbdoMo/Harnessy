@@ -36,7 +36,7 @@ kind: "package-reference"
 
 账号请求的 HTTP 401 与响应正文无关：映射为 `ACCOUNT_TOKEN_INVALID`，并要求账号服务仅在当前 token 仍与请求所用 token 相同时清除凭据。403 和其他错误不会触发清除。账号模块负责退登后打断任务，本插件不遍历 Agent。
 
-`models` 是该 provider 独立的可配置目录；默认值和协议能力来自共享传输包。目录判断不探测推理端点。设置命名空间采用 Cordis entry id，没有 entry 时采用插件名。产品保留 official 的 `llm-deepseek` entry id，账号使用 `llm-deepseek-account`。
+`models` 仍是此提供方可独立配置的目录。未修改的默认值在官方来源遵循[共用的实时目录规则](../llm-deepseek/README.zh.md#live-model-catalogs)；编辑过的列表和自定义端点保留配置的目录。模型发现不探测推理端点。设置命名空间为 Cordis entry id，没有 entry 时使用插件名。产品组合保留官方入口 id `llm-deepseek`，账号路由使用 `llm-deepseek-account`。
 
 <a id="understand-the-implementation"></a>
 ## 理解实现
@@ -71,7 +71,7 @@ kind: "package-reference"
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- 目录是配置元数据，不验证远端是否接受模型；实际调用仍可能失败。
+- 目录提供声明的能力，不保证推理请求一定被接受；实际调用仍可能失败。
 
 <a id="dev-note"></a>
 ### 开发备注
