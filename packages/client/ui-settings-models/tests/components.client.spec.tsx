@@ -817,6 +817,9 @@ describe('ModelsSection', () => {
     // statements; only a level map with nothing in it is half-made.
     expect(validateDeepSeekModels([{ id: 'model', reasoningEfforts: false }])).toBeUndefined()
     expect(validateDeepSeekModels([{ id: 'model' }])).toBeUndefined()
+    expect(validateDeepSeekModels([{ id: 'model', reasoningEfforts: { off: null } }])).toBeUndefined()
+    expect(validateDeepSeekModels([{ id: 'model', reasoningEfforts: { off: null } }], true))
+      .toEqual({ index: 0, key: 'modelReasoningThinkingRequired' })
     expect(validateDeepSeekModels([{ id: 'model', reasoningEfforts: {} }]))
       .toEqual({ index: 0, key: 'modelReasoningEffortsEmpty' })
     // A YAML `reasoningEfforts:` left valueless is the same half-made state.

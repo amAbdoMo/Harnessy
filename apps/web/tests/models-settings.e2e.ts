@@ -25,9 +25,11 @@ import {
   assertFixtureInventory, captureStableAria, compareOrRefreshGolden,
   launchWebScaffold, watchConsole, webSnapshotMode, type WebScaffold,
 } from './scaffold.ts'
-import { openSettings, ZH_BROWSER_LOCALE, saveFailureShot } from './support.ts'
+import { ZH_BROWSER_LOCALE, saveFailureShot } from './support.ts'
 
 const SNAPSHOT_DIR = fileURLToPath(new URL('./expected/models-settings', import.meta.url))
+const CUSTOM_OVERLAY = fileURLToPath(new URL('../../../packages/bundle/custom-harness/cordis.patch.yml', import.meta.url))
+const CUSTOM_MANIFEST = fileURLToPath(new URL('../../../packages/bundle/custom-harness/package.json', import.meta.url))
 const EMPTY_EXPECTED = join(SNAPSHOT_DIR, 'empty.expected.md')
 const CONFIGURED_EXPECTED = join(SNAPSHOT_DIR, 'configured.expected.md')
 const DECLARED_EXPECTED = join(SNAPSHOT_DIR, 'declared.expected.md')
@@ -64,7 +66,8 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
     })
     restoreModelListings = () => { listingFixture.mockRestore() }
     scaffold = await launchWebScaffold({
-      extraOverlayPath: fileURLToPath(new URL('./pin-browse-picker.overlay.yml', import.meta.url)),
+      extraOverlayPath: [CUSTOM_OVERLAY, fileURLToPath(new URL('./pin-browse-picker.overlay.yml', import.meta.url))],
+      extraInstallAnchors: [CUSTOM_MANIFEST],
     })
     browser = await chromium.launch()
     // The scenario asserts the shipped Chinese copy, so the browser asks for it.
@@ -96,7 +99,9 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
 
   it('opens the add card over the dormant directory vocabulary', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-models-empty'))
-    await openSettings(page, 'zh')
+    await page.getByRole('button', { name: /^没有已保存的账户, / }).click()
+    await page.getByRole('menuitem', { name: '设置', exact: true }).click()
+    await expect.poll(() => page.title()).toBe('Harnessy')
     const dialog = page.getByRole('dialog', { name: '设置' })
     await dialog.waitFor({ timeout: 10_000 })
     await dialog.getByRole('button', { name: '模型', exact: true }).click()
@@ -285,14 +290,27 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
     await custom.getByRole('button', { name: '模型选项 1' }).click()
     expect(await custom.getByRole('group', { name: '输入类型 1' }).getByRole('checkbox', { name: '图片' }).isChecked()).toBe(false)
     await custom.getByRole('group', { name: '输入类型 1' }).getByRole('checkbox', { name: '图片' }).check()
+    await custom.getByLabel('推理 1', { exact: true }).click()
+    await page.getByRole('option', { name: '支持', exact: true }).click()
+    const levels = custom.getByRole('group', { name: '支持的推理等级 1' })
+    await levels.getByRole('checkbox', { name: '关闭', exact: true }).check()
+    expect(await custom.getByRole('button', { name: '创建提供商', exact: true }).isDisabled()).toBe(true)
+    await levels.getByRole('checkbox', { name: '高', exact: true }).check()
+    await custom.getByLabel('API 值 高 1', { exact: true }).fill('ultra')
+    await custom.getByLabel('API 值 关闭 1', { exact: true }).fill('none')
+    await custom.getByLabel('默认推理等级 1', { exact: true }).click()
+    await page.getByRole('option', { name: '高', exact: true }).click()
     await custom.getByRole('button', { name: '创建提供商', exact: true }).click()
 
     const row = dialog.getByText('Acme Gateway', { exact: true }).first()
     await row.waitFor({ timeout: 10_000 })
     const document = await readFile(join(scaffold.harnessHome, 'profiles', 'scaffold', 'cordis.patch.yml'), 'utf8')
     expect(document).toContain('acme-gateway:')
+    expect(document).toContain('high: ultra')
+    expect(document).toContain('off: none')
     await expect(scaffold.ctx.llm.resolveModelInfo('acme-gateway', 'acme-large')).resolves.toMatchObject({
       inputModalities: ['text', 'image'],
+      reasoning: { efforts: [expect.objectContaining({ id: 'off' }), expect.objectContaining({ id: 'high' })] },
     })
 
     // The tag follows the adapter's installed catalog: this route is in no
@@ -321,6 +339,15 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
     expect(await name.inputValue()).toBe('Acme Gateway')
     await dialog.getByRole('button', { name: '模型选项 1' }).click()
     expect(await dialog.getByRole('group', { name: '输入类型 1' }).getByRole('checkbox', { name: '图片' }).isChecked()).toBe(true)
+    expect(await dialog.getByLabel('API 值 高 1', { exact: true }).inputValue()).toBe('ultra')
+    expect(await dialog.getByLabel('API 值 关闭 1', { exact: true }).inputValue()).toBe('none')
+    await dialog.getByLabel('推理 1', { exact: true }).click()
+    await page.getByRole('option', { name: '不支持', exact: true }).click()
+    await dialog.getByLabel('推理 1', { exact: true }).click()
+    await page.getByRole('option', { name: '支持', exact: true }).click()
+    expect(await dialog.getByLabel('API 值 高 1', { exact: true }).inputValue()).toBe('ultra')
+    expect(await dialog.getByLabel('API 值 关闭 1', { exact: true }).inputValue()).toBe('none')
+    expect(await dialog.getByLabel('默认推理等级 1', { exact: true }).innerText()).toBe('高')
     await assertModelInputLayout(page, dialog)
     const snapshot = await captureStableAria(page, '[role="dialog"]', scaffold.workspaceCwd)
     await compareOrRefreshGolden(DECLARED_EDIT_EXPECTED, snapshot, MODE)

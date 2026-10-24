@@ -4,6 +4,8 @@
     - button "通用设置"
     - button "模型"
     - button "内置插件"
+    - button "Subagents"
+    - button "MCP 服务器"
   - button "打开配置文件"
   - button "关闭"
   - heading "模型" [level=2]
@@ -55,6 +57,13 @@
           - text: 推理
           - combobox "推理 1": 适配器默认
           - paragraph: 该模型的推理等级继承自适配器内置目录；只有需要在此覆盖时才选择“支持”。
+          - term: 推理
+          - definition: 低 · 中 · 高 · 极高 · 最高
+          - term: 来源
+          - definition: 公开元数据 · models.dev
+          - term: 匹配的提供方
+          - definition: 匹配的提供方：openai
+          - definition: 实时元数据 · 更新于 刚刚
           - button "添加模型"
       - button "取消"
       - button "保存"
@@ -63,3 +72,8 @@
       - button "编辑 Acme 网关 (acme-gateway)": 编辑
       - button "删除 Acme 网关 (acme-gateway)": 删除
   - button "添加模型提供商"
+  - region "AI 账户管理器":
+    - heading "账户" [level=3]
+    - paragraph: 保存多个提供商账户，并一键切换。
+    - button "管理账户"
+    - paragraph: 没有已保存的账户

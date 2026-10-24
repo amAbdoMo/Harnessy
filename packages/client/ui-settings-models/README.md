@@ -59,6 +59,10 @@ Expand **Customized settings → Model options** to edit each model. Both provid
 
 Adopting fetched models retains only reasoning levels accepted by the adapter's settings schema and a default that names a retained level. If no thinking level remains, the model stays undeclared rather than disabling reasoning. Other disclosed metadata still imports, while existing user declarations, including custom wire spellings, remain unchanged.
 
+For a pi-ai model with declared reasoning support, the expanded row's **API value** fields edit the value sent for each selected effort level. Values are trimmed; a blank thinking value uses its level name, while blank **Off** omits the API parameter. An explicit Off value such as `none` remains supported. Editing a value leaves the default level and unrelated metadata intact. Toggling a level preserves other API values; removing the default level clears that default.
+
+Switching away from **Supported** and back restores that row's latest declaration and default during editing. Reordering carries its remembered declaration and unfinished text with it; deleting or resetting the row discards this local state. pi-ai forms refuse empty or Off-only declarations before writing settings, matching the adapter's existing validation; choose **Not supported** for a model that offers no thinking level.
+
 ### First-run dialogs
 
 After the versioned notice step completes, the DeepSeek step projects first-run readiness from the same joined snapshot. ANY provider the user can already reach ends it without rendering; only a user with none is asked for the official DeepSeek key. Configure later completes only this coordinator pass, and an absent adapter, inactive route, failed join, read-only deployment, or unusable capability completes the step without rendering — Models remains the diagnostic surface.

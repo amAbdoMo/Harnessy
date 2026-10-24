@@ -6,10 +6,20 @@ import type { DeepSeekModelDraft } from './DeepSeekModelsEditor.tsx'
 /** Text fields whose unfinished spelling belongs to one draft row. */
 export type CapacityField = 'contextWindow' | 'maxTokens'
 
+/** Editable text whose unfinished spelling belongs to one model row. */
+export type ModelTextField = CapacityField | `reasoning:${string}`
+
+/** A declaration temporarily hidden by the row's reasoning-mode control. */
+interface SavedReasoning {
+  efforts: Record<string, unknown>
+  defaultEffort: string | undefined
+}
+
 interface RowState {
   key: number
   expanded: boolean
-  editing: Map<CapacityField, string>
+  editing: Map<ModelTextField, string>
+  reasoning?: SavedReasoning
 }
 
 /** Drag state and actions for one model row within its editor. */
@@ -29,7 +39,8 @@ export interface ModelRowOrder {
 interface ModelRows {
   rows: (RowState & { model: DeepSeekModelDraft; order: ModelRowOrder })[]
   toggle: (index: number) => void
-  edit: (index: number, field: CapacityField, text: string | undefined) => void
+  edit: (index: number, field: ModelTextField, text: string | undefined) => void
+  rememberReasoning: (index: number, reasoning: SavedReasoning) => void
   forget: (removed: ReadonlySet<number>) => void
   reset: () => void
 }
@@ -94,7 +105,7 @@ export function useModelRows(
     toggle: (index: number): void => {
       setRows(rows.map((row, at) => at === index ? { ...row, expanded: !row.expanded } : row))
     },
-    edit: (index: number, field: CapacityField, text: string | undefined): void => {
+    edit: (index: number, field: ModelTextField, text: string | undefined): void => {
       setRows(rows.map((row, at) => {
         if (at !== index) return row
         const editing = new Map(row.editing)
@@ -102,6 +113,9 @@ export function useModelRows(
         else editing.set(field, text)
         return { ...row, editing }
       }))
+    },
+    rememberReasoning: (index: number, reasoning: SavedReasoning): void => {
+      setRows(rows.map((row, at) => at === index ? { ...row, reasoning } : row))
     },
     forget: (removed: ReadonlySet<number>): void => {
       setRows(rows.filter((_row, index) => !removed.has(index)))

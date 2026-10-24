@@ -20,8 +20,8 @@
  * There is deliberately no provider-scoped reasoning control: effort is a
  * per-MODEL capability, and the models under one provider disagree about it,
  * so a provider-scoped control can only be set to a value some of them reject.
- * Each model row below declares its own supported levels and default, and the
- * composer's model picker offers each model exactly those.
+ * Each model row below declares its supported levels, API values and default;
+ * the composer's model picker offers each model its declared levels.
  */
 
 import { useEffect, useState } from 'react'
@@ -126,7 +126,7 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
   // Rows are checked by the same per-row validator the editor cards use, so a
   // bad row is named by its position here too. Capacities have route-level
   // fallbacks; what a route cannot default is at least one model.
-  const modelFailure = validateDeepSeekModels(models)
+  const modelFailure = validateDeepSeekModels(models, true)
   const keyFailure = apiKeyFailure(keyDraft)
   // The typed key with paste whitespace removed. A blank field yields an empty
   // string, which the create path reads as "no key supplied" — a route may

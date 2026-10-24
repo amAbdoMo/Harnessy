@@ -66,7 +66,7 @@ export interface DeepSeekModelsValidationFailure {
   index: number
   /** Message key owned by the Models settings section. */
   key: 'modelIdRequired' | 'modelIdDuplicate' | 'modelNameInvalid' | 'modelContextInvalid'
-  | 'modelMaxTokensInvalid' | 'modelReasoningEffortsEmpty' | 'modelReasoningDefaultInvalid'
+  | 'modelMaxTokensInvalid' | 'modelReasoningEffortsEmpty' | 'modelReasoningThinkingRequired' | 'modelReasoningDefaultInvalid'
 }
 
 /**
@@ -86,8 +86,12 @@ export function modelDrafts(value: unknown): DeepSeekModelDraft[] {
       : {})
 }
 
-/** One row's declared level map, or an empty record when it declares none. */
-function effortMapOf(model: DeepSeekModelDraft): Record<string, unknown> {
+/**
+ * Read one row's declared level values without replacing custom API spellings.
+ * @param model - one catalog row.
+ * @returns the declared map, or an empty record when the row declares none.
+ */
+export function effortMapOf(model: DeepSeekModelDraft): Record<string, unknown> {
   const value = model['reasoningEfforts']
   return typeof value === 'object' && value !== null && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -123,11 +127,10 @@ export function declaredReasoningEfforts(
 }
 
 /**
- * Build the profile's `reasoningEfforts` value from a set of normalized
- * levels: each level is its own wire spelling, and `off` — the one level whose
- * wire form is the parameter's absence — carries null. Levels are written in
- * the order given, so a set declared here and the same set adopted from a
- * provider produce the same stored object.
+ * Build default API values for newly declared or adopted level ids. Each
+ * level uses its name, and `off` defaults to null to omit the parameter.
+ * Levels retain the given order. Existing custom values must be retained
+ * from the model's map rather than rebuilt through this helper.
  * @param levels - normalized level ids, in dispatch order.
  * @returns the level map to store on the row.
  */
@@ -173,9 +176,10 @@ export function declaredDefaultReasoningEffort(model: DeepSeekModelDraft): strin
 /**
  * Validate adapter constraints that the serialized schema cannot express.
  * @param value - user-owned `models` value, or undefined while inherited.
+ * @param requireThinkingLevel - whether the owning adapter refuses an Off-only declaration.
  * @returns the first invalid row, or undefined when the adapter will accept it.
  */
-export function validateDeepSeekModels(value: unknown): DeepSeekModelsValidationFailure | undefined {
+export function validateDeepSeekModels(value: unknown, requireThinkingLevel = false): DeepSeekModelsValidationFailure | undefined {
   if (value === undefined) return undefined
   const models = modelDrafts(value)
   const seen = new Set<string>()
@@ -210,6 +214,9 @@ export function validateDeepSeekModels(value: unknown): DeepSeekModelsValidation
     const declared = mode === 'supported' ? Object.keys(effortMapOf(model)) : []
     if (mode === 'supported' && declared.length === 0) {
       return { index, key: 'modelReasoningEffortsEmpty' }
+    }
+    if (mode === 'supported' && requireThinkingLevel && !declared.some(level => level !== 'off')) {
+      return { index, key: 'modelReasoningThinkingRequired' }
     }
     const defaultEffort = declaredDefaultReasoningEffort(model)
     if (defaultEffort !== undefined && !declared.includes(defaultEffort)) {

@@ -30,10 +30,10 @@
 import { useEffect, useId, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { LlmDiscoveredModel, ModelCapabilityInspectionView } from '@deepseek-ai/dsh-api-remotes/client'
-import { Button, IconPlusOutlineRegular, Modal, Select } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, IconPlusOutlineRegular, Modal, Select, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import {
-  declaredCapability, declaredDefaultReasoningEffort, declaredReasoningEfforts,
-  formatCapacity, modelReasoningMode, parseCapacity, reasoningEffortsMap,
+  declaredCapability, declaredDefaultReasoningEffort, declaredReasoningEfforts, effortMapOf,
+  formatCapacity, modelReasoningMode, parseCapacity,
   type ModelReasoningMode,
 } from './DeepSeekModelsEditor.tsx'
 import type { ModelsOperations } from './operations.ts'
@@ -300,6 +300,12 @@ interface CapabilityFieldsProps {
   onToggleLevel: (level: string) => void
   /** Set, or clear, the level the row's requests default to. */
   onDefaultLevel: (level: string) => void
+  /** Render the row-owned spelling while an API value is being edited. */
+  wireText: (level: string) => string
+  /** Update a level's API value without replacing other level values. */
+  onWireChange: (level: string, text: string) => void
+  /** Release unfinished text after focus leaves the field. */
+  onWireBlur: (level: string) => void
 }
 
 /**
@@ -311,7 +317,7 @@ interface CapabilityFieldsProps {
  * @returns the level checks and the default picker.
  */
 function CapabilityFields({
-  model, index, efforts, t, disabled, onToggleLevel, onDefaultLevel,
+  model, index, efforts, t, disabled, onToggleLevel, onDefaultLevel, wireText, onWireChange, onWireBlur,
 }: CapabilityFieldsProps): ReactNode {
   const declared = declaredReasoningEfforts(model, efforts)
   return (
@@ -331,6 +337,28 @@ function CapabilityFields({
             </label>
           ))}
         </div>
+        {declared.length > 0 && (
+          <>
+            <Tooltip label={t('modelReasoningValueHelp')} openOnClick>
+              <button type="button" className={`${styles['modelFieldLabel']} ${styles['reasoningValueHelp']}`}>
+                {t('modelReasoningValue')}
+              </button>
+            </Tooltip>
+            <div className={styles['effortValues']}>
+              {declared.map(level => (
+                <label className={styles['modelField']} key={level}>
+                  <span className={styles['modelFieldLabel']}>{effortLabel(level, t)}</span>
+                  <input className={styles['input']} type="text"
+                    aria-label={`${t('modelReasoningValue')} ${effortLabel(level, t)} ${String(index + 1)}`}
+                    value={wireText(level)} placeholder={level === 'off' ? '—' : level}
+                    disabled={disabled}
+                    onChange={(event) => { onWireChange(level, event.target.value) }}
+                    onBlur={() => { onWireBlur(level) }} />
+                </label>
+              ))}
+            </div>
+          </>
+        )}
       </div>
       <label className={styles['modelField']}>
         <span className={styles['modelFieldLabel']}>{t('modelReasoningDefault')}</span>
@@ -411,13 +439,21 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
 
   /**
    * Declare, or stop declaring, reasoning for one row. Each declaration is
-   * written whole: a level map with no level yet, which
+   * written whole: a previously edited map, or a map with no level yet, which
    * {@link validateDeepSeekModels} refuses until one is picked, so the row
    * cannot leave the editor half-declared.
    */
-  const setReasoningMode = (index: number, mode: ModelReasoningMode): void => {
+  const setReasoningMode = (index: number, model: ModelDraft, mode: ModelReasoningMode): void => {
+    const current = modelReasoningMode(model)
+    if (current === mode) return
+    if (current === 'supported') rowState.rememberReasoning(index, {
+      efforts: effortMapOf(model), defaultEffort: declaredDefaultReasoningEffort(model),
+    })
+    const saved = rowState.rows[index]?.reasoning
     patch(index, {
-      ...mode === 'supported' ? { reasoningEfforts: {} } : {},
+      ...mode === 'supported' ? {
+        reasoningEfforts: saved?.efforts ?? {}, defaultReasoningEffort: saved?.defaultEffort,
+      } : {},
       ...mode === 'disabled' ? { reasoningEfforts: false } : {},
       ...mode === 'inherit' ? { reasoningEfforts: undefined } : {},
       // Neither a disabled nor an undeclared model can carry a default.
@@ -428,25 +464,24 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
   /**
    * Add or drop one offered level. The map is rebuilt in the adapter's own
    * level order, so the same set of checks always stores the same object
-   * however it was clicked; `off` is the one level whose wire spelling is the
-   * parameter's absence, which is what a null value means here.
+   * however it was clicked, retaining existing API values. A newly offered
+   * level defaults to its name; `off` defaults to null.
    */
   const toggleEffort = (index: number, model: ModelDraft, level: string): void => {
     const declared = declaredReasoningEfforts(model, efforts)
-    const next = declared.includes(level)
-      ? declared.filter(entry => entry !== level)
-      : [...declared, level]
-    // Rebuilt in the adapter's level order, through the same conversion an
-    // adopted provider declaration uses, so a set declared by hand and the
-    // same set imported from a provider store identically.
-    const map = reasoningEffortsMap(efforts.filter(entry => next.includes(entry)))
+    const dropping = declared.includes(level)
+    const map = { ...effortMapOf(model) }
+    if (dropping) Reflect.deleteProperty(map, level)
+    else map[level] = level === 'off' ? null : level
+    const order = [...new Set([...efforts, ...Object.keys(map)])]
+    rowState.edit(index, `reasoning:${level}`, undefined)
     const currentDefault = declaredDefaultReasoningEffort(model)
     patch(index, {
-      reasoningEfforts: map,
+      reasoningEfforts: Object.fromEntries(order.filter(key => Object.hasOwn(map, key)).map(key => [key, map[key]])),
       // Dropping the level a row defaults to would leave a default the
       // adapter refuses; the safest reading of the gesture is the default it
       // no longer offers.
-      ...currentDefault !== undefined && !next.includes(currentDefault)
+      ...dropping && currentDefault === level
         ? { defaultReasoningEffort: undefined }
         : {},
     })
@@ -455,6 +490,18 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
   /** Set, or clear, one row's default effort. */
   const setDefaultEffort = (index: number, level: string): void => {
     patch(index, { defaultReasoningEffort: level === '' ? undefined : level })
+  }
+
+  const wireText = (index: number, model: ModelDraft, level: string): string => {
+    const value = effortMapOf(model)[level]
+    return rowState.rows[index]?.editing.get(`reasoning:${level}`) ?? (typeof value === 'string' ? value : '')
+  }
+
+  const editWireValue = (index: number, model: ModelDraft, level: string, text: string): void => {
+    rowState.edit(index, `reasoning:${level}`, text)
+    patch(index, { reasoningEfforts: {
+      ...effortMapOf(model), [level]: text.trim() || (level === 'off' ? null : level),
+    } })
   }
 
   const fetchModels = async (): Promise<void> => {
@@ -627,14 +674,17 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
                         { value: 'supported', label: t('modelReasoningSupported') },
                         { value: 'disabled', label: t('modelReasoningDisabled') },
                       ]}
-                      onChange={(mode) => { setReasoningMode(index, mode) }}
+                      onChange={(mode) => { setReasoningMode(index, model, mode) }}
                     />
                   </label>
                 )}
                 {modelReasoningMode(model) === 'supported' && (
                   <CapabilityFields model={model} index={index} efforts={efforts} t={t} disabled={disabled}
                     onToggleLevel={(level) => { toggleEffort(index, model, level) }}
-                    onDefaultLevel={(level) => { setDefaultEffort(index, level) }} />
+                    onDefaultLevel={(level) => { setDefaultEffort(index, level) }}
+                    wireText={level => wireText(index, model, level)}
+                    onWireChange={(level, text) => { editWireValue(index, model, level, text) }}
+                    onWireBlur={(level) => { rowState.edit(index, `reasoning:${level}`, undefined) }} />
                 )}
                 {efforts.length > 0 && modelReasoningMode(model) === 'inherit'
                   ? (

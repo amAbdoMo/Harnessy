@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /** Model-list editing, endpoint interrogation, and hand-declared provider creation. */
 import { within, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import Schema from '@deepseek-ai/schemastery'
 import { Context } from '@deepseek-ai/cordis'
 import { bindSnapshotSelector, RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
@@ -662,6 +662,97 @@ describe('model capabilities', () => {
     await waitFor(() => { expect(mutate).toHaveBeenCalled() })
     expect(firstMutate(mutate).ops[0]?.value)
       .toEqual([{ id: 'acme-think', reasoningEfforts: { high: 'high' }, defaultReasoningEffort: 'high' }])
+  })
+
+  it('retains custom API values and unrelated metadata when adding a reasoning level', async () => {
+    const { mutate } = await mountSection(routeWith([{
+      id: 'custom-wire', reasoningEfforts: { off: 'saved-off', low: 'brief', high: 'deep' },
+      defaultReasoningEffort: 'high', vendorFlag: { keep: true },
+    }]))
+    openEditor('openai')
+    expandModel(1)
+    fireEvent.click(screen.getByRole('checkbox', { name: en.effortMedium }))
+    fireEvent.click(screen.getByText(en.apply))
+    await waitFor(() => { expect(mutate).toHaveBeenCalled() })
+    expect(firstMutate(mutate).ops[0]?.value).toEqual([{
+      id: 'custom-wire', reasoningEfforts: { off: 'saved-off', low: 'brief', medium: 'medium', high: 'deep' },
+      defaultReasoningEffort: 'high', vendorFlag: { keep: true },
+    }])
+  })
+
+  it('restores a disabled reasoning declaration with its row after reordering', async () => {
+    // jsdom has no scroll layout for the moved row's focus restoration.
+    const scroll = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollIntoView')
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { configurable: true, value: vi.fn() })
+    onTestFinished(() => {
+      if (scroll === undefined) Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView')
+      else Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', scroll)
+    })
+    const { mutate } = await mountSection(routeWith([
+      { id: 'a', reasoningEfforts: { high: 'deep-a' }, defaultReasoningEffort: 'high' },
+      { id: 'b', reasoningEfforts: { low: 'brief-b' }, defaultReasoningEffort: 'low' },
+    ]))
+    openEditor('openai')
+    expandModel(1)
+    pickOption(screen.getByLabelText(`${en.modelReasoning} 1`), en.modelReasoningDisabled)
+    fireEvent.keyDown(screen.getByRole('button', { name: `${en.reorderModel} 1` }), { key: 'ArrowDown' })
+    pickOption(screen.getByLabelText(`${en.modelReasoning} 2`), en.modelReasoningSupported)
+    expect(screen.getByRole<HTMLInputElement>('checkbox', { name: en.effortHigh }).checked).toBe(true)
+    fireEvent.click(screen.getByText(en.apply))
+    await waitFor(() => { expect(mutate).toHaveBeenCalled() })
+    expect(firstMutate(mutate).ops[0]?.value).toEqual([
+      { id: 'b', reasoningEfforts: { low: 'brief-b' }, defaultReasoningEffort: 'low' },
+      { id: 'a', reasoningEfforts: { high: 'deep-a' }, defaultReasoningEffort: 'high' },
+    ])
+  })
+
+  it('refuses a reasoning declaration that offers only Off', async () => {
+    await mountSection(routeWith([{ id: 'off-only', reasoningEfforts: { off: null } }]))
+    openEditor('openai')
+    expandModel(1)
+    expect(screen.getByText(`${en.model} 1: ${en.modelReasoningThinkingRequired}`)).toBeTruthy()
+    expect(buttonNamed(en.apply).disabled).toBe(true)
+  })
+
+  it.each([
+    { typed: '', stored: 'high' },
+    { typed: '  vendor-high  ', stored: 'vendor-high' },
+  ])('edits a reasoning API value while preserving the Off value ($typed)', async ({ typed, stored }) => {
+    const { mutate } = await mountSection(routeWith([{
+      id: 'wire-editor', reasoningEfforts: { off: 'saved-off', high: 'saved-high' }, vendorFlag: true,
+    }]))
+    openEditor('openai')
+    expandModel(1)
+    const off = screen.getByLabelText(`${en.modelReasoningValue} ${en.effortOff} 1`) as HTMLInputElement
+    expect(off.disabled).toBe(false)
+    expect(off.value).toBe('saved-off')
+    const high = screen.getByLabelText(`${en.modelReasoningValue} ${en.effortHigh} 1`) as HTMLInputElement
+    fireEvent.change(high, { target: { value: typed } })
+    expect(high.value).toBe(typed)
+    fireEvent.click(screen.getByText(en.apply))
+    await waitFor(() => { expect(mutate).toHaveBeenCalled() })
+    expect(firstMutate(mutate).ops[0]?.value).toEqual([{
+      id: 'wire-editor', reasoningEfforts: { off: 'saved-off', high: stored }, vendorFlag: true,
+    }])
+  })
+
+  it.each([
+    { typed: '', stored: null },
+    { typed: ' none ', stored: 'none' },
+  ])('edits the Off API value with omission represented by null ($typed)', async ({ typed, stored }) => {
+    const { mutate } = await mountSection(routeWith([{
+      id: 'off-wire', reasoningEfforts: { off: 'saved-off', high: 'deep' },
+    }]))
+    openEditor('openai')
+    expandModel(1)
+    const off = screen.getByLabelText(`${en.modelReasoningValue} ${en.effortOff} 1`) as HTMLInputElement
+    fireEvent.change(off, { target: { value: typed } })
+    expect(off.value).toBe(typed)
+    fireEvent.click(screen.getByText(en.apply))
+    await waitFor(() => { expect(mutate).toHaveBeenCalled() })
+    expect(firstMutate(mutate).ops[0]?.value).toEqual([{
+      id: 'off-wire', reasoningEfforts: { off: stored, high: 'deep' },
+    }])
   })
 
   it('declares a non-reasoning model with false', async () => {

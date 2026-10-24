@@ -4,6 +4,8 @@
     - button "通用设置"
     - button "模型"
     - button "内置插件"
+    - button "Subagents"
+    - button "MCP 服务器"
   - button "打开配置文件"
   - button "关闭"
   - heading "模型" [level=2]
@@ -57,9 +59,42 @@
             - checkbox "图片" [checked]
             - text: 图片
           - text: 推理
-          - combobox "推理 1": 适配器默认
-          - paragraph: 该模型未声明任何推理等级。可用“获取可用模型”导入提供方声明的等级，或选择“支持”并在此勾选。
+          - combobox "推理 1": 支持
+          - text: 支持的推理等级
+          - group "支持的推理等级 1":
+            - checkbox "关闭" [checked]
+            - text: 关闭
+            - checkbox "最低"
+            - text: 最低
+            - checkbox "低"
+            - text: 低
+            - checkbox "中"
+            - text: 中
+            - checkbox "高" [checked]
+            - text: 高
+            - checkbox "极高"
+            - text: 极高
+            - checkbox "最高"
+            - text: 最高
+          - button "API 值"
+          - text: 关闭
+          - textbox "API 值 关闭 1":
+            - /placeholder: —
+            - text: none
+          - text: 高
+          - textbox "API 值 高 1":
+            - /placeholder: high
+            - text: ultra
+          - text: 默认推理等级
+          - combobox "默认推理等级 1": 高
+          - term: 来源
+          - definition: 已配置
           - button "添加模型"
       - button "取消"
       - button "保存"
   - button "添加模型提供商"
+  - region "AI 账户管理器":
+    - heading "账户" [level=3]
+    - paragraph: 保存多个提供商账户，并一键切换。
+    - button "管理账户"
+    - paragraph: 没有已保存的账户

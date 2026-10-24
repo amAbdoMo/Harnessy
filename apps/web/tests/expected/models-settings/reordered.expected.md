@@ -4,6 +4,8 @@
     - button "通用设置"
     - button "模型"
     - button "内置插件"
+    - button "Subagents"
+    - button "MCP 服务器"
   - button "打开配置文件"
   - button "关闭"
   - heading "模型" [level=2]
@@ -64,3 +66,8 @@
       - button "取消"
       - button "保存"
   - button "添加模型提供商"
+  - region "AI 账户管理器":
+    - heading "账户" [level=3]
+    - paragraph: 保存多个提供商账户，并一键切换。
+    - button "管理账户"
+    - paragraph: 没有已保存的账户
