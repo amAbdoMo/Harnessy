@@ -1,8 +1,8 @@
 import { Context } from '@deepseek-ai/cordis'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import LlmRuntime, { createUserMessage, markAgentLoopRequest } from '@deepseek-ai/dsh-llm'
 import { deepFreeze } from '@deepseek-ai/dsh-util-values'
-import SessionStore, { SessionId, SessionSeq } from '@deepseek-ai/dsh-session'
+import SessionStore, { SessionId, SessionLogOffset, SessionSeq } from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import { turnBoundaryProjectionDefinition } from '@deepseek-ai/dsh-agent-loop'
 import SessionTitleService, {
@@ -51,6 +51,27 @@ function appendRoute(session: ReturnType<Context['sessions']['create']>, reason:
 }
 
 describe('SessionTitleService Provider lifecycle', () => {
+  it.each(['fork', 'parentless-fork', 'subagent'] as const)('does not schedule first-prompt generation for an empty %s', async (kind) => {
+    const ctx = new Context()
+    onTestFinished(() => ctx.fiber.dispose())
+    await ctx.plugin(SessionStore)
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SessionTitleService, CONFIG)
+    const generate = vi.fn(async () => ({ title: 'Unexpected', messageSeqs: [] }))
+    ctx.sessionTitle.register({ id: SessionTitleProviderId('first'), automatic: 'first-prompt', generate })
+    const source = ctx.sessions.create(SessionId('empty-source'))
+    const child = kind === 'fork' ? ctx.sessions.fork(source)
+      : kind === 'parentless-fork' ? ctx.sessions.create(SessionId('parentless'), {
+        seed: [], inheritedEventCount: SessionLogOffset(0), meta: { isSeeded: true },
+      })
+        : ctx.sessions.create(SessionId('child'), { meta: { origin: 'subagent', parentSession: source.id } })
+    expect(child.header.parentSession).toBe(kind === 'parentless-fork' ? undefined : source.id)
+    appendHumanPrompt(child, 'First own prompt')
+    appendRoute(child)
+    await settle()
+    expect(generate).not.toHaveBeenCalled()
+  })
+
   it('inherits title events across forks, skips first-prompt retitling, and lets all-messages update later', async () => {
     const ctx = new Context()
     await ctx.plugin(SessionStore)

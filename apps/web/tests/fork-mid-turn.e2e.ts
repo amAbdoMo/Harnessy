@@ -18,6 +18,8 @@ import {
 import { newEnglishPage, saveFailureShot, writeComposerDraft } from './support.ts'
 
 const SNAPSHOT_DIR = fileURLToPath(new URL('./expected/fork-mid-turn', import.meta.url))
+const CUSTOM_OVERLAY = fileURLToPath(new URL('../../../packages/bundle/custom-harness/cordis.patch.yml', import.meta.url))
+const CUSTOM_MANIFEST = fileURLToPath(new URL('../../../packages/bundle/custom-harness/package.json', import.meta.url))
 // Borrowed read-only from its recorded-session owner.
 const SEED = fileURLToPath(new URL('../../../snapshots/web/seeded-history/session.v3.jsonl', import.meta.url))
 const UI_EXPECTED = join(SNAPSHOT_DIR, 'ui.expected.md')
@@ -69,6 +71,8 @@ describe('web e2e: exact-boundary fork seeds branch closers and continues', () =
     const replayOverride = join(replayDir, 'replay.override.json')
     await writeFile(replayOverride, JSON.stringify(continuationScript()))
     scaffold = await launchWebScaffold({
+      extraOverlayPath: CUSTOM_OVERLAY,
+      extraInstallAnchors: [CUSTOM_MANIFEST],
       replayFixture: join(replayDir, 'override-only.jsonl'),
       replayOverride,
       // Use paced chunks for the child continuation's live-stream assertions.
@@ -99,6 +103,7 @@ describe('web e2e: exact-boundary fork seeds branch closers and continues', () =
   })
 
   it.skipIf(MODE === 'record')('forks the cold source at its first tool/call and seeds forked closers', async () => {
+    await expect.poll(() => page.title()).toBe('Harnessy')
     const response = await scaffold.hostFetch('/api/session/fork', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -115,6 +120,7 @@ describe('web e2e: exact-boundary fork seeds branch closers and continues', () =
     const child = scaffold.ctx.sessions.get(childId)
     if (child === undefined) throw new Error('fork did not publish a live child session')
     expect(child.header.parentSession).toBe(SessionId(SEED_ID))
+    expect(child.header.origin).toBeUndefined()
     // inheritedEventCount counts only the copied parent prefix; the closers are child work.
     expect(child.inheritedEventCount).toBe(forkAt + 1)
     expect(child.snapshotEvents()[forkAt]?.type).toBe('tool/call')
@@ -133,15 +139,9 @@ describe('web e2e: exact-boundary fork seeds branch closers and continues', () =
 
   it.skipIf(MODE === 'record')('continues the child through the composer as a resume of the branched log', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-fork-mid-turn'))
-    // The session-added frame published the child row; the list sorts by
-    // recency, so the just-forked child is the first session row after the
-    // group header (the seeded source stays last). The settled-turn assertion
-    // below proves the prompt really ran on the child.
-    const groupRow = page.locator('[role="treeitem"]').first()
-    await groupRow.waitFor({ timeout: 15_000 })
-    await groupRow.click()
-    await expect.poll(() => page.locator('[role="treeitem"]').count(), { timeout: 15_000 }).toBe(3)
-    await page.locator('[role="treeitem"]').nth(1).click()
+    const childRow = page.locator(`[data-row-key="session:${childId}"]`)
+    await childRow.waitFor({ timeout: 15_000 })
+    await childRow.click()
     // The child renders the inherited prefix up to the cut.
     await expect.poll(() => page.getByText('Use the read tool twice', { exact: false }).count(), { timeout: 15_000 })
       .toBeGreaterThanOrEqual(1)

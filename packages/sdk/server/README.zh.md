@@ -57,6 +57,8 @@ Stdout 只承载 JSON-RPC 帧，客户端可以逐字节解析；诊断信息应
 
 插件应答 `shutdown`，刷新响应并 dispose 根上下文，使 SDK 持有的 agent、订阅与持久化达到完全停稳，然后以 0 退出。EOF 与信号退出归 app bin 负责，后者也会 dispose 根上下文。仅卸载此插件会停止服务，但不会退出进程。
 
+`subagent.started` 同时要求 `origin: 'subagent'` 和直接创建者。普通分叉即使记录了来源关联，也不会发出子代理启动通知；普通 Session 生命周期通知仍然可用。
+
 -----
 
 <a id="understand-the-implementation"></a>

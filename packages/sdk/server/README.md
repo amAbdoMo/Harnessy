@@ -57,6 +57,8 @@ The server scopes directory operations to the owning Agent identity and preserve
 
 The plugin answers `shutdown`, flushes the response, disposes the root context so SDK-owned agents, subscriptions, and persistence reach quiescence, then exits 0. EOF and signal exits belong to the app bin, which also disposes the root context. Unloading only this plugin stops serving without exiting the process.
 
+`subagent.started` requires both `origin: 'subagent'` and a direct creator. Ordinary forks, including those with recorded source links, emit no subagent-start notification; normal Session lifecycle notifications remain available.
+
 -----
 
 <a id="understand-the-implementation"></a>

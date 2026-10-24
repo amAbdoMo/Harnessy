@@ -64,6 +64,8 @@ One optional asynchronous provider may be registered through `ctx.sessionTitle.r
 
 Automatic failures warn and retain the latest title; explicit `refresh()` rejects on provider error or caller cancellation, and cancellation does not roll back an already accepted fallback event. Automatic work never delays the main agent response, its late completion appends a standalone log-only event without opening a turn, and a stale completion cannot append. Forks inherit title events in their seed unchanged.
 
+First-prompt providers skip seeded Sessions and subagents, including an empty fork before its first own prompt. All-prompts providers may update their inherited titles after an eligible request.
+
 -----
 
 <a id="understand-the-implementation"></a>

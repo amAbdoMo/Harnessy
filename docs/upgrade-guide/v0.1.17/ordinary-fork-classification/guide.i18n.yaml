@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.1.17/ordinary-fork-classification/guide.md
+/:
+  en: e73e2f61abdeed1f
+  zh: 853f9ad108cb0238
+/ordinary-forks-are-classified-separately-from-subagents:
+  en: 6eabd4fe57746e5c
+  zh: fd01f9de1fc6b6f2
+/ordinary-forks-are-classified-separately-from-subagents/change:
+  en: d786aa97cabac671
+  zh: 00bd7c4a74daa7fe
+/ordinary-forks-are-classified-separately-from-subagents/migration:
+  en: 9e83c6f024bee5cb
+  zh: 32b202d3817cd154

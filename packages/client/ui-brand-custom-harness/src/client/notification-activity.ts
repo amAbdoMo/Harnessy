@@ -58,7 +58,7 @@ function sessionTransitionEvents(
   const attentionSessions = new Set([...interactions].map(([sessionId]) => sessionId))
   return sessions.ids.flatMap((id) => {
     const session = sessions.byId[id]
-    if (session === undefined || session.origin === 'subagent' || session.parentId !== undefined) return []
+    if (session === undefined || session.origin === 'subagent') return []
     if (session.running) {
       activeRootRuns.add(id)
       return []
@@ -84,7 +84,7 @@ function sessionTransitionEvents(
 function armRunningRootSessions(sessions: SessionListState, activeRootRuns: Set<string>): void {
   for (const id of sessions.ids) {
     const session = sessions.byId[id]
-    if (session?.running === true && session.origin !== 'subagent' && session.parentId === undefined) {
+    if (session?.running === true && session.origin !== 'subagent') {
       activeRootRuns.add(id)
     }
   }
@@ -111,7 +111,7 @@ function interactionTransitionEvents(
     // Delegated children surface their own requests inside the subagent panel;
     // notifications stay reserved for the main session.
     const session = sessions.byId[sessionId]
-    if (session === undefined || session.origin === 'subagent' || session.parentId !== undefined) return []
+    if (session === undefined || session.origin === 'subagent') return []
     const kind = notificationKind(interaction.kind)
     if (kind === undefined) return []
     return [{

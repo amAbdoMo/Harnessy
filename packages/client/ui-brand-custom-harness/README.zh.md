@@ -43,6 +43,8 @@ MCP Servers 区域为每个已保存服务器显示紧凑卡片，整张卡片�
 
 原生任务或需要用户操作的通知通过工作区导航选择仍然存在的 Session，不重新加载应用文档。选择操作会等待初始 Session 目录；Session 已移除时保留当前视图。账户与 MCP 通知只打开应用，不指定 Session。[Desktop 通知注册](../../../apps/desktop/README.zh.md#native-activity-notifications)负责 Windows 品牌、协议激活和开发版本限制。
 
+普通分叉即使保留已保存的来源 id，也会收到完成和需要用户操作的通知。只有 `origin: 'subagent'` 才会将这些通知作为委派子级活动而抑制；现有未读和任务栏规则仍然适用。
+
 当仍在列表中、未归档的普通 Session 在主对话视图之外完成时，Windows 任务栏应用图标会显示白色数字徽标。阅读一个 Session 会清除其现有本地完成提醒并减少数量；阅读通知历史不会清除提醒。子代理完成、未列出或缺少元数据的 Session，以及未选中的空白 Session 均不参与计算。启动时不会把历史空闲 Session 标为未读。此窗口本地数量独立于 Conversations 按钮和通知铃铛；[Desktop](../../../apps/desktop/README.zh.md#native-activity-notifications) 负责其原生绘制。普通 Web 页面没有原生徽标。发布器向可选的桌面载体发送每次变化后的数量，并在插件卸载或页面离开时清除徽标。载体失败会写入诊断日志，不改变 Session 的未读状态。
 
 <a id="model-experience"></a>

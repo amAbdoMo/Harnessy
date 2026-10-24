@@ -75,6 +75,8 @@ One connection can run several sessions at once, each independent. The calls a c
 
 Session configuration offers opaque provider/model choices from the live LLM service catalog and a `reasoning_effort` selector when the exact model declares one. A prompt snapshots that selection before asynchronous image admission and pins it across every model step in that turn; a concurrent option change applies to the next turn. ACP clients are trusted controllers: stdio MCP entries authorize their absolute commands and environment, HTTP entries authorize their absolute HTTP(S) URLs and headers, and any initial connection or discovery failure rolls back the unpublished Agent. Unsupported surfaces are omitted or rejected: `session/load`, deletion, fork, additional directories, SSE or ACP-transport MCP, modes, commands, plans, terminals, client filesystem operations, and elicitation.
 
+Ordinary forks are eligible for listing and resume, including forks that retain their source parent id. Subagent classification uses `origin === 'subagent'`; the parent id alone does not exclude a Session. Working-directory, live ownership and composition checks still apply. ACP does not create forks.
+
 -----
 
 <a id="understand-the-implementation"></a>

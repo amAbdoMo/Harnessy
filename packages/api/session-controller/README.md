@@ -64,6 +64,8 @@ The user-invocable `skills/list` metadata includes the winning provider’s opti
 
 Fork copies the exact inclusive event prefix selected by `atSeq`, including a cut inside an open turn. The child records its inherited marker before synthetic fork results and closing events. Omitting `atSeq` selects the latest completed turn and its standalone tail, stopping before the next turn or queued input; a nonexistent event is rejected. The chat action selects a completed turn. `allowMigration: false` rejects a cold historical source with `session/migration-required` before reading its body or creating a child; omission preserves read-only source preparation. Merely opening history does not publish a successor: explicit execution or continuation owns writable migration.
 
+Only subagent-origin Sessions are indented beneath their creators. Harnessy retains ordinary forks' source metadata for traceability and existing manual placement; it does not make those forks subagents or grant continuation authority.
+
 A resume blocked by an existing write handle returns `session/writer-held` with the Session id; other resume failures retain `gateway/internal`.
 
 `loadThrough(seq)` retains older pages privately until its shared target is covered or loading ends, then publishes the successful pages as one ordered prepend. Live events remain visible while history loads. A later page failure retains the successful prefix; replacing the history window discards buffered pages from the replaced window. Ordinary `loadOlder()` publishes one Host-selected page directly.

@@ -60,6 +60,24 @@ describe('Harnessy notification activity observer', () => {
     expect(observer.observe(sessions(false, 2, 'completed'), new Map(), 30)).toEqual([])
   })
 
+  it('reports completion and pending actions for ordinary forks retaining their source id', () => {
+    const fork = (running: boolean, outcome?: 'completed'): SessionListState => {
+      const state = sessions(running, 1, outcome)
+      return { ...state, byId: { [SESSION_ID]: {
+        ...state.byId[SESSION_ID]!, parentId: 'source-session' as SessionId,
+      } } }
+    }
+    const observer = new NotificationActivityObserver()
+    observer.observe(fork(true), new Map(), 10)
+    expect(observer.observe(fork(false, 'completed'), new Map(), 20)).toEqual([
+      expect.objectContaining({ kind: 'task-completed', sessionId: SESSION_ID }),
+    ])
+    expect(observer.observe(fork(false), pending('fork-approval', 'approval'), 30)).toEqual([
+      expect.objectContaining({ kind: 'approval-required', sessionId: SESSION_ID }),
+    ])
+    expect(observer.observe(fork(false), pending('fork-approval', 'approval'), 40)).toEqual([])
+  })
+
   it('prioritizes action-needed activity over an idle transition', () => {
     const observer = new NotificationActivityObserver()
     observer.observe(sessions(true, 1), new Map(), 10)
