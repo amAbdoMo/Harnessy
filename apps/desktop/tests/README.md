@@ -26,7 +26,9 @@ pnpm exec tsc -b apps/desktop/tsconfig.host.json
 apps/desktop/.desktop-build/targets/mac-arm64/electron/Electron.app/Contents/MacOS/Electron apps/desktop/tests/fixtures/update-overlay-visibility.mjs
 ```
 
-The fixture owns a unique profile and writes `result.json` under `.desktop-build/qualification/update-overlay-*`. It compares native visibility, unfiltered parent content, and listener cleanup with the owner-local expected output for parent hide/show and document readiness while the parent is hidden. It uses no network, product login, or dsh Host. This qualifies native window restoration rather than the full first-login flow.
+The fixture owns a unique profile and writes `result.json` under `.desktop-build/qualification/update-overlay-*`. It checks visible and hidden owners, absence of native child windows, retention of a separate control window’s focus after owner visibility notifications, and view/input cleanup including owner destruction. It uses no network, product login, or dsh Host. It qualifies the in-window carrier, not the full first-login or installation flow.
+
+On Windows, reuse `.desktop-build/targets/win-x64/electron/electron.exe` for the same fixture. To check only ordinary update, tray-confirmation and companion dialogs against that cached runtime, set `ELECTRON_OVERRIDE_DIST_PATH` to its absolute directory and run `node apps/desktop/scripts/test-local-updater.mjs --ordinary-dialogs-only` after compiling the Desktop Host sources. This selection intercepts installation and records only those presentations; it does not qualify the complete download or mandatory-update flow.
 
 <a id="verification-interactive"></a>
 

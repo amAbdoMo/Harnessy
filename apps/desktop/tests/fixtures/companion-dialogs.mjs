@@ -24,6 +24,7 @@ export async function qualifyCompanionDialogs(parent, dialogs, root) {
     parent.setContentSize(sample.viewportWidth, 650)
     const css = Object.entries(expected.themes[sample.theme]).map(([token, value]) => `${token}:${value}`).join(';')
     await parent.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(`<!doctype html><body ${sample.theme === 'dark' ? 'data-ds-dark-theme' : ''} style="${css}"></body>`)}`)
+    parent.show()
     const commands = []
     const host = { companionControl: async (command) => {
       commands.push(command)
@@ -37,9 +38,10 @@ export async function qualifyCompanionDialogs(parent, dialogs, root) {
       copy: () => { throw new Error('Visual qualification must not copy an invitation') },
     })
     try {
-      const created = once(app, 'browser-window-created', { signal: AbortSignal.timeout(10_000) })
+      const created = once(app, 'web-contents-created', { signal: AbortSignal.timeout(10_000) })
       const pending = companion.open()
-      const [, window] = await created
+      const [, contents] = await created
+      const window = { webContents: contents }
       await once(window.webContents, 'did-finish-load', { signal: AbortSignal.timeout(10_000) })
       await rendered(window)
       const view = await window.webContents.executeJavaScript(`(() => {
@@ -60,7 +62,7 @@ export async function qualifyCompanionDialogs(parent, dialogs, root) {
       const name = `companion-${sample.theme}${sample.viewportWidth < 500 ? '-narrow' : ''}.png`
       await writeFile(join(root, name), (await window.webContents.capturePage(bounds)).toPNG())
       screenshots.push(name)
-      const closed = once(window, 'closed', { signal: AbortSignal.timeout(10_000) })
+      const closed = once(window.webContents, 'destroyed', { signal: AbortSignal.timeout(10_000) })
       await window.webContents.executeJavaScript(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }))`)
       await pending
       await closed

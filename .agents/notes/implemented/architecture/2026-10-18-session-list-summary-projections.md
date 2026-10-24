@@ -44,7 +44,7 @@ node --expose-gc .artifacts/session-list.perf.mjs 100 300 --full-projections
 
 The last command is a negative control that reintroduces full projection selection. This is a local diagnostic with no timing budget. It excludes Session creation, corpus queries, cold persistence, model/network latency, browser paint and retained-memory claims; it does not establish CI or complete product latency.
 
-Local Windows measurements on 2026-10-24 used Node 24.14.0, three warmups and seven samples per fresh process. The baseline was `fd0a632ee64880689872ee7d9e61ead202086520`; the candidate also retains the new compact notification outcome. Timing includes the attached-list read and JSON serialization, with both returned rows and serialized output available at completion.
+Local Windows measurements on 2026-10-24 used Node 24.14.0, three warmups and seven samples per fresh process. The baseline was the attached-list implementation before summary selection, identified in the [upstream review ledger](../../../../scripts/harnessy-upstream-review.json); the candidate also retains the new compact notification outcome. Timing includes the attached-list read and JSON serialization, with both returned rows and serialized output available at completion.
 
 | Synthetic workload | Baseline median / bytes | Summary median / bytes |
 |---|---|---|

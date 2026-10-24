@@ -110,6 +110,7 @@ const harness = await vi.hoisted(async () => {
   const menu = Object.assign(menuBuilder, { buildFromTemplate: menuBuilder, setApplicationMenu: vi.fn() })
   class FakeWindow extends EventEmitter {
     destroyed = false
+    readonly contentView = { addChildView: vi.fn(), removeChildView: vi.fn() }
     readonly urls: string[] = []
     readonly webContents = Object.assign(new EventEmitter(), {
       id: 42,
@@ -174,6 +175,18 @@ const harness = await vi.hoisted(async () => {
       const event = { preventDefault: vi.fn() }
       this.emit('close', event)
       if (event.preventDefault.mock.calls.length === 0) this.destroy()
+    }
+  }
+  const views: FakeView[] = []
+  class FakeView extends FakeWindow {
+    constructor() {
+      super({ show: false })
+      windows.pop()
+      views.push(this)
+      Object.assign(this.webContents, {
+        loadURL: (url: string) => this.loadURL(url),
+        close: () => { this.destroy(); this.webContents.emit('destroyed') },
+      })
     }
   }
   class FakeHost {
@@ -281,7 +294,7 @@ const harness = await vi.hoisted(async () => {
   const shellDialog = { isOpen: false, focus: vi.fn() }
   return {
     failWindow(error: Error) { windowFailure = error },
-    windows, hosts, handlers, app, FakeWindow, FakeHost, powerMonitor, nativeTheme, analytics, loginShell, readLoginShell,
+    windows, views, hosts, handlers, app, FakeWindow, FakeView, FakeHost, powerMonitor, nativeTheme, analytics, loginShell, readLoginShell,
     systemPreferences, createFromBitmap, exposed, exposeInMainWorld, rendererInvoke, rendererEvents, rendererSend,
     set ticketSettlement(promise: Promise<undefined> | undefined) { ticketSettlement = promise },
     trays, FakeTray, backgroundNotice, shellDialog, notifications, FakeNotification, writeShortcutLink, readShortcutLink,
@@ -331,7 +344,7 @@ const harness = await vi.hoisted(async () => {
     set closeWindowsOnQuit(value: boolean) { closeWindowsOnQuit = value },
     reset() {
       accountListener = undefined
-      windows.length = 0; hosts.length = 0; handlers.clear(); app.removeAllListeners()
+      windows.length = 0; views.length = 0; hosts.length = 0; handlers.clear(); app.removeAllListeners()
       trays.length = 0
       notifications.length = 0
       shortcutDetails.clear()
@@ -382,6 +395,7 @@ vi.mock('electron', () => ({
     decryptStringAsync: vi.fn(async () => ({ result: '' })), getSelectedStorageBackend: vi.fn(() => 'dpapi') },
   app: harness.app,
   BrowserWindow: harness.FakeWindow,
+  WebContentsView: harness.FakeView,
   dialog: harness.dialog,
   clipboard: { writeText: harness.clipboardWrite },
   shell: { openExternal: harness.openExternal, writeShortcutLink: harness.writeShortcutLink, readShortcutLink: harness.readShortcutLink },
@@ -1575,6 +1589,23 @@ describe('desktop main startup', () => {
     host.exited.resolve()
     await harness.quitCompleted.promise
     expect(harness.trays[0]!.destroy).toHaveBeenCalledOnce()
+  })
+
+  it('routes closing a macOS owner with a mandatory view through application quit', async () => {
+    vi.stubGlobal('process', { ...process, platform: 'darwin' })
+    harness.embeddedPolicy = { origin: 'https://policy.example.com', allowedPageOrigins: ['https://downloads.example.com'] }
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ code: 40005, data: {
+      show_content: { title: 'Update required', detail: 'Please update' }, desktop_app_link: 'https://downloads.example.com/',
+    } })))
+    const host = await readyWorkspace()
+    await harness.policyBlocked.promise
+    harness.windows[0]!.close()
+    expect(harness.app.quit).toHaveBeenCalled()
+    expect(harness.backgroundNotice.close).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(host.inspectQuit).toHaveBeenCalledOnce()
+    host.exited.resolve()
+    await harness.quitCompleted.promise
   })
 
   it('routes closing through the tray confirmation and keeps the Host running', async () => {

@@ -140,15 +140,6 @@ it('rejects same-URL child frames and removes quit from renderer privileges', ()
   expect(() => f.action('quit')).toThrow(/invalid action/)
 })
 
-it('exits the application when the mandatory window is closed without clearing the policy', () => {
-  const f = setup()
-  const event = { preventDefault: vi.fn() }
-  window.emit('close', event)
-  expect(event.preventDefault).toHaveBeenCalledOnce()
-  expect(native.quit).toHaveBeenCalledOnce()
-  expect(f.view().policy.blocking).toBe(true)
-})
-
 it('fades on clearance, reuses a reblocked window, and cancels teardown on disposal', () => {
   vi.useFakeTimers()
   const f = setup()
@@ -211,4 +202,23 @@ it.each(['darwin', 'win32'] as const)('includes the installation wait notice onl
   expect(f.view().locale.messages.mandatoryReadyDetail).toBe(platform === 'win32'
     ? '更新期间应用将暂时关闭，完成后会自动打开。\n\n更新可能需要一些时间，请耐心等待，期间请勿重复启动应用。'
     : '更新期间应用将暂时关闭，完成后会自动打开。')
+})
+
+it('updates the same macOS view in the background without showing or focusing the owner', () => {
+  const f = setup()
+  f.update({ phase: 'downloading', version: '1.0.1-nightly.1', percent: 35 })
+  f.update({ phase: 'error', version: '1.0.1-nightly.1', failedOperation: 'download' })
+  expect(window.show).not.toHaveBeenCalled()
+  expect(window.focus).not.toHaveBeenCalled()
+  expect(window.loadURL).toHaveBeenCalledOnce()
+  expect(ui!.confirmationWindow).toBe(window)
+  expect(f.view().policy.blocking).toBe(true)
+})
+
+it('cancels outstanding approval when the mandatory view is destroyed without clearing policy', async () => {
+  const f = setup()
+  const approval = ui!.confirm('1.0.1-nightly.1', true)
+  window.webContents.emit('destroyed')
+  expect(await approval).toBe(false)
+  expect(f.view().policy.blocking).toBe(true)
 })

@@ -1,11 +1,11 @@
 /** Shell-owned modal policy UI; only explicit actions authorize downloads or browser navigation. */
 
-import { app, BrowserWindow, clipboard, ipcMain, shell, type IpcMainInvokeEvent } from 'electron'
+import { type BrowserWindow, clipboard, ipcMain, shell, type IpcMainInvokeEvent } from 'electron'
 import type { DesktopLocale } from './locale.ts'
 import { assertDesktopSender, type DesktopUpdateState } from './ipc.ts'
 import { desktopPolicyPage, type DesktopPolicyState } from './mandatory-update-policy.ts'
 import { MANDATORY_IPC } from './mandatory-update-ipc.ts'
-import type { DesktopUpdateOverlays } from './update-overlay.ts'
+import type { DesktopUpdateOverlay, DesktopUpdateOverlays } from './update-overlay.ts'
 import { DesktopUpdateAttention } from './update-attention.ts'
 
 /** A renderer action never carries a URL or authorizes a different version. */
@@ -47,13 +47,14 @@ export interface MandatoryUpdateWindowOptions {
 // main.ts's protocol.handle shell route serves this document and its renderer assets; the modal requires that route.
 const page = 'dsh-app://shell/mandatory-update.html'
 
-/** Shell-owned update presentation; Windows embeds it in the main document without a child window. */
+/** Shell-owned update presentation inside the native owner; policy and installation approval remain main-owned. */
 export class DesktopMandatoryUpdateWindow {
   private readonly embedded = process.platform === 'win32'
   private embeddedParent: BrowserWindow | undefined
   private embeddedBlocking = false
   private readonly publishEmbedded = (): void => { this.embeddedBlocking = false; this.sync() }
-  private window: BrowserWindow | undefined
+  private window: DesktopUpdateOverlay | undefined
+  private surfaceParent: BrowserWindow | undefined
   private closing: ReturnType<typeof setTimeout> | undefined
   private disposed = false
   private error: string | undefined
@@ -110,7 +111,7 @@ export class DesktopMandatoryUpdateWindow {
   }
 
   /** Active modal used as the owner of shell installation-confirmation dialogs. */
-  get confirmationWindow(): BrowserWindow | undefined { return this.embedded ? this.options.parent() : this.window }
+  get confirmationWindow(): BrowserWindow | undefined { return this.embedded ? this.options.parent() : this.surfaceParent }
 
   /**
    * @param version - Updater-owned target, already downloaded and verified.
@@ -145,6 +146,13 @@ export class DesktopMandatoryUpdateWindow {
   /** Publish current status, create the block immediately, or close it only after policy clearance. */
   sync(): void {
     if (this.disposed) return
+    if (!this.embedded && this.window !== undefined && this.surfaceParent !== this.options.parent()) {
+      this.finishConfirmation(false)
+      const previous = this.window
+      this.window = undefined
+      this.surfaceParent = undefined
+      previous.destroy()
+    }
     if (this.embedded) {
       const parent = this.options.parent()
       if (parent !== this.embeddedParent) {
@@ -168,7 +176,7 @@ export class DesktopMandatoryUpdateWindow {
         window.webContents.send(MANDATORY_IPC.state, this.view())
         this.closing = setTimeout(() => {
           this.closing = undefined
-          if (this.window === window) this.window = undefined
+          if (this.window === window) { this.window = undefined; this.surfaceParent = undefined }
           window.destroy()
         }, 150)
       }
@@ -190,23 +198,29 @@ export class DesktopMandatoryUpdateWindow {
     }
     if (this.window === undefined) {
       const parent = this.options.parent()
-      if (parent === undefined) return
-      const window = this.options.overlays.create(parent, this.options.preload, this.options.locale.messages.mandatoryTitle, false)
+      if (parent === undefined || parent.isDestroyed()) return
+      const window = this.options.overlays.create(parent, this.options.preload)
       this.window = window
-      window.setMenu(null)
-      window.on('close', (event) => { if (!this.disposed && this.options.policy().blocking) { event.preventDefault(); app.quit() } })
-      window.on('closed', () => { if (this.window === window) this.window = undefined })
+      this.surfaceParent = parent
+      window.webContents.once('destroyed', () => {
+        if (this.window === window) {
+          this.window = undefined; this.surfaceParent = undefined
+          this.finishConfirmation(false)
+          if (!this.disposed) queueMicrotask(() => { this.sync() })
+        }
+      })
       window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
       window.webContents.on('will-navigate', (event, url) => { if (url !== page) event.preventDefault() })
+      window.webContents.on('will-redirect', (event) => { event.preventDefault() })
       window.webContents.on('render-process-gone', () => {
         if (!this.disposed) void window.loadURL(page).catch(() => {
           // A failed recovery keeps the parent blocked and leaves application exit available.
-          if (!window.isDestroyed()) window.setTitle(this.options.locale.messages.mandatoryActionFailed)
+          if (!window.isDestroyed()) parent.setTitle(this.options.locale.messages.mandatoryActionFailed)
         })
       })
       void window.loadURL(page).catch(() => {
         // The parent stays modal-blocked if its dedicated recovery document cannot load.
-        if (!window.isDestroyed()) window.setTitle(this.options.locale.messages.mandatoryActionFailed)
+        if (!window.isDestroyed()) parent.setTitle(this.options.locale.messages.mandatoryActionFailed)
       })
     }
     this.window.webContents.send(MANDATORY_IPC.state, this.view())
@@ -219,8 +233,7 @@ export class DesktopMandatoryUpdateWindow {
     if (parent?.isDestroyed()) return
     if (parent?.isMinimized()) parent.restore()
     parent?.show()
-    if (this.embedded) parent?.focus()
-    this.window?.show()
+    parent?.focus()
     this.window?.focus()
   }
 
@@ -240,6 +253,7 @@ export class DesktopMandatoryUpdateWindow {
     }
     this.window?.destroy()
     this.window = undefined
+    this.surfaceParent = undefined
   }
 
   private view(): MandatoryUpdateView {

@@ -7,12 +7,14 @@ import { fileURLToPath } from 'node:url'
 import electron from 'electron'
 
 if (process.platform !== 'win32') throw new Error('Local NSIS updater qualification requires Windows')
+const arguments_ = process.argv.slice(2)
+if (arguments_.some(argument => argument !== '--ordinary-dialogs-only')) throw new Error('Expected only --ordinary-dialogs-only')
 const root = await mkdtemp(join(tmpdir(), 'dsh-local-updater-'))
 let timedOut = false
 try {
   const environment = Object.fromEntries(Object.entries(process.env).filter(([name]) =>
     !/KEY|SECRET|TOKEN|PASSWORD|^NODE_OPTIONS$|^ELECTRON_RUN_AS_NODE$/iu.test(name)))
-  const child = spawn(electron, [fileURLToPath(new URL('../tests/fixtures/local-updater.mjs', import.meta.url))], {
+  const child = spawn(electron, [fileURLToPath(new URL('../tests/fixtures/local-updater.mjs', import.meta.url)), ...arguments_], {
     env: { ...environment, DSH_LOCAL_UPDATE_TEST_ROOT: root }, stdio: 'inherit', windowsHide: true,
   })
   const timeout = setTimeout(() => { timedOut = true; child.kill() }, 120_000)
