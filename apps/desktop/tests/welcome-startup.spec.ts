@@ -55,6 +55,12 @@ vi.mock('../src/crash-report.ts', async importOriginal => ({
   pruneCrashReports: vi.fn(async () => {}),
 }))
 vi.mock('electron', () => ({
+  safeStorage: {
+    isAsyncEncryptionAvailable: vi.fn(async () => true),
+    encryptStringAsync: vi.fn(async () => Buffer.from('fixture')),
+    decryptStringAsync: vi.fn(async () => ({ result: '' })),
+    getSelectedStorageBackend: vi.fn(() => 'dpapi'),
+  },
   clipboard: { writeText: state.copy },
   shell: { openExternal: vi.fn(async () => {}),
     writeShortcutLink: vi.fn((_path: string, _operation: string, options: { appUserModelId?: string }) => {
