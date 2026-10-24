@@ -80,6 +80,8 @@ Each browser session selects a shipped preset (`standard` by default). The Agent
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 
+The published package includes the `index` and `startup` entries, their `public-url-*` and `startup-*` runtime chunks, and the declared profile patches. The publication gate checks these patterns so the startup entry can resolve its relative imports after packing.
+
 <details>
 <summary>Implementation internals — click to expand</summary>
 

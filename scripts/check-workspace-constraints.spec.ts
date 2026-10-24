@@ -353,6 +353,17 @@ describe('package payload constraints', () => {
     const manifest = JSON.parse(readFileSync(new URL(`../${dir}/package.json`, import.meta.url), 'utf8')) as WorkspaceManifest['manifest']
     expect(checkWorkspaceManifest({ dir, manifest })).toEqual([])
   })
+
+  it.each([
+    ['packages/host/companion-host', 'lib/desktop-control.js'],
+    ['packages/bundle/web-app', 'lib/startup-*.js'],
+    ['apps/desktop-host', 'companion-deployment.json'],
+  ])('requires the shipped runtime payload of %s', (dir, required) => {
+    const manifest = JSON.parse(readFileSync(new URL(`../${dir}/package.json`, import.meta.url), 'utf8')) as WorkspaceManifest['manifest']
+    expect(checkWorkspaceManifest({ dir, manifest })).toEqual([])
+    expect(checkWorkspaceManifest({ dir, manifest: { ...manifest, files: manifest.files!.filter(file => file !== required) } }))
+      .toEqual([expect.stringContaining('package.json files must be')])
+  })
 })
 
 it('publishes CLI runtime declarations and rejects a payload that omits them', () => {

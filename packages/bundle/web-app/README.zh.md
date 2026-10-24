@@ -80,6 +80,8 @@ dsh --profile web --no-open --port 8080
 <a id="understand-the-implementation"></a>
 ## 理解实现
 
+发布包包含 `index` 和 `startup` 入口、它们的 `public-url-*` 与 `startup-*` 运行时分块，以及声明的 profile 补丁。发布检查会验证这些模式，确保打包后的 startup 入口能解析其相对导入。
+
 <details>
 <summary>实现细节——点击展开</summary>
 
