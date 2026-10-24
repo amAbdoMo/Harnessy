@@ -57,7 +57,7 @@ type Reply<T> = Extract<DevicePreviewResponse, { ok: false }>
 
 function record(value: unknown): value is Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
-  const prototype = Object.getPrototypeOf(value)
+  const prototype: unknown = Object.getPrototypeOf(value)
   if (prototype !== Object.prototype && prototype !== null) return false
   // IPC carries data properties only; accessors and inherited serializers must never execute here.
   return Reflect.ownKeys(value).every((key) => {
@@ -145,6 +145,8 @@ export function installDevicePreviewParentChannel(ctx: Context, send: (message: 
   ): Promise<T> {
     if (signal.aborted) throw new Error('Device preview request was canceled')
     if (stopped || pending.size >= MAX_PENDING) throw new Error('Device preview parent request is unavailable')
+    const isCanceled = (): boolean => signal.aborted
+    const isStopped = (): boolean => stopped
     const result = Promise.withResolvers<T>()
     let finished = false
     const cleanup = () => {
@@ -182,12 +184,12 @@ export function installDevicePreviewParentChannel(ctx: Context, send: (message: 
       reject(new Error('Device preview request timed out'))
       cancel(message.requestId)
     }, bounds.deadline)
-    try { void send(message).catch((_error: unknown) => reject(new Error('Device preview request delivery failed'))) }
+    try { void send(message).catch((_error: unknown) => { reject(new Error('Device preview request delivery failed')) }) }
     catch (_error) { reject(new Error('Device preview request delivery failed')) }
     const value = await result.promise
     // An already queued success cannot escape caller cancellation or Host disposal.
-    if (signal.aborted) throw new Error('Device preview request was canceled')
-    if (stopped) throw new Error('Device preview Host is stopping')
+    if (isCanceled()) throw new Error('Device preview request was canceled')
+    if (isStopped()) throw new Error('Device preview Host is stopping')
     return value
   }
 

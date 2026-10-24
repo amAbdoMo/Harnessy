@@ -40,14 +40,14 @@ export function rejectSessionOpen(request: SessionOpenRequest, code: MutationRef
 export async function executeSessionOpen(
   ctx: Context, request: SessionOpenRequest, options: SessionActivationOptions,
 ): Promise<SessionOpenedResult> {
-  let admitted = false
+  const admission = { started: false }
   const common = { v: 1 as const, type: 'sessionOpened' as const, requestId: request.requestId,
     operationId: request.operationId, sessionId: request.sessionId }
   try {
     options.requireAdmission()
     const agent = await ctx.sessionController.activateExistingAgent(request.sessionId, {
       signal: options.signal, requireAdmission: options.requireAdmission,
-      onAdmitted: () => { admitted = true },
+      onAdmitted: () => { admission.started = true },
     })
     options.requireAdmission()
     requireVisibleSession(ctx, agent.session.header)
@@ -59,7 +59,7 @@ export async function executeSessionOpen(
     encodeApplicationResult(result, options.budget)
     return result
   } catch (error: unknown) {
-    if (admitted) return { ...common, outcome: 'unknown' }
+    if (admission.started) return { ...common, outcome: 'unknown' }
     const code = error instanceof RemoteError && (error.code === 'session/agent-busy' || error.code === 'session/writer-held')
       ? 'busy' : options.errorCode(error)
     return rejectSessionOpen(request, code)

@@ -14,7 +14,9 @@ export function awaitActivationPreparation<T>(
   release?: (abandoned: T) => void,
 ): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const abort = (): void => { reject(signal.reason) }
+    const abort = (): void => {
+      reject(signal.reason instanceof Error ? signal.reason : new Error('Session activation was canceled', { cause: signal.reason }))
+    }
     signal.addEventListener('abort', abort, { once: true })
     if (signal.aborted) abort()
     void pending.then((prepared) => {
@@ -23,7 +25,7 @@ export function awaitActivationPreparation<T>(
       else resolve(prepared)
     }, (error: unknown) => {
       signal.removeEventListener('abort', abort)
-      reject(error)
+      reject(error instanceof Error ? error : new Error('Session activation preparation failed', { cause: error }))
     })
   })
 }

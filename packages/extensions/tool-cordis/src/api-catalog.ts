@@ -847,6 +847,24 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'command', description: 'Native-confirmed grant id, generation, fingerprint and permission; all three identifiers are rechecked under the update lock.' }],
         returns: 'Provider commit and channel teardown; any failure disables this Host until explicit recovery.',
       },
+      {
+        signature: 'setModelSelection(command: Extract<CompanionControlCommand, { readonly kind: \'setModelSelection\' }>): Promise<void>',
+        description: 'Commit independent native-confirmed model-selection consent without changing chat-management permission or pairing.',
+        parameters: [{ name: 'command', description: 'Current grant identity, generation, full fingerprint, and explicit permission choice.' }],
+        returns: 'Credential commit and retired-channel teardown; failure withdraws this Host incarnation.',
+      },
+      {
+        signature: 'setToolDetails(command: Extract<CompanionControlCommand, { readonly kind: \'setToolDetails\' }>): Promise<void>',
+        description: 'Commit independent consent for phone-visible tool locations and fixed summaries, including past events.',
+        parameters: [{ name: 'command', description: 'Current grant identity, generation, full fingerprint and explicit permission choice.' }],
+        returns: 'Credential commit and affected channel retirement; other permissions and pairing remain unchanged.',
+      },
+      {
+        signature: 'setSessionActivation(command: Extract<CompanionControlCommand, { readonly kind: \'setSessionActivation\' }>): Promise<void>',
+        description: 'Commit native-confirmed permission to open existing ordinary chats without desktop tab navigation.',
+        parameters: [{ name: 'command', description: 'Current grant identity, generation, full fingerprint and explicit activation decision.' }],
+        returns: 'Credential commit and channel retirement; pairing and all other capabilities are preserved.',
+      },
     ],
   },
   {
@@ -2185,6 +2203,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the live Agent or the stable Session-domain failure.',
       },
       {
+        signature: 'activateExistingAgent(sessionId: SessionId, options: ExistingAgentActivationOptions): Promise<Agent>',
+        description: 'Explicitly open an existing ordinary Session without submitting input or changing Desktop navigation.\n\nHost-only and absent from Remote namespaces. Final authority and admission callbacks run synchronously before writable resume. Already-live eligible Agents return unchanged without admission, including busy Agents. Same-id activation and deployment-capacity conflicts reject. Cancellation withdraws the reply; before admission it prevents later mutation. After admission, the API owns initialization and targeted persistence independently of reply loss or revocation. Initialization may migrate or repair history and run SessionStart plugins even if it fails. This method neither disposes a shared Agent on reply loss nor rearms goals or enqueues input.',
+        parameters: [{ name: 'sessionId', description: 'existing ordinary Session identity, including an ordinary fork; absence never creates.' }, { name: 'options', description: 'caller lifetime and synchronous Host admission callbacks.' }],
+        returns: 'the existing live Agent, or a resumed Agent after initialization and its targeted flush.',
+      },
+      {
         signature: 'inspect( sessionId: SessionId, signal?: AbortSignal, ): Promise<SessionInspection>',
         description: 'Inspect one attached or persisted Session without activating its Agent.',
         parameters: [{ name: 'sessionId', description: 'durable Session identity.' }, { name: 'signal', description: 'optional caller cancellation for persistence reads.' }],
@@ -2213,6 +2237,20 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Select one Session-local model after explicitly resuming the Session; save the default in the background.',
         parameters: [{ name: 'request', description: 'Session identity and requested model selection.' }],
         returns: 'the normalized selection installed for the Session, without waiting for default persistence.',
+      },
+      {
+        signature: 'currentModelSelection(agent: Agent): ModelSelection',
+        description: 'Read the effective model selection of one live ordinary Agent.\n\nHost-only: the Agent is supplied by the caller, so this never resumes a closed Session and never exposes the selection to a remote caller.',
+        parameters: [{ name: 'agent', description: 'live ordinary Agent that owns the selection.' }],
+        returns: 'a detached copy of the effective selection.',
+        throws: ['RemoteError when the Agent is not a live ordinary Session owner.'],
+      },
+      {
+        signature: 'selectModelForAgent( agent: Agent, choice: AgentModelChoice, beforeCommit: (selected: ModelSelection) => void, signal?: AbortSignal, ): Promise<AgentModelCommit>',
+        description: 'Validate and install one model-only choice for one explicitly supplied live ordinary Agent.\n\nHost-only and absent from Remote namespaces. The caller authorizes inside the shared queue immediately before append; closed Sessions are never resumed and the deployment default is untouched. Completion follows targeted flush. A failure after authorization returns can mean the event committed: callers must treat that outcome as uncertain, never automatically retry or assume rollback.',
+        parameters: [{ name: 'agent', description: 'live ordinary Agent that owns the selection.' }, { name: 'choice', description: 'model-only provider and model choice.' }, { name: 'beforeCommit', description: 'synchronous authorization check for the normalized selection.' }, { name: 'signal', description: 'optional caller lifetime; late metadata cannot commit after cancellation.' }],
+        returns: 'the normalized committed selection and its durable event position.',
+        throws: ['RemoteError when the Agent is not an idle ordinary Session owner, or the model is unavailable.'],
       },
       {
         signature: '@Remote async initializeDefaultModel(): Promise<void>',
@@ -2259,6 +2297,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the accepted title and durable event sequence.',
       },
       {
+        signature: 'renameLiveSession(request: SessionRenameRequest): SessionRenameValue',
+        description: 'Rename an already-live ordinary chat without activating a cold Session; Host-only, not Remote.',
+        parameters: [{ name: 'request', description: 'Live Session identity and proposed title.' }],
+        returns: 'the accepted title and durable event sequence.',
+      },
+      {
         signature: '@Remote(\'fork\') async fork(request: SessionForkRequest): Promise<SessionForkValue>',
         description: 'Fork one cold-readable exact event prefix into a new Session. An omitted boundary selects the latest completed-turn prefix; an open cut receives synthetic fork closers.',
         parameters: [{ name: 'request', description: 'source Session, optional exact inclusive event boundary, and migration preflight choice.' }],
@@ -2273,7 +2317,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       {
         signature: 'admitPrompt(request: SessionPromptRequest, checkAdmission: () => void): Promise<SessionPromptValue>',
         description: 'Admit a Host-owned prompt while rechecking its caller\'s current authority.',
-        parameters: [{ name: 'request', description: 'Session identity, prompt content, source metadata, and delivery mode.' }, { name: 'checkAdmission', description: 'synchronous authorization and cancellation check through inbox insertion.' }],
+        parameters: [{ name: 'request', description: 'Session identity, prompt content, source metadata, and delivery mode.' }, { name: 'checkAdmission', description: 'synchronous authorization and cancellation check before Agent resolution and again through inbox insertion.' }],
         returns: 'acknowledgement of in-memory admission; an already admitted prompt continues after cancellation.',
       },
       {
@@ -4969,6 +5013,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface AgentHandle {\n    agent: Agent;\n    dispose(): Promise<void>;\n}',
   },
   {
+    name: 'AgentModelChoice',
+    declaration: 'export interface AgentModelChoice {\n    readonly provider: string;\n    readonly model: string;\n}',
+  },
+  {
+    name: 'AgentModelCommit',
+    declaration: 'export interface AgentModelCommit {\n    readonly selected: ModelSelection;\n    readonly seq: number;\n}',
+  },
+  {
     name: 'AgentOptions',
     declaration: 'export interface AgentOptions {\n    provider?: string;\n    model?: string;\n    reasoningEffort?: ReasoningEffortId;\n    maxTokens?: number;\n}',
   },
@@ -5350,7 +5402,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'CompanionControlCommand',
-    declaration: 'export type CompanionControlCommand = {\n    readonly kind: \'describe\';\n} | {\n    readonly kind: \'activate\';\n} | {\n    readonly kind: \'createInvitation\';\n} | {\n    readonly kind: \'approveCandidate\';\n    readonly candidateId: CandidateId;\n    readonly fingerprint: string;\n} | {\n    readonly kind: \'cancelInvitation\';\n} | {\n    readonly kind: \'revokeGrant\';\n    readonly grantId: GrantId;\n} | {\n    readonly kind: \'setSessionManagement\';\n    readonly grantId: GrantId;\n    readonly expectedGeneration: number;\n    readonly fingerprint: string;\n    readonly enabled: boolean;\n};',
+    declaration: 'export type CompanionControlCommand = {\n    readonly kind: \'describe\';\n} | {\n    readonly kind: \'activate\';\n} | {\n    readonly kind: \'createInvitation\';\n} | {\n    readonly kind: \'approveCandidate\';\n    readonly candidateId: CandidateId;\n    readonly fingerprint: string;\n} | {\n    readonly kind: \'cancelInvitation\';\n} | {\n    readonly kind: \'revokeGrant\';\n    readonly grantId: GrantId;\n} | {\n    readonly kind: \'setSessionManagement\';\n    readonly grantId: GrantId;\n    readonly expectedGeneration: number;\n    readonly fingerprint: string;\n    readonly enabled: boolean;\n} | {\n    readonly kind: \'setModelSelection\';\n    readonly grantId: GrantId;\n    readonly expectedGeneration: number;\n    readonly fingerprint: string;\n    readonly enabled: boolean;\n} | {\n    readonly kind: \'setToolDetails\';\n    readonly grantId: GrantId;\n    readonly expectedGeneration: number;\n    readonly fingerprint: string;\n    readonly enabled: boolean;\n} | {\n    readonly kind: \'setSessionActivation\';\n    readonly grantId: GrantId;\n    readonly expectedGeneration: number;\n    readonly fingerprint: string;\n    readonly enabled: boolean;\n};',
   },
   {
     name: 'CompanionStatus',
@@ -5747,6 +5799,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'EveryScheduleRecord',
     declaration: 'export interface EveryScheduleRecord {\n    readonly id: ScheduleId;\n    readonly kind: \'every\';\n    readonly title: string;\n    readonly prompt: string;\n    readonly everySeconds: number;\n    readonly scheduledAt: string;\n}',
+  },
+  {
+    name: 'ExistingAgentActivationOptions',
+    declaration: 'export interface ExistingAgentActivationOptions {\n    readonly signal?: AbortSignal;\n    readonly requireAdmission: () => void;\n    readonly onAdmitted: () => void;\n}',
   },
   {
     name: 'FeedbackCategory',
@@ -6598,7 +6654,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'PairedDevice',
-    declaration: 'export interface PairedDevice {\n    readonly grantId: GrantId;\n    readonly generation: number;\n    readonly fingerprint: string;\n    readonly displayName: string;\n    readonly pairedAt: number;\n    readonly sessionManagement: boolean;\n}',
+    declaration: 'export interface PairedDevice {\n    readonly grantId: GrantId;\n    readonly generation: number;\n    readonly fingerprint: string;\n    readonly displayName: string;\n    readonly pairedAt: number;\n    readonly sessionManagement: boolean;\n    readonly modelSelection: boolean;\n    readonly toolDetails: boolean;\n    readonly sessionActivation: boolean;\n}',
   },
   {
     name: 'PaneOpenArgs',

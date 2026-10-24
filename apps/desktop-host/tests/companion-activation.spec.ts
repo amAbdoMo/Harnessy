@@ -366,7 +366,8 @@ describe('Desktop companion consent and activation', () => {
         type: 'companion-control', requestId, result: { kind: 'completed' },
       })
       expect(f.ctx.companionHost.describe().paired).toEqual([{ grantId: grant.grantId, generation: 7,
-        fingerprint: command.fingerprint, displayName: '', pairedAt: 1, sessionManagement: enabled }])
+        fingerprint: command.fingerprint, displayName: '', pairedAt: 1, sessionManagement: enabled,
+        modelSelection: false, toolDetails: false, sessionActivation: false }])
     }
     expect(await f.ctx.credentials.readRecord(RECORD_KEY)).toEqual(denied)
   })

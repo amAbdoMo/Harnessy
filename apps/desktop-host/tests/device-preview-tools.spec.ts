@@ -22,11 +22,11 @@ function planOf(result: ToolExecutionResult) {
   assert.ok(!result.isError && result.value !== null && typeof result.value === 'object' && !Array.isArray(result.value))
   const plan = result.value.plan
   assert.ok(plan !== null && typeof plan === 'object' && !Array.isArray(plan))
-  assert.equal(typeof plan.projectId, 'string')
-  assert.equal(typeof plan.url, 'string')
-  assert.equal(typeof plan.cwd, 'string')
-  assert.equal(typeof plan.command, 'string')
-  return { projectId: String(plan.projectId), cwd: String(plan.cwd), command: String(plan.command), url: String(plan.url) }
+  assert.ok(typeof plan.projectId === 'string')
+  assert.ok(typeof plan.url === 'string')
+  assert.ok(typeof plan.cwd === 'string')
+  assert.ok(typeof plan.command === 'string')
+  return { projectId: plan.projectId, cwd: plan.cwd, command: plan.command, url: plan.url }
 }
 
 function output(result: ToolExecutionResult) {
@@ -53,7 +53,7 @@ it('prepares without execution, publishes only committed external metadata and r
   f.ctx.on('approval/request', (request) => { approvals.push(request); return Promise.resolve<ApprovalOutcome>('allowed-once') })
   const prepared = await f.invoke('device_preview_project', { project: 'app', script: 'dev', url: URL })
   const plan = planOf(prepared)
-  expect(plan).toEqual({ projectId: expect.stringMatching(/^[0-9a-f-]{36}$/), cwd: '/inert-device-preview/app',
+  expect(plan).toEqual({ projectId: expect.stringMatching(/^[0-9a-f-]{36}$/) as string, cwd: '/inert-device-preview/app',
     command: "npm run 'dev'", url: URL })
   expect(f.files.reads).toEqual([{ path: '/inert-device-preview/app/package.json', maxBytes: 128 * 1024 }])
   expect(f.processes.specs).toEqual([])
@@ -66,7 +66,7 @@ it('prepares without execution, publishes only committed external metadata and r
   const completion = pending.then(() => { completed = true })
   try {
     expect(completed).toBe(false)
-    expect(request).toEqual({ type: 'device-preview-open', requestId: expect.any(String), previewId: expect.any(String),
+    expect(request).toEqual({ type: 'device-preview-open', requestId: expect.any(String) as string, previewId: expect.any(String) as string,
       sessionId: f.agent.session.id, server: { cwd: '', url: 'https://example.test/device', ownership: 'external', status: 'external' } })
     expect((await f.invoke('device_preview_observe', { previewId: request.previewId, slot: 'phone', operation: 'layout' })).isError).toBe(true)
     expect(f.observations).toEqual([])
@@ -81,7 +81,7 @@ it('prepares without execution, publishes only committed external metadata and r
   expect(f.observations).toEqual([])
   expect(approvals).toEqual([])
   const layout = await f.invoke('device_preview_observe', { previewId: request.previewId, slot: 'phone', operation: 'layout' })
-  const expected: object = JSON.parse(await readFile(new globalThis.URL('./expected/device-preview-tools.json', import.meta.url), 'utf8'))
+  const expected: unknown = JSON.parse(await readFile(new globalThis.URL('./expected/device-preview-tools.json', import.meta.url), 'utf8'))
   expect(normalizeIds({ prepared: output(prepared), opened: output(opened), layout: output(layout) },
     [[plan.projectId, '<project-id>'], [request.previewId, '<preview-id>']])).toEqual(expected)
   expect(f.processes.specs).toEqual([])
@@ -174,7 +174,7 @@ it('asks fresh approval on the captured Agent and exact callId for each operatio
   }
   expect(approvals).toHaveLength(calls.length)
   expect(f.observations).toEqual(calls.map(({ callId: _callId, ...args }) => ({ type: 'device-preview-observe',
-    requestId: expect.any(String), sessionId: f.agent.session.id, ...args })))
+    requestId: expect.any(String) as string, sessionId: f.agent.session.id, ...args })))
   expect(f.agent.session.snapshotEvents().filter(event => event.type === 'approval/asked').map(event => event.data.callId))
     .toEqual(calls.map(call => call.callId))
   expect(f.agent.session.snapshotEvents().filter(event => event.type === 'approval/decided').map(event => event.data.outcome))
@@ -271,7 +271,7 @@ it.each(['Agent options', 'session header'] as const)('logs durable screenshot r
   const image = result.content.find(block => block.type === 'image')
   assert.ok(image?.type === 'image')
   const ref = image.attachment
-  expect(ref).toMatchObject({ attachmentId: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
+  expect(ref).toMatchObject({ attachmentId: expect.stringMatching(/^sha256:[0-9a-f]{64}$/) as string,
     mediaType: 'image/png', bytes: Buffer.from(TINY_PNG, 'base64').length, width: 1, height: 1, name: 'device-preview-tablet.png' })
   const value = { ...args, kind: 'screenshot', attachmentId: ref.attachmentId, mediaType: ref.mediaType,
     bytes: ref.bytes, width: 1, height: 1 }

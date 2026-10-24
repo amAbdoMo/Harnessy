@@ -80,7 +80,7 @@ type Plan = {
 
 function record(packet: unknown): packet is Record<string, unknown> {
   if (typeof packet !== 'object' || packet === null || Array.isArray(packet)) return false
-  const prototype = Object.getPrototypeOf(packet)
+  const prototype: unknown = Object.getPrototypeOf(packet)
   if (prototype !== Object.prototype && prototype !== null) return false
   return Reflect.ownKeys(packet).every((key) => {
     const descriptor = Object.getOwnPropertyDescriptor(packet, key)
@@ -300,7 +300,7 @@ export function installDevicePreviewController(ctx: Context, send: (message: obj
         plan.owned = owned
         plan.everOwned = true
         const resource = owned
-        return { cancel: () => { void stopRange(plan, resource).catch(error => ctx.logger.error(error)) },
+        return { cancel: () => { void stopRange(plan, resource).catch((error: unknown) => { ctx.logger.error(error) }) },
           done: resource.done.catch((_error: unknown): JobOutcome => ({ status: 'failed', detail: 'Preview process range could not be observed' })) }
       } })
     if (owned === undefined) throw new Error('Preview job did not start its launcher')
@@ -428,7 +428,7 @@ export function installDevicePreviewController(ctx: Context, send: (message: obj
     const stopping = Promise.allSettled([...plans.values()].map(stopOwned))
     await Promise.allSettled([...pending])
     const outcomes = await stopping
-    const errors = outcomes.flatMap(outcome => outcome.status === 'rejected' ? [outcome.reason] : [])
+    const errors = outcomes.flatMap((outcome): unknown[] => outcome.status === 'rejected' ? [outcome.reason] : [])
     if (errors.length) throw new AggregateError(errors, 'Device preview cleanup did not reach quiescence')
   }
 
@@ -450,7 +450,7 @@ export function installDevicePreviewController(ctx: Context, send: (message: obj
       if (stopped || Object.keys(message).length !== 3 || typeof message.requestId !== 'string' || !UUID.test(message.requestId)
         || typeof message.projectId !== 'string' || !UUID.test(message.projectId)) return true
       void track(() => reply(message.requestId as DevicePreviewRequestId, message.projectId as string))
-        .catch(error => ctx.logger.error(error))
+        .catch((error: unknown) => { ctx.logger.error(error) })
       return true
     },
     dispose,

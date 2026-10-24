@@ -108,7 +108,7 @@ it('replaces stale resources with one shared pnpm and publishes the primary mani
   expect(existsSync(join(runtime, 'bin', 'node'))).toBe(true)
   expect(existsSync(join(runtime, 'cli', 'bin', 'dsh'))).toBe(true)
   expect(existsSync(join(runtime, 'cli', 'command-manager.js'))).toBe(true)
-  const manifest = JSON.parse(readFileSync(join(runtime, 'primary-runtime', 'runtime.json'), 'utf8'))
+  const manifest = JSON.parse(readFileSync(join(runtime, 'primary-runtime', 'runtime.json'), 'utf8')) as { pnpm: string }
   expect(JSON.parse(readFileSync(join(runtime, 'versions.json'), 'utf8'))).toEqual({
     schemaVersion: 1, node: '24.18.1', pnpm: manifest.pnpm,
   })

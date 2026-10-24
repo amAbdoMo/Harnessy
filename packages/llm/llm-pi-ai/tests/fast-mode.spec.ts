@@ -81,7 +81,7 @@ describe('current-chat /fast', () => {
     const { ctx } = await harness()
     const seed: SessionEvent[] = JSON.parse(JSON.stringify([
       { type: 'llm-pi-ai/fast-mode', data, seq: 0, time: 0, ignorable: true },
-    ]))
+    ])) as SessionEvent[]
     expect(() => ctx.sessionProjections.stateOf(Session.create(SessionId('malformed-mode'), seed), 'codexFastMode')).toThrow()
   })
 
@@ -134,14 +134,14 @@ describe('current-chat /fast', () => {
     expect(ctx.sessionProjections.stateOf(agent.session, 'codexFastMode')).toBe(false)
     expect(ctx.sessionProjections.stateOf(other.agent.session, 'codexFastMode')).toBe(false)
     await run(ctx, agent, '/fast')
-    const enabledSeed: SessionEvent[] = JSON.parse(JSON.stringify(events))
+    const enabledSeed: SessionEvent[] = JSON.parse(JSON.stringify(events)) as SessionEvent[]
     const reopened = Session.create(agent.id, enabledSeed, agent.session.header)
     expect(ctx.sessionProjections.stateOf(reopened, 'codexFastMode')).toBe(true)
     expect(ctx.sessionProjections.snapshot(reopened).values).toHaveProperty('codexFastMode', true)
     expect(ctx.sessionProjections.stateOf(other.agent.session, 'codexFastMode')).toBe(false)
     expect(ctx.sessionProjections.snapshot(other.agent.session).values).toHaveProperty('codexFastMode', false)
     await run(ctx, agent, '/fast')
-    const disabledSeed: SessionEvent[] = JSON.parse(JSON.stringify(events))
+    const disabledSeed: SessionEvent[] = JSON.parse(JSON.stringify(events)) as SessionEvent[]
     expect(ctx.sessionProjections.stateOf(Session.create(agent.id, disabledSeed, agent.session.header), 'codexFastMode')).toBe(false)
     expect(fastEvents(events).map(event => event.data.enabled)).toEqual([true, false])
     expect(ctx.sessionProjections.stateOf(reopened, 'codexFastMode')).toBe(true)
@@ -168,7 +168,7 @@ describe('current-chat /fast', () => {
     const { agent } = await createAgent(ctx)
     const command = ctx.commands.find(agent, 'fast')!
     const outcome = await command.handler(invocation(agent))
-    expect(outcome).toMatchObject({ kind: 'error', text: expect.stringContaining('no serviceable Codex protocol') })
+    expect(outcome).toMatchObject({ kind: 'error', text: expect.stringContaining('no serviceable Codex protocol') as string })
     expect(fastEvents(events)).toEqual([])
     expect(ctx.sessionProjections.stateOf(agent.session, 'codexFastMode')).toBe(false)
   })
@@ -200,7 +200,7 @@ describe('current-chat /fast', () => {
     })
     await expect(ctx.commands.execute(agent, '/fast on', [], controller.signal)).rejects.toThrow('cancelled before mutation')
     const outcome = await ctx.commands.find(agent, 'fast')!.handler(invocation(agent, controller.signal))
-    expect(outcome).toMatchObject({ kind: 'error', text: expect.stringContaining('cancelled') })
+    expect(outcome).toMatchObject({ kind: 'error', text: expect.stringContaining('cancelled') as string })
     expect(fastEvents(events)).toEqual([])
     expect(ctx.sessionProjections.stateOf(agent.session, 'codexFastMode')).toBe(false)
   })
@@ -209,7 +209,7 @@ describe('current-chat /fast', () => {
     const { ctx, events } = await harness()
     const handle = await createAgent(ctx)
     await handle.dispose()
-    expect(await run(ctx, handle.agent, '/fast on')).toMatchObject({ kind: 'error', text: expect.stringContaining('not live') })
+    expect(await run(ctx, handle.agent, '/fast on')).toMatchObject({ kind: 'error', text: expect.stringContaining('not live') as string })
     expect(fastEvents(events)).toEqual([])
   })
 

@@ -254,7 +254,9 @@ export class DevicePreviewControllers {
     let revocation: Promise<void>
     const { previewId, slot, lease } = binding
     try { revocation = this.options.bridge.unbind({ previewId, slot, lease }) }
-    catch (error: unknown) { revocation = Promise.reject(error) }
+    catch (error: unknown) {
+      revocation = Promise.reject(error instanceof Error ? error : new Error('Device preview unbind failed', { cause: error }))
+    }
     lane.bindingTail = Promise.all([lane.bindingTail, revocation]).then(() => {}).catch((error: unknown) => {
       lane.failure = 'approval'
       if (!this.disposed) this.publish()
@@ -278,9 +280,11 @@ export class DevicePreviewControllers {
       && old.visible === binding.visible) return
     lane.binding = binding
     lane.bindingTail = lane.bindingTail.then(async () => {
-      if (tab.disposed || lane.binding !== binding || this.options.request(binding.previewId) !== tab.request) return
+      const isCurrent = (): boolean => !tab.disposed && lane.binding === binding
+        && this.options.request(binding.previewId) === tab.request
+      if (!isCurrent()) return
       await this.options.bridge.bind(binding)
-      if (tab.disposed || lane.binding !== binding || this.options.request(binding.previewId) !== tab.request) return
+      if (!isCurrent()) return
       if (lane.failure === 'approval') lane.failure = undefined
       this.publish()
       await this.acknowledge(tab, binding)

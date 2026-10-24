@@ -24,7 +24,7 @@ export class InertGuest {
   constructor(readonly request: NativeBrowserPageRequest) {
     this.page = {
       frame: {
-        getSnapshot: this.state.getSnapshot, subscribe: this.state.subscribe,
+        getSnapshot: () => this.state.getSnapshot(), subscribe: listener => this.state.subscribe(listener),
         setViewport: (viewport) => { this.viewports.push({ ...viewport }) },
         loadUrl: (target) => {
           this.history.splice(this.position + 1)

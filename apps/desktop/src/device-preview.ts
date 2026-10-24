@@ -215,7 +215,7 @@ export class DesktopDevicePreviews {
    */
   async revokeOwner(owner: WebContents, retire = false): Promise<void> {
     if (retire) {
-      for (const [id, occurrence] of this.previews) if (occurrence.owner === owner) this.close(owner, id)
+      for (const [id, occurrence] of this.previews) if (occurrence.owner === owner) void this.close(owner, id)
     }
     const operations = [...this.pending.values()].filter(operation => operation.owner === owner)
     const closures = [...this.closing.values()].filter(closing => closing.occurrence.owner === owner)
@@ -257,7 +257,7 @@ export class DesktopDevicePreviews {
 
   /** @param host - exact retired Host. @returns after its native observations settle; launchers are owned by the Host. */
   async retireHost(host: object): Promise<void> {
-    for (const [id, occurrence] of this.previews) if (occurrence.host === host) this.close(occurrence.owner, id)
+    for (const [id, occurrence] of this.previews) if (occurrence.host === host) void this.close(occurrence.owner, id)
     const operations = [...this.pending.values()].filter(operation => operation.host === host)
     const closures = [...this.closing.values()].filter(closing => closing.occurrence.host === host)
     for (const operation of operations) operation.controller.abort(new Error('Device preview Host retired'))

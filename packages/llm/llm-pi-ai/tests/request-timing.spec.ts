@@ -28,7 +28,7 @@ function fixture(baseURL: string, resolveApiKey = () => Promise.resolve('private
     provider: 'gateway', model: 'fixture-model', ...signal === undefined ? {} : { signal },
     messages: [createUserMessage({ content: [{ type: 'text', text: 'private-fixture-prompt' }], source: { kind: 'user' } })],
   })
-  const records = (): Record<string, unknown>[] => lines.map(line => JSON.parse(line.slice('llm-pi-ai request-timing '.length)))
+  const records = (): Record<string, unknown>[] => lines.map(line => JSON.parse(line.slice('llm-pi-ai request-timing '.length)) as Record<string, unknown>)
   return { adapter, lines, stream, records }
 }
 

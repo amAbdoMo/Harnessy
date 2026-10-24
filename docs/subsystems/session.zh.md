@@ -788,6 +788,42 @@ interface TurnEndReasonMap {
 
 可选的 `application` 指定文件关联应用，不修改系统默认值；`workspacePathApplications({ path })` 在校验 Host 路径后返回当前关联应用、名称、图标和默认项。
 
+### 仅限 Host 的激活与模型选择
+
+受信任的 Host 调用方使用这些类型，在不提交工作的情况下激活已有普通 Session，并提交仅对该 Session 生效的模型选择。激活回调在最终准入点同步复核调用方权限；已提交的模型结果携带记录该变更的持久事件位置。
+
+```ts type-equiv
+/** Trusted Host admission for opening an existing ordinary Session without submitting work. */
+interface ExistingAgentActivationOptions {
+  /** Caller lifetime before admission only; an admitted resume does not inherit this signal. */
+  readonly signal?: AbortSignal
+  /** Synchronous current-authority check, repeated after asynchronous preflight and immediately before resume. */
+  readonly requireAdmission: () => void
+  /** Synchronous notification immediately before writable resume; throwing prevents resume. Not called for an already-live Agent. */
+  readonly onAdmitted: () => void
+}
+```
+
+```ts type-equiv
+/**
+ * Model-only choice a trusted Host caller may commit for one live ordinary
+ * Agent. It carries no reasoning effort: the selected model owns the effort
+ * that applies to it.
+ */
+interface AgentModelChoice {
+  readonly provider: string
+  readonly model: string
+}
+```
+
+```ts type-equiv
+/** Committed Session-local model selection and the durable event position that recorded it. */
+interface AgentModelCommit {
+  readonly selected: ModelSelection
+  readonly seq: number
+}
+```
+
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
 <a id="cordis-surface"></a>
@@ -809,6 +845,22 @@ Host service backing the generated `ctx.remote.session` namespace.
  * @returns the live Agent or the stable Session-domain failure.
  */
 resolveAgent(sessionId: SessionId): Promise<ApiSessionAgentResult>
+
+/**
+ * Explicitly open an existing ordinary Session without submitting input or changing Desktop navigation.
+ *
+ * Host-only and absent from Remote namespaces. Final authority and admission callbacks run
+ * synchronously before writable resume. Already-live eligible Agents return unchanged without
+ * admission, including busy Agents. Same-id activation and deployment-capacity conflicts reject.
+ * Cancellation withdraws the reply; before admission it prevents later mutation. After admission,
+ * the API owns initialization and targeted persistence independently of reply loss or revocation.
+ * Initialization may migrate or repair history and run SessionStart plugins even if it fails.
+ * This method neither disposes a shared Agent on reply loss nor rearms goals or enqueues input.
+ * @param sessionId - existing ordinary Session identity, including an ordinary fork; absence never creates.
+ * @param options - caller lifetime and synchronous Host admission callbacks.
+ * @returns the existing live Agent, or a resumed Agent after initialization and its targeted flush.
+ */
+activateExistingAgent(sessionId: SessionId, options: ExistingAgentActivationOptions): Promise<Agent>
 
 /**
  * Inspect one attached or persisted Session without activating its Agent.
@@ -848,6 +900,35 @@ inspect( sessionId: SessionId, signal?: AbortSignal, ): Promise<SessionInspectio
  * @returns the normalized selection installed for the Session, without waiting for default persistence.
  */
 @Remote('selectModel') selectModel(request: SessionSelectModelRequest): Promise<SessionSelectModelValue>
+
+/**
+ * Read the effective model selection of one live ordinary Agent.
+ *
+ * Host-only: the Agent is supplied by the caller, so this never resumes a
+ * closed Session and never exposes the selection to a remote caller.
+ * @param agent - live ordinary Agent that owns the selection.
+ * @returns a detached copy of the effective selection.
+ * @throws RemoteError when the Agent is not a live ordinary Session owner.
+ */
+currentModelSelection(agent: Agent): ModelSelection
+
+/**
+ * Validate and install one model-only choice for one explicitly supplied live
+ * ordinary Agent.
+ *
+ * Host-only and absent from Remote namespaces. The caller authorizes inside
+ * the shared queue immediately before append; closed Sessions are never resumed
+ * and the deployment default is untouched. Completion follows targeted flush.
+ * A failure after authorization returns can mean the event committed: callers must treat
+ * that outcome as uncertain, never automatically retry or assume rollback.
+ * @param agent - live ordinary Agent that owns the selection.
+ * @param choice - model-only provider and model choice.
+ * @param beforeCommit - synchronous authorization check for the normalized selection.
+ * @param signal - optional caller lifetime; late metadata cannot commit after cancellation.
+ * @returns the normalized committed selection and its durable event position.
+ * @throws RemoteError when the Agent is not an idle ordinary Session owner, or the model is unavailable.
+ */
+selectModelForAgent( agent: Agent, choice: AgentModelChoice, beforeCommit: (selected: ModelSelection) => void, signal?: AbortSignal, ): Promise<AgentModelCommit>
 
 /**
  * Select the first available account model after login when no provider API key is configured.
@@ -899,6 +980,13 @@ workspaceDesktop(): { name: string; available: boolean; fileManager: 'finder' | 
 @Remote('rename') rename(request: SessionRenameRequest): Promise<SessionRenameValue>
 
 /**
+ * Rename an already-live ordinary chat without activating a cold Session; Host-only, not Remote.
+ * @param request - Live Session identity and proposed title.
+ * @returns the accepted title and durable event sequence.
+ */
+renameLiveSession(request: SessionRenameRequest): SessionRenameValue
+
+/**
  * Fork one cold-readable exact event prefix into a new Session. An omitted
  * boundary selects the latest completed-turn prefix; an open cut receives
  * synthetic fork closers.
@@ -918,7 +1006,7 @@ workspaceDesktop(): { name: string; available: boolean; fileManager: 'finder' | 
 /**
  * Admit a Host-owned prompt while rechecking its caller's current authority.
  * @param request - Session identity, prompt content, source metadata, and delivery mode.
- * @param checkAdmission - synchronous authorization and cancellation check through inbox insertion.
+ * @param checkAdmission - synchronous authorization and cancellation check before Agent resolution and again through inbox insertion.
  * @returns acknowledgement of in-memory admission; an already admitted prompt continues after cancellation.
  */
 admitPrompt(request: SessionPromptRequest, checkAdmission: () => void): Promise<SessionPromptValue>
@@ -977,7 +1065,7 @@ admitPrompt(request: SessionPromptRequest, checkAdmission: () => void): Promise<
 @Remote({ mode: 'stream' }) control(signal: AbortSignal): AsyncIterable<SessionControlFrame>
 ```
 
-Types: [SessionId](core.zh.md) · [SessionInspection](persistence.zh.md) · [SessionSearchRequest](session-query.zh.md)
+Types: [Agent](core.zh.md) · [ModelSelection](core.zh.md) · [SessionId](core.zh.md) · [SessionInspection](persistence.zh.md) · [SessionSearchRequest](session-query.zh.md)
 
 Source: [`packages/api/session-controller/src/index.ts`](../../packages/api/session-controller/src/index.ts)
 

@@ -61,6 +61,27 @@ revokeGrant(grantId: GrantId): Promise<void>
  * @returns Provider commit and channel teardown; any failure disables this Host until explicit recovery.
  */
 setSessionManagement(command: Extract<CompanionControlCommand, { readonly kind: 'setSessionManagement' }>): Promise<void>
+
+/**
+ * Commit independent native-confirmed model-selection consent without changing chat-management permission or pairing.
+ * @param command - Current grant identity, generation, full fingerprint, and explicit permission choice.
+ * @returns Credential commit and retired-channel teardown; failure withdraws this Host incarnation.
+ */
+setModelSelection(command: Extract<CompanionControlCommand, { readonly kind: 'setModelSelection' }>): Promise<void>
+
+/**
+ * Commit independent consent for phone-visible tool locations and fixed summaries, including past events.
+ * @param command - Current grant identity, generation, full fingerprint and explicit permission choice.
+ * @returns Credential commit and affected channel retirement; other permissions and pairing remain unchanged.
+ */
+setToolDetails(command: Extract<CompanionControlCommand, { readonly kind: 'setToolDetails' }>): Promise<void>
+
+/**
+ * Commit native-confirmed permission to open existing ordinary chats without desktop tab navigation.
+ * @param command - Current grant identity, generation, full fingerprint and explicit activation decision.
+ * @returns Credential commit and channel retirement; pairing and all other capabilities are preserved.
+ */
+setSessionActivation(command: Extract<CompanionControlCommand, { readonly kind: 'setSessionActivation' }>): Promise<void>
 ```
 
 Source: [`packages/host/companion-host/src/index.ts`](../../packages/host/companion-host/src/index.ts)

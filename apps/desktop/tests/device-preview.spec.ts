@@ -196,16 +196,16 @@ describe('Main device preview display admission', () => {
     const pending = f.start().then((result) => { settled = true; return result })
     await f.sent
     expect(f.send).toHaveBeenCalledExactlyOnceWith(DESKTOP_IPC.devicePreviewOpen, f.open)
-    expect(() => f.manager.acknowledge(f.owner, f.acknowledgement)).toThrow()
-    expect(() => f.manager.acknowledge(f.otherOwner, f.acknowledgement)).toThrow()
-    expect(() => f.manager.acknowledge(f.owner, parseDevicePreviewAcknowledgement({
+    expect(() => { f.manager.acknowledge(f.owner, f.acknowledgement) }).toThrow()
+    expect(() => { f.manager.acknowledge(f.otherOwner, f.acknowledgement) }).toThrow()
+    expect(() => { f.manager.acknowledge(f.owner, parseDevicePreviewAcknowledgement({
       ...f.acknowledgement, requestId: uuid(100),
-    }))).toThrow()
-    expect(() => f.manager.acknowledge(f.owner, parseDevicePreviewAcknowledgement({
+    })) }).toThrow()
+    expect(() => { f.manager.acknowledge(f.owner, parseDevicePreviewAcknowledgement({
       ...f.acknowledgement, previewId: uuid(100),
-    }))).toThrow()
+    })) }).toThrow()
     f.manager.bind(f.owner, { ...f.binding, visible: false })
-    expect(() => f.manager.acknowledge(f.owner, f.acknowledgement)).toThrow()
+    expect(() => { f.manager.acknowledge(f.owner, f.acknowledgement) }).toThrow()
     await expect(f.request(f.observe(), f.otherHost)).resolves.toMatchObject({ ok: false })
     expect(settled).toBe(false)
     f.manager.bind(f.owner, f.binding)
@@ -235,13 +235,13 @@ describe('Main device preview display admission', () => {
     const f = fixture()
     const pending = f.start()
     await f.sent
-    expect(() => f.manager.bind(f.otherOwner, f.binding)).toThrow()
-    expect(() => f.manager.bind(f.owner, f.foreignBinding)).toThrow()
-    expect(() => f.manager.bind(f.owner, f.profileBinding)).toThrow()
-    expect(() => f.manager.acknowledge(f.owner, f.acknowledgement)).toThrow()
+    expect(() => { f.manager.bind(f.otherOwner, f.binding) }).toThrow()
+    expect(() => { f.manager.bind(f.owner, f.foreignBinding) }).toThrow()
+    expect(() => { f.manager.bind(f.owner, f.profileBinding) }).toThrow()
+    expect(() => { f.manager.acknowledge(f.owner, f.acknowledgement) }).toThrow()
     f.manager.bind(f.owner, f.binding)
     f.reservations.delete(f.binding.lease)
-    expect(() => f.manager.acknowledge(f.owner, f.acknowledgement)).toThrow()
+    expect(() => { f.manager.acknowledge(f.owner, f.acknowledgement) }).toThrow()
     await f.manager.close(f.owner, f.open.previewId)
     await expect(pending).resolves.toMatchObject({ ok: false })
     expect(f.executeJavaScriptInIsolatedWorld).not.toHaveBeenCalled()
@@ -254,8 +254,8 @@ describe('Main device preview display admission', () => {
     await f.sent
     f.manager.acknowledge(f.owner, { ...f.acknowledgement, opened: false })
     await expect(pending).resolves.toMatchObject({ ok: false })
-    expect(() => f.manager.bind(f.owner, f.binding)).toThrow()
-    expect(() => f.manager.acknowledge(f.owner, f.acknowledgement)).toThrow()
+    expect(() => { f.manager.bind(f.owner, f.binding) }).toThrow()
+    expect(() => { f.manager.acknowledge(f.owner, f.acknowledgement) }).toThrow()
   })
 })
 
@@ -401,7 +401,7 @@ describe('Main device preview in-flight ownership and drainage', () => {
       await f.commit()
       const barrier = f.hold(operation)
       let nativeSettled = false
-      barrier.settled.then(() => { nativeSettled = true })
+      const observedSettlement = barrier.settled.then(() => { nativeSettled = true })
       const request = f.observe(operation)
       const pending = f.request(request)
       await barrier.entered
@@ -416,6 +416,7 @@ describe('Main device preview in-flight ownership and drainage', () => {
       expect(f.reservations.has(f.binding.lease)).toBe(false)
       await expect(pending).resolves.toMatchObject({ ok: false })
       expect(nativeSettled).toBe(true)
+      await observedSettlement
       expect(vi.getTimerCount()).toBe(0)
     })
 
@@ -462,7 +463,7 @@ describe('Main device preview in-flight ownership and drainage', () => {
     const f = fixture()
     await f.commit()
     const request = f.observe()
-    f.setLookupHook(() => { f.request(validated({ type: 'device-preview-cancel', requestId: request.requestId })) })
+    f.setLookupHook(() => { void f.request(validated({ type: 'device-preview-cancel', requestId: request.requestId })) })
     await expect(f.request(request)).resolves.toMatchObject({ ok: false })
     expect(f.cancelGuest).not.toHaveBeenCalled()
     expect(f.nativeGuest.isDestroyed()).toBe(false)
@@ -541,8 +542,8 @@ describe('Main device preview in-flight ownership and drainage', () => {
       : f.manager.revokeOwner(f.owner, action === 'retireOwner')
     let closeSettled = false
     let joinSettled = false
-    closing.then(() => { closeSettled = true })
-    joining.then(() => { joinSettled = true })
+    const observedClosing = closing.then(() => { closeSettled = true })
+    const observedJoining = joining.then(() => { joinSettled = true })
     await barrier.cancelled
     await expect(f.request(f.observe())).resolves.toMatchObject({ ok: false })
     expect(closeSettled).toBe(false)
@@ -551,7 +552,7 @@ describe('Main device preview in-flight ownership and drainage', () => {
     await expect(f.request(reopening)).resolves.toMatchObject({ ok: false })
     barrier.reject(new Error('Native close completed'))
     await expect(pending).resolves.toMatchObject({ ok: false })
-    await Promise.all([closing, duplicate, joining])
+    await Promise.all([closing, duplicate, joining, observedClosing, observedJoining])
     expect(closeSettled).toBe(true)
     expect(joinSettled).toBe(true)
     await f.manager.close(f.owner, f.open.previewId)
@@ -570,7 +571,7 @@ describe('Main device preview in-flight ownership and drainage', () => {
     let drained = false
     const closing = f.manager.close(f.owner, f.open.previewId).then(() => { drained = true })
     expect(reported).toHaveBeenCalledWith('Device preview retirement callback failed', error)
-    expect(() => f.manager.bind(f.owner, f.binding)).toThrow()
+    expect(() => { f.manager.bind(f.owner, f.binding) }).toThrow()
     await barrier.cancelled
     await expect(f.request(f.observe())).resolves.toMatchObject({ ok: false })
     expect(drained).toBe(false)
@@ -633,7 +634,7 @@ describe('Main device preview in-flight ownership and drainage', () => {
     expect(f.debuggerApi.sendCommand).toHaveBeenCalledOnce()
     expect(f.debuggerApi.attach).not.toHaveBeenCalled()
     expect(f.debuggerApi.detach).not.toHaveBeenCalled()
-    expect(() => f.manager.acknowledge(f.owner, f.acknowledgement)).toThrow()
+    expect(() => { f.manager.acknowledge(f.owner, f.acknowledgement) }).toThrow()
   })
 
   it.each(['cancel', 'close', 'retireHost'] as const)('%s releases an opening that is waiting for display', async (action) => {
@@ -644,8 +645,8 @@ describe('Main device preview in-flight ownership and drainage', () => {
     if (action === 'close') await f.manager.close(f.owner, f.open.previewId)
     if (action === 'retireHost') await f.manager.retireHost(f.host)
     await expect(pending).resolves.toMatchObject({ ok: false })
-    expect(() => f.manager.bind(f.owner, f.binding)).toThrow()
-    expect(() => f.manager.acknowledge(f.owner, f.acknowledgement)).toThrow()
+    expect(() => { f.manager.bind(f.owner, f.binding) }).toThrow()
+    expect(() => { f.manager.acknowledge(f.owner, f.acknowledgement) }).toThrow()
     expect(f.executeJavaScriptInIsolatedWorld).not.toHaveBeenCalled()
     expect(f.debuggerApi.sendCommand).not.toHaveBeenCalled()
   })

@@ -23,7 +23,7 @@ it.each([false, true])('observes native Codex output without changing reasoning 
     }
 
     send(body: string): void {
-      requests.push(JSON.parse(body))
+      requests.push(JSON.parse(body) as Record<string, unknown>)
       queueMicrotask(() => {
         const item = { type: 'message', id: 'fixture-message', role: 'assistant', content: [{ type: 'output_text', text: 'fixture reply', annotations: [] }] }
         for (const event of [
@@ -63,7 +63,7 @@ it.each([false, true])('observes native Codex output without changing reasoning 
   expect(requests).toHaveLength(1)
   expect(requests[0]).toMatchObject({ model: 'fixture-model', reasoning: { effort: 'high' } })
   expect(requests[0]?.service_tier).toBe(fastMode ? 'priority' : undefined)
-  const records: Record<string, unknown>[] = lines.map(line => JSON.parse(line.slice('llm-pi-ai request-timing '.length)))
+  const records: Record<string, unknown>[] = lines.map(line => JSON.parse(line.slice('llm-pi-ai request-timing '.length)) as Record<string, unknown>)
   expect(records.map(record => record.phase)).toEqual([
     'started', 'credential-reference-resolved', 'context-ready', 'payload-ready', 'first-output', 'settled',
   ])

@@ -626,6 +626,21 @@
     },
     {
       "doc": "docs/subsystems/session.md",
+      "symbol": "ExistingAgentActivationOptions",
+      "source": "packages/api/session-controller/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/session.md",
+      "symbol": "AgentModelChoice",
+      "source": "packages/api/session-controller/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/session.md",
+      "symbol": "AgentModelCommit",
+      "source": "packages/api/session-controller/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/session.md",
       "symbol": "SessionEventMap",
       "source": "packages/core/session/src/types.ts"
     },

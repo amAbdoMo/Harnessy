@@ -74,7 +74,7 @@ function fakeRange() {
     const bytes = Buffer.from(output[channel])
     return { text: bytes.subarray(from).toString('utf8'), nextOffset: bytes.length, lossy: false }
   }
-  const handle: SubprocessHandle = {
+  const handle = {
     stdin: undefined, stdout: undefined, stderr: undefined, control: undefined,
     collected: { stdout: { readFrom: from => read('stdout', from) }, stderr: { readFrom: from => read('stderr', from) } },
     done: exit.promise,
@@ -84,7 +84,7 @@ function fakeRange() {
       if (autoExit) { exit.resolve({ exitCode: 0, signal: null }); empty.resolve(true) }
     }),
     waitForExit: vi.fn(() => empty.promise),
-  }
+  } satisfies SubprocessHandle
   return { handle, output, exit, empty, termination,
     holdExit: () => { autoExit = false },
     release: () => { exit.resolve({ exitCode: 0, signal: null }); empty.resolve(true) },
@@ -246,7 +246,7 @@ it.each(['posix', 'windows'] as const)('approves and confines the exact canonica
   f.processes.executable = platform === 'windows' ? 'C:\\execution\\pwsh.exe' : '/execution/bin/bash'
   const plan = await f.prepare()
   const state = await f.controller.open(plan, f.execution())
-  expect(state).toEqual({ ...plan, ownership: 'owned', status: 'starting', jobId: expect.any(String) })
+  expect(state).toEqual({ ...plan, ownership: 'owned', status: 'starting', jobId: expect.any(String) as string })
   const argv = platform === 'windows'
     ? [f.processes.executable, '-NoLogo', '-NoProfile', '-NonInteractive', '-Command', "npm.cmd run 'dev'; exit $LASTEXITCODE"]
     : [f.processes.executable, '--noprofile', '--norc', '-c', "npm run 'dev'"]
@@ -461,9 +461,9 @@ it('Stop awaits the recorded managed range, not top-level exit, and never touche
   expect(f.processes.ranges[1]?.terminated).toBe(false)
   range.empty.resolve(true)
   await stopping
-  expect(range.handle.terminate).toHaveBeenCalledOnce()
+  expect(vi.mocked(range.handle).terminate).toHaveBeenCalledOnce()
   await expect(f.controller.stop(first.projectId)).resolves.toEqual({ kind: 'stopped', projectId: first.projectId })
-  expect(range.handle.terminate).toHaveBeenCalledOnce()
+  expect(vi.mocked(range.handle).terminate).toHaveBeenCalledOnce()
 })
 
 it('trusted Main Stop replies only after the recorded range settles and malformed packets grant nothing', async () => {
@@ -573,7 +573,7 @@ it('reports failed range observation and permits Stop after a fresh confirmed em
   const plan = await f.prepare()
   await f.controller.open(plan, f.execution())
   const range = f.processes.ranges[0]!
-  vi.mocked(range.handle.waitForExit).mockRejectedValueOnce(new Error('Inert range observation failed'))
+  vi.mocked(range.handle).waitForExit.mockRejectedValueOnce(new Error('Inert range observation failed'))
   range.release()
   const job = f.ctx.jobs.list()[0]!
   expect((await f.ctx.jobs.wait(job.id, 5000)).status).toBe('failed')
@@ -587,11 +587,11 @@ it('retries a failed Stop observation while keeping the launcher fenced until co
   await f.controller.open(plan, f.execution())
   const range = f.processes.ranges[0]!
   range.holdExit()
-  vi.mocked(range.handle.waitForExit).mockRejectedValueOnce(new Error('Inert Stop observation failed'))
+  vi.mocked(range.handle).waitForExit.mockRejectedValueOnce(new Error('Inert Stop observation failed'))
   await expect(f.controller.stop(plan.projectId)).rejects.toThrow('Inert Stop observation failed')
   await expect(f.controller.open(plan, f.execution())).rejects.toThrow('stopping')
   const retry = f.track(f.controller.stop(plan.projectId))
-  expect(range.handle.terminate).toHaveBeenCalledTimes(2)
+  expect(vi.mocked(range.handle).terminate).toHaveBeenCalledTimes(2)
   range.release()
   await expect(retry).resolves.toEqual({ kind: 'stopped', projectId: plan.projectId })
   expect(f.processes.ranges).toHaveLength(1)

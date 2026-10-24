@@ -239,7 +239,7 @@ export class ApiSessionAgentController {
           signal: AbortSignal.any([this.activationOwner.signal, ...options.signal === undefined ? [] : [options.signal]]),
         }),
         this.activationOwner.signal,
-        abandoned => abandoned[Symbol.dispose](),
+        (abandoned) => { abandoned[Symbol.dispose]() },
       )
       this.checkActivationAdmission(sessionId, options)
       this.assertActivationHeader(sessionId, observation.header, undefined)

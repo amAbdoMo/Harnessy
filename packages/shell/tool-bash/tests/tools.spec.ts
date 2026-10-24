@@ -212,7 +212,7 @@ async function sandboxAgent(
   mode?: 'read-only' | 'workspace-write' | 'danger-full-access',
   onAppend?: (type: string) => void,
 ): Promise<Agent> {
-  const agent = await createAgent(ctx, 'sandbox-session-' + ctx.agents.list().length)
+  const agent = await createAgent(ctx, `sandbox-session-${ctx.agents.list().length}`)
   agent.session.append('turn/start', { turn: 1 })
   if (mode !== undefined) agent.session.append('sandbox/mode', { mode })
   if (onAppend !== undefined) ctx.on('session/event', (session, event) => {
@@ -964,7 +964,7 @@ describe('processOutcome', () => {
 
 describe('session-cwd routing (per-session workdir)', () => {
   const agentInCwd = (ctx: Context, cwd: string): Promise<Agent> =>
-    createAgent(ctx, 'cwd-session-' + ctx.agents.list().length, cwd)
+    createAgent(ctx, `cwd-session-${ctx.agents.list().length}`, cwd)
 
   it('defaults bash to the agent\'s session cwd (not the server launch dir)', async () => {
     const ctx = await setup()
