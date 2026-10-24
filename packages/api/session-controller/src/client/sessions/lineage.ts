@@ -3,14 +3,14 @@
 // Orphaned lineage degrades to root level; cycles fail soft and emit as roots.
 
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { SessionProjectionMap } from '@deepseek-ai/dsh-session-projection/types'
+import type { SessionProjectionSummaryValues } from '@deepseek-ai/dsh-session-projection/types'
 import type { SessionSummary } from '../../types.ts'
 
 /** Host list summary enriched with the latest Session Controller title projection. */
 export interface TitledSessionSummary extends SessionSummary {
   title?: string
   /** Current host-computed projection values for list consumers. */
-  projectionValues?: Readonly<Partial<SessionProjectionMap>>
+  projectionValues?: Readonly<Partial<SessionProjectionSummaryValues>>
 }
 
 /** One flattened session-list row with lineage depth. */
@@ -31,7 +31,7 @@ export interface SessionListEntry {
   origin?: 'subagent'
   cwd?: string
   /** Current host-computed projection values for list consumers. */
-  projectionValues?: Readonly<Partial<SessionProjectionMap>>
+  projectionValues?: Readonly<Partial<SessionProjectionSummaryValues>>
   /** Lineage indent depth: root = 0; the UI just multiplies by the indent width. */
   depth: number
 }

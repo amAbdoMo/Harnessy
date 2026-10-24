@@ -109,7 +109,7 @@ The `seed` and `apply` signatures are unchanged. The client routes by `kind`: a 
 - Hydration and the checkpoint write path; `recordFor` keeps full equality on all five fields.
 - `coldSnapshot` stays; having no production caller is not a reason to delete it here.
 - Old records (domain v4/v5, lacking `isSeeded` and `inheritedEventCount`) keep missing for seeded sessions until the session is opened and rewritten as a v7 record.
-- The list still delivers every row with a wire view (`contextBreakdown`, `turnOutline`, and so on); narrowing that is out of scope.
+- The list uses the registry-derived summary selection; opened Sessions retain every wire view. This selection does not change the lifecycle identity or cached/sequenced merge rules.
 
 ### Worst case, walked through
 

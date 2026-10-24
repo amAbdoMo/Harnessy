@@ -2,7 +2,7 @@
 
 import type { SubagentAddress } from '@deepseek-ai/dsh-subagent/client'
 import { SessionSeq, type SessionId, type SessionSeqCursor } from '@deepseek-ai/dsh-session/types'
-import type { SessionProjectionMap } from '@deepseek-ai/dsh-session-projection/types'
+import type { SessionProjectionViewValues } from '@deepseek-ai/dsh-session-projection/types'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type {
   SessionControlBaseline,
@@ -60,7 +60,7 @@ export interface SessionListSnapshot {
 
 /** Shared projection values and the lifecycle of their explicit baseline read. */
 export interface SessionProjectionSnapshot {
-  readonly values: Readonly<Partial<SessionProjectionMap>>
+  readonly values: Readonly<Partial<SessionProjectionViewValues>>
   /** Deferred migration retains cached hints without opening the Session. */
   readonly state: 'idle' | 'loading' | 'ready' | 'migration-required' | 'error'
   readonly error: RemoteFailure | null
@@ -615,7 +615,7 @@ export class SessionManager {
    * @param sessionId - Session whose control or history baseline supplied projections.
    * @returns current values, or undefined before any projection store exists.
    */
-  projectionValues(sessionId: SessionId): Readonly<Partial<SessionProjectionMap>> | undefined {
+  projectionValues(sessionId: SessionId): Readonly<Partial<SessionProjectionViewValues>> | undefined {
     return this.projectionStores.get(sessionId)?.values()
   }
 

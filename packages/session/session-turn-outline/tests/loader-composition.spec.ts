@@ -94,6 +94,11 @@ describe('real Loader composition', () => {
         response: 'composed answer',
         outcome: 'completed',
       }])
+    expect(loaded.sessionProjections.cachedSnapshot(session, loaded.sessionProjections.summaryKeys())?.values)
+      .toEqual({ turnOutcome: { turn: 1, outcome: 'completed' } })
+    session.append('turn/start', { turn: 2 })
+    expect(loaded.sessionProjections.cachedSnapshot(session, loaded.sessionProjections.summaryKeys())?.values)
+      .toEqual({ turnOutcome: { turn: 2 } })
   })
 
   it('keeps the function-plugin namespace free of a default export', () => {

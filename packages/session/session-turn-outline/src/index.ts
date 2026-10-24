@@ -10,7 +10,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { turnOutlineProjectionDefinition } from './projection.ts'
+import { turnOutlineProjectionDefinition, turnOutcomeProjectionDefinition } from './projection.ts'
 
 export type * from './types.ts'
 
@@ -26,4 +26,5 @@ export const inject = ['sessionProjections']
  */
 export function apply(ctx: Context): void {
   ctx.sessionProjections.register(turnOutlineProjectionDefinition)
+  ctx.sessionProjections.register(turnOutcomeProjectionDefinition)
 }

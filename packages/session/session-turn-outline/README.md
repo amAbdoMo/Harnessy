@@ -49,6 +49,8 @@ The wire value is the complete entry array, strictly increasing by `turn` (whole
 
 ### Failures and recovery
 
+Session-list summaries carry only `turnOutcome`, the latest started turn number and its optional recorded terminal outcome. Starting a later turn clears the previous outcome. This constant-size projection supports Harnessy's task notifications without transferring the full outline for each list row; opened Session snapshots still include the complete outline.
+
 The unit is inert without the projection registry: `inject` keeps the fiber pending and nothing registers, so other assemblies lack the `turnOutline` key. Unmounting the plugin removes the key, because registrations are effects on the mounting fiber. Persisted-cache rows are schema-validated on restore — including the strictly-increasing turn order — so a corrupt row is discarded instead of seeding a broken fold.
 
 -----

@@ -23,7 +23,7 @@ import { z } from 'zod'
 import type { ZodType } from 'zod'
 import { SessionSeq, type SessionEvent } from '@deepseek-ai/dsh-session'
 import type { ProjectionDefinition } from '@deepseek-ai/dsh-session-projection'
-import type { TurnOutlineEntry, TurnOutlineOutcome, TurnOutlineState } from './types.ts'
+import type { TurnOutlineEntry, TurnOutlineOutcome, TurnOutlineState, TurnOutcomeProjection } from './types.ts'
 
 /** Prompt budget: one rail-card line (13px over ~276px), ASCII worst case included. */
 const PROMPT_PREVIEW_LIMIT = 50
@@ -88,6 +88,29 @@ function outcomeOf(event: SessionEvent<'turn/end'>): TurnOutlineOutcome {
   return 'stopped'
 }
 
+const turnOutcomeSchema: ZodType<TurnOutcomeProjection> = z.object({
+  turn: z.number().int().nonnegative(),
+  outcome: z.enum(['completed', 'stopped', 'failed']).optional(),
+}).strict().nullable()
+
+/** Constant-size lifecycle projection retained by Session-list summaries. */
+export const turnOutcomeProjectionDefinition = {
+  key: 'turnOutcome',
+  stateVersion: 1,
+  stateSchema: turnOutcomeSchema,
+  init: () => null,
+  apply: (state, event) => {
+    if (event.type === 'turn/start') {
+      return state === null || event.data.turn > state.turn ? { turn: event.data.turn } : state
+    }
+    if (event.type === 'turn/end' && state !== null && event.data.turn === state.turn) {
+      return { turn: state.turn, outcome: outcomeOf(event) }
+    }
+    return state
+  },
+  wire: { viewSchema: turnOutcomeSchema, view: state => state },
+} satisfies ProjectionDefinition<'turnOutcome', TurnOutcomeProjection>
+
 /** The `turnOutline` unit registered on `ctx.sessionProjections` (exported for the unit spec). */
 export const turnOutlineProjectionDefinition = {
   key: 'turnOutline',
@@ -141,5 +164,6 @@ export const turnOutlineProjectionDefinition = {
   wire: {
     viewSchema: turnOutlineEntriesSchema,
     view: state => state.turns,
+    summary: false,
   },
 } satisfies ProjectionDefinition<'turnOutline', TurnOutlineState>

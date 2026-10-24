@@ -163,7 +163,9 @@ describe('SessionController subagent catalog', () => {
     const session = ctx.sessions.create(PARENT, { meta: { cwd: '/workspace' } })
     const expected = ctx.sessionProjections.snapshot(session)
     expect(expected.values.subagentCatalog).toBeUndefined()
-    await expect(controller.projections({ sessionId: PARENT }, new AbortController().signal)).resolves.toEqual(expected)
+    await expect(controller.projections({ sessionId: PARENT }, new AbortController().signal)).resolves.toEqual({
+      kind: 'sequenced', ...expected,
+    })
     expect(ctx.agents.get(PARENT)).toBeUndefined()
   })
 

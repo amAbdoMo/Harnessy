@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-10-18-session-list-summary-projections.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-18-session-list-summary-projections.md
+/agent-note-serve-session-list-summaries-without-transferring-full-turn-details:
+  en: 2ab8bb108022e743
+  zh: a25feb2832e892bc
+/agent-note-serve-session-list-summaries-without-transferring-full-turn-details/problem:
+  en: c27d7224dabf34a6
+  zh: e39741682514a314
+/agent-note-serve-session-list-summaries-without-transferring-full-turn-details/decision:
+  en: b3501437b9bb3cfd
+  zh: 0426dc068b422850
+/agent-note-serve-session-list-summaries-without-transferring-full-turn-details/alternatives-considered:
+  en: 481f2ef10356f3d9
+  zh: c81f3a2860c9d686
+/agent-note-serve-session-list-summaries-without-transferring-full-turn-details/consequences:
+  en: ff1308fb598238f5
+  zh: 3d00773eb3bb2484
+/agent-note-serve-session-list-summaries-without-transferring-full-turn-details/testing:
+  en: 95949de522e73fbf
+  zh: 8aea49114d2fdefd

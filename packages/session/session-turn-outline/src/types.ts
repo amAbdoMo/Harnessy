@@ -8,11 +8,19 @@
  */
 
 import type { SessionSeq } from '@deepseek-ai/dsh-session/types'
+import type { SessionProjectionSummaryExcluded } from '@deepseek-ai/dsh-session-projection/types'
 
 export {}
 
 /** User-facing outcome of a settled turn. */
 export type TurnOutlineOutcome = 'completed' | 'stopped' | 'failed'
+
+/** Latest started turn and its terminal outcome; null before the first turn. */
+export type TurnOutcomeProjection = {
+  readonly turn: number
+  /** Absent until the latest started turn settles. */
+  readonly outcome?: TurnOutlineOutcome | undefined
+} | null
 
 /** One started turn's outline facts, independent of what a client has paged in. */
 export interface TurnOutlineEntry {
@@ -44,11 +52,20 @@ export interface TurnOutlineState {
 
 declare module '@deepseek-ai/dsh-session-projection/types' {
   interface SessionProjectionStateMap {
+    /** Constant-size latest-turn state for lifecycle notifications. */
+    turnOutcome: TurnOutcomeProjection
     /** Whole-log turn outline fold state (entries plus the open turn's response draft). */
     turnOutline: TurnOutlineState
   }
   interface SessionProjectionMap {
-    /** Every started turn with its `turn/start` seq and bounded previews, strictly increasing by turn; see {@link TurnOutlineEntry}. */
-    turnOutline: readonly TurnOutlineEntry[]
+    /** Latest started turn and recorded outcome, included in list summaries. */
+    turnOutcome: TurnOutcomeProjection
+    /**
+     * Every started turn with its `turn/start` seq and bounded previews,
+     * strictly increasing by turn; see {@link TurnOutlineEntry}. Excluded from
+     * Session summary payloads: the outline grows with the whole log and no
+     * list row renders it.
+     */
+    turnOutline: SessionProjectionSummaryExcluded<readonly TurnOutlineEntry[]>
   }
 }

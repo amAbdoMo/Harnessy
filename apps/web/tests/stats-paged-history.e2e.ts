@@ -7,10 +7,11 @@
 // the counter. Zero model calls; the seed is generated, not recorded, because
 // no line of it is model output.
 import { fileURLToPath } from 'node:url'
+import { basename } from 'node:path'
 import type { Browser, Page } from 'playwright'
 import { chromium } from 'playwright'
 import { createSystemMessage } from '@deepseek-ai/dsh-llm'
-import { SESSION_FORMAT_VERSION } from '@deepseek-ai/dsh-session'
+import { SESSION_FORMAT_VERSION, SessionId } from '@deepseek-ai/dsh-session'
 import { afterAll, beforeAll, describe, expect, it, onTestFailed } from 'vitest'
 import {
   assertFixtureInventory, captureStableAria, compareOrRefreshGolden,
@@ -22,6 +23,8 @@ const SNAPSHOT_DIR = fileURLToPath(new URL('./expected/stats-paged-history', imp
 const UI_EXPECTED = fileURLToPath(new URL('./expected/stats-paged-history/ui.expected.md', import.meta.url))
 const MODE = webSnapshotMode()
 const SEED_ID = 'stats-paged-history-web-e2e'
+const CUSTOM_OVERLAY = fileURLToPath(new URL('../../../packages/bundle/custom-harness/cordis.patch.yml', import.meta.url))
+const CUSTOM_MANIFEST = fileURLToPath(new URL('../../../packages/bundle/custom-harness/package.json', import.meta.url))
 
 /** Turn count: 2 chat messages per turn, so 28 turns overflow one 50-message page. */
 const TURNS = 28
@@ -90,10 +93,14 @@ describe('web e2e: whole-session stats survive history paging', () => {
   let browser: Browser
   let page: Page
   let tripwire: ReturnType<typeof watchConsole>
+  let historyReady = false
 
   beforeAll(async () => {
     if (MODE === 'record') throw new Error('stats-paged-history is a keyless assembled snapshot')
-    scaffold = await launchWebScaffold({})
+    scaffold = await launchWebScaffold({
+      extraOverlayPath: [CUSTOM_OVERLAY, fileURLToPath(new URL('./pin-browse-picker.overlay.yml', import.meta.url))],
+      extraInstallAnchors: [CUSTOM_MANIFEST],
+    })
     await seedSession(scaffold, buildSeed(TURNS), SEED_ID)
     browser = await chromium.launch()
     page = await newEnglishPage(browser)
@@ -109,10 +116,8 @@ describe('web e2e: whole-session stats survive history paging', () => {
 
   it('renders full-session counts on the partial tail page and keeps them across load-older', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-stats-paged'))
-    const groupRow = page.locator('[role="treeitem"]').first()
-    await groupRow.waitFor({ timeout: 15_000 })
-    await groupRow.click()
-    const sessionRow = page.locator('[role="treeitem"]').nth(1)
+    await page.getByRole('button', { name: 'Open notifications', exact: true }).waitFor()
+    const sessionRow = page.locator(`[data-row-key="session:${SEED_ID}"]`)
     await sessionRow.waitFor({ timeout: 10_000 })
     await sessionRow.click()
     // Settled barrier: the newest recorded reply renders from the tail page.
@@ -134,12 +139,28 @@ describe('web e2e: whole-session stats survive history paging', () => {
     // settled turn — the loaded-window probe the scroll/perf lanes count now
     // that the strip is whole-log-scoped.
     expect(await page.locator('[data-chat-flow-key^="9:turn-tail"]').count()).toBe(TURNS)
+
+    const signal = new AbortController().signal
+    const full = await scaffold.ctx.sessionController.projections({ sessionId: SessionId(SEED_ID) }, signal)
+    expect(full?.values).toHaveProperty('turnOutline')
+    expect(full?.values).toHaveProperty('sessionStats')
+    expect(full?.values).toHaveProperty('imageLimits')
+    const listed = await scaffold.ctx.sessionController.list({}, signal)
+    const summary = listed.items.find(item => item.sessionId === SEED_ID)
+    expect(summary?.projections?.values.sessionListMetadata).toMatchObject({ blank: false })
+    expect(summary?.projections?.values.turnOutcome).toEqual({ turn: TURNS, outcome: 'completed' })
+    for (const key of ['turnOutline', 'sessionStats', 'todos', 'imageLimits']) {
+      expect(summary?.projections?.values).not.toHaveProperty(key)
+    }
+    historyReady = true
   }, 60_000)
 
   it('matches the paged-stats aria golden', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-stats-paged-aria'))
+    expect(historyReady).toBe(true)
     const snapshot = (await captureStableAria(page, '[class*="centerCol"]', scaffold.workspaceCwd))
       .split(SEED_ID).join('{{seededId}}')
+      .split(basename(scaffold.workspaceCwd)).join('{{workspace}}')
     await compareOrRefreshGolden(UI_EXPECTED, snapshot, MODE)
   })
 

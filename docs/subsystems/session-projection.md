@@ -46,7 +46,7 @@ interface ProjectionDefinition<
   /** Client view. Omit for host-only units. */
   wire?: K extends keyof SessionProjectionMap ? {
     /** Validates the wire payload before it leaves the host. */
-    viewSchema: ZodType<SessionProjectionMap[K]>
+    viewSchema: ZodType<SessionProjectionViewValue<SessionProjectionMap[K]>>
     /**
      * State → wire payload (the read-side projection). The live drive keeps
      * the two latest raw results and compares them with `Object.is`; an
@@ -55,8 +55,16 @@ interface ProjectionDefinition<
      * @param state - the current state.
      * @returns the whole current value for this unit's key.
      */
-    view(state: NoInfer<S>): SessionProjectionMap[K]
-  } : never
+    view(state: NoInfer<S>): SessionProjectionViewValue<SessionProjectionMap[K]>
+  } & (K extends SessionProjectionSummaryExcludedKey
+    ? {
+      /** Required for a summary-excluded projection key. */
+      summary: false
+    }
+    : {
+      /** Only summary-excluded projection keys may declare this flag. */
+      summary?: never
+    }) : never
   /**
    * Persisted-cache invalidation version: bump whenever the serialized state fields or the
    * fold semantics change, so persisted `(sessionId, key, ver, seq, val)`
@@ -81,7 +89,7 @@ interface ProjectionSnapshot {
   /** Seq of the last event the values reflect; -1 for an empty log. */
   asOfSeq: SessionSeqCursor
   /** Whole current client value per registered key. */
-  values: Partial<SessionProjectionMap>
+  values: Partial<SessionProjectionViewValues>
 }
 ```
 
@@ -100,6 +108,10 @@ type ProjectionChangeListener = (
 ```
 
 `snapshot(session)` is fully synchronous: a carrier reads it in the same tick as its page slice, so `asOfSeq` covers both reads at one sequence number. It returns only client views, and every value passes its unit's `viewSchema` before return. `stateOf(session, key)` reads one live host state without computing unrelated views; callers must not mutate the borrowed reference. A state-reference change computes one cached raw view, and the change feed fires only when that result changes by `Object.is`; an object-valued view must preserve its reference to suppress publication across internal-only state changes.
+
+## Summary reads
+
+A Session summary carries every registered client view except the keys whose `SessionProjectionMap` entry carries the `SessionProjectionSummaryExcluded<T>` mark. `summaryKeys()` derives that set from the live registrations and keeps returning the same instance until a registration or its disposal changes the key table; a summary consumer passes it to the existing key-taking faces — `cachedSnapshot(session, keys)` for cached cells and `viewCheckpoint(rows, keys)` for checkpoint rows, both keeping their watermark rules and both using a set without copying — so the served keys cannot drift from the marks the owning units declare and no summary-specific read face exists. `snapshot`, `cachedSnapshot`, and `viewCheckpoint` remain complete when called without a key subset and still serve every wire key, including those a summary omits; an opened Session therefore receives every projected value. Summary reads serve the Session list rows; the `@` reference lists Sessions the same way but reads only its label keys through the same key-taking faces. The types require `wire.summary: false` exactly on a key whose map entry carries the mark, and forbid it on every other key.
 
 ## The registry: `ctx.sessionProjections`
 
@@ -139,7 +151,7 @@ The persisted projection cache service. Opens the `session_projcache` domain at 
  * @returns the viewed block, or `undefined` when no usable row exists for
  *   this lifecycle at the current Session format.
  */
-cachedSnapshot( meta: SessionHeader, keys?: readonly Extract<keyof SessionProjectionMap, string>[], ): ProjectionSnapshot | undefined
+cachedSnapshot( meta: SessionHeader, keys?: readonly Extract<keyof SessionProjectionMap, string>[] | ReadonlySet<Extract<keyof SessionProjectionMap, string>>, ): ProjectionSnapshot | undefined
 
 /**
  * Read only a predecessor checkpoint's title as a zero-I/O listing hint.
@@ -252,7 +264,7 @@ stateOf<K extends keyof SessionProjectionStateMap>( session: Session, key: K, ):
  * @param keys - optional client-visible outputs; state materialization remains complete.
  * @returns the snapshot; `values` is empty when no selected client-visible unit is registered.
  */
-snapshot( session: Session, keys?: readonly Extract<keyof SessionProjectionMap, string>[], ): ProjectionSnapshot
+snapshot( session: Session, keys?: ProjectionKeySelection, ): ProjectionSnapshot
 
 /**
  * Read only already-materialized client-visible cells without folding history.
@@ -262,7 +274,15 @@ snapshot( session: Session, keys?: readonly Extract<keyof SessionProjectionMap, 
  * @param keys - optional wire keys to view.
  * @returns the lowest common cached cut, or `undefined` when no wire cell exists.
  */
-cachedSnapshot( session: Session, keys?: readonly Extract<keyof SessionProjectionMap, string>[], ): ProjectionSnapshot | undefined
+cachedSnapshot( session: Session, keys?: ProjectionKeySelection, ): ProjectionSnapshot | undefined
+
+/**
+ * Return the registered wire keys included in Session-list summaries.
+ * The set remains stable until the key table changes. Full Session reads
+ * continue to include every wire projection.
+ * @returns the current read-only summary key set; callers must not mutate it.
+ */
+summaryKeys(): ReadonlySet<Extract<keyof SessionProjectionMap, string>>
 
 /**
  * State-level checkpoint of every persisted unit for one session, read
@@ -309,7 +329,7 @@ restoreFloor(checkpoint: ProjectionCheckpoint): SessionLogOffset | undefined
  * @param keys - optional wire keys to view.
  * @returns whole values per key with a usable row; empty when none.
  */
-viewCheckpoint( checkpoint: ProjectionCheckpoint, keys?: readonly Extract<keyof SessionProjectionMap, string>[], ): Partial<SessionProjectionMap>
+viewCheckpoint( checkpoint: ProjectionCheckpoint, keys?: ProjectionKeySelection, ): Partial<SessionProjectionViewValues>
 
 /**
  * Cold read: fold every persisted unit over a stored log suffix, seeding

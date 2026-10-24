@@ -541,19 +541,20 @@ describe('session.list projections column', () => {
       inspect: load,
       open: load,
     }) as never)
+    // The carrier hands the listed header through as the identity witness.
+    const cachedRow = (meta: { id: unknown; createdAt: number }) =>
+      (meta.id === coldId && meta.createdAt === 5
+        ? {
+          asOfSeq: SessionSeq(7),
+          values: {
+            'test/last-user': { text: 'cached' },
+            sessionListMetadata: { blank: false, lastPromptAt: 6 },
+            title: 'Cached title',
+          },
+        }
+        : undefined)
     ctx.provide('sessionProjectionCache', {
-      // The carrier hands the listed header through as the identity witness.
-      cachedSnapshot: (meta: { id: unknown; createdAt: number }) =>
-        (meta.id === coldId && meta.createdAt === 5
-          ? {
-            asOfSeq: SessionSeq(7),
-            values: {
-              'test/last-user': { text: 'cached' },
-              sessionListMetadata: { blank: false, lastPromptAt: 6 },
-              title: 'Cached title',
-            },
-          }
-          : undefined),
+      cachedSnapshot: cachedRow,
     } as never)
     const response = await remote(ctx).list(request({}))
     if (!response.ok) throw new Error('unreachable')

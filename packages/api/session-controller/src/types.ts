@@ -8,7 +8,7 @@ import type { Branded } from '@deepseek-ai/dsh-brand'
 import type { LlmAttemptId, MessageId } from '@deepseek-ai/dsh-llm/brand'
 import type { TextBlock } from '@deepseek-ai/dsh-llm'
 import type { SessionId, SessionSeqCursor } from '@deepseek-ai/dsh-session/types'
-import type { SessionProjectionMap } from '@deepseek-ai/dsh-session-projection/types'
+import type { SessionProjectionSummaryExcluded, SessionProjectionViewValues } from '@deepseek-ai/dsh-session-projection/types'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 
@@ -24,8 +24,8 @@ declare module '@deepseek-ai/dsh-session-projection/types' {
   interface SessionProjectionMap {
     /** Persisted facts used to summarize a Session without activating it. */
     sessionListMetadata: SessionListMetadata
-    /** Image-intake limits enforced by the Session prompt endpoint. */
-    imageLimits: ImageAttachmentLimits
+    /** Shared image-intake limits; full Session reads include them, list summaries omit them. */
+    imageLimits: SessionProjectionSummaryExcluded<ImageAttachmentLimits>
     /** Durable model selection already used and selected for the next request. */
     modelSelection: ModelSelectionProjection
   }
@@ -78,7 +78,7 @@ export interface SessionProjectionBaseline {
 }
 
 /** Typed known projections plus JSON-safe values contributed outside this compilation face. */
-export type SessionProjectionValues = Partial<SessionProjectionMap>
+export type SessionProjectionValues = Partial<SessionProjectionViewValues>
   & Readonly<Record<string, SessionProjectionValue>>
 
 /**

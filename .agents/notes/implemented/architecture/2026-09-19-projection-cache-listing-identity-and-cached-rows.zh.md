@@ -109,7 +109,7 @@ seq 比较只在同一条 Host 连接内发生：`handleConnected` 先整表 `cl
 - hydration 与 checkpoint 写路径，`recordFor` 的五字段全等。
 - `coldSnapshot` 保留，不因没有生产调用方而删除。
 - 老记录（domain v4/v5，缺 `isSeeded` 与 `inheritedEventCount`）对 seeded 会话继续 miss，等会话打开后被 v7 记录改写。
-- 列表下发全部带 wire 视图的行（`contextBreakdown`、`turnOutline` 等）这一点不在本次范围。
+- 列表使用注册表派生的摘要选择；打开的 Session 保留全部 wire 视图。这个选择不会改变生命周期身份或 cached/sequenced 合并规则。
 
 ### 最坏情形推演
 

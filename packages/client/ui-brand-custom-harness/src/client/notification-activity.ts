@@ -1,6 +1,7 @@
 /** Transition detector for Session lifecycle and pending user actions. */
 
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { TurnOutcomeProjection } from '@deepseek-ai/dsh-session-turn-outline/types'
 import type { HarnessNotificationEvent } from './notification-history.ts'
 
 interface NotificationPendingInteraction {
@@ -67,7 +68,7 @@ function sessionTransitionEvents(
       activeRootRuns.delete(id)
       return []
     }
-    const outcome = latestOutcome(session.projectionValues)
+    const outcome = latestOutcome(session.projectionValues?.turnOutcome)
     if (outcome === undefined) return []
     activeRootRuns.delete(id)
     return [{
@@ -89,12 +90,10 @@ function armRunningRootSessions(sessions: SessionListState, activeRootRuns: Set<
   }
 }
 
-function latestOutcome(projections: unknown): { readonly kind: SessionOutcomeKind; readonly turn: number } | undefined {
-  if (typeof projections !== 'object' || projections === null) return undefined
-  const outline = (projections as { readonly turnOutline?: unknown }).turnOutline
-  if (!Array.isArray(outline)) return undefined
-  const latest = outline.at(-1) as { readonly turn?: unknown; readonly outcome?: unknown } | undefined
-  if (latest === undefined || typeof latest.turn !== 'number') return undefined
+function latestOutcome(
+  latest: TurnOutcomeProjection | undefined,
+): { readonly kind: SessionOutcomeKind; readonly turn: number } | undefined {
+  if (latest === undefined || latest === null) return undefined
   if (latest.outcome === 'completed') return { kind: 'task-completed', turn: latest.turn }
   if (latest.outcome === 'stopped') return { kind: 'task-stopped', turn: latest.turn }
   if (latest.outcome === 'failed') return { kind: 'task-failed', turn: latest.turn }

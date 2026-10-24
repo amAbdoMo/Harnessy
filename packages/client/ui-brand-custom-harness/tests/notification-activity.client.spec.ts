@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
-import type { TurnOutlineEntry } from '@deepseek-ai/dsh-session-turn-outline/types'
+import type {} from '@deepseek-ai/dsh-session-turn-outline/types'
 import { NotificationActivityObserver } from '../src/client/notification-activity.ts'
 
 type SessionId = SessionListState['ids'][number]
 const SESSION_ID = 'session-1' as SessionId
-const SESSION_SEQ = 0 as TurnOutlineEntry['seq']
 
 function sessions(running: boolean, updatedAt: number, outcome?: 'completed' | 'stopped' | 'failed'): SessionListState {
   return {
@@ -19,7 +18,7 @@ function sessions(running: boolean, updatedAt: number, outcome?: 'completed' | '
         blank: false,
         updatedAt,
         projectionValues: {
-          turnOutline: [{ turn: 1, seq: SESSION_SEQ, prompt: 'Fix checkout', response: '', ...outcome === undefined ? {} : { outcome } }],
+          turnOutcome: { turn: 1, ...outcome === undefined ? {} : { outcome } },
         },
       },
     },

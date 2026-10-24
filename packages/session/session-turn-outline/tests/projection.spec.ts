@@ -113,6 +113,8 @@ describe('turn outline projection unit', () => {
     session.append('turn/start', { turn: 1 })
     session.append('turn/end', { turn: 1, reason })
     expect(outlineOf(ctx, session)[0]?.outcome).toBe(outcome)
+    expect(ctx.sessionProjections.cachedSnapshot(session, ctx.sessionProjections.summaryKeys())?.values.turnOutcome)
+      .toEqual({ turn: 1, outcome })
   })
 
   it('reads a bounded slice of one oversized text block instead of the whole payload', async () => {
@@ -248,11 +250,16 @@ describe('turn outline projection unit', () => {
   it('has no key without the plugin and drops it when the plugin unloads (HMR safety)', async () => {
     const { ctx, session } = await harness(false)
     expect('turnOutline' in ctx.sessionProjections.snapshot(session).values).toBe(false)
+    expect(ctx.sessionProjections.summaryKeys().has('turnOutcome')).toBe(false)
     const fiber = await ctx.plugin(SessionTurnOutlinePlugin)
     session.append('turn/start', { turn: 1 })
     expect('turnOutline' in ctx.sessionProjections.snapshot(session).values).toBe(true)
+    expect(ctx.sessionProjections.cachedSnapshot(session, ctx.sessionProjections.summaryKeys())?.values.turnOutcome)
+      .toEqual({ turn: 1 })
     await fiber.dispose()
     expect('turnOutline' in ctx.sessionProjections.snapshot(session).values).toBe(false)
+    expect('turnOutcome' in ctx.sessionProjections.snapshot(session).values).toBe(false)
+    expect(ctx.sessionProjections.summaryKeys().has('turnOutcome')).toBe(false)
   })
 
   it('rejects a persisted checkpoint whose turns are not strictly increasing', async () => {
