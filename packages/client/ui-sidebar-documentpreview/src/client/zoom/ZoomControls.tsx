@@ -18,7 +18,8 @@ export interface ZoomControlsHandle {
 
 /**
  * Present fit-width, fixed presets, and incremental controls.
- * @param props - current resolved zoom, preference mode, labels, and callbacks.
+ * @param props - committed zoom, preference mode, labels, and callbacks.
+ * @param ref - displays a transient gesture percentage until the committed zoom changes.
  * @returns a localized zoom toolbar.
  */
 export const ZoomControls = forwardRef<ZoomControlsHandle, {
@@ -30,11 +31,17 @@ export const ZoomControls = forwardRef<ZoomControlsHandle, {
   readonly onFitWidth: () => void
   readonly onActiveChange: (active: boolean) => void
 }>(function ZoomControls({ zoom, fitWidth, labels, visible, onZoom, onFitWidth, onActiveChange }, ref): ReactNode {
-  const [displayZoom, setDisplayZoom] = useState(zoom)
+  const [committed, setCommitted] = useState(zoom)
+  const [transient, setTransient] = useState<number>()
   const [open, setOpen] = useState(false)
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
-  useImperativeHandle(ref, () => ({ showZoom: setDisplayZoom }), [])
+  if (committed !== zoom) {
+    setCommitted(zoom)
+    setTransient(undefined)
+  }
+  const displayZoom = transient ?? zoom
+  useImperativeHandle(ref, () => ({ showZoom: setTransient }), [])
   useEffect(() => { onActiveChange(open || hovered || focused) }, [focused, hovered, onActiveChange, open])
   const items: readonly MenuEntry[] = [
     { id: 'fit-width', label: labels.fitWidth },
