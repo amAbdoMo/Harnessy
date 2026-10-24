@@ -3146,7 +3146,7 @@
       ],
       "tree": "c43e44426b8befb0612db310e764b8fb035d6a28",
       "subject": "refactor(client): simplify and cache mobile device detection",
-      "review": null
+      "review": "harnessy-mobile-keyboard-20261024"
     },
     {
       "sha": "776f1ccf487af23c3c85fcdeca7de49c99bb4f74",
@@ -7839,7 +7839,7 @@
       ],
       "tree": "7e680237b8814aa83ccba813d9f36b81ca6305b9",
       "subject": "fix(client): dismiss mobile keyboard after submitting prompts",
-      "review": null
+      "review": "harnessy-mobile-keyboard-20261024"
     },
     {
       "sha": "c503b51a94b17b3856ff756f44d73974c002f908",
@@ -7866,7 +7866,7 @@
       ],
       "tree": "d320680b8031655ce55efeb8625d153d328fb3c9",
       "subject": "fix(client): avoid automatic picker focus on mobile",
-      "review": null
+      "review": "harnessy-mobile-keyboard-20261024"
     },
     {
       "sha": "c99d658a9d55c27f777969a956cf79b2c14ba173",
@@ -30784,6 +30784,195 @@
         "Full source build and focused model bundle passed. Shared focus styling is reused by the handle. No installed staging-window, release or main-app update was performed.",
         "The three-line handle reuses an existing icon. Later shared drag-preview/animation and broader review-fix commits are not claimed completely adopted by this root review.",
         "No upstream ancestry was acquired and the reviewedThrough checkpoint remains unchanged."
+      ]
+    },
+    "harnessy-mobile-keyboard-20261024": {
+      "status": "adopted",
+      "summary": "Adapt mobile automatic-focus suppression, accepted-empty-draft keyboard dismissal, and cached device detection into Harnessy existing composer, command popup, task menu and custom model dialog. Preserve desktop focus, explicit user focus, newer draft suffixes, rejected submissions, modal keyboard safety and current UI.",
+      "files": [
+        {
+          "path": "apps/web/tests/composer-focus.e2e.ts",
+          "disposition": "adopted",
+          "reason": "Exercise the intended picker and submission behaviors in apps/web/tests/mobile-keyboard.e2e.ts and its owner-local expectation, registered in Host tests and excluded from the Client program. Preserve the current Harnessy dialog and workspace flow; do not import stale stock-menu or unrelated whitespace-selection assumptions."
+        },
+        {
+          "path": "apps/web/tests/default-model.e2e.ts",
+          "disposition": "adopted",
+          "reason": "Exercise the intended picker and submission behaviors in apps/web/tests/mobile-keyboard.e2e.ts and its owner-local expectation, registered in Host tests and excluded from the Client program. Preserve the current Harnessy dialog and workspace flow; do not import stale stock-menu or unrelated whitespace-selection assumptions."
+        },
+        {
+          "path": "apps/web/tests/expected/composer-focus/submission.expected.md",
+          "disposition": "adopted",
+          "reason": "Exercise the intended picker and submission behaviors in apps/web/tests/mobile-keyboard.e2e.ts and its owner-local expectation, registered in Host tests and excluded from the Client program. Preserve the current Harnessy dialog and workspace flow; do not import stale stock-menu or unrelated whitespace-selection assumptions."
+        },
+        {
+          "path": "packages/client/ui-commands/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Implement or verify the selected mobile focus behavior in the current owner. Keep current state and styling; update English/Chinese contracts and pairing records without adding new languages."
+        },
+        {
+          "path": "packages/client/ui-commands/README.md",
+          "disposition": "adopted",
+          "reason": "Implement or verify the selected mobile focus behavior in the current owner. Keep current state and styling; update English/Chinese contracts and pairing records without adding new languages."
+        },
+        {
+          "path": "packages/client/ui-commands/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Implement or verify the selected mobile focus behavior in the current owner. Keep current state and styling; update English/Chinese contracts and pairing records without adding new languages."
+        },
+        {
+          "path": "packages/client/ui-commands/src/client/PopupSelectView.tsx",
+          "disposition": "adopted",
+          "reason": "Implement or verify the selected mobile focus behavior in the current owner. Keep current state and styling; update English/Chinese contracts and pairing records without adding new languages."
+        },
+        {
+          "path": "packages/client/ui-commands/tests/popup-view.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Implement or verify the selected mobile focus behavior in the current owner. Keep current state and styling; update English/Chinese contracts and pairing records without adding new languages."
+        },
+        {
+          "path": "packages/client/ui-conversation/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Implement or verify the selected mobile focus behavior in the current owner. Keep current state and styling; update English/Chinese contracts and pairing records without adding new languages."
+        },
+        {
+          "path": "packages/client/ui-conversation/README.md",
+          "disposition": "adopted",
+          "reason": "Implement or verify the selected mobile focus behavior in the current owner. Keep current state and styling; update English/Chinese contracts and pairing records without adding new languages."
+        },
+        {
+          "path": "packages/client/ui-conversation/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Implement or verify the selected mobile focus behavior in the current owner. Keep current state and styling; update English/Chinese contracts and pairing records without adding new languages."
+        },
+        {
+          "path": "packages/client/ui-conversation/package.json",
+          "disposition": "retained-newer",
+          "reason": "Keep the current dependency footprint: neither affected package depends on Bowser; adopt the final cached navigator-based detection directly, without adding then removing an intermediate dependency."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/input/editor/runtime.ts",
+          "disposition": "adopted",
+          "reason": "Implement or verify the selected mobile focus behavior in the current owner. Keep current state and styling; update English/Chinese contracts and pairing records without adding new languages."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/input/editor/view-binding.ts",
+          "disposition": "adopted",
+          "reason": "Implement or verify the selected mobile focus behavior in the current owner. Keep current state and styling; update English/Chinese contracts and pairing records without adding new languages."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/skeleton/InputBar.tsx",
+          "disposition": "adopted",
+          "reason": "Implement or verify the selected mobile focus behavior in the current owner. Keep current state and styling; update English/Chinese contracts and pairing records without adding new languages."
+        },
+        {
+          "path": "packages/client/ui-conversation/tests/editor-focus.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Implement or verify the selected mobile focus behavior in the current owner. Keep current state and styling; update English/Chinese contracts and pairing records without adding new languages."
+        },
+        {
+          "path": "packages/client/ui-conversation/tests/input-bar.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Implement or verify the selected mobile focus behavior in the current owner. Keep current state and styling; update English/Chinese contracts and pairing records without adding new languages."
+        },
+        {
+          "path": "packages/client/ui-model-selection/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adapt automatic search focus to the existing Harnessy modal: mobile entry focuses the close button, explicit search remains available, and desktop entry retains search focus. Preserve the custom model/reasoning controls and all styling."
+        },
+        {
+          "path": "packages/client/ui-model-selection/README.md",
+          "disposition": "adopted",
+          "reason": "Adapt automatic search focus to the existing Harnessy modal: mobile entry focuses the close button, explicit search remains available, and desktop entry retains search focus. Preserve the custom model/reasoning controls and all styling."
+        },
+        {
+          "path": "packages/client/ui-model-selection/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Adapt automatic search focus to the existing Harnessy modal: mobile entry focuses the close button, explicit search remains available, and desktop entry retains search focus. Preserve the custom model/reasoning controls and all styling."
+        },
+        {
+          "path": "packages/client/ui-model-selection/src/client/ModelSelect.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt automatic search focus to the existing Harnessy modal: mobile entry focuses the close button, explicit search remains available, and desktop entry retains search focus. Preserve the custom model/reasoning controls and all styling."
+        },
+        {
+          "path": "packages/client/ui-model-selection/tests/model-select.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt automatic search focus to the existing Harnessy modal: mobile entry focuses the close button, explicit search remains available, and desktop entry retains search focus. Preserve the custom model/reasoning controls and all styling."
+        },
+        {
+          "path": "packages/client/ui-primitives/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Implement or verify the selected mobile focus behavior in the current owner. Keep current state and styling; update English/Chinese contracts and pairing records without adding new languages."
+        },
+        {
+          "path": "packages/client/ui-primitives/README.md",
+          "disposition": "adopted",
+          "reason": "Implement or verify the selected mobile focus behavior in the current owner. Keep current state and styling; update English/Chinese contracts and pairing records without adding new languages."
+        },
+        {
+          "path": "packages/client/ui-primitives/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Implement or verify the selected mobile focus behavior in the current owner. Keep current state and styling; update English/Chinese contracts and pairing records without adding new languages."
+        },
+        {
+          "path": "packages/client/ui-primitives/package.json",
+          "disposition": "retained-newer",
+          "reason": "Keep the current dependency footprint: neither affected package depends on Bowser; adopt the final cached navigator-based detection directly, without adding then removing an intermediate dependency."
+        },
+        {
+          "path": "packages/client/ui-primitives/src/focus.ts",
+          "disposition": "adopted",
+          "reason": "Implement or verify the selected mobile focus behavior in the current owner. Keep current state and styling; update English/Chinese contracts and pairing records without adding new languages."
+        },
+        {
+          "path": "packages/client/ui-primitives/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Implement or verify the selected mobile focus behavior in the current owner. Keep current state and styling; update English/Chinese contracts and pairing records without adding new languages."
+        },
+        {
+          "path": "packages/client/ui-primitives/tests/atoms.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Implement or verify the selected mobile focus behavior in the current owner. Keep current state and styling; update English/Chinese contracts and pairing records without adding new languages."
+        },
+        {
+          "path": "packages/client/ui-schedule/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Implement or verify the selected mobile focus behavior in the current owner. Keep current state and styling; update English/Chinese contracts and pairing records without adding new languages."
+        },
+        {
+          "path": "packages/client/ui-schedule/README.md",
+          "disposition": "adopted",
+          "reason": "Implement or verify the selected mobile focus behavior in the current owner. Keep current state and styling; update English/Chinese contracts and pairing records without adding new languages."
+        },
+        {
+          "path": "packages/client/ui-schedule/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Implement or verify the selected mobile focus behavior in the current owner. Keep current state and styling; update English/Chinese contracts and pairing records without adding new languages."
+        },
+        {
+          "path": "packages/client/ui-schedule/src/client/TaskMenu.tsx",
+          "disposition": "adopted",
+          "reason": "Implement or verify the selected mobile focus behavior in the current owner. Keep current state and styling; update English/Chinese contracts and pairing records without adding new languages."
+        },
+        {
+          "path": "packages/client/ui-schedule/tests/task-menu.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Implement or verify the selected mobile focus behavior in the current owner. Keep current state and styling; update English/Chinese contracts and pairing records without adding new languages."
+        },
+        {
+          "path": "pnpm-lock.yaml",
+          "disposition": "retained-newer",
+          "reason": "Keep the current dependency footprint: neither affected package depends on Bowser; adopt the final cached navigator-based detection directly, without adding then removing an intermediate dependency."
+        }
+      ],
+      "evidence": [
+        "Implementation: e279b14a2d24248a6e2dc74c078019923ceaf2fa. Exact upstream roots c29a31337982cbeafcae45a779e61a1a64e27257, f23d7801bdd537bbe04226a3101e76920026c418 and dc83ed11bc09d8833710aafcc73ca6a68af1d663 inspected together; dependencies, source consumers, tests and documentation accounted for.",
+        "2026-10-24 source checks: all 139 affected owner test files passed, 3045 tests. These cover iOS/Android, desktop-mode iPad, desktop touchscreens, shared detection cache, explicit focus, accepted click/Enter submission, rejected command input, retained newer suffix and listener disposal.",
+        "pnpm run build:custom-harness passed and recorded 369 client artifacts with 11 public values, including DSH_CLIENT_BUILD_PROFILE=custom-harness. An earlier compiler-registration error was corrected by the paired Host include/Client exclusion; verified accidental untracked compiler outputs were removed before the successful build.",
+        "DSH_SNAPSHOT=replay pnpm run test:web:built apps/web/tests/mobile-keyboard.e2e.ts passed read-only. The single scenario runs both desktop and mobile browser modes against the Harnessy build and verifies current model-dialog/command-picker focus, explicit search focus, empty accepted submission and focus through response completion. No golden refresh was used.",
+        "pnpm run verify:harnessy-product passed: static guard, 2 Node tests and 140 Vitest tests across 12 files. pnpm run doc-sync passed all 43 gates. pnpm run lint:contracts-ready and normal staged lint/pairing/whitespace hooks passed.",
+        "Physical phone keyboard/IME behavior, installed staging-window behavior and main-app update were not exercised. Explicit workspace selection can focus the composer through its existing owner; this review does not replace that separate behavior. No app update or upstream ancestry was acquired; reviewedThrough remains unchanged."
       ]
     }
   }
