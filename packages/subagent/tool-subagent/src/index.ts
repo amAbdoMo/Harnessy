@@ -602,7 +602,7 @@ export function apply(ctx: Context, config: Config, session?: Session): void {
         order: runtimeCtx.systemPrompt.getSectionOrder('TOOL_SUBAGENT'),
         text: context => mounted === undefined || runtimeCtx.tools.get(toolName, context.scope) === undefined
           ? ''
-          : `Start independent ${toolName} delegations together in one assistant message and continue useful work while they run.`,
+          : `Start independent ${toolName} delegations together in one assistant message and continue useful work while they run. When only waiting for their results remains, end your turn instead of sleeping or polling; the next result starts a new turn.`,
       })
     }
     runtimeCtx.systemPrompt.context({

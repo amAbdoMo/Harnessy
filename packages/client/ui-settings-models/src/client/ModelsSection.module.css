@@ -458,6 +458,7 @@
 }
 
 .modelEntry {
+  position: relative;
   border: 0.5px solid var(--dsw-alias-border-l4);
   border-radius: var(--dsw-radius-lg);
   padding: 6px;
@@ -465,9 +466,35 @@
 
 .modelRow {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1.4fr) minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 6px;
+}
+
+.modelEntry[data-dragging] {
+  opacity: 0.4;
+}
+
+.modelEntry[data-drop-target]::before {
+  content: '';
+  position: absolute;
+  inset-inline: 6px;
+  height: 2px;
+  border-radius: var(--dsw-radius-sm);
+  background: var(--dsw-alias-label-primary);
+  pointer-events: none;
+}
+
+.modelEntry[data-drop-target='before']::before {
+  top: -5px;
+}
+
+.modelEntry[data-drop-target='after']::before {
+  bottom: -5px;
+}
+
+.modelDragHandle:not(:disabled) {
+  cursor: grab;
 }
 
 /* Square, label-free affordances: the row's own inputs carry the meaning, so

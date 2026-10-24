@@ -468,6 +468,11 @@
       "source": "packages/schedule/schedule/src/types.ts"
     },
     {
+      "doc": "docs/subsystems/schedule.md",
+      "symbol": "ScheduleDeleteInactiveResult",
+      "source": "packages/schedule/schedule/src/types.ts"
+    },
+    {
       "doc": "docs/subsystems/agent-team.md",
       "symbol": "TeamMemberProjection",
       "source": "packages/experimental/agent-team/src/types.ts"

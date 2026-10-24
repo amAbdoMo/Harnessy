@@ -17,9 +17,9 @@ import {
   scheduleTitle,
 } from './domain.ts'
 import type {
-  DeliveryRetentionBounds, ScheduleCatalogEntry, ScheduleCreateRequest, ScheduleDeleteRequest, ScheduleDeleteResult,
-  ScheduleDeliveryHistoryRequest, ScheduleDeliveryHistoryResult, ScheduleListRequest, ScheduleRecord,
-  ScheduleUpdateRequest, ScheduleUpdateResult, SubagentSessionError,
+  DeliveryRetentionBounds, ScheduleCatalogEntry, ScheduleCreateRequest, ScheduleDeleteInactiveResult,
+  ScheduleDeleteRequest, ScheduleDeleteResult, ScheduleDeliveryHistoryRequest, ScheduleDeliveryHistoryResult,
+  ScheduleListRequest, ScheduleRecord, ScheduleUpdateRequest, ScheduleUpdateResult, SubagentSessionError,
 } from './types.ts'
 
 export type * from './types.ts'
@@ -335,6 +335,43 @@ export class ScheduleService extends TypertRemoteService {
       this.emitChanged()
       this.runtime?.requestDrive()
       return { id: request.id, deleted: true }
+    })
+  }
+
+  /**
+   * Delete every ended Host task, leaving active tasks armed.
+   *
+   * Ended tasks never schedule another delivery, so the removal changes no pending
+   * target and no timer is recomputed. Rows are enumerated and removed in one FIFO
+   * slot, so a create ordered behind this call is not removed by it. Each removed row
+   * is durable on its own: a failure partway through leaves the earlier removals
+   * committed and announced, then rejects rather than reporting a partial count as
+   * the whole.
+   * @returns Count of removed rows; zero when the Host held no ended task.
+   */
+  @Remote('deleteInactive')
+  async deleteInactive(): Promise<ScheduleDeleteInactiveResult> {
+    return this.serialize<ScheduleDeleteInactiveResult>(async () => {
+      const tasks = (await this.getDomain()).table('tasks')
+      const ended = [...tasks.entries()]
+        .filter(([, task]) => task.status === 'inactive')
+        .map(([, task]) => task.record.id)
+      let deleted = 0
+      let failure: Error | undefined
+      for (const id of ended) {
+        try {
+          // A row another queued write already removed is not this call's removal.
+          if (await tasks.delete(id)) deleted += 1
+        } catch (error: unknown) {
+          // Every row is attempted, so one failed delete does not leave the rest
+          // of the ended rows behind. A rejection reason that carries no Error is
+          // wrapped before the first one is kept.
+          failure ??= error instanceof Error ? error : new Error(`schedule ended-task removal failed: ${String(error)}`)
+        }
+      }
+      if (deleted > 0) this.emitChanged()
+      if (failure !== undefined) throw failure
+      return { deleted }
     })
   }
 

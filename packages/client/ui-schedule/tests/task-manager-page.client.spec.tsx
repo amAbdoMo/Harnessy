@@ -174,6 +174,7 @@ function mount(
     onDelete: vi.fn<TaskManagerPageProps['onDelete']>(async () => 'deleted'),
     onRetry: vi.fn(async () => {}),
     onNewTask: vi.fn(),
+    onClearEnded: vi.fn(async () => {}),
     onUpdateTiming: vi.fn<TaskManagerPageProps['onUpdateTiming']>(async ({ expected }) => ({
       ok: true, value: { id: expected.id, updated: false, record: expected },
     })),
@@ -921,6 +922,98 @@ describe('Task manager catalog', () => {
     expect(taskNames()).toHaveLength(3)
     expect(screen.getByRole('complementary', { name: en['detail.label'] })).toBeDefined()
     expect(screen.getByRole('alert').textContent).toBe(en['list.error'])
+  })
+})
+
+describe('clearing ended tasks', () => {
+  // A distinct identity: the module's `ended` case reuses the active row's id.
+  const endedTask: ScheduleCatalogEntry = {
+    ...ended, id: 'task-ended' as ScheduleId, title: 'Ended summary', prompt: 'Ended summary',
+  }
+  const anotherEnded: ScheduleCatalogEntry = {
+    ...ended, id: 'task-ended-two' as ScheduleId, title: 'Ended report', prompt: 'Ended report',
+  }
+
+  /** The heading's action pair, left to right. */
+  function creationActions(): HTMLElement {
+    return document.querySelector<HTMLElement>(`.${css.creationActions!}`)!
+  }
+
+  it('offers the cleanup beside New only while the catalog holds an ended task', () => {
+    const h = mount()
+    expect(within(creationActions()).queryByRole('button', { name: en['clear.action'] })).toBeNull()
+    h.update({ records: [...records, endedTask] })
+    // The cleanup sits left of the primary action, which keeps the row's end.
+    expect(within(creationActions()).getAllByRole('button').map(button => button.textContent))
+      .toEqual([en['clear.action'], en['new.action']])
+    // An ended task that the current view filters out still offers the cleanup.
+    fireEvent.click(screen.getByRole('button', { name: en['status.active'] }))
+    expect(screen.queryByRole('button', { name: 'Ended summary' })).toBeNull()
+    expect(within(creationActions()).getByRole('button', { name: en['clear.action'] })).toBeDefined()
+  })
+
+  it('states the complete ended set in the confirmation, not the filtered rows', () => {
+    mount({ records: [...records, endedTask, anotherEnded] })
+    fireEvent.change(screen.getByRole('searchbox', { name: en['search.label'] }), {
+      target: { value: 'Send summary' },
+    })
+    expect(taskNames()).toEqual(['Send summary'])
+    fireEvent.click(screen.getByRole('button', { name: en['clear.action'] }))
+    const dialog = screen.getByRole('dialog', { name: en['clear.title'] })
+    expect(within(dialog).getByText(en['clear.description'])).toBeDefined()
+    expect(within(dialog).getByText(en['clear.count'].replace('{count}', '2'))).toBeDefined()
+  })
+
+  it('removes nothing when the confirmation is dismissed', () => {
+    const h = mount({ records: [at, endedTask] })
+    fireEvent.click(screen.getByRole('button', { name: en['clear.action'] }))
+    fireEvent.click(screen.getByRole('button', { name: en['delete.cancel'] }))
+    expect(screen.queryByRole('dialog', { name: en['clear.title'] })).toBeNull()
+    expect(h.props.onClearEnded).not.toHaveBeenCalled()
+  })
+
+  it('keeps the confirmation open until the settled removal, then returns focus', async () => {
+    const pending = Promise.withResolvers<undefined>()
+    const onClearEnded = vi.fn(() => pending.promise)
+    mount({ records: [at, endedTask] }, en, { onClearEnded })
+    const trigger = screen.getByRole('button', { name: en['clear.action'] })
+    // A pointer press focuses the control in the browser; jsdom leaves focus alone.
+    trigger.focus()
+    fireEvent.click(trigger)
+    const dialog = screen.getByRole('dialog', { name: en['clear.title'] })
+    fireEvent.click(within(dialog).getByRole('button', { name: en['clear.confirm'] }))
+    expect(onClearEnded).toHaveBeenCalledOnce()
+
+    const running = screen.getByRole('dialog', { name: en['clear.title'] })
+    expect(within(running).getByRole('button', { name: en['clear.pending'] }).hasAttribute('disabled')).toBe(true)
+    expect(within(running).getByRole('button', { name: en['delete.cancel'] }).hasAttribute('disabled')).toBe(true)
+    // The confirmation is the only place that states the removal still runs, so
+    // the Escape that would close it waits for the outcome.
+    fireEvent.keyDown(running, { key: 'Escape' })
+    expect(screen.getByRole('dialog', { name: en['clear.title'] })).toBe(running)
+
+    await act(async () => { pending.resolve(undefined) })
+    expect(screen.queryByRole('dialog', { name: en['clear.title'] })).toBeNull()
+    expect(document.activeElement).toBe(trigger)
+  })
+
+  it('closes only the confirmation on Escape while a task detail is open', () => {
+    mount({ records: [at, endedTask] })
+    fireEvent.click(screen.getByRole('button', { name: 'Review release' }))
+    const detail = screen.getByRole('complementary', { name: en['detail.label'] })
+    fireEvent.click(screen.getByRole('button', { name: en['clear.action'] }))
+    const dialog = screen.getByRole('dialog', { name: en['clear.title'] })
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+    expect(screen.queryByRole('dialog', { name: en['clear.title'] })).toBeNull()
+    expect(screen.getByRole('complementary', { name: en['detail.label'] })).toBe(detail)
+  })
+
+  it('states the cleanup and its confirmation in Chinese', () => {
+    mount({ records: [at, endedTask] }, zh)
+    fireEvent.click(screen.getByRole('button', { name: zh['clear.action'] }))
+    const dialog = screen.getByRole('dialog', { name: zh['clear.title'] })
+    expect(within(dialog).getByText(zh['clear.count'].replace('{count}', '1'))).toBeDefined()
+    expect(within(dialog).getByRole('button', { name: zh['clear.confirm'] })).toBeDefined()
   })
 })
 
@@ -3791,11 +3884,12 @@ describe('Mock detail metrics shared with the task list', () => {
     )
     // The Plugins toolbar's Add-plugin capsule, repeated by the creation action.
     expect(rule('creationActions')).toMatch(/gap:\s*16px;/)
-    const newButton = rule('newButton')
-    expect(newButton).toMatch(/height:\s*32px;/)
-    expect(newButton).toMatch(/font-size:\s*13px;/)
-    expect(newButton).toMatch(/padding:\s*0 12px;/)
-    expect(newButton).toMatch(/border-radius:\s*16px;/)
+    // The New action and the bulk cleanup share this capsule geometry.
+    const headerAction = rule('newButton')
+    expect(headerAction).toMatch(/height:\s*32px;/)
+    expect(headerAction).toMatch(/font-size:\s*13px;/)
+    expect(headerAction).toMatch(/padding:\s*0 12px;/)
+    expect(headerAction).toMatch(/border-radius:\s*16px;/)
     const headingTitle = /\.pageHeading h1\s*\{([^}]*)\}/.exec(stylesheet)?.[1] ?? ''
     // The first-level title step is the Plugins page's `pageTitle`, not the
     // mock's larger page heading; the equality case below pins that pair.

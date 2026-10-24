@@ -5,8 +5,23 @@
 - group "添加插件":
   - button "添加插件"
   - button "选择添加插件方式"
-- heading "官方" [level=3]
-- text: "8"
+- heading "内置插件配置" [level=3]
+- text: "4"
+- list:
+  - listitem:
+    - button "查看 终端": 终端
+    - text: 限制每条命令最多能跑多久、最多输出多少内容。
+  - listitem:
+    - button "查看 Agent 循环": Agent 循环
+    - text: 控制 Agent 派发工具调用的方式。
+  - listitem:
+    - button "查看 子智能体": 子智能体
+    - text: 设置子智能体的递归层级、数量和模型。
+  - listitem:
+    - button "查看 网页搜索": 网页搜索
+    - text: 设置 DeepSeek 的搜索提供方。
+- heading "可选与实验性插件" [level=3]
+- text: "4"
 - list:
   - listitem:
     - button "查看 智能体团队": 智能体团队
@@ -24,19 +39,7 @@
     - button "查看 语音输入": 语音输入
     - text: 实验性 在本机使用 SenseVoice 转写录音，首次使用需安装依赖。
     - switch "启用 语音输入"
-  - listitem:
-    - button "查看 终端": 终端
-    - text: 限制每条命令最多能跑多久、最多输出多少内容。
-  - listitem:
-    - button "查看 Agent 循环": Agent 循环
-    - text: 控制 Agent 派发工具调用的方式。
-  - listitem:
-    - button "查看 子智能体": 子智能体
-    - text: 设置子智能体的递归层级、数量和模型。
-  - listitem:
-    - button "查看 网页搜索": 网页搜索
-    - text: 设置 DeepSeek 的搜索提供方。
-- heading "已安装" [level=3]
+- heading "已安装插件" [level=3]
 - text: "2"
 - list:
   - listitem:

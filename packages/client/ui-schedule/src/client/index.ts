@@ -43,6 +43,7 @@ import type {} from '@deepseek-ai/dsh-client-connection/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { ScheduleCatalogEntry, ScheduleDeliveryHistoryRequest, ScheduleId, ScheduleUpdateRequest } from '@deepseek-ai/dsh-schedule/client'
 import { createCatalogSource, type CatalogDeleteOutcome, type CatalogInjected } from './catalog-source.ts'
+import { createClearEnded } from './clear-ended.ts'
 import { createDeleteToastSource, ScheduleDeleteToast } from './DeleteToast.tsx'
 import { SCHEDULE_TASK_ID, SCHEDULE_TASK_KIND, scheduleTaskDefinition } from './definition.ts'
 import { ScheduleCatalogAction } from './ScheduleCatalogAction.tsx'
@@ -137,6 +138,17 @@ export function apply(ctx: ClientContext): void {
       ctx.uiWorkspace.openSession(id)
     }
   }
+  /**
+   * Remove every ended Host task and read the catalog back.
+   *
+   * The readback names every request seen so far, so it supersedes a read sent
+   * before the removal instead of joining it.
+   * @returns the settled bulk-removal outcome.
+   */
+  const clearEnded = createClearEnded({
+    removeInactive: () => ctx.remote.schedule.deleteInactive(),
+    refresh: () => manager.onRetry(manager.hooks.catalog.getSnapshot().readRequest),
+  })
   const detail: TaskDetailInjected & ScheduleTaskCatalogInjected = {
     hooks: manager.hooks,
     onDelete: reportedDelete(manager.onDelete),
@@ -173,6 +185,10 @@ export function apply(ctx: ClientContext): void {
       ...detail,
       // The page has no creation form: a new reminder starts in a Session.
       onNewTask: () => { ctx.uiWorkspace.startSession() },
+      onClearEnded: async () => {
+        const outcome = await clearEnded()
+        deleteToast.reportClear(outcome)
+      },
     }),
   }, TaskManagerPage))
   ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({

@@ -1389,6 +1389,7 @@ describe('dsh-tool-subagent continuable background mode', () => {
     const assembly = await ctx.systemPrompt.assemble(assembleContextFor(parent))
     const guidance = assembly.sections.find(section => section.name === 'tool:subagent')
     expect(guidance?.text).toContain('Start independent subagent delegations together')
+    expect(guidance?.text).toContain('When only waiting for their results remains, end your turn instead of sleeping or polling; the next result starts a new turn.')
 
     const started = await callSubagent(
       ctx,

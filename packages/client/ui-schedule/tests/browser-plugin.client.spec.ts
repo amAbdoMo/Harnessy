@@ -475,6 +475,50 @@ describe('ui-schedule browser half', () => {
     }
   })
 
+  it('clears every ended task from the global page, reads the catalog back, and reports the count', async () => {
+    const record: ScheduleCatalogEntry = {
+      id: 'host-ended' as ScheduleId, sessionId: 'cold-original' as SessionId, status: 'inactive',
+      kind: 'after', title: 'Ended review', prompt: 'Ended review', afterSeconds: 60,
+      scheduledAt: '2099-01-01T00:00:00.000Z',
+    }
+    const catalog = vi.fn()
+      .mockResolvedValueOnce({ ok: true, value: [record] })
+      .mockResolvedValue({ ok: true, value: [] })
+    const deleteInactive = vi.fn().mockResolvedValue({ ok: true, value: { deleted: 1 } })
+    const ctx = await baseContext({ schedule: { catalog, deleteInactive }, $on: () => () => {} })
+    const owner = ctx.slots.register({
+      name: 'root',
+      children: {
+        main: { kind: 'keyed', scope: 'root' },
+        'shell.overlay': { kind: 'list', scope: 'root' },
+      },
+    } as never, Empty)
+    const fiber = ctx.plugin({ inject: [...inject], apply })
+    await fiber.await()
+    try {
+      const face = injectedFace(ctx.slots.entries('main')[0]!, undefined as never) as TaskManagerInjected
+      const toast = injectedFace(ctx.slots.entries('shell.overlay')[0]!) as Omit<DeleteToastSource, 'report' | 'reportClear'>
+      const dispose = face.hooks.catalog.subscribe(vi.fn())
+      try {
+        await vi.waitFor(() => { expect(face.hooks.catalog.getSnapshot().records).toEqual([record]) })
+        const reads = catalog.mock.calls.length
+        await face.onClearEnded()
+        expect(deleteInactive).toHaveBeenCalledOnce()
+        // The acknowledged removal reads the catalog back instead of joining a
+        // read issued before it, so the page's rows follow the removal.
+        expect(catalog.mock.calls.length).toBe(reads + 1)
+        await vi.waitFor(() => { expect(face.hooks.catalog.getSnapshot().records).toEqual([]) })
+        expect(toast.hooks.toast.getSnapshot()).toEqual({ kind: 'cleared', count: 1, seq: 1 })
+      } finally {
+        dispose()
+      }
+    } finally {
+      await fiber.dispose()
+      owner()
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('registers the row mark and hover-card seats under the Session row declarations', async () => {
     const catalog = vi.fn().mockResolvedValue({ ok: true, value: [] })
     const ctx = await baseContext({ schedule: { catalog }, $on: () => () => {} })

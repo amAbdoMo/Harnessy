@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import {
-  Button, IconClockOutlineRegular, IconCloseOutlineRegular, IconPlusOutlineRegular, IconSearchOutlineRegular, Input,
+  Button, IconClockOutlineRegular, IconCloseOutlineRegular, IconPlusOutlineRegular, IconSearchOutlineRegular, Input, Modal,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { HostObservable, InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
@@ -24,6 +24,16 @@ export interface TaskManagerInjected extends TaskDetailInjected {
    * schedule it. The page deliberately has no creation form of its own.
    */
   readonly onNewTask: () => void
+  /**
+   * Remove every ended Host task, after this page has confirmed the action.
+   *
+   * The call requests no task ids, so the Host's ended set is the one removed;
+   * the page's rows are only a snapshot that a delivery can have moved. It
+   * resolves once the settled outcome has been reported through the app-wide
+   * notice, which is the only place the result is stated.
+   * @returns resolution after the outcome is reported.
+   */
+  readonly onClearEnded: () => Promise<void>
 }
 
 /** Root-scoped task catalog props derived from the framework and injected actions. */
@@ -39,12 +49,14 @@ type StatusFilter = 'all' | ScheduleCatalogEntry['status']
  * @returns the searchable task list beside the selected task's detail.
  */
 export function TaskManagerPage(props: TaskManagerPageProps) {
-  const { useCatalog, onNewTask, onRetry, t } = props
+  const { useCatalog, onNewTask, onClearEnded, onRetry, t } = props
   const catalog = useCatalog(snapshot => snapshot)
   const { records, status } = catalog
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [selectedId, setSelectedId] = useState<ScheduleId | null>(null)
+  const [clearConfirm, setClearConfirm] = useState(false)
+  const [clearing, setClearing] = useState(false)
   // The rows state how long remains, so they read the shared ticking clock
   // rather than a value sampled at mount: a catalog refresh can move the target
   // this text describes.
@@ -54,6 +66,12 @@ export function TaskManagerPage(props: TaskManagerPageProps) {
   const rowRef = useRef<HTMLButtonElement | null>(null)
   const headingRef = useRef<HTMLHeadingElement>(null)
   const confirming = records.find(record => record.id === confirmId)
+  // The bulk action's target and count come from the complete catalog, not from
+  // the filtered rows: it removes every ended task, whatever the view shows.
+  const endedCount = useMemo(
+    () => records.filter(record => record.status === 'inactive').length,
+    [records],
+  )
   const rows = useMemo(() => {
     const query = search.trim().toLowerCase()
     return records.filter(record => (
@@ -96,16 +114,25 @@ export function TaskManagerPage(props: TaskManagerPageProps) {
     setSelectedId(null)
   }
 
+  const confirmClearEnded = (): void => {
+    setClearing(true)
+    void onClearEnded().finally(() => {
+      setClearing(false)
+      setClearConfirm(false)
+    })
+  }
+
   return (
     <section
       className={clsx(css.page, selected !== undefined && css.hasDetails)}
       aria-label={t('title')}
       data-testid="task-manager-page"
       onKeyDown={(event) => {
-        // A dropdown that closed on this Escape has already consumed the key: the
-        // Menu primitive closes from the document capture phase and calls
-        // preventDefault there, before React dispatches this handler.
-        if (event.key !== 'Escape' || event.defaultPrevented || confirmId !== null || selectedId === null) return
+        // Escape belongs to the surface it closed: the Menu primitive consumes it
+        // during the document capture phase, and the Modal layer consumes it while
+        // a confirmation is open. This handler must not also close the detail.
+        if (event.key !== 'Escape' || event.defaultPrevented || confirmId !== null || clearConfirm
+          || selectedId === null) return
         event.preventDefault()
         event.stopPropagation()
         closeDetails()
@@ -117,6 +144,12 @@ export function TaskManagerPage(props: TaskManagerPageProps) {
             <div className={css.pageHeading}>
               <h1 ref={headingRef} tabIndex={-1}>{t('title')}</h1>
               <div className={css.creationActions}>
+                {endedCount > 0 && <Button
+                  variant="outline"
+                  size="sm"
+                  className={css.newButton}
+                  onClick={() => { setClearConfirm(true) }}
+                >{t('clear.action')}</Button>}
                 <Button variant="primary" size="sm" className={css.newButton} icon={<IconPlusOutlineRegular size={13} />} onClick={onNewTask}>{t('new.action')}</Button>
               </div>
             </div>
@@ -208,6 +241,27 @@ export function TaskManagerPage(props: TaskManagerPageProps) {
         onDeleted={closeDetails}
         onClose={closeDetails}
       />}
+      <Modal
+        className={css.confirmDialog as string}
+        contentClassName={css.confirmContent as string}
+        open={clearConfirm}
+        title={t('clear.title')}
+        description={t('clear.description')}
+        closeLabel={t('clear.close')}
+        // Dismissal waits for the settled removal: the confirmation is the only
+        // place that states the operation is still running.
+        onClose={() => { if (!clearing) setClearConfirm(false) }}
+        footer={<div className={css.confirmActions}>
+          <Button variant="outline" disabled={clearing} onClick={() => { setClearConfirm(false) }}>
+            {t('delete.cancel')}
+          </Button>
+          <Button className={css.deleteButton} disabled={clearing} onClick={confirmClearEnded}>
+            {t(clearing ? 'clear.pending' : 'clear.confirm')}
+          </Button>
+        </div>}
+      >
+        <p className={css.confirmTitle}>{t('clear.count', { count: endedCount })}</p>
+      </Modal>
     </section>
   )
 }

@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import type { Browser, Page } from 'playwright'
 import { chromium } from 'playwright'
-import { afterAll, beforeAll, describe, expect, it, onTestFailed } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, onTestFailed, vi } from 'vitest'
 import {
   assertFixtureInventory, captureStableAria, compareOrRefreshGolden,
   launchWebScaffold, watchConsole, webSnapshotMode, type WebScaffold,
@@ -33,6 +33,7 @@ const CONFIGURED_EXPECTED = join(SNAPSHOT_DIR, 'configured.expected.md')
 const DECLARED_EXPECTED = join(SNAPSHOT_DIR, 'declared.expected.md')
 const DECLARED_EDIT_EXPECTED = join(SNAPSHOT_DIR, 'declared-edit.expected.md')
 const MODEL_PICKER_EXPECTED = join(SNAPSHOT_DIR, 'model-picker.expected.md')
+const REORDERED_EXPECTED = join(SNAPSHOT_DIR, 'reordered.expected.md')
 const NATIVE_DELETE_EXPECTED = join(SNAPSHOT_DIR, 'native-delete.expected.md')
 const DELETE_EXPECTED = join(SNAPSHOT_DIR, 'delete.expected.md')
 const MODE = webSnapshotMode()
@@ -42,8 +43,26 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
   let browser: Browser
   let page: Page
   let tripwire: ReturnType<typeof watchConsole>
+  let restoreModelListings = (): void => {}
 
   beforeAll(async () => {
+    const originalFetch = globalThis.fetch
+    const listingFixture = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+      if ((init?.method ?? 'GET') === 'GET') {
+        if (url === 'https://gateway.minimax.example/v1/models?limit=1000') {
+          return Promise.resolve(Response.json({
+            data: [{ id: 'MiniMax-M2.7' }, { id: 'MiniMax-M2.7-highspeed' }, { id: 'MiniMax-M3' }],
+            has_more: false,
+          }))
+        }
+        if (url === 'https://api.openai.com/v1/models') {
+          return Promise.resolve(Response.json({ data: [{ id: 'gpt-6-astra' }] }))
+        }
+      }
+      return originalFetch(input, init)
+    })
+    restoreModelListings = () => { listingFixture.mockRestore() }
     scaffold = await launchWebScaffold({})
     browser = await chromium.launch()
     // The scenario asserts the shipped Chinese copy, so the browser asks for it.
@@ -54,8 +73,11 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
   }, 120_000)
 
   afterAll(async () => {
-    await browser?.close()
-    await scaffold?.close()
+    try {
+      await browser?.close()
+    } finally {
+      try { await scaffold?.close() } finally { restoreModelListings() }
+    }
   })
 
   it('rejects layout checks without an explicit viewport before resizing the page', async () => {
@@ -77,24 +99,19 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
     await dialog.waitFor({ timeout: 10_000 })
     await dialog.getByRole('button', { name: '模型', exact: true }).click()
     await dialog.getByText('填入各提供商的 API 密钥即可使用其模型。').waitFor({ timeout: 10_000 })
-    // The dormant pi-ai adapter contributes its whole installed catalog; no
-    // provider is configured yet, so the page is one add button.
-    const add = dialog.getByRole('button', { name: '添加模型提供商' })
-    await add.waitFor({ timeout: 10_000 })
-    // The button enables once the dormant catalog lands in the join.
-    await expect.poll(async () => add.isEnabled(), { timeout: 10_000 }).toBe(true)
-    await add.click()
-    // The card opens on the third-party mode, whose panel carries the select.
+    await dialog.getByRole('button', { name: '添加模型提供商' }).click()
     const modes = dialog.getByRole('tablist', { name: '添加方式' })
     await modes.waitFor({ timeout: 10_000 })
     expect(await modes.getByRole('tab', { name: '第三方模型提供商' }).getAttribute('aria-selected')).toBe('true')
     const pick = dialog.getByLabel('提供商', { exact: true })
     await pick.waitFor({ timeout: 10_000 })
-    await expect.poll(async () => pick.locator('option').count(), { timeout: 10_000 }).toBeGreaterThan(30)
-    const options = await pick.locator('option').allTextContents()
+    await pick.click()
+    const choices = page.getByRole('listbox').getByRole('option')
+    await expect.poll(async () => choices.count(), { timeout: 10_000 }).toBeGreaterThan(30)
+    const options = await choices.allTextContents()
     expect(options).toContain('anthropic')
     expect(options).toContain('minimax-cn')
-    await pick.selectOption('minimax-cn')
+    await page.getByRole('option', { name: 'minimax-cn', exact: true }).click()
     await dialog.getByRole('textbox', { name: 'API 密钥', exact: true }).waitFor({ timeout: 10_000 })
     const snapshot = await captureStableAria(page, '[role="dialog"]', scaffold.workspaceCwd)
     await compareOrRefreshGolden(EMPTY_EXPECTED, snapshot, MODE)
@@ -297,7 +314,7 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
     // than sending the user to cordis.patch.yml for what only this route names.
     const protocol = dialog.getByLabel('API 协议')
     await protocol.waitFor({ timeout: 10_000 })
-    expect(await protocol.inputValue()).toBe('openai-completions')
+    expect(await protocol.innerText()).toBe('OpenAI Chat Completions')
     const name = dialog.getByLabel('显示名称', { exact: true })
     expect(await name.inputValue()).toBe('Acme Gateway')
     await dialog.getByRole('button', { name: '模型选项 1' }).click()
@@ -306,7 +323,8 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
     const snapshot = await captureStableAria(page, '[role="dialog"]', scaffold.workspaceCwd)
     await compareOrRefreshGolden(DECLARED_EDIT_EXPECTED, snapshot, MODE)
 
-    await protocol.selectOption('anthropic-messages')
+    await protocol.click()
+    await page.getByRole('option', { name: 'Anthropic Messages', exact: true }).click()
     await name.fill('Acme 网关')
     await dialog.getByRole('group', { name: '输入类型 1' }).getByRole('checkbox', { name: '图片' }).uncheck()
     await dialog.getByRole('button', { name: '保存', exact: true }).click()
@@ -418,6 +436,63 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)
 
+  it('keeps reordered models in the draft until Save and restores stored order after Cancel', async () => {
+    onTestFailed(() => saveFailureShot(page, 'web-e2e-models-order'))
+    const dialog = page.getByRole('dialog', { name: '设置' })
+    const edit = dialog.getByRole('button', { name: '编辑 Acme 网关 (acme-gateway)' })
+    const path = join(scaffold.harnessHome, 'profiles', 'scaffold', 'cordis.patch.yml')
+    const stored = await readFile(path, 'utf8')
+    for (const save of [false, true]) {
+      await edit.click()
+      await dialog.getByText('自定义设置').click()
+      expect(await dialog.getByLabel('模型 ID 1', { exact: true }).inputValue()).toBe('acme-large')
+      expect(await dialog.getByLabel(/^模型 ID /).count()).toBe(1)
+      for (const [index, id] of ['acme-medium', 'acme-small'].entries()) {
+        await dialog.getByRole('button', { name: '添加模型', exact: true }).click()
+        await dialog.getByLabel(`模型 ID ${String(index + 2)}`, { exact: true }).fill(id)
+      }
+      const source = dialog.getByRole('button', { name: '调整模型顺序 1', exact: true })
+      if (save) {
+        const handle = await source.elementHandle()
+        if (handle === null) throw new Error('Keyboard reorder handle is missing')
+        await source.focus()
+        await page.keyboard.press('ArrowDown')
+        await expect.poll(() => dialog.getByLabel('模型 ID 2', { exact: true }).inputValue()).toBe('acme-large')
+        expect(await handle.evaluate(button => document.activeElement === button)).toBe(true)
+        await page.keyboard.press('ArrowDown')
+        expect(await handle.evaluate(button => document.activeElement === button)).toBe(true)
+      } else {
+        const target = dialog.locator('[data-row-key]').nth(2)
+        await target.scrollIntoViewIfNeeded()
+        const box = await target.boundingBox()
+        if (box === null) throw new Error('Model drop target is not visible')
+        await source.dragTo(target, { targetPosition: { x: 20, y: box.height * 0.75 } })
+      }
+      await expect.poll(() => dialog.getByLabel('模型 ID 3', { exact: true }).inputValue()).toBe('acme-large')
+      expect(await dialog.getByLabel('模型 ID 1', { exact: true }).inputValue()).toBe('acme-medium')
+      expect(await readFile(path, 'utf8')).toBe(stored)
+      if (save) {
+        await compareOrRefreshGolden(REORDERED_EXPECTED,
+          await captureStableAria(page, '[role="dialog"]', scaffold.workspaceCwd), MODE)
+      }
+      await dialog.getByRole('button', { name: save ? '保存' : '取消', exact: true }).click()
+      await dialog.getByLabel('模型 ID 1', { exact: true }).waitFor({ state: 'detached' })
+      if (save) await dialog.getByText('已保存 Acme 网关 (acme-gateway)。', { exact: true }).waitFor()
+      else expect(await readFile(path, 'utf8')).toBe(stored)
+    }
+    const profile = scaffold.ctx.settings.describe().find(entry => entry.ns === 'llm-pi-ai')?.user as {
+      providers: Record<string, { models: { id: string; input?: string[] }[] }>
+    }
+    expect(profile.providers['acme-gateway']?.models.map(model => model.id))
+      .toEqual(['acme-medium', 'acme-small', 'acme-large'])
+    expect(profile.providers['acme-gateway']?.models[2]?.input).toEqual(['image'])
+    await edit.click()
+    await dialog.getByText('自定义设置').click()
+    expect(await dialog.getByLabel('模型 ID 3', { exact: true }).inputValue()).toBe('acme-large')
+    await dialog.getByRole('button', { name: '取消', exact: true }).click()
+    expect(tripwire.pageErrors).toEqual([])
+  }, 60_000)
+
   it('confirms an identified provider deletion before removing its profile and key', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-models-delete'))
     expect(await readFile(join(scaffold.harnessHome, 'profiles', 'scaffold', 'cordis.patch.yml'), 'utf8')).not.toContain('openai:')
@@ -454,7 +529,7 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
   it.skipIf(MODE === 'record')('keeps the fixture inventory closed', async () => {
     await assertFixtureInventory(SNAPSHOT_DIR, [
       'configured.expected.md', 'declared-edit.expected.md', 'declared.expected.md',
-      'delete.expected.md', 'empty.expected.md', 'model-picker.expected.md',
+      'delete.expected.md', 'empty.expected.md', 'model-picker.expected.md', 'reordered.expected.md',
       'native-delete.expected.md', 'catalog-inputs.expected.md',
     ])
   })

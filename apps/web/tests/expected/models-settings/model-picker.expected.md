@@ -4,15 +4,16 @@
   - paragraph: 以下是模型提供商的可用模型，勾选要添加的模型。
   - searchbox "搜索模型"
   - button "取消全选"
+  - paragraph: 以下模型来自该路由的适配器内置目录。
   - list:
     - listitem:
       - checkbox "MiniMax-M2.7" [checked]
-      - text: MiniMax-M2.7
+      - text: MiniMax-M2.7 关闭 · 最低 · 低 · 中 · 高
     - listitem:
       - checkbox "MiniMax-M2.7-highspeed" [checked]
-      - text: MiniMax-M2.7-highspeed
+      - text: MiniMax-M2.7-highspeed 关闭 · 最低 · 低 · 中 · 高
     - listitem:
       - checkbox "MiniMax-M3" [checked]
-      - text: MiniMax-M3
+      - text: MiniMax-M3 关闭 · 最低 · 低 · 中 · 高
   - button "取消"
   - button "添加所选"

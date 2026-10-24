@@ -19,6 +19,7 @@ import type { ContextFormed, GenerateOptions, StreamChunk } from '@deepseek-ai/d
 import { SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
 import {
   ScheduleId,
+  createAfterScheduleRecord,
   createEveryScheduleRecord,
   foldScheduleEvents,
   type EveryScheduleRecord,
@@ -1257,5 +1258,67 @@ describe.skipIf(MODE === 'record')('web e2e: active Schedule catalog', () => {
       await scaffold.ctx.schedule.delete({ sessionId: CATALOG_SESSION_ID, id: created.id })
       await page.clock.setFixedTime(new Date(CATALOG_NOW))
     }
+  }, 60_000)
+
+  it('removes every ended task from the page and keeps the active ones', async () => {
+    onTestFailed(() => saveFailureShot(page, 'web-e2e-schedule-clear-ended'))
+    const endedSession = SessionId('schedule-manager-ended-clear')
+    const domain = scaffold.ctx.storageDomain.get('schedule')
+    if (domain === undefined) throw new Error('Schedule domain was not opened')
+    const endedIds = [ScheduleId('schedule-ended-first'), ScheduleId('schedule-ended-second')]
+    const endedTitles = ['Ended release check', 'Ended metrics check'] as const
+    for (const [index, id] of endedIds.entries()) {
+      const title = endedTitles[index]!
+      const record = createAfterScheduleRecord(ScheduleId(id), title, 60, Date.now(), title)
+      const receipt = {
+        scheduledAt: record.scheduledAt,
+        deliveredAt: new Date(Date.parse(record.scheduledAt) + 1_000).toISOString(),
+        messageId: MessageId(`${id}-delivery`),
+      }
+      await domain.table('tasks').put(record.id, {
+        sessionId: endedSession, record, status: 'inactive', lastDelivery: receipt,
+        deliveryHistory: { records: [receipt], earlierRecordsUnavailable: false },
+      })
+    }
+    // A create is the Host's own committed change, so its notification is what
+    // makes the open page read the rows seeded above.
+    const kept = await scaffold.ctx.schedule.create(endedSession, {
+      prompt: 'Keep this running task', title: 'Keep this running task', at: '2099-08-25T12:08:00.000Z',
+    })
+    await page.getByRole('button', { name: 'Automation tasks', exact: true }).click()
+    const manager = page.getByTestId('task-manager-page')
+    // Earlier scenarios leave their own search text and status filter on this
+    // shared page; this scenario asserts the complete list.
+    await manager.getByRole('searchbox', { name: 'Search tasks' }).fill('')
+    await manager.getByRole('button', { name: 'All', exact: true }).click()
+    const clear = manager.getByRole('button', { name: 'Clear ended', exact: true })
+    await clear.waitFor({ timeout: 15_000 })
+
+    // The confirmation states the Host-side target and removes nothing until it
+    // is confirmed.
+    await clear.click()
+    const confirmation = page.getByRole('dialog', { name: 'Clear ended automation tasks?' })
+    await confirmation.getByText('2 ended tasks', { exact: true }).waitFor()
+    await confirmation.getByRole('button', { name: 'Cancel', exact: true }).click()
+    expect((await scaffold.ctx.schedule.catalog()).filter(task => task.status === 'inactive')).toHaveLength(2)
+
+    await clear.click()
+    await confirmation.getByRole('button', { name: 'Clear tasks', exact: true }).click()
+    await expect.poll(async () => (await scaffold.ctx.schedule.catalog()).filter(task => task.status === 'inactive'))
+      .toEqual([])
+    const remaining = await scaffold.ctx.schedule.catalog()
+    expect(remaining.some(task => endedIds.includes(task.id))).toBe(false)
+    expect(remaining.map(task => task.title)).toContain('Keep this running task')
+    await page.getByText('Cleared 2 ended tasks.', { exact: true }).waitFor({ timeout: 15_000 })
+    // The page follows the acknowledged removal: no ended row or cleanup action
+    // remains, and the running task is still listed.
+    await expect.poll(() => manager.getByRole('button', { name: 'Clear ended', exact: true }).count(), { timeout: 15_000 })
+      .toBe(0)
+    await manager.getByRole('button', { name: 'All', exact: true }).click()
+    await expect.poll(() => manager.getByRole('list', { name: 'Task catalog' })
+      .getByRole('button', { name: kept.title, exact: true }).count(), { timeout: 15_000 }).toBe(1)
+    expect((await scaffold.ctx.schedule.catalog()).filter(task => task.status === 'inactive')).toEqual([])
+    expect(tripwire.pageErrors).toEqual([])
+    await scaffold.ctx.schedule.delete({ sessionId: endedSession, id: kept.id })
   }, 60_000)
 })

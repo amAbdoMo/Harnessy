@@ -49,6 +49,8 @@ The collapsed 自定义设置 fold carries the curated extras: `baseURL` for bot
 
 The DeepSeek card edits the `llm-deepseek` endpoint, credentials, and model catalog. It uses Messages, with the default endpoint placeholder `https://api.deepseek.com/anthropic`.
 
+Drag a model’s three-line handle to reorder it within its provider, or focus the handle and press the up or down arrow key. Model fields, open options, and unfinished capacity text follow the row. The order stays in the draft until **Save** or **Create provider**; **Cancel** discards it, and **Restore default models** restores the inherited catalog.
+
 Expand **Customized settings → Model options** to edit each model. Both provider families share the same row layout, labels, and icons: context window and max output tokens occupy two columns, and **Input types** occupies a separate row with **Text** and **Image** checkboxes. A row without an input declaration displays the installed model’s input types, then the provider default, then Text. Known pi-ai providers load their installed catalog without endpoint I/O; opening a row does not write an override. Explicit input selections take precedence, including text-only overrides of vision models. Checkbox edits save the selected types, with at least one type required. DeepSeek writes `inputModalities`; pi-ai writes `input`. Unchecking Image for DeepSeek also removes `imagePixelBudget` and `imageMaxBytes`, because the adapter rejects those limits without image input. Clearing the input field in `cordis.patch.yml` restores adapter inheritance; **Restore default models** resets the entire catalog override. Declare only input types the upstream model can actually process.
 
 ### Adding and deleting providers

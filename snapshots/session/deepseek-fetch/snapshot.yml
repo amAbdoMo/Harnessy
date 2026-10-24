@@ -1,0 +1,9 @@
+version: 1
+scenario: deepseek-fetch
+profile: headless
+composition: deepseek-fetch
+recording: authored
+permission: danger-full-access
+header:
+  class: deepseek-fetch
+  pin: true

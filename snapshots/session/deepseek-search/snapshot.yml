@@ -1,0 +1,9 @@
+version: 1
+scenario: deepseek-search
+profile: headless
+composition: deepseek-search
+recording: authored
+permission: danger-full-access
+header:
+  class: deepseek-search
+  pin: true

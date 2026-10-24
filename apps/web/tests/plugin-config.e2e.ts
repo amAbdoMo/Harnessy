@@ -30,6 +30,7 @@ describe('web e2e: plugin configuration pages', () => {
   let browser: Browser
   let page: Page
   let tripwire: ReturnType<typeof watchConsole>
+  let shellDefaultTimeout: number
 
   beforeAll(async () => {
     // The live-client fixture is a bundle with a browser half; switched on
@@ -38,6 +39,7 @@ describe('web e2e: plugin configuration pages', () => {
       extraOverlayPath: fileURLToPath(new URL('./pin-browse-picker.overlay.yml', import.meta.url)),
       profile: { packages: [{ dir: join(FIXTURE_PLUGINS, 'fixture-live-client') }] },
     })
+    shellDefaultTimeout = scaffold.ctx.shell.resolve({ command: 'true' }).timeoutMs
     browser = await chromium.launch()
     // Chinese browser: the pages assert the localized copy the client derives
     // from it, as the rest of the settings surface does.
@@ -68,7 +70,7 @@ describe('web e2e: plugin configuration pages', () => {
     while (await panel.getByRole('button', { name: /^返回/ }).count() > 0) {
       await panel.getByRole('button', { name: /^返回/ }).first().click()
     }
-    await panel.getByRole('heading', { name: '官方', exact: true }).waitFor({ timeout: 20_000 })
+    await panel.getByRole('heading', { name: '内置插件配置', exact: true }).waitFor({ timeout: 20_000 })
     return panel
   }
 
@@ -83,7 +85,7 @@ describe('web e2e: plugin configuration pages', () => {
     return readFile(join(scaffold.harnessHome, 'profiles', 'scaffold', 'cordis.patch.yml'), 'utf8').catch(() => '')
   }
 
-  it('lists one official page per exposed host-plane namespace after the official bundles', async () => {
+  it('groups built-in configuration separately from optional bundles', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-plugin-config-cards'))
     const panel = await openPlugins()
 
@@ -91,8 +93,8 @@ describe('web e2e: plugin configuration pages', () => {
     // agent loop, subagent selection, and the DeepSeek search provider, after
     // the official bundles the installation ships switched off.
     await panel.getByRole('button', { name: '查看 网页搜索', exact: true }).waitFor({ timeout: 20_000 })
-    const official = panel.locator('[data-plugin-group="official"]')
-    expect(await official.locator('[data-plugin-package]').count()).toBe(OPTIONAL_BUNDLES.length)
+    const official = panel.locator('[data-plugin-group="basic"]')
+    expect(await panel.locator('[data-plugin-group="extensions"] [data-plugin-package]').count()).toBe(OPTIONAL_BUNDLES.length)
     expect(await official.locator('[data-plugin-item]').count()).toBe(4)
     for (const title of ['终端', 'Agent 循环', '子智能体', '网页搜索']) {
       expect(await official.getByRole('button', { name: `查看 ${title}`, exact: true }).count()).toBe(1)
@@ -105,6 +107,66 @@ describe('web e2e: plugin configuration pages', () => {
     await compareOrRefreshGolden(OFFICIAL_EXPECTED, snapshot, MODE)
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)
+
+  it('switches search and fetch to the Search and Fetch APIs together and preserves each API’s endpoint', async () => {
+    onTestFailed(() => saveFailureShot(page, 'web-e2e-search-api-settings'))
+    const panel = await openPlugins()
+    await openPage(panel, '网页搜索')
+    const toggle = panel.getByRole('switch', { name: '启用新版 Web 搜索 API', exact: true })
+    const endpoint = panel.locator('#plugin-config-web-search-endpoint')
+    const maxUses = panel.getByLabel('单次请求最多搜索次数', { exact: true })
+    const save = panel.getByRole('button', { name: '保存', exact: true })
+    expect(await toggle.getAttribute('aria-checked')).toBe('false')
+    expect(await panel.getByRole('link', { name: '网页搜索与抓取指南', exact: true }).getAttribute('href'))
+      .toBe('https://api-docs.deepseek.com/zh-cn/guides/search')
+    expect(await panel.getByLabel('Messages API 基础地址', { exact: true }).count()).toBe(1)
+    expect(await maxUses.inputValue()).toBe('5')
+    expect(await endpoint.inputValue()).toBe('')
+    expect(await save.isDisabled()).toBe(true)
+    await endpoint.fill('https://messages.test/anthropic/v1')
+    await save.click()
+    await expect.poll(() => save.isDisabled()).toBe(true)
+    await toggle.focus()
+    await page.keyboard.press('Space')
+    expect(await panel.getByLabel('Search / Fetch API 基础地址', { exact: true }).count()).toBe(1)
+    expect(await endpoint.inputValue()).toBe('https://api.deepseek.com/v1/tools')
+    expect(await maxUses.count()).toBe(0)
+    const count = panel.getByLabel('每次搜索结果数', { exact: true })
+    expect(await count.inputValue()).toBe('10')
+    await count.fill('51')
+    await panel.getByText('请填 1–50 的整数；留空表示使用默认值。', { exact: true }).waitFor()
+    expect(await save.isDisabled()).toBe(true)
+    expect(await toggle.isDisabled()).toBe(true)
+    await count.fill('10')
+    expect(await settingsDocument()).not.toContain('searchProvider: deepseek-search-api')
+    await endpoint.fill('https://search-api.test/api/v1/tools')
+    await save.click()
+    await expect.poll(() => save.isDisabled()).toBe(true)
+    await expect.poll(settingsDocument).toContain('searchProvider: deepseek-search-api')
+    await expect.poll(settingsDocument).toContain('fetchProvider: deepseek-fetch-api')
+    await expect.poll(settingsDocument).toContain('baseURL: https://search-api.test/api/v1/tools')
+    await page.reload({ waitUntil: 'load' })
+    await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
+    await openPlugins()
+    await openPage(panel, '网页搜索')
+    expect(await toggle.getAttribute('aria-checked')).toBe('true')
+    expect(await endpoint.inputValue()).toBe('https://search-api.test/api/v1/tools')
+    const snapshot = await captureStableAria(page, '[data-plugin-panel]', scaffold.workspaceCwd)
+    await compareOrRefreshGolden(join(SNAPSHOT_DIR, 'web-search.expected.md'), snapshot, MODE)
+    await panel.getByRole('button', { name: '恢复默认', exact: true }).click()
+    expect(await endpoint.inputValue()).toBe('https://api.deepseek.com/v1/tools')
+    await save.click()
+    await expect.poll(() => save.isDisabled()).toBe(true)
+    await expect.poll(settingsDocument).not.toContain('https://search-api.test/api/v1/tools')
+    await toggle.click()
+    expect(await endpoint.inputValue()).toBe('https://messages.test/anthropic/v1')
+    await save.click()
+    await expect.poll(() => save.isDisabled()).toBe(true)
+    await expect.poll(settingsDocument).not.toContain('searchProvider: deepseek-search-api')
+    await expect.poll(settingsDocument).not.toContain('fetchProvider: deepseek-fetch-api')
+    expect(await settingsDocument()).toContain('baseURL: https://messages.test/anthropic/v1')
+    expect(tripwire.pageErrors).toEqual([])
+  })
 
   it('saves subagent limits and resets them to the deployment defaults', async () => {
     const panel = await openPlugins()
@@ -203,13 +265,14 @@ describe('web e2e: plugin configuration pages', () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-plugin-config-write'))
     const panel = await openPlugins()
     await openPage(panel, '终端')
-    const entry = [...scaffold.ctx.loader.entries()].find(row => row.options.id === 'bash-sandbox')!
+    const shellRow = process.platform === 'win32' ? 'pwsh-sandbox' : 'bash-sandbox'
+    const entry = [...scaffold.ctx.loader.entries()].find(row => row.options.id === shellRow)!
     const fiber = entry.fiber
 
     const timeout = panel.getByLabel('命令超时（毫秒）')
     await timeout.waitFor({ timeout: 10_000 })
     // The composed default this deployment ships, before any user layer.
-    expect(await timeout.inputValue()).toBe('60000')
+    expect(await timeout.inputValue()).toBe(String(shellDefaultTimeout))
     await timeout.fill('12000')
     await timeout.blur()
 
@@ -242,7 +305,7 @@ describe('web e2e: plugin configuration pages', () => {
 
     await timeout.fill('7000')
     await panel.getByRole('button', { name: '返回插件列表' }).click()
-    await panel.getByRole('heading', { name: '官方', exact: true }).waitFor({ timeout: 10_000 })
+    await panel.getByRole('heading', { name: '内置插件配置', exact: true }).waitFor({ timeout: 10_000 })
     await openPage(panel, '终端')
 
     await expect.poll(() => panel.getByLabel('命令超时（毫秒）').inputValue(), { timeout: 5_000 }).toBe('12000')
@@ -276,14 +339,14 @@ describe('web e2e: plugin configuration pages', () => {
     // The reset stages the composed default; the document still carries the
     // override until the save lands.
     await panel.getByRole('button', { name: '恢复默认' }).click()
-    await expect.poll(() => timeout.inputValue(), { timeout: 5_000 }).toBe('60000')
+    await expect.poll(() => timeout.inputValue(), { timeout: 5_000 }).toBe(String(shellDefaultTimeout))
     expect(await settingsDocument()).toContain('timeoutMs: 12000')
 
     await panel.getByRole('button', { name: '保存', exact: true }).click()
 
     await expect.poll(async () => (await settingsDocument()).includes('timeoutMs'), { timeout: 10_000 })
       .toBe(false)
-    expect(await timeout.inputValue()).toBe('60000')
+    expect(await timeout.inputValue()).toBe(String(shellDefaultTimeout))
     expect(await panel.getByText('已覆盖').count()).toBe(0)
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)
@@ -351,7 +414,7 @@ describe('web e2e: plugin configuration pages', () => {
 
   it.skipIf(MODE === 'record')('keeps the fixture inventory closed', async () => {
     expect(tripwire.warnings).toEqual([])
-    await assertFixtureInventory(SNAPSHOT_DIR, ['bundle.expected.md', 'official.expected.md', 'row.expected.md', 'subagent.expected.md'])
+    await assertFixtureInventory(SNAPSHOT_DIR, ['bundle.expected.md', 'official.expected.md', 'row.expected.md', 'subagent.expected.md', 'web-search.expected.md'])
   })
 
 

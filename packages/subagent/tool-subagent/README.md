@@ -162,7 +162,7 @@ When `enableRunInBackground` and `backgroundMode: continuable` are both set, the
 ##### Tool-guidance section
 
 ```markdown
-Start independent subagent delegations together in one assistant message and continue useful work while they run.
+Start independent subagent delegations together in one assistant message and continue useful work while they run. When only waiting for their results remains, end your turn instead of sleeping or polling; the next result starts a new turn.
 ```
 
 #### Token effect

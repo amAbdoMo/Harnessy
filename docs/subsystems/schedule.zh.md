@@ -437,6 +437,14 @@ type ScheduleDeliveryHistoryResult =
 
 Session 获取、消息入队或持久化确认失败时，任务继续保存在存储中，并报告宿主警告。后续管理变更或宿主重启会重试。Session 持久化与任务 put 不具有跨存储原子性。收件箱已持久化、任务尚未 put 时发生崩溃，可能重复投递；回执并未消除这一间隔。Schedule 不提供模型结果回执、执行取消或外部通知渠道。
 
+```ts type-equiv
+/** Successful Host-wide removal of every ended task, whether or not any remained. */
+interface ScheduleDeleteInactiveResult {
+  /** Ended task rows this call removed; zero when the Host held none. */
+  readonly deleted: number
+}
+```
+
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
 <a id="cordis-surface"></a>
@@ -507,6 +515,19 @@ async create(sessionId: SessionId, request: ScheduleCreateRequest, signal?: Abor
  * @returns Whether that Session owned a deleted task. Cancellation does not roll back an in-flight write.
  */
 @Remote('delete') async delete(request: ScheduleDeleteRequest, signal?: AbortSignal): Promise<ScheduleDeleteResult>
+
+/**
+ * Delete every ended Host task, leaving active tasks armed.
+ *
+ * Ended tasks never schedule another delivery, so the removal changes no pending
+ * target and no timer is recomputed. Rows are enumerated and removed in one FIFO
+ * slot, so a create ordered behind this call is not removed by it. Each removed row
+ * is durable on its own: a failure partway through leaves the earlier removals
+ * committed and announced, then rejects rather than reporting a partial count as
+ * the whole.
+ * @returns Count of removed rows; zero when the Host held no ended task.
+ */
+@Remote('deleteInactive') async deleteInactive(): Promise<ScheduleDeleteInactiveResult>
 
 /**
  * Update the name, instruction, and timing of an active task within the original Session

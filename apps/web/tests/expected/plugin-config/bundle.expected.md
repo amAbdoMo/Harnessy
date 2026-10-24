@@ -17,7 +17,7 @@
 - heading "来源信息" [level=4]
 - term: 代码来源
 - definition:
-  - code: file:{{fixtures}}/fixture-live-client
+  - code: file:{{fixtures}}\fixture-live-client
 - term: 当前版本
 - definition: 0.0.1
 - region "夹具区块":

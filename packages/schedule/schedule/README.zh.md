@@ -23,6 +23,8 @@ Schedule 将一次性、固定周期、按每日、按每周以及 cron 本地�
 <a id="use-this-package"></a>
 ## 使用此包
 
+Host 全局的 `deleteInactive()` Remote 操作会在一个串行操作中删除所有 Session 的非活动任务，并返回 `{ deleted }`。活动任务及其计时器、原始 Session 和排队消息保持不变。每行删除独立持久化；删除失败时仍会尝试其余行，通知已成功的删除，并拒绝操作，不会将不完整的数量报告为成功。用户可检查刷新后的目录并重试。
+
 随发行版交付的 Web 组合把此服务与 storage-domain、Session controller 一起挂载。其 `Config` 声明 `deliveryHistoryDays`（默认 30）与 `deliveryHistoryRecords`（默认 200）。存储后端路由由 storage-domain 管理；会话模型与 preset 恢复由 Session controller 管理。Schedule 无法在 headless 或仅 SDK 的组合中单独挂载：投递需要 Host 的 Web Session controller 和 Session 持久化后端，因为只有在 Session 确认 `session/flush` 之后一次投递才会提交。
 
 提醒工具 `schedule_create`、`schedule_list`、`schedule_delete` 和 `schedule_update` 来自 [`@deepseek-ai/dsh-tool-schedule`](../tool-schedule/README.zh.md)，由 preset 挂载；本包提供这些工具调用的宿主服务。更新原地替换一条提醒的名称、指令或时间，保留其 id 与已保存记录；相对的 `after` 延迟不支持更新。创建时需要非空提示文本、标题，且必须只提供以下六个选择器之一：

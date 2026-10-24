@@ -4351,6 +4351,8 @@ export interface Config {
   searchMaxResults?: number
   /** Upper bound on queries accepted by one `web_search` call. */
   searchMaxQueries?: number
+  /** Cap on each source summary in `web_search` output, in characters. Defaults to 800. */
+  searchSummaryMaxChars?: number
   /** Cooperative timeout budget (ms) for `web_fetch`. Defaults to 30000. */
   fetchTimeoutMs?: number
   /** Cooperative timeout budget (ms) for `web_search`. Defaults to 30000. */
@@ -4503,20 +4505,23 @@ export type ApprovalPolicy = 'ask' | 'never'
 
 ## `@deepseek-ai/dsh-web`
 
-- `source`: [`packages/web/web/src/index.ts:55`](../packages/web/web/src/index.ts)
+- `refs`: `Volatile` (`@deepseek-ai/cordis`)
+- `source`: [`packages/web/web/src/index.ts:57`](../packages/web/web/src/index.ts)
 
 ```ts config-catalog
 /**
  * Config for the web seam. `searchProvider` / `fetchProvider` pin which provider
  * wins for each capability; both are optional (a single registered usable
- * provider auto-selects). Operational overrides such as environment variables
- * must feed these same fields rather than introduce a hidden priority chain.
+ * provider auto-selects). Each operation reads the current value, so a settings
+ * change applies to the next search or fetch without remounting the service.
+ * Operational overrides such as environment variables must feed these same
+ * fields rather than introduce a hidden priority chain.
  */
 export interface WebRuntimeConfig {
   /** Explicit search provider id. Omitted = auto-select when exactly one usable. */
-  readonly searchProvider?: string
+  readonly searchProvider: Volatile<string | undefined>
   /** Explicit fetch provider id. Omitted = auto-select when exactly one usable. */
-  readonly fetchProvider?: string
+  readonly fetchProvider: Volatile<string | undefined>
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-web -->
@@ -4556,6 +4561,32 @@ export interface Config {
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-web-app -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-web-deepseek-api -->
+<a id="deepseek-aidsh-web-deepseek-api"></a>
+
+## `@deepseek-ai/dsh-web-deepseek-api`
+
+- `inject`: `web`
+- `refs`: `Volatile` (`@deepseek-ai/cordis`)
+- `source`: [`packages/web/web-deepseek-api/src/index.ts:34`](../packages/web/web-deepseek-api/src/index.ts)
+
+```ts config-catalog
+/** Settings read by the next search or fetch without re-registering either provider. */
+export interface Config {
+  /** Literal DeepSeek API key; prefer {@link apiKeyEnv} so no secret enters configuration files. */
+  apiKey: Volatile<string | undefined>
+  /** Credential reference resolved for each operation; defaults to `DEEPSEEK_API_KEY`. */
+  apiKeyEnv: Volatile<string>
+  /** API base including its path prefix; `/search` and `/fetch` are appended. */
+  baseURL: Volatile<string>
+  /** Search API results per search, from 1 through 50; a smaller request bound wins. Defaults to 10. */
+  count: Volatile<number>
+  /** Send the triggering user question, bounded to 128 characters, as `ori_question`. Defaults to true. */
+  sendOriginalQuestion: Volatile<boolean>
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-web-deepseek-api -->
 
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-web-fetch-http -->
 <a id="deepseek-aidsh-web-fetch-http"></a>

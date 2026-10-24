@@ -1,12 +1,15 @@
 /** Shared model fields and actions for both adapter catalog editors. */
 
-import type { ReactNode } from 'react'
+import type { DragEvent, ReactNode } from 'react'
+import { useLayoutEffect, useRef } from 'react'
 import {
-  IconChevronDownOutlineRegular, IconChevronRightOutlineRegular, IconTrashOutlineRegular,
+  IconChevronDownOutlineRegular, IconChevronRightOutlineRegular, IconFlatListOutlineRegular,
+  IconTrashOutlineRegular, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { DeepSeekModelDraft } from './DeepSeekModelsEditor.tsx'
 import type { ModelsKey } from './locales.ts'
 import { ModelInputTypes } from './ModelInputTypes.tsx'
+import type { ModelRowOrder } from './useModelRows.ts'
 import styles from './ModelsSection.module.css'
 
 /** A capacity's editable text and adapter-specific inherited hint. */
@@ -20,7 +23,9 @@ interface CapacityInput {
 /** Adapter-owned data and actions for one model row. */
 interface ModelRowProps {
   model: DeepSeekModelDraft
+  rowKey: number
   position: number
+  order: ModelRowOrder
   inputField: 'inputModalities' | 'input'
   inputFallback?: readonly string[] | undefined
   inputLoading?: boolean
@@ -38,6 +43,12 @@ interface ModelRowProps {
   onRemove: () => void
 }
 
+/** The insertion side under the pointer, measured against the complete row. */
+function rowHalf(event: DragEvent<HTMLElement>): 'before' | 'after' {
+  const rect = event.currentTarget.getBoundingClientRect()
+  return event.clientY < rect.top + rect.height / 2 ? 'before' : 'after'
+}
+
 /**
  * Render consistent model identity, capacity, and input-type controls.
  * @param props - drafted fields and their owning editor's actions.
@@ -45,9 +56,64 @@ interface ModelRowProps {
  */
 export function ModelRow(props: ModelRowProps): ReactNode {
   const { model, position, t, disabled } = props
+  const handle = useRef<HTMLButtonElement>(null)
+  const keyboardMove = useRef(false)
+  useLayoutEffect(() => {
+    if (!keyboardMove.current) return
+    keyboardMove.current = false
+    handle.current?.focus({ preventScroll: true })
+    handle.current?.scrollIntoView({ block: 'nearest' })
+  }, [position])
   return (
-    <div className={styles['modelEntry']}>
+    <div
+      className={styles['modelEntry']}
+      data-row-key={props.rowKey}
+      data-dragging={props.order.dragging || undefined}
+      data-drop-target={props.order.dragging ? undefined : props.order.target}
+      onDragOver={(event) => {
+        if (!props.order.canDrop) return
+        event.preventDefault()
+        event.dataTransfer.dropEffect = 'move'
+        props.order.onOver(rowHalf(event))
+      }}
+      onDragLeave={(event) => {
+        if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return
+        props.order.onLeave()
+      }}
+      onDrop={(event) => {
+        if (!props.order.canDrop) return
+        event.preventDefault()
+        props.order.onDrop(rowHalf(event))
+      }}
+    >
       <div className={styles['modelRow']}>
+        <Tooltip label={t('reorderModelHelp')}>
+          <button
+            ref={handle}
+            type="button"
+            className={`${styles['iconButton']} ${styles['modelDragHandle']}`}
+            aria-label={`${t('reorderModel')} ${String(position)}`}
+            aria-keyshortcuts="ArrowUp ArrowDown"
+            aria-description={t('reorderModelHelp')}
+            disabled={disabled}
+            draggable={!disabled}
+            onDragStart={(event) => {
+              if (disabled) { event.preventDefault(); return }
+              event.dataTransfer.effectAllowed = 'move'
+              event.dataTransfer.setData('application/x-dsh-model-order', String(props.rowKey))
+              props.order.onStart()
+            }}
+            onDragEnd={props.order.onEnd}
+            onKeyDown={(event) => {
+              if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
+              event.preventDefault()
+              event.stopPropagation()
+              keyboardMove.current = props.order.onMove(event.key === 'ArrowUp' ? -1 : 1)
+            }}
+          >
+            <IconFlatListOutlineRegular size={14} />
+          </button>
+        </Tooltip>
         {(['id', 'name'] as const).map(field => (
           <input
             key={field}

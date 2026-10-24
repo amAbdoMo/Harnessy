@@ -437,6 +437,14 @@ Plugin-sourced `followup()` synchronously appends the message to the Session inb
 
 A failure to resolve the Session, enqueue the message, or confirm persistence leaves the task stored and reports a Host warning. A later management change or Host restart retries it. Session persistence and the task put are not atomic across stores. A crash after inbox persistence but before the task put can repeat delivery; the receipt does not close this gap. Schedule provides no model-result acknowledgement, execution cancellation, or external notification channel.
 
+```ts type-equiv
+/** Successful Host-wide removal of every ended task, whether or not any remained. */
+interface ScheduleDeleteInactiveResult {
+  /** Ended task rows this call removed; zero when the Host held none. */
+  readonly deleted: number
+}
+```
+
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
 <a id="cordis-surface"></a>
@@ -507,6 +515,19 @@ async create(sessionId: SessionId, request: ScheduleCreateRequest, signal?: Abor
  * @returns Whether that Session owned a deleted task. Cancellation does not roll back an in-flight write.
  */
 @Remote('delete') async delete(request: ScheduleDeleteRequest, signal?: AbortSignal): Promise<ScheduleDeleteResult>
+
+/**
+ * Delete every ended Host task, leaving active tasks armed.
+ *
+ * Ended tasks never schedule another delivery, so the removal changes no pending
+ * target and no timer is recomputed. Rows are enumerated and removed in one FIFO
+ * slot, so a create ordered behind this call is not removed by it. Each removed row
+ * is durable on its own: a failure partway through leaves the earlier removals
+ * committed and announced, then rejects rather than reporting a partial count as
+ * the whole.
+ * @returns Count of removed rows; zero when the Host held no ended task.
+ */
+@Remote('deleteInactive') async deleteInactive(): Promise<ScheduleDeleteInactiveResult>
 
 /**
  * Update the name, instruction, and timing of an active task within the original Session
