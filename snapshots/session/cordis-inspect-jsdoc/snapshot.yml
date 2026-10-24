@@ -1,8 +1,8 @@
 version: 1
 scenario: cordis-inspect-jsdoc
 profile: headless
-composition: advanced
+composition: cordis-inspect-jsdoc
 recording: authored
 header:
-  class: advanced
+  class: cordis-inspect-jsdoc
   pin: true

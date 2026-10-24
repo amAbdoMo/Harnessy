@@ -5,5 +5,4 @@ composition: advanced
 recording: authored
 header:
   class: advanced
-  systemPromptSource: cordis-inspect-jsdoc
-  toolSchemasSource: cordis-inspect-jsdoc
+  pin: true

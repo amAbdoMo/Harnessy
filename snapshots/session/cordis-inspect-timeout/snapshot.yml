@@ -6,5 +6,5 @@ recording: authored
 header:
   class: advanced
   pin: true
-  systemPromptSource: cordis-inspect-jsdoc
-  toolSchemasSource: cordis-inspect-jsdoc
+  systemPromptSource: advanced-toolchain-runtime
+  toolSchemasSource: advanced-toolchain-runtime

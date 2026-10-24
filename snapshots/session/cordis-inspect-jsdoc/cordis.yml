@@ -1,5 +1,4 @@
-# Add PTC mode and Cordis tools to the base spawn/workflow stack, exercising
-# all four boundaries in one ACP snapshot.
+# Cordis API introspection over the advanced headless composition.
 - id: agent-default-model
   name: '@deepseek-ai/dsh-agent-default-model'
   config:
@@ -21,6 +20,18 @@
   name: '@deepseek-ai/dsh-tools'
   config:
     mode: both
+
+- id: skill-badge
+  disabled: true
+
+- id: tool-skill
+  disabled: true
+
+- id: tool-bash
+  disabled: true
+
+- id: tool-pwsh
+  disabled: true
 
 - id: system-prompt
   name: '@deepseek-ai/dsh-system-prompt'
