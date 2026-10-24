@@ -2969,7 +2969,7 @@
       ],
       "tree": "66cc2f7cb6294550741560e196714fd16fd9fc17",
       "subject": "fix(client): let owner classes place zoom controls regardless of CSS order",
-      "review": null
+      "review": "harnessy-shared-document-zoom-20261024"
     },
     {
       "sha": "a2bfffad2406b699b6ef21a6b7543543a42ee90d",
@@ -2987,7 +2987,7 @@
       ],
       "tree": "70d7746867e702368639a8ab165894682aad5c82",
       "subject": "refactor(client): address zoom controls review",
-      "review": null
+      "review": "harnessy-shared-document-zoom-20261024"
     },
     {
       "sha": "f70a511cca33bb42ac76a833ddc5f3c8ffb76c8b",
@@ -2996,7 +2996,7 @@
       ],
       "tree": "989791e83fa88c6e780a57ac4a20aad051bcc67a",
       "subject": "refactor(ui-primitives): share document zoom controls",
-      "review": null
+      "review": "harnessy-shared-document-zoom-20261024"
     },
     {
       "sha": "f0ced1aa47c8b16405a6dc6faee24cf53451a8df",
@@ -41246,6 +41246,80 @@
         "The complete custom-harness build passed with 369 Client artifacts and eleven public values. All fifteen Models browser cases passed qualified refresh and unchanged replay against an explicit Harnessy overlay. Saved profile data contains high: ultra and off: none; reopening and temporary disable/restore retain those values and the selected High default. All six changed owner expectations were inspected and preserve custom navigation/account UI.",
         "Complete source lint and all 43 doc-sync gates passed; final comment/navigation edits passed focused repository oxlint. A mistaken direct ESLint invocation found no ESLint configuration and was replaced by the repository lint runner; no ESLint pass is claimed. Full build initially exposed exact-optional field typing and passed after the row-state type correction.",
         "No upstream checkpoint or ancestry is advanced. No installed staging-window rebuild/update, release, main-app update verification, new checkout or foreign Android change is included. API-value UI is source/built-Web verified; physical Desktop interaction and live provider compatibility beyond declared adapter semantics remain unverified."
+      ]
+    },
+    "harnessy-shared-document-zoom-20261024": {
+      "status": "adopted",
+      "summary": "Share Harnessy document zoom controls and scale limits, preserve the verified gesture-percentage fix, and support owner placement independent of stylesheet order.",
+      "files": [
+        {
+          "path": "packages/client/ui-primitives/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update the current English/Chinese component catalog and localized-controls list with optional fitting, owner placement and shared limits, preserving the remaining current documentation. Re-record only this bilingual pair."
+        },
+        {
+          "path": "packages/client/ui-primitives/README.md",
+          "disposition": "adopted",
+          "reason": "Update the current English/Chinese component catalog and localized-controls list with optional fitting, owner placement and shared limits, preserving the remaining current documentation. Re-record only this bilingual pair."
+        },
+        {
+          "path": "packages/client/ui-primitives/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Update the current English/Chinese component catalog and localized-controls list with optional fitting, owner placement and shared limits, preserving the remaining current documentation. Re-record only this bilingual pair."
+        },
+        {
+          "path": "packages/client/ui-primitives/src/ZoomControls.module.css",
+          "disposition": "adopted",
+          "reason": "Move the existing token-based toolbar CSS and retain its geometry, transitions, touch visibility and reduced-motion behavior. Give the default bottom placement zero specificity so an owner class can position the toolbar in either stylesheet order. Preserve the transform/inset centering and opacity owners."
+        },
+        {
+          "path": "packages/client/ui-primitives/src/ZoomControls.tsx",
+          "disposition": "adopted",
+          "reason": "Move the single toolbar into ui-primitives and consume it through the current shared ZoomViewport. Retain the already qualified committed/transient percentage separation, including returning to an old scale; do not regress to either the early prop-sync effect or the intermediate shown.from state. Adopt optional renderer fitting, owner className, focus-within activity and ignoring touch hover; preserve current tokens, preset labels and callbacks."
+        },
+        {
+          "path": "packages/client/ui-primitives/src/document-zoom.ts",
+          "disposition": "adopted",
+          "reason": "Publish one DOCUMENT_ZOOM scale/preset owner and common localized label type. Keep Preview-specific fit-width preferences and its extra localized label in the current owner; remove duplicate scale constants after updating their consumers."
+        },
+        {
+          "path": "packages/client/ui-primitives/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Export the shared control, ref handle, limits and localized label type through the established primitive entry point without replacing existing exports or custom components."
+        },
+        {
+          "path": "packages/client/ui-primitives/tests/zoom-controls.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Keep the existing percentage and fit-width regressions with the moved control; consolidate the duplicate upstream percentage test rather than losing coverage. Adopt preset-only/no-fit, unlisted-scale, interaction, keyboard focus and scale-limit behavior checks. Add a built Harnessy browser owner covering actual SVG/PDF renderers and stylesheet-order-independent positioning."
+        },
+        {
+          "path": "packages/client/ui-sidebar-documentpreview/src/client/zoom/ZoomControls.module.css",
+          "disposition": "adopted",
+          "reason": "Move the existing token-based toolbar CSS and retain its geometry, transitions, touch visibility and reduced-motion behavior. Give the default bottom placement zero specificity so an owner class can position the toolbar in either stylesheet order. Preserve the transform/inset centering and opacity owners."
+        },
+        {
+          "path": "packages/client/ui-sidebar-documentpreview/src/client/zoom/ZoomControls.tsx",
+          "disposition": "adopted",
+          "reason": "Move the single toolbar into ui-primitives and consume it through the current shared ZoomViewport. Retain the already qualified committed/transient percentage separation, including returning to an old scale; do not regress to either the early prop-sync effect or the intermediate shown.from state. Adopt optional renderer fitting, owner className, focus-within activity and ignoring touch hover; preserve current tokens, preset labels and callbacks."
+        },
+        {
+          "path": "packages/client/ui-sidebar-documentpreview/src/client/zoom/ZoomViewport.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt the current PDF and image viewport to the shared primitive and shared fixed-scale limits. Pass the existing localized Fit width action without changing zoom preferences, anchoring, scroll ownership, gesture timing or current renderer layout."
+        },
+        {
+          "path": "packages/client/ui-sidebar-documentpreview/src/client/zoom/types.ts",
+          "disposition": "adopted",
+          "reason": "Publish one DOCUMENT_ZOOM scale/preset owner and common localized label type. Keep Preview-specific fit-width preferences and its extra localized label in the current owner; remove duplicate scale constants after updating their consumers."
+        }
+      ],
+      "evidence": [
+        "All three exact upstream commits and their complete twelve-path union reviewed; implementation 1e015ec56f1babe28584f5a9427b850816d4c96f. Verified 2026-10-24 on Windows, Harnessy 0.1.17, Node 24.14.0 and pnpm 11.7.0.",
+        "All 1961 selected UI primitive and document-preview owner cases have passing evidence across 121 files: the broad run passed 1960 and timed out the unchanged external packaging case at its local five-second budget; that exact unchanged packaging case passed the focused recheck after the full build. The initial aggregate is not claimed as clean. Eleven focused zoom/store/viewport cases also passed, including both preserved gesture-percentage regressions, fitting, limits, preset-only menus and focus retention.",
+        "The complete custom-harness build passed with 369 Client artifacts and eleven public values. The new built Harnessy browser owner passed in replay mode through a real recorded Session, Files UI, SVG and PDF renderers: unchanged Fit width/presets, fixed 200% scale, reset to fitting, and owner bottom/max-width positioning in both stylesheet orders. No golden was refreshed by this check and no installed Desktop window or physical gesture result is inferred.",
+        "Full repository lint passed using lint:contracts-ready after the verified Host build. All 43 doc-sync gates passed. All sixteen hygiene leaves have passing evidence: the aggregate passed fifteen but the vendor-rescope scanner initially enumerated a moved path still present in the unstaged Git index; after staging the exact moves, the unchanged rescope-vendor:check passed. The initial hygiene aggregate is not claimed as clean.",
+        "The first full build exposed the new Host-booting browser test being included in the Client program. Registering that test in tsconfig.host.json and excluding it from apps/web/tsconfig.json corrected ownership; the full rebuild passed and no adjacent source emissions recurred. Sixty-three exact untracked compiler outputs from the failed Client compile were removed after checking tracked TypeScript siblings and map source identities; unrelated Android work and tracked sources were preserved.",
+        "No checkpoint, upstream ancestry merge, installed staging runtime rebuild/update, release, main-app update verification, new application copy or foreign Android changes are included."
       ]
     }
   }
