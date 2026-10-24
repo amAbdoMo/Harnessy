@@ -626,7 +626,7 @@
       ],
       "tree": "a969178bb9c4f4d3dcd7ca0dd41026887c334319",
       "subject": "fix(headless): resume ordinary forks using subagent origin",
-      "review": null
+      "review": "harnessy-ordinary-fork-classification-20261024"
     },
     {
       "sha": "30650824c9ad59dbd96ed1cec72771f221d6eafd",
@@ -664,7 +664,7 @@
       ],
       "tree": "f621634b0fdc1d38b4cc4a4bf59e6d51b9c0eae6",
       "subject": "fix(session): make ordinary forks independent of source lineage",
-      "review": null
+      "review": "harnessy-ordinary-fork-classification-20261024"
     },
     {
       "sha": "1696816d2c581805fd0d360e87c8b11415fd57a6",
@@ -40768,6 +40768,400 @@
         "The complete source lint check passed after correcting new test cleanup-variable and arrow-parentheses diagnostics. All 43 doc-sync gates passed, including bilingual pairing, documentation build/typecheck and export JSDoc. All sixteen hygiene leaves have passing evidence: the initial aggregate found two empty package directories left by preserved image WIP and one retired unknown-cast allowance from the earlier update-dialog tests. Removing only the empty directories made unchanged constraints pass; pruning only the retired allowance made the unchanged cast guard pass. The other fourteen leaves passed in the aggregate. The initial aggregate itself is not reported as clean.",
         "Source inspection confirms temporary installations are still recreated and cleaned independently from reusable caches, store integrity remains enabled, and package-import-method=copy avoids signing mutations reaching cached package bytes. Cache path behavior and validation are tested; no signed installation, external persistent-runner execution, physical staging-window check, app update, main delivery or release was performed.",
         "No ancestry or checkpoint advancement. The interrupted image work remains on the existing local recovery branch and is not counted as implemented by this review. Foreign Android files remain outside these implementation commits."
+      ]
+    },
+    "harnessy-ordinary-fork-classification-20261024": {
+      "status": "adopted",
+      "summary": "Adapt ordinary-fork versus subagent classification across SDK, ACP, headless, Client lists and Harnessy notifications while explicitly retaining source metadata, manual placement and released reader compatibility.",
+      "files": [
+        {
+          "path": ".agents/notes/implemented/architecture/2026-10-23-independent-session-forks.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Do not import the upstream user decision to remove ordinary-fork source tracing or revise the side-session proposal around that removal. Harnessy retains source evidence, existing manual placement and released reader compatibility; its exact review decisions are recorded here and its changed observable behavior is documented in the current upgrade guide."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-10-23-independent-session-forks.md",
+          "disposition": "excluded",
+          "reason": "Do not import the upstream user decision to remove ordinary-fork source tracing or revise the side-session proposal around that removal. Harnessy retains source evidence, existing manual placement and released reader compatibility; its exact review decisions are recorded here and its changed observable behavior is documented in the current upgrade guide."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-10-23-independent-session-forks.zh.md",
+          "disposition": "excluded",
+          "reason": "Do not import the upstream user decision to remove ordinary-fork source tracing or revise the side-session proposal around that removal. Harnessy retains source evidence, existing manual placement and released reader compatibility; its exact review decisions are recorded here and its changed observable behavior is documented in the current upgrade guide."
+        },
+        {
+          "path": ".agents/notes/proposed/feature/2026-07-08-interactive-side-sessions.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Do not import the upstream user decision to remove ordinary-fork source tracing or revise the side-session proposal around that removal. Harnessy retains source evidence, existing manual placement and released reader compatibility; its exact review decisions are recorded here and its changed observable behavior is documented in the current upgrade guide."
+        },
+        {
+          "path": ".agents/notes/proposed/feature/2026-07-08-interactive-side-sessions.md",
+          "disposition": "excluded",
+          "reason": "Do not import the upstream user decision to remove ordinary-fork source tracing or revise the side-session proposal around that removal. Harnessy retains source evidence, existing manual placement and released reader compatibility; its exact review decisions are recorded here and its changed observable behavior is documented in the current upgrade guide."
+        },
+        {
+          "path": ".agents/notes/proposed/feature/2026-07-08-interactive-side-sessions.zh.md",
+          "disposition": "excluded",
+          "reason": "Do not import the upstream user decision to remove ordinary-fork source tracing or revise the side-session proposal around that removal. Harnessy retains source evidence, existing manual placement and released reader compatibility; its exact review decisions are recorded here and its changed observable behavior is documented in the current upgrade guide."
+        },
+        {
+          "path": "docs/architecture.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Correct current fork documentation and the creation example to explicit inheritedEventCount/isSeeded and exact open-tail closing. Preserve Harnessy source metadata and the existing generated JSDoc; exclude the upstream no-source promise and ordinary-fork source-id removal."
+        },
+        {
+          "path": "docs/architecture.md",
+          "disposition": "adopted",
+          "reason": "Correct current fork documentation and the creation example to explicit inheritedEventCount/isSeeded and exact open-tail closing. Preserve Harnessy source metadata and the existing generated JSDoc; exclude the upstream no-source promise and ordinary-fork source-id removal."
+        },
+        {
+          "path": "docs/architecture.zh.md",
+          "disposition": "adopted",
+          "reason": "Correct current fork documentation and the creation example to explicit inheritedEventCount/isSeeded and exact open-tail closing. Preserve Harnessy source metadata and the existing generated JSDoc; exclude the upstream no-source promise and ordinary-fork source-id removal."
+        },
+        {
+          "path": "docs/persistence-catalog.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Keep the current generated persistence schema/catalog and documented source-parent meaning. No persistence field, type, writer format, source link or delivery validator changes; the source type inventory, released history and current documentation gates pass without a new acknowledgement record."
+        },
+        {
+          "path": "docs/persistence-catalog.md",
+          "disposition": "excluded",
+          "reason": "Keep the current generated persistence schema/catalog and documented source-parent meaning. No persistence field, type, writer format, source link or delivery validator changes; the source type inventory, released history and current documentation gates pass without a new acknowledgement record."
+        },
+        {
+          "path": "docs/persistence-catalog.zh.md",
+          "disposition": "excluded",
+          "reason": "Keep the current generated persistence schema/catalog and documented source-parent meaning. No persistence field, type, writer format, source link or delivery validator changes; the source type inventory, released history and current documentation gates pass without a new acknowledgement record."
+        },
+        {
+          "path": "docs/persistence-schema.json",
+          "disposition": "excluded",
+          "reason": "Keep the current generated persistence schema/catalog and documented source-parent meaning. No persistence field, type, writer format, source link or delivery validator changes; the source type inventory, released history and current documentation gates pass without a new acknowledgement record."
+        },
+        {
+          "path": "docs/subsystems/persistence.md",
+          "disposition": "excluded",
+          "reason": "Keep the current generated persistence schema/catalog and documented source-parent meaning. No persistence field, type, writer format, source link or delivery validator changes; the source type inventory, released history and current documentation gates pass without a new acknowledgement record."
+        },
+        {
+          "path": "docs/subsystems/persistence.zh.md",
+          "disposition": "excluded",
+          "reason": "Keep the current generated persistence schema/catalog and documented source-parent meaning. No persistence field, type, writer format, source link or delivery validator changes; the source type inventory, released history and current documentation gates pass without a new acknowledgement record."
+        },
+        {
+          "path": "docs/subsystems/session.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Correct current fork documentation and the creation example to explicit inheritedEventCount/isSeeded and exact open-tail closing. Preserve Harnessy source metadata and the existing generated JSDoc; exclude the upstream no-source promise and ordinary-fork source-id removal."
+        },
+        {
+          "path": "docs/subsystems/session.md",
+          "disposition": "adopted",
+          "reason": "Correct current fork documentation and the creation example to explicit inheritedEventCount/isSeeded and exact open-tail closing. Preserve Harnessy source metadata and the existing generated JSDoc; exclude the upstream no-source promise and ordinary-fork source-id removal."
+        },
+        {
+          "path": "docs/subsystems/session.zh.md",
+          "disposition": "adopted",
+          "reason": "Correct current fork documentation and the creation example to explicit inheritedEventCount/isSeeded and exact open-tail closing. Preserve Harnessy source metadata and the existing generated JSDoc; exclude the upstream no-source promise and ordinary-fork source-id removal."
+        },
+        {
+          "path": "docs/upgrade-guide/v0.2.1-rc.3/independent-session-forks/guide.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Write the applicable SDK/ACP/headless classification upgrade guide under the current Harnessy version v0.1.17 with its paired Chinese copy. Explicitly retain saved source links and manual placement. Exclude upstream source-elision and older-reader parentless-delivery migration instructions because that writer/validator change is not adopted."
+        },
+        {
+          "path": "docs/upgrade-guide/v0.2.1-rc.3/independent-session-forks/guide.md",
+          "disposition": "adopted",
+          "reason": "Write the applicable SDK/ACP/headless classification upgrade guide under the current Harnessy version v0.1.17 with its paired Chinese copy. Explicitly retain saved source links and manual placement. Exclude upstream source-elision and older-reader parentless-delivery migration instructions because that writer/validator change is not adopted."
+        },
+        {
+          "path": "docs/upgrade-guide/v0.2.1-rc.3/independent-session-forks/guide.zh.md",
+          "disposition": "adopted",
+          "reason": "Write the applicable SDK/ACP/headless classification upgrade guide under the current Harnessy version v0.1.17 with its paired Chinese copy. Explicitly retain saved source links and manual placement. Exclude upstream source-elision and older-reader parentless-delivery migration instructions because that writer/validator change is not adopted."
+        },
+        {
+          "path": "packages/acp/acp/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "List and resume ordinary forks by explicit subagent origin rather than source-parent presence. Preserve working-directory, live ownership, preset and continuation checks. Adapt tests to current harnesses and keep both parent-bearing and parentless empty-seed coverage; update the current README pairs."
+        },
+        {
+          "path": "packages/acp/acp/README.md",
+          "disposition": "adopted",
+          "reason": "List and resume ordinary forks by explicit subagent origin rather than source-parent presence. Preserve working-directory, live ownership, preset and continuation checks. Adapt tests to current harnesses and keep both parent-bearing and parentless empty-seed coverage; update the current README pairs."
+        },
+        {
+          "path": "packages/acp/acp/README.zh.md",
+          "disposition": "adopted",
+          "reason": "List and resume ordinary forks by explicit subagent origin rather than source-parent presence. Preserve working-directory, live ownership, preset and continuation checks. Adapt tests to current harnesses and keep both parent-bearing and parentless empty-seed coverage; update the current README pairs."
+        },
+        {
+          "path": "packages/acp/acp/src/index.ts",
+          "disposition": "adopted",
+          "reason": "List and resume ordinary forks by explicit subagent origin rather than source-parent presence. Preserve working-directory, live ownership, preset and continuation checks. Adapt tests to current harnesses and keep both parent-bearing and parentless empty-seed coverage; update the current README pairs."
+        },
+        {
+          "path": "packages/acp/acp/tests/bridge.spec.ts",
+          "disposition": "adopted",
+          "reason": "List and resume ordinary forks by explicit subagent origin rather than source-parent presence. Preserve working-directory, live ownership, preset and continuation checks. Adapt tests to current harnesses and keep both parent-bearing and parentless empty-seed coverage; update the current README pairs."
+        },
+        {
+          "path": "packages/api/session-controller/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Indent only subagent-origin rows. Preserve ordinary source-parent metadata for Harnessy traceability and source-adjacent manual ordering; keep actual Agent-registry ownership and continuation-descriptor enforcement unchanged. Update the existing documentation and regression."
+        },
+        {
+          "path": "packages/api/session-controller/README.md",
+          "disposition": "adopted",
+          "reason": "Indent only subagent-origin rows. Preserve ordinary source-parent metadata for Harnessy traceability and source-adjacent manual ordering; keep actual Agent-registry ownership and continuation-descriptor enforcement unchanged. Update the existing documentation and regression."
+        },
+        {
+          "path": "packages/api/session-controller/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Indent only subagent-origin rows. Preserve ordinary source-parent metadata for Harnessy traceability and source-adjacent manual ordering; keep actual Agent-registry ownership and continuation-descriptor enforcement unchanged. Update the existing documentation and regression."
+        },
+        {
+          "path": "packages/api/session-controller/src/client/sessions/lineage.ts",
+          "disposition": "adopted",
+          "reason": "Indent only subagent-origin rows. Preserve ordinary source-parent metadata for Harnessy traceability and source-adjacent manual ordering; keep actual Agent-registry ownership and continuation-descriptor enforcement unchanged. Update the existing documentation and regression."
+        },
+        {
+          "path": "packages/api/session-controller/src/client/sessions/manager.ts",
+          "disposition": "excluded",
+          "reason": "Exclude ordinary-fork source-id removal and its matching API/placeholder/test/help changes. Preserve current core fork metadata, controller placeholders, seeded-title behavior and source-dependent consumers. The existing core fork, controller, goal/ordering and SDK behavior remain authoritative; classification is corrected at the inspected SDK, ACP, headless, list and Harnessy notification consumers instead."
+        },
+        {
+          "path": "packages/api/session-controller/src/commands.ts",
+          "disposition": "excluded",
+          "reason": "Exclude ordinary-fork source-id removal and its matching API/placeholder/test/help changes. Preserve current core fork metadata, controller placeholders, seeded-title behavior and source-dependent consumers. The existing core fork, controller, goal/ordering and SDK behavior remain authoritative; classification is corrected at the inspected SDK, ACP, headless, list and Harnessy notification consumers instead."
+        },
+        {
+          "path": "packages/api/session-controller/tests/lineage.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Indent only subagent-origin rows. Preserve ordinary source-parent metadata for Harnessy traceability and source-adjacent manual ordering; keep actual Agent-registry ownership and continuation-descriptor enforcement unchanged. Update the existing documentation and regression."
+        },
+        {
+          "path": "packages/api/session-controller/tests/manager.client.spec.ts",
+          "disposition": "excluded",
+          "reason": "Exclude ordinary-fork source-id removal and its matching API/placeholder/test/help changes. Preserve current core fork metadata, controller placeholders, seeded-title behavior and source-dependent consumers. The existing core fork, controller, goal/ordering and SDK behavior remain authoritative; classification is corrected at the inspected SDK, ACP, headless, list and Harnessy notification consumers instead."
+        },
+        {
+          "path": "packages/api/session-controller/tests/session-fork.host.spec.ts",
+          "disposition": "excluded",
+          "reason": "Exclude ordinary-fork source-id removal and its matching API/placeholder/test/help changes. Preserve current core fork metadata, controller placeholders, seeded-title behavior and source-dependent consumers. The existing core fork, controller, goal/ordering and SDK behavior remain authoritative; classification is corrected at the inspected SDK, ACP, headless, list and Harnessy notification consumers instead."
+        },
+        {
+          "path": "packages/api/session-controller/tests/sessions-service.client.spec.ts",
+          "disposition": "excluded",
+          "reason": "Exclude ordinary-fork source-id removal and its matching API/placeholder/test/help changes. Preserve current core fork metadata, controller placeholders, seeded-title behavior and source-dependent consumers. The existing core fork, controller, goal/ordering and SDK behavior remain authoritative; classification is corrected at the inspected SDK, ACP, headless, list and Harnessy notification consumers instead."
+        },
+        {
+          "path": "packages/bundle/headless/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "List and resume ordinary forks by explicit subagent origin rather than source-parent presence. Preserve working-directory, live ownership, preset and continuation checks. Adapt tests to current harnesses and keep both parent-bearing and parentless empty-seed coverage; update the current README pairs."
+        },
+        {
+          "path": "packages/bundle/headless/README.md",
+          "disposition": "adopted",
+          "reason": "List and resume ordinary forks by explicit subagent origin rather than source-parent presence. Preserve working-directory, live ownership, preset and continuation checks. Adapt tests to current harnesses and keep both parent-bearing and parentless empty-seed coverage; update the current README pairs."
+        },
+        {
+          "path": "packages/bundle/headless/README.zh.md",
+          "disposition": "adopted",
+          "reason": "List and resume ordinary forks by explicit subagent origin rather than source-parent presence. Preserve working-directory, live ownership, preset and continuation checks. Adapt tests to current harnesses and keep both parent-bearing and parentless empty-seed coverage; update the current README pairs."
+        },
+        {
+          "path": "packages/bundle/headless/src/index.ts",
+          "disposition": "adopted",
+          "reason": "List and resume ordinary forks by explicit subagent origin rather than source-parent presence. Preserve working-directory, live ownership, preset and continuation checks. Adapt tests to current harnesses and keep both parent-bearing and parentless empty-seed coverage; update the current README pairs."
+        },
+        {
+          "path": "packages/bundle/headless/tests/headless.spec.ts",
+          "disposition": "adopted",
+          "reason": "List and resume ordinary forks by explicit subagent origin rather than source-parent presence. Preserve working-directory, live ownership, preset and continuation checks. Adapt tests to current harnesses and keep both parent-bearing and parentless empty-seed coverage; update the current README pairs."
+        },
+        {
+          "path": "packages/client/ui-workspace/README.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Retain Harnessy source-adjacent fork placement and saved manual order. Ordinary forks already remain visible through explicit origin filtering. Do not replace that existing UI behavior with generic recency supplementation; unchanged workspace ordering tests passed in the affected-owner run."
+        },
+        {
+          "path": "packages/client/ui-workspace/README.md",
+          "disposition": "excluded",
+          "reason": "Retain Harnessy source-adjacent fork placement and saved manual order. Ordinary forks already remain visible through explicit origin filtering. Do not replace that existing UI behavior with generic recency supplementation; unchanged workspace ordering tests passed in the affected-owner run."
+        },
+        {
+          "path": "packages/client/ui-workspace/README.zh.md",
+          "disposition": "excluded",
+          "reason": "Retain Harnessy source-adjacent fork placement and saved manual order. Ordinary forks already remain visible through explicit origin filtering. Do not replace that existing UI behavior with generic recency supplementation; unchanged workspace ordering tests passed in the affected-owner run."
+        },
+        {
+          "path": "packages/client/ui-workspace/src/client/tree.ts",
+          "disposition": "excluded",
+          "reason": "Retain Harnessy source-adjacent fork placement and saved manual order. Ordinary forks already remain visible through explicit origin filtering. Do not replace that existing UI behavior with generic recency supplementation; unchanged workspace ordering tests passed in the affected-owner run."
+        },
+        {
+          "path": "packages/client/ui-workspace/tests/tree.client.spec.ts",
+          "disposition": "excluded",
+          "reason": "Retain Harnessy source-adjacent fork placement and saved manual order. Ordinary forks already remain visible through explicit origin filtering. Do not replace that existing UI behavior with generic recency supplementation; unchanged workspace ordering tests passed in the affected-owner run."
+        },
+        {
+          "path": "packages/core/agent-loop/tests/fixtures/serial-created.mjs",
+          "disposition": "adopted",
+          "reason": "Create ordinary and nested forks through the real shared SDK fixture and assert retained source ids, seeded state and absent subagent origin. Preserve the injected model-visible text and existing real-subagent behavior so the Python advanced fixtures do not need unrelated log edits."
+        },
+        {
+          "path": "packages/core/session/README.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Exclude ordinary-fork source-id removal and its matching API/placeholder/test/help changes. Preserve current core fork metadata, controller placeholders, seeded-title behavior and source-dependent consumers. The existing core fork, controller, goal/ordering and SDK behavior remain authoritative; classification is corrected at the inspected SDK, ACP, headless, list and Harnessy notification consumers instead."
+        },
+        {
+          "path": "packages/core/session/README.md",
+          "disposition": "excluded",
+          "reason": "Exclude ordinary-fork source-id removal and its matching API/placeholder/test/help changes. Preserve current core fork metadata, controller placeholders, seeded-title behavior and source-dependent consumers. The existing core fork, controller, goal/ordering and SDK behavior remain authoritative; classification is corrected at the inspected SDK, ACP, headless, list and Harnessy notification consumers instead."
+        },
+        {
+          "path": "packages/core/session/README.zh.md",
+          "disposition": "excluded",
+          "reason": "Exclude ordinary-fork source-id removal and its matching API/placeholder/test/help changes. Preserve current core fork metadata, controller placeholders, seeded-title behavior and source-dependent consumers. The existing core fork, controller, goal/ordering and SDK behavior remain authoritative; classification is corrected at the inspected SDK, ACP, headless, list and Harnessy notification consumers instead."
+        },
+        {
+          "path": "packages/core/session/src/index.ts",
+          "disposition": "excluded",
+          "reason": "Exclude ordinary-fork source-id removal and its matching API/placeholder/test/help changes. Preserve current core fork metadata, controller placeholders, seeded-title behavior and source-dependent consumers. The existing core fork, controller, goal/ordering and SDK behavior remain authoritative; classification is corrected at the inspected SDK, ACP, headless, list and Harnessy notification consumers instead."
+        },
+        {
+          "path": "packages/core/session/src/types.ts",
+          "disposition": "excluded",
+          "reason": "Exclude ordinary-fork source-id removal and its matching API/placeholder/test/help changes. Preserve current core fork metadata, controller placeholders, seeded-title behavior and source-dependent consumers. The existing core fork, controller, goal/ordering and SDK behavior remain authoritative; classification is corrected at the inspected SDK, ACP, headless, list and Harnessy notification consumers instead."
+        },
+        {
+          "path": "packages/core/session/tests/fork.spec.ts",
+          "disposition": "excluded",
+          "reason": "Exclude ordinary-fork source-id removal and its matching API/placeholder/test/help changes. Preserve current core fork metadata, controller placeholders, seeded-title behavior and source-dependent consumers. The existing core fork, controller, goal/ordering and SDK behavior remain authoritative; classification is corrected at the inspected SDK, ACP, headless, list and Harnessy notification consumers instead."
+        },
+        {
+          "path": "packages/extensions/tool-cordis/src/api-catalog.ts",
+          "disposition": "excluded",
+          "reason": "Exclude ordinary-fork source-id removal and its matching API/placeholder/test/help changes. Preserve current core fork metadata, controller placeholders, seeded-title behavior and source-dependent consumers. The existing core fork, controller, goal/ordering and SDK behavior remain authoritative; classification is corrected at the inspected SDK, ACP, headless, list and Harnessy notification consumers instead."
+        },
+        {
+          "path": "packages/goal/goal/tests/goal.spec.ts",
+          "disposition": "excluded",
+          "reason": "Exclude ordinary-fork source-id removal and its matching API/placeholder/test/help changes. Preserve current core fork metadata, controller placeholders, seeded-title behavior and source-dependent consumers. The existing core fork, controller, goal/ordering and SDK behavior remain authoritative; classification is corrected at the inspected SDK, ACP, headless, list and Harnessy notification consumers instead."
+        },
+        {
+          "path": "packages/sdk/server/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Emit subagent.started only for a subagent-origin Session with a direct creator. Exercise real subagents, ordinary forks, legacy parent-bearing metadata and unparented subagent metadata; add the recorded serial-created assertion and current documentation."
+        },
+        {
+          "path": "packages/sdk/server/README.md",
+          "disposition": "adopted",
+          "reason": "Emit subagent.started only for a subagent-origin Session with a direct creator. Exercise real subagents, ordinary forks, legacy parent-bearing metadata and unparented subagent metadata; add the recorded serial-created assertion and current documentation."
+        },
+        {
+          "path": "packages/sdk/server/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Emit subagent.started only for a subagent-origin Session with a direct creator. Exercise real subagents, ordinary forks, legacy parent-bearing metadata and unparented subagent metadata; add the recorded serial-created assertion and current documentation."
+        },
+        {
+          "path": "packages/sdk/server/src/server.ts",
+          "disposition": "adopted",
+          "reason": "Emit subagent.started only for a subagent-origin Session with a direct creator. Exercise real subagents, ordinary forks, legacy parent-bearing metadata and unparented subagent metadata; add the recorded serial-created assertion and current documentation."
+        },
+        {
+          "path": "packages/sdk/server/tests/server.spec.ts",
+          "disposition": "adopted",
+          "reason": "Emit subagent.started only for a subagent-origin Session with a direct creator. Exercise real subagents, ordinary forks, legacy parent-bearing metadata and unparented subagent metadata; add the recorded serial-created assertion and current documentation."
+        },
+        {
+          "path": "packages/session/session-format-v3-to-v4/README.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Do not introduce parentless fork writes or relax released V4 foreign-delivery ownership validation. Keeping the existing source parent preserves current reader admission and avoids a new same-version compatibility change. Retain existing persistence tests and immutable generations; the built fork browser flow verifies the retained parent and exact inherited cut."
+        },
+        {
+          "path": "packages/session/session-format-v3-to-v4/README.md",
+          "disposition": "excluded",
+          "reason": "Do not introduce parentless fork writes or relax released V4 foreign-delivery ownership validation. Keeping the existing source parent preserves current reader admission and avoids a new same-version compatibility change. Retain existing persistence tests and immutable generations; the built fork browser flow verifies the retained parent and exact inherited cut."
+        },
+        {
+          "path": "packages/session/session-format-v3-to-v4/README.zh.md",
+          "disposition": "excluded",
+          "reason": "Do not introduce parentless fork writes or relax released V4 foreign-delivery ownership validation. Keeping the existing source parent preserves current reader admission and avoids a new same-version compatibility change. Retain existing persistence tests and immutable generations; the built fork browser flow verifies the retained parent and exact inherited cut."
+        },
+        {
+          "path": "packages/session/session-format-v3-to-v4/src/validation.ts",
+          "disposition": "excluded",
+          "reason": "Do not introduce parentless fork writes or relax released V4 foreign-delivery ownership validation. Keeping the existing source parent preserves current reader admission and avoids a new same-version compatibility change. Retain existing persistence tests and immutable generations; the built fork browser flow verifies the retained parent and exact inherited cut."
+        },
+        {
+          "path": "packages/session/session-persistence-jsonl/tests/fork-delivery.spec.ts",
+          "disposition": "excluded",
+          "reason": "Do not introduce parentless fork writes or relax released V4 foreign-delivery ownership validation. Keeping the existing source parent preserves current reader admission and avoids a new same-version compatibility change. Retain existing persistence tests and immutable generations; the built fork browser flow verifies the retained parent and exact inherited cut."
+        },
+        {
+          "path": "packages/session/session-title/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Exclude seeded and subagent-origin Sessions from first-prompt generation while retaining all-prompts retitling. Adapt the fixture to existing service injections and explicit inherited counts; test source-linked ordinary forks, parentless empty seeds and subagents without importing unrelated upstream lifecycle changes."
+        },
+        {
+          "path": "packages/session/session-title/README.md",
+          "disposition": "adopted",
+          "reason": "Exclude seeded and subagent-origin Sessions from first-prompt generation while retaining all-prompts retitling. Adapt the fixture to existing service injections and explicit inherited counts; test source-linked ordinary forks, parentless empty seeds and subagents without importing unrelated upstream lifecycle changes."
+        },
+        {
+          "path": "packages/session/session-title/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Exclude seeded and subagent-origin Sessions from first-prompt generation while retaining all-prompts retitling. Adapt the fixture to existing service injections and explicit inherited counts; test source-linked ordinary forks, parentless empty seeds and subagents without importing unrelated upstream lifecycle changes."
+        },
+        {
+          "path": "packages/session/session-title/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Exclude seeded and subagent-origin Sessions from first-prompt generation while retaining all-prompts retitling. Adapt the fixture to existing service injections and explicit inherited counts; test source-linked ordinary forks, parentless empty seeds and subagents without importing unrelated upstream lifecycle changes."
+        },
+        {
+          "path": "packages/session/session-title/tests/provider.spec.ts",
+          "disposition": "adopted",
+          "reason": "Exclude seeded and subagent-origin Sessions from first-prompt generation while retaining all-prompts retitling. Adapt the fixture to existing service injections and explicit inherited counts; test source-linked ordinary forks, parentless empty seeds and subagents without importing unrelated upstream lifecycle changes."
+        },
+        {
+          "path": "scripts/snapshots/python-sdk-single-exe/advanced-ptc/result.json",
+          "disposition": "excluded",
+          "reason": "Keep the existing Python advanced recordings byte-for-byte. The shared creation fixture keeps its original injected message, and ordinary/nested Session objects remain unpersisted test probes. No production loop, Session event map or Python wire fields change; nine Python client notification/subagent tests passed. A packaged Python executable snapshot was not run."
+        },
+        {
+          "path": "scripts/snapshots/python-sdk-single-exe/advanced-ptc/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Keep the existing Python advanced recordings byte-for-byte. The shared creation fixture keeps its original injected message, and ordinary/nested Session objects remain unpersisted test probes. No production loop, Session event map or Python wire fields change; nine Python client notification/subagent tests passed. A packaged Python executable snapshot was not run."
+        },
+        {
+          "path": "scripts/snapshots/python-sdk-single-exe/advanced/result.json",
+          "disposition": "excluded",
+          "reason": "Keep the existing Python advanced recordings byte-for-byte. The shared creation fixture keeps its original injected message, and ordinary/nested Session objects remain unpersisted test probes. No production loop, Session event map or Python wire fields change; nine Python client notification/subagent tests passed. A packaged Python executable snapshot was not run."
+        },
+        {
+          "path": "scripts/snapshots/python-sdk-single-exe/advanced/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Keep the existing Python advanced recordings byte-for-byte. The shared creation fixture keeps its original injected message, and ordinary/nested Session objects remain unpersisted test probes. No production loop, Session event map or Python wire fields change; nine Python client notification/subagent tests passed. A packaged Python executable snapshot was not run."
+        },
+        {
+          "path": "snapshots/sdk/sdk.snapshot.ts",
+          "disposition": "adopted",
+          "reason": "Emit subagent.started only for a subagent-origin Session with a direct creator. Exercise real subagents, ordinary forks, legacy parent-bearing metadata and unparented subagent metadata; add the recorded serial-created assertion and current documentation."
+        },
+        {
+          "path": "snapshots/sdk/serial-created/session.v4.jsonl",
+          "disposition": "adopted",
+          "reason": "Add and qualify only the current V4 recording; retain committed older generations. The scenario owns its prompt and tool-schema sidecars, uses read-only test permissions and omits unused shell bindings and platform skill catalog feedback. Keep shared text-turn headers and all normalizers unchanged; unchanged replay verifies no false subagent-start notification."
+        }
+      ],
+      "evidence": [
+        "Exact roots b0966592457f8e15c842c0015e4e92593d563fa7 and cf072384b5a9f1c85ed5e55d9abf97bd46ff8487 reviewed across their complete 76-path union. Local implementation 48e7ff253de009596b5029e695556e57f8636e92; verified 2026-10-24 on Windows, Harnessy 0.1.17, Node 24.14.0 and pnpm 11.7.0.",
+        "Three negative controls failed before the change: ordinary source-bearing forks were nested, emitted false subagent.started notifications and lost Harnessy completion notifications. After adaptation, all selected owner cases have passing evidence: the 1418-case aggregate passed 1413 and skipped two but exposed three incomplete new title fixtures; the corrected title file passed all twelve cases, completing the three remaining cases. The initial aggregate is not reported as clean.",
+        "The complete custom-harness build passed and recorded 369 Client artifacts with eleven public values. All four explicit Harnessy fork browser cases passed refresh and then unchanged replay: exact HTTP mid-turn cut, retained source metadata and absent subagent origin, synthetic closers, and composer continuation with a resume header. The expected UI keeps current Harnessy controls rather than restoring stock feedback actions.",
+        "The real dsh --profile sdk serial-created recording passed qualified refresh and unchanged replay with ordinary/nested fork probes and no subagent.started. Its private V4 fixture/header owners remove platform shell/catalog assumptions; a runtime-directory field was normalized in the new fixture only. Shared normalizers, text-turn owners and historical generations are unchanged. All 44 snapshot layout/corpus checks passed. Nine Python client notification/subagent tests passed with isolated test dependencies; no full packaged Python runtime run is claimed.",
+        "Complete source lint and all 43 doc-sync gates passed. The final prose-only Session fork correction was additionally checked through paired documentation and the doc-quick checks. The Harnessy product static guard and both Node checks passed; its broad run passed 138 Vitest cases but timed out one unchanged welcome case and disturbed its companion case. Both unchanged welcome cases passed on focused recheck, so all 140 selected product cases have passing evidence; the initial aggregate is not reported as clean.",
+        "Retaining source metadata is deliberate: exclude the upstream writer/placeholder removals, manual-order replacement and parentless-delivery validator change. No existing source link or log is erased, no continuation authority is inferred from origin or parent metadata, and real runtime ownership/descriptor checks remain intact. No checkpoint, ancestry merge, app update, release, main-app update verification or foreign Android changes are included."
       ]
     }
   }
