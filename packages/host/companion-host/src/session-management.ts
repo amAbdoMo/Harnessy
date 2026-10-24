@@ -132,9 +132,9 @@ export async function executeManagement(
       admitted = true
       switch (request.type) {
         case 'renameSession':
-          await settleSessionWrite(() => ctx.sessionController.renameLiveSession({
+          await settleSessionWrite(() => Promise.resolve(ctx.sessionController.renameLiveSession({
             sessionId: request.sessionId, title: request.title,
-          }))
+          })))
           break
         case 'archiveSession':
           await invokeOwner(() => registry.archiveSession(request.sessionId), request)
