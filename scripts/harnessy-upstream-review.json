@@ -3,7 +3,7 @@
   "baselineHead": "249d882737862fe8f6f03df3f537d656134bd171",
   "upstreamTip": "22ddee3792402c3e70ec5f86a63c3e3e895a2f60",
   "mergeBase": "5badb15009ae1756c3afe0ae0cef1faafc290ccc",
-  "reviewedThrough": "0f51ba07379d5ee4118a4bfadc09215a8893c826",
+  "reviewedThrough": "ef9944a01fba77c6a2ee3eecad46325b984611c2",
   "entries": [
     {
       "sha": "22ddee3792402c3e70ec5f86a63c3e3e895a2f60",
@@ -48350,7 +48350,7 @@
         "The actual Windows Shell association/invocation test passed once with the repository CI lane budget DSH_COVERAGE_TEST_TIMEOUT_MS=90000. Two independent Vitest processes then ran that same case simultaneously and both passed with their own private paths, executable names and registry associations. This is three executions of one case, not three distinct tests; concurrent evidence checks isolation and does not claim a deterministic reproduction of the partial-file race.",
         "The first invocation used the local default 5000 ms budget and timed out in the invoke-handler phase. CI already grants 90000 ms through vitest.config.ts/coverageTestTimeoutOptions; that declared budget also covers teardown. Neither the fixture source timeout nor polling/retry behavior was changed to obtain a pass.",
         "The upstream merge is clean: reconstructed tree 9b75f30d9bc8bdbef2efdd824c099850995bbcdf equals its recorded tree, and the remerge diff is empty. The prior checkpoint already accounts for the inherited side-branch ancestors. Normal pre-commit staged lint and whitespace checks passed on the exact imported test change.",
-        "This record qualifies review and test-source adoption only. reviewedThrough is unchanged until an approved checkpoint merge is performed on a clean staging checkout and passes the repository product/ancestry checks. The other chat’s unfinished Android changes are untouched. No Desktop/browser build, app update, release or native Mac verification was performed."
+        "This review covers only the Windows handler fix and its clean upstream merge. The qualified checkpoint is integrated through a normal three-way merge after the exact fix was imported in 0df984352ca5423e5d94a455c8aa03ceac35811c. No source conflict resolutions are needed; reviewedThrough records the accepted checkpoint. The completed Android patch is committed separately, unchanged. This does not qualify later upstream commits, the native Mac feature, a full Desktop/browser build, an app update or release."
       ]
     }
   }
