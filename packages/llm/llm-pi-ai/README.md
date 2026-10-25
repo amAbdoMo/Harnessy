@@ -22,6 +22,8 @@ English | [中文](README.zh.md)
 
 -----
 
+`imageRequestTarget` resolves the current provider profile and model, then returns the same pixel and byte budget used by request image serialization. Screenshot consumers can map delivered pixels without replacing the configured provider or its SDK version.
+
 <a id="use-this-package"></a>
 ## Use this package
 

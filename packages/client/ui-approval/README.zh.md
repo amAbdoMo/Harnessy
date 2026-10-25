@@ -10,6 +10,8 @@ kind: "package-reference"
 
 基于 Agent-scoped Remote Event waterfall 的浏览器审批界面。插件通过 `ctx.uiSession` 发布待处理请求、接管 Conversation composer、渲染允许展示的关联 Tool 详情，并将用户决定返回给等待中的 Host 请求。它还根据记录的审批事件呈现只读权限检查点。当浏览器必须为等待中的 Host 操作收集批准时，请使用它。
 
+`conversation.approval.card` 工厂也呈现固定的应用决策，并可显示调用方拥有的持久授权操作。授权、取消与存储仍由调用方负责；图标和标签仅用于展示。工具审批保留仅摘要模式对详情的隐藏和现有回放检查点。
+
 ## 目录
 
 - [模型体验](#model-experience)

@@ -652,6 +652,25 @@ export class PluginManagerController {
     return this.store.getSnapshot()
   }
 
+  /**
+   * Observe bundle and row operations independently of the page's lifetime.
+   * @param packageName Bundle whose management activity is observed.
+   * @returns A read-only source; unsubscribe releases the caller's observation.
+   */
+  observeChanges(packageName: string): HostObservable<boolean> {
+    return {
+      getSnapshot: () => {
+        const state = this.getSnapshot()
+        return state.busy.includes(packageName)
+          || (state.update?.packageName === packageName && state.update.phase === 'running')
+          || (state.install.subject?.name === packageName && isInstallPending(state.install.phase))
+          || (state.packages.find(pkg => pkg.name === packageName)?.rows.some(row =>
+            row.entryId !== undefined && state.busy.includes(rowKey(row.entryId))) ?? false)
+      },
+      subscribe: listener => this.store.subscribe(listener),
+    }
+  }
+
   /** Stop publishing and drop every late settlement. */
   dispose(): void {
     this.disposed = true

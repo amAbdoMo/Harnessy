@@ -13,6 +13,7 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // ui-layout with the panel id brand, and the `sidebar.panellist` list the
 // entry registers into, declared by ui-sidebar.
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
+import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 // Type-only: the ctx.remote Context merge and the forwarded-event key face.
@@ -32,6 +33,15 @@ import type {} from './slot-contract.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
+    /** Read-only management activity, independent of the visible Plugins page. */
+    pluginChanges: {
+      /**
+       * Observe whether a bundle or one of its rows is being changed.
+       * @param packageName Bundle package name.
+       * @returns A snapshot source whose subscriptions belong to the caller.
+       */
+      bundle(packageName: string): HostObservable<boolean>
+    }
     /** Cross-plugin navigation to the Plugins panel. */
     pluginNavigation: {
       /**
@@ -78,6 +88,7 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-plugin-manager: dictionaries')
   const t = ctx.locale.bind(NS)
   const controller = new PluginManagerController(ctx)
+  ctx.provide('pluginChanges', { bundle: packageName => controller.observeChanges(packageName) })
   ctx.effect(() => () => { controller.dispose() }, 'ui-plugin-manager: controller')
   // The Host says when what is installed, enabled, or composed changed — from
   // this page, the CLI, or another browser — and streams install output.

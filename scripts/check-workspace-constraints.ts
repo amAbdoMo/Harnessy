@@ -182,6 +182,9 @@ export function readWorkspaceManifests(repositoryRoot: string): WorkspaceManifes
 }
 
 const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
+  '@deepseek-ai/dsh-experimental-cua': ['lib/remote-types.js', 'lib/api.js', 'lib/bridge.js', 'lib/native-client.js', 'lib/protocol.js'],
+  '@deepseek-ai/dsh-experimental-cua-bundle': ['docs'],
+  '@deepseek-ai/dsh-experimental-cua-macos': ['native/bin', 'native/Package.swift', 'native/Sources', 'native/tests/swift', 'native/tests/test_swift.py', 'native/LICENSE.cua-driver', 'native/upstream.json', 'native/README.md', 'native/README.zh.md', 'native/protocol.schema.json'],
   '@deepseek-ai/dsh-experimental-subagent-oar': ['LICENSE-OAR'],
   '@deepseek-ai/dsh-experimental-creation-recommendations': ['references/*.md', 'skills/*.md'],
   '@deepseek-ai/dsh-experimental-plugin-recommendations': ['skills/*.md'],

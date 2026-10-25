@@ -24,6 +24,8 @@ kind: "package-reference"
 
 -----
 
+`ctx.pluginChanges.bundle(packageName)` 提供独立于页面显示状态的只读管理活动。可选权限面板可在组合包或组件行变更前暂停查询，并在完成后刷新；取消订阅会释放观察。
+
 <a id="use-this-package"></a>
 ## 使用本包
 

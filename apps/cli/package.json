@@ -106,7 +106,8 @@
     "@deepseek-ai/dsh-experimental-auto-review": "workspace:*",
     "@deepseek-ai/dsh-experimental-plugin-market-bundle": "workspace:*",
     "@deepseek-ai/dsh-experimental-personalized-recommendations": "workspace:*",
-    "@deepseek-ai/dsh-experimental-subagent-oar": "workspace:*"
+    "@deepseek-ai/dsh-experimental-subagent-oar": "workspace:*",
+    "@deepseek-ai/dsh-experimental-cua-bundle": "workspace:*"
   },
   "devDependencies": {
     "@agentclientprotocol/sdk": "1.4.0",

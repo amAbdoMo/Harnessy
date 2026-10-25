@@ -12,8 +12,11 @@ Mount [`dsh-computer-use`](../../packages/computer-use/computer-use/README.md) a
 |---|---|
 | [Cua Driver MCP](../../packages/experimental/computer-use-cua-driver-mcp/README.md) | An already installed `cua-driver` executable connected through MCP |
 | [Cua Driver native](../../packages/experimental/computer-use-cua-driver-native/README.md) | The platform-native runtime installed with the npm dependency |
+| [Mac application objects](../../packages/experimental/cua-macos/README.md) | Optional Swift helper on macOS 14 or later, with a shared [permission page](../../packages/experimental/cua/README.md) |
 
 Each provider supplies its upstream tool catalog. The shared service registers only a name and rejects any second provider, including another instance with the same name. It has no common desktop-operation methods or model-controlled selector.
+
+Harnessy’s optional [Computer Use bundle](../../packages/experimental/cua-bundle/README.md) is disabled by default. Its `cua` tool requires a live Agent and separate application consent. `ctx.cuaAccess` owns system permission queries and application decisions, using `CuaApplicationState`, `CuaApplicationId`, `CuaSystemPermission`, and `CuaSystemPermissionState`. Screenshot sizing follows the selected model adapter. Each PTC program reimports the bridge and selects its application; this Harnessy runtime does not retain variables between calls. Native Mac compilation, permission attribution and desktop input require validation on a Mac.
 
 ## Lifetime and desktop sharing
 
@@ -53,4 +56,70 @@ register(name: ComputerUseProviderName): () => Promise<void>
 ```
 
 Source: [`packages/computer-use/computer-use/src/index.ts`](../../packages/computer-use/computer-use/src/index.ts)
+
+<a id="ctxcuaaccess--cuaaccess"></a>
+
+### `ctx.cuaAccess` — `CuaAccess`
+
+Browser controls for provider-owned native permission and application decisions.
+
+```ts cordis-catalog
+/** Read the persistent-PTC configuration supported by this Harnessy integration.
+ * @returns Unavailable controls; the current runtime interface exposes no persistence setting.
+ */
+@Remote ptcConfiguration(): { persistent: boolean; writable: boolean }
+
+/** Refuse an unsupported PTC setting before changing the profile.
+ * @returns A rejection explaining the runtime limitation.
+ */
+@Remote enablePersistentPtc(): Promise<void>
+
+/**
+ * Read application decisions without waiting for the native helper.
+ * @returns Saved grants and refused applications with their persistence owner.
+ */
+@Remote applications(): CuaApplicationState
+
+/**
+ * Inspect system privileges independently of application decisions and icons.
+ * @returns Fresh native preflight and launch metadata.
+ */
+@Remote async systemStatus(): Promise<CuaSystemPermissionState>
+
+/**
+ * Load presentation icons separately from application decisions.
+ * @returns Optional native PNG icons keyed by executable path for saved and blocked applications.
+ */
+@Remote async applicationIcons(): Promise<Record<string, string>>
+
+/**
+ * Request a system privilege explicitly selected by the user.
+ * @param permission macOS privilege to request.
+ * @returns Preflight state after requesting; a false value never implies consent.
+ */
+@Remote async requestPermission(permission: CuaSystemPermission): Promise<CuaSystemPermissionState>
+
+/**
+ * Open the macOS privacy pane selected by the user.
+ * @param permission Corresponding system privilege.
+ * @returns Completion after macOS accepted the open request.
+ */
+@Remote async openSettings(permission: CuaSystemPermission): Promise<void>
+
+/**
+ * Remove saved and session access and join affected operations.
+ * @param id Application identity displayed on the permission page.
+ * @returns Completion after persistence and cancellation; dispatched input cannot be undone.
+ */
+@Remote revoke(id: CuaApplicationId): Promise<void>
+
+/**
+ * Clear this application's refusals across sessions so each session may ask for access again.
+ * @param id Refused or revoked application displayed on the permission page.
+ * @returns Completion after clearing refusals; no permission is granted and no action is replayed.
+ */
+@Remote async retryApproval(id: CuaApplicationId): Promise<void>
+```
+
+Source: [`packages/experimental/cua/src/access.ts`](../../packages/experimental/cua/src/access.ts)
 <!-- END GENERATED cordis-surface -->

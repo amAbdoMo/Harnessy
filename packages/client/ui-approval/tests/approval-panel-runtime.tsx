@@ -10,6 +10,7 @@ import type { SessionFollowFrame, SessionSummary } from '@deepseek-ai/dsh-api-se
 import type { SettingsNamespaceView, SettingsPathOpView } from '@deepseek-ai/dsh-settings/types'
 import { LocaleSettingsSchema } from '@deepseek-ai/dsh-client-locale/src/locale-settings.ts'
 import { ApprovalPanel } from '../src/client/ApprovalPanel.tsx'
+import { ApprovalCard } from '../src/client/ApprovalCard.tsx'
 import { PendingApproval, type ApprovalInjected } from '../src/client/contract/slots.ts'
 import { en, zh } from '../src/client/locales.ts'
 import { approvalRuntimePlan, TestClient, remoteDefaultResponses } from './approval-runtime.client.ts'
@@ -141,8 +142,11 @@ export async function mountApprovalPanel(
     inject: (): ApprovalInjected => ({
       resolveReason: reason => client.ctx.locale.resolveText(reason),
     }),
-    children: { 'conversation.approval.detail': { kind: 'single', scope: 'session' } },
   }, ApprovalPanel))
+  client.ctx.effect(() => client.ctx.slots.registerFactory({
+    name: 'conversation.approval.card', scope: 'session', locale: 'approval',
+    children: { 'conversation.approval.detail': { kind: 'single', scope: 'session' } },
+  }, ApprovalCard))
   client.ctx.effect(() => client.ctx.slots.register({ name: 'conversation.approval.detail' }, Detail))
   await act(async () => { cleanup.unmount = client.ctx.uiRenderer.mount(container) })
   return {

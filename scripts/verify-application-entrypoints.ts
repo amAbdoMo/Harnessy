@@ -43,6 +43,7 @@ const EXECUTABLE_SOURCE_ALLOWLIST = new Map<string, string>([
   ['packages/subagent/subagent-acp/tests/fixtures/loader/driver.ts', 'test-only subprocess driver'],
   ['packages/subagent/subagent-claude-code/tests/fixtures/loader/driver.ts', 'test-only subprocess driver'],
   ['packages/subagent/subagent-codex/tests/fixtures/loader/driver.ts', 'test-only subprocess driver'],
+  ['packages/experimental/cua-macos/tests/fixtures/native-helper.mjs', 'test-only native protocol substitute; never controls the desktop'],
   ['packages/subagent/subagent-commandcode/tests/fixtures/loader/driver.ts', 'test-only subprocess driver'],
   ['packages/subagent/subagent-commandcode/tests/fixtures/loader/harnessy-driver.ts', 'test-only subprocess driver'],
   ['packages/subagent/subagent-dsh-sdk/tests/fixtures/loader/driver.ts', 'test-only subprocess driver'],

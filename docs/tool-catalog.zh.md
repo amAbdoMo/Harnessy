@@ -19,6 +19,7 @@
 
 | 工具包 | 模型可见名称 | 依赖 | 写入／影响 | 随产品发布的别名 | 部署说明 |
 | --- | --- | --- | --- | --- | --- |
+| `@deepseek-ai/dsh-experimental-cua-macos` | `cua` | `ctx.tools`, `ctx.systemPrompt`, `ctx.agents`, `ctx.computerUse`, `ctx.subprocess`, `Agent 拥有的执行` | `tool/call`, `tool/result`, `持久截图附件` | - | 可选的 Mac 提供方默认关闭。收集目录时仅注册 schema，不准备或启动原生组件。访问应用需由用户单独决定；截图要求已解析的模型路径支持图像输入。Windows 没有原生提供方。 |
 | `@deepseek-ai/dsh-experimental-action-cards` | `propose_action` | `ctx.tools`, `ctx.agents`, `ctx.sessionProjections`, `在线根 Agent 已加载卡片种类的 skill` | `tool/call`, `tool/result`, `action-cards/decision`, `user/message` | - | 仅在在线根 Agent 加载卡片种类的 skill 后声明。可选的个性化推荐 bundle 提供页面创建与内置插件启用种类；用户点击才授权操作。 |
 | `@deepseek-ai/dsh-plugin-manager` | `plugin_manager` | `ctx.tools`, `ctx.pluginManager`, `ctx.sandboxPolicy` | `tool/call`, `tool/result`, `user/message` | - | - |
 | `@deepseek-ai/dsh-plugin-market` | `plugin_market` | `ctx.tools`, `ctx.pluginMarket` | `tool/call`, `tool/result` | - | - |
@@ -53,6 +54,1176 @@
 | `@deepseek-ai/dsh-tool-workspace-dependencies` | `load_workspace_dependencies` | `ctx.tools` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`、`web_search` | `ctx.tools`、`ctx.web`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可见 schema 在更换后端时保持稳定。 |
 | `@deepseek-ai/dsh-tool-working-directory` | `working_directory` | `ctx.tools`、`ctx.workingDirectory`、调用方 Agent | `tool/call`、变更时的 `working-directory/change`、通知排队时的 `agent/inbox/spliced`、`tool/result` | - | - |
+
+<a id="deepseek-aidsh-experimental-cua-macos"></a>
+
+## `@deepseek-ai/dsh-experimental-cua-macos`
+
+### `cua`
+
+检查 macOS 权限，选择应用和窗口，读取 AX 状态、截图或发送输入。使用 getApp 返回的 appHandle，并读取新状态验证操作结果。
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "getCapabilities"
+        },
+        "params": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "listApps"
+        },
+        "params": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "findApps"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "getApp"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "selector": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "selector"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "activate"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "appHandle": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "appHandle"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "show"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "appHandle": {
+              "type": "string",
+              "minLength": 1
+            },
+            "windowId": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 4294967295
+            }
+          },
+          "required": [
+            "appHandle"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "listWindows"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "appHandle": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "appHandle"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "getState"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "appHandle": {
+              "type": "string",
+              "minLength": 1
+            },
+            "windowId": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 4294967295
+            },
+            "includeMenus": {
+              "description": "Expand menu contents; omitted or false shows menu-bar entries only.",
+              "type": "boolean"
+            },
+            "details": {
+              "description": "Include identifiers, global-point bounds and complete action names.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "appHandle"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "hover"
+        },
+        "params": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "appHandle": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "snapshotId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "elementIndex": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "appHandle",
+                "snapshotId",
+                "elementIndex"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "appHandle": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "windowId": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 4294967295
+                },
+                "snapshotId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "x": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "y": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "relative": {
+                  "description": "Omitted or false uses pixels in the latest screenshot returned by this tool.",
+                  "type": "boolean",
+                  "const": false
+                }
+              },
+              "required": [
+                "appHandle",
+                "windowId",
+                "x",
+                "y"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "appHandle": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "windowId": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 4294967295
+                },
+                "snapshotId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "x": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 999
+                },
+                "y": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 999
+                },
+                "relative": {
+                  "type": "boolean",
+                  "const": true,
+                  "description": "Use integer thousandths of the window width and height, from 0 to 999."
+                }
+              },
+              "required": [
+                "appHandle",
+                "windowId",
+                "x",
+                "y",
+                "relative"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "click"
+        },
+        "params": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "appHandle": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "snapshotId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "elementIndex": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "mouseButton": {
+                  "type": "string",
+                  "enum": [
+                    "left",
+                    "right",
+                    "middle"
+                  ]
+                },
+                "modifiers": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "command",
+                      "control",
+                      "option",
+                      "shift",
+                      "fn"
+                    ]
+                  }
+                },
+                "clickCount": {
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "const": 1
+                    },
+                    {
+                      "type": "number",
+                      "const": 2
+                    }
+                  ]
+                },
+                "holdMs": {
+                  "description": "Milliseconds between each mouse press and release; omitted for an ordinary click.",
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "appHandle",
+                "snapshotId",
+                "elementIndex"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "appHandle": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "windowId": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 4294967295
+                },
+                "snapshotId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "x": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "y": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "relative": {
+                  "description": "Omitted or false uses pixels in the latest screenshot returned by this tool.",
+                  "type": "boolean",
+                  "const": false
+                },
+                "mouseButton": {
+                  "type": "string",
+                  "enum": [
+                    "left",
+                    "right",
+                    "middle"
+                  ]
+                },
+                "modifiers": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "command",
+                      "control",
+                      "option",
+                      "shift",
+                      "fn"
+                    ]
+                  }
+                },
+                "clickCount": {
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "const": 1
+                    },
+                    {
+                      "type": "number",
+                      "const": 2
+                    }
+                  ]
+                },
+                "holdMs": {
+                  "description": "Milliseconds between each mouse press and release; omitted for an ordinary click.",
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "appHandle",
+                "windowId",
+                "x",
+                "y"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "appHandle": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "windowId": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 4294967295
+                },
+                "snapshotId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "x": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 999
+                },
+                "y": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 999
+                },
+                "relative": {
+                  "type": "boolean",
+                  "const": true,
+                  "description": "Use integer thousandths of the window width and height, from 0 to 999."
+                },
+                "mouseButton": {
+                  "type": "string",
+                  "enum": [
+                    "left",
+                    "right",
+                    "middle"
+                  ]
+                },
+                "modifiers": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "command",
+                      "control",
+                      "option",
+                      "shift",
+                      "fn"
+                    ]
+                  }
+                },
+                "clickCount": {
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "const": 1
+                    },
+                    {
+                      "type": "number",
+                      "const": 2
+                    }
+                  ]
+                },
+                "holdMs": {
+                  "description": "Milliseconds between each mouse press and release; omitted for an ordinary click.",
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "appHandle",
+                "windowId",
+                "x",
+                "y",
+                "relative"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "setValue"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "appHandle": {
+              "type": "string",
+              "minLength": 1
+            },
+            "snapshotId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "elementIndex": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "appHandle",
+            "snapshotId",
+            "elementIndex",
+            "value"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "selectText"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "appHandle": {
+              "type": "string",
+              "minLength": 1
+            },
+            "snapshotId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "elementIndex": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1
+            },
+            "prefix": {
+              "type": "string"
+            },
+            "suffix": {
+              "type": "string"
+            },
+            "selectionType": {
+              "type": "string",
+              "enum": [
+                "text",
+                "cursor_before",
+                "cursor_after"
+              ]
+            }
+          },
+          "required": [
+            "appHandle",
+            "snapshotId",
+            "elementIndex",
+            "text"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "performSecondaryAction"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "appHandle": {
+              "type": "string",
+              "minLength": 1
+            },
+            "snapshotId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "elementIndex": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "action": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "appHandle",
+            "snapshotId",
+            "elementIndex",
+            "action"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "typeText"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "appHandle": {
+              "type": "string",
+              "minLength": 1
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "appHandle",
+            "text"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "paste"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "appHandle": {
+              "type": "string",
+              "minLength": 1
+            },
+            "text": {
+              "type": "string"
+            },
+            "format": {
+              "type": "string",
+              "enum": [
+                "text",
+                "html"
+              ]
+            }
+          },
+          "required": [
+            "appHandle",
+            "text"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "pressKey"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "appHandle": {
+              "type": "string",
+              "minLength": 1
+            },
+            "key": {
+              "type": "string",
+              "minLength": 1
+            },
+            "modifiers": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "command",
+                  "control",
+                  "option",
+                  "shift",
+                  "fn"
+                ]
+              }
+            }
+          },
+          "required": [
+            "appHandle",
+            "key"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "scroll"
+        },
+        "params": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "appHandle": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "windowId": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 4294967295
+                },
+                "snapshotId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "x": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "y": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "relative": {
+                  "description": "Omitted or false uses pixels in the latest screenshot returned by this tool.",
+                  "type": "boolean",
+                  "const": false
+                },
+                "deltaLinesX": {
+                  "type": "integer",
+                  "minimum": -10,
+                  "maximum": 10
+                },
+                "deltaLinesY": {
+                  "type": "integer",
+                  "minimum": -10,
+                  "maximum": 10
+                }
+              },
+              "required": [
+                "appHandle",
+                "windowId",
+                "x",
+                "y",
+                "deltaLinesX",
+                "deltaLinesY"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "appHandle": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "windowId": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 4294967295
+                },
+                "snapshotId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "x": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 999
+                },
+                "y": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 999
+                },
+                "relative": {
+                  "type": "boolean",
+                  "const": true,
+                  "description": "Use integer thousandths of the window width and height, from 0 to 999."
+                },
+                "deltaLinesX": {
+                  "type": "integer",
+                  "minimum": -10,
+                  "maximum": 10
+                },
+                "deltaLinesY": {
+                  "type": "integer",
+                  "minimum": -10,
+                  "maximum": 10
+                }
+              },
+              "required": [
+                "appHandle",
+                "windowId",
+                "x",
+                "y",
+                "relative",
+                "deltaLinesX",
+                "deltaLinesY"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "drag"
+        },
+        "params": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "appHandle": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "windowId": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 4294967295
+                },
+                "mouseButton": {
+                  "type": "string",
+                  "enum": [
+                    "left",
+                    "right",
+                    "middle"
+                  ]
+                },
+                "modifiers": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "command",
+                      "control",
+                      "option",
+                      "shift",
+                      "fn"
+                    ]
+                  }
+                },
+                "snapshotId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "relative": {
+                  "type": "boolean",
+                  "const": false
+                },
+                "fromX": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "fromY": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "toX": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "toY": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "appHandle",
+                "windowId",
+                "fromX",
+                "fromY",
+                "toX",
+                "toY"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "appHandle": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "windowId": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 4294967295
+                },
+                "mouseButton": {
+                  "type": "string",
+                  "enum": [
+                    "left",
+                    "right",
+                    "middle"
+                  ]
+                },
+                "modifiers": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "command",
+                      "control",
+                      "option",
+                      "shift",
+                      "fn"
+                    ]
+                  }
+                },
+                "snapshotId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "relative": {
+                  "type": "boolean",
+                  "const": true,
+                  "description": "Use integer thousandths of the window width and height, from 0 to 999."
+                },
+                "fromX": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 999
+                },
+                "fromY": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 999
+                },
+                "toX": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 999
+                },
+                "toY": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 999
+                }
+              },
+              "required": [
+                "appHandle",
+                "windowId",
+                "relative",
+                "fromX",
+                "fromY",
+                "toX",
+                "toY"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "screenshot"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "appHandle": {
+              "type": "string",
+              "minLength": 1
+            },
+            "windowId": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 4294967295
+            }
+          },
+          "required": [
+            "appHandle",
+            "windowId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    }
+  ],
+  "type": "object"
+}
+```
+
+来源： [`packages/experimental/cua/src/index.ts`](../packages/experimental/cua/src/index.ts)
+
+可选的 Mac 提供方默认关闭。收集目录时仅注册 schema，不准备或启动原生组件。访问应用需由用户单独决定；截图要求已解析的模型路径支持图像输入。Windows 没有原生提供方。
+
 
 <a id="deepseek-aidsh-experimental-action-cards"></a>
 

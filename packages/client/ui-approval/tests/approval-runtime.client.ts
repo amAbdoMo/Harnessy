@@ -13,6 +13,7 @@ import * as theme from '@deepseek-ai/dsh-client-ui-theme/client'
 import * as layout from '@deepseek-ai/dsh-client-ui-layout/client'
 import * as uiWorkspace from '@deepseek-ai/dsh-client-ui-workspace/client'
 import * as fileUpload from '@deepseek-ai/dsh-client-file-upload/client'
+import * as fileDrag from '@deepseek-ai/dsh-client-ui-file-drag/client'
 import * as conversation from '@deepseek-ai/dsh-client-ui-conversation/client'
 import * as resources from '@deepseek-ai/dsh-client-resources/client'
 import * as sidebarRight from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
@@ -31,6 +32,7 @@ const provide: NonNullable<AssemblyPlan['provide']> = {
   '@deepseek-ai/dsh-client-ui-layout': layout,
   '@deepseek-ai/dsh-client-ui-workspace': uiWorkspace,
   '@deepseek-ai/dsh-client-file-upload': fileUpload,
+  '@deepseek-ai/dsh-client-ui-file-drag': fileDrag,
   '@deepseek-ai/dsh-client-ui-conversation': conversation,
   '@deepseek-ai/dsh-client-resources': resources,
   '@deepseek-ai/dsh-client-ui-sidebar-right': sidebarRight,

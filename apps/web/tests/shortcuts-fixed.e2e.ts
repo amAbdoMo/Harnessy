@@ -26,7 +26,10 @@ describe('web e2e: fixed approval rejection keys', () => {
   it.skipIf(webSnapshotMode() === 'record').each(['reject-button-enter', 'container-escape'] as const)(
     'rejects through %s without running the requested write', async (method) => {
       const events: SessionEvent[] = []
-      scaffold = await launchWebScaffold({ replayFixture: FIXTURE, compareReplaySession: false })
+      scaffold = await launchWebScaffold({
+        replayFixture: FIXTURE, compareReplaySession: false,
+        extraOverlayPath: fileURLToPath(new URL('./approval-keys.overlay.yml', import.meta.url)),
+      })
       scaffold.ctx.on('session/event', (_session, event: SessionEvent) => { events.push(event) })
       browser = await chromium.launch()
       page = await newEnglishPage(browser)

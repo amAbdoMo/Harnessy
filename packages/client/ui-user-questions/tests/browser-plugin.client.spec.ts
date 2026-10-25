@@ -378,6 +378,9 @@ describe('apply', () => {
     ) => PendingQuestion | null
     expect(select({ pendingInteraction: undefined })).toBeNull()
     expect(select({ pendingInteraction: pending })).toBe(pending)
+    const fixedApproval = new PendingQuestion(SESSION_ID, [{ id: 'another-approval', question: 'Allow?',
+      intent: { kind: 'approval', approve: 'Allow', reject: 'Deny' } }])
+    expect(select({ pendingInteraction: fixedApproval })).toBe(fixedApproval)
     expect(pending).toMatchObject({ kind: 'question', sessionId: SESSION_ID, questions: QUESTIONS, callId: undefined })
     expect(pending.snapshot()).toEqual({
       state: 'open', waitState: 'counting', countdown: undefined,

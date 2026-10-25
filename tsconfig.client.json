@@ -163,6 +163,7 @@
     { "path": "./apps/web" },
     { "path": "./packages/experimental/client-ui-action-cards" },
     { "path": "./packages/experimental/client-ui-creation-recommendations" },
-    { "path": "./packages/experimental/client-ui-plugin-recommendations" }
+    { "path": "./packages/experimental/client-ui-plugin-recommendations" },
+    { "path": "./packages/experimental/cua/tsconfig.client.json" }
   ]
 }

@@ -1,0 +1,49 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/experimental/cua/README.md
+/:
+  en: ed2539c6d12f814a
+  zh: 55a6c9d7f0d21fb7
+/deepseek-ai-dsh-experimental-cua:
+  en: fff802c0fccb9353
+  zh: 9d5436065b8ca835
+/deepseek-ai-dsh-experimental-cua/summary:
+  en: 295c78cd10f6d80d
+  zh: c64a58f7feb9734c
+/deepseek-ai-dsh-experimental-cua/table-of-contents:
+  en: 414cc325d775a013
+  zh: d52442ab9f28d658
+/deepseek-ai-dsh-experimental-cua/use-this-package:
+  en: 2619ee1c278e6e9b
+  zh: 34684781132417c5
+/deepseek-ai-dsh-experimental-cua/use-this-package/permission-controls:
+  en: e1044658b7ee116f
+  zh: 575852f041b7a87e
+/deepseek-ai-dsh-experimental-cua/understand-the-implementation:
+  en: 585ee39693c9484b
+  zh: 11f9511daf3a73be
+/deepseek-ai-dsh-experimental-cua/further-exploration:
+  en: b8b0aece886fadaa
+  zh: ecd8c88d601f2179
+/deepseek-ai-dsh-experimental-cua/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-experimental-cua/model-experience/authorized-application-operations:
+  en: 0faf1e4d409d61aa
+  zh: 1866dd0b702f2a26
+/deepseek-ai-dsh-experimental-cua/model-experience/authorized-application-operations/what-the-model-sees:
+  en: 4f90c4a6b121bce0
+  zh: c36ab4b80985c76e
+/deepseek-ai-dsh-experimental-cua/model-experience/authorized-application-operations/token-effect:
+  en: 88463f0304c207bd
+  zh: 6d3ae2f1b8e45747
+/deepseek-ai-dsh-experimental-cua/model-experience/authorized-application-operations/kv-cache-effect:
+  en: 2d5df52dafa1d940
+  zh: 06e815759b9150c3
+/deepseek-ai-dsh-experimental-cua/known-limitations-and-deferred-work:
+  en: 530f6eb97a40abc5
+  zh: 50b44e7b775c58bd
+/deepseek-ai-dsh-experimental-cua/known-limitations-and-deferred-work/dev-note:
+  en: 0a1253c6f7b5e8b9
+  zh: 9f56528562c7c914

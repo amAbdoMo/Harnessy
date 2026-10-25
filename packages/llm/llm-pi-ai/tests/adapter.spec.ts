@@ -325,6 +325,7 @@ describe('PiAiAdapter provider routing', () => {
     })
 
     expect(result.finish.kind).toBe('error')
+    expect(ctx.llm.imageRequestTarget('openai', 'gpt-4.1', ref)).toEqual(readImageRequest.mock.calls[0]?.[1])
     expect(readImageRequest).toHaveBeenCalledWith(ref, {
       width: 1,
       height: 1,

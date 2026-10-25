@@ -22,6 +22,8 @@ kind: "package-reference"
 
 -----
 
+`imageRequestTarget` 解析当前提供方配置和模型，返回与请求图像序列化相同的像素和字节预算。截图消费者可据此映射交付像素，无需替换已配置的提供方或其 SDK 版本。
+
 <a id="use-this-package"></a>
 ## 使用本包
 

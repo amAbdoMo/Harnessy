@@ -22,6 +22,8 @@ Use `@deepseek-ai/dsh-llm` to stream model calls through configured provider ada
 
 -----
 
+`LlmRuntime.imageRequestTarget(provider, model, image)` returns the registered adapter’s request dimensions and byte limit for screenshot coordinate mapping. The base adapter preserves the original dimensions and bytes; adapters that resize images override it with their serializer’s sizing policy.
+
 <a id="use-this-package"></a>
 ## Use this package
 

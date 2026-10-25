@@ -10,12 +10,14 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type { ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client'
 import { ApprovalCommand, type ApprovalCommandInjected } from './ApprovalCommand.tsx'
 import { ApprovalPanel } from './ApprovalPanel.tsx'
+import { ApprovalCard } from './ApprovalCard.tsx'
 import { ApprovalCheckpoint } from './ApprovalCheckpoint.tsx'
 import { approvalDefinition } from './approval-definition.ts'
 import { PendingApproval } from './contract/slots.ts'
 import { en, zh } from './locales.ts'
 
 export type {
+  ApprovalCardInput,
   ApprovalComposerProps,
   ApprovalDecision,
   ApprovalDetailOwnerProps,
@@ -98,6 +100,10 @@ export function apply(ctx: ClientContext): void {
   const registerPendingInteraction = ctx.uiSession.registerPendingInteraction<PendingApproval>(
     () => 0,
   )
+  ctx.slots.registerFactory({
+    name: 'conversation.approval.card', scope: 'session', locale: NS,
+    children: { 'conversation.approval.detail': { kind: 'single', scope: 'session' } },
+  }, ApprovalCard)
   ctx.slots.inject('conversation.composer', () => ctx.slots.register({
     name: 'conversation.composer',
     priority: 1,
@@ -107,9 +113,6 @@ export function apply(ctx: ClientContext): void {
     inject: () => ({
       resolveReason: (reason: NonNullable<PendingApproval['displayReason']>) => ctx.locale.resolveText(reason),
     }),
-    children: {
-      'conversation.approval.detail': { kind: 'single', scope: 'session' },
-    },
   }, ApprovalPanel))
   ctx.slots.inject('conversation.approval.detail', () => ctx.slots.register({
     name: 'conversation.approval.detail',

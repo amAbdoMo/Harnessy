@@ -1,0 +1,8 @@
+version: 1
+scenario: product-cua-macos
+profile: headless
+composition: product-cua-macos
+recording: authored
+header:
+  class: product-cua-macos
+  pin: true

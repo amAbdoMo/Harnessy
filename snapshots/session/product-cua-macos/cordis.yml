@@ -1,0 +1,9 @@
+- insert:
+    - id: computer-use
+      name: '@deepseek-ai/dsh-computer-use'
+    - id: cua-native
+      name: '@deepseek-ai/dsh-experimental-cua-macos'
+      config:
+        agentPreset: false
+        # Header-only replay must never launch a helper or access the desktop.
+        helperPath: !!js process.cwd() + '/unstarted-native-fixture'

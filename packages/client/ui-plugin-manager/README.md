@@ -24,6 +24,8 @@ Use the **Plugins** entry in the Web sidebar to manage the profile's installed b
 
 -----
 
+`ctx.pluginChanges.bundle(packageName)` exposes read-only management activity independently of the visible page. Optional permission panels can pause queries before bundle or row changes and refresh after settlement; unsubscribing releases the observation.
+
 <a id="use-this-package"></a>
 ## Use this package
 

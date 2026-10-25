@@ -1,0 +1,3 @@
+# The borrowed recording requests Bash; rejection must settle before any shell execution.
+- id: tool-bash
+  disabled: false

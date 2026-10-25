@@ -177,6 +177,23 @@ describe('request image target', () => {
       .toEqual({ width: 4096, height: 41, maxBytes: 2 * 1024 * 1024 })
   })
 
+  it('updates screenshot sizing with the current configured model route and refuses unknown routes', () => {
+    let options = resolveAdapterOptions({ models: [{ id: 'vision', inputModalities: ['text', 'image'], imagePixelBudget: 'low' }] })
+    const adapter = new DeepSeekAdapter({
+      options: () => options,
+      resolveAuth: () => Promise.resolve({ headers: { 'x-api-key': 'k' } }),
+      resolveUserId: () => TEST_USER_ID,
+      prepareExtensions: noExtensions,
+    })
+    const image = { ...imageRef, width: 4096, height: 4096 }
+    expect(adapter.imageRequestTarget('deepseek-official', 'vision', image))
+      .toEqual({ width: 512, height: 512, maxBytes: 2 * 1024 * 1024 })
+    options = resolveAdapterOptions({ models: [{ id: 'vision', inputModalities: ['text', 'image'], imagePixelBudget: 320_000, imageMaxBytes: 512_000 }] })
+    expect(adapter.imageRequestTarget('deepseek-official', 'vision', image))
+      .toEqual({ width: 565, height: 565, maxBytes: 512_000 })
+    expect(() => adapter.imageRequestTarget('deepseek-official', 'unlisted', image)).toThrow()
+  })
+
   it('answers image request pricing from the current connection snapshot', () => {
     const adapter = adapterOf({
       models: [{ id: 'vision', inputModalities: ['text', 'image'] }],

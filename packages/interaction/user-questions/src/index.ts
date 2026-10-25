@@ -293,26 +293,28 @@ export class UserQuestionService extends TypertRemoteService {
     }
     const agent = request.agent
     if (agent !== undefined) this.assertLiveRoot(agent)
-    // A presentation intent asserts two things the types cannot: that the
-    // named approve label is one of this question's own options, and that a
-    // plan-review carries the plan it is a review of. A UI honouring the
-    // intent answers with that label, and shows that detail as the plan, so
-    // either gap would put a choice the asker never offered — or an approval of
-    // something invisible — in front of the user. Caught at the asker, where
-    // the mistake is, rather than in each UI.
     for (const question of request.questions) {
       const intent = question.intent
       if (intent === undefined) continue
-      if (!(question.options ?? []).some(option => option.label === intent.approve)) {
-        throw new UserQuestionError(
-          `question ${question.id} declares intent ${intent.kind} whose approve label `
-          + `${JSON.stringify(intent.approve)} names none of its options`,
-          'BAD_INTENT')
+      const labels = intent.kind === 'approval'
+        ? [intent.approve, intent.reject, ...intent.always === undefined ? [] : [intent.always]]
+        : [intent.approve]
+      const options = question.options ?? []
+      if (labels.some(label => !options.some(option => option.label === label))) {
+        if (intent.kind === 'plan-review') {
+          throw new UserQuestionError(
+            `question ${question.id} declares intent ${intent.kind} whose approve label `
+            + `${JSON.stringify(intent.approve)} names none of its options`,
+            'BAD_INTENT')
+        }
+        throw new UserQuestionError(`question ${question.id} declares intent ${intent.kind} with an unoffered action`, 'BAD_INTENT')
       }
       if (question.detail === undefined) {
-        throw new UserQuestionError(
-          `question ${question.id} declares intent ${intent.kind} without the detail it reviews`,
-          'BAD_INTENT')
+        throw new UserQuestionError(`question ${question.id} declares intent ${intent.kind} without the detail it reviews`, 'BAD_INTENT')
+      }
+      if (intent.kind === 'approval' && (request.questions.length !== 1 || question.multiSelect === true
+        || request.wait !== undefined || new Set(labels).size !== labels.length || options.length !== labels.length)) {
+        throw new UserQuestionError('approval presentation requires one blocking question with distinct fixed actions', 'BAD_INTENT')
       }
     }
     const noAnswerer = () => Promise.reject(new UserQuestionError(

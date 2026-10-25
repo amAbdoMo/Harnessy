@@ -815,6 +815,10 @@ ${patchedLines.join('\n')}
 
 The optional experimental Inspector distributes a locally compiled copy of [chrome-devtools-frontend ${DEVTOOLS_NPM_VERSION}](https://www.npmjs.com/package/chrome-devtools-frontend/v/${DEVTOOLS_NPM_VERSION}), from upstream revision [${DEVTOOLS_SOURCE_REVISION}](https://chromium.googlesource.com/devtools/devtools-frontend/+/${DEVTOOLS_SOURCE_REVISION}). The build includes the Chromium [BSD-3-Clause license](packages/experimental/inspector/assets/devtools/LICENSE) and the third-party license and notice files supplied by the npm source. The Chromium root license does not replace those dependencies' licenses.
 
+## Mac Computer Use helper
+
+The optional experimental Mac Computer Use helper adapts selected Cua Driver behavior in Swift. Its [source manifest](packages/experimental/cua-macos/native/upstream.json) records the upstream identity and adapted files. The package includes the [MIT license and copyright notice](packages/experimental/cua-macos/native/LICENSE.cua-driver) with its native payload.
+
 ${renderClaudeDistribution(claudeDistribution)}
 ${kitRuntime ? `
 ## LibreOffice conversion kit

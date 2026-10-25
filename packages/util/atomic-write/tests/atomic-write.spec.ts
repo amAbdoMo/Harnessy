@@ -123,6 +123,17 @@ async function waitForLock(lockPath: string): Promise<void> {
 }
 
 describe('writeFileAtomic', () => {
+  it('replaces executable bytes without text encoding and removes its temporary sibling', async () => {
+    const dir = await scratch()
+    const target = join(dir, 'native-helper')
+    await writeFile(target, 'previous executable')
+    const bytes = new Uint8Array([0xcf, 0xfa, 0xed, 0xfe, 0, 255, 128])
+    await writeFileAtomic(target, bytes, { mode: 0o755 })
+    expect(await readFile(target)).toEqual(Buffer.from(bytes))
+    expect(await readdir(dir)).toEqual(['native-helper'])
+    if (process.platform !== 'win32') expect((await stat(target)).mode & 0o777).toBe(0o755)
+  })
+
   it('creates the file and its parents with exactly the stated mode', async () => {
     const dir = await scratch()
     const target = join(dir, 'nested', 'deep', 'doc.yaml')

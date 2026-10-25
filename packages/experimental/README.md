@@ -37,6 +37,9 @@ Experimental prototypes may change their contracts and carry no support promise.
 | [`plugin-recommendations`](plugin-recommendations/README.md) | Shipped optional plugin recommendations | `ctx.pluginRecommendations` |
 | [`client-ui-plugin-recommendations`](client-ui-plugin-recommendations/README.md) | Plugin recommendation cards | — |
 | [`personalized-recommendations`](personalized-recommendations/README.md) | Default-disabled recommendation composition | — |
+| [`cua`](cua/README.md) | Shared application objects, consent and permission UI | `ctx.cuaAccess` |
+| [`cua-macos`](cua-macos/README.md) | Optional native Mac operations | Registers `cua` on `ctx.tools` |
+| [`cua-bundle`](cua-bundle/README.md) | Default-disabled Mac Computer Use composition | — |
 | [`subagent-oar`](subagent-oar/README.md) | Optional OAR provider bundle for installed native coding agents | Registers named `ctx.subagents` providers |
 | [`tool-subagent-oar`](tool-subagent-oar/README.md) | Runtime selection with parent-owned background jobs | Registers `subagent_oar` on `ctx.tools` |
 | [`agent-team-profile`](agent-team-profile/README.md) | Agent Teams collaboration, tools, and Web UI bundle | — |

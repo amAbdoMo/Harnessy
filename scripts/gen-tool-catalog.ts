@@ -80,6 +80,8 @@ import SandboxPolicy from '@deepseek-ai/dsh-sandbox-policy'
 import McpResources from '@deepseek-ai/dsh-mcp-resources'
 import * as ToolSubagent from '@deepseek-ai/dsh-tool-subagent'
 import * as ToolSubagentOar from '@deepseek-ai/dsh-experimental-tool-subagent-oar'
+import ComputerUseRegistry from '@deepseek-ai/dsh-computer-use'
+import * as CuaMacos from '@deepseek-ai/dsh-experimental-cua-macos'
 import { registerListSubagentModels } from '../packages/subagent/tool-subagent/src/list-models.ts'
 import * as ToolWeb from '@deepseek-ai/dsh-tool-web'
 import WorkflowEngine from '@deepseek-ai/dsh-workflow'
@@ -203,6 +205,20 @@ export interface ToolPackage {
  * guard proves it is exhaustive against the on-disk glob.
  */
 const TOOL_PACKAGES: ToolPackage[] = [
+  {
+    pkg: '@deepseek-ai/dsh-experimental-cua-macos',
+    dir: 'cua-macos',
+    source: 'packages/experimental/cua/src/index.ts',
+    requires: ['ctx.tools', 'ctx.systemPrompt', 'ctx.agents', 'ctx.computerUse', 'ctx.subprocess', 'an Agent-owned execution'],
+    writes: ['tool/call', 'tool/result', 'durable screenshot attachments'],
+    async mount(ctx) {
+      await ctx.plugin(AgentRegistry)
+      await ctx.plugin(ComputerUseRegistry)
+      await ctx.plugin(LocalSubprocessRuntime)
+      await ctx.plugin(CuaMacos, { agentPreset: false, helperPath: resolve(root, '.tmp/unstarted-cua-helper') })
+    },
+    note: 'Optional Mac provider, disabled by default. Catalog collection registers schemas without preparing or starting native components. Application access requires a separate human decision; screenshots require a resolved image-capable model route. Windows has no native provider.',
+  },
   {
     pkg: '@deepseek-ai/dsh-experimental-action-cards',
     dir: 'action-cards',

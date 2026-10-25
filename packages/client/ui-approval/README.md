@@ -10,6 +10,8 @@ English | [中文](README.zh.md)
 
 Browser approval presentation over the Agent-scoped Remote Event waterfall. The plugin publishes pending requests through `ctx.uiSession`, takes over the Conversation composer, renders permitted correlated Tool detail, and returns the user's decision to the waiting Host request. It also renders read-only permission checkpoints from recorded approval events. Use it when a browser must collect approval for a waiting Host operation.
 
+The `conversation.approval.card` factory also presents fixed application decisions with an optional caller-owned persistent action. Callers retain authorization, cancellation and storage; icons and labels identify presentation only. Tool approvals preserve summary-only detail suppression and their existing replay checkpoints.
+
 ## Table of Contents
 
 - [Model Experience](#model-experience)

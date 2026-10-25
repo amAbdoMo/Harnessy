@@ -9,8 +9,14 @@
   en: 6cc2cd9ced70bb09
   zh: 1c0e6cb4ba2ed637
 /tool-schema-catalog/tool-package-map:
-  en: b874fd1c3e1551a9
-  zh: 4ba33d60d7b29584
+  en: de2b152dd4bd5df0
+  zh: ae61d0c1c0a25588
+/tool-schema-catalog/deepseek-ai-dsh-experimental-cua-macos:
+  en: 118f7ee81e675caf
+  zh: 118f7ee81e675caf
+/tool-schema-catalog/deepseek-ai-dsh-experimental-cua-macos/cua:
+  en: 9dd7f10fe5c50e17
+  zh: ba3ebd366cbf395e
 /tool-schema-catalog/deepseek-ai-dsh-experimental-action-cards:
   en: 94f08f350e306557
   zh: 94f08f350e306557

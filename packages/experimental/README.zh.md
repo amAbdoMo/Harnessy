@@ -37,6 +37,9 @@ kind: "package-group"
 | [`plugin-recommendations`](plugin-recommendations/README.zh.md) | 内置可选插件推荐 | `ctx.pluginRecommendations` |
 | [`client-ui-plugin-recommendations`](client-ui-plugin-recommendations/README.zh.md) | 插件推荐卡片 | — |
 | [`personalized-recommendations`](personalized-recommendations/README.zh.md) | 默认关闭的推荐组合 | — |
+| [`cua`](cua/README.zh.md) | 共享应用对象、授权及权限界面 | `ctx.cuaAccess` |
+| [`cua-macos`](cua-macos/README.zh.md) | 可选的 Mac 原生操作 | 在 `ctx.tools` 上注册 `cua` |
+| [`cua-bundle`](cua-bundle/README.zh.md) | 默认关闭的 Mac Computer Use 组合 | — |
 | [`subagent-oar`](subagent-oar/README.zh.md) | 为已安装的原生编程智能体提供可选 OAR 组合包 | 注册具名 `ctx.subagents` 提供方 |
 | [`tool-subagent-oar`](tool-subagent-oar/README.zh.md) | 通过父智能体拥有的后台 Job 选择运行时 | 在 `ctx.tools` 注册 `subagent_oar` |
 | [`agent-team-profile`](agent-team-profile/README.zh.md) | Agent Teams 协作、工具与 Web UI 组合包 | — |

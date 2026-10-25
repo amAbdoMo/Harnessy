@@ -22,6 +22,8 @@ kind: "package-reference"
 
 -----
 
+`LlmRuntime.imageRequestTarget(provider, model, image)` 返回已注册适配器的请求图像尺寸和字节上限，供截图坐标映射使用。基础适配器保留原始尺寸与字节数；会缩放图像的适配器使用序列化时的尺寸策略覆盖此方法。
+
 <a id="use-this-package"></a>
 ## 使用本包
 

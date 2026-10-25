@@ -24,6 +24,8 @@ kind: "package-reference"
 
 -----
 
+`imageRequestTarget` 使用与图像序列化相同的策略，解析当前配置模型的请求尺寸和字节上限。未知模型路径会在截图前拒绝；后续配置修改影响之后的尺寸查询。
+
 <a id="use-this-package"></a>
 ## 使用本包
 

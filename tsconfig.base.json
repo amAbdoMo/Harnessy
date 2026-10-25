@@ -28,6 +28,15 @@
     // not declaration path aliases, keep each package/vendor source compiled
     // under its own tsconfig boundary.
     "paths": {
+      "@deepseek-ai/dsh-experimental-cua": ["./packages/experimental/cua/src/index.ts"],
+      "@deepseek-ai/dsh-experimental-cua/client": ["./packages/experimental/cua/src/client/index.ts"],
+      "@deepseek-ai/dsh-experimental-cua-macos": ["./packages/experimental/cua-macos/src/index.ts"],
+      "@deepseek-ai/dsh-experimental-cua-bundle": ["./packages/experimental/cua-bundle/src/index.ts"],
+      "@deepseek-ai/dsh-experimental-cua/api": ["./packages/experimental/cua/src/api.ts"],
+      "@deepseek-ai/dsh-experimental-cua/bridge": ["./packages/experimental/cua/src/bridge.ts"],
+      "@deepseek-ai/dsh-experimental-cua/native-client": ["./packages/experimental/cua/src/native-client.ts"],
+      "@deepseek-ai/dsh-experimental-cua/protocol": ["./packages/experimental/cua/src/protocol.ts"],
+      "@deepseek-ai/dsh-experimental-cua/types": ["./packages/experimental/cua/src/remote-types.ts"],
       "@deepseek-ai/dsh-experimental-subagent-oar": ["./packages/experimental/subagent-oar/src/index.ts"],
       "@deepseek-ai/dsh-experimental-tool-subagent-oar": ["./packages/experimental/tool-subagent-oar/src/index.ts"],
       "@deepseek-ai/dsh-experimental-action-cards": ["./packages/experimental/action-cards/src/index.ts"],

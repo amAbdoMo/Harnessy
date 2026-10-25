@@ -1,0 +1,73 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "lib/cua-test/types",
+    "emitDeclarationOnly": true,
+    "rewriteRelativeImportExtensions": false
+  },
+  "include": [
+    "packages/experimental/cua-macos/native/generate-protocol.ts",
+    "packages/experimental/cua/tests/**/*.ts",
+    "packages/experimental/cua-macos/tests/**/*.ts"
+  ],
+  "exclude": [
+    "packages/experimental/cua/tests/**/*.client.spec.ts"
+  ],
+  "references": [
+    {
+      "path": "./packages/experimental/cua/tsconfig.host.json"
+    },
+    {
+      "path": "./packages/experimental/cua-macos"
+    },
+    {
+      "path": "./packages/test-support/agent-loop-testkit"
+    },
+    {
+      "path": "./packages/test-support/loader-smoke"
+    },
+    {
+      "path": "./packages/computer-use/computer-use"
+    },
+    {
+      "path": "./packages/attachment/attachment-local"
+    },
+    {
+      "path": "./packages/fs/fs-local"
+    },
+    {
+      "path": "./packages/llm/llm-deepseek"
+    },
+    {
+      "path": "./packages/ptc-runtime/ptc-runtime-node"
+    },
+    {
+      "path": "./packages/sandbox/sandbox-local"
+    },
+    {
+      "path": "./packages/sandbox/sandbox-policy"
+    },
+    {
+      "path": "./packages/subprocess/subprocess-local"
+    },
+    {
+      "path": "./packages/boot/app-boot"
+    },
+    {
+      "path": "./packages/boot/config-editor"
+    },
+    {
+      "path": "./packages/boot/hmr"
+    },
+    {
+      "path": "./packages/settings/settings"
+    },
+    {
+      "path": "./packages/interaction/user-questions"
+    },
+    {
+      "path": "./vendor/timer"
+    }
+  ]
+}

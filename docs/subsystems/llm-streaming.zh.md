@@ -915,6 +915,17 @@ declare abstract class LlmAdapter {
    * @returns route-owned image pricing, or `undefined` when the route declares none.
    */
   imageRequestPricing(_provider: string, _model: string): LlmImageRequestPricing | undefined;
+
+
+  /**
+   * Resolve the image dimensions and byte target used by request serialization.
+   * @param _provider - registered provider route.
+   * @param _model - exact model id.
+   * @param image - normalized attachment to project.
+   * @returns Original dimensions for adapters that do not transform request images.
+   */
+  imageRequestTarget(_provider: string, _model: string, image: ImageAttachmentRef): ImageRequestTarget;
+
   /**
    * List models this adapter can currently advertise for one owned provider.
    * Core routing accepts unlisted model ids; catalog-driven entry points such
@@ -1098,6 +1109,15 @@ providerRetryPolicy(provider: string): ResolvedRetryPolicy
 imageRequestPricing(provider: string, model: string): LlmImageRequestPricing | undefined
 
 /**
+ * Resolve one route's actual request-image projection for screenshot coordinates.
+ * @param provider - registered provider route.
+ * @param model - exact model id.
+ * @param image - normalized attachment to project.
+ * @returns The same target used by the owning adapter's request serializer.
+ */
+imageRequestTarget(provider: string, model: string, image: ImageAttachmentRef): ImageRequestTarget
+
+/**
  * Resolve the exact text one durable file occurrence contributes to every
  * provider request in the current execution environment.
  * @param ref - durable verbatim file reference from model history.
@@ -1166,7 +1186,7 @@ async prepareCall( config: LlmCallConfig, signal?: AbortSignal, configure?: Conf
 stream(options: GenerateOptions): AsyncIterable<StreamChunk>
 ```
 
-Types: [FileAttachmentRef](attachment.zh.md)
+Types: [FileAttachmentRef](attachment.zh.md) · [ImageAttachmentRef](attachment.zh.md) · [ImageRequestTarget](attachment.zh.md)
 
 Source: [`packages/llm/llm/src/index.ts`](../../packages/llm/llm/src/index.ts)
 

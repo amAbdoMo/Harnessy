@@ -24,6 +24,8 @@ Provide the shared DeepSeek Messages transport, request configuration, and model
 
 -----
 
+`imageRequestTarget` resolves the current configured model’s request dimensions and byte limit using the same policy as image serialization. Unknown model routes reject before capture; later configuration changes affect subsequent sizing queries.
+
 <a id="use-this-package"></a>
 ## Use this package
 

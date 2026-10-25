@@ -12,8 +12,11 @@
 |---|---|
 | [Cua Driver MCP](../../packages/experimental/computer-use-cua-driver-mcp/README.zh.md) | 通过 MCP 连接已安装的 `cua-driver` 可执行文件 |
 | [Cua Driver 原生](../../packages/experimental/computer-use-cua-driver-native/README.zh.md) | 随 npm 依赖安装的平台原生运行时 |
+| [Mac 应用对象](../../packages/experimental/cua-macos/README.zh.md) | macOS 14 及以上的可选 Swift helper，带共享[权限页](../../packages/experimental/cua/README.zh.md) |
 
 各提供方提供上游工具目录。共享服务只注册名称，并拒绝任何第二个提供方，包括使用相同名称的另一个实例。服务不包含通用桌面操作方法或模型控制的选择器。
+
+Harnessy 的可选 [Computer Use 组合包](../../packages/experimental/cua-bundle/README.zh.md)默认关闭。其 `cua` 工具要求存活的 Agent 和独立的应用授权。`ctx.cuaAccess` 负责系统权限查询与应用决策，使用 `CuaApplicationState`、`CuaApplicationId`、`CuaSystemPermission` 和 `CuaSystemPermissionState`。截图尺寸沿用所选模型适配器的策略。每个 PTC 程序重新导入 bridge 并选择应用；此 Harnessy 运行时不在调用之间保留变量。原生 Mac 编译、权限归属与桌面输入仍需在 Mac 上验证。
 
 ## 生命周期和桌面共享
 
@@ -53,4 +56,70 @@ register(name: ComputerUseProviderName): () => Promise<void>
 ```
 
 Source: [`packages/computer-use/computer-use/src/index.ts`](../../packages/computer-use/computer-use/src/index.ts)
+
+<a id="ctxcuaaccess--cuaaccess"></a>
+
+### `ctx.cuaAccess` — `CuaAccess`
+
+Browser controls for provider-owned native permission and application decisions.
+
+```ts cordis-catalog
+/** Read the persistent-PTC configuration supported by this Harnessy integration.
+ * @returns Unavailable controls; the current runtime interface exposes no persistence setting.
+ */
+@Remote ptcConfiguration(): { persistent: boolean; writable: boolean }
+
+/** Refuse an unsupported PTC setting before changing the profile.
+ * @returns A rejection explaining the runtime limitation.
+ */
+@Remote enablePersistentPtc(): Promise<void>
+
+/**
+ * Read application decisions without waiting for the native helper.
+ * @returns Saved grants and refused applications with their persistence owner.
+ */
+@Remote applications(): CuaApplicationState
+
+/**
+ * Inspect system privileges independently of application decisions and icons.
+ * @returns Fresh native preflight and launch metadata.
+ */
+@Remote async systemStatus(): Promise<CuaSystemPermissionState>
+
+/**
+ * Load presentation icons separately from application decisions.
+ * @returns Optional native PNG icons keyed by executable path for saved and blocked applications.
+ */
+@Remote async applicationIcons(): Promise<Record<string, string>>
+
+/**
+ * Request a system privilege explicitly selected by the user.
+ * @param permission macOS privilege to request.
+ * @returns Preflight state after requesting; a false value never implies consent.
+ */
+@Remote async requestPermission(permission: CuaSystemPermission): Promise<CuaSystemPermissionState>
+
+/**
+ * Open the macOS privacy pane selected by the user.
+ * @param permission Corresponding system privilege.
+ * @returns Completion after macOS accepted the open request.
+ */
+@Remote async openSettings(permission: CuaSystemPermission): Promise<void>
+
+/**
+ * Remove saved and session access and join affected operations.
+ * @param id Application identity displayed on the permission page.
+ * @returns Completion after persistence and cancellation; dispatched input cannot be undone.
+ */
+@Remote revoke(id: CuaApplicationId): Promise<void>
+
+/**
+ * Clear this application's refusals across sessions so each session may ask for access again.
+ * @param id Refused or revoked application displayed on the permission page.
+ * @returns Completion after clearing refusals; no permission is granted and no action is replayed.
+ */
+@Remote async retryApproval(id: CuaApplicationId): Promise<void>
+```
+
+Source: [`packages/experimental/cua/src/access.ts`](../../packages/experimental/cua/src/access.ts)
 <!-- END GENERATED cordis-surface -->

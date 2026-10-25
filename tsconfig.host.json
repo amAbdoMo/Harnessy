@@ -9,6 +9,7 @@
   },
   "include": [
     "apps/web/tests/creation-recommendations.e2e.ts",
+    "apps/web/tests/cua-approval.e2e.ts",
     "apps/web/tests/plugin-recommendations.e2e.ts",
     "apps/web/product-isolation.ts",
     "apps/web/tests/connection-recovery.e2e.ts",
@@ -209,6 +210,8 @@
   // suffixes are mutually exclusive, so each aggregate excludes the other's
   // and the package test glob above needs no per-file entry.
   "exclude": [
+    "packages/experimental/cua/tests/**",
+    "packages/experimental/cua-macos/tests/**",
     "packages/experimental/subagent-oar/tests/**",
     "packages/experimental/tool-subagent-oar/tests/**",
     "apps/desktop/tests/keyboard.spec.ts",
@@ -227,6 +230,7 @@
   ],
   "references": [
     { "path": "./tsconfig.oar-tests.json" },
+    { "path": "./tsconfig.cua-tests.json" },
     { "path": "./packages/client/product-analytics/tsconfig.host.json" },
     { "path": "./packages/telemetry/otel" },
     { "path": "./packages/experimental/speech-to-text" },
@@ -527,6 +531,9 @@
     { "path": "./packages/experimental/plugin-recommendations" },
     { "path": "./packages/experimental/personalized-recommendations" },
     { "path": "./packages/experimental/subagent-oar" },
-    { "path": "./packages/experimental/tool-subagent-oar" }
+    { "path": "./packages/experimental/tool-subagent-oar" },
+    { "path": "./packages/experimental/cua/tsconfig.host.json" },
+    { "path": "./packages/experimental/cua-macos" },
+    { "path": "./packages/experimental/cua-bundle" }
   ]
 }
