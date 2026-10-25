@@ -630,6 +630,7 @@ describe('dsh-tool-workflow', () => {
           toolFilter: true,
           persona: true,
           accessPolicy: true,
+          childSetup: false,
           runtimeRoute: true,
         },
         inheritsParentContext: false,
@@ -668,7 +669,8 @@ describe('dsh-tool-workflow', () => {
         name: 'spawn',
         capabilities: {
           agentOptions: true, outputSchema: true, depthLimit: true, toolFilter: true, persona: true,
-          accessPolicy: true, runtimeRoute: true,
+          accessPolicy: true, childSetup: false,
+          runtimeRoute: true,
         },
         inheritsParentContext: false,
         start: () => Promise.reject(new Error('the scriptonly fixture must not start a child')),

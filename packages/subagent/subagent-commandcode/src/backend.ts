@@ -159,6 +159,7 @@ class CommandCodeSubagentProvider implements SubagentProvider {
     persona: true,
     accessPolicy: true,
     // The CLI's catalog is its own; nothing here resolves through `ctx.llm`.
+    childSetup: false,
     runtimeRoute: false,
   }
 

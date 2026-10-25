@@ -20,6 +20,8 @@ kind: "package-reference"
 - [已知限制与延期工作](#known-limitations-and-deferred-work)
 - [开发备注](#dev-note)
 
+Host 调用方还可通过 `request.childSetup` 指定保留的会话标识、绝对工作目录和已注册的 Agent 预设。预设在发布前挂载；设置失败不会留下在线子 Agent。父会话状态与普通继承式启动保持独立。
+
 -----
 
 <a id="use-this-package"></a>

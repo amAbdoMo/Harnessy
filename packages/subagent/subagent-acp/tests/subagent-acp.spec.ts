@@ -1713,6 +1713,7 @@ describe('dsh-subagent-acp', () => {
       toolFilter: false,
       persona: false,
       accessPolicy: false,
+      childSetup: false,
       runtimeRoute: false,
     })
   })

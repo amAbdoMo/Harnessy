@@ -9,8 +9,14 @@
   en: 6cc2cd9ced70bb09
   zh: 1c0e6cb4ba2ed637
 /tool-schema-catalog/tool-package-map:
-  en: e234f3d887cf8684
-  zh: 305a73ba5510d42f
+  en: 838f8a9996fbf3e2
+  zh: 3cca98a80e941e94
+/tool-schema-catalog/deepseek-ai-dsh-experimental-action-cards:
+  en: 94f08f350e306557
+  zh: 94f08f350e306557
+/tool-schema-catalog/deepseek-ai-dsh-experimental-action-cards/propose-action:
+  en: 691791ccf985f064
+  zh: 7ffb29d5401ac026
 /tool-schema-catalog/deepseek-ai-dsh-plugin-manager:
   en: e0143916bb634762
   zh: e0143916bb634762

@@ -28,6 +28,8 @@ Service Definition：[dsh-subagent](../../packages/subagent/subagent)（`ctx.sub
  * `accessPolicy` to `sandboxMode`; the other names match.
  */
 interface SubagentCapabilities {
+  /** Whether one-shot creation accepts the caller's isolated child identity, directory and preset. */
+  readonly childSetup: boolean
   readonly agentOptions: boolean
   readonly outputSchema: boolean
   readonly depthLimit: boolean
@@ -69,6 +71,8 @@ interface SubagentCapabilities {
  * {@link SubagentProvider.start}.
  */
 interface SubagentStartRequest {
+  /** Host-owned setup for a separately authorized task; requires the provider's `childSetup` capability. */
+  readonly childSetup?: SubagentChildSetup
   /** Optional short display label persisted with a session-backed child. */
   readonly label?: string
   /** Content delivered as the child's user message. */
@@ -133,6 +137,19 @@ interface SubagentStartRequest {
    * the behavior of a request that names no access at all.
    */
   readonly sandboxMode?: SubagentAccess
+}
+```
+
+`childSetup` 是 Host 发起的一次性请求，明确指定保留的标识、初始项目目录和预设。只有 spawn 支持；普通启动仍继承父级组合。
+
+```ts type-equiv
+/** Explicit creation inputs for an isolated one-shot task, rather than inherited conversation composition. */
+interface SubagentChildSetup {
+  readonly sessionId: SessionId
+  /** Absolute working directory and original project root of this child. */
+  readonly cwd: string
+  /** A registered Agent preset mounted before the child is published. */
+  readonly agentPreset: string
 }
 ```
 

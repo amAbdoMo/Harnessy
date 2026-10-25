@@ -91,6 +91,7 @@ export type {
   ContinuableStartSpec,
   ResolvedSubagentStartRequest,
   SubagentAccess,
+  SubagentChildSetup,
   SubagentCapabilities,
   SubagentInterruptAuthority,
   SubagentProvider,
@@ -643,6 +644,7 @@ export class SubagentRuntime extends TypertRemoteService {
   /** Reject the first requested capability that the provider lacks. */
   private assertCapabilities(provider: SubagentProvider, request: SubagentStartRequest): void {
     const needs: { when: boolean; cap: keyof SubagentCapabilities }[] = [
+      { when: request.childSetup !== undefined, cap: 'childSetup' },
       { when: request.agentOptions !== undefined, cap: 'agentOptions' },
       { when: request.outputSchema !== undefined, cap: 'outputSchema' },
       { when: request.maxDepth !== undefined, cap: 'depthLimit' },

@@ -51,6 +51,7 @@ describe('release families', () => {
     expect(members
       .filter(member => member.directory.startsWith('packages/experimental/'))
       .map(member => member.name)).toEqual([
+      '@deepseek-ai/dsh-experimental-action-cards',
       '@deepseek-ai/dsh-experimental-agent-team-profile',
       '@deepseek-ai/dsh-experimental-agent-team',
       '@deepseek-ai/dsh-experimental-api-speech-to-text',
@@ -60,14 +61,20 @@ describe('release families', () => {
       '@deepseek-ai/dsh-experimental-browser-use-runtime',
       '@deepseek-ai/dsh-experimental-browser-use-stagehand-native',
       '@deepseek-ai/dsh-experimental-claude-code-mods',
+      '@deepseek-ai/dsh-experimental-client-ui-action-cards',
       '@deepseek-ai/dsh-experimental-client-ui-agent-team',
       '@deepseek-ai/dsh-experimental-client-ui-claude-code-mods',
+      '@deepseek-ai/dsh-experimental-client-ui-creation-recommendations',
+      '@deepseek-ai/dsh-experimental-client-ui-plugin-recommendations',
       '@deepseek-ai/dsh-experimental-client-ui-voice-input',
       '@deepseek-ai/dsh-experimental-computer-use-cua-driver-mcp',
       '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native',
+      '@deepseek-ai/dsh-experimental-creation-recommendations',
       '@deepseek-ai/dsh-experimental-inspector-profile',
       '@deepseek-ai/dsh-experimental-inspector',
+      '@deepseek-ai/dsh-experimental-personalized-recommendations',
       '@deepseek-ai/dsh-experimental-plugin-market-bundle',
+      '@deepseek-ai/dsh-experimental-plugin-recommendations',
       '@deepseek-ai/dsh-experimental-ptc-runtime-python',
       '@deepseek-ai/dsh-experimental-session-inspector',
       '@deepseek-ai/dsh-experimental-speech-to-text-sensevoice',

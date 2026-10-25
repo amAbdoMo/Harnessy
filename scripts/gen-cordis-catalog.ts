@@ -58,6 +58,8 @@ export const SERVICE_PAGE: Record<string, string> = {
   connection: 'web-server.md',
   pluginManager: 'boot.md',
   pluginMarket: 'boot.md',
+  actionCards: 'boot.md',
+  pluginRecommendations: 'boot.md',
   pluginRegistryProbe: 'boot.md',
   configEditor: 'boot.md',
   profileContext: 'boot.md',
@@ -888,6 +890,11 @@ export const FOUNDATION_TYPE_NAMES: ReadonlySet<string> = new Set([
 
 /** Project types deliberately documented outside the subsystems catalog. */
 export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
+  ActionCardKind: 'packages/experimental/action-cards/README.md',
+  ActionCardDecision: 'packages/experimental/action-cards/README.md',
+  ActionCardView: 'packages/experimental/action-cards/README.md',
+  ActionCardResult: 'packages/experimental/action-cards/README.md',
+  RecommendationDetails: 'packages/experimental/plugin-recommendations/README.md',
   NpmFileSource: 'Public npm file CDN names — packages/util/plugin-detail/README.md owns the API',
   CompanionStatus: 'native companion management status is owned by packages/host/companion-host/INTEGRATION.md',
   CompanionControlCommand: 'private native companion commands are owned by packages/host/companion-host/INTEGRATION.md',

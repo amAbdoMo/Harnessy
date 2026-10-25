@@ -633,7 +633,7 @@ export class ContinuableActivationRegistry {
         if (directories === undefined) throw new Error('continuable subagents require the working-directory service')
         await directories.set(child, create.cwd, inputs.signal)
       }
-      applyChildComposition(childCtx, parent, inputs.composition)
+      await applyChildComposition(childCtx, parent, inputs.composition)
     }
     const observer = this.observeActivation(provider, childId, parent)
     const handle: AgentHandle = create === undefined

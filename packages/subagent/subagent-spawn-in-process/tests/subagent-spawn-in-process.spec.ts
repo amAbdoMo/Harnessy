@@ -1,11 +1,16 @@
 import { createUserMessage, type GenerateOptions } from '@deepseek-ai/dsh-llm'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, onTestFinished } from 'vitest'
+import { mkdtemp, realpath, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { Context, symbols, type EffectMeta } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
+import AgentPresets from '@deepseek-ai/dsh-agent-preset-registry'
+import SandboxPolicy from '@deepseek-ai/dsh-sandbox-policy'
 import AgentRegistry, { type Agent } from '@deepseek-ai/dsh-agent'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
-import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
+import { mountAgentLoopTestDependencies, provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
 import SubagentRuntime, { type SubagentStartRequest } from '@deepseek-ai/dsh-subagent'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import { MockAdapter, maxTokensResponse, textResponse, toolCallResponse } from '../../../core/agent-loop/tests/mock-adapter.ts'
@@ -24,6 +29,7 @@ type Script = ConstructorParameters<typeof MockAdapter>[0]
 async function setup(script: Script) {
   const ctx = new Context()
   const adapter = new MockAdapter(script)
+  provideWorkingDirectoryFixture(ctx)
   await mountAgentLoopTestDependencies(ctx)
   await ctx.plugin(AgentLoop, { agents: [] })
   await ctx.plugin(SubagentRuntime)
@@ -61,6 +67,79 @@ function systemPromptOf(request: GenerateOptions): string {
 }
 
 describe('dsh-subagent-spawn-in-process', () => {
+  it('refuses a relative isolated project directory before publishing a child', async () => {
+    const { ctx, parent, adapter } = await setup([])
+    onTestFinished(() => ctx.fiber.dispose())
+    const childId = SessionId('relative-creator')
+    await expect(start(ctx, 'spawn', {
+      parent, prompt: [{ type: 'text', text: 'create' }],
+      childSetup: { sessionId: childId, cwd: 'relative-directory', agentPreset: 'creator' },
+    })).rejects.toMatchObject({ code: 'INVALID_CHILD_SETUP' })
+    expect(ctx.agents.get(childId)).toBeUndefined()
+    expect(adapter.requests).toEqual([])
+  })
+
+  it('publishes a caller-reserved child with its own directory and selected preset', async () => {
+    const { ctx, parent, adapter } = await setup([textResponse('created')])
+    onTestFinished(() => ctx.fiber.dispose())
+    await ctx.plugin(SandboxPolicy, { mode: 'danger-full-access' })
+    await ctx.plugin(Loader)
+    ctx.loader.builtins.creatorMarker = {
+      inject: ['systemPrompt'],
+      apply(scope: Context) {
+        scope.systemPrompt.section({ name: 'creator-marker', order: 0, text: 'Creator preset only.' })
+      },
+    }
+    await ctx.plugin(AgentPresets, { default: 'parent' })
+    const unregisterParent = await ctx.agentPresets.register({ id: 'parent', plugins: [] })
+    const unregisterCreator = await ctx.agentPresets.register({ id: 'creator', plugins: [{ name: 'cordis:creatorMarker' }] })
+    onTestFinished(async () => { await unregisterCreator(); await unregisterParent() })
+    await ctx.agentPresets.mount(parent.ctx, 'parent')
+    const parentCwd = ctx.workingDirectory.get(parent.session)
+    const cwd = await mkdtemp(join(tmpdir(), 'harnessy-creator-'))
+    onTestFinished(() => rm(cwd, { recursive: true, force: true }))
+    const childId = SessionId('reserved-creator')
+    let published = false
+    ctx.on('subagent/start', (info) => {
+      if (info.id !== childId) return
+      const child = ctx.agents.get(childId)!
+      expect(child.session.header.cwd).toBe(cwd)
+      expect(child.session.header.agentPreset).toBe('creator')
+      expect(ctx.agentPresets.composedPreset(child.ctx)).toBe('creator')
+      published = true
+    })
+    const run = await start(ctx, 'spawn', {
+      parent, prompt: [{ type: 'text', text: 'create' }],
+      sandboxMode: 'workspace-write',
+      childSetup: { sessionId: childId, cwd, agentPreset: 'creator' },
+    })
+    expect(run.id).toBe(childId)
+    expect(published).toBe(true)
+    expect((await run.result).stopReason).toBe('completed')
+    expect(systemPromptOf(adapter.requests[0]!)).toContain('Creator preset only.')
+    expect(ctx.agentPresets.composedPreset(parent.ctx)).toBe('parent')
+    expect(ctx.workingDirectory.get(parent.session)).toBe(parentCwd)
+    expect(ctx.workingDirectory.get(run.localAgent!.session)).toBe(await realpath(cwd))
+    expect(ctx.sandboxPolicy.resolve({ session: run.localAgent!.session })).toMatchObject({ mode: 'workspace-write', workspaceRoot: cwd })
+    expect(ctx.sandboxPolicy.resolve({ session: parent.session }).mode).toBe('danger-full-access')
+    await run.dispose()
+  })
+
+  it('rolls back an isolated child when its requested preset cannot be mounted', async () => {
+    const { ctx, parent, adapter } = await setup([])
+    onTestFinished(() => ctx.fiber.dispose())
+    const childId = SessionId('unpublished-creator')
+    const starts: SessionId[] = []
+    ctx.on('subagent/start', (info) => { starts.push(info.id) })
+    await expect(start(ctx, 'spawn', {
+      parent, prompt: [{ type: 'text', text: 'create' }],
+      childSetup: { sessionId: childId, cwd: ctx.workingDirectory.get(parent.session), agentPreset: 'missing' },
+    })).rejects.toThrow('requires the Agent preset registry')
+    expect(ctx.agents.get(childId)).toBeUndefined()
+    expect(starts).toEqual([])
+    expect(adapter.requests).toEqual([])
+  })
+
   it('runs a fresh child to completion and returns its final assistant output', async () => {
     // One model call for the child: a plain text answer.
     const { ctx, parent } = await setup([textResponse('child answer')])
@@ -243,16 +322,18 @@ describe('dsh-subagent-spawn-in-process', () => {
 
   it('inherits the parent cwd into the child session', async () => {
     const { ctx } = await setup([textResponse('x')])
+    const cwd = await mkdtemp(join(tmpdir(), 'harnessy-spawn-parent-'))
+    onTestFinished(async () => { await ctx.fiber.dispose(); await rm(cwd, { recursive: true, force: true }) })
     // A parent WITH a cwd (config agents have none, so create one explicitly).
     const parentHandle = await ctx.agents.create({
       sessionId: SessionId('cwd-parent-session'),
-      meta: { cwd: '/tmp/parent-workspace' },
+      meta: { cwd },
       agentOptions: { provider: 'mock', model: 'mock' },
     })
     const run = await start(ctx, 'spawn', { prompt: [{ type: 'text', text: 'p' }], parent: parentHandle.agent })
     await run.result
     const child = ctx.agents.get(run.id)!
-    expect(child.session.header.cwd).toBe('/tmp/parent-workspace')
+    expect(child.session.header.cwd).toBe(cwd)
     await run.dispose()
     await parentHandle.dispose()
   })
@@ -287,6 +368,7 @@ describe('dsh-subagent-spawn-in-process', () => {
       toolFilter: true,
       persona: true,
       accessPolicy: true,
+      childSetup: true,
       runtimeRoute: true,
     })
   })
@@ -322,6 +404,7 @@ describe('dsh-subagent-spawn-in-process', () => {
     // Rebuild the stack by hand so we hold the backend's fiber.
     const ctx = new Context()
     const adapter = new MockAdapter(['hang'])
+    provideWorkingDirectoryFixture(ctx)
     await mountAgentLoopTestDependencies(ctx)
     await ctx.plugin(AgentLoop, { agents: [] })
     await ctx.plugin(SubagentRuntime)
@@ -350,6 +433,7 @@ describe('dsh-subagent-spawn-in-process', () => {
 
   it('a start racing an already-unloading backend cannot begin child creation', async () => {
     const ctx = new Context()
+    provideWorkingDirectoryFixture(ctx)
     await mountAgentLoopTestDependencies(ctx)
     await ctx.plugin(AgentLoop, { agents: [] })
     await ctx.plugin(SubagentRuntime)

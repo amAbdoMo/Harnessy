@@ -28,6 +28,7 @@ describe('NO_START_CAPABILITIES', () => {
       toolFilter: false,
       persona: false,
       accessPolicy: false,
+      childSetup: false,
       runtimeRoute: false,
     })
     expect(Object.isFrozen(NO_START_CAPABILITIES)).toBe(true)

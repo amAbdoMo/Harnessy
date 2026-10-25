@@ -9,6 +9,7 @@ import type { Agent } from '@deepseek-ai/dsh-agent'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import { turnBoundaryProjectionDefinition } from '@deepseek-ai/dsh-agent-loop'
 import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
+import WorkingDirectory from '@deepseek-ai/dsh-working-directory'
 import SandboxedFileSystem from '@deepseek-ai/dsh-fs-sandbox'
 import type { LlmModelReasoningInfo, StreamChunk } from '@deepseek-ai/dsh-llm'
 import SandboxPolicyService from '@deepseek-ai/dsh-sandbox-policy'
@@ -69,6 +70,7 @@ export async function bootRealChild(options: RealChildOptions): Promise<RealChil
   ctx.sessionProjections.register(turnBoundaryProjectionDefinition)
   await ctx.plugin(SandboxPolicyService, { mode: options.deploymentMode, workspaceRoot: options.workspace })
   await ctx.plugin(SandboxedFileSystem, { cwd: options.workspace })
+  await ctx.plugin(WorkingDirectory, {})
   await ctx.plugin(ToolFs)
   await ctx.plugin(ApprovalService)
   await ctx.plugin(AgentLoop, { agents: [] })

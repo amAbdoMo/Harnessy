@@ -849,6 +849,7 @@ describe('dsh-subagent-dsh-sdk provider', () => {
       toolFilter: false,
       persona: false,
       accessPolicy: false,
+      childSetup: false,
       runtimeRoute: false,
     })
     await fiber.dispose()

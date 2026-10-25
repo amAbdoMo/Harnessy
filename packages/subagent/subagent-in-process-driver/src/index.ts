@@ -12,6 +12,7 @@
  */
 
 import { randomUUID } from 'node:crypto'
+import { isAbsolute } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-working-directory'
 import { brandString } from '@deepseek-ai/dsh-brand'
@@ -29,6 +30,7 @@ import {
   finalAssistantOutput,
   resolveChildAgentOptions,
   resolveChildDepth,
+  SubagentError,
 } from '@deepseek-ai/dsh-subagent'
 import type {
   ResolvedSubagentStartRequest,
@@ -107,29 +109,35 @@ export async function startInProcessRun(
   options: InProcessRunOptions,
 ): Promise<SubagentRun> {
   assertSubagentMaxDepth(request.maxDepth)
+  if (request.childSetup !== undefined && !isAbsolute(request.childSetup.cwd)) {
+    throw new SubagentError('childSetup.cwd must be an absolute directory', 'INVALID_CHILD_SETUP')
+  }
   if (request.signal.aborted) throw prePublicationAbort()
   const parent = request.parent
   const childDepth = resolveChildDepth(parent, request.maxDepth)
 
-  const childId = brandString<SessionId>(randomUUID())
+  const childId = request.childSetup?.sessionId ?? brandString<SessionId>(randomUUID())
   const seed = options.seed
   const activationBoundary = SessionLogOffset(seed?.length ?? 0)
 
   // Capture before the first await: a later parent switch belongs to the
   // parent's future.
   const inherited = captureDelegatedPolicyOverrides(parent, request.sandboxMode)
-  const meta = childSessionMeta(parent, childDepth, seed !== undefined)
+  const inheritedMeta = childSessionMeta(parent, childDepth, seed !== undefined)
+  const meta = request.childSetup === undefined ? inheritedMeta
+    : { ...inheritedMeta, cwd: request.childSetup.cwd, agentPreset: request.childSetup.agentPreset }
   const agentOptions = resolveChildAgentOptions(parent, request.agentOptions, childDepth)
 
   const workingDirectory = parent.ctx.get('workingDirectory')
   if (workingDirectory === undefined) throw new Error('in-process subagents require the working-directory service')
-  const cwd = workingDirectory.get(parent.session)
+  const cwd = request.childSetup === undefined ? workingDirectory.get(parent.session) : request.childSetup.cwd
 
   let structured: StructuredAttachment | undefined
   const setup = async (childCtx: Context, child: Agent): Promise<void> => {
     appendDelegatedPolicyOverrides(child.session, inherited)
     await workingDirectory.set(child, cwd, request.signal)
-    applyChildComposition(childCtx, parent, {
+    await applyChildComposition(childCtx, parent, {
+      agentPreset: request.childSetup?.agentPreset,
       persona: request.persona,
       toolFilter: request.toolFilter,
     })

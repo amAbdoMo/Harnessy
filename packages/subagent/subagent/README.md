@@ -66,6 +66,8 @@ Every exact live Agent can use `sendMessage()` with a direct continuable child; 
 
 ### Failure and recovery
 
+Host consumers can request `childSetup: { sessionId, cwd, agentPreset }` for a separately authorized one-shot task. The spawn provider creates that reserved Session with its own original project directory and explicitly mounted preset; it preserves delegated permission limits and approval policy. Other providers refuse this option. Ordinary requests keep their inherited composition, and continuable creation does not accept it.
+
 Requests that need a capability the chosen provider lacks fail loudly at start rather than being silently ignored. A failed child run returns a stop reason, and provider backends add a safe diagnostic; a cancelled request settles as `aborted`. Children are isolated: a crashed or misbehaving child cannot corrupt the parent's session.
 
 -----

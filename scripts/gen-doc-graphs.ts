@@ -108,6 +108,16 @@ const GROUP_ORDER = [
 
 const SERVICE_ROLES: ServiceRole[] = [
   {
+    key: 'actionCards', pkg: 'experimental-action-cards', title: 'Optional conversation action cards', mode: 'service',
+    consumers: ['experimental-creation-recommendations', 'experimental-plugin-recommendations', 'experimental-client-ui-action-cards'],
+    note: 'Logs admitted proposals and human decisions; reports status on the next ordinary model request.',
+  },
+  {
+    key: 'pluginRecommendations', pkg: 'experimental-plugin-recommendations', title: 'Shipped optional plugin recommendations', mode: 'service',
+    consumers: ['experimental-client-ui-plugin-recommendations'],
+    note: 'Offers catalog matches and enables a shipped optional plugin only after a human click.',
+  },
+  {
     key: 'companionHost', pkg: 'companion-host', title: 'Private native companion management',
     mode: 'service', consumers: ['desktop-host'],
     note: 'Owns Desktop-native pairing controls and revocable authenticated phone Session access; management and invitation secrets are not renderer RPC operations.',

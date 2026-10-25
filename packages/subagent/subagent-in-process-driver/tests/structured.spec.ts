@@ -68,6 +68,7 @@ async function setup(script: Script, options: SetupOptions = {}) {
       toolFilter: false,
       persona: false,
       accessPolicy: false,
+      childSetup: false,
       runtimeRoute: false,
     },
     inheritsParentContext: false,

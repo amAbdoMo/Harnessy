@@ -8,6 +8,8 @@
     "rewriteRelativeImportExtensions": false
   },
   "include": [
+    "apps/web/tests/creation-recommendations.e2e.ts",
+    "apps/web/tests/plugin-recommendations.e2e.ts",
     "apps/web/product-isolation.ts",
     "apps/web/tests/connection-recovery.e2e.ts",
     "apps/web/tests/server-restart.e2e.ts",
@@ -516,6 +518,10 @@
     { "path": "./packages/lsp/tool-lsp" },
     { "path": "./apps/cli" },
     { "path": "./apps/desktop-host" },
-    { "path": "./apps/desktop/tsconfig.host.json" }
+    { "path": "./apps/desktop/tsconfig.host.json" },
+    { "path": "./packages/experimental/action-cards" },
+    { "path": "./packages/experimental/creation-recommendations" },
+    { "path": "./packages/experimental/plugin-recommendations" },
+    { "path": "./packages/experimental/personalized-recommendations" }
   ]
 }

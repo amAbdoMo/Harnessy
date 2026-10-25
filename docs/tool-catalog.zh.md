@@ -19,6 +19,7 @@
 
 | 工具包 | 模型可见名称 | 依赖 | 写入／影响 | 随产品发布的别名 | 部署说明 |
 | --- | --- | --- | --- | --- | --- |
+| `@deepseek-ai/dsh-experimental-action-cards` | `propose_action` | `ctx.tools`, `ctx.agents`, `ctx.sessionProjections`, `在线根 Agent 已加载卡片种类的 skill` | `tool/call`, `tool/result`, `action-cards/decision`, `user/message` | - | 仅在在线根 Agent 加载卡片种类的 skill 后声明。可选的个性化推荐 bundle 提供页面创建与内置插件启用种类；用户点击才授权操作。 |
 | `@deepseek-ai/dsh-plugin-manager` | `plugin_manager` | `ctx.tools`, `ctx.pluginManager`, `ctx.sandboxPolicy` | `tool/call`, `tool/result`, `user/message` | - | - |
 | `@deepseek-ai/dsh-plugin-market` | `plugin_market` | `ctx.tools`, `ctx.pluginMarket` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-mcp-resources` | `list_mcp_resource_templates`, `list_mcp_resources`, `read_mcp_resource` | `ctx.tools`, `ctx.mcpResources` | `tool/call`, `tool/result` | - | - |
@@ -51,6 +52,49 @@
 | `@deepseek-ai/dsh-tool-workspace-dependencies` | `load_workspace_dependencies` | `ctx.tools` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`、`web_search` | `ctx.tools`、`ctx.web`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可见 schema 在更换后端时保持稳定。 |
 | `@deepseek-ai/dsh-tool-working-directory` | `working_directory` | `ctx.tools`、`ctx.workingDirectory`、调用方 Agent | `tool/call`、变更时的 `working-directory/change`、通知排队时的 `agent/inbox/spliced`、`tool/result` | - | - |
+
+<a id="deepseek-aidsh-experimental-action-cards"></a>
+
+## `@deepseek-ai/dsh-experimental-action-cards`
+
+### `propose_action`
+
+在回答下方向用户显示一张可选操作卡片。仅按指定操作种类的 skill 指引调用。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "description": "Action name from the skill."
+    },
+    "title": {
+      "type": "string",
+      "description": "Card title."
+    },
+    "brief": {
+      "type": "string",
+      "description": "What the action does, in the user's language."
+    },
+    "details": {
+      "type": "object",
+      "description": "Fields the skill lists for this action.",
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "action",
+    "title",
+    "brief",
+    "details"
+  ]
+}
+```
+
+源码： [`packages/experimental/action-cards/src/index.ts`](../packages/experimental/action-cards/src/index.ts)
+
+仅在在线根 Agent 加载卡片种类的 skill 后声明。可选的个性化推荐 bundle 提供页面创建与内置插件启用种类；用户点击才授权操作。
 
 <a id="deepseek-aidsh-plugin-manager"></a>
 

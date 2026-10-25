@@ -15,6 +15,7 @@ This table connects model-visible tool names to the plugin package and service s
 
 | Tool package | Model-visible names | Requires | Writes / affects | Shipped aliases | Deployment note |
 | --- | --- | --- | --- | --- | --- |
+| `@deepseek-ai/dsh-experimental-action-cards` | `propose_action` | `ctx.tools`, `ctx.agents`, `ctx.sessionProjections`, `a loaded card-kind skill on a live root Agent` | `tool/call`, `tool/result`, `action-cards/decision`, `user/message` | - | Declared only on a live root Agent after a card-kind skill loads. The optional Personalized recommendations bundle supplies page creation and shipped-plugin enabling kinds; user clicks authorize actions. |
 | `@deepseek-ai/dsh-plugin-manager` | `plugin_manager` | `ctx.tools`, `ctx.pluginManager`, `ctx.sandboxPolicy` | `tool/call`, `tool/result`, `user/message` | - | - |
 | `@deepseek-ai/dsh-plugin-market` | `plugin_market` | `ctx.tools`, `ctx.pluginMarket` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-mcp-resources` | `list_mcp_resource_templates`, `list_mcp_resources`, `read_mcp_resource` | `ctx.tools`, `ctx.mcpResources` | `tool/call`, `tool/result` | - | - |
@@ -47,6 +48,49 @@ This table connects model-visible tool names to the plugin package and service s
 | `@deepseek-ai/dsh-tool-workspace-dependencies` | `load_workspace_dependencies` | `ctx.tools` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`, `web_search` | `ctx.tools`, `ctx.web`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps. |
 | `@deepseek-ai/dsh-tool-working-directory` | `working_directory` | `ctx.tools`, `ctx.workingDirectory`, `a calling Agent` | `tool/call`, `working-directory/change on a transition`, `agent/inbox/spliced for queued notices`, `tool/result` | - | - |
+
+<a id="deepseek-aidsh-experimental-action-cards"></a>
+
+## `@deepseek-ai/dsh-experimental-action-cards`
+
+### `propose_action`
+
+Show the user one optional action card under this answer. Call only as the skill that names the action instructs.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "description": "Action name from the skill."
+    },
+    "title": {
+      "type": "string",
+      "description": "Card title."
+    },
+    "brief": {
+      "type": "string",
+      "description": "What the action does, in the user's language."
+    },
+    "details": {
+      "type": "object",
+      "description": "Fields the skill lists for this action.",
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "action",
+    "title",
+    "brief",
+    "details"
+  ]
+}
+```
+
+Source: [`packages/experimental/action-cards/src/index.ts`](../packages/experimental/action-cards/src/index.ts)
+
+Declared only on a live root Agent after a card-kind skill loads. The optional Personalized recommendations bundle supplies page creation and shipped-plugin enabling kinds; user clicks authorize actions.
 
 <a id="deepseek-aidsh-plugin-manager"></a>
 

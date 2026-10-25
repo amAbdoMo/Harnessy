@@ -14,7 +14,8 @@ describe('workflow program environment', () => {
       name: 'stub',
       capabilities: {
         agentOptions: false, outputSchema: false, depthLimit: false, toolFilter: false, persona: false,
-        accessPolicy: false, runtimeRoute: false,
+        accessPolicy: false, childSetup: false,
+        runtimeRoute: false,
       },
       inheritsParentContext: false,
       start: () => Promise.reject(new Error('environment script must not start a child')),

@@ -28,6 +28,8 @@ A provider advertises its **start-time** features on a static descriptor the ser
  * `accessPolicy` to `sandboxMode`; the other names match.
  */
 interface SubagentCapabilities {
+  /** Whether one-shot creation accepts the caller's isolated child identity, directory and preset. */
+  readonly childSetup: boolean
   readonly agentOptions: boolean
   readonly outputSchema: boolean
   readonly depthLimit: boolean
@@ -69,6 +71,8 @@ The tool layer builds this request from the model input and its own config; the 
  * {@link SubagentProvider.start}.
  */
 interface SubagentStartRequest {
+  /** Host-owned setup for a separately authorized task; requires the provider's `childSetup` capability. */
+  readonly childSetup?: SubagentChildSetup
   /** Optional short display label persisted with a session-backed child. */
   readonly label?: string
   /** Content delivered as the child's user message. */
@@ -133,6 +137,19 @@ interface SubagentStartRequest {
    * the behavior of a request that names no access at all.
    */
   readonly sandboxMode?: SubagentAccess
+}
+```
+
+An explicit `childSetup` is a Host-owned one-shot request for a reserved identity, original project directory and preset. Only spawn supports it; ordinary starts retain parent composition.
+
+```ts type-equiv
+/** Explicit creation inputs for an isolated one-shot task, rather than inherited conversation composition. */
+interface SubagentChildSetup {
+  readonly sessionId: SessionId
+  /** Absolute working directory and original project root of this child. */
+  readonly cwd: string
+  /** A registered Agent preset mounted before the child is published. */
+  readonly agentPreset: string
 }
 ```
 

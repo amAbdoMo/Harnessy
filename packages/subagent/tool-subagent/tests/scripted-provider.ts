@@ -19,6 +19,7 @@ const DEFAULT_CAPABILITIES: SubagentCapabilities = {
   toolFilter: true,
   persona: true,
   accessPolicy: true,
+  childSetup: false,
   runtimeRoute: true,
 }
 

@@ -34,7 +34,8 @@ async function setup(execute?: (bindings: HostBindings, spec: PtcRunSpec) => Pro
     name: 'stub',
     capabilities: {
       agentOptions: true, outputSchema: true, depthLimit: false, toolFilter: false, persona: false,
-      accessPolicy: true, runtimeRoute: true,
+      accessPolicy: true, childSetup: false,
+      runtimeRoute: true,
     },
     inheritsParentContext: false,
     start: async () => ({

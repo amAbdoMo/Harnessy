@@ -182,6 +182,9 @@ export function readWorkspaceManifests(repositoryRoot: string): WorkspaceManifes
 }
 
 const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
+  '@deepseek-ai/dsh-experimental-creation-recommendations': ['references/*.md', 'skills/*.md'],
+  '@deepseek-ai/dsh-experimental-plugin-recommendations': ['skills/*.md'],
+  '@deepseek-ai/dsh-experimental-personalized-recommendations': ['docs'],
   // Desktop resolves this companion-control export independently of the Host plugin.
   '@deepseek-ai/dsh-companion-host': ['lib/desktop-control.js'],
   // Owned Worker bundles import this public bootstrap before their business entry.

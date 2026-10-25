@@ -47,6 +47,7 @@ class StubProvider implements SubagentProvider {
     toolFilter: true,
     persona: false,
     accessPolicy: false,
+    childSetup: false,
     runtimeRoute: false,
   }
   readonly inheritsParentContext = false
@@ -473,6 +474,7 @@ describe('dsh-workflow-ptc', { timeout: 120_000 }, () => {
           toolFilter: true,
           persona: false,
           accessPolicy: false,
+          childSetup: false,
           runtimeRoute: false,
         },
         inheritsParentContext: false,
@@ -542,6 +544,7 @@ describe('dsh-workflow-ptc', { timeout: 120_000 }, () => {
           toolFilter: true,
           persona: false,
           accessPolicy: false,
+          childSetup: false,
           runtimeRoute: false,
         },
         inheritsParentContext: false,
@@ -574,6 +577,7 @@ describe('dsh-workflow-ptc', { timeout: 120_000 }, () => {
           toolFilter: true,
           persona: false,
           accessPolicy: false,
+          childSetup: false,
           runtimeRoute: false,
         },
         inheritsParentContext: false,
@@ -800,6 +804,7 @@ describe('dsh-workflow-ptc', { timeout: 120_000 }, () => {
           toolFilter: true,
           persona: false,
           accessPolicy: false,
+          childSetup: false,
           runtimeRoute: false,
         },
         inheritsParentContext: false,
@@ -926,7 +931,8 @@ describe('dsh-workflow-ptc', { timeout: 120_000 }, () => {
         name: 'late-publication',
         capabilities: {
           agentOptions: false, outputSchema: false, depthLimit: false, toolFilter: false, persona: false,
-          accessPolicy: false, runtimeRoute: false,
+          accessPolicy: false, childSetup: false,
+          runtimeRoute: false,
         },
         inheritsParentContext: false,
         start: async (request) => {

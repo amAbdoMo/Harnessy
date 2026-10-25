@@ -799,23 +799,21 @@ describe('a forked session', () => {
 describe('a delegated child', () => {
   it('runs on the composition its parent runs on', async () => {
     const parent = await ctx.agents.create({
-      sessionId: SessionId('preset-child-parent'),
+      sessionId: SessionId('preset-child-parent-' + randomUUID()),
       meta: { agentPreset: 'standard' },
       setup: agentCtx => ctx.agentPresets.mount(agentCtx, 'standard').then(() => undefined),
     })
     // Exactly what an in-process subagent driver's creation window does.
     const child = await parent.agent.ctx.agents.create({
-      sessionId: SessionId('preset-child'),
+      sessionId: SessionId('preset-child-' + randomUUID()),
       meta: childSessionMeta(parent.agent, 1, false),
-      setup: (agentCtx) => {
-        applyChildComposition(agentCtx, parent.agent, {})
-      },
+      setup: agentCtx => applyChildComposition(agentCtx, parent.agent, {}),
     })
     try {
       expect(toolNames(ctx, child.agent)).toEqual(toolNames(ctx, parent.agent))
       // The shipped `standard` preset is the whole coding agent; an empty
       // child here is the defect, and equality alone would not catch it.
-      expect(toolNames(ctx, child.agent)).toContain('bash')
+      expect(toolNames(ctx, child.agent)).toContain(process.platform === 'win32' ? 'pwsh' : 'bash')
       expect(child.agent.session.header.agentPreset).toBe('standard')
     } finally {
       await child.dispose()
@@ -825,17 +823,15 @@ describe('a delegated child', () => {
 
   it('follows a parent that switched preset while blank', async () => {
     const parent = await ctx.agents.create({
-      sessionId: SessionId('preset-child-switch-parent'),
+      sessionId: SessionId('preset-child-switch-parent-' + randomUUID()),
       meta: { agentPreset: 'standard' },
       setup: agentCtx => ctx.agentPresets.mount(agentCtx, 'standard').then(() => undefined),
     })
     await ctx.agentPresets.recompose(parent.agent.ctx, 'minimal')
     const child = await parent.agent.ctx.agents.create({
-      sessionId: SessionId('preset-child-switch'),
+      sessionId: SessionId('preset-child-switch-' + randomUUID()),
       meta: childSessionMeta(parent.agent, 1, false),
-      setup: (agentCtx) => {
-        applyChildComposition(agentCtx, parent.agent, {})
-      },
+      setup: agentCtx => applyChildComposition(agentCtx, parent.agent, {}),
     })
     try {
       // The live scope chain is the authority, not the parent's creation

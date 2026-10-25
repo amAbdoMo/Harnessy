@@ -49,6 +49,8 @@ Load the subagent service and this backend, then configure one delegation tool p
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-subagent-spawn-in-process) is the exhaustive source for every accepted field and its JSDoc.
 
+A Host caller may instead supply `request.childSetup` with a reserved Session id, absolute working directory and registered Agent preset. The preset is mounted before publication; failed setup leaves no live child. Parent state and ordinary inherited starts remain independent.
+
 ### What a delegation does
 
 One tool call starts one child and waits for its result: the child works in its own session and the parent receives only its final output, or an errored tool result when the run is cancelled, refused, truncated by its token limit, or rejected at startup. A rejected start leaves no published child; a completed run is disposed after its result is collected.

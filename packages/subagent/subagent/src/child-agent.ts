@@ -159,6 +159,8 @@ export function childSessionMeta(
 
 /** The scoped composition a child agent's creation window applies. */
 export interface ChildComposition {
+  /** An explicit registered preset; omission joins the parent's retained preset revision. */
+  readonly agentPreset?: string | undefined
   /** Per-child persona shadowing the deployment persona. */
   readonly persona?: string | undefined
   /** Per-child tool scoping. */
@@ -196,14 +198,20 @@ export const SUBAGENT_DELEGATION_CONTEXT
  * unrepresentable at the call sites.
  * @param childCtx - the child agent's scoped creation context.
  * @param parent - the delegating parent whose composition the child joins.
- * @param composition - the per-child persona and tool filter to install.
+ * @param composition - optional explicit preset, persona and tool filter.
+ * @returns after the child preset and scoped contributions are installed.
  */
-export function applyChildComposition(
+export async function applyChildComposition(
   childCtx: Context,
   parent: Agent,
   composition: ChildComposition,
-): void {
-  childCtx.get('agentPresets')?.composeFrom(childCtx, parent.ctx)
+): Promise<void> {
+  const presets = childCtx.get('agentPresets')
+  if (composition.agentPreset === undefined) presets?.composeFrom(childCtx, parent.ctx)
+  else {
+    if (presets === undefined) throw new Error('An explicit child preset requires the Agent preset registry')
+    await presets.mount(childCtx, composition.agentPreset)
+  }
   childCtx.systemPrompt.context({
     name: 'subagent:delegation',
     order: childCtx.systemPrompt.getContextOrder('SUBAGENT_DELEGATION'),

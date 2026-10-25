@@ -27,10 +27,12 @@ function fakeParent(id = 'parent-1'): Agent {
 
 const ALL_CAPS: SubagentCapabilities = {
   agentOptions: true, outputSchema: true, depthLimit: true, toolFilter: true, persona: true, accessPolicy: true,
+  childSetup: true,
   runtimeRoute: true,
 }
 const NO_CAPS: SubagentCapabilities = {
   agentOptions: false, outputSchema: false, depthLimit: false, toolFilter: false, persona: false, accessPolicy: false,
+  childSetup: false,
   runtimeRoute: false,
 }
 
@@ -190,6 +192,7 @@ describe('SubagentRuntime', () => {
   })
 
   it.each([
+    ['childSetup', { childSetup: { sessionId: SessionId('isolated-child'), cwd: '/reserved', agentPreset: 'creator' } }],
     ['agentOptions', { agentOptions: { model: 'child-model' } }],
     ['outputSchema', { outputSchema: { type: 'object', properties: {} } }],
     ['depthLimit', { maxDepth: 1 }],

@@ -48,7 +48,7 @@ export interface ContinuableStartSpec {
    * The delegation request. The manager reserves the stable child id, resolves
    * the durable descriptor, and composes the child itself.
    */
-  readonly request: Omit<SubagentStartRequest, 'label' | 'signal' | 'outputSchema'>
+  readonly request: Omit<SubagentStartRequest, 'label' | 'signal' | 'outputSchema' | 'childSetup'>
   /** Caller cancellation, owning the operation only until inbox acceptance. */
   readonly signal: AbortSignal
 }
@@ -133,6 +133,8 @@ export interface SubagentRunEndInfo {
  * `accessPolicy` to `sandboxMode`; the other names match.
  */
 export interface SubagentCapabilities {
+  /** Whether one-shot creation accepts the caller's isolated child identity, directory and preset. */
+  readonly childSetup: boolean
   readonly agentOptions: boolean
   readonly outputSchema: boolean
   readonly depthLimit: boolean
@@ -168,6 +170,8 @@ export interface SubagentCapabilities {
  * {@link SubagentProvider.start}.
  */
 export interface SubagentStartRequest {
+  /** Host-owned setup for a separately authorized task; requires the provider's `childSetup` capability. */
+  readonly childSetup?: SubagentChildSetup
   /** Optional short display label persisted with a session-backed child. */
   readonly label?: string
   /** Content delivered as the child's user message. */
@@ -232,6 +236,15 @@ export interface SubagentStartRequest {
    * the behavior of a request that names no access at all.
    */
   readonly sandboxMode?: SubagentAccess
+}
+
+/** Explicit creation inputs for an isolated one-shot task, rather than inherited conversation composition. */
+export interface SubagentChildSetup {
+  readonly sessionId: SessionId
+  /** Absolute working directory and original project root of this child. */
+  readonly cwd: string
+  /** A registered Agent preset mounted before the child is published. */
+  readonly agentPreset: string
 }
 
 /**

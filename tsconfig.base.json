@@ -28,6 +28,19 @@
     // not declaration path aliases, keep each package/vendor source compiled
     // under its own tsconfig boundary.
     "paths": {
+      "@deepseek-ai/dsh-experimental-action-cards": ["./packages/experimental/action-cards/src/index.ts"],
+      "@deepseek-ai/dsh-experimental-action-cards/types": ["./packages/experimental/action-cards/src/types.ts"],
+      "@deepseek-ai/dsh-experimental-client-ui-action-cards": ["./packages/experimental/client-ui-action-cards/src/index.ts"],
+      "@deepseek-ai/dsh-experimental-client-ui-action-cards/client": ["./packages/experimental/client-ui-action-cards/src/client/index.ts"],
+      "@deepseek-ai/dsh-experimental-creation-recommendations": ["./packages/experimental/creation-recommendations/src/index.ts"],
+      "@deepseek-ai/dsh-experimental-creation-recommendations/types": ["./packages/experimental/creation-recommendations/src/types.ts"],
+      "@deepseek-ai/dsh-experimental-client-ui-creation-recommendations": ["./packages/experimental/client-ui-creation-recommendations/src/index.ts"],
+      "@deepseek-ai/dsh-experimental-client-ui-creation-recommendations/client": ["./packages/experimental/client-ui-creation-recommendations/src/client/index.ts"],
+      "@deepseek-ai/dsh-experimental-plugin-recommendations": ["./packages/experimental/plugin-recommendations/src/index.ts"],
+      "@deepseek-ai/dsh-experimental-plugin-recommendations/types": ["./packages/experimental/plugin-recommendations/src/types.ts"],
+      "@deepseek-ai/dsh-experimental-client-ui-plugin-recommendations": ["./packages/experimental/client-ui-plugin-recommendations/src/index.ts"],
+      "@deepseek-ai/dsh-experimental-client-ui-plugin-recommendations/client": ["./packages/experimental/client-ui-plugin-recommendations/src/client/index.ts"],
+      "@deepseek-ai/dsh-experimental-personalized-recommendations": ["./packages/experimental/personalized-recommendations/src/index.ts"],
       "@deepseek-ai/dsh-plugin-detail/types": ["./packages/util/plugin-detail/src/types.ts"],
       "@deepseek-ai/dsh-plugin-market/types": ["./packages/boot/plugin-market/src/types.ts"],
       "@deepseek-ai/dsh-plugin-market/tools": ["./packages/boot/plugin-market/src/tools.ts"],

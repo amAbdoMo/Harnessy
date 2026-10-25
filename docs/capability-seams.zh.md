@@ -9,6 +9,13 @@
 
 ```mermaid
 flowchart LR
+  pkg_experimental_action_cards["experimental-action-cards"]
+  svc_actionCards["ctx.actionCards<br/>Optional conversation action cards"]
+  pkg_experimental_creation_recommendations["experimental-creation-recommendations"]
+  pkg_experimental_plugin_recommendations["experimental-plugin-recommendations"]
+  pkg_experimental_client_ui_action_cards["experimental-client-ui-action-cards"]
+  svc_pluginRecommendations["ctx.pluginRecommendations<br/>Shipped optional plugin recommendations"]
+  pkg_experimental_client_ui_plugin_recommendations["experimental-client-ui-plugin-recommendations"]
   pkg_companion_host["companion-host"]
   svc_companionHost["ctx.companionHost<br/>Private native companion management"]
   pkg_desktop_host["desktop-host"]
@@ -347,6 +354,7 @@ flowchart LR
   pkg_deepseek_account --> svc_deepseekAccount
   pkg_deepseek_account_platform --> svc_deepseekAccount
   pkg_deepseek_llm_api_extensions --> svc_deepseekLlmApiExtensions
+  pkg_experimental_action_cards --> svc_actionCards
   pkg_experimental_agent_team --> svc_agentTeams
   pkg_experimental_api_speech_to_text --> svc_speechController
   pkg_experimental_browser_use_chrome_devtools_mcp --> svc_browserUse
@@ -355,6 +363,7 @@ flowchart LR
   pkg_experimental_claude_code_mods --> svc_claudeCodeMods
   pkg_experimental_computer_use_cua_driver_mcp --> svc_computerUse
   pkg_experimental_computer_use_cua_driver_native --> svc_computerUse
+  pkg_experimental_plugin_recommendations --> svc_pluginRecommendations
   pkg_experimental_ptc_runtime_python --> svc_ptcRuntime
   pkg_experimental_speech_to_text --> svc_speechToText
   pkg_experimental_speech_to_text_sensevoice --> svc_speechToText
@@ -462,6 +471,9 @@ flowchart LR
   pkg_working_directory --> svc_workingDirectory
   pkg_workspace --> svc_workspaceRegistry
   pkg_workspace_changes --> svc_workspaceChanges
+  svc_actionCards --> pkg_experimental_client_ui_action_cards
+  svc_actionCards --> pkg_experimental_creation_recommendations
+  svc_actionCards --> pkg_experimental_plugin_recommendations
   svc_agentDefaultModel --> pkg_api_session_controller
   svc_agentDefaultModel --> pkg_headless
   svc_agentLoop --> pkg_base
@@ -523,6 +535,7 @@ flowchart LR
   svc_pluginManager --> pkg_ui_settings_plugin_inventory
   svc_pluginMarket --> pkg_client_ui_plugin_market
   svc_pluginMarket --> pkg_plugin_market
+  svc_pluginRecommendations --> pkg_experimental_client_ui_plugin_recommendations
   svc_pluginRegistryProbe --> pkg_client_ui_plugin_manager
   svc_profileContext --> pkg_plugin_manager
   svc_ptcRuntime --> pkg_tools
@@ -621,6 +634,8 @@ flowchart LR
 
 | ctx 键 | 角色 | 所属包 | 实现 | 直接消费方 | 配套插件 | 说明 |
 | --- | --- | --- | --- | --- | --- | --- |
+| `ctx.actionCards` | `service` | [`experimental-action-cards`](../packages/experimental/action-cards) | - | [`experimental-creation-recommendations`](../packages/experimental/creation-recommendations), [`experimental-plugin-recommendations`](../packages/experimental/plugin-recommendations), [`experimental-client-ui-action-cards`](../packages/experimental/client-ui-action-cards) | - | 记录已接受的提议及人工决定；在下一次普通模型请求中报告状态。 |
+| `ctx.pluginRecommendations` | `service` | [`experimental-plugin-recommendations`](../packages/experimental/plugin-recommendations) | - | [`experimental-client-ui-plugin-recommendations`](../packages/experimental/client-ui-plugin-recommendations) | - | 提供目录匹配，只有人工点击后才启用内置可选插件。 |
 | `ctx.companionHost` | `service` | [`companion-host`](../packages/host/companion-host) | - | `desktop-host` | - | 负责 Desktop 原生配对控制及可撤销的认证手机 Session 访问；管理与邀请密钥不属于渲染器 RPC 操作。 |
 | `ctx.companionRelayStartup` | `core` | [`companion-relay-bundle`](../packages/bundle/companion-relay) | - | [`companion-relay-bundle`](../packages/bundle/companion-relay) | - | 在中继条目挂载前接收显式回环绑定值；帮助与无效调用不会放行服务器条目。 |
 | `ctx.webStartup` | `core` | [`web-app`](../packages/bundle/web-app) | - | [`web-app`](../packages/bundle/web-app) | - | 在依赖它的载体与启动条目挂载前解析 Web 调用参数。 |

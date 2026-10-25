@@ -12,6 +12,11 @@ import { Context } from '@deepseek-ai/cordis'
 import LlmRuntime from '@deepseek-ai/dsh-llm'
 import type { ToolSchema } from '@deepseek-ai/dsh-llm'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
+import AgentLoop from '@deepseek-ai/dsh-agent-loop'
+import ActionCards from '@deepseek-ai/dsh-experimental-action-cards'
+import { ToolCallId } from '@deepseek-ai/dsh-llm'
+import { defineContentToolFixture } from '@deepseek-ai/dsh-tools'
+import { z } from 'zod'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { createScope } from '@deepseek-ai/dsh-scope'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
@@ -133,6 +138,7 @@ function registerCatalogSubagentProvider(ctx: Context, name: string): void {
       toolFilter: true,
       persona: true,
       accessPolicy: true,
+      childSetup: false,
       runtimeRoute: true,
     },
     inheritsParentContext: false,
@@ -196,6 +202,38 @@ export interface ToolPackage {
  * guard proves it is exhaustive against the on-disk glob.
  */
 const TOOL_PACKAGES: ToolPackage[] = [
+  {
+    pkg: '@deepseek-ai/dsh-experimental-action-cards',
+    dir: 'action-cards',
+    source: 'packages/experimental/action-cards/src/index.ts',
+    requires: ['ctx.tools', 'ctx.agents', 'ctx.sessionProjections', 'a loaded card-kind skill on a live root Agent'],
+    writes: ['tool/call', 'tool/result', 'action-cards/decision', 'user/message'],
+    async mount(ctx) {
+      await ctx.plugin(LlmRuntime)
+      await ctx.plugin(SessionStore)
+      await ctx.plugin(AgentRegistry)
+      await ctx.plugin(AgentLoop, { agents: [] })
+      await ctx.plugin(ActionCards)
+      ctx.actionCards.register({
+        action: 'catalog', skill: 'catalog-card', invitation: 'Use the card.', details: z.object({}), verbs: {},
+        act: () => Promise.resolve({ status: 'refused', reason: 'catalog-only' }),
+      })
+      const agent = await ctx.agentLoop.create(SessionId('catalog-card-agent'))
+      const removeSkill = ctx.tools.register(defineContentToolFixture({
+        name: 'skill', description: 'Load the catalog card skill.',
+        parameters: { name: { type: 'string', required: true } },
+        execute: () => Promise.resolve([{ type: 'text', text: 'Catalog card skill loaded.' }]),
+      }))
+      try {
+        const result = await ctx.tools.execute({ name: 'skill', arguments: { name: 'catalog-card' }, agent,
+          callId: ToolCallId('catalog-card-skill'), signal: new AbortController().signal })
+        if (result.isError) throw new Error('gen-tool-catalog: card skill activation failed')
+      } finally { removeSkill() }
+      catalogChildScopes.set(ctx, agent)
+    },
+    scope: ctx => catalogChildScopes.get(ctx) as Agent,
+    note: 'Declared only on a live root Agent after a card-kind skill loads. The optional Personalized recommendations bundle supplies page creation and shipped-plugin enabling kinds; user clicks authorize actions.',
+  },
   {
     pkg: '@deepseek-ai/dsh-plugin-manager',
     dir: 'plugin-manager',

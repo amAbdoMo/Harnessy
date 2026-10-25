@@ -30,6 +30,13 @@ Experimental prototypes may change their contracts and carry no support promise.
 | [`client-ui-voice-input`](client-ui-voice-input/README.md) | Microphone capture and guarded draft insertion | — |
 | [`voice-input-bundle`](voice-input-bundle/README.md) | Default-disabled optional voice input composition | — |
 | [`plugin-market-bundle`](plugin-market-bundle/README.md) | Default-disabled optional custom plugin markets and Discover | — |
+| [`action-cards`](action-cards/README.md) | Shared proposal tool, decisions and status notices | `ctx.actionCards` |
+| [`client-ui-action-cards`](client-ui-action-cards/README.md) | Conversation card frame and tool row | — |
+| [`creation-recommendations`](creation-recommendations/README.md) | Explicit-need removable page creation | — |
+| [`client-ui-creation-recommendations`](client-ui-creation-recommendations/README.md) | Page location and creation controls | — |
+| [`plugin-recommendations`](plugin-recommendations/README.md) | Shipped optional plugin recommendations | `ctx.pluginRecommendations` |
+| [`client-ui-plugin-recommendations`](client-ui-plugin-recommendations/README.md) | Plugin recommendation cards | — |
+| [`personalized-recommendations`](personalized-recommendations/README.md) | Default-disabled recommendation composition | — |
 | [`agent-team-profile`](agent-team-profile/README.md) | Agent Teams collaboration, tools, and Web UI bundle | — |
 | [`agent-team`](agent-team/README.md) | Named teammates with durable messages and a shared task board | `ctx.agentTeams` |
 | [`client-ui-agent-team`](client-ui-agent-team/README.md) | Team roster, task board, and teammate navigation for Web | — |

@@ -428,7 +428,8 @@ it('reads the saved default depth at each delegation without remounting the tool
       name: 'capture-depth',
       capabilities: {
         agentOptions: true, outputSchema: true, depthLimit: true, toolFilter: true, persona: true,
-        accessPolicy: true, runtimeRoute: true,
+        accessPolicy: true, childSetup: false,
+        runtimeRoute: true,
       },
       inheritsParentContext: false,
       start: async (request) => {

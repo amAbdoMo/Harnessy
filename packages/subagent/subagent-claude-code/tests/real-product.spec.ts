@@ -191,6 +191,7 @@ interface RealRuntime {
 
 async function realRuntime(): Promise<RealRuntime> {
   const ctx = new Context()
+  ctx.provide('workingDirectory', { get: (session: Agent['session']) => session.header.cwd ?? process.cwd() })
   contexts.push(ctx)
   await ctx.plugin(SessionProjectionRegistry)
   await ctx.plugin(SubagentRuntime)
