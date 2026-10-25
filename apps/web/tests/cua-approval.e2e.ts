@@ -23,6 +23,7 @@ it.skipIf(process.platform === 'darwin')('answers fixed application actions with
     const agent = scaffold.ctx.agents.list()[0]!
     for (const [button, selected] of [
       ['Allow for this session', 'Allow for this session'], ['Reject', 'Deny'], ['Always allow', 'Always allow'],
+      ['Enter', 'Allow for this session'],
     ] as const) {
       const result = scaffold.ctx.userQuestions.ask({ agent, questions: [{
         id: 'cua-app-access', question: 'Allow access to the fixture application?',
@@ -33,7 +34,10 @@ it.skipIf(process.platform === 'darwin')('answers fixed application actions with
       }] }).then(value => ({ ok: true, value }), (error: unknown) => ({ ok: false, error }))
       const card = page.locator('[data-approval-key]')
       await card.waitFor({ state: 'visible' })
-      await card.getByRole('button', { name: button, exact: true }).click()
+      if (button === 'Enter') {
+        await card.getByRole('group').focus()
+        await page.keyboard.press('Enter')
+      } else await card.getByRole('button', { name: button, exact: true }).click()
       expect(await result).toMatchObject({ ok: true, value: { answers: [{ id: 'cua-app-access', selected: [selected] }] } })
       await card.waitFor({ state: 'detached' })
     }

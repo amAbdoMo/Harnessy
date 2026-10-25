@@ -22,6 +22,8 @@ The `conversation.approval.card` factory also presents fixed application decisio
 
 Focus the approval detail region to approve with Enter or reject with Escape. The mounted plugin reserves both keys against editable shortcuts. Enter on the focused Reject button retains its native reject action. Input controls and IME candidates keep their own keys. Keyboard and pointer actions share one pending-request lock; a withdrawn or replaced request cannot accept another answer, and an earlier failed answer cannot unlock its replacement.
 
+When offered, **Always allow** is the highlighted primary button. Otherwise, the current-request allow action is primary. Enter in the detail region always grants the limited scope: once for a tool approval, or the current session for CUA. Persistent access requires explicitly activating Always allow. The shortcut reference uses Allow because the caller supplies that scope.
+
 A `summary-only` request renders requester-supplied localized summary copy without invoking the optional detail slot or inspecting correlated command arguments. Ordinary requests use an indexed tool-call lookup and show command detail only while that exact call is running. Recorded `approval/asked` and `approval/decided` events form one checkpoint per request id; “Permission granted once” records permission, not successful execution. Replay never exposes decision buttons or grants authority.
 
 <a id="model-experience"></a>

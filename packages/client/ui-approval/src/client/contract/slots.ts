@@ -216,7 +216,7 @@ export interface ApprovalCardInput {
   title: string
   /** Localized scope or consequence of the decision. */
   description?: string
-  /** Subject metadata for human recognition; never an authorization identity. */
+  /** Subject metadata for human recognition; the caller admits icon URLs. Never an authorization identity. */
   subject?: { name: string; icon?: string }
   /** Optional tool-owned detail rendered through the existing child slot. */
   callId?: ToolCallId

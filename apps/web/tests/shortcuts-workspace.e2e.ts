@@ -269,10 +269,7 @@ it.skipIf(mode === 'record').each([
     const page = await context.newPage()
     const console = watchConsole(page)
     await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
-    const group = page.getByRole('treeitem').first()
-    await group.waitFor()
-    if (await group.getAttribute('aria-expanded') !== 'true') await group.click()
-    await page.getByRole('treeitem').nth(1).click()
+    await page.locator('[data-row-key="session:shortcut-defaults-source"]').click()
     await page.getByText('DONE', { exact: true }).waitFor()
     // Synthetic input observes browser ownership without navigating the fixture away.
     expect(await page.evaluate((primary) => {

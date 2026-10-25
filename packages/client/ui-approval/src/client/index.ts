@@ -91,7 +91,7 @@ export function apply(ctx: ClientContext): void {
   ctx.inject(['shortcuts'], (scope) => {
     const t = ctx.locale.bind(NS)
     scope.effect(() => scope.shortcuts.registerFixed({
-      id: 'approval.allow' as ShortcutCommandId, label: () => t('allowOnce'), keys: ['Enter'], bindings: [{ code: 'Enter', modifiers: [] }], group: 'approval',
+      id: 'approval.allow' as ShortcutCommandId, label: () => t('allow'), keys: ['Enter'], bindings: [{ code: 'Enter', modifiers: [] }], group: 'approval',
     }), 'ui-approval: fixed allow reference')
     scope.effect(() => scope.shortcuts.registerFixed({
       id: 'approval.reject' as ShortcutCommandId, label: () => t('reject'), keys: ['Esc'], bindings: [{ code: 'Escape', modifiers: [] }], group: 'approval',

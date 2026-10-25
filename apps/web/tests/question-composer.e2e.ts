@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import type { Browser, Locator, Page } from 'playwright'
 import { chromium } from 'playwright'
-import { afterAll, beforeAll, describe, expect, it, onTestFailed } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, onTestFailed, onTestFinished } from 'vitest'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { TIMED_WAIT_PARAMETER } from '@deepseek-ai/dsh-user-questions'
@@ -699,4 +699,41 @@ describe.skipIf(MODE === 'record')('web e2e: late-answered question transcript',
       'queued.expected.md',
     ])
   })
+})
+
+
+it.each(['another-feature', 'cua-app-access'])('answers %s approval without a specialized composer', async (id) => {
+  const resources: { scaffold?: WebScaffold; browser?: Browser; waiting?: Promise<unknown> } = {}
+  const controller = new AbortController()
+  onTestFinished(async () => {
+    controller.abort()
+    await resources.waiting
+    const closed = await Promise.allSettled([resources.browser?.close(), resources.scaffold?.close()])
+    const failures = closed.filter(result => result.status === 'rejected')
+    if (failures.length > 0) throw new AggregateError(failures.map((result): unknown => result.reason), 'approval fallback teardown failed')
+  })
+  const scaffold = await launchWebScaffold()
+  resources.scaffold = scaffold
+  const browser = await chromium.launch()
+  resources.browser = browser
+  const page = await newEnglishPage(browser)
+  const tripwire = watchConsole(page)
+  onTestFailed(() => saveFailureShot(page, `web-approval-fallback-${id}`))
+  await page.goto(scaffold.authenticatedUrl)
+  await connectFreshWorkspace(page, scaffold.workspaceCwd)
+  await expect.poll(() => scaffold.ctx.agents.list().length).toBe(1)
+  const agent = scaffold.ctx.agents.list()[0]!
+  const result = scaffold.ctx.userQuestions.ask({ agent, signal: controller.signal, questions: [{
+    id, question: 'Allow fixture access?', detail: 'Only this request.',
+    options: [{ label: 'Allow' }, { label: 'Deny' }],
+    intent: { kind: 'approval', approve: 'Allow', reject: 'Deny' },
+  }] })
+  resources.waiting = Promise.allSettled([result])
+  const question = page.locator('[data-question-key]')
+  await question.getByRole('radio', { name: 'Deny', exact: true }).click()
+  await question.getByRole('button', { name: 'Submit', exact: true }).click()
+  expect(await result).toEqual({ answers: [{ id, selected: ['Deny'] }] })
+  await question.waitFor({ state: 'hidden' })
+  expect(tripwire.pageErrors).toEqual([])
+  expect(tripwire.warnings).toEqual([])
 })

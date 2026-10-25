@@ -1,13 +1,30 @@
 /** Real Web composition: keyboard routing, inline editing, and localized system feedback. */
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
-import { chromium, type Browser } from 'playwright'
+import { chromium, type Browser, type Locator } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { openSettings } from './support.ts'
 import { captureStableAria, compareOrRefreshGolden, launchWebScaffold, watchConsole, webSnapshotMode, type WebScaffold } from './scaffold.ts'
 
 const expected = fileURLToPath(new URL('./expected/shortcuts', import.meta.url))
 const mode = webSnapshotMode()
+
+async function expectBrandFocus(control: Locator): Promise<void> {
+  const focus = await control.evaluate((element) => {
+    const style = getComputedStyle(element)
+    const brand = document.createElement('span')
+    brand.style.color = 'var(--dsw-alias-brand-primary)'
+    element.append(brand)
+    const brandColor = getComputedStyle(brand).color
+    brand.remove()
+    return { visible: element.matches(':focus-visible'), border: style.borderColor,
+      brand: brandColor, outline: style.outlineStyle, shadow: style.boxShadow }
+  })
+  expect(focus.visible).toBe(true)
+  expect(focus.border).toBe(focus.brand)
+  expect(focus.outline).toBe('none')
+  expect(focus.shadow).toBe('none')
+}
 
 describe('web e2e: shortcut reference', () => {
   let scaffold: WebScaffold
@@ -103,7 +120,7 @@ describe('web e2e: shortcut reference', () => {
       expect(await dialog.evaluate(element => getComputedStyle(element).boxShadow)).toBe(dialogShadow)
       await page.keyboard.press('Shift+Tab')
       expect(await dialog.getByRole('button', { disabled: false }).last().evaluate(element => element === document.activeElement)).toBe(true)
-      expect(await dialog.getByRole('button', { disabled: false }).last().evaluate(element => getComputedStyle(element).outlineStyle)).not.toBe('none')
+      await expectBrandFocus(dialog.getByRole('button', { disabled: false }).last())
       await badge.click()
       await boundRow.getByRole('button', { name: locale === 'zh-CN' ? '恢复默认' : 'Restore default', exact: true }).click()
       await boundRow.getByRole('group').waitFor({ state: 'hidden' })
@@ -120,7 +137,7 @@ describe('web e2e: shortcut reference', () => {
       expect(await recorder.evaluate(element => ({
         color: getComputedStyle(element).color, border: getComputedStyle(element).borderColor,
       })))
-        .toEqual({ color: 'rgb(97, 102, 107)', border: 'rgba(0, 0, 0, 0.16)' })
+        .toEqual({ color: 'rgb(97, 102, 107)', border: 'rgb(15, 17, 21)' })
       expect(await recorder.evaluate(element => ({
         focused: element === document.activeElement,
         outline: getComputedStyle(element).outlineStyle, shadow: getComputedStyle(element).boxShadow,
@@ -138,7 +155,7 @@ describe('web e2e: shortcut reference', () => {
       expect(await recorder.evaluate(element => ({
         color: getComputedStyle(element).borderColor, width: getComputedStyle(element).borderWidth,
       })))
-        .toEqual({ color: 'rgb(236, 19, 19)', width: '1px' })
+        .toEqual({ color: 'rgb(15, 17, 21)', width: '1px' })
       await compareOrRefreshGolden(join(expected, `${locale}-conflict.expected.md`), await errorToast.ariaSnapshot(), mode)
       await page.keyboard.press('i')
       await page.getByRole('alert').filter({ hasText: locale === 'zh-CN'
@@ -153,7 +170,7 @@ describe('web e2e: shortcut reference', () => {
       expect(await row.locator('[class*="rowActions"]').evaluate(element => getComputedStyle(element).opacity)).toBe('0')
       await page.keyboard.press('Shift+Tab')
       expect(await resetAll.evaluate(element => element === document.activeElement)).toBe(true)
-      expect(await resetAll.evaluate(element => getComputedStyle(element).outlineStyle)).not.toBe('none')
+      await expectBrandFocus(resetAll)
       const successToast = page.getByRole('alert').filter({ hasText: locale === 'zh-CN' ? '已修改' : 'Modified' })
       await successToast.waitFor()
       await compareOrRefreshGolden(join(expected, `${locale}-saved.expected.md`), await successToast.ariaSnapshot(), mode)

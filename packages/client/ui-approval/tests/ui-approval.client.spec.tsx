@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 import type { ToolCallId } from '@deepseek-ai/dsh-llm'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
+import type { FactoryComponentPropsOf } from '@deepseek-ai/dsh-client-ui-slots'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mountApprovalPanel, CommandDetail, InputDetail } from './approval-panel-runtime.tsx'
 import { PendingApproval } from '../src/client/contract/slots.ts'
 import { inject } from '../src/client/index.ts'
+import { ApprovalCard } from '../src/client/ApprovalCard.tsx'
 import { apply as nodeApply } from '../src/index.ts'
 
 const id = (value: string): SessionId => value as SessionId
@@ -262,4 +264,32 @@ describe('package entries', () => {
     expect(inject).toEqual(['sessions', 'remote', 'uiSession', 'slots', 'locale', 'uiConversation'])
     expect(() => { nodeApply() }).not.toThrow()
   })
+})
+
+it.each(['allow', 'reject', 'always', 'keyboard'] as const)('settles a fixed application decision through %s without free text', async (choice) => {
+  const onAllow = vi.fn(async () => {}), onReject = vi.fn(async () => {}), onAlways = vi.fn(async () => {})
+  const actions = { allow: onAllow, reject: onReject, always: onAlways }
+  render(<ApprovalCard {...{
+    requestKey: 'app-approval', title: 'Control this app?', description: 'Only for this task.',
+    subject: { name: 'Calculator', ...choice === 'keyboard' ? {} : { icon: 'data:image/png;base64,aWNvbg==' } }, allowLabel: 'Allow for this task',
+    canAnswer: () => true, onAllow, onReject, onAlways, renderSlot: vi.fn(() => null),
+    t: (key: string) => ({ reject: 'Reject', allowAlways: 'Always allow' })[key] ?? key,
+  } as FactoryComponentPropsOf<'conversation.approval.card'>} />)
+  expect(screen.getByText('Calculator')).toBeTruthy()
+  if (choice === 'keyboard') expect(document.querySelector('img')).toBeNull()
+  else expect(document.querySelector('img')?.getAttribute('src')).toBe('data:image/png;base64,aWNvbg==')
+  expect(screen.queryByRole('textbox')).toBeNull()
+  const action = choice === 'keyboard' ? 'allow' : choice
+  if (choice === 'keyboard') {
+    const detail = screen.getByRole('group')
+    detail.focus()
+    fireEvent.keyDown(detail, { key: 'Enter', code: 'Enter' })
+    fireEvent.keyDown(detail, { key: 'Enter', code: 'Enter' })
+  } else {
+    const label = { allow: 'Allow for this task', reject: 'Reject', always: 'Always allow' }[choice]
+    fireEvent.click(screen.getByRole('button', { name: label }))
+    fireEvent.click(screen.getByRole('button', { name: label }))
+  }
+  await waitFor(() => { expect(actions[action]).toHaveBeenCalledOnce() })
+  expect(Object.values(actions).filter(callback => callback.mock.calls.length > 0)).toEqual([actions[action]])
 })

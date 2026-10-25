@@ -52,9 +52,9 @@ type AskUserQuestionIntent = {
   reject: string
   /** Optional persistent grant offered only when the caller supports it. */
   always?: string
-  /** Caller-supplied name and image source for human recognition; neither determines authorization identity. */
+  /** Metadata for human recognition; the caller admits icon sources, which the UI may load as URLs. Never an authorization identity. */
   subject?: { name: string; icon?: string }
-  /** Localized presentation; option labels remain the wire answer values. */
+  /** Localized question and limited-grant label; fixed cards own reject/always wording. Option labels remain answer values. */
   display?: {
     question: { en: string; [locale: string]: string }
     detail?: { en: string; [locale: string]: string }
