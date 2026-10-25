@@ -10849,7 +10849,7 @@
       ],
       "tree": "54508e887e4ebaeeb4786d22a3b570991837e80f",
       "subject": "test(office): scope render checks to the exported image",
-      "review": null
+      "review": "harnessy-office-focused-validation-20261025"
     },
     {
       "sha": "ce7414da1497943bf3bd5d0ded3c64f8af5c61be",
@@ -11925,7 +11925,7 @@
       ],
       "tree": "ef6a6983f6d2e1a8f83cdb077991503ec16bdd1f",
       "subject": "fix(office): stop routine DOCX package validation",
-      "review": null
+      "review": "harnessy-office-focused-validation-20261025"
     },
     {
       "sha": "f34eaf760190dcf052907391d496f69a4cc2979a",
@@ -15316,7 +15316,7 @@
       ],
       "tree": "94ec27b99e6d7b3b078c5b11c595492ff79dddce",
       "subject": "fix(office): keep render replies and PDF checks within available files",
-      "review": null
+      "review": "harnessy-office-focused-validation-20261025"
     },
     {
       "sha": "761d5de69fea2c2c2e3360f2b0b0c8766c545185",
@@ -45992,6 +45992,104 @@
         "The hygiene aggregate passed fifteen of sixteen gates; its only failure was missing/ordered publication patterns, corrected and checked at the owning constraints verifier. The final documentation aggregate passed 42 of 43 gates; translation pairing was corrected at the generated capability diagram and a later narrow badge wording change, with normal staged pairing checks and separate corpus verification. Full source lint found three affected async-call/style issues; those were corrected and scoped lint passed. The Harnessy product guard passed 140 cases. Frozen dependency installation passed without changing existing dependency resolutions.",
         "Persistence generation acknowledges only the new ignorable card-decision event and attribution-only notice source; no writer-version bump or alteration to committed older Session generations. Model-visible notices are logged and acknowledged only after admission. Source tests and browser replay establish behavior; real-API page generation, installed staging-runtime selection and main-app update are not established.",
         "No ancestry/checkpoint merge, master/tag push, release, app update, new checkout/worktree or additional app registration is included. reviewedThrough remains unchanged; the Git behind count therefore remains an ancestry count, separate from the newly accounted review backlog."
+      ]
+    },
+    "harnessy-office-focused-validation-20261025": {
+      "status": "adopted",
+      "summary": "Adapt Office validation and delivery follow-ups: stop routine Word package inspection after requested content checks, avoid links to removed previews, keep PDF export checks within available output, and verify exported files without modifying the source. Preserve Harnessy’s bundled engine and current carrier composition.",
+      "files": [
+        {
+          "path": "apps/desktop-host/src/office.ts",
+          "disposition": "adopted",
+          "reason": "Update the Desktop Office description while retaining Harnessy’s existing composition, isolated payload paths and standalone Node configuration. No environment-based composition replacement is needed for the focused Office operations."
+        },
+        {
+          "path": "packages/preset/agent-preset/skills/cordis-composition-reference/references/packages.md",
+          "disposition": "adopted",
+          "reason": "Regenerate the package-description list from the current manifest so the reference names LibreOffice Kit operations."
+        },
+        {
+          "path": "packages/skill/skill-office/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adapt focused Word validation, temporary-preview delivery and bounded PDF export guidance into the current seven Office workflows and bilingual package documentation. Keep the bundled engine, fail-fast path validation, existing optional structural checker, current version and Harnessy renderer-selection policy."
+        },
+        {
+          "path": "packages/skill/skill-office/README.md",
+          "disposition": "adopted",
+          "reason": "Adapt focused Word validation, temporary-preview delivery and bounded PDF export guidance into the current seven Office workflows and bilingual package documentation. Keep the bundled engine, fail-fast path validation, existing optional structural checker, current version and Harnessy renderer-selection policy."
+        },
+        {
+          "path": "packages/skill/skill-office/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Adapt focused Word validation, temporary-preview delivery and bounded PDF export guidance into the current seven Office workflows and bilingual package documentation. Keep the bundled engine, fail-fast path validation, existing optional structural checker, current version and Harnessy renderer-selection policy."
+        },
+        {
+          "path": "packages/skill/skill-office/assets/office-docx/SKILL.md",
+          "disposition": "adopted",
+          "reason": "Adapt focused Word validation, temporary-preview delivery and bounded PDF export guidance into the current seven Office workflows and bilingual package documentation. Keep the bundled engine, fail-fast path validation, existing optional structural checker, current version and Harnessy renderer-selection policy."
+        },
+        {
+          "path": "packages/skill/skill-office/assets/office-export-pdf/SKILL.md",
+          "disposition": "adopted",
+          "reason": "Adapt focused Word validation, temporary-preview delivery and bounded PDF export guidance into the current seven Office workflows and bilingual package documentation. Keep the bundled engine, fail-fast path validation, existing optional structural checker, current version and Harnessy renderer-selection policy."
+        },
+        {
+          "path": "packages/skill/skill-office/assets/office-render/SKILL.md",
+          "disposition": "adopted",
+          "reason": "Adapt focused Word validation, temporary-preview delivery and bounded PDF export guidance into the current seven Office workflows and bilingual package documentation. Keep the bundled engine, fail-fast path validation, existing optional structural checker, current version and Harnessy renderer-selection policy."
+        },
+        {
+          "path": "packages/skill/skill-office/package.json",
+          "disposition": "adopted",
+          "reason": "Adapt focused Word validation, temporary-preview delivery and bounded PDF export guidance into the current seven Office workflows and bilingual package documentation. Keep the bundled engine, fail-fast path validation, existing optional structural checker, current version and Harnessy renderer-selection policy."
+        },
+        {
+          "path": "packages/skill/skill-office/tests/render-tools.e2e.ts",
+          "disposition": "adopted",
+          "reason": "Adapt exported-output and unchanged-source assertions into the current bundled CLI regression in skill-office.spec.ts. It exports an actual PDF and page-one PNG from a private workspace with an empty PATH, checks file signatures, and verifies the original DOCX bytes. The upstream live-model test and its provider configuration are not copied; live-model command choice and visual appearance remain unverified."
+        },
+        {
+          "path": "snapshots/session/office-authoring-checker/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Keep the current Harnessy recorded-session owners and historical generations instead of importing fixtures tied to upstream retired render tools, sidecar-installation instructions or a different tool executor. The two existing Office cases pass refreshed and unchanged replay; current native/PTC progressive loading, direct operation loading, resume/fork and user invocation have focused behavioral coverage."
+        },
+        {
+          "path": "snapshots/session/office-progressive-native/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Keep the current Harnessy recorded-session owners and historical generations instead of importing fixtures tied to upstream retired render tools, sidecar-installation instructions or a different tool executor. The two existing Office cases pass refreshed and unchanged replay; current native/PTC progressive loading, direct operation loading, resume/fork and user invocation have focused behavioral coverage."
+        },
+        {
+          "path": "snapshots/session/office-progressive-ptc/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Keep the current Harnessy recorded-session owners and historical generations instead of importing fixtures tied to upstream retired render tools, sidecar-installation instructions or a different tool executor. The two existing Office cases pass refreshed and unchanged replay; current native/PTC progressive loading, direct operation loading, resume/fork and user invocation have focused behavioral coverage."
+        },
+        {
+          "path": "snapshots/session/office-render-tools-ptc/writer.expected.jsonl",
+          "disposition": "excluded",
+          "reason": "Keep the current Harnessy recorded-session owners and historical generations instead of importing fixtures tied to upstream retired render tools, sidecar-installation instructions or a different tool executor. The two existing Office cases pass refreshed and unchanged replay; current native/PTC progressive loading, direct operation loading, resume/fork and user invocation have focused behavioral coverage."
+        },
+        {
+          "path": "snapshots/session/office-render-tools/writer.expected.jsonl",
+          "disposition": "excluded",
+          "reason": "Keep the current Harnessy recorded-session owners and historical generations instead of importing fixtures tied to upstream retired render tools, sidecar-installation instructions or a different tool executor. The two existing Office cases pass refreshed and unchanged replay; current native/PTC progressive loading, direct operation loading, resume/fork and user invocation have focused behavioral coverage."
+        },
+        {
+          "path": "snapshots/session/office-sidecar-instructions/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Keep the current Harnessy recorded-session owners and historical generations instead of importing fixtures tied to upstream retired render tools, sidecar-installation instructions or a different tool executor. The two existing Office cases pass refreshed and unchanged replay; current native/PTC progressive loading, direct operation loading, resume/fork and user invocation have focused behavioral coverage."
+        },
+        {
+          "path": "snapshots/session/office-skills-no-renderer/session.v4.jsonl",
+          "disposition": "adopted",
+          "reason": "Refresh the current writer generation through the shipped headless composition to capture the new format instructions and catalog. Preserve the committed V3 generation. This recorded model script verifies replay and instruction output, not autonomous interpretation of the guidance."
+        }
+      ],
+      "evidence": [
+        "Implementation f036fb20f29d8c7c644313cf5cd1aafd755efd0b, verified 2026-10-25 on Windows, Harnessy 0.1.17, Node 24.14.0 and pnpm 11.7.0. This record accounts for exactly three follow-up commits and their complete path union. The mixed foundational progressive-Office commit 379f9cd47b1f7a91a6250253543e1c369079bbd6, other related history and merged ancestors remain pending until their full reviews qualify.",
+        "Owner and carrier tests passed 35 cases in five files, including existing checker tests and seven-skill resource packaging. Final progressive-loading plus welcome-startup run passed eight cases; native and PTC model requests, operation-body isolation, user invocation, seeded resume/fork and absence of duplicate nested skill injection were checked. The final one-case actual CLI regression passed capabilities, DOCX-to-PDF and page-one PNG export through returned absolute Node/CLI paths in a separate Unicode workspace with PATH empty; output signatures and unchanged input bytes were verified. These overlapping runs are not summed.",
+        "Two Office recorded-session cases passed source-profile refresh and unchanged replay. The Windows fixture supplies the known generated-workspace path spellings through the existing cwdAliases input, covering short-name and embedded JSON spellings without weakening the shared normalizer. Disposable file copies avoid requiring file-symlink privileges. Historical V3 files remain unchanged.",
+        "Host build passed. Documentation aggregate passed 40 of 43 checks; stale config/package catalogs and bilingual confirmation were regenerated, then all three owning verifiers passed, including 953 consistent documentation pairs. Scoped lint and normal staged lint/pairing/whitespace hooks passed. Product verification passed 138 of 140 cases; the two welcome tests first hit a cold-import timeout and cascading mock state, then both passed in the final focused run. No production welcome change was made and the initial aggregate is not claimed as clean.",
+        "Only source/build and native CLI output checks are established. No real-model Office task, visual appearance certification, complete Python SDK wheel/installer qualification, installed staging-runtime selection or main-app update was performed. No UI language packs, upstream ancestry, releases or application updates are included; reviewedThrough remains unchanged."
       ]
     }
   }
