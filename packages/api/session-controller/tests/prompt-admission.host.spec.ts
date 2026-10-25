@@ -126,7 +126,7 @@ describe('prompt admission through source Loader composition', () => {
     await expect(fixture.prompt(prompt, checkAdmission)).rejects.toMatchObject({ code: 'gateway/cancelled' })
     await expectNoAdmission(fixture)
     fixture.ctx.fileUploads.retirePrompt(fixture.agent, prompt.requestId)
-    expect(fixture.ctx.fileUploads.resolve(fixture.agent, receipt.receiptId)).toEqual(receipt.file)
+    expect(fixture.ctx.fileUploads.resolve(fixture.agent, receipt.receiptId)).toEqual({ type: 'file', attachment: receipt.file })
   })
 
   it.each(['entry', 'resolve'] as const)('denies a duplicate canceled at %s while retaining the admitted task', async (cancellationPoint) => {

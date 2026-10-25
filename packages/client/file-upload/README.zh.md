@@ -32,6 +32,10 @@ kind: "package-reference"
   name: '@deepseek-ai/dsh-client-file-upload'
 ```
 
+`ctx.fileUpload.uploadImage(sessionId, blob, mediaType, name, signal, onProgress)` 通过同一个经过认证的原始路由暂存提示词图片。Host 只接受部署允许的图片类型，最多读取每张图片与每条消息字节上限中的较小值，再验证并归一化后签发属于该 Session 的凭证。最后一块读取后或存储期间取消都不会签发凭证；已开始存储的对象可能保留在内容寻址存储中。提供方释放会取消图片准入、等待进行中的存储，并阻止迟到凭证。命令凭证解析仅接受文件。
+
+普通 Session 的 composer 会在添加图片时开始传输，即使选中的 Host 位于远程也是如此。存储完成后移除草稿不会删除持久对象。凭证只保存在内存中，页面重新加载后不会恢复草稿；Host 重启后，需要重新添加图片以获得新凭证。
+
 本包没有 Cordis 配置字段。`Blob` 在专用 Worker 内通过 XMLHttpRequest 发送，因此服务可以报告浏览器上传进度，并在浏览器提供总量时一并报告。`ReadableStream` 会转移给该 Worker，再增量传入 Fetch；进度只报告已消费字节，不包含总量。`AbortSignal` 会终止专用 Worker，或传递给页面自己提供的载体。精确字节使用生成的 Remote。
 
 -----

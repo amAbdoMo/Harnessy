@@ -4,7 +4,6 @@ import type { LexicalEditor } from 'lexical'
 import { $getRoot } from 'lexical'
 import { isMobileDevice } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ComposerKeyboard } from '../../contract/draft-editor.ts'
-import type { ComposerBarProps } from '../../contract/slots.ts'
 import type { BusyEnterBehavior } from '../../contract/composer-submission.ts'
 import { resolveSubmitMode } from '../submission-policy.ts'
 import { registerComposerKeymap } from './keymap.ts'
@@ -32,7 +31,7 @@ interface DraftViewGate {
   intakeFiles: (files: readonly File[], directories?: ReadonlySet<File>) => void
   uploadsPending: boolean
   showToast: (text: string) => void
-  t: ComposerBarProps['t']
+  uploadsHeldText: string
   canAcceptDrop: boolean
 }
 
@@ -141,7 +140,7 @@ export function installDraftKeymap(
         return
       }
       if (g.uploadsPending) {
-        g.showToast(g.t('file.stillUploading'))
+        g.showToast(g.uploadsHeldText)
         return
       }
       keyboard.submit(resolveSubmitMode(

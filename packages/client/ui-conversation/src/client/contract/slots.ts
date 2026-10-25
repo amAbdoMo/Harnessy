@@ -26,7 +26,7 @@ import type { ViewTab } from './views.ts'
 /** Browser-owned draft attachment that has not crossed the durable Host boundary. */
 export type ComposerAttachment = ComposerImageAttachment | ComposerFileAttachment
 
-/** Browser-owned image, base64-encoded into the prompt at send time. */
+/** Browser-owned image with a local preview; ordinary Sessions stage it when added. */
 export interface ComposerImageAttachment {
   kind: 'image'
   id: DraftAttachmentId
@@ -45,11 +45,12 @@ export interface ComposerFileAttachment {
   file: File
 }
 
-/** Upload lifecycle of one picked file draft (files upload on pick, not on send). */
+/** Upload state for picked files and staged images; Host refusals retain their reason. */
 export type DraftFileUpload =
   | { readonly status: 'uploading'; readonly loaded: number; readonly total?: number }
   | { readonly status: 'ready'; readonly receiptId: FileUploadReceiptId; readonly file: FileAttachmentRef }
-  | { readonly status: 'error'; readonly message: string }
+  | { readonly status: 'ready'; readonly receiptId: FileUploadReceiptId }
+  | { readonly status: 'error'; readonly message: string; readonly reason?: string }
 
 /** Per-draft upload states keyed by draft attachment id. */
 export type DraftFileUploads = Readonly<Record<string, DraftFileUpload>>
@@ -68,10 +69,12 @@ export interface ComposerAttachmentsOwnerProps {
   onAddFiles: (files: readonly File[], directories?: ReadonlySet<File>) => void
   /** Remove one draft attachment through the Conversation service. */
   onRemoveAttachment: (id: DraftAttachmentId) => void
-  /** Current per-draft upload states for file-kind attachments. */
+  /** Current upload states for picked files and staged image drafts. */
   uploads: DraftFileUploads
   /** Restart one failed file upload. */
   onRetryFile: (id: DraftAttachmentId) => void
+  /** @param reason - Host attachment refusal. @returns localized recovery text. */
+  uploadFailureText: (reason: string) => string
   /** Display-ready limits for the drop invitation. */
   dropLimits?: { readonly count: number; readonly size: string } | undefined
 }
@@ -403,7 +406,7 @@ export interface ComposerBarInjected {
      * and the primary Send button use while the addressed agent is busy.
      */
     busyEnter: ObservableSnapshot<BusyEnterBehavior>
-    /** Live per-draft upload states for file-kind drafts. */
+    /** Live upload states for picked files and staged images. */
     fileUploads: ObservableSnapshot<DraftFileUploads>
     notices: ObservableSnapshot<InputNotice | null>
     lexicon: ObservableSnapshot<ReadonlyMap<'/' | '@', readonly string[]>>

@@ -460,9 +460,6 @@
   "packages/client/ui-attachment/tests/attachment-rail.client.spec.tsx": {
     "b42ab24a43e0f7542bf1deb8f7ac3a76698d29e098f8dc575af6c08774987c32": 1
   },
-  "packages/client/ui-attachment/tests/composer-attachments.client.spec.tsx": {
-    "ab22ebe23f59b5aa76d42502a0421f3953d1d170e8a4f900a0c442daf6f1397d": 1
-  },
   "packages/client/ui-chat/src/client/chat/ChatView.tsx": {
     "50ce0a6085bdfd7032e5a391ed34cd078768ad8f46cc885eb54571cf8edd4bee": 1
   },

@@ -447,6 +447,8 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   PromptFileBinding: 'attachment.md',
   FileUploadReceiptId: 'attachment.md',
   FileUploadValue: 'attachment.md',
+  ImageUploadValue: 'attachment.md',
+  StagedAttachment: 'attachment.md',
   SessionStartSource: 'core.md',
   ToolCallId: 'core.md',
   SessionLogSnapshot: 'session-query.md',

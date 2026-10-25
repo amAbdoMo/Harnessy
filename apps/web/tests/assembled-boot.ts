@@ -200,6 +200,7 @@ interface FixtureWindow extends Window {
   __DSH_BOOT__?: WebBootGraph
   __ModuleLoader__?: ClientModuleLoaderTarget
   __DSH_TRANSPORT__?: { readonly rpc: RemoteMock['rpc'] }
+  __DSH_FILE_UPLOAD__?: { readonly fetch: AssembledRemote['fileUpload'] }
 }
 
 class ResizeObserverStub {
@@ -274,6 +275,7 @@ export function installAssembledBootEnv(): void {
     delete win.__DSH_BOOT__
     delete win.__ModuleLoader__
     delete win.__DSH_TRANSPORT__
+    delete win.__DSH_FILE_UPLOAD__
     document.body.innerHTML = ''
     document.head.querySelectorAll('style[data-plugin]').forEach((style) => { style.remove() })
     document.title = ''
@@ -303,6 +305,7 @@ export function mountAssembledApp(options: AssembledBootOptions = {}): Assembled
   const remote = createAssembledRemote(options.remote)
   mountedRemote = remote.mock
   win.__DSH_TRANSPORT__ = { rpc: remote.mock.rpc }
+  win.__DSH_FILE_UPLOAD__ = { fetch: remote.fileUpload }
   history.replaceState(null, '', '/')
   const root = document.createElement('div')
   root.id = 'root'

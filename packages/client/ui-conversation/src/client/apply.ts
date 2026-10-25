@@ -338,7 +338,8 @@ export function apply(ctx: Context, config: Config = Config({})): void {
             if (sessions.binding(nextId) === undefined) {
               throw new Error(`ui-conversation: session "${nextId}" resolved no binding`)
             }
-            concreteConversation(ctx).rebindDraftFiles(nextId, attachmentIds)
+            const ordinary = sessions.binding(nextId)?.session.getSnapshot().subagent === null
+            concreteConversation(ctx).rebindDraftFiles(nextId, attachmentIds, ordinary)
             if (draft.text !== '') {
               next.setDraft(draft)
               from.setDraft('')
@@ -490,7 +491,8 @@ export function apply(ctx: Context, config: Config = Config({})): void {
             })
           }
           try {
-            const drafts = conversation.createDrafts(sessionId, uploads)
+            const ordinary = sessions.binding(sessionId)?.session.getSnapshot().subagent === null
+            const drafts = conversation.createDrafts(sessionId, uploads, ordinary)
             if (!shell.addFiles(references, drafts.map(draft => draft.id))) {
               conversation.releaseDraftAttachments(drafts)
               return t('attachment.dropBlocked')

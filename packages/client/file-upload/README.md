@@ -32,6 +32,10 @@ Mount the package before a consumer that injects `fileUpload`, then call `ctx.fi
   name: '@deepseek-ai/dsh-client-file-upload'
 ```
 
+`ctx.fileUpload.uploadImage(sessionId, blob, mediaType, name, signal, onProgress)` stages a prompt image through the same authenticated raw route. The Host accepts deployment-approved image types, reads at most the smaller per-image and per-message byte limit, then validates and normalizes before issuing a Session-owned receipt. Cancellation after the last chunk or during storage issues no receipt; an object whose storage has begun may remain in the content-addressed store. Provider disposal cancels image admission, waits for active storage, and prevents late receipts. Command receipt resolution accepts files only.
+
+The ordinary-Session composer starts image transfer when the image is added, including when the selected Host is remote. Removing a draft after storage does not delete its durable object. Receipts are in-memory and drafts are not restored after a page reload; after a Host restart, add the image again to obtain a new receipt.
+
 The package has no Cordis configuration fields. A `Blob` uses XMLHttpRequest inside a dedicated Worker so the service can report browser upload progress, including the total when the browser provides it. A `ReadableStream` transfers to that Worker and feeds Fetch incrementally; progress reports consumed bytes without a total. An `AbortSignal` terminates the dedicated Worker or reaches a page-owned carrier. Exact bytes use the generated Remote.
 
 -----

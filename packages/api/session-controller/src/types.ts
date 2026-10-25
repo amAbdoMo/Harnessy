@@ -84,7 +84,7 @@ export type SessionProjectionValues = Partial<SessionProjectionViewValues>
 /**
  * Browser-submitted prompt content; the Host promotes image bytes to durable
  * references. File parts carry the opaque receipt returned by a preceding
- * `uploadFile` call on the same Session.
+ * upload on the same Session; an image upload receipt enters the message as that image.
  */
 export type PromptContentPart =
   | { readonly type: 'text'; readonly text: string }

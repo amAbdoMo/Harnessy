@@ -8,9 +8,9 @@ import { brandString } from '@deepseek-ai/dsh-brand'
 import type { Agent, ModelSelection as AgentModelSelection } from '@deepseek-ai/dsh-agent'
 import { AttachmentError } from '@deepseek-ai/dsh-attachment'
 import type {
-  AttachmentAdmissionPart, FileAttachmentRef, ImageAttachmentRef,
+  AttachmentAdmissionPart, ImageAttachmentRef,
 } from '@deepseek-ai/dsh-attachment'
-import type { FileUploadReceiptId } from '@deepseek-ai/dsh-client-file-upload/types'
+import type { FileUploadReceiptId, StagedAttachment } from '@deepseek-ai/dsh-client-file-upload/types'
 import type {} from '@deepseek-ai/dsh-client-file-upload'
 import {
   ReasoningEffortId, assistantStreamChunks, createUserMessage, freezeMessage,
@@ -420,7 +420,11 @@ export class SessionCommandController {
       rpcId: request.requestId,
       ...(clientTimeZone === undefined ? {} : { clientTimeZone }),
     }
-    const hasImage = request.content.some(part => part.type === 'image')
+    const admission = resolvePromptFileReceipts(
+      request.content,
+      receiptId => this.ctx.fileUploads.resolve(agent, receiptId),
+    )
+    const hasImage = admission.content.some(part => part.type === 'image')
     const admit = async (): Promise<SessionPromptValue> => {
       try {
         checkAdmission()
@@ -436,10 +440,6 @@ export class SessionCommandController {
             )
           }
         }
-        const admission = resolvePromptFileReceipts(
-          request.content,
-          receiptId => this.ctx.fileUploads.resolve(agent, receiptId),
-        )
         const content = await this.ctx.attachments.admitPromptContent(admission.content)
         checkAdmission()
         const message: UserMessage = createUserMessage({ content, source })
@@ -705,7 +705,7 @@ export class SessionCommandController {
 
 function resolvePromptFileReceipts(
   content: SessionPromptRequest['content'],
-  stagedFile: (receiptId: FileUploadReceiptId) => FileAttachmentRef | undefined,
+  stagedFile: (receiptId: FileUploadReceiptId) => StagedAttachment | undefined,
 ): { readonly content: AttachmentAdmissionPart[]; readonly receiptIds: readonly FileUploadReceiptId[] } {
   const receiptIds = new Set<FileUploadReceiptId>()
   const resolved = content.map((part): AttachmentAdmissionPart => {
@@ -719,7 +719,7 @@ function resolvePromptFileReceipts(
       )
     }
     receiptIds.add(part.receiptId)
-    return { type: 'file', attachment }
+    return attachment
   })
   return { content: resolved, receiptIds: [...receiptIds] }
 }

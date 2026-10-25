@@ -124,6 +124,8 @@ export interface FeatureHandle {
 export interface TestFileUpload {
   /** Test-supplied upload behavior; the default rejects every call. */
   upload: (sessionId: SessionId, ...args: unknown[]) => Promise<unknown>
+  /** Test-supplied image upload behavior; the default rejects every call. */
+  uploadImage: (sessionId: SessionId, ...args: unknown[]) => Promise<unknown>
 }
 
 /**
@@ -256,6 +258,7 @@ export class SlotTestRuntime {
     this.workspaces = new TestWorkspaces(this.stabilizer)
     this.fileUpload = {
       upload: () => Promise.reject(new Error('client test runtime: file upload is not stubbed')),
+      uploadImage: () => Promise.reject(new Error('client test runtime: image upload is not stubbed')),
     }
     ctx.provide('sessions', this.sessions)
     ctx.provide('workspaces', this.workspaces)

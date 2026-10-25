@@ -5,7 +5,7 @@ import { FileUploadRuntime } from './runtime.ts'
 import type { FileUploadService } from './contract.ts'
 
 export type { FileUploadProgress, FileUploadService } from './contract.ts'
-export type { FileUploadReceiptId, FileUploadValue } from '../types.ts'
+export type { FileUploadReceiptId, FileUploadValue, ImageUploadValue } from '../types.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {

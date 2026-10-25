@@ -3,6 +3,7 @@
 // TestSessions mints tagged scopes through the production createScope, so the
 // service's scopeOf/binding path runs against production resolution (no local
 // tag probe).
+import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment/types'
 import type { UserMessage } from '@deepseek-ai/dsh-llm/types'
 import type { MessageId } from '@deepseek-ai/dsh-llm/brand'
 import { Context } from '@deepseek-ai/cordis'
@@ -17,6 +18,73 @@ import { InputHub } from '../src/client/input/hub.ts'
 import { ConversationController } from '../src/client/service.ts'
 import { zh } from '../src/client/locales.ts'
 
+const INLINE_IMAGES = false
+const UPLOAD_IMAGES = true
+const IMAGE_REF: ImageAttachmentRef = {
+  attachmentId: 'image-1' as ImageAttachmentRef['attachmentId'],
+  mediaType: 'image/png', bytes: 1, width: 1, height: 1,
+}
+
+it('keeps a refused image out of the retry queue', async () => {
+  const b = await bench()
+  const created = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:refused')
+  try {
+    const session = b.runtime.sessions.binding('s1')!.session
+    const uploadImage = vi.fn(() => Promise.resolve({
+      ok: false, error: new RemoteError('session/attachment-invalid', 'too wide', { reason: 'IMAGE_DIMENSION_TOO_LARGE' }),
+    }))
+    Object.assign(session, { uploadImage })
+    const [draft] = b.root.createDrafts(session.sessionId, [new File(['x'], 'wide.png', { type: 'image/png' })], true)
+    await vi.waitFor(() => {
+      expect(b.root.fileUploads.getSnapshot()[draft!.id]).toMatchObject({ status: 'error', reason: 'IMAGE_DIMENSION_TOO_LARGE' })
+    })
+    b.root.retryFileUpload(session.sessionId, draft!.id)
+    expect(uploadImage).toHaveBeenCalledOnce()
+  } finally {
+    created.mockRestore()
+    await b.runtime.dispose()
+  }
+})
+
+it('waits for an image carrier during disposal and ignores its late progress and receipt', async () => {
+  const b = await bench()
+  const created = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:shutdown')
+  const uploaded = Promise.withResolvers<unknown>()
+  let disposal: Promise<void> | undefined
+  let signal: AbortSignal | undefined
+  let progress: ((value: { loaded: number; total?: number }) => void) | undefined
+  const observed: string[] = []
+  const unsubscribe = b.root.fileUploads.subscribe(() => {
+    observed.push(...Object.values(b.root.fileUploads.getSnapshot()).map(upload => `${upload.status}:${upload.status === 'uploading' ? upload.loaded : ''}`))
+  })
+  try {
+    const session = b.runtime.sessions.binding('s1')!.session
+    Object.assign(session, { uploadImage: (_file: Blob, _type: string, _name: string | undefined,
+      cancellation: AbortSignal, onProgress: typeof progress) => {
+      signal = cancellation
+      progress = onProgress
+      return uploaded.promise
+    } })
+    b.root.createDrafts(session.sessionId, [new File(['x'], 'shutdown.png', { type: 'image/png' })], true)
+    await vi.waitFor(() => { expect(signal).toBeDefined() })
+    let disposed = false
+    disposal = b.fiber.dispose().then(() => { disposed = true })
+    await vi.waitFor(() => { expect(signal?.aborted).toBe(true) })
+    expect(disposed).toBe(false)
+    progress?.({ loaded: 1, total: 1 })
+    uploaded.resolve({ ok: true, value: { receiptId: 'late-image', image: IMAGE_REF } })
+    await disposal
+    expect(observed).not.toContain('uploading:1')
+    expect(observed).not.toContain('ready:')
+  } finally {
+    uploaded.resolve({ ok: true, value: { receiptId: 'late-image', image: IMAGE_REF } })
+    await disposal
+    unsubscribe()
+    created.mockRestore()
+    await b.runtime.dispose()
+  }
+})
+
 async function bench(maxConcurrentFileUploads = 2) {
   const runtime = await SlotTestRuntime.create()
   runtime.fileUpload.upload = (sessionId: SessionId, ...args: unknown[]) => {
@@ -25,6 +93,11 @@ async function bench(maxConcurrentFileUploads = 2) {
     }
     if (session.uploadFile === undefined) throw new Error('test file upload has no Session override')
     return session.uploadFile(...args)
+  }
+  runtime.fileUpload.uploadImage = (sessionId: SessionId, ...args: unknown[]) => {
+    const session = runtime.sessions.behavior(sessionId) as { uploadImage?: (...input: unknown[]) => Promise<unknown> }
+    if (session.uploadImage === undefined) throw new Error('test image upload has no Session override')
+    return session.uploadImage(...args)
   }
   const prompt = vi.fn((
     _content?: unknown, _mode?: unknown, _signal?: AbortSignal, _rpcId?: string,
@@ -124,7 +197,7 @@ describe('ConversationController', () => {
     try {
       const [attachment] = b.root.createDrafts(b.runtime.sessions.binding('s1')!.session.sessionId, [
         new File([new Uint8Array(4)], 'a.png', { type: 'image/png' }),
-      ])
+      ], INLINE_IMAGES)
       if (attachment === undefined) throw new Error('draft attachment missing')
       b.root.input.for(b.runtime.sessions.scope('s1')!).addAttachments([attachment.id])
       b.reference.release()
@@ -145,7 +218,7 @@ describe('ConversationController', () => {
     try {
       const [attachment] = b.root.createDrafts(b.runtime.sessions.binding('s1')!.session.sessionId, [
         new File([Uint8Array.of(1)], 'detached.png', { type: 'image/png' }),
-      ])
+      ], INLINE_IMAGES)
       if (attachment === undefined) throw new Error('draft attachment missing')
       b.shell.addAttachments([attachment.id])
       b.shell.submit()
@@ -175,7 +248,7 @@ describe('ConversationController', () => {
     const drafts = b.root.createDrafts(session.sessionId, [
       new File([Uint8Array.of(1)], 'valid.png', { type: 'image/png' }),
       new File([Uint8Array.of(2)], 'notes.pdf', { type: 'application/pdf' }),
-    ])
+    ], INLINE_IMAGES)
     expect(drafts.map(draft => draft.kind)).toEqual(['image', 'file'])
     expect(created).toHaveBeenCalledTimes(1)
     const fileDraft = drafts[1]!
@@ -203,7 +276,7 @@ describe('ConversationController', () => {
     const drafts = b.root.createDrafts(session.sessionId, [
       new File([Uint8Array.of(1)], 'one.txt', { type: 'text/plain' }),
       new File([Uint8Array.of(2)], 'two.txt', { type: 'text/plain' }),
-    ])
+    ], INLINE_IMAGES)
     await vi.waitFor(() => {
       expect(drafts.every(draft => b.root.fileUploads.getSnapshot()[draft.id]?.status === 'ready')).toBe(true)
     })
@@ -244,7 +317,7 @@ describe('ConversationController', () => {
     })
     ;(session as { uploadFile?: unknown }).uploadFile = uploadFile
     const drafts = b.root.createDrafts(session.sessionId, ['one', 'two', 'three', 'four', 'removed'].map(name =>
-      new File([Uint8Array.of(1)], `${name}.txt`, { type: 'text/plain' })))
+      new File([Uint8Array.of(1)], `${name}.txt`, { type: 'text/plain' })), INLINE_IMAGES)
 
     await vi.waitFor(() => { expect(uploadFile.mock.calls.map(call => call[1])).toEqual(['one.txt', 'two.txt']) })
     await expect(b.root.serializeDraftAttachments([drafts[2]!.id]))
@@ -294,7 +367,7 @@ describe('ConversationController', () => {
     ;(session as { uploadFile?: unknown }).uploadFile = uploadFile
     const [attachment] = b.root.createDrafts(session.sessionId, [
       new File([new Uint8Array(8)], 'background.bin', { type: 'application/octet-stream' }),
-    ])
+    ], INLINE_IMAGES)
     if (attachment === undefined) throw new Error('file draft missing')
     b.shell.addAttachments([attachment.id])
     await vi.waitFor(() => { expect(uploadFile).toHaveBeenCalledOnce() })
@@ -342,7 +415,7 @@ describe('ConversationController', () => {
     ;(source as { uploadFile?: unknown }).uploadFile = sourceUpload
     const [attachment] = b.root.createDrafts(source.sessionId, [
       new File([Uint8Array.of(4)], 'carry.pdf', { type: 'application/pdf' }),
-    ])
+    ], INLINE_IMAGES)
     if (attachment === undefined) throw new Error('file draft missing')
     await vi.waitFor(() => { expect(sourceUpload).toHaveBeenCalledOnce() })
 
@@ -358,7 +431,7 @@ describe('ConversationController', () => {
     await b.runtime.sessions.add({ id: 's2', session: target })
     using _target = b.runtime.sessions.retain('s2' as SessionId)
     await _target.ready
-    b.root.rebindDraftFiles(b.runtime.sessions.binding('s2')!.session.sessionId, [attachment.id])
+    b.root.rebindDraftFiles(b.runtime.sessions.binding('s2')!.session.sessionId, [attachment.id], INLINE_IMAGES)
 
     expect(sourceSignal?.aborted).toBe(true)
     await vi.waitFor(() => {
@@ -385,7 +458,7 @@ describe('ConversationController', () => {
     ;(session as { uploadFile?: unknown }).uploadFile = uploadFile
     const [attachment] = b.root.createDrafts(session.sessionId, [
       new File([Uint8Array.of(5)], 'removed.pdf', { type: 'application/pdf' }),
-    ])
+    ], INLINE_IMAGES)
     if (attachment === undefined) throw new Error('file draft missing')
     await vi.waitFor(() => { expect(uploadFile).toHaveBeenCalledOnce() })
 
@@ -414,7 +487,7 @@ describe('ConversationController', () => {
     }))
     const [attachment] = b.root.createDrafts(session.sessionId, [
       new File([Uint8Array.of(6)], 'sent.pdf', { type: 'application/pdf' }),
-    ])
+    ], INLINE_IMAGES)
     if (attachment === undefined) throw new Error('file draft missing')
     await vi.waitFor(() => {
       expect(b.root.fileUploads.getSnapshot()[attachment.id]?.status).toBe('ready')
@@ -453,7 +526,7 @@ describe('ConversationController', () => {
     )
     b.root.createDrafts(session.sessionId, [
       new File([Uint8Array.of(7)], 'dispose.pdf', { type: 'application/pdf' }),
-    ])
+    ], INLINE_IMAGES)
     await vi.waitFor(() => { expect(uploadSignal).toBeDefined() })
 
     let disposed = false
@@ -515,7 +588,7 @@ describe('sendSession submission echo', () => {
     try {
       const [attachment] = b.root.createDrafts(b.runtime.sessions.binding('s1')!.session.sessionId, [
         new File([Uint8Array.of(1, 2, 3)], 'a.png', { type: 'image/png' }),
-      ])
+      ], INLINE_IMAGES)
       const session = b.runtime.sessions.binding('s1')!.session
       const sending = b.root.sendSession(session, '带图', [attachment!.id], 'queue')
       const echo = await b.begun
@@ -562,7 +635,7 @@ describe('sendSession submission echo', () => {
         new File([Uint8Array.of(1)], 'first.png', { type: 'image/png' }),
         new File([Uint8Array.of(2)], 'notes.txt', { type: 'text/plain' }),
         new File([Uint8Array.of(3)], 'last.png', { type: 'image/png' }),
-      ])
+      ], INLINE_IMAGES)
       await vi.waitFor(() => {
         expect(b.root.fileUploads.getSnapshot()[drafts[1]!.id]?.status).toBe('ready')
       })
@@ -642,7 +715,7 @@ describe('sendSession submission echo', () => {
       b.runtime.ctx.set('uiConversation', { seedImageUrl })
       const [attachment] = b.root.createDrafts(b.runtime.sessions.binding('s1')!.session.sessionId, [
         new File([Uint8Array.of(9)], 'seeded.png', { type: 'image/png' }),
-      ])
+      ], INLINE_IMAGES)
       const session = b.runtime.sessions.binding('s1')!.session
       const sending = b.root.sendSession(session, '', [attachment!.id], 'queue')
       await vi.waitFor(() => { expect(b.prompt).toHaveBeenCalledOnce() })
@@ -683,7 +756,7 @@ describe('sendSession submission echo', () => {
       const attachments = b.root.createDrafts(session.sessionId, [
         new File([Uint8Array.of(7)], 'kept.png', { type: 'image/png' }),
         new File([Uint8Array.of(8)], 'kept.txt', { type: 'text/plain' }),
-      ])
+      ], INLINE_IMAGES)
       await vi.waitFor(() => {
         expect(b.root.fileUploads.getSnapshot()[attachments[1]!.id]?.status).toBe('ready')
       })
@@ -712,7 +785,7 @@ describe('sendSession submission echo', () => {
     try {
       const [attachment] = b.root.createDrafts(b.runtime.sessions.binding('s1')!.session.sessionId, [
         new File([Uint8Array.of(1)], 'broken.png', { type: 'image/png' }),
-      ])
+      ], INLINE_IMAGES)
       const session = b.runtime.sessions.binding('s1')!.session
       await expect(b.root.sendSession(session, 'x', [attachment!.id], 'queue'))
         .rejects.toThrow('read failed')
@@ -772,6 +845,40 @@ describe('sendSession submission echo', () => {
     expect(prompt).toHaveBeenCalledWith([{ type: 'text', text: '继续' }], 'queue', undefined)
     await b.runtime.dispose()
   })
+
+  it('sends an uploaded image draft by its receipt and holds a send while it uploads', async () => {
+    const b = await echoBench()
+    const readAsDataURL = vi.spyOn(FileReader.prototype, 'readAsDataURL')
+    try {
+      const session = b.runtime.sessions.binding('s1')!.session
+      const uploaded = Promise.withResolvers<unknown>()
+      ;(session as { uploadImage?: unknown }).uploadImage = vi.fn(() => uploaded.promise)
+      const [draft] = b.root.createDrafts(session.sessionId, [
+        new File([Uint8Array.of(1)], 'shot.png', { type: 'image/png' }),
+      ], UPLOAD_IMAGES)
+      await expect(b.root.sendSession(session, 'look', [draft!.id], 'queue'))
+        .rejects.toThrow('one or more files have not finished uploading')
+      expect(b.beginSubmission).not.toHaveBeenCalled()
+      uploaded.resolve({ ok: true, value: { receiptId: 'image-receipt-1', image: IMAGE_REF } })
+      await vi.waitFor(() => { expect(b.root.fileUploads.getSnapshot()[draft!.id]?.status).toBe('ready') })
+      const sending = b.root.sendSession(session, 'look', [draft!.id], 'queue')
+      const echo = await b.begun
+      expect(echo.attachments[0]).toMatchObject({ type: 'image', value: { previewUrl: 'blob:echo-1', name: 'shot.png' } })
+      await vi.waitFor(() => { expect(b.prompt).toHaveBeenCalledOnce() })
+      expect(b.prompt.mock.calls[0]?.[0]).toEqual([
+        { type: 'file', receiptId: 'image-receipt-1' },
+        { type: 'text', text: 'look' },
+      ])
+      expect(readAsDataURL).not.toHaveBeenCalled()
+      b.retire.onRetire?.({ reason: 'observed', attachments: [IMAGE_REF] })
+      await expect(sending).resolves.toEqual({ kind: 'success' })
+      expect(b.root.fileUploads.getSnapshot()[draft!.id]).toBeUndefined()
+    } finally {
+      readAsDataURL.mockRestore()
+      b.restore()
+    }
+    await b.runtime.dispose()
+  })
 })
 
 describe('draft image dimension probe', () => {
@@ -792,12 +899,12 @@ describe('draft image dimension probe', () => {
     try {
       const [probed] = b.root.createDrafts(b.runtime.sessions.binding('s1')!.session.sessionId, [
         new File([Uint8Array.of(1)], 'probed.png', { type: 'image/png' }),
-      ])
+      ], INLINE_IMAGES)
       expect(probed).toMatchObject({ width: 640, height: 480 })
       vi.stubGlobal('Image', undefined)
       const [unprobed] = b.root.createDrafts(b.runtime.sessions.binding('s1')!.session.sessionId, [
         new File([Uint8Array.of(2)], 'unprobed.png', { type: 'image/png' }),
-      ])
+      ], INLINE_IMAGES)
       expect(unprobed?.kind).toBe('image')
       if (unprobed?.kind !== 'image') throw new Error('image draft missing')
       expect(unprobed.width).toBeUndefined()
@@ -911,4 +1018,135 @@ it.each([
     b.shell.submit(mode, 'enter')
     expect(track).toHaveBeenCalledExactlyOnceWith('send_button_click', { run_mode: 'default', msg_type: expected }, expect.any(Number))
   } finally { await b.runtime.dispose() }
+})
+
+it('classifies image MIME drafts as images and other files as file drafts, uploading images only where accepted', async () => {
+  const b = await bench()
+  const created = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:preview')
+  const session = b.runtime.sessions.binding('s1')!.session
+  const uploadFile = vi.fn((_data: Blob | Uint8Array) => Promise.resolve({
+    ok: true as const,
+    value: {
+      receiptId: 'receipt-1' as never,
+      file: { attachmentId: 'sha256:1' as never, name: 'notes.pdf', bytes: 2 },
+    },
+  }))
+  const uploadImage = vi.fn((_data: Blob, _mediaType: string, _name?: string) => Promise.resolve({
+    ok: true as const,
+    value: { receiptId: 'image-receipt-1' as never, image: IMAGE_REF },
+  }))
+  Object.assign(session, { uploadFile, uploadImage })
+  const drafts = b.root.createDrafts(session.sessionId, [
+    new File([Uint8Array.of(1)], 'valid.png', { type: 'image/png' }),
+    new File([Uint8Array.of(2)], 'notes.pdf', { type: 'application/pdf' }),
+  ], UPLOAD_IMAGES)
+  expect(drafts.map(draft => draft.kind)).toEqual(['image', 'file'])
+  expect(created).toHaveBeenCalledTimes(1)
+  const [imageDraft, fileDraft] = [drafts[0]!, drafts[1]!]
+  expect(b.root.fileUploads.getSnapshot()[fileDraft.id]?.status).toBe('uploading')
+  expect(b.root.fileUploads.getSnapshot()[imageDraft.id]?.status).toBe('uploading')
+  await vi.waitFor(() => {
+    expect(b.root.fileUploads.getSnapshot()[fileDraft.id]?.status).toBe('ready')
+    expect(b.root.fileUploads.getSnapshot()[imageDraft.id])
+      .toEqual({ status: 'ready', receiptId: 'image-receipt-1' })
+  })
+  expect(uploadFile).toHaveBeenCalledOnce()
+  expect(uploadFile.mock.calls[0]?.[0]).toBe(fileDraft.file)
+  expect(uploadImage.mock.calls[0]?.slice(0, 3)).toEqual([imageDraft.file, 'image/png', 'valid.png'])
+  const [inline] = b.root.createDrafts(session.sessionId, [
+    new File([Uint8Array.of(3)], 'child.png', { type: 'image/png' }),
+  ], INLINE_IMAGES)
+  expect(b.root.fileUploads.getSnapshot()[inline!.id]).toBeUndefined()
+  expect(uploadImage).toHaveBeenCalledOnce()
+  created.mockRestore()
+  await b.runtime.dispose()
+})
+
+it('retries a failed image upload and aborts it with its draft', async () => {
+  const b = await bench()
+  const created = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:retry')
+  const revoked = vi.spyOn(URL, 'revokeObjectURL').mockReturnValue(undefined)
+  try {
+    const session = b.runtime.sessions.binding('s1')!.session
+    const signals: AbortSignal[] = []
+    const uploadImage = vi.fn((_data: Blob, _mediaType: string, _name: string | undefined, signal: AbortSignal) => {
+      signals.push(signal)
+      return signals.length === 1
+        ? Promise.resolve({ ok: false, error: new RemoteError('gateway/internal', 'connection reset', {}) })
+        : new Promise<never>((_resolve, reject) => {
+          signal.addEventListener('abort', () => { reject(new Error('aborted')) }, { once: true })
+        })
+    })
+      ;(session as { uploadImage?: unknown }).uploadImage = uploadImage
+    const [draft] = b.root.createDrafts(session.sessionId, [
+      new File([Uint8Array.of(1)], 'big.png', { type: 'image/png' }),
+    ], UPLOAD_IMAGES)
+    await vi.waitFor(() => {
+      expect(b.root.fileUploads.getSnapshot()[draft!.id])
+        .toEqual({ status: 'error', message: 'connection reset' })
+    })
+    b.root.retryFileUpload(session.sessionId, draft!.id)
+    await vi.waitFor(() => { expect(uploadImage).toHaveBeenCalledTimes(2) })
+    expect(b.root.fileUploads.getSnapshot()[draft!.id]?.status).toBe('uploading')
+    b.root.releaseDraftAttachment(draft!.id)
+    expect(signals[1]?.aborted).toBe(true)
+    expect(b.root.fileUploads.getSnapshot()[draft!.id]).toBeUndefined()
+    expect(revoked).toHaveBeenCalledWith('blob:retry')
+  } finally {
+    created.mockRestore()
+    revoked.mockRestore()
+  }
+  await b.runtime.dispose()
+})
+
+it('keeps no refusal reason when an image upload fails in transport', async () => {
+  const b = await bench()
+  const created = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:flaky')
+  try {
+    const session = b.runtime.sessions.binding('s1')!.session
+      ;(session as { uploadImage?: unknown }).uploadImage = vi.fn(() => Promise.resolve({
+      ok: false, error: new RemoteError('gateway/internal', 'connection reset', {}),
+    }))
+    const [draft] = b.root.createDrafts(session.sessionId, [
+      new File([Uint8Array.of(1)], 'flaky.png', { type: 'image/png' }),
+    ], UPLOAD_IMAGES)
+    await vi.waitFor(() => {
+      expect(b.root.fileUploads.getSnapshot()[draft!.id]).toEqual({ status: 'error', message: 'connection reset' })
+    })
+  } finally {
+    created.mockRestore()
+  }
+  await b.runtime.dispose()
+})
+
+it('drops a carried image upload when the target Session sends images inline', async () => {
+  const b = await bench()
+  const created = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:carry')
+  try {
+    const source = b.runtime.sessions.binding('s1')!.session
+    let sourceSignal: AbortSignal | undefined
+      ;(source as { uploadImage?: unknown }).uploadImage = vi.fn(
+      (_data: Blob, _mediaType: string, _name: string | undefined, signal: AbortSignal) => {
+        sourceSignal = signal
+        return new Promise<never>((_resolve, reject) => {
+          signal.addEventListener('abort', () => { reject(new Error('aborted')) }, { once: true })
+        })
+      },
+    )
+    const [image] = b.root.createDrafts(source.sessionId, [
+      new File([Uint8Array.of(5)], 'carry.png', { type: 'image/png' }),
+    ], UPLOAD_IMAGES)
+    await vi.waitFor(() => { expect(sourceSignal).toBeDefined() })
+    const targetUpload = vi.fn()
+    await b.runtime.sessions.add({ id: 's2', session: { uploadImage: targetUpload } })
+    using _target = b.runtime.sessions.retain('s2' as SessionId)
+    await _target.ready
+    b.root.rebindDraftFiles(b.runtime.sessions.binding('s2')!.session.sessionId, [image!.id], INLINE_IMAGES)
+    expect(sourceSignal?.aborted).toBe(true)
+    expect(b.root.fileUploads.getSnapshot()[image!.id]).toBeUndefined()
+    expect(targetUpload).not.toHaveBeenCalled()
+  } finally {
+    created.mockRestore()
+  }
+  await b.runtime.dispose()
 })

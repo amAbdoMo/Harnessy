@@ -26,6 +26,8 @@ const PNG = fileURLToPath(new URL('../../../snapshots/session/read-image/workspa
 const QUEUED_EXPECTED = join(SNAPSHOT_DIR, 'queued.expected.md')
 const DELIVERED_EXPECTED = join(SNAPSHOT_DIR, 'delivered.expected.md')
 const MODE = webSnapshotMode()
+const CUSTOM_OVERLAY = fileURLToPath(new URL('../../../packages/bundle/custom-harness/cordis.patch.yml', import.meta.url))
+const CUSTOM_MANIFEST = fileURLToPath(new URL('../../../packages/bundle/custom-harness/package.json', import.meta.url))
 
 const ACTIVE_PROMPT = 'Reply with a one-sentence description of event sourcing, then stop.'
 const QUEUED_TEXT = 'Compare with this screenshot'
@@ -80,7 +82,11 @@ describe('web e2e: queued image submission', () => {
     await writeFile(overridePath, JSON.stringify(replay))
 
     const sessionEvents: SessionEvent[] = []
-    scaffold = await launchWebScaffold({ replayFixture: FIXTURE, replayOverride: overridePath, compareReplaySession: false })
+    scaffold = await launchWebScaffold({
+      replayFixture: FIXTURE, replayOverride: overridePath, compareReplaySession: false,
+      extraOverlayPath: [CUSTOM_OVERLAY, fileURLToPath(new URL('./pin-browse-picker.overlay.yml', import.meta.url))],
+      extraInstallAnchors: [CUSTOM_MANIFEST],
+    })
     scaffold.ctx.on('session/event', (_session, event: SessionEvent) => { sessionEvents.push(event) })
     browser = await chromium.launch()
     page = await newEnglishPage(browser)
@@ -88,6 +94,7 @@ describe('web e2e: queued image submission', () => {
     await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
     await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
     await connectFreshWorkspace(page, scaffold.workspaceCwd)
+    await expect.poll(() => page.title()).toBe('Harnessy')
     onTestFailed(() => saveFailureShot(page, 'web-e2e-queued-image'))
 
     const input = page.locator('[data-composer-input]').first()
@@ -98,19 +105,46 @@ describe('web e2e: queued image submission', () => {
 
     // A just-submitted composer is read-only for the prompt round-trip.
     await page.locator('[data-composer-input][contenteditable="true"]').first().waitFor({ timeout: 10_000 })
-    await pasteImage(page, await readFile(PNG))
+    const pngBytes = await readFile(PNG)
+    const releaseUpload = Promise.withResolvers<undefined>()
+    let uploadStarted = false
+    let uploadBytes: number | undefined
+    let uploadMediaType: string | null = null
+    cleanupRoutes = async () => {
+      releaseUpload.resolve(undefined)
+      await page.unrouteAll({ behavior: 'wait' })
+    }
+    await page.route('**/api/session/uploadFileBinary*', async (route) => {
+      uploadStarted = true
+      uploadBytes = route.request().postDataBuffer()?.byteLength
+      uploadMediaType = new URL(route.request().url()).searchParams.get('mediaType')
+      await releaseUpload.promise
+      await route.continue()
+    })
+    await pasteImage(page, pngBytes)
     await page.getByRole('img', { name: 'queued.png' }).waitFor({ timeout: 10_000 })
+    await expect.poll(() => uploadStarted).toBe(true)
+    const sendImage = page.getByRole('button', { name: /^(Send message|Queue message|Steer message)$/ })
+    expect(await sendImage.isDisabled()).toBe(true)
+    expect(await page.getByRole('img', { name: 'queued.png' }).locator('..').getAttribute('aria-busy')).toBe('true')
+    releaseUpload.resolve(undefined)
+    await expect.poll(() => sendImage.isDisabled()).toBe(false)
+    expect(uploadBytes).toBe(pngBytes.byteLength)
+    expect(uploadMediaType).toBe('image/png')
     const releasePrompt = Promise.withResolvers<undefined>()
     const releaseImage = Promise.withResolvers<undefined>()
     let cleanupPromise: Promise<void> | undefined
     const cleanup = (): Promise<void> => cleanupPromise ??= (async () => {
       releasePrompt.resolve(undefined)
       releaseImage.resolve(undefined)
+      releaseUpload.resolve(undefined)
       await page.unrouteAll({ behavior: 'wait' })
     })()
     cleanupRoutes = cleanup
     let imageRequested = false
+    let queuedRequest: unknown
     await page.route('**/api/session/prompt', async (route) => {
+      queuedRequest = route.request().postDataJSON()
       await releasePrompt.promise
       await route.continue()
     })
@@ -128,6 +162,11 @@ describe('web e2e: queued image submission', () => {
       expect(await page.locator('[data-queue-dock] [data-submission-echo]').count()).toBe(1)
       releasePrompt.resolve(undefined)
       await expect.poll(() => imageRequested, { timeout: 15_000 }).toBe(true)
+      expect(queuedRequest).toMatchObject({
+        payload: { args: { request: { content: [
+          { type: 'file', receiptId: expect.any(String) as string }, { type: 'text', text: QUEUED_TEXT },
+        ] } } },
+      })
       await page.getByText(QUEUED_TEXT, { exact: true }).waitFor()
       await page.getByRole('button', { name: 'Remove queued message', disabled: false }).waitFor({ timeout: 15_000 })
       expect(await page.locator('[data-queue-dock] [data-submission-echo]').count()).toBe(0)
@@ -195,4 +234,54 @@ describe('web e2e: queued image submission', () => {
     expect(tripwire.pageErrors).toEqual([])
     expect(tripwire.warnings).toEqual([])
   }, 120_000)
+
+  it('explains a Host-refused image before Send and keeps removal available', async () => {
+    scaffold = await launchWebScaffold({
+      extraOverlayPath: [CUSTOM_OVERLAY, fileURLToPath(new URL('./pin-browse-picker.overlay.yml', import.meta.url))],
+      extraInstallAnchors: [CUSTOM_MANIFEST],
+    })
+    const messages: SessionEvent[] = []
+    scaffold.ctx.on('session/event', (_session, event) => { if (event.type === 'user/message') messages.push(event) })
+    browser = await chromium.launch()
+    page = await newEnglishPage(browser)
+    onTestFailed(() => saveFailureShot(page, 'web-e2e-image-upload-refusal'))
+    const tripwire = watchConsole(page)
+    await page.goto(scaffold.authenticatedUrl)
+    await connectFreshWorkspace(page, scaffold.workspaceCwd)
+    await expect.poll(() => page.title()).toBe('Harnessy')
+    await pasteImage(page, Uint8Array.of(0, 1, 2))
+    const message = 'Only PNG, JPG, WebP, and GIF images are supported'
+    const refusal = page.getByRole('button', { name: message, exact: true })
+    await refusal.waitFor()
+    expect(await page.getByRole('button', { name: /^Retry upload/ }).count()).toBe(0)
+    for (const scheme of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme: scheme })
+      await refusal.click()
+      await page.mouse.move(0, 0)
+      const tooltip = page.getByRole('tooltip', { name: message, exact: true })
+      await tooltip.waitFor()
+      await expect.poll(() => tooltip.evaluate(node => getComputedStyle(node).opacity)).toBe('1')
+      const bounds = await tooltip.boundingBox()
+      const viewport = page.viewportSize()
+      expect(bounds).not.toBeNull()
+      expect(viewport).not.toBeNull()
+      expect(bounds!.x).toBeGreaterThanOrEqual(0)
+      expect(bounds!.y).toBeGreaterThanOrEqual(0)
+      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport!.width)
+      expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(viewport!.height)
+      await page.screenshot({ path: `.artifacts/image-upload-refusal-${scheme}.png` })
+      await page.keyboard.press('Escape')
+      await tooltip.waitFor({ state: 'hidden' })
+    }
+    await page.keyboard.press('Tab')
+    await page.keyboard.press('Shift+Tab')
+    await expect.poll(() => refusal.evaluate(node => document.activeElement === node)).toBe(true)
+    await page.getByRole('tooltip', { name: message, exact: true }).waitFor()
+    await page.keyboard.press('Escape')
+    await page.getByRole('button', { name: 'Remove image queued.png', exact: true }).click()
+    await refusal.waitFor({ state: 'hidden' })
+    expect(messages).toEqual([])
+    expect(tripwire.pageErrors).toEqual([])
+    expect(tripwire.warnings).toEqual([])
+  })
 })

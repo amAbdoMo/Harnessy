@@ -81,9 +81,9 @@ export const InputBar = memo(function InputBar({
   const uploads = useFileUploads(snapshot => snapshot)
   // Send waits for every picked file: uploading and failed drafts both hold
   // the gate (a failed upload is retried or removed, never silently dropped).
-  const uploadsPending = attachments.some(
-    attachment => attachment.kind === 'file' && uploads[attachment.id]?.status !== 'ready',
-  )
+  const uploadsPending = attachments.some(attachment => attachment.kind === 'file'
+    ? uploads[attachment.id]?.status !== 'ready'
+    : uploads[attachment.id] !== undefined && uploads[attachment.id]?.status !== 'ready')
   // Transient error banner (machine notices, image-intake rejections, and
   // prompt failures): the seq keys the Toast so an identical repeated message
   // restarts the hold-then-fade cycle instead of reusing the faded one.
@@ -97,6 +97,10 @@ export const InputBar = memo(function InputBar({
   // The deployment's image-intake limits (absent while no attachment service
   // is composed — the pre-check below then defers entirely to the host).
   const imageLimits = useProjection('imageLimits')
+  const failedUpload = attachments.map(attachment => uploads[attachment.id]).find(upload => upload?.status === 'error')
+  const uploadsHeldText = failedUpload?.status !== 'error'
+    ? t('file.stillUploading')
+    : failedUpload.reason === undefined ? t('file.uploadFailed') : attachmentErrorText(t, failedUpload.reason, imageLimits)
   // Prompt failures are ordinary failures (no create/attach transaction exists
   // anymore): the toast announces promptError, the draft stays in the machine,
   // and the user resubmits. A remount over a session whose machine still holds
@@ -246,11 +250,11 @@ export const InputBar = memo(function InputBar({
   // registration survives re-renders without re-arming per keystroke.
   const gate = useRef({
     locked, machineBusy, canSteerQueue, running, steeringAvailable, busyEnter,
-    intakeFiles, uploadsPending, showToast, t, canAcceptDrop,
+    intakeFiles, uploadsPending, uploadsHeldText, showToast, canAcceptDrop,
   })
   gate.current = {
     locked, machineBusy, canSteerQueue, running, steeringAvailable, busyEnter,
-    intakeFiles, uploadsPending, showToast, t, canAcceptDrop,
+    intakeFiles, uploadsPending, uploadsHeldText, showToast, canAcceptDrop,
   }
 
   useEffect(() => {
@@ -395,6 +399,7 @@ export const InputBar = memo(function InputBar({
           onRemoveAttachment: (id) => { removeAttachment?.(id) },
           uploads,
           onRetryFile: (id) => { retryFileUpload?.(id) },
+          uploadFailureText: reason => attachmentErrorText(t, reason, imageLimits),
           dropLimits: imageLimits === undefined ? undefined : {
             count: imageLimits.maxImagesPerMessage,
             size: imageSizeText(imageLimits.maxImageBytes),
