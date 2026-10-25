@@ -24969,7 +24969,8 @@
       ],
       "tree": "9b75f30d9bc8bdbef2efdd824c099850995bbcdf",
       "subject": "Merge pull request #5625 from deepseek-harness/worktree/native-handler-fixture-01a0f9ff",
-      "review": null
+      "review": "harnessy-native-handler-atomic-marker-20261025",
+      "mergeEvidence": "Inspected both parents and the complete first-parent diff. git merge-tree --write-tree reproduces the committed tree 9b75f30d9bc8bdbef2efdd824c099850995bbcdf exactly, and --remerge-diff is empty. The merge introduces only the reviewed native handler marker fix on top of the existing qualified 0f51ba07379d5ee4118a4bfadc09215a8893c826 checkpoint. Older changes inherited from that parent remain covered by its existing review; there are no additional conflict-resolution edits."
     },
     {
       "sha": "8c6d23c1283bb117b4dc25679e73b66334f31450",
@@ -25347,7 +25348,7 @@
       ],
       "tree": "55350d234c75c9acc1dc5fa2cc8e40975fabcca0",
       "subject": "test(native-command): publish Windows handler marker atomically",
-      "review": null
+      "review": "harnessy-native-handler-atomic-marker-20261025"
     },
     {
       "sha": "b85d98fb0f52cb129c2b357ac15ad3e0673ffaac",
@@ -48332,6 +48333,24 @@
         "The custom Harnessy build passed, recording 383 client artifacts and 11 public values. All nine distinct selected real-browser cases have passing evidence: five approval cases in the first run (two generic fallbacks, optional non-native CUA with all three pointer choices plus limited-scope Enter, and two recorded command-rejection paths); four shortcut cases passed after adapting stock focus-style assumptions to Harnessy’s existing brand-border rule and selecting the seeded Session by its stable row id. These cover both localized references and Windows/simulated-Mac defaults. Only the three intended reference-label rows changed in the goldens. No native computer operation was performed.",
         "All 22 quick documentation checks and all 43 full doc-sync checks passed, including verbatim types, catalogs, persistence history and bilingual pairing. Scoped production/test lints and the Harnessy identity/composition/state guard passed. Normal delivery hooks validate repository Host/Client types. The existing Android edits belong to another chat and are excluded from this delivery.",
         "This review does not qualify Swift compilation, macOS permissions, input, capture, native packaging, an installed staging window, a main-app update, release publication or any upstream ancestry checkpoint. Those remain separate from source checks and staging source publication."
+      ]
+    },
+    "harnessy-native-handler-atomic-marker-20261025": {
+      "status": "adopted",
+      "summary": "Reuse the upstream Windows association fixture fix unchanged: publish the completed two-line handler marker with File.Move after closing its temporary file. Review its clean upstream merge separately from whether the checkpoint has been integrated into Harnessy ancestry.",
+      "files": [
+        {
+          "path": "packages/util/native-command/tests/file-applications-windows.spec.ts",
+          "disposition": "adopted",
+          "reason": "Apply the exact five-line upstream change. The private helper writes path and process id into opened.pending, closes it, then moves it to opened.txt, so the polling reader cannot accept an incomplete marker. Keep the existing unique extension/executable, signal ownership, registry removal, process-exit wait and temporary-root cleanup. Production native commands and Harnessy UI remain unchanged."
+        }
+      ],
+      "evidence": [
+        "Source implementation 0df984352ca5423e5d94a455c8aa03ceac35811c, verified 2026-10-25 on Windows with Harnessy 0.1.17, Node 24.14.0 and pnpm 11.7.0. Covers exact commit dd123a6a68a017bd2203cdb1b28e3e5b7b07fb2e and merge ef9944a01fba77c6a2ee3eecad46325b984611c2; their complete first-parent changed-path union is the single recorded fixture file.",
+        "The actual Windows Shell association/invocation test passed once with the repository CI lane budget DSH_COVERAGE_TEST_TIMEOUT_MS=90000. Two independent Vitest processes then ran that same case simultaneously and both passed with their own private paths, executable names and registry associations. This is three executions of one case, not three distinct tests; concurrent evidence checks isolation and does not claim a deterministic reproduction of the partial-file race.",
+        "The first invocation used the local default 5000 ms budget and timed out in the invoke-handler phase. CI already grants 90000 ms through vitest.config.ts/coverageTestTimeoutOptions; that declared budget also covers teardown. Neither the fixture source timeout nor polling/retry behavior was changed to obtain a pass.",
+        "The upstream merge is clean: reconstructed tree 9b75f30d9bc8bdbef2efdd824c099850995bbcdf equals its recorded tree, and the remerge diff is empty. The prior checkpoint already accounts for the inherited side-branch ancestors. Normal pre-commit staged lint and whitespace checks passed on the exact imported test change.",
+        "This record qualifies review and test-source adoption only. reviewedThrough is unchanged until an approved checkpoint merge is performed on a clean staging checkout and passes the repository product/ancestry checks. The other chat’s unfinished Android changes are untouched. No Desktop/browser build, app update, release or native Mac verification was performed."
       ]
     }
   }
