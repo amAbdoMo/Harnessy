@@ -4382,7 +4382,7 @@
       ],
       "tree": "620cf3d5717ea5fe78d9dae06e12f861677a79ca",
       "subject": "fix(web): show image upload failures in a tooltip",
-      "review": null
+      "review": "harnessy-image-upload-on-add-20261025"
     },
     {
       "sha": "e4e1411a5cb77fcb59838ab94f7b01de6dfd5388",
@@ -4510,7 +4510,7 @@
       ],
       "tree": "192eff948b158610c2e1295763e3edd28d6c76fb",
       "subject": "fix(web): explain refused image uploads and tighten image staging",
-      "review": null
+      "review": "harnessy-image-upload-on-add-20261025"
     },
     {
       "sha": "291dd1f448e94cf7b39d92ea28c5f6d3eff66dff",
@@ -4941,7 +4941,7 @@
       ],
       "tree": "d9a7ddb6c9c9c4412d6f31f50e92faaffb207796",
       "subject": "fix(web): bound image receipts by the message limits and cancellation",
-      "review": null
+      "review": "harnessy-image-upload-on-add-20261025"
     },
     {
       "sha": "3d00d6faadbeb8d0f69cc1078391ca65ef4d83c9",
@@ -5348,7 +5348,7 @@
       ],
       "tree": "1caeba291d1b73e6309b570da07a0c69d8c43b02",
       "subject": "feat(web): upload composer images when they are added",
-      "review": null
+      "review": "harnessy-image-upload-on-add-20261025"
     },
     {
       "sha": "93b5d592299f49929a927489130367b95f97bdf7",
@@ -41320,6 +41320,346 @@
         "Full repository lint passed using lint:contracts-ready after the verified Host build. All 43 doc-sync gates passed. All sixteen hygiene leaves have passing evidence: the aggregate passed fifteen but the vendor-rescope scanner initially enumerated a moved path still present in the unstaged Git index; after staging the exact moves, the unchanged rescope-vendor:check passed. The initial hygiene aggregate is not claimed as clean.",
         "The first full build exposed the new Host-booting browser test being included in the Client program. Registering that test in tsconfig.host.json and excluding it from apps/web/tsconfig.json corrected ownership; the full rebuild passed and no adjacent source emissions recurred. Sixty-three exact untracked compiler outputs from the failed Client compile were removed after checking tracked TypeScript siblings and map source identities; unrelated Android work and tracked sources were preserved.",
         "No checkpoint, upstream ancestry merge, installed staging runtime rebuild/update, release, main-app update verification, new application copy or foreign Android changes are included."
+      ]
+    },
+    "harnessy-image-upload-on-add-20261025": {
+      "status": "adopted",
+      "summary": "Upload ordinary-Session composer images on add and send completed receipts, with bounded normalized storage, combined message budgets, cancellation-safe staging and progress/refusal controls adapted into Harnessy.",
+      "files": [
+        {
+          "path": ".agents/notes/implemented/feature/2026-08-26-generic-file-upload.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Keep the existing generic-upload decision and update its bilingual factual realization and sidecar: ordinary-Session images join the same FIFO queue, stored references pass admission without re-storage, and Send waits for both kinds. Preserve its generic-file storage, command receipt, isolation and subagent refusal rationale. Do not add the link to the omitted upstream note or replace current Harnessy restrictions; current package references document image-on-add behavior."
+        },
+        {
+          "path": ".agents/notes/implemented/feature/2026-08-26-generic-file-upload.md",
+          "disposition": "adopted",
+          "reason": "Keep the existing generic-upload decision and update its bilingual factual realization and sidecar: ordinary-Session images join the same FIFO queue, stored references pass admission without re-storage, and Send waits for both kinds. Preserve its generic-file storage, command receipt, isolation and subagent refusal rationale. Do not add the link to the omitted upstream note or replace current Harnessy restrictions; current package references document image-on-add behavior."
+        },
+        {
+          "path": ".agents/notes/implemented/feature/2026-08-26-generic-file-upload.zh.md",
+          "disposition": "adopted",
+          "reason": "Keep the existing generic-upload decision and update its bilingual factual realization and sidecar: ordinary-Session images join the same FIFO queue, stored references pass admission without re-storage, and Send waits for both kinds. Preserve its generic-file storage, command receipt, isolation and subagent refusal rationale. Do not add the link to the omitted upstream note or replace current Harnessy restrictions; current package references document image-on-add behavior."
+        },
+        {
+          "path": ".agents/notes/implemented/feature/2026-10-21-composer-image-upload-on-add.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Do not import the upstream decision note and sidecar: its continuable-subagent image intake conflicts with Harnessy attachment intake restrictions. The adopted ordinary-Session behavior, limits, cancellation, commands and staging lifetime are documented in current bilingual package owners and this exact review; no duplicate or falsely implemented rationale is introduced."
+        },
+        {
+          "path": ".agents/notes/implemented/feature/2026-10-21-composer-image-upload-on-add.md",
+          "disposition": "excluded",
+          "reason": "Do not import the upstream decision note and sidecar: its continuable-subagent image intake conflicts with Harnessy attachment intake restrictions. The adopted ordinary-Session behavior, limits, cancellation, commands and staging lifetime are documented in current bilingual package owners and this exact review; no duplicate or falsely implemented rationale is introduced."
+        },
+        {
+          "path": ".agents/notes/implemented/feature/2026-10-21-composer-image-upload-on-add.zh.md",
+          "disposition": "excluded",
+          "reason": "Do not import the upstream decision note and sidecar: its continuable-subagent image intake conflicts with Harnessy attachment intake restrictions. The adopted ordinary-Session behavior, limits, cancellation, commands and staging lifetime are documented in current bilingual package owners and this exact review; no duplicate or falsely implemented rationale is introduced."
+        },
+        {
+          "path": "apps/web/tests/assembled-boot.ts",
+          "disposition": "adopted",
+          "reason": "Apply the image upload carrier and receipt resolution hunks to the existing assembled fixture. Preserve other Harnessy routes and fixture ownership; the assembled Remote owner passes."
+        },
+        {
+          "path": "apps/web/tests/assembled-remote.ts",
+          "disposition": "adopted",
+          "reason": "Apply the image upload carrier and receipt resolution hunks to the existing assembled fixture. Preserve other Harnessy routes and fixture ownership; the assembled Remote owner passes."
+        },
+        {
+          "path": "apps/web/tests/queue-image.e2e.ts",
+          "disposition": "adopted",
+          "reason": "Extend the existing real HTTP/replayed Session scenario to hold the image transfer before Send and require a receipt-only prompt. Qualify through explicit Harnessy overlay/install anchor and the in-page browse picker, preserving optimistic thumbnail handoff, parked queue and durable image delivery. Add no-model-call refusal, pinned tooltip, keyboard/removal and light/dark checks; refresh only the two UI goldens for existing custom controls and compare them unchanged in replay."
+        },
+        {
+          "path": "docs/event-producer-consumer.md",
+          "disposition": "retained-newer",
+          "reason": "Retain the locally generated event/persistence artifacts: upstream changes here are source-location metadata from its different controller layout, not a new persisted field or event. The current persistence generator produces no tracked change, and the persistence verifier reports no declared persistence changes. Do not overwrite released Session generations or import upstream line numbers."
+        },
+        {
+          "path": "docs/event-producer-consumer.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Retain the locally generated event/persistence artifacts: upstream changes here are source-location metadata from its different controller layout, not a new persisted field or event. The current persistence generator produces no tracked change, and the persistence verifier reports no declared persistence changes. Do not overwrite released Session generations or import upstream line numbers."
+        },
+        {
+          "path": "docs/persistence-catalog.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Retain the locally generated event/persistence artifacts: upstream changes here are source-location metadata from its different controller layout, not a new persisted field or event. The current persistence generator produces no tracked change, and the persistence verifier reports no declared persistence changes. Do not overwrite released Session generations or import upstream line numbers."
+        },
+        {
+          "path": "docs/persistence-catalog.md",
+          "disposition": "retained-newer",
+          "reason": "Retain the locally generated event/persistence artifacts: upstream changes here are source-location metadata from its different controller layout, not a new persisted field or event. The current persistence generator produces no tracked change, and the persistence verifier reports no declared persistence changes. Do not overwrite released Session generations or import upstream line numbers."
+        },
+        {
+          "path": "docs/persistence-catalog.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Retain the locally generated event/persistence artifacts: upstream changes here are source-location metadata from its different controller layout, not a new persisted field or event. The current persistence generator produces no tracked change, and the persistence verifier reports no declared persistence changes. Do not overwrite released Session generations or import upstream line numbers."
+        },
+        {
+          "path": "docs/persistence-schema.json",
+          "disposition": "retained-newer",
+          "reason": "Retain the locally generated event/persistence artifacts: upstream changes here are source-location metadata from its different controller layout, not a new persisted field or event. The current persistence generator produces no tracked change, and the persistence verifier reports no declared persistence changes. Do not overwrite released Session generations or import upstream line numbers."
+        },
+        {
+          "path": "docs/subsystems/attachment.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update the existing English/Chinese owner and sidecar with stored-image receipt admission, original-byte aggregate budgets, ordinary-Session FIFO upload/progress/refusal behavior and command inline-image handling. Preserve custom navigation and the all-subagent attachment-intake restriction. Regenerate API excerpts from the adapted source rather than copying upstream signatures."
+        },
+        {
+          "path": "docs/subsystems/attachment.md",
+          "disposition": "adopted",
+          "reason": "Update the existing English/Chinese owner and sidecar with stored-image receipt admission, original-byte aggregate budgets, ordinary-Session FIFO upload/progress/refusal behavior and command inline-image handling. Preserve custom navigation and the all-subagent attachment-intake restriction. Regenerate API excerpts from the adapted source rather than copying upstream signatures."
+        },
+        {
+          "path": "docs/subsystems/attachment.zh.md",
+          "disposition": "adopted",
+          "reason": "Update the existing English/Chinese owner and sidecar with stored-image receipt admission, original-byte aggregate budgets, ordinary-Session FIFO upload/progress/refusal behavior and command inline-image handling. Preserve custom navigation and the all-subagent attachment-intake restriction. Regenerate API excerpts from the adapted source rather than copying upstream signatures."
+        },
+        {
+          "path": "packages/api/session-controller/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update the existing English/Chinese owner and sidecar with stored-image receipt admission, original-byte aggregate budgets, ordinary-Session FIFO upload/progress/refusal behavior and command inline-image handling. Preserve custom navigation and the all-subagent attachment-intake restriction. Regenerate API excerpts from the adapted source rather than copying upstream signatures."
+        },
+        {
+          "path": "packages/api/session-controller/README.md",
+          "disposition": "adopted",
+          "reason": "Update the existing English/Chinese owner and sidecar with stored-image receipt admission, original-byte aggregate budgets, ordinary-Session FIFO upload/progress/refusal behavior and command inline-image handling. Preserve custom navigation and the all-subagent attachment-intake restriction. Regenerate API excerpts from the adapted source rather than copying upstream signatures."
+        },
+        {
+          "path": "packages/api/session-controller/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Update the existing English/Chinese owner and sidecar with stored-image receipt admission, original-byte aggregate budgets, ordinary-Session FIFO upload/progress/refusal behavior and command inline-image handling. Preserve custom navigation and the all-subagent attachment-intake restriction. Regenerate API excerpts from the adapted source rather than copying upstream signatures."
+        },
+        {
+          "path": "packages/api/session-controller/src/commands.ts",
+          "disposition": "adopted",
+          "reason": "Resolve Session-scoped receipts before modality detection so stored images receive model image-input checks and serialized image admission. Keep the existing request union, model-availability policy, auth/writer/deadline checks, bind/rollback, frozen Session data and ordinary/subagent guards. Update the receipt JSDoc without importing the upstream Agent-model API."
+        },
+        {
+          "path": "packages/api/session-controller/src/types.ts",
+          "disposition": "adopted",
+          "reason": "Resolve Session-scoped receipts before modality detection so stored images receive model image-input checks and serialized image admission. Keep the existing request union, model-availability policy, auth/writer/deadline checks, bind/rollback, frozen Session data and ordinary/subagent guards. Update the receipt JSDoc without importing the upstream Agent-model API."
+        },
+        {
+          "path": "packages/api/session-controller/tests/commands-upload-file.host.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt regression cases to current typed fixtures and Harnessy policies: normalized receipt staging, image/model admission, mixed aggregate limits, cancellation, Session isolation/disposal, commands refusing image receipts, client queue/retry/removal/rebind, receipt-only Send, reason-aware Enter and shared tooltip behavior. Keep old owner regressions and update tagged file assertions; do not import tests requiring upstream subagent image intake or its different Agent-model API."
+        },
+        {
+          "path": "packages/attachment/attachment/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update the existing English/Chinese owner and sidecar with stored-image receipt admission, original-byte aggregate budgets, ordinary-Session FIFO upload/progress/refusal behavior and command inline-image handling. Preserve custom navigation and the all-subagent attachment-intake restriction. Regenerate API excerpts from the adapted source rather than copying upstream signatures."
+        },
+        {
+          "path": "packages/attachment/attachment/README.md",
+          "disposition": "adopted",
+          "reason": "Update the existing English/Chinese owner and sidecar with stored-image receipt admission, original-byte aggregate budgets, ordinary-Session FIFO upload/progress/refusal behavior and command inline-image handling. Preserve custom navigation and the all-subagent attachment-intake restriction. Regenerate API excerpts from the adapted source rather than copying upstream signatures."
+        },
+        {
+          "path": "packages/attachment/attachment/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Update the existing English/Chinese owner and sidecar with stored-image receipt admission, original-byte aggregate budgets, ordinary-Session FIFO upload/progress/refusal behavior and command inline-image handling. Preserve custom navigation and the all-subagent attachment-intake restriction. Regenerate API excerpts from the adapted source rather than copying upstream signatures."
+        },
+        {
+          "path": "packages/attachment/attachment/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Accept a Host-only stored-image admission variant, preserve image ordering and skip re-storage. Count encoded and stored images together before writes, using original upload bytes rather than normalized size for both per-message limits. Keep the existing encoded validation and durable format."
+        },
+        {
+          "path": "packages/attachment/attachment/src/types.ts",
+          "disposition": "adopted",
+          "reason": "Accept a Host-only stored-image admission variant, preserve image ordering and skip re-storage. Count encoded and stored images together before writes, using original upload bytes rather than normalized size for both per-message limits. Keep the existing encoded validation and durable format."
+        },
+        {
+          "path": "packages/attachment/attachment/tests/admission.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt regression cases to current typed fixtures and Harnessy policies: normalized receipt staging, image/model admission, mixed aggregate limits, cancellation, Session isolation/disposal, commands refusing image receipts, client queue/retry/removal/rebind, receipt-only Send, reason-aware Enter and shared tooltip behavior. Keep old owner regressions and update tagged file assertions; do not import tests requiring upstream subagent image intake or its different Agent-model API."
+        },
+        {
+          "path": "packages/client/file-upload/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update the existing English/Chinese owner and sidecar with stored-image receipt admission, original-byte aggregate budgets, ordinary-Session FIFO upload/progress/refusal behavior and command inline-image handling. Preserve custom navigation and the all-subagent attachment-intake restriction. Regenerate API excerpts from the adapted source rather than copying upstream signatures."
+        },
+        {
+          "path": "packages/client/file-upload/README.md",
+          "disposition": "adopted",
+          "reason": "Update the existing English/Chinese owner and sidecar with stored-image receipt admission, original-byte aggregate budgets, ordinary-Session FIFO upload/progress/refusal behavior and command inline-image handling. Preserve custom navigation and the all-subagent attachment-intake restriction. Regenerate API excerpts from the adapted source rather than copying upstream signatures."
+        },
+        {
+          "path": "packages/client/file-upload/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Update the existing English/Chinese owner and sidecar with stored-image receipt admission, original-byte aggregate budgets, ordinary-Session FIFO upload/progress/refusal behavior and command inline-image handling. Preserve custom navigation and the all-subagent attachment-intake restriction. Regenerate API excerpts from the adapted source rather than copying upstream signatures."
+        },
+        {
+          "path": "packages/client/file-upload/src/client/contract.ts",
+          "disposition": "adopted",
+          "reason": "Expose Blob image upload on the existing Worker/page fetch transport; parse tagged file/image success values and retain business refusal details. Share raw-post handling without changing the generic exact-byte Remote fallback or reading image bytes into the prompt. Export the image receipt type through the established entry point."
+        },
+        {
+          "path": "packages/client/file-upload/src/client/runtime.ts",
+          "disposition": "adopted",
+          "reason": "Expose Blob image upload on the existing Worker/page fetch transport; parse tagged file/image success values and retain business refusal details. Share raw-post handling without changing the generic exact-byte Remote fallback or reading image bytes into the prompt. Export the image receipt type through the established entry point."
+        },
+        {
+          "path": "packages/client/file-upload/src/http-route.ts",
+          "disposition": "adopted",
+          "reason": "Route an explicit mediaType query to image normalization through the existing authenticated raw-byte carrier, keeping ordinary uploads, cancellation, response envelopes and content-type checks."
+        },
+        {
+          "path": "packages/client/file-upload/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Stage normalized images under the exact Session receipt table; bound reads by the smaller deployment byte limit, check cancellation after the final chunk/storage and before minting a receipt, and reject subagents. Commands resolve file receipts only. Preserve resolver identity in a plain holder across Cordis service proxies. Capture dependencies before asynchronous storage, reject late staging on disposal and await active storage; a regression exposed the disposed-service read and verifies the repair."
+        },
+        {
+          "path": "packages/client/file-upload/src/types.ts",
+          "disposition": "adopted",
+          "reason": "Add typed image receipt and discriminated staged attachment values, retaining raw encoded-byte length for aggregate admission. Preserve existing generic-file return values and receipt branding."
+        },
+        {
+          "path": "packages/client/file-upload/tests/file-upload-http.host.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt regression cases to current typed fixtures and Harnessy policies: normalized receipt staging, image/model admission, mixed aggregate limits, cancellation, Session isolation/disposal, commands refusing image receipts, client queue/retry/removal/rebind, receipt-only Send, reason-aware Enter and shared tooltip behavior. Keep old owner regressions and update tagged file assertions; do not import tests requiring upstream subagent image intake or its different Agent-model API."
+        },
+        {
+          "path": "packages/client/file-upload/tests/file-upload.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt regression cases to current typed fixtures and Harnessy policies: normalized receipt staging, image/model admission, mixed aggregate limits, cancellation, Session isolation/disposal, commands refusing image receipts, client queue/retry/removal/rebind, receipt-only Send, reason-aware Enter and shared tooltip behavior. Keep old owner regressions and update tagged file assertions; do not import tests requiring upstream subagent image intake or its different Agent-model API."
+        },
+        {
+          "path": "packages/client/ui-attachment/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update the existing English/Chinese owner and sidecar with stored-image receipt admission, original-byte aggregate budgets, ordinary-Session FIFO upload/progress/refusal behavior and command inline-image handling. Preserve custom navigation and the all-subagent attachment-intake restriction. Regenerate API excerpts from the adapted source rather than copying upstream signatures."
+        },
+        {
+          "path": "packages/client/ui-attachment/README.md",
+          "disposition": "adopted",
+          "reason": "Update the existing English/Chinese owner and sidecar with stored-image receipt admission, original-byte aggregate budgets, ordinary-Session FIFO upload/progress/refusal behavior and command inline-image handling. Preserve custom navigation and the all-subagent attachment-intake restriction. Regenerate API excerpts from the adapted source rather than copying upstream signatures."
+        },
+        {
+          "path": "packages/client/ui-attachment/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Update the existing English/Chinese owner and sidecar with stored-image receipt admission, original-byte aggregate budgets, ordinary-Session FIFO upload/progress/refusal behavior and command inline-image handling. Preserve custom navigation and the all-subagent attachment-intake restriction. Regenerate API excerpts from the adapted source rather than copying upstream signatures."
+        },
+        {
+          "path": "packages/client/ui-attachment/src/client/ComposerAttachments.module.css",
+          "disposition": "adopted",
+          "reason": "Add image progress, transient retry and Host-refusal warning/pinned shared-tooltip states inside the existing rail geometry, with removal, keyboard and touch behavior. Use current design tokens and reduced-motion support; retain current hover rules instead of copying unrelated CSS changes or fallback colors."
+        },
+        {
+          "path": "packages/client/ui-attachment/src/client/ComposerAttachments.tsx",
+          "disposition": "adopted",
+          "reason": "Add image progress, transient retry and Host-refusal warning/pinned shared-tooltip states inside the existing rail geometry, with removal, keyboard and touch behavior. Use current design tokens and reduced-motion support; retain current hover rules instead of copying unrelated CSS changes or fallback colors."
+        },
+        {
+          "path": "packages/client/ui-attachment/tests/composer-attachments.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt regression cases to current typed fixtures and Harnessy policies: normalized receipt staging, image/model admission, mixed aggregate limits, cancellation, Session isolation/disposal, commands refusing image receipts, client queue/retry/removal/rebind, receipt-only Send, reason-aware Enter and shared tooltip behavior. Keep old owner regressions and update tagged file assertions; do not import tests requiring upstream subagent image intake or its different Agent-model API."
+        },
+        {
+          "path": "packages/client/ui-conversation/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update the existing English/Chinese owner and sidecar with stored-image receipt admission, original-byte aggregate budgets, ordinary-Session FIFO upload/progress/refusal behavior and command inline-image handling. Preserve custom navigation and the all-subagent attachment-intake restriction. Regenerate API excerpts from the adapted source rather than copying upstream signatures."
+        },
+        {
+          "path": "packages/client/ui-conversation/README.md",
+          "disposition": "adopted",
+          "reason": "Update the existing English/Chinese owner and sidecar with stored-image receipt admission, original-byte aggregate budgets, ordinary-Session FIFO upload/progress/refusal behavior and command inline-image handling. Preserve custom navigation and the all-subagent attachment-intake restriction. Regenerate API excerpts from the adapted source rather than copying upstream signatures."
+        },
+        {
+          "path": "packages/client/ui-conversation/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Update the existing English/Chinese owner and sidecar with stored-image receipt admission, original-byte aggregate budgets, ordinary-Session FIFO upload/progress/refusal behavior and command inline-image handling. Preserve custom navigation and the all-subagent attachment-intake restriction. Regenerate API excerpts from the adapted source rather than copying upstream signatures."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/apply.ts",
+          "disposition": "adopted",
+          "reason": "Start image uploads for ordinary Sessions and re-stage carried images for their target Session; inline-only helper paths drop image upload state. Preserve Harnessy subagent composer attachment prohibition."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/contract/slots.ts",
+          "disposition": "adopted",
+          "reason": "Represent completed image uploads by receipt only, keep generic-file metadata, carry Host refusal reasons and pass the localized refusal formatter through the current composer attachment slot."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/input/editor/view-binding.ts",
+          "disposition": "adopted",
+          "reason": "Wait for all image/file uploads and explain the first refusal on Enter using existing locale keys. Preserve current custom composer focus, mobile keyboard, mention, mode, editing and attachment restrictions."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/service.ts",
+          "disposition": "adopted",
+          "reason": "Extend the resident FIFO file queue to image drafts, Send completed receipts without FileReader, retain inline command/helper paths and the custom subagent send branch, and clear/rebind/remove uploads with current preview ownership. Reject futile Host-refusal retries. Guard progress, success and error callbacks by both current operation identity and cancellation; verified disposal regression prevents late UI publication."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/skeleton/InputBar.tsx",
+          "disposition": "adopted",
+          "reason": "Wait for all image/file uploads and explain the first refusal on Enter using existing locale keys. Preserve current custom composer focus, mobile keyboard, mention, mode, editing and attachment restrictions."
+        },
+        {
+          "path": "packages/client/ui-conversation/tests/input-bar.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt regression cases to current typed fixtures and Harnessy policies: normalized receipt staging, image/model admission, mixed aggregate limits, cancellation, Session isolation/disposal, commands refusing image receipts, client queue/retry/removal/rebind, receipt-only Send, reason-aware Enter and shared tooltip behavior. Keep old owner regressions and update tagged file assertions; do not import tests requiring upstream subagent image intake or its different Agent-model API."
+        },
+        {
+          "path": "packages/client/ui-conversation/tests/service-orchestration.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt regression cases to current typed fixtures and Harnessy policies: normalized receipt staging, image/model admission, mixed aggregate limits, cancellation, Session isolation/disposal, commands refusing image receipts, client queue/retry/removal/rebind, receipt-only Send, reason-aware Enter and shared tooltip behavior. Keep old owner regressions and update tagged file assertions; do not import tests requiring upstream subagent image intake or its different Agent-model API."
+        },
+        {
+          "path": "packages/extensions/cordis-client-runner/src/client/slot-catalog.ts",
+          "disposition": "adopted",
+          "reason": "Teach the current API generator the two new internal upload values and regenerate the current API/slot catalogs, preserving custom APIs and slot properties."
+        },
+        {
+          "path": "packages/extensions/tool-cordis/src/api-catalog.ts",
+          "disposition": "adopted",
+          "reason": "Teach the current API generator the two new internal upload values and regenerate the current API/slot catalogs, preserving custom APIs and slot properties."
+        },
+        {
+          "path": "packages/test-support/client-runtime/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update the existing English/Chinese owner and sidecar with stored-image receipt admission, original-byte aggregate budgets, ordinary-Session FIFO upload/progress/refusal behavior and command inline-image handling. Preserve custom navigation and the all-subagent attachment-intake restriction. Regenerate API excerpts from the adapted source rather than copying upstream signatures."
+        },
+        {
+          "path": "packages/test-support/client-runtime/README.md",
+          "disposition": "adopted",
+          "reason": "Update the existing English/Chinese owner and sidecar with stored-image receipt admission, original-byte aggregate budgets, ordinary-Session FIFO upload/progress/refusal behavior and command inline-image handling. Preserve custom navigation and the all-subagent attachment-intake restriction. Regenerate API excerpts from the adapted source rather than copying upstream signatures."
+        },
+        {
+          "path": "packages/test-support/client-runtime/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Update the existing English/Chinese owner and sidecar with stored-image receipt admission, original-byte aggregate budgets, ordinary-Session FIFO upload/progress/refusal behavior and command inline-image handling. Preserve custom navigation and the all-subagent attachment-intake restriction. Regenerate API excerpts from the adapted source rather than copying upstream signatures."
+        },
+        {
+          "path": "packages/test-support/client-runtime/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Add a fail-loud uploadImage test runtime default and typed override, preserving all current fixture services."
+        },
+        {
+          "path": "packages/test-support/client-runtime/tests/helpers.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt regression cases to current typed fixtures and Harnessy policies: normalized receipt staging, image/model admission, mixed aggregate limits, cancellation, Session isolation/disposal, commands refusing image receipts, client queue/retry/removal/rebind, receipt-only Send, reason-aware Enter and shared tooltip behavior. Keep old owner regressions and update tagged file assertions; do not import tests requiring upstream subagent image intake or its different Agent-model API."
+        },
+        {
+          "path": "scripts/gen-cordis-catalog.ts",
+          "disposition": "adopted",
+          "reason": "Teach the current API generator the two new internal upload values and regenerate the current API/slot catalogs, preserving custom APIs and slot properties."
+        },
+        {
+          "path": "scripts/no-unknown-casts.baseline.json",
+          "disposition": "adopted",
+          "reason": "Remove exactly the obsolete attachment-rail test cast allowance after narrowing its props to consumed slot fields; preserve the remaining baseline and introduce no unknown assertions."
+        }
+      ],
+      "evidence": [
+        "All four exact upstream commits and their complete 65-path union reviewed; implementation 8245565ecea1b906291b5d68a9e8c2989c391439. Verification spans 2026-10-24 and 2026-10-25 on Windows, Harnessy 0.1.17, Node 24.14.0, pnpm 11.7.0.",
+        "Stored-image admission negative controls initially failed before implementation; mixed original-byte/count bounds now pass. Late-progress and Host-storage-disposal regressions reproduced the failures before their repairs. The focused Host run passed 63 cases and the expanded backend run has passing evidence for all 1135 selected cases with three skips: its initial aggregate passed 1133 and failed two old bare-file assertions, then the updated authorization owner passed all nine cases. The initial aggregate is not claimed as clean.",
+        "The final conversation/attachment/test-runtime owner run passed 832 cases plus one expected failure across 62 files. The assembled Remote fixture passed. Both built Harnessy browser cases passed in unchanged read-only replay: byte transfer before Send, disabled Send while held, image receipt-only prompt, optimistic-to-durable queue thumbnail, parked delivery and durable image log with no base64; Host refusal tooltip pinned by click and keyboard, removal, and screenshots checked in light and dark. The initial refresh passed the queued scenario and produced the two current custom-UI goldens; the error-control fixture incorrectly expected an unused model reply, which was removed. A second refresh hit a Windows file-open error; the later unchanged replay passed both goldens and all assertions.",
+        "Complete custom-harness build passed with 369 Client artifacts and eleven public values. Persistence verification passed with no declared changes; current generated persistence artifacts are unchanged. The unknown-cast verifier passed with the single retired test allowance removed and 1390 legacy allowances retained.",
+        "Full repository lint passed after the verified Host build; all sixteen hygiene gates passed. Final doc-sync passed all 43 gates after correcting the stale AttachmentAdmissionPart example in both languages and updating the existing generic-upload note factual realization and package documentation. The initial doc-sync aggregate had one source-equivalence failure; that failure and the affected documentation typecheck/pairing checks also passed focused rechecks.",
+        "The Harnessy product static guard and two Node cases passed. All 140 selected product Vitest cases have passing evidence: the aggregate passed 138 and its unchanged welcome-startup owner timed out the first five-second case, then its second case saw an extra late mock call; both unchanged cases passed the focused recheck in 3.40 seconds. The initial aggregate is not claimed as clean. Three exact untracked compiler outputs were removed only after checking their tracked TypeScript sibling, emitted content and map source identity; no claim is made about the origin of those outputs.",
+        "No upstream checkpoint, ancestry merge, installed staging runtime selection/update, release, main-app update, additional application copy or foreign Android work is included."
       ]
     }
   }
