@@ -1,6 +1,8 @@
 - banner:
   - navigation "Session hierarchy": Markdown image policy
-  - button "More actions"
+  - 'button "Open MCP server status: No MCP servers configured"': MCP
+  - group "Session controls":
+    - button "More actions"
   - button "Open right sidebar"
   - tablist:
     - tab "Chat" [selected]
@@ -38,8 +40,6 @@
 - paragraph: Image preview unavailable · {{cwd}}/corrupt.png
 - paragraph: REMOTE_IMAGE_DONE
 - button "Copy"
-- button "Good response"
-- button "Bad response"
 - button "Branch into a new conversation"
 - text: {{clock}}
 - textbox "Message or run a task, / commands, @ files or sessions"

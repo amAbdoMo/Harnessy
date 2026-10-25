@@ -48,6 +48,7 @@ interface Recorded {
 async function boot() {
   const ctx = new Context()
   ctx.provide('resources', createResources())
+  ctx.provide('fileDrag', { actions: { prepare: async () => { throw new Error('Unexpected file drag') }, reportFailure: vi.fn() } } as never)
   ctx.provide('configForms', { developerTools: { enabled: createSnapshotStore(true) } } as never)
   const tabs = new SidebarRightTabRegistry(ctx)
   const registered: Recorded[] = []

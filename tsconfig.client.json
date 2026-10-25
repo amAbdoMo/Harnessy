@@ -80,6 +80,7 @@
     { "path": "./packages/client/store" },
     { "path": "./packages/client/ui-slots" },
     { "path": "./packages/client/ui-attachment" },
+    { "path": "./packages/client/ui-file-drag" },
     { "path": "./packages/client/ui-primitives" },
     { "path": "./packages/client/modules" },
     { "path": "./packages/experimental/inspector/tsconfig.client.json" },

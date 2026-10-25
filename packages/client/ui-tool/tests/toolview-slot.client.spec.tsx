@@ -76,6 +76,10 @@ const LAYOUT_CHILDREN = {
  */
 async function bench(nodes: ToolResultNode[]) {
   const runtime = await SlotTestRuntime.create()
+  runtime.ctx.provide('fileDrag', {
+    actions: { prepare: async () => { throw new Error('Unexpected file drag') }, reportFailure: () => {} },
+    read: () => undefined,
+  } as never)
   const openWorkspacePath = vi.fn(async () => ({ ok: true, value: { opened: true } }))
   runtime.remote.provideNamespaces({ session: { openWorkspacePath } })
   runtime.ctx.provide('configForms', { developerTools: { enabled: createSnapshotStore(true) }, get: () => stubConfigForm().scope } as never)
@@ -295,6 +299,10 @@ describe('keyed toolview hole through the real machinery', () => {
 describe('registrant declaration injection', () => {
   it('runs a registrant before ui-tool and waits on the actual toolview declaration', async () => {
     const runtime = await SlotTestRuntime.create()
+    runtime.ctx.provide('fileDrag', {
+      actions: { prepare: async () => { throw new Error('Unexpected file drag') }, reportFailure: () => {} },
+      read: () => undefined,
+    } as never)
     runtime.remote.provideNamespaces({
       session: {
         openWorkspacePath: vi.fn(async () => ({ ok: true, value: { opened: true } })),

@@ -5,9 +5,13 @@ import type { IpcMainInvokeEvent } from 'electron'
 import { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { DesktopBrowserBridge } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
 import type { DesktopDevicePreviewBridge } from '@deepseek-ai/dsh-client-ui-device-preview/types'
+import type { DesktopFileDrag } from '@deepseek-ai/dsh-file-drag'
 
 /** IPC channel names kept private to the desktop application bundle. */
 export const DESKTOP_IPC = {
+  fileDragPrepare: 'dsh-desktop:file-drag-prepare',
+  fileDragStart: 'dsh-desktop:file-drag-start',
+  fileDragRelease: 'dsh-desktop:file-drag-release',
   shortcutsInput: 'dsh-desktop:shortcuts-input',
   shortcutsCloseWindow: 'dsh-desktop:shortcuts-close-window',
   shortcutsGet: 'dsh-desktop:shortcuts-get',
@@ -176,6 +180,8 @@ export type DesktopPhoneConnectionState = { readonly enabled: false } | { readon
 /** Product documents cannot supply update versions, package URLs, or installation authorization. */
 export interface DshDesktopProductApi {
   readonly protocolVersion: 1
+  /** Original-file transfers authorized by the product main frame and its current Host. */
+  readonly fileDrag: DesktopFileDrag
   /** Windows-only ordinary-Session unread completion count on the taskbar app icon. */
   readonly taskbar?: {
     /**

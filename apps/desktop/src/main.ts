@@ -35,6 +35,7 @@ import { DesktopProjectManager } from './project-manager.ts'
 import { DesktopHostFatalError, DesktopHostProcess, DesktopHostUncleanExitError } from './host-process.ts'
 import { DesktopPlatformView, PLATFORM_IPC, platformBounds } from './platform-view.ts'
 import { installDesktopDirectoryPicker } from './directory-picker.ts'
+import { installDesktopFileDrag } from './file-drag.ts'
 import { installMicrophonePermissions } from './microphone-permissions.ts'
 import { DesktopBackendController } from './backend-controller.ts'
 import { DESKTOP_IPC, SCHEME, assertDesktopSender, parseDesktopNotificationPayload, type DesktopUpdateState } from './ipc.ts'
@@ -815,6 +816,7 @@ async function main(): Promise<void> {
       updateTasks: (action: 'inspect' | 'lock' | 'unlock') => host.updateTasks(action),
       inspectQuit: () => host.inspectQuit(),
       inspectWebsiteMcp: (serverName: string) => host.inspectWebsiteMcp(serverName),
+      resolveDragResource: (address: string) => host.resolveDragResource(address),
     }
   }, (state) => {
     if (state.phase === 'error') reportFatal(state.failure, 'host')
@@ -822,6 +824,37 @@ async function main(): Promise<void> {
   })
 
   const updateErrors = new WeakMap<DesktopUpdateState, Promise<void>>()
+  let releaseFileDrag: (() => Promise<void>) | undefined
+  const retiredFileDrags = new Set<() => Promise<void>>()
+  const ensureFileDrag = (): void => {
+    if (releaseFileDrag !== undefined) return
+    releaseFileDrag = installDesktopFileDrag((event) => {
+      assertProductSender(event)
+      const window = mainWindow
+      const host = backend.host
+      if (isQuitting() || shuttingDown || window === undefined || host === undefined) throw new Error('File drag owner unavailable')
+      return { window, host }
+    }, async (address) => {
+      const host = backend.host
+      if (host === undefined) throw new Error('File drag Host unavailable')
+      const resource = await host.resolveDragResource(address)
+      if (backend.host !== host) throw new Error('File drag Host changed during authorization')
+      return resource
+    })
+  }
+  const disposeFileDrag = async (): Promise<void> => {
+    const release = releaseFileDrag
+    releaseFileDrag = undefined
+    if (release !== undefined) retiredFileDrags.add(release)
+    const results = await Promise.allSettled([...retiredFileDrags].map(async (dispose) => {
+      await dispose()
+      retiredFileDrags.delete(dispose)
+    }))
+    const failures: unknown[] = []
+    for (const result of results) if (result.status === 'rejected') failures.push(result.reason)
+    if (failures.length > 0) throw new AggregateError(failures, 'File drag cleanup failed')
+  }
+  ensureFileDrag()
   function retryOrdinaryUpdate(): void { setTimeout(() => { void openUpdatePrompt(false) }, 0) }
   const showUpdateFailure = (state: DesktopUpdateState): Promise<void> => {
     if (state.phase !== 'error') return Promise.resolve()
@@ -852,6 +885,7 @@ async function main(): Promise<void> {
       window.webContents.send(DESKTOP_IPC.updatesPresentation, presentDesktopUpdate(state))
     }
     if (state.phase === 'error' && state.failedOperation !== 'check') {
+      if (!quitting) ensureFileDrag()
       const restoreHost = state.failedOperation === 'install' && updateStoppedHost && !quitting
       shellInstallerOwnsQuit = false
       updateStoppedHost = false
@@ -968,6 +1002,7 @@ async function main(): Promise<void> {
         mandatoryUI?.preparingRestart(active)
         // The embedded Platform document holds credentials issued by the Host that is about to stop.
         await platformView.closeAndWait()
+        await disposeFileDrag()
         requireCleanStop = true
         updateStopFailure = undefined
         await backend.stop()
@@ -1710,7 +1745,7 @@ async function main(): Promise<void> {
     restartWait?.abort()
     updateDialog.dispose()
     mandatoryUI?.dispose()
-    void Promise.all([Promise.resolve(mandatoryPolicy?.dispose()).then(() => policyAuth?.dispose()), backend.close(),
+    void Promise.all([disposeFileDrag(), Promise.resolve(mandatoryPolicy?.dispose()).then(() => policyAuth?.dispose()), backend.close(),
       // A Platform cleanup failure is logged without cutting the remaining Host shutdown short.
       platformView.dispose().catch((error: unknown) => { console.error(error) })])
       .catch((error: unknown) => { console.error(error) }).finally(() => { app.quit() })

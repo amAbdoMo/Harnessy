@@ -1,14 +1,15 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
-import { fileMediaUrl } from '@deepseek-ai/dsh-util-workspace-path'
+import { fileMediaUrl, sessionFileAddress } from '@deepseek-ai/dsh-util-workspace-path'
 import { MarkdownDelegateProvider } from '../src/markdown/MarkdownDelegate.tsx'
 import { MarkdownText } from './markdown-test-components.tsx'
 import { parseGfm, parseGfmWithMath } from '../src/markdown/parse.ts'
 
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks() })
+const fileDrag = { prepare: async () => { throw new Error('Unexpected file drag preparation') }, reportFailure: () => {} }
 const labels = { open: 'View full image', dialog: 'Image preview', close: 'Close preview', loading: 'Loading image', failed: 'Image unavailable' }
-const fileImages = { resolve: (path: string) => `https://example.com/api/file?path=${encodeURIComponent('/workspace/' + path)}`, labels }
+const fileImages = { fileDrag, resolve: (path: string) => `https://example.com/api/file?path=${encodeURIComponent('/workspace/' + path)}`, labels }
 function mount(text: string, streaming = false) {
   const openFile = vi.fn()
   const view = render(<MarkdownDelegateProvider openFile={openFile} fileImages={fileImages}>
@@ -17,11 +18,36 @@ function mount(text: string, streaming = false) {
   return { ...view, openFile }
 }
 
+it('keeps original-image preview available to owners without managed drag callbacks', () => {
+  const view = render(<MarkdownDelegateProvider fileImages={{ resolve: () => '/legacy-image.png', labels }}>
+    <MarkdownText text="![Legacy](legacy-image.png)" />
+  </MarkdownDelegateProvider>)
+  fireEvent.click(view.getByRole('button', { name: 'View full image: Legacy' }))
+  expect(view.getByRole('dialog', { name: 'Image preview' })).toBeTruthy()
+})
+
+it.each(['/work/测试 图#100%.png', 'C:\\work\\测试 图#100%.png'])('exports the decoded original filename and Session reference for %s', async (path) => {
+  const prepare = vi.fn(async () => ({ start: () => true, release: () => {} }))
+  const source = encodeURI(path).replace('#', '%23')
+  const view = render(<MarkdownDelegateProvider fileImages={{
+    resolve: () => '/original.png', labels,
+    fileDrag: { prepare, reportFailure: () => {} },
+    resourceAddress: destination => sessionFileAddress('owner', destination),
+  }}>
+    <MarkdownText text={`![Original](<${source}>)`} />
+  </MarkdownDelegateProvider>)
+  fireEvent.pointerEnter(view.getByRole('img', { name: 'Original' }))
+  await waitFor(() => { expect(prepare).toHaveBeenCalledOnce() })
+  expect(prepare).toHaveBeenCalledWith(expect.objectContaining({
+    name: '测试 图#100%.png', resourceAddress: sessionFileAddress('owner', path),
+  }), expect.any(AbortSignal))
+})
+
 it('loads Desktop inline and hover previews through the file route after streaming settles', () => {
   vi.useFakeTimers()
   const path = '/work/测试 图片#100%.png'
   const src = fileMediaUrl('dsh-app://app/', path)!
-  const images = { resolve: (value: string) => fileMediaUrl('dsh-app://app/', value), labels }
+  const images = { fileDrag, resolve: (value: string) => fileMediaUrl('dsh-app://app/', value), labels }
   const text = `![图片](<${encodeURI(path).replace('#', '%23')}>)\n\n[打开图片](<${encodeURI(path).replace('#', '%23')}>)`
   const openFile = vi.fn()
   const content = (streaming: boolean) => <MarkdownDelegateProvider fileImages={images} openFile={openFile}>

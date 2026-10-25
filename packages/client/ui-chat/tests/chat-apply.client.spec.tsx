@@ -56,6 +56,7 @@ async function bench() {
     subscribe: vi.fn(() => () => {}),
   } as never)
   runtime.ctx.provide('resources', { register: vi.fn(() => () => {}) } as never)
+  runtime.ctx.provide('fileDrag', { actions: { prepare: async () => { throw new Error('Unexpected file drag') }, reportFailure: vi.fn() } } as never)
   const openSession = vi.fn<(id: SessionId) => void>()
   runtime.ctx.provide('uiWorkspace', {
     openWorkspace: vi.fn(async (_workspaceId: WorkspaceId, beforeOpen: (id: SessionId) => void) => {

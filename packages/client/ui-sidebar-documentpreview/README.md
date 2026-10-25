@@ -67,6 +67,8 @@ Initial reads and renderer preparation, including Office conversion, share a cen
 
 A leading YAML frontmatter block, opened by `---` on the first line and closed by `---` or `...`, renders above the Markdown body as a key/value list. String values show their resolved text, including folded and multiline strings; other scalars, lists, mappings, and aliases keep their authored YAML. Invalid YAML and non-mapping documents show the block verbatim, and a block without content shows nothing. An unterminated block remains Markdown. The YAML parser loads in the package-local `client.frontmatter-fields.js` chunk only when a document has frontmatter; the verbatim block stands in while it loads or if it fails to load. The source file is unchanged.
 
+Image previews keep their current zoom viewport and original Blob while scale changes. A left-button mouse drag pans an overflowing image; a contained image instead offers original-file dragging through [fileDrag](../ui-file-drag/README.md). Pointer release, capture loss, blur and unmount release panning resources.
+
 <a id="excel-preview"></a>
 ## Excel preview
 

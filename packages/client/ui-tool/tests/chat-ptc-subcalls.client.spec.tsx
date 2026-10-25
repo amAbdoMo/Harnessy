@@ -102,6 +102,10 @@ const ROOT_CHILDREN = {
  */
 async function bench(snapshot: ChatSnapshot) {
   const runtime = await SlotTestRuntime.create()
+  runtime.ctx.provide('fileDrag', {
+    actions: { prepare: async () => { throw new Error('Unexpected file drag') }, reportFailure: () => {} },
+    read: () => undefined,
+  } as never)
   runtimes.push(runtime)
   const ctx = runtime.ctx
   const chat = createSnapshotStore(snapshot)

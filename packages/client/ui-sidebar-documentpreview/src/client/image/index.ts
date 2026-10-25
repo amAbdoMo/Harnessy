@@ -5,8 +5,9 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {} from '../index.ts'
 import type { DocumentPreviewDefinition } from '../document/registry.ts'
 import { retainDocumentTabs } from '../document/tab-lifetime.ts'
-import { createZoomStore, type ZoomInjected, type ZoomStore } from '../zoom/store.ts'
-import { ImageBody } from './ImageBody.tsx'
+import { createZoomStore, type ZoomStore } from '../zoom/store.ts'
+import { ImageBody, type ImageBodyInjected } from './ImageBody.tsx'
+import type {} from '@deepseek-ai/dsh-client-ui-file-drag/client'
 import { en, zh } from './locales.ts'
 
 /** Image implementation identity, shared by metadata and the keyed slot. */
@@ -47,7 +48,8 @@ export function apply(ctx: Context): void {
   const retainTab = retainDocumentTabs(ctx)
   ctx.effect(() => ctx.slots.inject('sidebar.right.tab.document', () => ctx.slots.register({
     name: 'sidebar.right.tab.document', key: IMAGE_BODY_ID, locale: 'sidebarImage', store,
-    inject: (_sessionId: SessionId, actions: BoundActions<ZoomStore>): ZoomInjected => ({
+    inject: (_sessionId: SessionId, actions: BoundActions<ZoomStore>): ImageBodyInjected => ({
+      fileDrag: ctx.fileDrag.actions,
       retainTab: (tabId, signal) => { retainTab(tabId, signal, actions.forget) },
     }),
   }, ImageBody)), 'document-image: body')

@@ -117,5 +117,10 @@ export {
   PluginArtworkTerminal, PluginArtworkLoop, PluginArtworkSubagent, PluginArtworkSearch, PluginArtworkDefault,
 } from './plugin-artwork.tsx'
 export { GuideArtworkBrowser, GuideArtworkFiles } from './guide-artwork.tsx'
+export { DraggableImage } from './DraggableImage.tsx'
+export type { DraggableImageProps } from './DraggableImage.tsx'
+export { FILE_DRAG_TOKEN_TYPE } from './file-drag-actions.ts'
+export type { FileDragActions, FileDragSource, PreparedFileDrag } from './file-drag-actions.ts'
+export { resolveDragFileName } from '@deepseek-ai/dsh-file-drag'
 export { ImageLightbox } from './ImageLightbox.tsx'
 export type { ImageLightboxLabels } from './ImageLightbox.tsx'

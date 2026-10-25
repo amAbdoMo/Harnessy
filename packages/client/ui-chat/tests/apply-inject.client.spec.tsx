@@ -74,6 +74,7 @@ async function bench(initialSettings?: ChatSettings, withBrowserRegistry = true,
   }
   if (withBrowserRegistry) runtime.ctx.provide('sidebarRightTabs', sidebarRightTabs as never)
   runtime.ctx.provide('resources', { register: vi.fn(() => () => {}) } as never)
+  runtime.ctx.provide('fileDrag', { actions: { prepare: async () => { throw new Error('Unexpected file drag') }, reportFailure: vi.fn() } } as never)
   const openWorkspacePath = vi.fn<ClientRemote['session']['openWorkspacePath']>(
     () => Promise.resolve({ ok: true, value: { opened: true } }),
   )

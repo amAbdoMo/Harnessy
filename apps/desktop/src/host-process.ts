@@ -37,6 +37,11 @@ interface PlatformSessionEvent {
 }
 
 type DesktopHostEvent = DesktopWebsiteOperationCommand | ReadyEvent | FatalEvent | PlatformSessionEvent | { readonly type: 'shutdown-complete' } | {
+  readonly type: 'file-drag-resource'
+  readonly requestId: number
+  readonly resource: { readonly path: string; readonly sha256: string; readonly size: number } | null
+  readonly error?: string
+} | {
   readonly type: 'companion-control'
   readonly requestId: number
   readonly result?: CompanionControlResult
@@ -146,6 +151,15 @@ function isDesktopHostEvent(message: unknown): message is DesktopHostEvent {
     case 'update-tasks':
       return Number.isSafeInteger(candidate.requestId) && typeof candidate.active === 'boolean'
         && (candidate.error === undefined || typeof candidate.error === 'string')
+    case 'file-drag-resource': {
+      const resource = candidate.resource
+      return Number.isSafeInteger(candidate.requestId) && typeof candidate.requestId === 'number' && candidate.requestId > 0
+        && (candidate.error === undefined || typeof candidate.error === 'string')
+        && (resource === null || (typeof resource === 'object'
+          && 'path' in resource && typeof resource.path === 'string'
+          && 'sha256' in resource && typeof resource.sha256 === 'string' && /^[a-f0-9]{64}$/.test(resource.sha256)
+          && 'size' in resource && typeof resource.size === 'number' && Number.isSafeInteger(resource.size) && resource.size >= 0))
+    }
     case 'website-mcp': {
       if (!Number.isSafeInteger(candidate.requestId)) return false
       if (typeof candidate.error === 'string') return candidate.error.length <= 2048 && candidate.binding === undefined
@@ -546,23 +560,36 @@ export class DesktopHostProcess {
     void this.devicePreviews.retire(previewId).catch((error: unknown) => { console.error('Device preview retirement could not be delivered', error) })
   }
 
+  /** @param address - Session-scoped file reference. @returns an authorized Host-local resource, or null when nonlocal. */
+  async resolveDragResource(address: string): Promise<{ readonly path: string; readonly sha256: string; readonly size: number } | null> {
+    const response = await this.control({ type: 'file-drag-resource', address }, 12_000, 'File drag authorization timed out')
+    if (response.type !== 'file-drag-resource') throw new Error('Host returned a different control response')
+    return response.resource
+  }
+
   private async control(
     request: { readonly type: 'update-tasks'; readonly action: 'inspect' | 'lock' | 'unlock' } | { readonly type: 'quit-inspection' }
       | { readonly type: 'website-mcp'; readonly serverName: string }
       | { readonly type: 'website-control'; readonly command: DesktopWebsiteHostCommand }
+      | { readonly type: 'file-drag-resource'; readonly address: string }
       | { readonly type: 'companion-control'; readonly command: CompanionControlCommand },
     deadlineMs: number, deadlineMessage: string,
   ): Promise<DesktopHostControlResponse> {
     const child = this.child
     if (child === undefined || !child.connected || this.failureReported || this.stopping) {
       const operation = request.type === 'website-mcp' ? 'Website MCP registry'
-        : request.type === 'website-control' ? 'Website request' : request.type === 'update-tasks' ? 'desktop update' : 'desktop quit'
+        : request.type === 'website-control' ? 'Website request' : request.type === 'file-drag-resource' ? 'File drag'
+          : request.type === 'update-tasks' ? 'desktop update' : 'desktop quit'
       throw new Error(`${operation}: Host is unavailable`)
     }
     if (!Number.isSafeInteger(this.nextControlId) || this.nextControlId < 1) throw new Error('Desktop control id exhausted')
     if (request.type === 'companion-control'
       && [...this.controlRequests.values()].filter(value => value.type === 'companion-control').length >= 16) {
       throw new Error('Companion native control queue limit')
+    }
+    if (request.type === 'file-drag-resource'
+      && [...this.controlRequests.values()].filter(value => value.type === 'file-drag-resource').length >= 16) {
+      throw new Error('File drag authorization queue limit')
     }
     const requestId = this.nextControlId++
     let timer: ReturnType<typeof setTimeout> | undefined

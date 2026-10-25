@@ -48,6 +48,7 @@ describe('image registration', () => {
       return () => { bodies.delete(options.key); entries.splice(entries.indexOf(options), 1) }
     })
     ctx.provide('documentPreviews', registry)
+    ctx.provide('fileDrag', { actions: { prepare: async () => { throw new Error('Unexpected file drag') }, reportFailure: vi.fn() } } as never)
     ctx.provide('slots', { inject: (_key: string, callback: () => () => void) => callback(), register } as never)
     ctx.provide('locale', {
       bind: () => (key: keyof typeof en) => en[key],
@@ -56,7 +57,7 @@ describe('image registration', () => {
         return () => { dictionaries.delete(name) }
       },
     } as never)
-    const fiber = ctx.plugin({ apply })
+    const fiber = ctx.plugin({ inject: ['fileDrag'], apply })
     dispose = async () => { await fiber.dispose() }
     await fiber.await()
     for (const extension of IMAGE_EXTENSIONS) {

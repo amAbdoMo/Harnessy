@@ -22,11 +22,13 @@ interface ComposerRailItem extends AttachmentRailItem {
 /** Slot props consumed by the attachment rail. */
 type ComposerAttachmentsInput = Pick<ComposerAttachmentsProps,
   | 'attachments' | 'canAcceptDrop' | 'onAddFiles' | 'onRemoveAttachment' | 'uploads' | 'onRetryFile'
-  | 'uploadFailureText' | 'dropLimits' | 't'>
+  | 'uploadFailureText' | 'dropLimits' | 't'> & {
+    readonly readFileDrag: (transfer: DataTransfer) => File | undefined
+  }
 
 /** Draft image previews, pending-file cards, drop target, and original-image preview. */
 export function ComposerAttachments({
-  attachments, canAcceptDrop, onAddFiles, onRemoveAttachment, uploads, onRetryFile, uploadFailureText, dropLimits, t,
+  attachments, canAcceptDrop, onAddFiles, onRemoveAttachment, uploads, onRetryFile, uploadFailureText, dropLimits, t, readFileDrag,
 }: ComposerAttachmentsInput) {
   const [preview, setPreview] = useState<ComposerImageAttachment | null>(null)
   const [dragActive, setDragActive] = useState(false)
@@ -37,8 +39,8 @@ export function ComposerAttachments({
   }, [attachments, preview])
 
   useEffect(() => {
-    return installDocumentDropEvents(canAcceptDrop, onAddFiles, dragDepth, setDragActive)
-  }, [canAcceptDrop, onAddFiles])
+    return installDocumentDropEvents(canAcceptDrop, onAddFiles, dragDepth, setDragActive, readFileDrag)
+  }, [canAcceptDrop, onAddFiles, readFileDrag])
 
   const railItems = useMemo<ComposerRailItem[]>(() => attachments.map(attachment => ({
     id: attachment.id,

@@ -58,6 +58,7 @@ async function bench() {
     register: () => () => {}, get: () => ({}), subscribe: () => () => {},
   } as never)
   runtime.ctx.provide('resources', { register: () => () => {} } as never)
+  runtime.ctx.provide('fileDrag', { actions: { prepare: async () => { throw new Error('Unexpected file drag') }, reportFailure: () => {} } } as never)
   runtime.ctx.provide('uiWorkspace', {
     openWorkspace: async (_workspaceId: WorkspaceId, beforeOpen: (id: SessionId) => void) => { beforeOpen(SID) },
     openSession: () => {},

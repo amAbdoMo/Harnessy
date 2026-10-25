@@ -96,6 +96,7 @@
     "@deepseek-ai/dsh-client-shortcuts": "workspace:*",
     "@deepseek-ai/dsh-atomic-write": "workspace:*",
     "@deepseek-ai/dsh-session-persistence-jsonl": "workspace:*",
-    "@deepseek-ai/dsh-client-product-analytics": "workspace:*"
+    "@deepseek-ai/dsh-client-product-analytics": "workspace:*",
+    "@deepseek-ai/dsh-file-drag": "workspace:*"
   }
 }

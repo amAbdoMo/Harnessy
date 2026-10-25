@@ -458,6 +458,7 @@ function makeHarness(
     chatScroll,
     forkAt,
     // Absent-service default; mention tests override with a real resolver.
+    fileDrag: { prepare: async () => { throw new Error('Unexpected file drag') }, reportFailure: () => {} },
     fileMentions: () => undefined,
     t,
   }

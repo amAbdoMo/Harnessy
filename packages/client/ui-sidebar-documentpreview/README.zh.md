@@ -67,6 +67,8 @@ PNG、JPEG、GIF、WebP、BMP、ICO 和 SVG 通过 Blob URL 在 `<img>` 静态�
 
 文档开头的 YAML frontmatter（首行 `---` 开始，以 `---` 或 `...` 结束）在 Markdown 正文上方显示为键值列表。字符串值显示解析后的文本，包括折叠与多行字符串；其他标量、列表、映射与别名保留原始 YAML 写法。无效 YAML 或非映射文档原样显示整个块，没有内容的块不显示。未闭合的块仍按 Markdown 渲染。YAML 解析器位于包内 `client.frontmatter-fields.js` 分块，仅在文档含 frontmatter 时加载；加载期间或加载失败时显示原样块。源文件不会被修改。
 
+缩放变化时，图片预览保留现有缩放视口与原始 Blob。图片溢出时，鼠标左键拖动用于平移；图片完全容纳时，则通过 [fileDrag](../ui-file-drag/README.zh.md) 提供原文件拖放。松开指针、丢失捕获、失焦和卸载都会释放平移资源。
+
 <a id="excel-preview"></a>
 ## Excel 预览
 

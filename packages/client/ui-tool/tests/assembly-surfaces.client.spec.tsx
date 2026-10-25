@@ -83,6 +83,10 @@ const LAYOUT_CHILDREN = {
 
 async function bench(nodes: ToolResultNode[]) {
   const runtime = await SlotTestRuntime.create()
+  runtime.ctx.provide('fileDrag', {
+    actions: { prepare: async () => { throw new Error('Unexpected file drag') }, reportFailure: () => {} },
+    read: () => undefined,
+  } as never)
   runtime.remote.provideNamespaces({
     session: {
       openWorkspacePath: vi.fn(async () => ({ ok: true, value: { opened: true } })),

@@ -58,6 +58,22 @@ it('exposes onboarding size activation to the application document', async () =>
   expect(electron.ipcRenderer.send.mock.calls).toEqual([[DESKTOP_IPC.onboardingActive, true], [DESKTOP_IPC.onboardingActive, false]])
 })
 
+it('routes original-file preparation, native start and release through the private bridge', async () => {
+  vi.stubGlobal('location', new URL('dsh-app://app/'))
+  responses.set(DESKTOP_IPC.fileDragPrepare, 'prepared-file')
+  responses.set(DESKTOP_IPC.fileDragStart, true)
+  await import('../src/preload-app.ts')
+  const api = electron.contextBridge.exposeInMainWorld.mock.calls.find(([name]) => name === 'dshDesktop')?.[1] as DshDesktopProductApi
+  const source = { kind: 'bytes' as const, bytes: Uint8Array.of(1, 2), mediaType: 'application/pdf', name: 'report.pdf' }
+  const handle = await api.fileDrag.prepare(source)
+  if (handle === undefined) throw new Error('Missing prepared handle')
+  expect(await api.fileDrag.start(handle)).toBe(true)
+  api.fileDrag.release(handle)
+  expect(electron.ipcRenderer.invoke).toHaveBeenCalledWith(DESKTOP_IPC.fileDragPrepare, source)
+  expect(electron.ipcRenderer.invoke).toHaveBeenCalledWith(DESKTOP_IPC.fileDragStart, handle)
+  expect(electron.ipcRenderer.invoke).toHaveBeenCalledWith(DESKTOP_IPC.fileDragRelease, handle)
+})
+
 it.each([{ enabled: false }, { enabled: true, remoteRoot: 'https://pc.tailnet.ts.net/' }])
 ('exposes credential-free phone state and a void copy action only to the primary product frame (%j)', async (state) => {
   vi.stubGlobal('location', new URL('dsh-app://app/'))

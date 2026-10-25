@@ -335,6 +335,9 @@
     - id: ui-brand-official
       name: '@deepseek-ai/dsh-client-ui-brand-official'
 
+    - id: ui-file-drag
+      name: '@deepseek-ai/dsh-client-ui-file-drag'
+
     - id: ui-attachment
       name: '@deepseek-ai/dsh-client-ui-attachment'
 

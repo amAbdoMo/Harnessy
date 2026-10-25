@@ -11,6 +11,7 @@
     "src/types.ts"
   ],
   "references": [
+    { "path": "../../llm/model-capabilities" },
     { "path": "../../client/product-analytics/tsconfig.client.json" },
     {
       "path": "../../../vendor/cordis"

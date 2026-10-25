@@ -1,5 +1,6 @@
 /** Register the Chat Conversation target, renderers, stats, and details surface. */
 import type {} from '@deepseek-ai/dsh-client-product-analytics/client'
+import type {} from '@deepseek-ai/dsh-client-ui-file-drag/client'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
@@ -58,7 +59,7 @@ const CHAT_NODE_INJECT: ChatNodeInjected = {
 /** Services required by the Chat target and its presentation registrations. */
 export const inject = [
   'slots', 'sessions', 'uiWorkspace', 'uiSession', 'uiConversation', 'locale',
-  'configForms', 'remote', 'remote.session', 'sidebarRight',
+  'configForms', 'remote', 'remote.session', 'sidebarRight', 'fileDrag',
 ]
 
 /**
@@ -214,6 +215,7 @@ export function apply(ctx: Context): void {
             chatGroup: key => conversation.snapshot.getSnapshot().views.grouped('chat')?.groupSource(key as GroupKey),
           },
           fileMentions: (owner: TurnTailOwnerProps) => ctx.get('chatFileMentions')?.forClosing(owner, sessionId),
+          fileDrag: ctx.fileDrag.actions,
           // Files open in the right Sidebar, not in a desktop application: the
           // content stays in the product, beside the conversation that produced
           // it. A relative path, or an absolute one inside the session's

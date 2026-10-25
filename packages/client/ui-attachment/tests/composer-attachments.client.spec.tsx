@@ -57,6 +57,35 @@ const t = ((key: string, params?: Readonly<Record<string, unknown>>): string => 
   return messages[key] ?? key
 }) as ComposerAttachmentsProps['t']
 
+it('accepts an application-local original file only over the composer and ignores foreign tokens', () => {
+  const onAddFiles = vi.fn()
+  const file = new File(['original-pdf'], 'report.pdf', { type: 'application/pdf' })
+  const view = render(<div data-composer-card data-testid="composer"><ComposerAttachments {...props({ onAddFiles })}
+    readFileDrag={transfer => transfer.getData('application/x-dsh-file') === 'owned' ? file : undefined} /></div>)
+  let token = 'owned'
+  const dataTransfer = {
+    types: ['application/x-dsh-file'], items: [], files: [],
+    getData: (type: string) => type === 'application/x-dsh-file' ? token : '',
+  }
+  fireEvent.dragEnter(document.body, { dataTransfer })
+  fireEvent.dragOver(document.body, { dataTransfer })
+  fireEvent.drop(document.body, { dataTransfer })
+  expect(onAddFiles).not.toHaveBeenCalled()
+  const composer = view.getByTestId('composer')
+  fireEvent.dragEnter(composer, { dataTransfer })
+  fireEvent.dragOver(composer, { dataTransfer })
+  expect(view.queryByText('文件或图片拖动到此处即可添加')).toBeNull()
+  fireEvent.drop(composer, { dataTransfer })
+  expect(onAddFiles).toHaveBeenCalledExactlyOnceWith([file], new Set())
+  token = 'foreign'
+  fireEvent.drop(composer, { dataTransfer })
+  expect(onAddFiles).toHaveBeenCalledOnce()
+  view.unmount()
+  token = 'owned'
+  fireEvent.drop(composer, { dataTransfer })
+  expect(onAddFiles).toHaveBeenCalledOnce()
+})
+
 function attachment(id: string, name = `${id}.png`): ComposerAttachment {
   return {
     kind: 'image',
@@ -76,6 +105,7 @@ function fileDraft(id: string, name = `${id}.pdf`): ComposerAttachment {
 
 function props(overrides: Partial<ComposerAttachmentsOwnerProps> = {}): Parameters<typeof ComposerAttachments>[0] {
   return {
+    readFileDrag: () => undefined,
     attachments: [],
     canAcceptDrop: true,
     onAddFiles: () => {},

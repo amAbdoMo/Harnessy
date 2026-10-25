@@ -1,5 +1,5 @@
 import { Context } from '@deepseek-ai/cordis'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, onTestFinished } from 'vitest'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { apply as applyHost } from '../src/index.ts'
 import { apply, inject } from '../src/client/index.ts'
@@ -8,6 +8,8 @@ import { MessageImages } from '../src/client/MessageImages.tsx'
 
 async function bench() {
   const ctx = new Context()
+  onTestFinished(() => ctx.fiber.dispose())
+  ctx.provide('fileDrag', { actions: { prepare: async () => { throw new Error('Unexpected drag') }, reportFailure: () => {} }, read: () => undefined })
   await ctx.plugin(SlotRegistry).await()
   ctx.slots.register({
     name: 'root',
@@ -30,7 +32,7 @@ describe('attachment plugin', () => {
 
   it('registers all entries and removes them with the plugin fiber', async () => {
     const { ctx, fiber } = await bench()
-    expect(inject).toEqual(['slots'])
+    expect(inject).toEqual(['slots', 'fileDrag'])
     expect(ctx.slots.entries('conversation.input.attachments')).toMatchObject([{
       locale: 'conversation',
       component: ComposerAttachments,

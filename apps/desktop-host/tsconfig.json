@@ -8,6 +8,8 @@
     "src"
   ],
   "references": [
+    { "path": "../../packages/util/workspace-path" },
+    { "path": "../../packages/session/session-persistence" },
     { "path": "../../vendor/cordis" },
     { "path": "../../packages/core/agent" },
     { "path": "../../packages/host/companion-host" },

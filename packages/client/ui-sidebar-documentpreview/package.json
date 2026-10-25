@@ -35,7 +35,8 @@
         "@deepseek-ai/dsh-client-ui-session",
         "@deepseek-ai/dsh-api-remotes",
         "@deepseek-ai/dsh-client-locale",
-        "@deepseek-ai/dsh-client-ui-settings"
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-file-drag"
       ],
       "platform": "web"
     }
@@ -67,7 +68,6 @@
     "@deepseek-ai/dsh-client-ui-slots": "workspace:*",
     "@deepseek-ai/dsh-office-to-pdf": "workspace:*",
     "@deepseek-ai/dsh-host-webserver": "workspace:*",
-    "@deepseek-ai/dsh-office-to-pdf": "workspace:*",
     "@deepseek-ai/dsh-session": "workspace:*",
     "@deepseek-ai/dsh-util-workspace-path": "workspace:*",
     "@fortune-sheet/core": "1.0.4",
@@ -86,7 +86,8 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
-    "yaml": "^2.9.0"
+    "yaml": "^2.9.0",
+    "@deepseek-ai/dsh-client-ui-file-drag": "workspace:*"
   },
   "files": [
     "lib/index.js",

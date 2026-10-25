@@ -37,6 +37,21 @@ server.listen(0, '127.0.0.1', () => {
   process.send({ type: 'ready', url: 'http://127.0.0.1:' + server.address().port + '/?token=fixture' })
 })
 process.on('message', message => {
+  if (message.type === 'file-drag-resource') {
+    if (message.address === 'hold') return
+    if (message.address === 'wrong') {
+      process.send({ type: 'update-tasks', requestId: message.requestId, active: false })
+      return
+    }
+    const resource = { path: join(process.argv[3], 'report.pdf'), sha256: 'b'.repeat(64), size: 7 }
+    if (message.address === 'bad-path') resource.path = 4
+    if (message.address === 'bad-hash') resource.sha256 = 'invalid'
+    if (message.address === 'bad-size') resource.size = -1
+    process.send({ type: 'file-drag-resource', requestId: message.address === 'bad-id' ? -1 : message.requestId,
+      resource: message.address === 'nonlocal' || message.address === 'denied' ? null : resource,
+      ...(message.address === 'denied' ? { error: 'File read denied' } : {}) })
+    return
+  }
   if (message.type === 'companion-control') {
     const result = message.command.kind === 'activate' ? { kind: 'completed' } : { kind: 'activationRequired' }
     process.send({ type: 'companion-control', requestId: message.requestId, result })
@@ -153,6 +168,35 @@ afterEach(async () => {
 })
 
 describe('desktop host process', () => {
+  it('correlates file authorization with task requests without exposing a renderer-supplied path', async () => {
+    const project = projectWithHost()
+    const host = hostProcess(project)
+    await expect(host.resolveDragResource('report')).rejects.toThrow('File drag: Host is unavailable')
+    await host.start()
+    expect(await Promise.all([host.resolveDragResource('report'), host.updateTasks('inspect')])).toEqual([
+      { path: join(project, 'report.pdf'), sha256: 'b'.repeat(64), size: 7 }, false,
+    ])
+    await expect(host.resolveDragResource('nonlocal')).resolves.toBeNull()
+    await expect(host.resolveDragResource('denied')).rejects.toThrow('File read denied')
+    await expect(host.resolveDragResource('wrong')).rejects.toThrow('different control response')
+  })
+
+  it.each(['bad-path', 'bad-hash', 'bad-size', 'bad-id'])('rejects %s in a private file authorization response', async (address) => {
+    const host = hostProcess(projectWithHost())
+    await host.start()
+    await expect(host.resolveDragResource(address)).rejects.toThrow('invalid IPC event')
+  })
+
+  it('bounds outstanding file authorizations and retires them during shutdown', async () => {
+    const host = hostProcess(projectWithHost())
+    await host.start()
+    const pending = Array.from({ length: 16 }, () => host.resolveDragResource('hold').catch((error: unknown) => error))
+    const overflow = host.resolveDragResource('hold').catch((error: unknown) => error)
+    await host.stop(true)
+    expect(await overflow).toEqual(new Error('File drag authorization queue limit'))
+    expect(await Promise.all(pending)).toHaveLength(16)
+  })
+
   it('carries first-time companion setup through the real private Main transport without accepting it as a mutation result', async () => {
     const host = hostProcess(projectWithHost())
     await host.start()

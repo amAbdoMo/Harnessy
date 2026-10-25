@@ -110,6 +110,7 @@ External packages installed for runtime use or distributed inside the prebuilt b
 | [`micromark-util-classify-character`](https://github.com/micromark/micromark/tree/main/packages/micromark-util-classify-character) | MIT |
 | [`micromark-util-sanitize-uri`](https://github.com/micromark/micromark/tree/main/packages/micromark-util-sanitize-uri) | MIT |
 | [`micromark-util-symbol`](https://github.com/micromark/micromark/tree/main/packages/micromark-util-symbol) | MIT |
+| [`mime`](https://github.com/broofa/mime) | MIT |
 | [`mime-types`](https://github.com/jshttp/mime-types) | MIT |
 | [`ms`](https://github.com/vercel/ms) | MIT |
 | [`negotiator`](https://github.com/jshttp/negotiator) | MIT |

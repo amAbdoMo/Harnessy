@@ -11,6 +11,7 @@ import { syncWindowsAppearance } from './preload-windows.ts'
 import { installMandatoryUpdateOverlay } from './preload-mandatory-overlay.ts'
 import { createDesktopBrowserBridge } from './preload-browser.ts'
 import { createDesktopDevicePreviewBridge } from './preload-device-preview.ts'
+import type { FileDragHandle } from '@deepseek-ai/dsh-file-drag'
 
 type NotificationSessionId = NonNullable<DesktopNotificationPayload['sessionId']>
 
@@ -43,6 +44,13 @@ function createProductApi(): DshDesktopProductApi {
   })
   return {
     protocolVersion: 1,
+    fileDrag: {
+      prepare: source => ipcRenderer.invoke(DESKTOP_IPC.fileDragPrepare, source) as Promise<FileDragHandle | undefined>,
+      start: handle => ipcRenderer.invoke(DESKTOP_IPC.fileDragStart, handle) as Promise<boolean>,
+      release: (handle) => {
+        void ipcRenderer.invoke(DESKTOP_IPC.fileDragRelease, handle).catch((error: unknown) => { console.error(error) })
+      },
+    },
     ...process.platform === 'win32' ? { taskbar: createTaskbarApi() } : {},
     browser: createDesktopBrowserBridge(),
     preview: createDesktopDevicePreviewBridge(),

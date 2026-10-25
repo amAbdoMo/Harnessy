@@ -12,6 +12,7 @@ import { installDesktopCompanionOwner } from '@deepseek-ai/dsh-companion-host'
 import type { Config as CompanionConfig } from '@deepseek-ai/dsh-companion-host'
 import { installDesktopCompanionControls, resolveDesktopCompanionConfig } from './companion.ts'
 import * as desktopOffice from './office.ts'
+import { localDragResource } from './file-drag.ts'
 import { assertDesktopRemoteConnection, desktopWebArguments, resolveDesktopRemoteConnection } from './remote-connection.ts'
 
 import { installDesktopUpdateTaskControl } from './update-tasks.ts'
@@ -110,6 +111,23 @@ async function main(): Promise<void> {
     if (control.devicePreviewController?.receive(message) === true || control.devicePreviewParent?.receive(message) === true) return
     if (typeof message !== 'object' || message === null || !('type' in message)) return
     if (message.type === 'shutdown') { void stop().catch((error: unknown) => { console.error(error) }); return }
+    if (message.type === 'file-drag-resource') {
+      if (!('requestId' in message) || !Number.isSafeInteger(message.requestId)
+        || !('address' in message) || typeof message.address !== 'string') return
+      const { requestId, address } = message
+      void (async () => {
+        try {
+          if (stopping !== undefined) throw new Error('Host stopping')
+          const { ctx } = await application
+          companionLife.signal.throwIfAborted()
+          await send({ type: 'file-drag-resource', requestId, resource: await localDragResource(ctx, address, companionLife.signal) })
+        } catch (error) {
+          console.error(error)
+          await send({ type: 'file-drag-resource', requestId, resource: null, error: 'File drag resource unavailable' })
+        }
+      })().catch((error: unknown) => { console.error(error) })
+      return
+    }
     if (control.websiteParent?.receive(message) === true || websiteControl(message)) return
     if (message.type === 'website-mcp') {
       if (!('requestId' in message) || !Number.isSafeInteger(message.requestId)

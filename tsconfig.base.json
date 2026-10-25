@@ -28,6 +28,9 @@
     // not declaration path aliases, keep each package/vendor source compiled
     // under its own tsconfig boundary.
     "paths": {
+      "@deepseek-ai/dsh-file-drag": ["./packages/util/file-drag/src/index.ts"],
+      "@deepseek-ai/dsh-client-ui-file-drag": ["./packages/client/ui-file-drag/src/index.ts"],
+      "@deepseek-ai/dsh-client-ui-file-drag/client": ["./packages/client/ui-file-drag/src/client/index.ts"],
       "@deepseek-ai/dsh-companion-host": ["./packages/host/companion-host/src/index.ts"],
       "@deepseek-ai/dsh-companion-host/types": ["./packages/host/companion-host/src/types.ts"],
       "@deepseek-ai/dsh-companion-host/desktop-control": ["./packages/host/companion-host/src/desktop-control.ts"],

@@ -79,6 +79,10 @@ function sectionOperations(account: AccountSnapshot, pages: PlatformPages): Acco
 async function bench() {
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
   const runtime = await SlotTestRuntime.create()
+  runtime.ctx.provide('fileDrag', {
+    actions: { prepare: async () => { throw new Error('Unexpected file drag') }, reportFailure: () => {} },
+    read: () => undefined,
+  } as never)
   disposers.push(() => runtime.dispose())
   const forms = new Map<string, ReturnType<typeof stubConfigForm>['scope']>()
   const formFor = (namespace: string) => {

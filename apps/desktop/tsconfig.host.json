@@ -8,7 +8,9 @@
     "src"
   ],
   "references": [
-    { "path": "../../packages/host/companion-host" },
+    {
+      "path": "../../packages/host/companion-host"
+    },
     {
       "path": "../../packages/boot/app-boot"
     },
@@ -35,6 +37,9 @@
     },
     {
       "path": "../../packages/client/product-analytics/tsconfig.host.json"
+    },
+    {
+      "path": "../../packages/util/file-drag"
     }
   ],
   "exclude": [

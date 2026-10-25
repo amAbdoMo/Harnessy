@@ -1611,6 +1611,8 @@ describe('desktop main startup', () => {
   it('routes closing through the tray confirmation and keeps the Host running', async () => {
     const host = await readyWorkspace()
     const window = harness.windows[0]!
+    const fileDrag = harness.handlers.get(DESKTOP_IPC.fileDragPrepare)
+    expect(fileDrag).toBeDefined()
     expect(harness.trays).toHaveLength(1)
     expect(harness.trays[0]!.image).toEqual({ path: join('desktop-test-resources', 'tray.ico') })
     expect(harness.backgroundNotice.markerPath).toBe(join(harness.app.getPath('userData'), 'background-close-confirmed'))
@@ -1620,6 +1622,7 @@ describe('desktop main startup', () => {
     expect(window.hide).toHaveBeenCalledOnce()
     expect(host.stop).not.toHaveBeenCalled()
     expect(harness.app.quit).not.toHaveBeenCalled()
+    expect(harness.handlers.get(DESKTOP_IPC.fileDragPrepare)).toBe(fileDrag)
     expect(harness.backgroundNotice.close).toHaveBeenCalledOnce()
     harness.trays[0]!.emit('click')
     expect(window.show).toHaveBeenCalledOnce()
@@ -1954,6 +1957,9 @@ describe('desktop main startup', () => {
     window.emit('closed')
     host.exited.resolve()
     await harness.quitCompleted.promise
+    expect(harness.handlers.has(DESKTOP_IPC.fileDragPrepare)).toBe(false)
+    expect(harness.handlers.has(DESKTOP_IPC.fileDragStart)).toBe(false)
+    expect(harness.handlers.has(DESKTOP_IPC.fileDragRelease)).toBe(false)
   })
 
   it('shares the failed-check deadline across focus and resume, while explicit checks reset polling', async () => {
@@ -2419,6 +2425,8 @@ describe('desktop main startup', () => {
       } })))
     }
     const host = await readyForUpdate()
+    const fileDrag = harness.handlers.get(DESKTOP_IPC.fileDragPrepare)
+    expect(fileDrag).toBeDefined()
     if (mandatory) await harness.policyBlocked.promise
     harness.dialog.showMessageBox.mockResolvedValueOnce({ response: 0 })
     const preparing = harness.prepareUpdate()
@@ -2426,9 +2434,12 @@ describe('desktop main startup', () => {
     await host.stopping.promise
     host.exited.resolve()
     await expect(preparing).resolves.toBe(true)
+    expect(harness.handlers.has(DESKTOP_IPC.fileDragPrepare)).toBe(false)
     harness.dialog.showMessageBox.mockResolvedValue({ response: 1 })
     const restarted = harness.nextHostStart()
     harness.publishUpdate({ phase: 'error', version: '1.0.1-nightly.1', failedOperation: 'install', message: 'Installer failed' })
+    expect(harness.handlers.get(DESKTOP_IPC.fileDragPrepare)).toBeDefined()
+    expect(harness.handlers.get(DESKTOP_IPC.fileDragPrepare)).not.toBe(fileDrag)
     await restarted
     const replacement = harness.hosts[1]!
     replacement.url = 'http://127.0.0.1:3099/?token=replacement'

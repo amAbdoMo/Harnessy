@@ -231,6 +231,8 @@ export interface PerformanceUsageInjected {
 
 /** Business callbacks injected into the Chat view. */
 export interface ChatViewInjected {
+  /** Application-owned preparation for original-image dragging. */
+  fileDrag: import('@deepseek-ai/dsh-client-ui-primitives').FileDragActions
   hooks: {
     /** Live presentation policy derived from the accepted work-details mode. */
     presentation: ObservableSnapshot<ChatPresentationPolicy>
