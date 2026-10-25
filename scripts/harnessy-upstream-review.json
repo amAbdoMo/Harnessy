@@ -16736,7 +16736,7 @@
       ],
       "tree": "d5f9e28a801f190cb92cbb87341aa3c997beaefd",
       "subject": "refactor(office): remove the bundled structural checker",
-      "review": null
+      "review": "harnessy-progressive-office-final-design-20261025"
     },
     {
       "sha": "2fe9783f55a04ec3e5eccd94583e7046daf48b0a",
@@ -17250,7 +17250,7 @@
       ],
       "tree": "d98dc96503b0c6ee2c1c3dbc6f3457b09d33baa3",
       "subject": "refactor(office): remove command launchers and shell compatibility changes",
-      "review": null
+      "review": "harnessy-progressive-office-final-design-20261025"
     },
     {
       "sha": "c6f3639b5eefd26d0aca2a11e03f4831756c14b9",
@@ -17349,7 +17349,7 @@
       ],
       "tree": "c0d50c5050e9159db6bcdf0e7c122d8f002e4908",
       "subject": "refactor(office): keep skill API and carrier composition unchanged",
-      "review": null
+      "review": "harnessy-progressive-office-final-design-20261025"
     },
     {
       "sha": "3a0f4976ad4ef2369bf9e1e9d3ffb90be9111645",
@@ -18654,7 +18654,7 @@
       ],
       "tree": "6c9d14e08ce9fdef865dd053798c8b623be8f952",
       "subject": "refactor(office): trim unused skill metadata and launcher input forwarding",
-      "review": null
+      "review": "harnessy-progressive-office-final-design-20261025"
     },
     {
       "sha": "1a83d013f5b5d87c4f7a8bb45e35eb966880f0f1",
@@ -18745,7 +18745,7 @@
       ],
       "tree": "dfe09436196dffb8bcba3c9edf77681707fa5893",
       "subject": "feat(office): add progressive skills and direct dsoffice commands",
-      "review": null
+      "review": "harnessy-progressive-office-final-design-20261025"
     },
     {
       "sha": "898ed6d192c28ba57e338bbb163dc8d23dc365aa",
@@ -46590,6 +46590,1630 @@
         "Documentation aggregate passed all 43 checks. Hygiene passed 15 of 16; vendor rescope initially mistook the unchanged cordis agent-preset id for a package reference. Three existing preset-id exceptions were added for the previously adopted Creator paths; the owning rescope verifier then passed. Product verification passed 138 of 140; the welcome pair first hit a cold-load timeout and cascading state, then both passed in isolation without production changes.",
         "The actual packed-preview browser case passed empty and seeded worker startup, settings/credential persistence, tool output, subagent catalog and earlier-history navigation. Its Windows fixture now normalizes URLs as POSIX paths; the prior platform-path mismatch returned 404 for its generated VFS image. The fixture uses Harnessy’s current working/done subagent control and explicit completed group rather than reverting the UI to its old label.",
         "No live authenticated native delegation, additional runtime qualification, installed Desktop payload/installer, staging-runtime selection, main-app update, release or upstream ancestry merge was performed. OAR is disabled by default and needs Node 24 and separately installed/authenticated native agents. Startup cancellation waits for OAR; native process/history ownership and unattended permissions remain documented limitations."
+      ]
+    },
+    "harnessy-progressive-office-final-design-20261025": {
+      "status": "adopted",
+      "summary": "Adapt the final progressive Office design, accounting for its mixed initial commit and three removals of temporary infrastructure. Keep explicit carrier composition and optional checker resources; exclude removing the checker and unrelated upstream fixture/release changes. Verify actual exports in all three formats and formula-cache refresh without changing source files.",
+      "files": [
+        {
+          "path": ".agents/notes/implemented/architecture/2026-09-27-progressive-office-skills.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Do not import an upstream decision record that also describes discarded hidden-catalog, nested-injection or shell-wrapper designs. Current Harnessy Office README and skill bodies document the adopted final behavior; the ledger records these exact historical choices."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-09-27-progressive-office-skills.md",
+          "disposition": "excluded",
+          "reason": "Do not import an upstream decision record that also describes discarded hidden-catalog, nested-injection or shell-wrapper designs. Current Harnessy Office README and skill bodies document the adopted final behavior; the ledger records these exact historical choices."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-09-27-progressive-office-skills.zh.md",
+          "disposition": "excluded",
+          "reason": "Do not import an upstream decision record that also describes discarded hidden-catalog, nested-injection or shell-wrapper designs. Current Harnessy Office README and skill bodies document the adopted final behavior; the ledger records these exact historical choices."
+        },
+        {
+          "path": "THIRD_PARTY_NOTICES.md",
+          "disposition": "retained-newer",
+          "reason": "Retain current dependency notices, lock and source aliases for the final absolute-path Office route. No command-wrapper bundle, removed helper dependency or temporary source subpath is needed. Normal custom build, hygiene and documentation checks qualify the current artifacts."
+        },
+        {
+          "path": "apps/cli/composition.md",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "apps/cli/tests/dsh-badge.expected.e2e.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "apps/cli/tests/profiles/sdk/keyless-smoke.e2e.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "apps/cli/tests/profiles/sdk/office-cli.e2e.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "apps/cli/tests/profiles/web/tests/default-web-process.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "apps/cli/tests/profiles/web/tests/fixtures/runtime-roster-observer.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "apps/cli/tests/profiles/web/tests/office.expected.e2e.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "apps/cli/tests/profiles/web/tests/runtime-roster.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "apps/cli/tests/web-agent-presets.e2e.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "apps/desktop-host/package.json",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "apps/desktop-host/src/index.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "apps/desktop-host/src/office.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "apps/desktop-host/tests/office.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "apps/desktop-host/tsconfig.json",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "apps/desktop/README.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "apps/desktop/README.md",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "apps/desktop/README.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "apps/desktop/scripts/smoke-runtime.ts",
+          "disposition": "adopted",
+          "reason": "Adapt only progressive-skill path discovery: consumers needing the absolute CLI now load office-export-pdf, and authoring checks recognize seven catalog entries. Retain the existing carrier composition, native invocation, SDK interfaces and declared runtime isolation; exclude temporary command/PATH plumbing and upstream-only visual harness changes. No installer or installed-wheel qualification is claimed."
+        },
+        {
+          "path": "apps/web/tests/lifecycle-chrome.e2e.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "docs/config-catalog.md",
+          "disposition": "retained-newer",
+          "reason": "Keep current generated catalogs, persistence records and subsystem API documentation. The shared skill visibility/event/PATH declarations introduced by the initial commit were removed by reviewed follow-ups and are not part of Harnessy’s final Office design. Current documentation and persistence-history gates pass without those declarations."
+        },
+        {
+          "path": "docs/config-catalog.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Keep current generated catalogs, persistence records and subsystem API documentation. The shared skill visibility/event/PATH declarations introduced by the initial commit were removed by reviewed follow-ups and are not part of Harnessy’s final Office design. Current documentation and persistence-history gates pass without those declarations."
+        },
+        {
+          "path": "docs/event-producer-consumer.md",
+          "disposition": "retained-newer",
+          "reason": "Keep current generated catalogs, persistence records and subsystem API documentation. The shared skill visibility/event/PATH declarations introduced by the initial commit were removed by reviewed follow-ups and are not part of Harnessy’s final Office design. Current documentation and persistence-history gates pass without those declarations."
+        },
+        {
+          "path": "docs/event-producer-consumer.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Keep current generated catalogs, persistence records and subsystem API documentation. The shared skill visibility/event/PATH declarations introduced by the initial commit were removed by reviewed follow-ups and are not part of Harnessy’s final Office design. Current documentation and persistence-history gates pass without those declarations."
+        },
+        {
+          "path": "docs/module-graph.md",
+          "disposition": "retained-newer",
+          "reason": "Keep current generated catalogs, persistence records and subsystem API documentation. The shared skill visibility/event/PATH declarations introduced by the initial commit were removed by reviewed follow-ups and are not part of Harnessy’s final Office design. Current documentation and persistence-history gates pass without those declarations."
+        },
+        {
+          "path": "docs/module-graph.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Keep current generated catalogs, persistence records and subsystem API documentation. The shared skill visibility/event/PATH declarations introduced by the initial commit were removed by reviewed follow-ups and are not part of Harnessy’s final Office design. Current documentation and persistence-history gates pass without those declarations."
+        },
+        {
+          "path": "docs/persistence-catalog.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Keep current generated catalogs, persistence records and subsystem API documentation. The shared skill visibility/event/PATH declarations introduced by the initial commit were removed by reviewed follow-ups and are not part of Harnessy’s final Office design. Current documentation and persistence-history gates pass without those declarations."
+        },
+        {
+          "path": "docs/persistence-catalog.md",
+          "disposition": "retained-newer",
+          "reason": "Keep current generated catalogs, persistence records and subsystem API documentation. The shared skill visibility/event/PATH declarations introduced by the initial commit were removed by reviewed follow-ups and are not part of Harnessy’s final Office design. Current documentation and persistence-history gates pass without those declarations."
+        },
+        {
+          "path": "docs/persistence-catalog.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Keep current generated catalogs, persistence records and subsystem API documentation. The shared skill visibility/event/PATH declarations introduced by the initial commit were removed by reviewed follow-ups and are not part of Harnessy’s final Office design. Current documentation and persistence-history gates pass without those declarations."
+        },
+        {
+          "path": "docs/persistence-schema.json",
+          "disposition": "retained-newer",
+          "reason": "Keep current generated catalogs, persistence records and subsystem API documentation. The shared skill visibility/event/PATH declarations introduced by the initial commit were removed by reviewed follow-ups and are not part of Harnessy’s final Office design. Current documentation and persistence-history gates pass without those declarations."
+        },
+        {
+          "path": "docs/subsystems/skills.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Keep current generated catalogs, persistence records and subsystem API documentation. The shared skill visibility/event/PATH declarations introduced by the initial commit were removed by reviewed follow-ups and are not part of Harnessy’s final Office design. Current documentation and persistence-history gates pass without those declarations."
+        },
+        {
+          "path": "docs/subsystems/skills.md",
+          "disposition": "retained-newer",
+          "reason": "Keep current generated catalogs, persistence records and subsystem API documentation. The shared skill visibility/event/PATH declarations introduced by the initial commit were removed by reviewed follow-ups and are not part of Harnessy’s final Office design. Current documentation and persistence-history gates pass without those declarations."
+        },
+        {
+          "path": "docs/subsystems/skills.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Keep current generated catalogs, persistence records and subsystem API documentation. The shared skill visibility/event/PATH declarations introduced by the initial commit were removed by reviewed follow-ups and are not part of Harnessy’s final Office design. Current documentation and persistence-history gates pass without those declarations."
+        },
+        {
+          "path": "docs/subsystems/subprocess.md",
+          "disposition": "retained-newer",
+          "reason": "Keep current generated catalogs, persistence records and subsystem API documentation. The shared skill visibility/event/PATH declarations introduced by the initial commit were removed by reviewed follow-ups and are not part of Harnessy’s final Office design. Current documentation and persistence-history gates pass without those declarations."
+        },
+        {
+          "path": "docs/subsystems/subprocess.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Keep current generated catalogs, persistence records and subsystem API documentation. The shared skill visibility/event/PATH declarations introduced by the initial commit were removed by reviewed follow-ups and are not part of Harnessy’s final Office design. Current documentation and persistence-history gates pass without those declarations."
+        },
+        {
+          "path": "docs/tool-catalog.md",
+          "disposition": "retained-newer",
+          "reason": "Keep current generated catalogs, persistence records and subsystem API documentation. The shared skill visibility/event/PATH declarations introduced by the initial commit were removed by reviewed follow-ups and are not part of Harnessy’s final Office design. Current documentation and persistence-history gates pass without those declarations."
+        },
+        {
+          "path": "docs/tool-catalog.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Keep current generated catalogs, persistence records and subsystem API documentation. The shared skill visibility/event/PATH declarations introduced by the initial commit were removed by reviewed follow-ups and are not part of Harnessy’s final Office design. Current documentation and persistence-history gates pass without those declarations."
+        },
+        {
+          "path": "docs/upgrade-guide/v0.2.1-alpha.2/office-checker/guide.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Harnessy retains its existing optional read-only OOXML checker for explicit checks, with no activation-time dependency and no routine use after requested Word content checks. The upstream checker-removal guide describes a breaking removal that Harnessy is not performing."
+        },
+        {
+          "path": "docs/upgrade-guide/v0.2.1-alpha.2/office-checker/guide.md",
+          "disposition": "excluded",
+          "reason": "Harnessy retains its existing optional read-only OOXML checker for explicit checks, with no activation-time dependency and no routine use after requested Word content checks. The upstream checker-removal guide describes a breaking removal that Harnessy is not performing."
+        },
+        {
+          "path": "docs/upgrade-guide/v0.2.1-alpha.2/office-checker/guide.zh.md",
+          "disposition": "excluded",
+          "reason": "Harnessy retains its existing optional read-only OOXML checker for explicit checks, with no activation-time dependency and no routine use after requested Word content checks. The upstream checker-removal guide describes a breaking removal that Harnessy is not performing."
+        },
+        {
+          "path": "packages/bundle/base/cordis.patch.yml",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "packages/bundle/base/package.json",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "packages/bundle/sdk-app/cordis.patch.yml",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "packages/bundle/sdk-app/package.json",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "packages/bundle/web-app/README.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "packages/bundle/web-app/README.md",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "packages/bundle/web-app/README.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "packages/bundle/web-app/cordis.patch.yml",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "packages/bundle/web-app/package.json",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "packages/bundle/web-app/presets/cordis.patch.yml",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "packages/bundle/web-app/presets/ptc.patch.yml",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "packages/bundle/web-app/presets/standard.patch.yml",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "packages/experimental/webworker-runtime/README.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "packages/experimental/webworker-runtime/README.md",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "packages/experimental/webworker-runtime/README.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "packages/experimental/webworker-runtime/src/worker-host.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s current carrier-specific Office plugin composition, browser-worker behavior and custom UI. The reviewed upstream follow-ups restore explicit Desktop/SDK configuration and remove temporary environment-based shared mounting and command rows. Existing carrier tests, custom builds and the packed-preview browser case qualify the retained source route; no installed application update is claimed."
+        },
+        {
+          "path": "packages/extensions/tool-cordis/src/api-catalog.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain the current generated API catalog because the temporary Office commands and shared type additions are absent in the reviewed final design. Current catalog and documentation checks pass."
+        },
+        {
+          "path": "packages/shell/pwsh-local/README.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Retain current shell and subprocess APIs. The reviewed upstream follow-up removes the Office-specific PATH contribution and PowerShell execution-policy compatibility changes. Current operations use absolute executable paths and do not need those global API changes; shell environment and PowerShell owner tests cover the retained behavior."
+        },
+        {
+          "path": "packages/shell/pwsh-local/README.md",
+          "disposition": "retained-newer",
+          "reason": "Retain current shell and subprocess APIs. The reviewed upstream follow-up removes the Office-specific PATH contribution and PowerShell execution-policy compatibility changes. Current operations use absolute executable paths and do not need those global API changes; shell environment and PowerShell owner tests cover the retained behavior."
+        },
+        {
+          "path": "packages/shell/pwsh-local/README.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Retain current shell and subprocess APIs. The reviewed upstream follow-up removes the Office-specific PATH contribution and PowerShell execution-policy compatibility changes. Current operations use absolute executable paths and do not need those global API changes; shell environment and PowerShell owner tests cover the retained behavior."
+        },
+        {
+          "path": "packages/shell/pwsh-local/src/index.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain current shell and subprocess APIs. The reviewed upstream follow-up removes the Office-specific PATH contribution and PowerShell execution-policy compatibility changes. Current operations use absolute executable paths and do not need those global API changes; shell environment and PowerShell owner tests cover the retained behavior."
+        },
+        {
+          "path": "packages/shell/pwsh-local/tests/executor.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain current shell and subprocess APIs. The reviewed upstream follow-up removes the Office-specific PATH contribution and PowerShell execution-policy compatibility changes. Current operations use absolute executable paths and do not need those global API changes; shell environment and PowerShell owner tests cover the retained behavior."
+        },
+        {
+          "path": "packages/shell/shell-env/README.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Retain current shell and subprocess APIs. The reviewed upstream follow-up removes the Office-specific PATH contribution and PowerShell execution-policy compatibility changes. Current operations use absolute executable paths and do not need those global API changes; shell environment and PowerShell owner tests cover the retained behavior."
+        },
+        {
+          "path": "packages/shell/shell-env/README.md",
+          "disposition": "retained-newer",
+          "reason": "Retain current shell and subprocess APIs. The reviewed upstream follow-up removes the Office-specific PATH contribution and PowerShell execution-policy compatibility changes. Current operations use absolute executable paths and do not need those global API changes; shell environment and PowerShell owner tests cover the retained behavior."
+        },
+        {
+          "path": "packages/shell/shell-env/README.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Retain current shell and subprocess APIs. The reviewed upstream follow-up removes the Office-specific PATH contribution and PowerShell execution-policy compatibility changes. Current operations use absolute executable paths and do not need those global API changes; shell environment and PowerShell owner tests cover the retained behavior."
+        },
+        {
+          "path": "packages/shell/shell-env/src/index.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain current shell and subprocess APIs. The reviewed upstream follow-up removes the Office-specific PATH contribution and PowerShell execution-policy compatibility changes. Current operations use absolute executable paths and do not need those global API changes; shell environment and PowerShell owner tests cover the retained behavior."
+        },
+        {
+          "path": "packages/shell/shell-env/tests/shell-env.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain current shell and subprocess APIs. The reviewed upstream follow-up removes the Office-specific PATH contribution and PowerShell execution-policy compatibility changes. Current operations use absolute executable paths and do not need those global API changes; shell environment and PowerShell owner tests cover the retained behavior."
+        },
+        {
+          "path": "packages/skill/skill-filesystem/README.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Retain current skill metadata, invocation permissions and context insertion. Reviewed upstream follow-ups remove ModelCatalogVisibility and duplicate nested deferred instructions. Current owner tests cover loading and invocation; file-link cases use the existing capability probe and remain explicit skips where Windows lacks the privilege, rather than changing production discovery."
+        },
+        {
+          "path": "packages/skill/skill-filesystem/README.md",
+          "disposition": "retained-newer",
+          "reason": "Retain current skill metadata, invocation permissions and context insertion. Reviewed upstream follow-ups remove ModelCatalogVisibility and duplicate nested deferred instructions. Current owner tests cover loading and invocation; file-link cases use the existing capability probe and remain explicit skips where Windows lacks the privilege, rather than changing production discovery."
+        },
+        {
+          "path": "packages/skill/skill-filesystem/README.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Retain current skill metadata, invocation permissions and context insertion. Reviewed upstream follow-ups remove ModelCatalogVisibility and duplicate nested deferred instructions. Current owner tests cover loading and invocation; file-link cases use the existing capability probe and remain explicit skips where Windows lacks the privilege, rather than changing production discovery."
+        },
+        {
+          "path": "packages/skill/skill-filesystem/src/index.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain current skill metadata, invocation permissions and context insertion. Reviewed upstream follow-ups remove ModelCatalogVisibility and duplicate nested deferred instructions. Current owner tests cover loading and invocation; file-link cases use the existing capability probe and remain explicit skips where Windows lacks the privilege, rather than changing production discovery."
+        },
+        {
+          "path": "packages/skill/skill-filesystem/tests/skill-filesystem.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain current skill metadata, invocation permissions and context insertion. Reviewed upstream follow-ups remove ModelCatalogVisibility and duplicate nested deferred instructions. Current owner tests cover loading and invocation; file-link cases use the existing capability probe and remain explicit skips where Windows lacks the privilege, rather than changing production discovery."
+        },
+        {
+          "path": "packages/skill/skill-office/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adapt the final router, three format skills and three operation skills, separate instruction bodies and operation-only absolute CLI footer. Preserve fail-fast configured paths, current public Config and explicit bundled-engine policy. Keep all seven descriptions listed, avoid duplicate nested context injection, retain optional checker resources and verify native/PTC loading, user invocation and seeded resume/fork."
+        },
+        {
+          "path": "packages/skill/skill-office/README.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final router, three format skills and three operation skills, separate instruction bodies and operation-only absolute CLI footer. Preserve fail-fast configured paths, current public Config and explicit bundled-engine policy. Keep all seven descriptions listed, avoid duplicate nested context injection, retain optional checker resources and verify native/PTC loading, user invocation and seeded resume/fork."
+        },
+        {
+          "path": "packages/skill/skill-office/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final router, three format skills and three operation skills, separate instruction bodies and operation-only absolute CLI footer. Preserve fail-fast configured paths, current public Config and explicit bundled-engine policy. Keep all seven descriptions listed, avoid duplicate nested context injection, retain optional checker resources and verify native/PTC loading, user invocation and seeded resume/fork."
+        },
+        {
+          "path": "packages/skill/skill-office/assets/office-docx/SKILL.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final router, three format skills and three operation skills, separate instruction bodies and operation-only absolute CLI footer. Preserve fail-fast configured paths, current public Config and explicit bundled-engine policy. Keep all seven descriptions listed, avoid duplicate nested context injection, retain optional checker resources and verify native/PTC loading, user invocation and seeded resume/fork."
+        },
+        {
+          "path": "packages/skill/skill-office/assets/office-export-pdf/SKILL.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final router, three format skills and three operation skills, separate instruction bodies and operation-only absolute CLI footer. Preserve fail-fast configured paths, current public Config and explicit bundled-engine policy. Keep all seven descriptions listed, avoid duplicate nested context injection, retain optional checker resources and verify native/PTC loading, user invocation and seeded resume/fork."
+        },
+        {
+          "path": "packages/skill/skill-office/assets/office-pptx/SKILL.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final router, three format skills and three operation skills, separate instruction bodies and operation-only absolute CLI footer. Preserve fail-fast configured paths, current public Config and explicit bundled-engine policy. Keep all seven descriptions listed, avoid duplicate nested context injection, retain optional checker resources and verify native/PTC loading, user invocation and seeded resume/fork."
+        },
+        {
+          "path": "packages/skill/skill-office/assets/office-recalculate/SKILL.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final router, three format skills and three operation skills, separate instruction bodies and operation-only absolute CLI footer. Preserve fail-fast configured paths, current public Config and explicit bundled-engine policy. Keep all seven descriptions listed, avoid duplicate nested context injection, retain optional checker resources and verify native/PTC loading, user invocation and seeded resume/fork."
+        },
+        {
+          "path": "packages/skill/skill-office/assets/office-render/SKILL.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final router, three format skills and three operation skills, separate instruction bodies and operation-only absolute CLI footer. Preserve fail-fast configured paths, current public Config and explicit bundled-engine policy. Keep all seven descriptions listed, avoid duplicate nested context injection, retain optional checker resources and verify native/PTC loading, user invocation and seeded resume/fork."
+        },
+        {
+          "path": "packages/skill/skill-office/assets/office-xlsx/SKILL.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final router, three format skills and three operation skills, separate instruction bodies and operation-only absolute CLI footer. Preserve fail-fast configured paths, current public Config and explicit bundled-engine policy. Keep all seven descriptions listed, avoid duplicate nested context injection, retain optional checker resources and verify native/PTC loading, user invocation and seeded resume/fork."
+        },
+        {
+          "path": "packages/skill/skill-office/assets/office/SKILL.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final router, three format skills and three operation skills, separate instruction bodies and operation-only absolute CLI footer. Preserve fail-fast configured paths, current public Config and explicit bundled-engine policy. Keep all seven descriptions listed, avoid duplicate nested context injection, retain optional checker resources and verify native/PTC loading, user invocation and seeded resume/fork."
+        },
+        {
+          "path": "packages/skill/skill-office/assets/office/references/sidecar.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final router, three format skills and three operation skills, separate instruction bodies and operation-only absolute CLI footer. Preserve fail-fast configured paths, current public Config and explicit bundled-engine policy. Keep all seven descriptions listed, avoid duplicate nested context injection, retain optional checker resources and verify native/PTC loading, user invocation and seeded resume/fork."
+        },
+        {
+          "path": "packages/skill/skill-office/assets/scripts/check_office.py",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s existing optional Python OOXML checker and its owner tests. Do not delete an independently useful read-only helper or make it an activation prerequisite. Format instructions omit routine ZIP/metadata checks after requested content verification."
+        },
+        {
+          "path": "packages/skill/skill-office/package.json",
+          "disposition": "adopted",
+          "reason": "Adapt the final router, three format skills and three operation skills, separate instruction bodies and operation-only absolute CLI footer. Preserve fail-fast configured paths, current public Config and explicit bundled-engine policy. Keep all seven descriptions listed, avoid duplicate nested context injection, retain optional checker resources and verify native/PTC loading, user invocation and seeded resume/fork."
+        },
+        {
+          "path": "packages/skill/skill-office/src/check.ts",
+          "disposition": "excluded",
+          "reason": "The direct dsoffice/check command entrypoints and their build/tests were temporary upstream designs removed by the reviewed follow-ups. Keep operation skills returning absolute Node/CLI paths; no extra exported launcher, PATH injection or command-wrapper artifact is needed."
+        },
+        {
+          "path": "packages/skill/skill-office/src/commands.ts",
+          "disposition": "excluded",
+          "reason": "The direct dsoffice/check command entrypoints and their build/tests were temporary upstream designs removed by the reviewed follow-ups. Keep operation skills returning absolute Node/CLI paths; no extra exported launcher, PATH injection or command-wrapper artifact is needed."
+        },
+        {
+          "path": "packages/skill/skill-office/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final router, three format skills and three operation skills, separate instruction bodies and operation-only absolute CLI footer. Preserve fail-fast configured paths, current public Config and explicit bundled-engine policy. Keep all seven descriptions listed, avoid duplicate nested context injection, retain optional checker resources and verify native/PTC loading, user invocation and seeded resume/fork."
+        },
+        {
+          "path": "packages/skill/skill-office/tests/check.spec.ts",
+          "disposition": "excluded",
+          "reason": "The direct dsoffice/check command entrypoints and their build/tests were temporary upstream designs removed by the reviewed follow-ups. Keep operation skills returning absolute Node/CLI paths; no extra exported launcher, PATH injection or command-wrapper artifact is needed."
+        },
+        {
+          "path": "packages/skill/skill-office/tests/check_office_test.py",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s existing optional Python OOXML checker and its owner tests. Do not delete an independently useful read-only helper or make it an activation prerequisite. Format instructions omit routine ZIP/metadata checks after requested content verification."
+        },
+        {
+          "path": "packages/skill/skill-office/tests/checkers.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s existing optional Python OOXML checker and its owner tests. Do not delete an independently useful read-only helper or make it an activation prerequisite. Format instructions omit routine ZIP/metadata checks after requested content verification."
+        },
+        {
+          "path": "packages/skill/skill-office/tests/commands.built.e2e.ts",
+          "disposition": "excluded",
+          "reason": "The direct dsoffice/check command entrypoints and their build/tests were temporary upstream designs removed by the reviewed follow-ups. Keep operation skills returning absolute Node/CLI paths; no extra exported launcher, PATH injection or command-wrapper artifact is needed."
+        },
+        {
+          "path": "packages/skill/skill-office/tests/commands.spec.ts",
+          "disposition": "excluded",
+          "reason": "The direct dsoffice/check command entrypoints and their build/tests were temporary upstream designs removed by the reviewed follow-ups. Keep operation skills returning absolute Node/CLI paths; no extra exported launcher, PATH injection or command-wrapper artifact is needed."
+        },
+        {
+          "path": "packages/skill/skill-office/tests/docx-validation.e2e.ts",
+          "disposition": "excluded",
+          "reason": "Do not copy upstream live-model/provider or render-wrapper fixtures tied to a different SDK and retired command route. Current deterministic owner cases execute actual DOCX/PPTX/XLSX PDF and PNG exports through loaded paths with an empty PATH, and verify preserved formulas, refreshed cache and unchanged workbook bytes. Live-model tool choice, appearance and native application fidelity remain unverified."
+        },
+        {
+          "path": "packages/skill/skill-office/tests/fixtures/real-office.ts",
+          "disposition": "excluded",
+          "reason": "Do not copy upstream live-model/provider or render-wrapper fixtures tied to a different SDK and retired command route. Current deterministic owner cases execute actual DOCX/PPTX/XLSX PDF and PNG exports through loaded paths with an empty PATH, and verify preserved formulas, refreshed cache and unchanged workbook bytes. Live-model tool choice, appearance and native application fidelity remain unverified."
+        },
+        {
+          "path": "packages/skill/skill-office/tests/fixtures/render-cli.ts",
+          "disposition": "excluded",
+          "reason": "Do not copy upstream live-model/provider or render-wrapper fixtures tied to a different SDK and retired command route. Current deterministic owner cases execute actual DOCX/PPTX/XLSX PDF and PNG exports through loaded paths with an empty PATH, and verify preserved formulas, refreshed cache and unchanged workbook bytes. Live-model tool choice, appearance and native application fidelity remain unverified."
+        },
+        {
+          "path": "packages/skill/skill-office/tests/progressive-loading.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final router, three format skills and three operation skills, separate instruction bodies and operation-only absolute CLI footer. Preserve fail-fast configured paths, current public Config and explicit bundled-engine policy. Keep all seven descriptions listed, avoid duplicate nested context injection, retain optional checker resources and verify native/PTC loading, user invocation and seeded resume/fork."
+        },
+        {
+          "path": "packages/skill/skill-office/tests/render-tools.e2e.ts",
+          "disposition": "excluded",
+          "reason": "Do not copy upstream live-model/provider or render-wrapper fixtures tied to a different SDK and retired command route. Current deterministic owner cases execute actual DOCX/PPTX/XLSX PDF and PNG exports through loaded paths with an empty PATH, and verify preserved formulas, refreshed cache and unchanged workbook bytes. Live-model tool choice, appearance and native application fidelity remain unverified."
+        },
+        {
+          "path": "packages/skill/skill-office/tests/skill-office.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final router, three format skills and three operation skills, separate instruction bodies and operation-only absolute CLI footer. Preserve fail-fast configured paths, current public Config and explicit bundled-engine policy. Keep all seven descriptions listed, avoid duplicate nested context injection, retain optional checker resources and verify native/PTC loading, user invocation and seeded resume/fork."
+        },
+        {
+          "path": "packages/skill/skill-office/tests/visual-intent.e2e.ts",
+          "disposition": "excluded",
+          "reason": "Do not copy upstream live-model/provider or render-wrapper fixtures tied to a different SDK and retired command route. Current deterministic owner cases execute actual DOCX/PPTX/XLSX PDF and PNG exports through loaded paths with an empty PATH, and verify preserved formulas, refreshed cache and unchanged workbook bytes. Live-model tool choice, appearance and native application fidelity remain unverified."
+        },
+        {
+          "path": "packages/skill/skill-office/tests/xlsx-validation.e2e.ts",
+          "disposition": "excluded",
+          "reason": "Do not copy upstream live-model/provider or render-wrapper fixtures tied to a different SDK and retired command route. Current deterministic owner cases execute actual DOCX/PPTX/XLSX PDF and PNG exports through loaded paths with an empty PATH, and verify preserved formulas, refreshed cache and unchanged workbook bytes. Live-model tool choice, appearance and native application fidelity remain unverified."
+        },
+        {
+          "path": "packages/skill/skill-office/tsconfig.json",
+          "disposition": "adopted",
+          "reason": "Adapt the final router, three format skills and three operation skills, separate instruction bodies and operation-only absolute CLI footer. Preserve fail-fast configured paths, current public Config and explicit bundled-engine policy. Keep all seven descriptions listed, avoid duplicate nested context injection, retain optional checker resources and verify native/PTC loading, user invocation and seeded resume/fork."
+        },
+        {
+          "path": "packages/skill/skill-office/tsdown.config.ts",
+          "disposition": "excluded",
+          "reason": "The direct dsoffice/check command entrypoints and their build/tests were temporary upstream designs removed by the reviewed follow-ups. Keep operation skills returning absolute Node/CLI paths; no extra exported launcher, PATH injection or command-wrapper artifact is needed."
+        },
+        {
+          "path": "packages/skill/skill/README.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Retain current skill metadata, invocation permissions and context insertion. Reviewed upstream follow-ups remove ModelCatalogVisibility and duplicate nested deferred instructions. Current owner tests cover loading and invocation; file-link cases use the existing capability probe and remain explicit skips where Windows lacks the privilege, rather than changing production discovery."
+        },
+        {
+          "path": "packages/skill/skill/README.md",
+          "disposition": "retained-newer",
+          "reason": "Retain current skill metadata, invocation permissions and context insertion. Reviewed upstream follow-ups remove ModelCatalogVisibility and duplicate nested deferred instructions. Current owner tests cover loading and invocation; file-link cases use the existing capability probe and remain explicit skips where Windows lacks the privilege, rather than changing production discovery."
+        },
+        {
+          "path": "packages/skill/skill/README.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Retain current skill metadata, invocation permissions and context insertion. Reviewed upstream follow-ups remove ModelCatalogVisibility and duplicate nested deferred instructions. Current owner tests cover loading and invocation; file-link cases use the existing capability probe and remain explicit skips where Windows lacks the privilege, rather than changing production discovery."
+        },
+        {
+          "path": "packages/skill/skill/src/index.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain current skill metadata, invocation permissions and context insertion. Reviewed upstream follow-ups remove ModelCatalogVisibility and duplicate nested deferred instructions. Current owner tests cover loading and invocation; file-link cases use the existing capability probe and remain explicit skips where Windows lacks the privilege, rather than changing production discovery."
+        },
+        {
+          "path": "packages/skill/skill/tests/skill.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain current skill metadata, invocation permissions and context insertion. Reviewed upstream follow-ups remove ModelCatalogVisibility and duplicate nested deferred instructions. Current owner tests cover loading and invocation; file-link cases use the existing capability probe and remain explicit skips where Windows lacks the privilege, rather than changing production discovery."
+        },
+        {
+          "path": "packages/skill/tool-skill/README.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Retain current skill metadata, invocation permissions and context insertion. Reviewed upstream follow-ups remove ModelCatalogVisibility and duplicate nested deferred instructions. Current owner tests cover loading and invocation; file-link cases use the existing capability probe and remain explicit skips where Windows lacks the privilege, rather than changing production discovery."
+        },
+        {
+          "path": "packages/skill/tool-skill/README.md",
+          "disposition": "retained-newer",
+          "reason": "Retain current skill metadata, invocation permissions and context insertion. Reviewed upstream follow-ups remove ModelCatalogVisibility and duplicate nested deferred instructions. Current owner tests cover loading and invocation; file-link cases use the existing capability probe and remain explicit skips where Windows lacks the privilege, rather than changing production discovery."
+        },
+        {
+          "path": "packages/skill/tool-skill/README.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Retain current skill metadata, invocation permissions and context insertion. Reviewed upstream follow-ups remove ModelCatalogVisibility and duplicate nested deferred instructions. Current owner tests cover loading and invocation; file-link cases use the existing capability probe and remain explicit skips where Windows lacks the privilege, rather than changing production discovery."
+        },
+        {
+          "path": "packages/skill/tool-skill/src/index.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain current skill metadata, invocation permissions and context insertion. Reviewed upstream follow-ups remove ModelCatalogVisibility and duplicate nested deferred instructions. Current owner tests cover loading and invocation; file-link cases use the existing capability probe and remain explicit skips where Windows lacks the privilege, rather than changing production discovery."
+        },
+        {
+          "path": "packages/skill/tool-skill/tests/tool-skill.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain current skill metadata, invocation permissions and context insertion. Reviewed upstream follow-ups remove ModelCatalogVisibility and duplicate nested deferred instructions. Current owner tests cover loading and invocation; file-link cases use the existing capability probe and remain explicit skips where Windows lacks the privilege, rather than changing production discovery."
+        },
+        {
+          "path": "packages/skill/tool-workspace-dependencies/README.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Retain the current primary-runtime query and installation API. The extra resolveWorkspaceDependencies helper existed only for removed Office command wrappers. No global runtime-copy or consumer API change is required by absolute-path operation skills."
+        },
+        {
+          "path": "packages/skill/tool-workspace-dependencies/README.md",
+          "disposition": "retained-newer",
+          "reason": "Retain the current primary-runtime query and installation API. The extra resolveWorkspaceDependencies helper existed only for removed Office command wrappers. No global runtime-copy or consumer API change is required by absolute-path operation skills."
+        },
+        {
+          "path": "packages/skill/tool-workspace-dependencies/README.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Retain the current primary-runtime query and installation API. The extra resolveWorkspaceDependencies helper existed only for removed Office command wrappers. No global runtime-copy or consumer API change is required by absolute-path operation skills."
+        },
+        {
+          "path": "packages/skill/tool-workspace-dependencies/src/index.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain the current primary-runtime query and installation API. The extra resolveWorkspaceDependencies helper existed only for removed Office command wrappers. No global runtime-copy or consumer API change is required by absolute-path operation skills."
+        },
+        {
+          "path": "packages/skill/tool-workspace-dependencies/tests/tool-workspace-dependencies.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain the current primary-runtime query and installation API. The extra resolveWorkspaceDependencies helper existed only for removed Office command wrappers. No global runtime-copy or consumer API change is required by absolute-path operation skills."
+        },
+        {
+          "path": "packages/subagent/subagent-dsh-sdk/tests/fixtures/loader/provider.mjs",
+          "disposition": "excluded",
+          "reason": "Do not copy the upstream SDK Loader provider test helper tied to a different provider API and carrier environment. Harnessy’s current subagent implementation remains unchanged by progressive Office loading; focused native/PTC skill checks use its actual current services."
+        },
+        {
+          "path": "packages/subprocess/subprocess/README.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Retain current shell and subprocess APIs. The reviewed upstream follow-up removes the Office-specific PATH contribution and PowerShell execution-policy compatibility changes. Current operations use absolute executable paths and do not need those global API changes; shell environment and PowerShell owner tests cover the retained behavior."
+        },
+        {
+          "path": "packages/subprocess/subprocess/README.md",
+          "disposition": "retained-newer",
+          "reason": "Retain current shell and subprocess APIs. The reviewed upstream follow-up removes the Office-specific PATH contribution and PowerShell execution-policy compatibility changes. Current operations use absolute executable paths and do not need those global API changes; shell environment and PowerShell owner tests cover the retained behavior."
+        },
+        {
+          "path": "packages/subprocess/subprocess/README.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Retain current shell and subprocess APIs. The reviewed upstream follow-up removes the Office-specific PATH contribution and PowerShell execution-policy compatibility changes. Current operations use absolute executable paths and do not need those global API changes; shell environment and PowerShell owner tests cover the retained behavior."
+        },
+        {
+          "path": "packages/subprocess/subprocess/src/types.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain current shell and subprocess APIs. The reviewed upstream follow-up removes the Office-specific PATH contribution and PowerShell execution-policy compatibility changes. Current operations use absolute executable paths and do not need those global API changes; shell environment and PowerShell owner tests cover the retained behavior."
+        },
+        {
+          "path": "pnpm-lock.yaml",
+          "disposition": "retained-newer",
+          "reason": "Retain current dependency notices, lock and source aliases for the final absolute-path Office route. No command-wrapper bundle, removed helper dependency or temporary source subpath is needed. Normal custom build, hygiene and documentation checks qualify the current artifacts."
+        },
+        {
+          "path": "python/development.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Keep the current SDK/resource carrier and optional checker assets. Do not remove the checker or copy unrelated carrier-wide APIs and live-model/wheel tests. Current resource-packaging owner checks cover all seven skills and the existing checker; Python installed-wheel and all-target release qualification remain separate."
+        },
+        {
+          "path": "python/development.md",
+          "disposition": "retained-newer",
+          "reason": "Keep the current SDK/resource carrier and optional checker assets. Do not remove the checker or copy unrelated carrier-wide APIs and live-model/wheel tests. Current resource-packaging owner checks cover all seven skills and the existing checker; Python installed-wheel and all-target release qualification remain separate."
+        },
+        {
+          "path": "python/development.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Keep the current SDK/resource carrier and optional checker assets. Do not remove the checker or copy unrelated carrier-wide APIs and live-model/wheel tests. Current resource-packaging owner checks cover all seven skills and the existing checker; Python installed-wheel and all-target release qualification remain separate."
+        },
+        {
+          "path": "python/sdk-runtime/README.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Keep the current SDK/resource carrier and optional checker assets. Do not remove the checker or copy unrelated carrier-wide APIs and live-model/wheel tests. Current resource-packaging owner checks cover all seven skills and the existing checker; Python installed-wheel and all-target release qualification remain separate."
+        },
+        {
+          "path": "python/sdk-runtime/README.md",
+          "disposition": "retained-newer",
+          "reason": "Keep the current SDK/resource carrier and optional checker assets. Do not remove the checker or copy unrelated carrier-wide APIs and live-model/wheel tests. Current resource-packaging owner checks cover all seven skills and the existing checker; Python installed-wheel and all-target release qualification remain separate."
+        },
+        {
+          "path": "python/sdk-runtime/README.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Keep the current SDK/resource carrier and optional checker assets. Do not remove the checker or copy unrelated carrier-wide APIs and live-model/wheel tests. Current resource-packaging owner checks cover all seven skills and the existing checker; Python installed-wheel and all-target release qualification remain separate."
+        },
+        {
+          "path": "python/sdk-runtime/src/deepseek_harness_runtime/_resources.py",
+          "disposition": "retained-newer",
+          "reason": "Keep the current SDK/resource carrier and optional checker assets. Do not remove the checker or copy unrelated carrier-wide APIs and live-model/wheel tests. Current resource-packaging owner checks cover all seven skills and the existing checker; Python installed-wheel and all-target release qualification remain separate."
+        },
+        {
+          "path": "python/sdk/pyproject.toml",
+          "disposition": "retained-newer",
+          "reason": "Keep the current SDK/resource carrier and optional checker assets. Do not remove the checker or copy unrelated carrier-wide APIs and live-model/wheel tests. Current resource-packaging owner checks cover all seven skills and the existing checker; Python installed-wheel and all-target release qualification remain separate."
+        },
+        {
+          "path": "python/sdk/tests/test_office_render.py",
+          "disposition": "excluded",
+          "reason": "Do not introduce the upstream carrier-wide visual-validation harness and its wheel/model prerequisites into this Windows source adaptation. Owner-local native CLI checks cover the requested operations; they do not claim visual pixel/content certification or installed-wheel behavior."
+        },
+        {
+          "path": "python/sdk/tests/test_release_version.py",
+          "disposition": "retained-newer",
+          "reason": "Keep the current SDK/resource carrier and optional checker assets. Do not remove the checker or copy unrelated carrier-wide APIs and live-model/wheel tests. Current resource-packaging owner checks cover all seven skills and the existing checker; Python installed-wheel and all-target release qualification remain separate."
+        },
+        {
+          "path": "python/sdk/tests/test_runtime_resolution.py",
+          "disposition": "retained-newer",
+          "reason": "Keep the current SDK/resource carrier and optional checker assets. Do not remove the checker or copy unrelated carrier-wide APIs and live-model/wheel tests. Current resource-packaging owner checks cover all seven skills and the existing checker; Python installed-wheel and all-target release qualification remain separate."
+        },
+        {
+          "path": "python/sdk/uv.lock",
+          "disposition": "retained-newer",
+          "reason": "Keep the current SDK/resource carrier and optional checker assets. Do not remove the checker or copy unrelated carrier-wide APIs and live-model/wheel tests. Current resource-packaging owner checks cover all seven skills and the existing checker; Python installed-wheel and all-target release qualification remain separate."
+        },
+        {
+          "path": "scripts/check-workspace-constraints.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Keep the current verified artifact and type/persistence policies: no extra command/check exports, no added unknown-cast allowance, no new shared type declarations and no retired-render-tool recordings requiring a larger retained-role allowance. Current package constraints, type-equivalence, persistence-history and corpus-policy checks cover these retained requirements."
+        },
+        {
+          "path": "scripts/check-workspace-constraints.ts",
+          "disposition": "retained-newer",
+          "reason": "Keep the current verified artifact and type/persistence policies: no extra command/check exports, no added unknown-cast allowance, no new shared type declarations and no retired-render-tool recordings requiring a larger retained-role allowance. Current package constraints, type-equivalence, persistence-history and corpus-policy checks cover these retained requirements."
+        },
+        {
+          "path": "scripts/fixtures/office-render.py",
+          "disposition": "excluded",
+          "reason": "Do not introduce the upstream carrier-wide visual-validation harness and its wheel/model prerequisites into this Windows source adaptation. Owner-local native CLI checks cover the requested operations; they do not claim visual pixel/content certification or installed-wheel behavior."
+        },
+        {
+          "path": "scripts/fixtures/office-render/color-blocks.docx",
+          "disposition": "adopted",
+          "reason": "Adapt real-format export fixtures to the owning skill tests. Copy the upstream PPTX/XLSX bytes into owner-local fixtures; use the existing minimal DOCX seed for its corresponding export case. The native CLI tests create private Unicode workspaces, preserve source bytes, validate PDF/PNG outputs and recalculate a separately seeded formula workbook."
+        },
+        {
+          "path": "scripts/fixtures/office-render/color-blocks.pptx",
+          "disposition": "adopted",
+          "reason": "Adapt real-format export fixtures to the owning skill tests. Copy the upstream PPTX/XLSX bytes into owner-local fixtures; use the existing minimal DOCX seed for its corresponding export case. The native CLI tests create private Unicode workspaces, preserve source bytes, validate PDF/PNG outputs and recalculate a separately seeded formula workbook."
+        },
+        {
+          "path": "scripts/fixtures/office-render/color-blocks.xlsx",
+          "disposition": "adopted",
+          "reason": "Adapt real-format export fixtures to the owning skill tests. Copy the upstream PPTX/XLSX bytes into owner-local fixtures; use the existing minimal DOCX seed for its corresponding export case. The native CLI tests create private Unicode workspaces, preserve source bytes, validate PDF/PNG outputs and recalculate a separately seeded formula workbook."
+        },
+        {
+          "path": "scripts/fixtures/python-sdk-office.mjs",
+          "disposition": "adopted",
+          "reason": "Adapt only progressive-skill path discovery: consumers needing the absolute CLI now load office-export-pdf, and authoring checks recognize seven catalog entries. Retain the existing carrier composition, native invocation, SDK interfaces and declared runtime isolation; exclude temporary command/PATH plumbing and upstream-only visual harness changes. No installer or installed-wheel qualification is claimed."
+        },
+        {
+          "path": "scripts/no-unknown-casts.baseline.json",
+          "disposition": "retained-newer",
+          "reason": "Keep the current verified artifact and type/persistence policies: no extra command/check exports, no added unknown-cast allowance, no new shared type declarations and no retired-render-tool recordings requiring a larger retained-role allowance. Current package constraints, type-equivalence, persistence-history and corpus-policy checks cover these retained requirements."
+        },
+        {
+          "path": "scripts/primary-runtime/prepare.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Keep the current SDK/resource carrier and optional checker assets. Do not remove the checker or copy unrelated carrier-wide APIs and live-model/wheel tests. Current resource-packaging owner checks cover all seven skills and the existing checker; Python installed-wheel and all-target release qualification remain separate."
+        },
+        {
+          "path": "scripts/primary-runtime/prepare.ts",
+          "disposition": "retained-newer",
+          "reason": "Keep the current SDK/resource carrier and optional checker assets. Do not remove the checker or copy unrelated carrier-wide APIs and live-model/wheel tests. Current resource-packaging owner checks cover all seven skills and the existing checker; Python installed-wheel and all-target release qualification remain separate."
+        },
+        {
+          "path": "scripts/primary-runtime/smoke.py",
+          "disposition": "retained-newer",
+          "reason": "Keep the current SDK/resource carrier and optional checker assets. Do not remove the checker or copy unrelated carrier-wide APIs and live-model/wheel tests. Current resource-packaging owner checks cover all seven skills and the existing checker; Python installed-wheel and all-target release qualification remain separate."
+        },
+        {
+          "path": "scripts/release/installed-product-isolation.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain current installed-product resource selection and isolation. The reviewed command-launcher prerequisite is removed; operation skills locate the existing absolute CLI without adding another entrypoint. Do not import or claim a release qualification run."
+        },
+        {
+          "path": "scripts/release/installed-product-isolation.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain current installed-product resource selection and isolation. The reviewed command-launcher prerequisite is removed; operation skills locate the existing absolute CLI without adding another entrypoint. Do not import or claim a release qualification run."
+        },
+        {
+          "path": "scripts/session-snapshot-corpus-policy.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Keep the current verified artifact and type/persistence policies: no extra command/check exports, no added unknown-cast allowance, no new shared type declarations and no retired-render-tool recordings requiring a larger retained-role allowance. Current package constraints, type-equivalence, persistence-history and corpus-policy checks cover these retained requirements."
+        },
+        {
+          "path": "scripts/session-snapshot-corpus-policy.ts",
+          "disposition": "retained-newer",
+          "reason": "Keep the current verified artifact and type/persistence policies: no extra command/check exports, no added unknown-cast allowance, no new shared type declarations and no retired-render-tool recordings requiring a larger retained-role allowance. Current package constraints, type-equivalence, persistence-history and corpus-policy checks cover these retained requirements."
+        },
+        {
+          "path": "scripts/session-snapshot-corpus.corpus.ts",
+          "disposition": "retained-newer",
+          "reason": "Keep the current verified artifact and type/persistence policies: no extra command/check exports, no added unknown-cast allowance, no new shared type declarations and no retired-render-tool recordings requiring a larger retained-role allowance. Current package constraints, type-equivalence, persistence-history and corpus-policy checks cover these retained requirements."
+        },
+        {
+          "path": "scripts/smoke-python-runtime.py",
+          "disposition": "adopted",
+          "reason": "Adapt only progressive-skill path discovery: consumers needing the absolute CLI now load office-export-pdf, and authoring checks recognize seven catalog entries. Retain the existing carrier composition, native invocation, SDK interfaces and declared runtime isolation; exclude temporary command/PATH plumbing and upstream-only visual harness changes. No installer or installed-wheel qualification is claimed."
+        },
+        {
+          "path": "scripts/snapshots/python-sdk-single-exe/authoring/model-visible.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "scripts/snapshots/python-sdk-single-exe/authoring/win-x64/model-visible.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "scripts/type-equiv.manifest.json",
+          "disposition": "retained-newer",
+          "reason": "Keep the current verified artifact and type/persistence policies: no extra command/check exports, no added unknown-cast allowance, no new shared type declarations and no retired-render-tool recordings requiring a larger retained-role allowance. Current package constraints, type-equivalence, persistence-history and corpus-policy checks cover these retained requirements."
+        },
+        {
+          "path": "snapshots/acp/escalation-rejected/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/acp/image-compaction/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/sdk/account-provider-signout/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/sdk/bash-tool/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/sdk/dynamic-tool-updates/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/sdk/persistent-tools/cordis.yml",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/sdk/subagent-activation-limit/tool-schemas.1.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/sdk/subagent-continuable-inheritance/tool-schemas.1.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/sdk/subagent-continuable/tool-schemas.1.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/sdk/subagent-dsh-sdk-diagnostic/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/sdk/subagent-dsh-sdk-dynamic-route/cordis.yml",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/sdk/subagent-dsh-sdk-dynamic-route/tool-schemas.1.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/sdk/subagent-dsh-sdk-dynamic-route/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/sdk/subagent-list-agents/session.1.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/sdk/subagent-list-agents/tool-schemas.1.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/sdk/subagent-send-message/tool-schemas.1.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/sdk/text-turn/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/sdk/tool-error-details/system-prompt.expected.md",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/sdk/tool-error-details/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/advanced-toolchain/system-prompt.expected.md",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/advanced-toolchain/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/agent-instructions/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/background-confinement-failure/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/bash-same-mode-empty-justification/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/bash-spill/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/bash-tool-turn/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/both-mode-turn/system-prompt.expected.md",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/browser-use-chrome-devtools-mcp/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/browser-use-playwright-mcp/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/browser-use-stagehand-native/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/claude-code-mods/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/compaction-recovery/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/computer-use-cua-driver-mcp/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/computer-use-cua-driver-native/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/cordis-inspect-jsdoc/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/cordis-inspect-jsdoc/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/cordis-inspect-liveness/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/cordis-inspect-timeout/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/deepseek-messages-system-prompt/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/deepseek-protocol-system-prompt/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/dynamic-tool-prompt-updates/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/dynamic-tool-updates/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/dynamic-tool-updates/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/foreground-confinement-timeout/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/fs-glob-sampling/cordis.snapshot.yml",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/fs-glob-sampling/cordis.yml",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/headless.snapshot.ts",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/lsp-definition/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/mcp-resources-ptc/system-prompt.expected.md",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/mcp-resources/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/multimodal-spill-ends/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/multimodal-spill-ends/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/multimodal-spill-middle/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-authoring-checker/cordis.snapshot.yml",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-authoring-checker/cordis.yml",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-authoring-checker/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-authoring-checker/snapshot.yml",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-authoring-checker/system-prompt.expected.md",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-progressive-native/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-progressive-native/snapshot.yml",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-progressive-native/system-prompt.expected.md",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-progressive-native/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-progressive-native/workspace/render-cli.cjs",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-progressive-ptc/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-progressive-ptc/snapshot.yml",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-progressive-ptc/system-prompt.expected.md",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-progressive-ptc/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-progressive-ptc/workspace/render-cli.cjs",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-render-tools-ptc/cordis.snapshot.yml",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-render-tools-ptc/cordis.yml",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-render-tools-ptc/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-render-tools-ptc/snapshot.yml",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-render-tools-ptc/workspace/render-cli.cjs",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-render-tools-ptc/writer.expected.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-render-tools/cordis.snapshot.yml",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-render-tools/cordis.yml",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-render-tools/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-render-tools/snapshot.yml",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-render-tools/workspace/render-cli.cjs",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-render-tools/writer.expected.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-sidecar-instructions/cordis.snapshot.yml",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-sidecar-instructions/cordis.yml",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-sidecar-instructions/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-sidecar-instructions/snapshot.yml",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-sidecar-instructions/system-prompt.expected.md",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/office-skills-no-renderer/cordis.snapshot.yml",
+          "disposition": "adopted",
+          "reason": "Refresh and replay the two current Harnessy Office owners with the seven-skill catalog and current operation bodies. Preserve their committed V3 input. Keep current capability and instruction checks rather than importing retired render-tool or command-launcher recordings."
+        },
+        {
+          "path": "snapshots/session/office-skills-no-renderer/cordis.yml",
+          "disposition": "adopted",
+          "reason": "Refresh and replay the two current Harnessy Office owners with the seven-skill catalog and current operation bodies. Preserve their committed V3 input. Keep current capability and instruction checks rather than importing retired render-tool or command-launcher recordings."
+        },
+        {
+          "path": "snapshots/session/office-skills-no-renderer/session.v4.jsonl",
+          "disposition": "adopted",
+          "reason": "Refresh and replay the two current Harnessy Office owners with the seven-skill catalog and current operation bodies. Preserve their committed V3 input. Keep current capability and instruction checks rather than importing retired render-tool or command-launcher recordings."
+        },
+        {
+          "path": "snapshots/session/office-skills/cordis.snapshot.yml",
+          "disposition": "adopted",
+          "reason": "Refresh and replay the two current Harnessy Office owners with the seven-skill catalog and current operation bodies. Preserve their committed V3 input. Keep current capability and instruction checks rather than importing retired render-tool or command-launcher recordings."
+        },
+        {
+          "path": "snapshots/session/office-skills/cordis.yml",
+          "disposition": "adopted",
+          "reason": "Refresh and replay the two current Harnessy Office owners with the seven-skill catalog and current operation bodies. Preserve their committed V3 input. Keep current capability and instruction checks rather than importing retired render-tool or command-launcher recordings."
+        },
+        {
+          "path": "snapshots/session/office-skills/session.v4.jsonl",
+          "disposition": "adopted",
+          "reason": "Refresh and replay the two current Harnessy Office owners with the seven-skill catalog and current operation bodies. Preserve their committed V3 input. Keep current capability and instruction checks rather than importing retired render-tool or command-launcher recordings."
+        },
+        {
+          "path": "snapshots/session/office-skills/tool-schemas.expected.json",
+          "disposition": "adopted",
+          "reason": "Refresh and replay the two current Harnessy Office owners with the seven-skill catalog and current operation bodies. Preserve their committed V3 input. Keep current capability and instruction checks rather than importing retired render-tool or command-launcher recordings."
+        },
+        {
+          "path": "snapshots/session/parallel-tool-calls/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/persistent-pwsh-padded-completion/cordis.snapshot.yml",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/persistent-pwsh-padded-completion/cordis.yml",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/persistent-pwsh-tool-turn/cordis.snapshot.yml",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/persistent-pwsh-tool-turn/cordis.yml",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/plugin-manager-mcp/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/plugin-manager-mcp/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/plugin-manager/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/plugin-manager/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/product-subagent-both/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/product-subagent-codex/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/product-subagent-result-diagnostic/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/provider-cwd/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/ptc-node-read-only/system-prompt.expected.md",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/ptc-node-workspace/system-prompt.expected.md",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/ptc-python-turn/system-prompt.expected.md",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/ptc-read-image/system-prompt.expected.md",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/ptc-turn/system-prompt.expected.md",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/pty-tools-sandbox-backend/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/pwsh-tool-turn/cordis.snapshot.yml",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/pwsh-tool-turn/cordis.yml",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/ralph-loop/tool-schemas.1.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/ralph-loop/tool-schemas.2.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/ralph-loop/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/session-query-spill/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/skill-load/session.v4.jsonl",
+          "disposition": "adopted",
+          "reason": "Keep the current skill-load recording and current SkillInvocationSource behavior. Refresh its current-writer runtime context and give this skill-only scenario a platform-independent composition with unused shell tools disabled and its own schema pin. The loaded resource and durable invocation checks remain; V2/V3 files and shared normalizers are unchanged."
+        },
+        {
+          "path": "snapshots/session/subagent-acp-diagnostic/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/subagent-child-question-rejection/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/subagent-no-message-tool/tool-schemas.1.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/subagent-structured-parent/tool-schemas.1.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/subagent-structured-parent/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/subagent-tool-filter/tool-schemas.1.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/system-prompt-in-history/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/team-targets/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/text-turn/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/tool-call-turn/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/web-fetch/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/windows-acl-skill/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/workflow-confinement/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/workspace-dependencies/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/session/worktree/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/web/approval-composer/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/web/changed-files-turn/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/web/code-language/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/web/deepseek-messages-chat/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/web/feedback-command/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/web/file-upload-round/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/web/fresh-round-trip/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/web/fresh-round-trip/tool-schemas.expected.json",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/web/goal-multi-turn-actions/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/web/lifecycle-chrome/command-menu-fuzzy.expected.md",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/web/lifecycle-chrome/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/web/live-interactions/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/web/official-subagent-bundle/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/web/official-subagent-bundle/system-prompt.expected.md",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/web/optional-string-editor/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/web/optional-string-editor/system-prompt.expected.md",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/web/permission-policy-context/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/web/plan-review/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/web/present-svg/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/web/present/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/web/ptc-escalation-approved/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/web/ptc-round/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/web/ptc-round/system-prompt.expected.md",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/web/question-composer/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/web/session-inspector/groups.expected.md",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/web/session-inspector/log.expected.md",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/web/steering/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/web/turn-tail-actions/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "snapshots/web/web-search-round/session.v4.jsonl",
+          "disposition": "excluded",
+          "reason": "Do not overwrite unrelated Harnessy Session/protocol/UI fixtures or import recordings for removed Office tools, hidden catalogs, nested skill injection, command wrappers or different carrier APIs. The final selected Office behavior has current native/PTC loading, user invocation, resume/fork, two Office source-profile replays and direct native CLI coverage. This exclusion does not claim that the entire cross-platform SDK/Web/ACP snapshot corpus has been qualified."
+        },
+        {
+          "path": "tsconfig.base.json",
+          "disposition": "retained-newer",
+          "reason": "Retain current dependency notices, lock and source aliases for the final absolute-path Office route. No command-wrapper bundle, removed helper dependency or temporary source subpath is needed. Normal custom build, hygiene and documentation checks qualify the current artifacts."
+        }
+      ],
+      "evidence": [
+        "Implementation f036fb20f29d8c7c644313cf5cd1aafd755efd0b and operations qualification b28efc2cdb562cceefe03b33cc54251bd3a6a53d, verified 2026-10-25 on Windows, Harnessy 0.1.17, LibreOffice Kit 0.1.5, Node 24.14.0, pnpm 11.7.0. This review covers exactly five commits and their complete changed-path union. It does not account for the branch merge or its other ancestors; reviewedThrough is unchanged.",
+        "The skill-office owner run passed ten cases. The final typed three-format run passed all three native cases after correcting the Vitest options declaration. They execute real DOCX/PPTX/XLSX PDF and PNG exports using only loaded absolute paths, an empty PATH and separate Unicode workspaces. Worksheets use the actual sheet name and A1 range, while pages/slides use page selection. Recalculation preserves SUM(2,3), changes its cached value from 0 to 5 and leaves the source workbook unchanged. File signatures establish basic output, not visual correctness.",
+        "Existing Office/resource carrier tests passed 35 cases and final progressive/welcome checks passed eight; those overlapping earlier checks are not summed with the final ten. Native/PTC request isolation, operation-only paths, user invocation, resume/fork and absence of duplicate deferred instructions were verified. The current optional checker remains tested and packaged; it is not required for provider activation.",
+        "Retained shared framework run passed 128 of 133 cases; two file-link cases failed on Windows EPERM before adding the already-used capability guard, after which the owning filesystem file passed 19 with three explicit capability skips. The other five files passed. Four recorded cases (skill-load, Windows ACL skill, and two Office cases) passed unchanged replay after the two skill-only cases received a deterministic shell-free schema pin and refreshed stale working-directory context. Snapshot ownership/corpus checks passed all three cases; historical V2/V3 files and shared normalizers remain unchanged.",
+        "The custom Harnessy build and normal Host/Client typechecks passed on the source implementation. Documentation aggregate passed 42 of 43 checks; doc-typecheck first caught a Vitest test-options typing error, then passed its full owning command after correction, compiling 82 documentation blocks. Package constraints and current persistence/type gates passed. Three linked Skill-row browser cases passed refresh and unchanged replay after current stable session selection and a fixture-local escaped Windows path alias; the only golden UI change is the existing Session controls group. New operations tests, README pairing and snapshot changes passed their final scoped checks and normal delivery hooks. No application UI was reset.",
+        "No real-model Office task, visual appearance/fidelity certification, complete SDK wheel matrix, installed staging-runtime selection, main-app update, release or upstream ancestry merge was performed. The macOS computer-use group and remaining merged/unreviewed history stay pending. Exact prior Office follow-ups remain in their separate existing review."
       ]
     }
   }
