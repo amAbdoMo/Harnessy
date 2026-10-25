@@ -29,7 +29,7 @@ import {
   launchWebScaffold, parseSeedFixture, realizeSeedFixture, recordFixture, renderSeedFixture, seedSession, watchConsole,
   webSnapshotMode, type WebScaffold,
 } from './scaffold.ts'
-import { expandOwningTurnProcess, newEnglishPage, saveFailureShot } from './support.ts'
+import { expandOwningTurnProcess, newEnglishPage, pinBrowserClock, pinHostClock, saveFailureShot, WEB_FIXTURE_TIME } from './support.ts'
 
 declare module '@deepseek-ai/dsh-llm' {
   interface MessageSourceMap {
@@ -50,7 +50,7 @@ const THINKING_EXPECTED = join(SNAPSHOT_DIR, 'thinking-expanded.expected.md')
 // Command-row goldens over the same conversation after direct host commands.
 const COMMAND_ROW_EXPECTED = fileURLToPath(new URL('../../../snapshots/web/seeded-history/command-row.expected.md', import.meta.url))
 const FEEDBACK_ROW_EXPECTED = fileURLToPath(new URL('../../../snapshots/web/seeded-history/feedback-row.expected.md', import.meta.url))
-const FILE_PREVIEW_EXPECTED = join(SNAPSHOT_DIR, 'file-preview.expected.md')
+const FILE_PREVIEW_EXPECTED = join(SNAPSHOT_DIR, process.platform === 'win32' ? 'file-preview.win32.expected.md' : 'file-preview.expected.md')
 // The pinned-header geometry golden: a pure-CSS, user-visible behavior that
 // changes no DOM and no accessible name, so the aria goldens cannot capture it
 // (docs/testing.md, "when a snapshot test is required", still requires a
@@ -228,8 +228,12 @@ describe('web e2e: seeded history renders through cold resume', () => {
   let tripwire: ReturnType<typeof watchConsole>
   let seededThroughSeq = -1
   let openingWindow: unknown
+  let hostClock: ReturnType<typeof pinHostClock> | undefined
+  let unpinBrowserClock: (() => void) | undefined
 
   beforeAll(async () => {
+    // Seeded and later command timestamps share the renderer's fixture day across midnight.
+    if (MODE !== 'record') hostClock = pinHostClock()
     // The POSIX terminal fixture stays off Windows; the pinned desktop applies
     // everywhere. The Open In rows carry the document header's file controls,
     // and the SSH marker keeps the application catalog empty so the
@@ -262,10 +266,11 @@ describe('web e2e: seeded history renders through cold resume', () => {
       if (meter === undefined) throw new Error('seeded-history requires the host token meter')
       const realizedWithCompaction = withCompaction(realizeSeedFixture(scaffold, raw, SEED_ID), meter)
       seededThroughSeq = parseSeedFixture(realizedWithCompaction).events.at(-1)?.seq ?? -1
-      await seedSession(scaffold, realizedWithCompaction, SEED_ID)
+      await seedSession(scaffold, realizedWithCompaction, SEED_ID, undefined, { createdAt: WEB_FIXTURE_TIME })
     }
     browser = await chromium.launch()
     page = await newEnglishPage(browser)
+    if (MODE !== 'record') unpinBrowserClock = await pinBrowserClock(page)
     tripwire = watchConsole(page)
     if (MODE !== 'record') {
       // A one-message tail makes this short recording exercise the real Load earlier path.
@@ -293,8 +298,13 @@ describe('web e2e: seeded history renders through cold resume', () => {
   }, 120_000)
 
   afterAll(async () => {
-    await browser?.close()
-    await scaffold?.close()
+    try {
+      await browser?.close()
+      await scaffold?.close()
+    } finally {
+      unpinBrowserClock?.()
+      hostClock?.mockRestore()
+    }
   })
 
   it.skipIf(MODE !== 'record')('records the seed turn live through the composer', async () => {
@@ -342,12 +352,7 @@ describe('web e2e: seeded history renders through cold resume', () => {
 
   it.skipIf(MODE === 'record')('lists the seeded session cold and renders its history from the log', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-seeded-history'))
-    // The sidebar tree collapses workspace groups by default: click the group
-    // row (treeitem 0) to expand, then the revealed session row.
-    const groupRow = page.locator('[role="treeitem"]').first()
-    await groupRow.waitFor({ timeout: 15_000 })
-    await groupRow.click()
-    const sessionRow = page.locator('[role="treeitem"]').nth(1)
+    const sessionRow = page.locator(`[data-row-key="session:${SEED_ID}"]`)
     await sessionRow.waitFor({ timeout: 10_000 })
     await sessionRow.click()
     // Settled barrier for history: the recorded final assistant text renders.
@@ -852,7 +857,7 @@ describe('web e2e: seeded history renders through cold resume', () => {
     expect(tripwire.pageErrors).toEqual([])
     expect(tripwire.warnings).toEqual([])
     await assertFixtureInventory(SNAPSHOT_DIR, [
-      'command-row.expected.md', 'feedback-row.expected.md', 'file-preview.expected.md',
+      'command-row.expected.md', 'feedback-row.expected.md', 'file-preview.expected.md', 'file-preview.win32.expected.md',
       'session.v3.jsonl', 'sticky-geometry.expected.md', 'thinking-expanded.expected.md',
       'ui.expected.md', 'ui-expanded.expected.md',
     ])
