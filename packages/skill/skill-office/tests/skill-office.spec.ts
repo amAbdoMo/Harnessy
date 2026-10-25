@@ -1,4 +1,4 @@
-import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { cp, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -10,11 +10,12 @@ import * as SkillOffice from '@deepseek-ai/dsh-skill-office'
 import { isSea } from 'node:sea'
 import { describe, expect, it, vi } from 'vitest'
 import { execa } from 'execa'
+import { strToU8, zipSync } from 'fflate'
 
 vi.mock('node:sea', () => ({ isSea: vi.fn(() => false) }))
 
 const assets = fileURLToPath(new URL('../assets/', import.meta.url))
-const names = ['office-docx', 'office-pptx', 'office-xlsx']
+const names = ['office', 'office-docx', 'office-export-pdf', 'office-pptx', 'office-recalculate', 'office-render', 'office-xlsx']
 
 describe('bundled Office skills', () => {
   it('loads each packaged body and removes all candidates on disposal', async () => {
@@ -31,8 +32,12 @@ describe('bundled Office skills', () => {
         expect(loaded?.resourceBase).toEqual({ kind: 'directory', path: join(assets, skill.name) })
         const raw = await readFile(join(assets, skill.name, 'SKILL.md'), 'utf8')
         expect(loaded?.content).toContain(raw.slice(raw.indexOf('\n---\n') + 5).trim())
-        expect(loaded?.content).toContain(JSON.stringify(process.execPath))
-        expect(loaded?.content).toContain('libreofficeKit')
+        if (['office-render', 'office-recalculate', 'office-export-pdf'].includes(skill.name)) {
+          expect(loaded?.content).toContain(JSON.stringify(process.execPath))
+          expect(loaded?.content).toContain('libreofficeKit')
+        } else {
+          expect(loaded?.content).not.toContain('libreofficeKit')
+        }
       }
       await fiber.dispose()
       expect(await ctx.skills.list()).toEqual([])
@@ -96,7 +101,7 @@ describe('bundled Office skills', () => {
       await ctx.plugin(SkillOffice, { assetRoot: root, cli: false })
       const skill = await ctx.skills.get('office-docx')
       expect(skill?.description).toBe(description)
-      expect(skill?.content).toBe(body.replaceAll('\n', newline) + '\n\nLibreOffice Kit is disabled in this deployment.')
+      expect(skill?.content).toBe(body.replaceAll('\n', newline))
     } finally {
       await ctx.fiber.dispose()
       await rm(root, { recursive: true, force: true })
@@ -110,11 +115,9 @@ describe('bundled Office skills', () => {
       await ctx.plugin(SkillRegistry)
       expect(() => { SkillOffice.apply(ctx, { assetRoot: 'assets' }) }).toThrow('absolute directory')
       await cp(assets, root, { recursive: true })
-      await rm(join(root, 'scripts', 'check_office.py'))
-      await cp(join(assets, 'office-docx'), join(root, 'scripts', 'check_office.py'), { recursive: true })
-      expect(() => { SkillOffice.apply(ctx, { assetRoot: root }) }).toThrow('scripts/check_office.py')
-      await rm(join(root, 'scripts', 'check_office.py'), { recursive: true })
-      await cp(join(assets, 'scripts', 'check_office.py'), join(root, 'scripts', 'check_office.py'))
+      await rm(join(root, 'office-render', 'SKILL.md'))
+      expect(() => { SkillOffice.apply(ctx, { assetRoot: root }) }).toThrow()
+      await cp(join(assets, 'office-render', 'SKILL.md'), join(root, 'office-render', 'SKILL.md'))
       await writeFile(join(root, 'office-docx', 'SKILL.md'), '# Missing frontmatter\ndescription: body text\n')
       expect(() => { SkillOffice.apply(ctx, { assetRoot: root }) }).toThrow('has no YAML frontmatter')
       for (const header of ['', 'null', 'scalar', 'name: office-docx', 'description: 3', 'description: ""']) {
@@ -144,13 +147,13 @@ it('rejects unavailable CLI and Node paths before exposing an executable command
   }
 })
 
-it('executes capabilities using only paths returned by the loaded skill from a separate workspace', async () => {
+it('executes capabilities, PDF export and image export using only loaded paths from a separate workspace', async () => {
   const root = await mkdtemp(join(tmpdir(), 'office CLI 工作目录 '))
   const ctx = new Context()
   try {
     await ctx.plugin(SkillRegistry)
     await ctx.plugin(SkillOffice)
-    const skill = await ctx.skills.get('office-docx')
+    const skill = await ctx.skills.get('office-render')
     const json = skill?.content.match(/\n(\{\n[\s\S]+)$/u)?.[1]
     expect(json).toBeDefined()
     const { libreofficeKit } = JSON.parse(json!) as { libreofficeKit: { node: string; cli: string } }
@@ -161,11 +164,31 @@ it('executes capabilities using only paths returned by the loaded skill from a s
     expect(result.signal, result.stderr).toBeUndefined()
     expect(result.exitCode, result.stderr).toBe(0)
     expect(JSON.parse(result.stdout)).toMatchObject({ runtime: { version: '0.1.5', cliPath: libreofficeKit.cli } })
+    const input = join(root, 'input.docx')
+    const original = zipSync({
+      '[Content_Types].xml': strToU8('<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>'),
+      '_rels/.rels': strToU8('<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'),
+      'word/document.xml': strToU8('<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>Office CLI discovery</w:t></w:r></w:p><w:sectPr/></w:body></w:document>'),
+    })
+    await writeFile(input, original)
+    const pdf = join(root, 'result.pdf')
+    await execa(libreofficeKit.node, [libreofficeKit.cli, 'convert', '--input', input, '--output', pdf], {
+      cwd: root, env: { PATH: '' }, timeout: 30_000, killSignal: 'SIGKILL',
+    })
+    expect((await readFile(pdf)).subarray(0, 5).toString()).toBe('%PDF-')
+    const preview = join(root, 'exported-images')
+    await execa(libreofficeKit.node, [libreofficeKit.cli, 'render', '--input', input, '--output-dir', preview, '--pages', '1'], {
+      cwd: root, env: { PATH: '' }, timeout: 30_000, killSignal: 'SIGKILL',
+    })
+    const images = (await readdir(preview)).filter(path => path.endsWith('.png'))
+    expect(images).toHaveLength(1)
+    expect((await readFile(join(preview, images[0]!))).subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+    expect(await readFile(input)).toEqual(Buffer.from(original))
   } finally {
     await ctx.fiber.dispose()
     await rm(root, { recursive: true, force: true })
   }
-})
+}, 60_000)
 
 it('requires standalone Node in Electron and SEA, while permitting explicit CLI opt-out', async () => {
   const ctx = new Context()
@@ -178,10 +201,10 @@ it('requires standalone Node in Electron and SEA, while permitting explicit CLI 
     Object.defineProperty(process.versions, 'electron', { value: '44.0.0', configurable: true })
     expect(() => { SkillOffice.apply(ctx) }).toThrow('standalone Node')
     const fiber = await ctx.plugin(SkillOffice, { cli: false })
-    expect((await ctx.skills.get('office-docx'))?.content).toContain('disabled in this deployment')
+    expect((await ctx.skills.get('office-render'))?.content).toContain('disabled in this deployment')
     await fiber.dispose()
     await ctx.plugin(SkillOffice, { node: process.execPath })
-    expect((await ctx.skills.get('office-docx'))?.content).toContain(JSON.stringify(process.execPath))
+    expect((await ctx.skills.get('office-render'))?.content).toContain(JSON.stringify(process.execPath))
   } finally {
     vi.mocked(isSea).mockReturnValue(false)
     if (original === undefined) Reflect.deleteProperty(process.versions, 'electron')

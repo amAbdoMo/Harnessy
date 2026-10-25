@@ -132,14 +132,14 @@ it('copies complete Office resources outside the application archive and removes
     const destination = join(root, 'Contents', 'Resources', 'runtime', 'office-skills')
     await mkdir(join(source, 'scripts'), { recursive: true })
     await writeFile(join(source, 'scripts', 'check_office.py'), 'print("checker")\n')
-    for (const name of ['office-docx', 'office-pptx', 'office-xlsx']) {
+    for (const name of ['office', 'office-docx', 'office-pptx', 'office-xlsx', 'office-render', 'office-recalculate', 'office-export-pdf']) {
       await mkdir(join(source, name))
       await writeFile(join(source, name, 'SKILL.md'), `# ${name}\n`)
     }
     await prepareOfficeSkillAssets(source, destination)
     await writeFile(join(destination, 'obsolete.py'), 'old helper')
     await prepareOfficeSkillAssets(source, destination)
-    for (const name of ['office-docx', 'office-pptx', 'office-xlsx']) {
+    for (const name of ['office', 'office-docx', 'office-pptx', 'office-xlsx', 'office-render', 'office-recalculate', 'office-export-pdf']) {
       expect(await readFile(join(destination, name, 'SKILL.md'), 'utf8')).toBe(`# ${name}\n`)
     }
     expect(await readFile(join(destination, 'scripts', 'check_office.py'), 'utf8')).toBe('print("checker")\n')

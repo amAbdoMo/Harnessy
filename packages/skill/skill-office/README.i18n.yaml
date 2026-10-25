@@ -3,29 +3,29 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/skill/skill-office/README.md
 /:
-  en: cc4e875ac37d9354
-  zh: e121819cde2ce76c
+  en: 4e57412d6495467a
+  zh: 9a3770db6ff3982c
 /deepseek-ai-dsh-skill-office:
   en: f855ac5e12b4e604
   zh: b2e875d31d56cb2e
 /deepseek-ai-dsh-skill-office/summary:
-  en: 4fe3cb4544ce7d9d
-  zh: 2749b1d0ffa468a1
+  en: 10a80346f56c8b26
+  zh: a355fb5660d7893f
 /deepseek-ai-dsh-skill-office/table-of-contents:
   en: d152484eb41ac6b4
   zh: 43ad67236ccda19a
 /deepseek-ai-dsh-skill-office/use-this-package:
-  en: 6987594a0cf6e53d
-  zh: ecf4c4f52e7a50eb
+  en: 28b7b52f8b12452d
+  zh: 7266fa2612784daa
 /deepseek-ai-dsh-skill-office/use-this-package/minimal-configuration:
-  en: 088f223318dff9d7
-  zh: ce944bf61fb1f821
-/deepseek-ai-dsh-skill-office/use-this-package/structural-checks:
-  en: 1bb872d63bdd78b7
-  zh: 355dee19bdfb3798
+  en: 0e7c985057c2b92a
+  zh: c0bb57cfa7f9b614
+/deepseek-ai-dsh-skill-office/use-this-package/content-and-visual-checks:
+  en: 1be66ea1b2dcca00
+  zh: bd4528e43be09de7
 /deepseek-ai-dsh-skill-office/understand-the-implementation:
-  en: 9c45ee3de51adb4d
-  zh: 0f24d44dfa58df25
+  en: 2bef1361fab8fb7e
+  zh: 168bd9bbba9cdd0a
 /deepseek-ai-dsh-skill-office/further-exploration:
   en: b08fc992559d8fda
   zh: ad74e037ecd81c0b
@@ -33,8 +33,8 @@
   en: f9fe51841bd9de8d
   zh: 773af8cc0e0335e4
 /deepseek-ai-dsh-skill-office/model-experience/kv-cache-effect:
-  en: c77beb1c0d28f221
-  zh: 99643101d2b915b9
+  en: 4db92bf7a8d27b54
+  zh: 1ca5f19686ee2084
 /deepseek-ai-dsh-skill-office/known-limitations-and-deferred-work:
   en: 22d0a8196c2c48c3
   zh: ef2e38a0a91476a8

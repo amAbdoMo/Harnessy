@@ -178,11 +178,12 @@ function headerOf(log: string): JsonObject {
   return records(log)[0] ?? {}
 }
 
-function contextOf(logs: readonly string[]): NormalizeContext {
+function contextOf(logs: readonly string[], cwdAliases: readonly string[] = []): NormalizeContext {
   const headers = logs.map(headerOf)
   return {
     sessionIds: headers.flatMap(header => typeof header.id === 'string' ? [header.id] : []),
     cwd: typeof headers[0]?.cwd === 'string' ? headers[0].cwd : '\0missing-cwd\0',
+    cwdAliases: cwdAliases.flatMap(cwd => [cwd, cwd.replaceAll('\\', '/'), JSON.stringify(cwd).slice(1, -1)]),
   }
 }
 
@@ -485,8 +486,8 @@ const workspaceSetups: Record<string, (cwd: string) => Promise<void>> = {
   },
   async 'office-skills'(cwd) {
     await cp(join(repoRoot, 'packages/skill/skill-office/assets'), join(cwd, 'office-skills'), { recursive: true })
-    await symlink(process.execPath, join(cwd, 'office-node'))
-    await symlink(join(repoRoot, 'packages/skill/skill-office/node_modules/@deepseek-ai/libreoffice-kit/lib/cli.js'), join(cwd, 'office-cli.js'))
+    await copyFile(process.execPath, join(cwd, 'office-node'))
+    await copyFile(join(repoRoot, 'packages/skill/skill-office/node_modules/@deepseek-ai/libreoffice-kit/lib/cli.js'), join(cwd, 'office-cli.js'))
   },
   async 'editing-cordis-skill'(cwd) {
     const target = join(cwd, '.dsh', 'skills', 'editing-cordis-compositions', 'SKILL.md')
@@ -1127,6 +1128,7 @@ describe('headless recorded-session snapshots', () => {
         : source)
 
       let actualLogs: SessionLog[] = []
+      let workspaceCwd = ''
       let initialWorkspace: WorkspaceSnapshotEntry[] | undefined
       let finalWorkspace: WorkspaceSnapshotEntry[] | undefined
       const spillRoot = await mkdtemp(join(tmpdir(), 'acp-snap-spill-'))
@@ -1196,6 +1198,7 @@ describe('headless recorded-session snapshots', () => {
             })
           },
           inspect: async (cwd) => {
+            workspaceCwd = cwd
             actualLogs = await persistedSessions(cwd)
             if (surface === 'companion-history') {
               const primaryLog = actualLogs[0]
@@ -1254,7 +1257,7 @@ describe('headless recorded-session snapshots', () => {
       const stderrLog = mode === 'replay' ? primaryFixture : actualLogs[0]?.content
       if (stderrLog === undefined) throw new Error(`${scenario.name}: stderr projection has no primary session`)
       const expectedStderr = stderrFromSession(stderrLog)
-      const actualContext = contextOf(actualLogs.map(log => log.content))
+      const actualContext = contextOf(actualLogs.map(log => log.content), [workspaceCwd])
 
       if (writesCurrentSessionFixtures(scenario.manifest, mode)) {
         fixtures = await writeSessionFixtures(

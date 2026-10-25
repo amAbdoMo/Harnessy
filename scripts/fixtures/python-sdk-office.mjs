@@ -10,7 +10,7 @@ export async function apply(ctx, config) {
   const converter = await createConverter({ timeoutMs: 120_000 })
   try {
     const result = await converter.render({ inputPath: config.input, outputPath: config.output })
-    const skill = await ctx.skills.get('office-docx')
+    const skill = await ctx.skills.get('office-export-pdf')
     const json = skill?.content.match(/\n(\{\n[\s\S]+)$/u)?.[1]
     if (json === undefined) throw new Error('Office skill did not supply CLI paths')
     const { libreofficeKit: { node, cli } } = JSON.parse(json)
