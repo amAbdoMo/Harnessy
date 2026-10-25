@@ -21,7 +21,7 @@
       ],
       "tree": "29e003bd9266828f8ce64126fd2f6116785a983c",
       "subject": "fix(plugin): give personalized recommendations its own icon (#7071)",
-      "review": null
+      "review": "harnessy-action-cards-personalized-recommendations-20261025"
     },
     {
       "sha": "02bffe2f6b2a58df33ad919fef9be2b4a51e47b9",
@@ -552,7 +552,7 @@
       ],
       "tree": "572a987ba40c98d8b366e14e406d1690f178dfe9",
       "subject": "feat(experimental): 把个性化页面和插件推荐合并为实验性插件「个性化推荐」 (#7034)",
-      "review": null
+      "review": "harnessy-action-cards-personalized-recommendations-20261025"
     },
     {
       "sha": "63021ce0b4b17b21bd14706f700368221956526b",
@@ -1239,7 +1239,7 @@
       ],
       "tree": "c385d74204ec834f5d9cbcc591474cae8eb72690",
       "subject": "feat(experimental): invite to plugin cards only from the accepted call's result",
-      "review": null
+      "review": "harnessy-action-cards-personalized-recommendations-20261025"
     },
     {
       "sha": "d9b95adf93bae0e17955d5a1f7392523095c80ab",
@@ -1258,7 +1258,7 @@
       ],
       "tree": "240ec7aebf9af55df4ceaf4a3535eedaea7b33d2",
       "subject": "feat(experimental): give the card invitation only in the accepted call's result",
-      "review": null
+      "review": "harnessy-action-cards-personalized-recommendations-20261025"
     },
     {
       "sha": "5219b3611051400a9faf09fe0c8d9f3e30a2168e",
@@ -1297,7 +1297,7 @@
       ],
       "tree": "c171b09fabc087ac69b5c9e1a1f60cfc18579514",
       "subject": "fix(experimental): confirm unconfirmed plugin cards before Not now",
-      "review": null
+      "review": "harnessy-action-cards-personalized-recommendations-20261025"
     },
     {
       "sha": "dbe0eb3aa2e8b82025ed0860ac9686a11efadd49",
@@ -1316,7 +1316,7 @@
       ],
       "tree": "d89d4ee80cb720e2916f2c98755863ad97834cc4",
       "subject": "fix(experimental): settle plugin cards from what enabling reports",
-      "review": null
+      "review": "harnessy-action-cards-personalized-recommendations-20261025"
     },
     {
       "sha": "035fcb88dc61427144323d8e3eca773d9797818d",
@@ -1361,7 +1361,7 @@
       ],
       "tree": "44e958d5746a83d33b2c45ed483c051b7d5a539a",
       "subject": "fix(experimental): reconcile action cards before Not now and offer them to live roots only",
-      "review": null
+      "review": "harnessy-action-cards-personalized-recommendations-20261025"
     },
     {
       "sha": "70e2d31cc38d457f3894b2296336e9f7772dd5ca",
@@ -1408,7 +1408,7 @@
       ],
       "tree": "09f12b940847b93756428acb24cda3fc66ecfb39",
       "subject": "refactor(experimental): register plugin recommendations as an action card kind",
-      "review": null
+      "review": "harnessy-action-cards-personalized-recommendations-20261025"
     },
     {
       "sha": "76e39794eba37eba7b54693e428437330e090ef4",
@@ -1788,7 +1788,7 @@
       ],
       "tree": "cebde6b5e511cae6b0d1305163a5386802868cbb",
       "subject": "feat(experimental): propose personalized pages through action cards",
-      "review": null
+      "review": "harnessy-action-cards-personalized-recommendations-20261025"
     },
     {
       "sha": "9980af2d48a54543bb27f51492ec32738c3f5c97",
@@ -1797,7 +1797,7 @@
       ],
       "tree": "fe6667a316a773efbe5f351af8fefa19c996de53",
       "subject": "feat(experimental): add shared action cards behind a propose_action tool",
-      "review": null
+      "review": "harnessy-action-cards-personalized-recommendations-20261025"
     },
     {
       "sha": "1c20d3fe364aff0b1a8328fdc28aaf512a143b59",
@@ -7093,7 +7093,7 @@
       ],
       "tree": "0011a45fa097b7b105442f580336f9eaef9399f2",
       "subject": "feat(experimental): offer personalized pages independently of plugin recommendations",
-      "review": null
+      "review": "harnessy-action-cards-personalized-recommendations-20261025"
     },
     {
       "sha": "e7ffab7902b4745beb1a0ddb2f6a2aeeec628efb",
@@ -8646,7 +8646,7 @@
       ],
       "tree": "3f6017b768c47e945c7ffbeddbb61d0910fec056",
       "subject": "feat(experimental): recommend official plugins after completed answers",
-      "review": null
+      "review": "harnessy-action-cards-personalized-recommendations-20261025"
     },
     {
       "sha": "f0700602fae436f43b9989aecedabd618af1a153",
@@ -44712,6 +44712,1286 @@
         "All sixteen final hygiene gates passed. The full documentation run passed 42 of 43 gates; its stale configuration catalog was regenerated and passed the focused freshness check, then the documentation site was rebuilt from the corrected source. All 43 documentation gates therefore have passing evidence; the original aggregate is not claimed as clean. Full source lint and subsequent changed-file lint passed. The Harnessy product guard passed 140 cases. Frozen-lock validation passed with intended importer/new-package additions and no existing provider-peer updates. Normal delivery hooks are required for the implementation and ledger commits.",
         "The atomic-write cancellation prerequisite adapts only the file-lock signal/waiting hunk of 504b6df8301724d340fbe092f5c9a3e8b7778bbd, with its cancellation test and paired documentation. That commit's binary-write/CUA work and complete mixed path set remain pending; this review does not mark that prerequisite commit complete.",
         "No ancestry/checkpoint merge, release, installed staging-runtime update or selection, main-app update, or additional registered application is included. A source build and publication do not establish that main updated. Remaining selected features and unreviewed ancestors remain pending in this ledger."
+      ]
+    },
+    "harnessy-action-cards-personalized-recommendations-20261025": {
+      "status": "adopted",
+      "summary": "Adapt opt-in shared action cards, shipped-plugin recommendations and explicitly accepted personalized page creation into Harnessy while preserving custom UI, current providers and development workflow.",
+      "files": [
+        {
+          "path": "apps/cli/package.json",
+          "disposition": "adopted",
+          "reason": "Adapt the feature’s launcher, dependency, compiler or verification wiring to the current Harnessy owner. Keep experimental packages optional, all existing provider capability descriptors explicit, Host browser cases out of the Client program, and existing dependency resolutions stable. Normal strict build, focused tests, package checks and delivery hooks qualify this wiring."
+        },
+        {
+          "path": "apps/web/tests/creation-recommendations.e2e.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the feature’s launcher, dependency, compiler or verification wiring to the current Harnessy owner. Keep experimental packages optional, all existing provider capability descriptors explicit, Host browser cases out of the Client program, and existing dependency resolutions stable. Normal strict build, focused tests, package checks and delivery hooks qualify this wiring."
+        },
+        {
+          "path": "apps/web/tests/plugin-manager.e2e.ts",
+          "disposition": "excluded",
+          "reason": "Retain Harnessy’s installed, built-in and optional plugin groups and current package-prefix-based Experimental badge. Do not restore stock More navigation, catalog fields or separate feature bundles. Register the unified default-off bundle through current app-boot OPTIONAL_BUNDLES and verify navigation with the dedicated Harnessy browser cases."
+        },
+        {
+          "path": "apps/web/tests/plugin-recommendations.e2e.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the feature’s launcher, dependency, compiler or verification wiring to the current Harnessy owner. Keep experimental packages optional, all existing provider capability descriptors explicit, Host browser cases out of the Client program, and existing dependency resolutions stable. Normal strict build, focused tests, package checks and delivery hooks qualify this wiring."
+        },
+        {
+          "path": "apps/web/tsconfig.json",
+          "disposition": "adopted",
+          "reason": "Adapt the feature’s launcher, dependency, compiler or verification wiring to the current Harnessy owner. Keep experimental packages optional, all existing provider capability descriptors explicit, Host browser cases out of the Client program, and existing dependency resolutions stable. Normal strict build, focused tests, package checks and delivery hooks qualify this wiring."
+        },
+        {
+          "path": "docs/capability-seams.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Regenerate documentation, service/tool/slot graphs, package inventories and current persistence artifacts from Harnessy’s maintained owners; update the English/Chinese pairs. Keep existing Session history and link new APIs at their actual owners. Do not copy upstream version claims or stock UI instructions."
+        },
+        {
+          "path": "docs/capability-seams.md",
+          "disposition": "adopted",
+          "reason": "Regenerate documentation, service/tool/slot graphs, package inventories and current persistence artifacts from Harnessy’s maintained owners; update the English/Chinese pairs. Keep existing Session history and link new APIs at their actual owners. Do not copy upstream version claims or stock UI instructions."
+        },
+        {
+          "path": "docs/capability-seams.zh.md",
+          "disposition": "adopted",
+          "reason": "Regenerate documentation, service/tool/slot graphs, package inventories and current persistence artifacts from Harnessy’s maintained owners; update the English/Chinese pairs. Keep existing Session history and link new APIs at their actual owners. Do not copy upstream version claims or stock UI instructions."
+        },
+        {
+          "path": "docs/config-catalog.md",
+          "disposition": "adopted",
+          "reason": "Regenerate documentation, service/tool/slot graphs, package inventories and current persistence artifacts from Harnessy’s maintained owners; update the English/Chinese pairs. Keep existing Session history and link new APIs at their actual owners. Do not copy upstream version claims or stock UI instructions."
+        },
+        {
+          "path": "docs/config-catalog.zh.md",
+          "disposition": "adopted",
+          "reason": "Regenerate documentation, service/tool/slot graphs, package inventories and current persistence artifacts from Harnessy’s maintained owners; update the English/Chinese pairs. Keep existing Session history and link new APIs at their actual owners. Do not copy upstream version claims or stock UI instructions."
+        },
+        {
+          "path": "docs/event-producer-consumer.md",
+          "disposition": "adopted",
+          "reason": "Regenerate documentation, service/tool/slot graphs, package inventories and current persistence artifacts from Harnessy’s maintained owners; update the English/Chinese pairs. Keep existing Session history and link new APIs at their actual owners. Do not copy upstream version claims or stock UI instructions."
+        },
+        {
+          "path": "docs/event-producer-consumer.zh.md",
+          "disposition": "adopted",
+          "reason": "Regenerate documentation, service/tool/slot graphs, package inventories and current persistence artifacts from Harnessy’s maintained owners; update the English/Chinese pairs. Keep existing Session history and link new APIs at their actual owners. Do not copy upstream version claims or stock UI instructions."
+        },
+        {
+          "path": "docs/experimental-persistence-catalog.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Harnessy’s current persistence catalog and acknowledgement generator own these declarations; do not restore a separate superseded experimental catalog."
+        },
+        {
+          "path": "docs/experimental-persistence-catalog.md",
+          "disposition": "excluded",
+          "reason": "Harnessy’s current persistence catalog and acknowledgement generator own these declarations; do not restore a separate superseded experimental catalog."
+        },
+        {
+          "path": "docs/experimental-persistence-catalog.zh.md",
+          "disposition": "excluded",
+          "reason": "Harnessy’s current persistence catalog and acknowledgement generator own these declarations; do not restore a separate superseded experimental catalog."
+        },
+        {
+          "path": "docs/module-graph.md",
+          "disposition": "adopted",
+          "reason": "Regenerate documentation, service/tool/slot graphs, package inventories and current persistence artifacts from Harnessy’s maintained owners; update the English/Chinese pairs. Keep existing Session history and link new APIs at their actual owners. Do not copy upstream version claims or stock UI instructions."
+        },
+        {
+          "path": "docs/module-graph.zh.md",
+          "disposition": "adopted",
+          "reason": "Regenerate documentation, service/tool/slot graphs, package inventories and current persistence artifacts from Harnessy’s maintained owners; update the English/Chinese pairs. Keep existing Session history and link new APIs at their actual owners. Do not copy upstream version claims or stock UI instructions."
+        },
+        {
+          "path": "docs/persistence-catalog.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Regenerate documentation, service/tool/slot graphs, package inventories and current persistence artifacts from Harnessy’s maintained owners; update the English/Chinese pairs. Keep existing Session history and link new APIs at their actual owners. Do not copy upstream version claims or stock UI instructions."
+        },
+        {
+          "path": "docs/persistence-catalog.md",
+          "disposition": "adopted",
+          "reason": "Regenerate documentation, service/tool/slot graphs, package inventories and current persistence artifacts from Harnessy’s maintained owners; update the English/Chinese pairs. Keep existing Session history and link new APIs at their actual owners. Do not copy upstream version claims or stock UI instructions."
+        },
+        {
+          "path": "docs/persistence-catalog.zh.md",
+          "disposition": "adopted",
+          "reason": "Regenerate documentation, service/tool/slot graphs, package inventories and current persistence artifacts from Harnessy’s maintained owners; update the English/Chinese pairs. Keep existing Session history and link new APIs at their actual owners. Do not copy upstream version claims or stock UI instructions."
+        },
+        {
+          "path": "docs/persistence-changes/2026-10-19-plugin-recommendations.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Do not import another branch’s persistence acknowledgement history or its old dedicated recommendation event generations. Harnessy adds only the ignorable action-cards/decision event and attribution-only action-cards source, acknowledged under its own current history in 2026-10-25-harnessy-action-cards; frozen generations are preserved."
+        },
+        {
+          "path": "docs/persistence-changes/2026-10-19-plugin-recommendations.md",
+          "disposition": "excluded",
+          "reason": "Do not import another branch’s persistence acknowledgement history or its old dedicated recommendation event generations. Harnessy adds only the ignorable action-cards/decision event and attribution-only action-cards source, acknowledged under its own current history in 2026-10-25-harnessy-action-cards; frozen generations are preserved."
+        },
+        {
+          "path": "docs/persistence-changes/2026-10-19-plugin-recommendations.schema.json",
+          "disposition": "excluded",
+          "reason": "Do not import another branch’s persistence acknowledgement history or its old dedicated recommendation event generations. Harnessy adds only the ignorable action-cards/decision event and attribution-only action-cards source, acknowledged under its own current history in 2026-10-25-harnessy-action-cards; frozen generations are preserved."
+        },
+        {
+          "path": "docs/persistence-changes/2026-10-19-plugin-recommendations.zh.md",
+          "disposition": "excluded",
+          "reason": "Do not import another branch’s persistence acknowledgement history or its old dedicated recommendation event generations. Harnessy adds only the ignorable action-cards/decision event and attribution-only action-cards source, acknowledged under its own current history in 2026-10-25-harnessy-action-cards; frozen generations are preserved."
+        },
+        {
+          "path": "docs/persistence-changes/2026-10-20-personalized-page-status.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Do not import another branch’s persistence acknowledgement history or its old dedicated recommendation event generations. Harnessy adds only the ignorable action-cards/decision event and attribution-only action-cards source, acknowledged under its own current history in 2026-10-25-harnessy-action-cards; frozen generations are preserved."
+        },
+        {
+          "path": "docs/persistence-changes/2026-10-20-personalized-page-status.md",
+          "disposition": "excluded",
+          "reason": "Do not import another branch’s persistence acknowledgement history or its old dedicated recommendation event generations. Harnessy adds only the ignorable action-cards/decision event and attribution-only action-cards source, acknowledged under its own current history in 2026-10-25-harnessy-action-cards; frozen generations are preserved."
+        },
+        {
+          "path": "docs/persistence-changes/2026-10-20-personalized-page-status.schema.json",
+          "disposition": "excluded",
+          "reason": "Do not import another branch’s persistence acknowledgement history or its old dedicated recommendation event generations. Harnessy adds only the ignorable action-cards/decision event and attribution-only action-cards source, acknowledged under its own current history in 2026-10-25-harnessy-action-cards; frozen generations are preserved."
+        },
+        {
+          "path": "docs/persistence-changes/2026-10-20-personalized-page-status.zh.md",
+          "disposition": "excluded",
+          "reason": "Do not import another branch’s persistence acknowledgement history or its old dedicated recommendation event generations. Harnessy adds only the ignorable action-cards/decision event and attribution-only action-cards source, acknowledged under its own current history in 2026-10-25-harnessy-action-cards; frozen generations are preserved."
+        },
+        {
+          "path": "docs/persistence-changes/2026-10-22-action-card-status.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Do not import another branch’s persistence acknowledgement history or its old dedicated recommendation event generations. Harnessy adds only the ignorable action-cards/decision event and attribution-only action-cards source, acknowledged under its own current history in 2026-10-25-harnessy-action-cards; frozen generations are preserved."
+        },
+        {
+          "path": "docs/persistence-changes/2026-10-22-action-card-status.md",
+          "disposition": "excluded",
+          "reason": "Do not import another branch’s persistence acknowledgement history or its old dedicated recommendation event generations. Harnessy adds only the ignorable action-cards/decision event and attribution-only action-cards source, acknowledged under its own current history in 2026-10-25-harnessy-action-cards; frozen generations are preserved."
+        },
+        {
+          "path": "docs/persistence-changes/2026-10-22-action-card-status.schema.json",
+          "disposition": "excluded",
+          "reason": "Do not import another branch’s persistence acknowledgement history or its old dedicated recommendation event generations. Harnessy adds only the ignorable action-cards/decision event and attribution-only action-cards source, acknowledged under its own current history in 2026-10-25-harnessy-action-cards; frozen generations are preserved."
+        },
+        {
+          "path": "docs/persistence-changes/2026-10-22-action-card-status.zh.md",
+          "disposition": "excluded",
+          "reason": "Do not import another branch’s persistence acknowledgement history or its old dedicated recommendation event generations. Harnessy adds only the ignorable action-cards/decision event and attribution-only action-cards source, acknowledged under its own current history in 2026-10-25-harnessy-action-cards; frozen generations are preserved."
+        },
+        {
+          "path": "docs/persistence-changes/2026-10-22-plugin-recommendations.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Do not import another branch’s persistence acknowledgement history or its old dedicated recommendation event generations. Harnessy adds only the ignorable action-cards/decision event and attribution-only action-cards source, acknowledged under its own current history in 2026-10-25-harnessy-action-cards; frozen generations are preserved."
+        },
+        {
+          "path": "docs/persistence-changes/2026-10-22-plugin-recommendations.md",
+          "disposition": "excluded",
+          "reason": "Do not import another branch’s persistence acknowledgement history or its old dedicated recommendation event generations. Harnessy adds only the ignorable action-cards/decision event and attribution-only action-cards source, acknowledged under its own current history in 2026-10-25-harnessy-action-cards; frozen generations are preserved."
+        },
+        {
+          "path": "docs/persistence-changes/2026-10-22-plugin-recommendations.schema.json",
+          "disposition": "excluded",
+          "reason": "Do not import another branch’s persistence acknowledgement history or its old dedicated recommendation event generations. Harnessy adds only the ignorable action-cards/decision event and attribution-only action-cards source, acknowledged under its own current history in 2026-10-25-harnessy-action-cards; frozen generations are preserved."
+        },
+        {
+          "path": "docs/persistence-changes/2026-10-22-plugin-recommendations.zh.md",
+          "disposition": "excluded",
+          "reason": "Do not import another branch’s persistence acknowledgement history or its old dedicated recommendation event generations. Harnessy adds only the ignorable action-cards/decision event and attribution-only action-cards source, acknowledged under its own current history in 2026-10-25-harnessy-action-cards; frozen generations are preserved."
+        },
+        {
+          "path": "docs/persistence-changes/historical-formats/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Regenerate documentation, service/tool/slot graphs, package inventories and current persistence artifacts from Harnessy’s maintained owners; update the English/Chinese pairs. Keep existing Session history and link new APIs at their actual owners. Do not copy upstream version claims or stock UI instructions."
+        },
+        {
+          "path": "docs/persistence-changes/historical-formats/README.md",
+          "disposition": "adopted",
+          "reason": "Regenerate documentation, service/tool/slot graphs, package inventories and current persistence artifacts from Harnessy’s maintained owners; update the English/Chinese pairs. Keep existing Session history and link new APIs at their actual owners. Do not copy upstream version claims or stock UI instructions."
+        },
+        {
+          "path": "docs/persistence-changes/historical-formats/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Regenerate documentation, service/tool/slot graphs, package inventories and current persistence artifacts from Harnessy’s maintained owners; update the English/Chinese pairs. Keep existing Session history and link new APIs at their actual owners. Do not copy upstream version claims or stock UI instructions."
+        },
+        {
+          "path": "docs/persistence-schema.json",
+          "disposition": "adopted",
+          "reason": "Regenerate documentation, service/tool/slot graphs, package inventories and current persistence artifacts from Harnessy’s maintained owners; update the English/Chinese pairs. Keep existing Session history and link new APIs at their actual owners. Do not copy upstream version claims or stock UI instructions."
+        },
+        {
+          "path": "docs/subsystems/boot.md",
+          "disposition": "adopted",
+          "reason": "Regenerate documentation, service/tool/slot graphs, package inventories and current persistence artifacts from Harnessy’s maintained owners; update the English/Chinese pairs. Keep existing Session history and link new APIs at their actual owners. Do not copy upstream version claims or stock UI instructions."
+        },
+        {
+          "path": "docs/subsystems/boot.zh.md",
+          "disposition": "adopted",
+          "reason": "Regenerate documentation, service/tool/slot graphs, package inventories and current persistence artifacts from Harnessy’s maintained owners; update the English/Chinese pairs. Keep existing Session history and link new APIs at their actual owners. Do not copy upstream version claims or stock UI instructions."
+        },
+        {
+          "path": "docs/tool-catalog.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Regenerate documentation, service/tool/slot graphs, package inventories and current persistence artifacts from Harnessy’s maintained owners; update the English/Chinese pairs. Keep existing Session history and link new APIs at their actual owners. Do not copy upstream version claims or stock UI instructions."
+        },
+        {
+          "path": "docs/tool-catalog.md",
+          "disposition": "adopted",
+          "reason": "Regenerate documentation, service/tool/slot graphs, package inventories and current persistence artifacts from Harnessy’s maintained owners; update the English/Chinese pairs. Keep existing Session history and link new APIs at their actual owners. Do not copy upstream version claims or stock UI instructions."
+        },
+        {
+          "path": "docs/tool-catalog.zh.md",
+          "disposition": "adopted",
+          "reason": "Regenerate documentation, service/tool/slot graphs, package inventories and current persistence artifacts from Harnessy’s maintained owners; update the English/Chinese pairs. Keep existing Session history and link new APIs at their actual owners. Do not copy upstream version claims or stock UI instructions."
+        },
+        {
+          "path": "package.json",
+          "disposition": "retained-newer",
+          "reason": "Keep Harnessy’s version, scripts, dependency versions and existing test launchers. The feature adds dependencies only at its actual launcher and owner manifests."
+        },
+        {
+          "path": "packages/boot/app-boot/src/profile.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the feature’s launcher, dependency, compiler or verification wiring to the current Harnessy owner. Keep experimental packages optional, all existing provider capability descriptors explicit, Host browser cases out of the Client program, and existing dependency resolutions stable. Normal strict build, focused tests, package checks and delivery hooks qualify this wiring."
+        },
+        {
+          "path": "packages/client/ui-plugin-manager/src/client/PluginManagerPage.tsx",
+          "disposition": "excluded",
+          "reason": "Retain Harnessy’s installed, built-in and optional plugin groups and current package-prefix-based Experimental badge. Do not restore stock More navigation, catalog fields or separate feature bundles. Register the unified default-off bundle through current app-boot OPTIONAL_BUNDLES and verify navigation with the dedicated Harnessy browser cases."
+        },
+        {
+          "path": "packages/client/ui-plugin-manager/src/client/presentation.ts",
+          "disposition": "excluded",
+          "reason": "Retain Harnessy’s installed, built-in and optional plugin groups and current package-prefix-based Experimental badge. Do not restore stock More navigation, catalog fields or separate feature bundles. Register the unified default-off bundle through current app-boot OPTIONAL_BUNDLES and verify navigation with the dedicated Harnessy browser cases."
+        },
+        {
+          "path": "packages/client/ui-plugin-manager/tests/components.client.spec.tsx",
+          "disposition": "excluded",
+          "reason": "Retain Harnessy’s installed, built-in and optional plugin groups and current package-prefix-based Experimental badge. Do not restore stock More navigation, catalog fields or separate feature bundles. Register the unified default-off bundle through current app-boot OPTIONAL_BUNDLES and verify navigation with the dedicated Harnessy browser cases."
+        },
+        {
+          "path": "packages/core/tools/tests/gen-tool-catalog.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the feature’s launcher, dependency, compiler or verification wiring to the current Harnessy owner. Keep experimental packages optional, all existing provider capability descriptors explicit, Host browser cases out of the Client program, and existing dependency resolutions stable. Normal strict build, focused tests, package checks and delivery hooks qualify this wiring."
+        },
+        {
+          "path": "packages/experimental/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/README.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/action-cards/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/action-cards/README.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/action-cards/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/action-cards/locale/en.json",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/action-cards/locale/ja.json",
+          "disposition": "excluded",
+          "reason": "Do not add the six extra UI languages requested to remain excluded. English and Chinese metadata and typed client dictionaries are retained."
+        },
+        {
+          "path": "packages/experimental/action-cards/locale/zh.json",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/action-cards/package.json",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/action-cards/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/action-cards/src/projection.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/action-cards/src/types.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/action-cards/tests/__snapshots__/status.spec.ts.snap",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/action-cards/tests/__snapshots__/tool.spec.ts.snap",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/action-cards/tests/act.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/action-cards/tests/fixture.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/action-cards/tests/projection.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/action-cards/tests/status.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/action-cards/tests/tool.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/action-cards/tsconfig.json",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/action-cards/tsdown.config.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-action-cards/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-action-cards/README.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-action-cards/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-action-cards/locale/en.json",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-action-cards/locale/ja.json",
+          "disposition": "excluded",
+          "reason": "Do not add the six extra UI languages requested to remain excluded. English and Chinese metadata and typed client dictionaries are retained."
+        },
+        {
+          "path": "packages/experimental/client-ui-action-cards/locale/zh.json",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-action-cards/package.json",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-action-cards/src/client/Card.module.css",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-action-cards/src/client/Card.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-action-cards/src/client/ProposeRow.module.css",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-action-cards/src/client/ProposeRow.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-action-cards/src/client/index.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-action-cards/src/client/locales.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-action-cards/src/client/mount.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-action-cards/src/client/registry.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-action-cards/src/css-modules.d.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-action-cards/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-action-cards/tests/browser-plugin.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-action-cards/tests/card.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-action-cards/tests/row.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-action-cards/tsconfig.json",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-action-cards/tsdown.config.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-creation-recommendations/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-creation-recommendations/README.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-creation-recommendations/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-creation-recommendations/package.json",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-creation-recommendations/src/client/Card.module.css",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-creation-recommendations/src/client/Card.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-creation-recommendations/src/client/definition.ts",
+          "disposition": "excluded",
+          "reason": "Do not resurrect superseded standalone bundle patches, old dedicated projection/proposal/tool modules or historical snapshot owners. Their selected behavior is implemented by the final action-cards service, registered page/plugin kinds and unified personalized-recommendations bundle; the source commit and current tests identify the maintained owners."
+        },
+        {
+          "path": "packages/experimental/client-ui-creation-recommendations/src/client/index.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-creation-recommendations/src/client/locales.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-creation-recommendations/src/client/mount.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-creation-recommendations/src/css-modules.d.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-creation-recommendations/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-creation-recommendations/tests/browser-plugin.client.spec.ts",
+          "disposition": "excluded",
+          "reason": "Do not resurrect superseded standalone bundle patches, old dedicated projection/proposal/tool modules or historical snapshot owners. Their selected behavior is implemented by the final action-cards service, registered page/plugin kinds and unified personalized-recommendations bundle; the source commit and current tests identify the maintained owners."
+        },
+        {
+          "path": "packages/experimental/client-ui-creation-recommendations/tests/card.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-creation-recommendations/tests/definition.client.spec.ts",
+          "disposition": "excluded",
+          "reason": "Do not resurrect superseded standalone bundle patches, old dedicated projection/proposal/tool modules or historical snapshot owners. Their selected behavior is implemented by the final action-cards service, registered page/plugin kinds and unified personalized-recommendations bundle; the source commit and current tests identify the maintained owners."
+        },
+        {
+          "path": "packages/experimental/client-ui-creation-recommendations/tests/mount.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-creation-recommendations/tsconfig.json",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-creation-recommendations/tsdown.config.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-plugin-recommendations/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-plugin-recommendations/README.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-plugin-recommendations/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-plugin-recommendations/package.json",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-plugin-recommendations/src/client/Card.module.css",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-plugin-recommendations/src/client/Card.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-plugin-recommendations/src/client/definition.ts",
+          "disposition": "excluded",
+          "reason": "Do not resurrect superseded standalone bundle patches, old dedicated projection/proposal/tool modules or historical snapshot owners. Their selected behavior is implemented by the final action-cards service, registered page/plugin kinds and unified personalized-recommendations bundle; the source commit and current tests identify the maintained owners."
+        },
+        {
+          "path": "packages/experimental/client-ui-plugin-recommendations/src/client/index.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-plugin-recommendations/src/client/locales.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-plugin-recommendations/src/client/mount.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-plugin-recommendations/src/css-modules.d.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-plugin-recommendations/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-plugin-recommendations/tests/browser-plugin.client.spec.ts",
+          "disposition": "excluded",
+          "reason": "Do not resurrect superseded standalone bundle patches, old dedicated projection/proposal/tool modules or historical snapshot owners. Their selected behavior is implemented by the final action-cards service, registered page/plugin kinds and unified personalized-recommendations bundle; the source commit and current tests identify the maintained owners."
+        },
+        {
+          "path": "packages/experimental/client-ui-plugin-recommendations/tests/browser-plugin.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-plugin-recommendations/tests/card.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-plugin-recommendations/tests/definition.client.spec.ts",
+          "disposition": "excluded",
+          "reason": "Do not resurrect superseded standalone bundle patches, old dedicated projection/proposal/tool modules or historical snapshot owners. Their selected behavior is implemented by the final action-cards service, registered page/plugin kinds and unified personalized-recommendations bundle; the source commit and current tests identify the maintained owners."
+        },
+        {
+          "path": "packages/experimental/client-ui-plugin-recommendations/tsconfig.json",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/client-ui-plugin-recommendations/tsdown.config.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/README.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/cordis.patch.yml",
+          "disposition": "excluded",
+          "reason": "Do not resurrect superseded standalone bundle patches, old dedicated projection/proposal/tool modules or historical snapshot owners. Their selected behavior is implemented by the final action-cards service, registered page/plugin kinds and unified personalized-recommendations bundle; the source commit and current tests identify the maintained owners."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/icon.svg",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/locale/de.json",
+          "disposition": "excluded",
+          "reason": "Do not add the six extra UI languages requested to remain excluded. English and Chinese metadata and typed client dictionaries are retained."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/locale/en.json",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/locale/es.json",
+          "disposition": "excluded",
+          "reason": "Do not add the six extra UI languages requested to remain excluded. English and Chinese metadata and typed client dictionaries are retained."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/locale/fr.json",
+          "disposition": "excluded",
+          "reason": "Do not add the six extra UI languages requested to remain excluded. English and Chinese metadata and typed client dictionaries are retained."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/locale/ja.json",
+          "disposition": "excluded",
+          "reason": "Do not add the six extra UI languages requested to remain excluded. English and Chinese metadata and typed client dictionaries are retained."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/locale/pt.json",
+          "disposition": "excluded",
+          "reason": "Do not add the six extra UI languages requested to remain excluded. English and Chinese metadata and typed client dictionaries are retained."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/locale/ru.json",
+          "disposition": "excluded",
+          "reason": "Do not add the six extra UI languages requested to remain excluded. English and Chinese metadata and typed client dictionaries are retained."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/locale/zh.json",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/package.json",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/references/main-page.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/references/session-tab.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/references/sidebar-entry.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/references/sidebar-right.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/skills/personalized-pages.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/src/generated-bundle.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/src/projection.ts",
+          "disposition": "excluded",
+          "reason": "Do not resurrect superseded standalone bundle patches, old dedicated projection/proposal/tool modules or historical snapshot owners. Their selected behavior is implemented by the final action-cards service, registered page/plugin kinds and unified personalized-recommendations bundle; the source commit and current tests identify the maintained owners."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/src/skill.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/src/types.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/tests/__snapshots__/creation.spec.ts.snap",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/tests/__snapshots__/status-context.spec.ts.snap",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/tests/creation.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/tests/fixture.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/tests/fixtures/intent-cases.json",
+          "disposition": "excluded",
+          "reason": "Do not resurrect superseded standalone bundle patches, old dedicated projection/proposal/tool modules or historical snapshot owners. Their selected behavior is implemented by the final action-cards service, registered page/plugin kinds and unified personalized-recommendations bundle; the source commit and current tests identify the maintained owners."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/tests/generated-bundle.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/tests/loader-composition.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/tests/projection.spec.ts",
+          "disposition": "excluded",
+          "reason": "Do not resurrect superseded standalone bundle patches, old dedicated projection/proposal/tool modules or historical snapshot owners. Their selected behavior is implemented by the final action-cards service, registered page/plugin kinds and unified personalized-recommendations bundle; the source commit and current tests identify the maintained owners."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/tests/status-context.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/tsconfig.json",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/creation-recommendations/tsdown.config.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/personalized-recommendations/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/personalized-recommendations/README.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/personalized-recommendations/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/personalized-recommendations/cordis.patch.yml",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/personalized-recommendations/docs/DETAIL.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/personalized-recommendations/docs/DETAIL.zh.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/personalized-recommendations/docs/preview.svg",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/personalized-recommendations/docs/preview.zh.svg",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/personalized-recommendations/icon.svg",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/personalized-recommendations/locale/de.json",
+          "disposition": "excluded",
+          "reason": "Do not add the six extra UI languages requested to remain excluded. English and Chinese metadata and typed client dictionaries are retained."
+        },
+        {
+          "path": "packages/experimental/personalized-recommendations/locale/en.json",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/personalized-recommendations/locale/es.json",
+          "disposition": "excluded",
+          "reason": "Do not add the six extra UI languages requested to remain excluded. English and Chinese metadata and typed client dictionaries are retained."
+        },
+        {
+          "path": "packages/experimental/personalized-recommendations/locale/fr.json",
+          "disposition": "excluded",
+          "reason": "Do not add the six extra UI languages requested to remain excluded. English and Chinese metadata and typed client dictionaries are retained."
+        },
+        {
+          "path": "packages/experimental/personalized-recommendations/locale/ja.json",
+          "disposition": "excluded",
+          "reason": "Do not add the six extra UI languages requested to remain excluded. English and Chinese metadata and typed client dictionaries are retained."
+        },
+        {
+          "path": "packages/experimental/personalized-recommendations/locale/pt.json",
+          "disposition": "excluded",
+          "reason": "Do not add the six extra UI languages requested to remain excluded. English and Chinese metadata and typed client dictionaries are retained."
+        },
+        {
+          "path": "packages/experimental/personalized-recommendations/locale/ru.json",
+          "disposition": "excluded",
+          "reason": "Do not add the six extra UI languages requested to remain excluded. English and Chinese metadata and typed client dictionaries are retained."
+        },
+        {
+          "path": "packages/experimental/personalized-recommendations/locale/zh.json",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/personalized-recommendations/package.json",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/personalized-recommendations/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/personalized-recommendations/tests/bundle.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/personalized-recommendations/tsconfig.json",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/personalized-recommendations/tsdown.config.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/README.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/cordis.patch.yml",
+          "disposition": "excluded",
+          "reason": "Do not resurrect superseded standalone bundle patches, old dedicated projection/proposal/tool modules or historical snapshot owners. Their selected behavior is implemented by the final action-cards service, registered page/plugin kinds and unified personalized-recommendations bundle; the source commit and current tests identify the maintained owners."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/evaluation/intent-cases.json",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/icon.svg",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/locale/de.json",
+          "disposition": "excluded",
+          "reason": "Do not add the six extra UI languages requested to remain excluded. English and Chinese metadata and typed client dictionaries are retained."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/locale/en.json",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/locale/es.json",
+          "disposition": "excluded",
+          "reason": "Do not add the six extra UI languages requested to remain excluded. English and Chinese metadata and typed client dictionaries are retained."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/locale/fr.json",
+          "disposition": "excluded",
+          "reason": "Do not add the six extra UI languages requested to remain excluded. English and Chinese metadata and typed client dictionaries are retained."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/locale/ja.json",
+          "disposition": "excluded",
+          "reason": "Do not add the six extra UI languages requested to remain excluded. English and Chinese metadata and typed client dictionaries are retained."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/locale/pt.json",
+          "disposition": "excluded",
+          "reason": "Do not add the six extra UI languages requested to remain excluded. English and Chinese metadata and typed client dictionaries are retained."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/locale/ru.json",
+          "disposition": "excluded",
+          "reason": "Do not add the six extra UI languages requested to remain excluded. English and Chinese metadata and typed client dictionaries are retained."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/locale/zh.json",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/package.json",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/skills/official-plugins.md",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/src/projection.ts",
+          "disposition": "excluded",
+          "reason": "Do not resurrect superseded standalone bundle patches, old dedicated projection/proposal/tool modules or historical snapshot owners. Their selected behavior is implemented by the final action-cards service, registered page/plugin kinds and unified personalized-recommendations bundle; the source commit and current tests identify the maintained owners."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/src/skill.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/src/types.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/tests/__snapshots__/recommendations.spec.ts.snap",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/tests/__snapshots__/status-context.spec.ts.snap",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/tests/fixture.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/tests/fixtures/cordis.yml",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/tests/fixtures/intent-cases.json",
+          "disposition": "excluded",
+          "reason": "Do not resurrect superseded standalone bundle patches, old dedicated projection/proposal/tool modules or historical snapshot owners. Their selected behavior is implemented by the final action-cards service, registered page/plugin kinds and unified personalized-recommendations bundle; the source commit and current tests identify the maintained owners."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/tests/loader-composition.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/tests/projection.spec.ts",
+          "disposition": "excluded",
+          "reason": "Do not resurrect superseded standalone bundle patches, old dedicated projection/proposal/tool modules or historical snapshot owners. Their selected behavior is implemented by the final action-cards service, registered page/plugin kinds and unified personalized-recommendations bundle; the source commit and current tests identify the maintained owners."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/tests/recommendations.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/tests/status-context.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/tsconfig.json",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/experimental/plugin-recommendations/tsdown.config.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final shared-card implementation and unified default-off bundle to Harnessy 0.1.17: current scoped tools, direct ignorable Session events, projection registry, authenticated operator calls, English/Chinese, existing UI tokens/navigation and current one-shot spawn API. Preserve cancellation/recovery, location/cost controls and human acceptance. Creator has a reserved identity, preset and directory with workspace-write access capped against its parent; generated files are validated before installation. Failed, cancelled and overridden enabling outcomes remain retryable rather than claiming success. Product-use suggestions never replace an explicit Harnessy development request."
+        },
+        {
+          "path": "packages/extensions/cordis-client-runner/src/client/slot-catalog.ts",
+          "disposition": "adopted",
+          "reason": "Regenerate documentation, service/tool/slot graphs, package inventories and current persistence artifacts from Harnessy’s maintained owners; update the English/Chinese pairs. Keep existing Session history and link new APIs at their actual owners. Do not copy upstream version claims or stock UI instructions."
+        },
+        {
+          "path": "packages/extensions/tool-cordis/src/api-catalog.ts",
+          "disposition": "adopted",
+          "reason": "Regenerate documentation, service/tool/slot graphs, package inventories and current persistence artifacts from Harnessy’s maintained owners; update the English/Chinese pairs. Keep existing Session history and link new APIs at their actual owners. Do not copy upstream version claims or stock UI instructions."
+        },
+        {
+          "path": "packages/preset/agent-preset/skills/cordis-composition-reference/references/packages.md",
+          "disposition": "adopted",
+          "reason": "Regenerate documentation, service/tool/slot graphs, package inventories and current persistence artifacts from Harnessy’s maintained owners; update the English/Chinese pairs. Keep existing Session history and link new APIs at their actual owners. Do not copy upstream version claims or stock UI instructions."
+        },
+        {
+          "path": "packages/util/official-bundles/src/bundles.ts",
+          "disposition": "excluded",
+          "reason": "Retain Harnessy’s installed, built-in and optional plugin groups and current package-prefix-based Experimental badge. Do not restore stock More navigation, catalog fields or separate feature bundles. Register the unified default-off bundle through current app-boot OPTIONAL_BUNDLES and verify navigation with the dedicated Harnessy browser cases."
+        },
+        {
+          "path": "packages/util/official-bundles/src/plugin-manager.ts",
+          "disposition": "excluded",
+          "reason": "Retain Harnessy’s installed, built-in and optional plugin groups and current package-prefix-based Experimental badge. Do not restore stock More navigation, catalog fields or separate feature bundles. Register the unified default-off bundle through current app-boot OPTIONAL_BUNDLES and verify navigation with the dedicated Harnessy browser cases."
+        },
+        {
+          "path": "pnpm-lock.yaml",
+          "disposition": "adopted",
+          "reason": "Adapt the feature’s launcher, dependency, compiler or verification wiring to the current Harnessy owner. Keep experimental packages optional, all existing provider capability descriptors explicit, Host browser cases out of the Client program, and existing dependency resolutions stable. Normal strict build, focused tests, package checks and delivery hooks qualify this wiring."
+        },
+        {
+          "path": "scripts/check-workspace-constraints.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the feature’s launcher, dependency, compiler or verification wiring to the current Harnessy owner. Keep experimental packages optional, all existing provider capability descriptors explicit, Host browser cases out of the Client program, and existing dependency resolutions stable. Normal strict build, focused tests, package checks and delivery hooks qualify this wiring."
+        },
+        {
+          "path": "scripts/client-tsconfig.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the feature’s launcher, dependency, compiler or verification wiring to the current Harnessy owner. Keep experimental packages optional, all existing provider capability descriptors explicit, Host browser cases out of the Client program, and existing dependency resolutions stable. Normal strict build, focused tests, package checks and delivery hooks qualify this wiring."
+        },
+        {
+          "path": "scripts/experimental-package-policy.ts",
+          "disposition": "excluded",
+          "reason": "Keep the current public experimental policy and @deepseek-ai/dsh-experimental-* package names. Do not introduce upstream prefix exceptions; every consumer and generated alias uses the current Harnessy names."
+        },
+        {
+          "path": "scripts/gen-client-catalog.ts",
+          "disposition": "retained-newer",
+          "reason": "Keep the current generator line budget and current slot-discovery rules; the new card registrations generate successfully and the final client-catalog freshness gate passed without an upstream ceiling change."
+        },
+        {
+          "path": "scripts/gen-cordis-catalog.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the feature’s launcher, dependency, compiler or verification wiring to the current Harnessy owner. Keep experimental packages optional, all existing provider capability descriptors explicit, Host browser cases out of the Client program, and existing dependency resolutions stable. Normal strict build, focused tests, package checks and delivery hooks qualify this wiring."
+        },
+        {
+          "path": "scripts/gen-doc-graphs.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the feature’s launcher, dependency, compiler or verification wiring to the current Harnessy owner. Keep experimental packages optional, all existing provider capability descriptors explicit, Host browser cases out of the Client program, and existing dependency resolutions stable. Normal strict build, focused tests, package checks and delivery hooks qualify this wiring."
+        },
+        {
+          "path": "scripts/gen-tool-catalog.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the feature’s launcher, dependency, compiler or verification wiring to the current Harnessy owner. Keep experimental packages optional, all existing provider capability descriptors explicit, Host browser cases out of the Client program, and existing dependency resolutions stable. Normal strict build, focused tests, package checks and delivery hooks qualify this wiring."
+        },
+        {
+          "path": "scripts/release/families.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the feature’s launcher, dependency, compiler or verification wiring to the current Harnessy owner. Keep experimental packages optional, all existing provider capability descriptors explicit, Host browser cases out of the Client program, and existing dependency resolutions stable. Normal strict build, focused tests, package checks and delivery hooks qualify this wiring."
+        },
+        {
+          "path": "scripts/rescope-vendor.ts",
+          "disposition": "retained-newer",
+          "reason": "The existing rescope verifier accepts the retained cordis preset identifiers without new file-specific skips; its hygiene check passed."
+        },
+        {
+          "path": "scripts/verify-package-readme-model-experience.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the feature’s launcher, dependency, compiler or verification wiring to the current Harnessy owner. Keep experimental packages optional, all existing provider capability descriptors explicit, Host browser cases out of the Client program, and existing dependency resolutions stable. Normal strict build, focused tests, package checks and delivery hooks qualify this wiring."
+        },
+        {
+          "path": "snapshots/web/creation-recommendations/dismissed.expected.md",
+          "disposition": "adopted",
+          "reason": "Rehome non-Session ARIA expectations to apps/web/tests/expected under their browser owner. The Session JSONL and its matching prompt/schema sidecars remain in the recorded-session corpus; refresh and unchanged built-browser replay passed."
+        },
+        {
+          "path": "snapshots/web/creation-recommendations/expanded.expected.md",
+          "disposition": "adopted",
+          "reason": "Rehome non-Session ARIA expectations to apps/web/tests/expected under their browser owner. The Session JSONL and its matching prompt/schema sidecars remain in the recorded-session corpus; refresh and unchanged built-browser replay passed."
+        },
+        {
+          "path": "snapshots/web/creation-recommendations/offered.expected.md",
+          "disposition": "adopted",
+          "reason": "Rehome non-Session ARIA expectations to apps/web/tests/expected under their browser owner. The Session JSONL and its matching prompt/schema sidecars remain in the recorded-session corpus; refresh and unchanged built-browser replay passed."
+        },
+        {
+          "path": "snapshots/web/creation-recommendations/options.expected.md",
+          "disposition": "adopted",
+          "reason": "Rehome non-Session ARIA expectations to apps/web/tests/expected under their browser owner. The Session JSONL and its matching prompt/schema sidecars remain in the recorded-session corpus; refresh and unchanged built-browser replay passed."
+        },
+        {
+          "path": "snapshots/web/creation-recommendations/session.v4.jsonl",
+          "disposition": "adopted",
+          "reason": "Adapt the feature’s launcher, dependency, compiler or verification wiring to the current Harnessy owner. Keep experimental packages optional, all existing provider capability descriptors explicit, Host browser cases out of the Client program, and existing dependency resolutions stable. Normal strict build, focused tests, package checks and delivery hooks qualify this wiring."
+        },
+        {
+          "path": "snapshots/web/creation-recommendations/snapshot.yml",
+          "disposition": "adopted",
+          "reason": "Adapt the feature’s launcher, dependency, compiler or verification wiring to the current Harnessy owner. Keep experimental packages optional, all existing provider capability descriptors explicit, Host browser cases out of the Client program, and existing dependency resolutions stable. Normal strict build, focused tests, package checks and delivery hooks qualify this wiring."
+        },
+        {
+          "path": "snapshots/web/creation-recommendations/system-prompt.expected.md",
+          "disposition": "adopted",
+          "reason": "Adapt the feature’s launcher, dependency, compiler or verification wiring to the current Harnessy owner. Keep experimental packages optional, all existing provider capability descriptors explicit, Host browser cases out of the Client program, and existing dependency resolutions stable. Normal strict build, focused tests, package checks and delivery hooks qualify this wiring."
+        },
+        {
+          "path": "snapshots/web/creation-recommendations/tool-schemas.expected.json",
+          "disposition": "adopted",
+          "reason": "Adapt the feature’s launcher, dependency, compiler or verification wiring to the current Harnessy owner. Keep experimental packages optional, all existing provider capability descriptors explicit, Host browser cases out of the Client program, and existing dependency resolutions stable. Normal strict build, focused tests, package checks and delivery hooks qualify this wiring."
+        },
+        {
+          "path": "snapshots/web/plugin-recommendations/dismissed.expected.md",
+          "disposition": "adopted",
+          "reason": "Rehome non-Session ARIA expectations to apps/web/tests/expected under their browser owner. The Session JSONL and its matching prompt/schema sidecars remain in the recorded-session corpus; refresh and unchanged built-browser replay passed."
+        },
+        {
+          "path": "snapshots/web/plugin-recommendations/offered.expected.md",
+          "disposition": "adopted",
+          "reason": "Rehome non-Session ARIA expectations to apps/web/tests/expected under their browser owner. The Session JSONL and its matching prompt/schema sidecars remain in the recorded-session corpus; refresh and unchanged built-browser replay passed."
+        },
+        {
+          "path": "snapshots/web/plugin-recommendations/session.v4.jsonl",
+          "disposition": "adopted",
+          "reason": "Adapt the feature’s launcher, dependency, compiler or verification wiring to the current Harnessy owner. Keep experimental packages optional, all existing provider capability descriptors explicit, Host browser cases out of the Client program, and existing dependency resolutions stable. Normal strict build, focused tests, package checks and delivery hooks qualify this wiring."
+        },
+        {
+          "path": "snapshots/web/plugin-recommendations/snapshot.yml",
+          "disposition": "adopted",
+          "reason": "Adapt the feature’s launcher, dependency, compiler or verification wiring to the current Harnessy owner. Keep experimental packages optional, all existing provider capability descriptors explicit, Host browser cases out of the Client program, and existing dependency resolutions stable. Normal strict build, focused tests, package checks and delivery hooks qualify this wiring."
+        },
+        {
+          "path": "snapshots/web/plugin-recommendations/system-prompt.expected.md",
+          "disposition": "adopted",
+          "reason": "Adapt the feature’s launcher, dependency, compiler or verification wiring to the current Harnessy owner. Keep experimental packages optional, all existing provider capability descriptors explicit, Host browser cases out of the Client program, and existing dependency resolutions stable. Normal strict build, focused tests, package checks and delivery hooks qualify this wiring."
+        },
+        {
+          "path": "snapshots/web/plugin-recommendations/tool-schemas.expected.json",
+          "disposition": "adopted",
+          "reason": "Adapt the feature’s launcher, dependency, compiler or verification wiring to the current Harnessy owner. Keep experimental packages optional, all existing provider capability descriptors explicit, Host browser cases out of the Client program, and existing dependency resolutions stable. Normal strict build, focused tests, package checks and delivery hooks qualify this wiring."
+        },
+        {
+          "path": "tsconfig.base.json",
+          "disposition": "adopted",
+          "reason": "Adapt the feature’s launcher, dependency, compiler or verification wiring to the current Harnessy owner. Keep experimental packages optional, all existing provider capability descriptors explicit, Host browser cases out of the Client program, and existing dependency resolutions stable. Normal strict build, focused tests, package checks and delivery hooks qualify this wiring."
+        },
+        {
+          "path": "tsconfig.client.json",
+          "disposition": "adopted",
+          "reason": "Adapt the feature’s launcher, dependency, compiler or verification wiring to the current Harnessy owner. Keep experimental packages optional, all existing provider capability descriptors explicit, Host browser cases out of the Client program, and existing dependency resolutions stable. Normal strict build, focused tests, package checks and delivery hooks qualify this wiring."
+        },
+        {
+          "path": "tsconfig.host.json",
+          "disposition": "adopted",
+          "reason": "Adapt the feature’s launcher, dependency, compiler or verification wiring to the current Harnessy owner. Keep experimental packages optional, all existing provider capability descriptors explicit, Host browser cases out of the Client program, and existing dependency resolutions stable. Normal strict build, focused tests, package checks and delivery hooks qualify this wiring."
+        },
+        {
+          "path": "vitest.config.ts",
+          "disposition": "excluded",
+          "reason": "Do not add source-coverage exclusions while porting the feature. Source lifecycle/component tests and built-browser replay qualify the generated entry wiring without changing the current coverage policy."
+        }
+      ],
+      "evidence": [
+        "Twelve exact upstream feature/follow-up commits and their full 253-path union accounted for together; implementation cfabdbe1522147434259fad88bbf2d4a859736b1. Verified 2026-10-25 on Windows, Harnessy 0.1.17, Node 24.14.0 and pnpm 11.7.0. The remaining related historical commits, global release alignment, unreviewed ancestors and merged branches are not silently included by this review.",
+        "The seven recommendation owners passed unchanged source/Client replay with 183 tests and one file-symlink capability skip before final confinement coverage. A later owner/outcome/spawn run passed 117 tests with two explicit file-symlink skips; a directory-junction escape test still runs on this Windows host. Two new cancelled/overridden outcome regressions failed against the imported code and passed after accepting only applied/restart-required as enabled. Seventy-two final UI/generator/release-family cases passed. These overlapping counts are not summed.",
+        "The broader adjacent run passed 1432 cases with 36 fixture failures and four skips; it is not claimed as clean. Corrections mounted current working-directory services in old control/roster fixtures and admitted that service in the real Codex/Claude provider fixtures; all 61 cases in those five formerly failing files then passed. Two delegated-child preset composition cases passed through the shipped Web Host after awaiting the async composition helper, using unique Session identities on retry and checking the platform’s actual shell tool. Spawn tests verify reserved identity/directory/preset, unchanged parent state, workspace-write confinement, unsupported-provider refusal and unpublished rollback.",
+        "Full custom build passed and recorded 381 Client artifacts with eleven public values. Subsequent Client rebuild passed for the Built-in badge wording. Two dedicated built Harnessy browser cases passed refresh and unchanged replay: card placement, first-use cost notice, location/custom-placement controls, dismissal, reconnect, status delivery and navigation to existing plugin details. Light/dark captures were inspected. These tests deliberately do not request model-generated code or enable an external package.",
+        "The hygiene aggregate passed fifteen of sixteen gates; its only failure was missing/ordered publication patterns, corrected and checked at the owning constraints verifier. The final documentation aggregate passed 42 of 43 gates; translation pairing was corrected at the generated capability diagram and a later narrow badge wording change, with normal staged pairing checks and separate corpus verification. Full source lint found three affected async-call/style issues; those were corrected and scoped lint passed. The Harnessy product guard passed 140 cases. Frozen dependency installation passed without changing existing dependency resolutions.",
+        "Persistence generation acknowledges only the new ignorable card-decision event and attribution-only notice source; no writer-version bump or alteration to committed older Session generations. Model-visible notices are logged and acknowledged only after admission. Source tests and browser replay establish behavior; real-API page generation, installed staging-runtime selection and main-app update are not established.",
+        "No ancestry/checkpoint merge, master/tag push, release, app update, new checkout/worktree or additional app registration is included. reviewedThrough remains unchanged; the Git behind count therefore remains an ancestry count, separate from the newly accounted review backlog."
       ]
     }
   }
