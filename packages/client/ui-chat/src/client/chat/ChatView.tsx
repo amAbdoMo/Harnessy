@@ -3,7 +3,7 @@
 
 import { memo, useCallback, useMemo, useRef, useState, type ComponentProps } from 'react'
 import type {
-  NodeKey, RenderEntry, RenderMessageImages,
+  NodeKey, RenderEntry, RenderMessageImages, UserTextInput,
 } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { InboxState } from '@deepseek-ai/dsh-agent/types'
 import type { PendingSubmission } from '@deepseek-ai/dsh-api-session-controller/client'
@@ -21,6 +21,7 @@ import { TurnNavigator } from './TurnNavigator.tsx'
 import { RunningStatus } from './RunningStatus.tsx'
 import { mergeTurnRailItems } from './turn-rail-items.ts'
 import { useChatScroll } from './use-chat-scroll.ts'
+import { useTextInteraction } from './text-interaction.ts'
 import { fileAddressFor, fileMediaUrl, resolveWorkspacePath } from '@deepseek-ai/dsh-util-workspace-path'
 import css from './ChatView.module.css'
 
@@ -77,10 +78,10 @@ const ChatNodeList = memo(function ChatNodeList({ entries, useChatGroup, pending
   })
   const pendingRows = pendingInputs.map(item => 'requestId' in item ? (
     <PendingSubmissionBubble key={item.requestId} submission={item}
-      renderMessageImages={seatProps.renderMessageImages} t={seatProps.t} />
+      renderMessageImages={seatProps.renderMessageImages} renderUserText={seatProps.renderUserText} t={seatProps.t} />
   ) : (
     <PendingSteeringBubble key={item.id} content={item.content}
-      renderMessageImages={seatProps.renderMessageImages} t={seatProps.t} />
+      renderMessageImages={seatProps.renderMessageImages} renderUserText={seatProps.renderUserText} t={seatProps.t} />
   ))
   const tail = entries.at(-1)
   const node = tail?.kind === 'node' ? seatProps.nodeStore.get(tail.key) : undefined
@@ -99,12 +100,14 @@ const ChatNodeList = memo(function ChatNodeList({ entries, useChatGroup, pending
  * ordered business Node crosses the keyed renderer seat.
  */
 export function ChatView({
-  useSession, useChat, useChatNode, useChatNodeProcess, useChatGroup, useConversation, useSessions, useStore, actions, renderSlot,
+  useSession, useChat, useChatNode, useChatNodeProcess, useChatGroup, useConversation, useSessions, useStore,
+  actions, renderSlot, renderFactorySlot,
   sessionId, openFile, openSkill, openExternalLink, loadOlder, loadThrough, loadImage, inspectCall,
   chatScroll, forkAt, fileMentions, fileDrag,
-  usePresentation, useProjection, t,
+  usePresentation, useProjection, useInteractionIds, dispatchInteraction, t,
 }: ChatViewSlotProps) {
   const order = useChat(s => s.order)
+  const renderUserText = useCallback((input: UserTextInput) => renderFactorySlot('conversation.user.text', input), [renderFactorySlot])
   const groupedEntries = useConversation(snapshot => snapshot.views.grouped('chat')?.entries)
   const entries = useMemo<readonly RenderEntry[]>(() => groupedEntries
     ?? order.map(key => ({ kind: 'node', key: key as NodeKey })), [groupedEntries, order])
@@ -230,6 +233,9 @@ export function ChatView({
     loadedTurns: turnNavigationItems,
     transcriptView,
   })
+  const interactionSurfaceRef = useRef<HTMLDivElement>(null)
+  const interactionIds = useInteractionIds(ids => ids)
+  const textInteraction = useTextInteraction(scroll.columnRef, interactionSurfaceRef, dispatchInteraction, interactionIds)
 
   return (
     <div className={css.frame}>
@@ -277,11 +283,19 @@ export function ChatView({
                 forkAt={forkAt}
                 loadImage={loadImage}
                 renderMessageImages={renderMessageImages}
+                renderUserText={renderUserText}
                 fileMentions={fileMentions}
                 renderSlot={renderSlot}
                 t={t}
               />
             </MarkdownDelegateProvider>
+            <div ref={interactionSurfaceRef} className={css.textInteraction} data-text-interaction-surface=""
+              aria-hidden={textInteraction.active === null}>
+              {textInteraction.active !== null && renderSlot('conversation.chat.text-interaction', {
+                trigger: textInteraction.active.trigger, readText: textInteraction.readText,
+                dismiss: textInteraction.dismiss, clearSelection: textInteraction.clearSelection,
+              }, { entryKey: textInteraction.active.id })}
+            </div>
             {running && <RunningStatus startTime={runningStartTime} t={t} />}
             {/* No pending placeholders: questions (ui-user-questions) and approvals
                 (ApprovalPanel) both take over the composer, so a flow card would

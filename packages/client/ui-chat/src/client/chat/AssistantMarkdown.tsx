@@ -34,6 +34,8 @@ export interface AssistantMarkdownProps {
   useDisclosure: UseDisclosure
   blocks: readonly AssistantBlock[]
   streaming: boolean
+  /** Only finalized durable Assistant messages supply selection sources. */
+  textInteractionSource?: boolean
   /** Frozen partial of an aborted turn: rendered with a stopped marker. */
   interrupted?: boolean | undefined
   /** Render consecutive image blocks through the attachment slot. */
@@ -52,7 +54,7 @@ export interface AssistantMarkdownProps {
 
 /** Reasoning block as the Think variant summary row (figma 39:28304). */
 export const AssistantMarkdown = memo(function AssistantMarkdown({
-  blocks, streaming, interrupted, renderMessageImages, groupPart, useDisclosure,
+  blocks, streaming, textInteractionSource = false, interrupted, renderMessageImages, groupPart, useDisclosure,
   reasoningHidden = false, usePresentation, revealProcess, mentions, t,
 }: AssistantMarkdownProps) {
   // Stable per locale revision (t identity changes on switch): a fresh object
@@ -86,6 +88,7 @@ export const AssistantMarkdown = memo(function AssistantMarkdown({
             labels={labels}
             fileMentions={mentions}
             pathImages={pathImages}
+            textInteractionSource={textInteractionSource}
           />,
         )
         break
@@ -97,7 +100,7 @@ export const AssistantMarkdown = memo(function AssistantMarkdown({
             reveal={revealProcess}
           >
             <ReasoningRow text={block.text} running={streaming && i === last} usePresentation={usePresentation}
-              useDisclosure={useDisclosure} t={t} />
+              useDisclosure={useDisclosure} textInteractionSource={textInteractionSource} t={t} />
           </ProcessReasoning>,
         )
         break

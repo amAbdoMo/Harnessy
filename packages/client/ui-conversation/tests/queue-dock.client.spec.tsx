@@ -24,6 +24,8 @@ import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts
 import type { InputState } from '../src/client/contract/input.ts'
 import { zh } from '../src/client/locales.ts'
 import { QueueDock, queueDockEntry, type QueueDockInjected, type QueueDockProps } from '../src/client/queue/QueueDock.tsx'
+import type { UserTextInput } from '../src/client/contract/slots.ts'
+import { createUserTextFixture } from './user-text-component-fixture.client.tsx'
 
 // Every session-scope fixture carries the resource hook the resources plugin merges into GlobalStandardProps.
 const useResource = (() => ({ status: 'none' as const, value: undefined, failure: undefined })) as GlobalStandardProps['useResource']
@@ -98,9 +100,14 @@ const t: QueueDockProps['t'] = makeTranslate(zh, commonZh)
 const usePanelInfo: GlobalStandardProps['usePanelInfo'] = selector => selector({ activePanelId: null })
 
 function kitFor(snapshot: SessionSnapshot, injected: Partial<QueueDockInjected> = {}) {
+  const renderText = createUserTextFixture()
   return {
     sessionId: SID,
     t,
+    renderFactorySlot: ((name, input) => {
+      expect(name).toBe('conversation.user.text')
+      return renderText(input as UserTextInput)
+    }) satisfies QueueDockProps['renderFactorySlot'],
     usePanelInfo,
     useSessions: (() => { throw new Error('unused') }) as SnapshotSelectorHook<SessionListState>,
     useSessionRetainInfo: () => undefined,
@@ -434,12 +441,12 @@ describe('QueueDock', () => {
     expect(view.queryByText('three')).toBeNull()
   })
 
-  it('flattens and caps previews at 200 code points while preserving complete editable text', () => {
+  it('retains complete preview text for visual ellipsis and preserves complete editable text', () => {
     const text = `  before   ${'🙂'.repeat(201)}  after`
     const snap = snapshotWith([row('long-preview', text)])
     const source = liveSession(snap)
     const view = render(<QueueDock {...kitFor(snap)} useSession={source.useSession} useProjection={source.useProjection} />)
-    expect(view.getByText(`before ${'🙂'.repeat(193)}…`)).toBeTruthy()
+    expect(view.getByRole('listitem').textContent).toContain(`before ${'🙂'.repeat(201)} after`)
     fireEvent.click(view.getByLabelText('编辑排队消息'))
     expect((view.getByRole('textbox') as HTMLTextAreaElement).value).toBe(text)
   })

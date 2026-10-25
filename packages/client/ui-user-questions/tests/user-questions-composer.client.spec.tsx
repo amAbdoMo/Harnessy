@@ -127,7 +127,7 @@ const kitBase: Omit<QuestionComposerProps, 'matched' | 'useStore' | 'useQuestion
   useProjection: (() => undefined),
   useInput: selector => selector(inputState),
   inputActions: {
-    captureInsertion: () => ({ start: 0, end: 0, draftRev: 0 }),
+    insertQuote: () => { throw new Error('Unexpected quote insertion') }, captureInsertion: () => ({ start: 0, end: 0, draftRev: 0 }),
     insertText: () => false,
     setDraft: () => { throw new Error('unused') },
     persistDraft: () => { throw new Error('unused') },

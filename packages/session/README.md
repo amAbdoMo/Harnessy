@@ -57,6 +57,12 @@ The group splits into four families: durable storage (persistence seam, backends
 | [`session-title-first-prompt-llm/`](session-title-first-prompt-llm/README.md) | Titles a session from its first eligible human message | registers on `ctx.sessionTitle` |
 | [`session-title-all-prompts-llm/`](session-title-all-prompts-llm/README.md) | Titles a session from all eligible human messages | registers on `ctx.sessionTitle` |
 
+### Quotation
+
+| Package | Role | ctx key |
+|---|---|---|
+| [`message-quotes/`](message-quotes/README.md) | Client text-selection actions and literal Markdown quote previews | registers on `ctx.uiConversation` |
+
 ### Telemetry
 
 | Package | Role | ctx key |

@@ -31,6 +31,7 @@ function fixture(viewport: { height: number; offsetTop: number; pageTop: number 
     vi.unstubAllGlobals()
   })
   const runtime: DraftEditorRuntime = new DraftEditorRuntime({
+    quoteLabels: () => ({ remove: 'Remove quote' }),
     onUpdate: () => { runtime.refreshProjection() },
     openReference: () => false, activeClaimToken: () => null,
     lexicon: () => new Map(), resolveLexicon: () => undefined,

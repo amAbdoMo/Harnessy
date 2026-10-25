@@ -47,6 +47,8 @@ export function apply(ctx: Context): void {
 }
 ```
 
+声明可为行内内容设置 `inline: true`。渲染器使用 span 锚点及行内错误或缺失条目占位符，包括 chain 回退；省略 `inline` 时仍使用 div 锚点。声明在卸载和条目缺失状态下继续控制该呈现方式，因此行内业务节点不会因渲染器消失而引入块级布局。
+
 ## Cardinality 与 scope
 
 Slot 声明固定两个相互独立的维度。

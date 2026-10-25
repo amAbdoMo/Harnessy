@@ -44,11 +44,14 @@ function latestCompletedParagraphFirstLine(text: string): string {
  * @param props.t - conversation locale seat for status and Markdown actions.
  * @returns the reasoning disclosure.
  */
-export const ReasoningRow = memo(function ReasoningRow({ text, running, usePresentation, useDisclosure, t }: {
+export const ReasoningRow = memo(function ReasoningRow({
+  text, running, usePresentation, useDisclosure, textInteractionSource = false, t,
+}: {
   text: string
   running: boolean
   useDisclosure: UseDisclosure
   usePresentation: UsePresentation
+  textInteractionSource?: boolean
   t: ChatViewSlotProps['t']
 }) {
   const { expanded, toggle } = useDisclosure()
@@ -69,9 +72,9 @@ export const ReasoningRow = memo(function ReasoningRow({ text, running, usePrese
   ), [running, summary])
   const content = useMemo(() => expanded ? (
     <div className={css.thinkBody}>
-      <MarkdownText text={text} streaming={running} labels={labels} variant="compact" />
+      <MarkdownText text={text} streaming={running} labels={labels} variant="compact" textInteractionSource={textInteractionSource} />
     </div>
-  ) : undefined, [expanded, labels, running, text])
+  ) : undefined, [expanded, labels, running, text, textInteractionSource])
 
   return (
     <div

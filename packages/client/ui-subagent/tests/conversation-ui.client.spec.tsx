@@ -96,7 +96,7 @@ function props(
     useChat: unused,
     useTrajectory: unused,
     inputActions: {
-      captureInsertion: unused,
+      insertQuote: () => { throw new Error('Unexpected quote insertion') }, captureInsertion: unused,
       insertText: unused,
       setDraft: unused,
       persistDraft: unused,

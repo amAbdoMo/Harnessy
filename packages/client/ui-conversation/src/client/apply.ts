@@ -14,6 +14,9 @@ import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { ShortcutCommandId, ShortcutFixedCommand } from '@deepseek-ai/dsh-client-shortcuts/client'
 import { UiConversation } from './conversation/assembly.ts'
+import { PlainUserText, SessionReference, UserText } from './user-text/UserText.tsx'
+import { sessionReferenceRule } from './user-text/session-reference-rule.ts'
+import { collapseWhitespaceRule, trimWhitespaceRule } from './user-text/whitespace-rules.ts'
 import type { ViewTab } from './contract/views.ts'
 import type {
   ComposerBarInjected, ConversationInjected, ConversationSessionHeaderInjected,
@@ -156,6 +159,21 @@ export function apply(ctx: Context, config: Config = Config({})): void {
   const maxConcurrentFileUploads = config.maxConcurrentFileUploads as number
   const workspaceNavigation = ctx.get('uiWorkspace') as unknown as WorkspaceNavigation
   const uiConversation = new UiConversation(ctx, sessions)
+
+  ctx.effect(() => uiConversation.userText.register(sessionReferenceRule), 'ui-conversation: Session text references')
+  ctx.effect(() => uiConversation.userText.register(collapseWhitespaceRule), 'ui-conversation: display whitespace')
+  ctx.effect(() => uiConversation.userText.register(trimWhitespaceRule), 'ui-conversation: display edge whitespace')
+  slots.registerFactory({
+    name: 'conversation.user.text', scope: 'session',
+    children: { 'conversation.user.text.node': { kind: 'keyed', scope: 'session', inline: true } },
+    inject: () => ({
+      hooks: { userTextRevision: uiConversation.userText },
+      createUserTextEvaluator: () => uiConversation.userText.createEvaluator(),
+      reportTransformFailure: (error: unknown) => { console.error('[user-text] transform failed', error) },
+    }),
+  }, UserText)
+  slots.inject('conversation.user.text.node', () => slots.register({ name: 'conversation.user.text.node', key: 'text' }, PlainUserText))
+  slots.inject('conversation.user.text.node', () => slots.register({ name: 'conversation.user.text.node', key: 'session' }, SessionReference))
 
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-conversation: dictionaries')
   const t = ctx.locale.bind(NS)

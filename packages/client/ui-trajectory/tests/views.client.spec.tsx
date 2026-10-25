@@ -216,7 +216,7 @@ function standaloneProps(
     draft: '', attachmentIds: [], draftRev: 0, phase: 'plain', occurrences: [], queue: [],
   })
   const inputActions: InputActions = {
-    captureInsertion: () => ({ start: 0, end: 0, draftRev: 0 }),
+    insertQuote: () => { throw new Error('Unexpected quote insertion') }, captureInsertion: () => ({ start: 0, end: 0, draftRev: 0 }),
     insertText: () => false,
     setDraft: () => {},
     persistDraft: () => {},
@@ -345,7 +345,7 @@ function mount(fixture: Awaited<ReturnType<typeof bench>>) {
     draft: '', attachmentIds: [], draftRev: 0, phase: 'plain', occurrences: [], queue: [],
   }))
   const inputActions: InputActions = {
-    captureInsertion: () => ({ start: 0, end: 0, draftRev: 0 }),
+    insertQuote: () => { throw new Error('Unexpected quote insertion') }, captureInsertion: () => ({ start: 0, end: 0, draftRev: 0 }),
     insertText: () => false,
     setDraft: vi.fn(),
     persistDraft: vi.fn(),

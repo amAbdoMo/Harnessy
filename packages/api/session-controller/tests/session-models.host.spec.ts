@@ -157,6 +157,34 @@ function currentSelection(ctx: Context, sessionId: SessionId) {
 }
 
 describe('Web session model selection', () => {
+  it('admits Markdown blockquote text without source metadata', async () => {
+    const { ctx, agent, sessionId } = await harness()
+    try {
+      const followup = vi.fn()
+      Object.assign(agent, { followup })
+      const remote = createSessionTestRemote(ctx, {
+        defaultModelSelection: () => ({ provider: 'deepseek-official', model: 'deepseek-chat' }),
+        cwd: '/tmp',
+      })
+      expectValue(await remote.prompt(promptRequest({
+        sessionId,
+        mode: 'queue',
+        content: [
+          { type: 'text', text: 'Question:\n\n' },
+          { type: 'text', text: '> quoted source' },
+        ],
+      })))
+      const message = followup.mock.calls[0]?.[0] as UserMessage
+      expect(message.content).toEqual([
+        { type: 'text', text: 'Question:\n\n' },
+        { type: 'text', text: '> quoted source' },
+      ])
+      expect(message.source.kind).toBe('user')
+      expect(message.source).not.toHaveProperty('quotes')
+
+    } finally { await ctx.fiber.dispose() }
+  })
+
   it('validates an ordered image batch before persisting any member', async () => {
     const { ctx, agent, sessionId } = await harness()
     const validateImage = vi.fn((_input: { data: Uint8Array }) => Promise.resolve())

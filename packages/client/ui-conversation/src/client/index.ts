@@ -1,4 +1,32 @@
 /** Browser Conversation assemble core, React adapter, shell, and input plugin. */
+export type {} from './user-text/session-reference-rule.ts'
+
+/** Declaration-merged node payloads; IDs also identify the corresponding keyed renderer. */
+export interface UserTextDataMap {
+  text: {
+    /** Exact original substring; display transforms never change source text or UTF-16 coordinates. */
+    readonly text: string
+    /** Optional display-only text; absence renders the original substring, while an empty string hides it. */
+    readonly display?: string
+  }
+}
+
+/** Caller-supplied JSON business facts and text-transform flags, never services or actions; absent flags are disabled. */
+export interface UserTextFacts {
+  /** Collapse whitespace runs in ordinary display text to one space. */
+  readonly collapseWhitespace: boolean
+  /** Remove display whitespace only at the document's outer edges, without crossing business nodes. */
+  readonly trimWhitespace: boolean
+}
+
+export type {
+  UserTextDocumentInput, UserTextEvaluator, UserTextId, UserTextNode, UserTextRule, UserTextTransformContext,
+} from './contract/user-text.ts'
+export type { UserTextRegistry } from './conversation/user-text-registry.ts'
+export type {
+  TextInteractionDefinition, TextInteractionGesture, TextInteractionRequest, TextInteractionSurface, TextInteractionTrigger,
+} from './contract/text-interaction.ts'
+export type { ConversationInteractionRegistry } from './conversation/interaction-registry.ts'
 export { apply, Config, inject } from './apply.ts'
 export type { Config as ConversationConfig } from './apply.ts'
 export { UiConversation } from './conversation/assembly.ts'
@@ -69,6 +97,7 @@ export type {
   HeroAgentPresetOwnerProps, HeroBrandMarkOwnerProps, InputControlOwnerProps, InputZone,
   MessageImageLoader, MessageImageSource, MessageImagesOwnerProps, RenderMessageImages, UseConversation,
   UseConversationViews,
+  UserTextInput, UserTextInjected, UserTextNodeOwnerProps, UserTextNodeProps,
 } from './contract/slots.ts'
 export type {
   BeginCommandRequest, CommandClaim, ConsumeTokenRequest, DraftAttachmentId, DraftInitializationOptions,
@@ -76,7 +105,7 @@ export type {
   InputState, InsertReferenceRequest, InsertTextRequest, PickOutcome, SessionInput,
   SessionInputResolver, SubmitAttachment, SubmitOutcome,
 } from './contract/input.ts'
-export type { ArbitrateKey, ArbitrateOutcome, DraftInput, DraftReference, DraftSnapshot, ReferenceInsert, TokenSpan } from './contract/draft-editor.ts'
+export type { ArbitrateKey, ArbitrateOutcome, DraftInput, DraftQuote, DraftReference, DraftSnapshot, ReferenceInsert, TokenSpan } from './contract/draft-editor.ts'
 export type { ComposerBlock, ComposerBlocks } from './contract/composer-blocks.ts'
 
 declare module '@deepseek-ai/cordis' {

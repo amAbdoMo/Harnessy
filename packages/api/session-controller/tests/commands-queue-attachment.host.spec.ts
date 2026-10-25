@@ -123,6 +123,19 @@ async function expectFailure(operation: Promise<unknown>, code: string): Promise
 }
 
 describe('Session queue commands', () => {
+  it('edits a blockquote into ordinary text without changing prompt correlation', async () => {
+    const { ctx, controller, agent, inbox } = await commandHarness()
+    try {
+      const message = createUserMessage({ content: [{ type: 'text', text: '> selected' }],
+        source: { kind: 'user', rpcId: 'quote-edit' as import('../src/types.ts').SessionRequestId } })
+      inbox.append('next-turn', message)
+      await controller.updateQueue({ sessionId: agent.id, itemId: message.id,
+        action: { kind: 'edit', content: [{ type: 'text', text: 'plain replacement' }] } })
+      expect(inbox.nextTurn[0]?.content).toEqual([{ type: 'text', text: 'plain replacement' }])
+      expect(inbox.nextTurn[0]?.source).toEqual(message.source)
+    } finally { await ctx.fiber.dispose() }
+  })
+
   it('preserves the cold Agent resolver rejection', async () => {
     const ctx = new Context()
     await ctx.plugin(SessionStore)

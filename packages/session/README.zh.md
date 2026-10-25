@@ -57,6 +57,12 @@ session 组让对话持久保存，恢复已发布的日志格式，并使已提
 | [`session-title-first-prompt-llm/`](session-title-first-prompt-llm/README.zh.md) | 根据第一条合格的人类消息为会话生成标题 | 注册到 `ctx.sessionTitle` |
 | [`session-title-all-prompts-llm/`](session-title-all-prompts-llm/README.zh.md) | 根据所有合格的人类消息为会话生成标题 | 注册到 `ctx.sessionTitle` |
 
+### 摘录引用
+
+| 包 | 职责 | ctx key |
+|---|---|---|
+| [`message-quotes/`](message-quotes/README.zh.md) | 客户端文本选择操作与字面 Markdown 引用预览 | 注册到 `ctx.uiConversation` |
+
 ### 遥测
 
 | 包 | 职责 | ctx key |

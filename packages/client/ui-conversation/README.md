@@ -29,6 +29,8 @@ Desktop product events use the optional [product analytics service](../product-a
 
 On identified mobile devices, mounting or switching the composer leaves text-input focus to the user. An accepted submission that empties the draft dismisses the keyboard; newer draft suffixes and rejected submissions retain focus. Desktop focus and explicit user focus remain available.
 
+`UiConversation.userText` evaluates pure JSON text rules against caller-supplied facts. The `conversation.user.text` factory renders matching nodes through inline keyed Slots; ordinary text may use the caller's existing presentation. A failing rule retains the original text and reports the error. `UiConversation.interactions` dispatches Session-scoped text gestures to plugin-owned action surfaces.
+
 `UiConversation.events` is the single registry for event Definitions, and `UiConversation.views` is the single registry for target snapshot builders. Both registries reject duplicate keys, preserve registration order, return idempotent disposers, and rebuild existing bindings when their contribution roster changes. `UiConversation.binding(bindingOrSessionId)` returns one identity-stable Conversation binding for the current Session Controller binding. It does not open another event source. A View Definition may declare `toolCallFocus` to translate a tool-call id into its focus identity. Conversation supplies an Inspect callback only while such a target has a visible View entry; Chat consumes this callback without selecting a target.
 
 `UiConversation.contextKey(kind, id)` resolves a Definition's stable node key for indexed target-node lookup. Consumers need neither serialize the key themselves nor scan the target's node collection.
@@ -109,6 +111,8 @@ File chips and editable skill references share a whole-reference hover backgroun
 When another writer owns the Session, the send-error toast asks the user to quit other running DSH instances and retry.
 
 Two independent Escape presses in the focused Chat or Composer stop its current running turn and preserve queued messages. The interval comes from the shortcuts plugin’s `stopSequenceMs` configuration (500 ms by default). A menu, approval, modal, terminal, embedded webpage, composition, repeated key, changed input region, Session or turn breaks the sequence. The shortcut uses the same scoped cancellation as the Stop button. The plugin registers Stop as a fixed action in the `input` display group. Its registration reserves plain Escape against editable shortcuts and supplies the `Esc Esc` sequence shown in the Stop button’s hover and keyboard-focus tooltip.
+
+Selected transcript text enters the draft through `inputActions.insertQuote` only while the Session and composer remain writable. Quotes are atomic editable nodes with whole-node removal and undo; draft persistence retains their UTF-16 spans beside references. Submission serializes quotes as ordinary Markdown blockquotes separated from adjacent text, with no Host quote metadata. Failed submissions restore quote spans with the detached draft; old plain-text drafts remain readable.
 
 <a id="temporary-composer-entries"></a>
 ## Temporary composer entries

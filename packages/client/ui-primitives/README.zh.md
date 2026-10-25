@@ -35,6 +35,8 @@ kind: "package-library"
 
 只要 Web 客户端需要标准控件或 agent 输出渲染器，就用这些原子组件拼装功能 UI。它们只经 React 渲染，并从主题取得 `--dsw-*` 设计 token，因此无需导入主题或 slot 系统即可适配任意插件。
 
+`QuotePreview` 显示紧凑的字面摘录，可选配本地化的整块引用删除按钮。被截断的摘录通过适应视口且可滚动的 HoverCard 展示全文。`HoverCardGroup` 协调分组卡片，只保留当前摘录的浮层；工具提示抑制会取消隐藏卡片，避免它抢占较新的卡片。`MarkdownText.textInteractionSource` 标记可供调用方选择操作使用的内容，代码语言标签仍被排除。
+
 <a id="component-catalog"></a>
 ### 组件目录
 

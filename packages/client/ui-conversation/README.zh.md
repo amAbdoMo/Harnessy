@@ -29,6 +29,8 @@ kind: "package-reference"
 
 在识别出的移动设备上，composer 挂载或切换时由用户主动聚焦文本输入框。已接受的提交清空草稿后会收起键盘；较新的草稿后缀和被拒绝的提交保留焦点。桌面聚焦和用户主动聚焦仍然可用。
 
+`UiConversation.userText` 根据调用方提供的事实执行纯 JSON 文本规则。`conversation.user.text` 工厂通过行内 keyed Slot 渲染匹配节点；普通文本可使用调用方已有的呈现方式。规则失败时保留原始文本并报告错误。`UiConversation.interactions` 将 Session 范围内的文本手势分派给插件拥有的操作界面。
+
 `UiConversation.events` 是 event Definition 的唯一 registry，`UiConversation.views` 是 target snapshot builder 的唯一 registry。两者都拒绝重复 key、保持注册顺序、返回幂等 disposer，并在 contribution roster 变化时重建现有 binding。`UiConversation.binding(bindingOrSessionId)` 为当前 Session Controller binding 返回 identity 稳定的 Conversation binding，不会另开事件源。 View Definition 可以声明 `toolCallFocus`，将工具调用 id 转换为自身的焦点标识。仅当此目标拥有可见的 View 条目时，Conversation 才提供 Inspect 回调；Chat 直接使用回调，不选择目标。
 
 `UiConversation.contextKey(kind, id)` 解析 Definition 的稳定节点键，供按索引查找目标节点。使用方无需自行序列化键，也无需扫描目标的节点集合。
@@ -107,6 +109,8 @@ Send 和 Stop 按钮禁用时不显示提示气泡，轮次结束后由 Stop 切
 当会话被其他写句柄占用时，发送失败的 toast 提示用户退出其他正在运行的 DSH 后重试。
 
 在获得焦点的 Chat 或 Composer 中连续独立按下两次 Esc，可停止当前运行轮次并保留排队消息。间隔由 shortcuts 插件的 `stopSequenceMs` 配置决定，默认 500 ms。菜单、审批、模态层、终端、内嵌网页、输入法、重复按键，以及输入区域、Session 或轮次变化会清空序列。快捷键与 Stop 按钮调用同一作用域取消操作。插件将 Stop 注册为 `input` 展示分组中的固定操作。该注册使普通 Esc 不能分配给可编辑快捷键，并为 Stop 按钮的悬停和键盘聚焦提示提供 `Esc Esc` 序列。
+
+仅当 Session 与输入框仍可写时，选中的对话文本才会通过 `inputActions.insertQuote` 插入草稿。引用是可整块删除和撤销的原子编辑节点；草稿持久化在引用标记旁保存其 UTF-16 范围。提交将引用序列化为与相邻文本分隔的普通 Markdown 块引用，不保存 Host 引用元数据。提交失败时，引用范围随分离的草稿恢复；旧版纯文本草稿仍可读取。
 
 <a id="temporary-composer-entries"></a>
 ## 临时 composer entry

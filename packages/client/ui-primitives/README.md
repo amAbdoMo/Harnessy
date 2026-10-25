@@ -35,6 +35,8 @@ This package is a Web-shell build input. Its static ESM retains third-party impo
 
 Compose feature UI from these atoms whenever the web client needs a standard control or an agent-output renderer. They render through React only and take `--dsw-*` design tokens from the theme, so they fit any plugin without importing the theme or the slot system.
 
+`QuotePreview` displays a compact literal excerpt and an optional localized whole-quote removal button. Clipped excerpts expose their complete text in a viewport-fitting, scrollable HoverCard. `HoverCardGroup` coordinates grouped cards so only the current excerpt remains open; tooltip suppression cancels a hidden card rather than allowing it to reclaim a newer card. `MarkdownText.textInteractionSource` marks content eligible for caller-owned selection actions, while code-language labels remain excluded.
+
 <a id="component-catalog"></a>
 ### Component catalog
 

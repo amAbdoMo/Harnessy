@@ -11,7 +11,8 @@ import type { ElementNode, LexicalNode, NodeKey, Point } from 'lexical'
 import {
   $getRoot, $getSelection, $isElementNode, $isLineBreakNode, $isRangeSelection, $isTextNode,
 } from 'lexical'
-import type { Occurrence } from '../../contract/draft-editor.ts'
+import type { DraftQuote, Occurrence } from '../../contract/draft-editor.ts'
+import { $isQuoteNode } from './QuoteNode.tsx'
 import { $isReferenceChipNode } from './chip-node.tsx'
 
 /** The detect-projection stand-in for one chip (object replacement character). */
@@ -79,7 +80,7 @@ export function $composerLayout(): ComposerLayout {
     const kids = element.getChildren()
     children.set(element.getKey(), kids.map(kid => kid.getKey()))
     for (const kid of kids) {
-      if ($isReferenceChipNode(kid)) {
+      if ($isReferenceChipNode(kid) || $isQuoteNode(kid)) {
         pushLeaf('chip', kid, ATOMIC_CHAR, kid.getTextContent())
       } else if ($isTextNode(kid)) {
         const text = kid.getTextContent()
@@ -158,6 +159,8 @@ export interface EditorProjection {
   readonly clipboardText: string
   /** InputState-compatible occurrence view (clipboardText coordinates). */
   readonly occurrences: readonly Occurrence[]
+  /** Atomic quotes in clipboard coordinates. */
+  readonly quotes: readonly DraftQuote[]
   /** Range selection in detect coordinates (ordered); null while absent or non-range. */
   readonly selection: { readonly start: number; readonly end: number } | null
   /** Collapsed caret in detect coordinates; null while the selection is absent or ranged. */
@@ -196,8 +199,14 @@ export function $detectOffsetOfPoint(layout: ComposerLayout, point: Point): numb
 export function $projectComposer(idOf: (key: NodeKey) => number): EditorProjection {
   const layout = $composerLayout()
   const occurrences: Occurrence[] = []
+  const quotes: DraftQuote[] = []
   for (const segment of layout.segments) {
-    if (segment.kind !== 'chip' || !$isReferenceChipNode(segment.node)) continue
+    if (segment.kind !== 'chip') continue
+    if ($isQuoteNode(segment.node)) {
+      quotes.push({ offset: segment.clipboardStart, length: segment.clipboardLength, text: segment.node.getQuoteText() })
+      continue
+    }
+    if (!$isReferenceChipNode(segment.node)) continue
     const chip = segment.node
     occurrences.push({
       occurrenceId: idOf(chip.getKey()),
@@ -224,6 +233,7 @@ export function $projectComposer(idOf: (key: NodeKey) => number): EditorProjecti
     detectText: layout.detectText,
     clipboardText: layout.clipboardText,
     occurrences,
+    quotes,
     selection: range,
     caret: range !== null && range.start === range.end ? range.start : null,
   }

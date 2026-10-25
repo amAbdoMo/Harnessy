@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-08-26-web-rich-text-quotes.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-26-web-rich-text-quotes.md
+/agent-note-durable-rich-text-quotes-in-the-web-composer:
+  en: 49522a0a81db6981
+  zh: eeb0dfb6755ba5c9
+/agent-note-durable-rich-text-quotes-in-the-web-composer/problem:
+  en: bcb2f93cefffea35
+  zh: da439a9a84e56cf7
+/agent-note-durable-rich-text-quotes-in-the-web-composer/decision:
+  en: 60c99c9d26e5e250
+  zh: 5f9a74753f42aada
+/agent-note-durable-rich-text-quotes-in-the-web-composer/alternatives-considered:
+  en: 0bcf9cfab8c270cc
+  zh: 47636051bf891f6d
+/agent-note-durable-rich-text-quotes-in-the-web-composer/verification:
+  en: 7b360dc4b98ca790
+  zh: 826c9aa47fdb2ee9
+/agent-note-durable-rich-text-quotes-in-the-web-composer/consequences:
+  en: 665619f9a5a39f75
+  zh: b2f29c2da42b751f

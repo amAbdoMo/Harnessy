@@ -21,6 +21,7 @@ import type {
   SessionInputResolver, SessionInput, SubmitOutcome,
 } from '../contract/input.ts'
 import type { ComposerKeyboard } from '../contract/draft-editor.ts'
+import type { ComposerBlocks } from '../contract/composer-blocks.ts'
 import type { InputSubmitMode } from '../contract/composer-submission.ts'
 import type { PopupDismissFace } from './facade.ts'
 import { SessionInputShell } from './facade.ts'
@@ -40,6 +41,7 @@ interface InputTriggerServiceFace {
 
 /** Attachment-send face resolved lazily to keep hub/service construction acyclic. */
 interface ConversationAttachmentFace {
+  readonly blocks: ComposerBlocks
   sendSession(
     session: SessionFace,
     text: string,
@@ -120,6 +122,13 @@ export class InputHub implements SessionInputResolver {
       popup: () => this.popup(actx),
       inbox: session.projections.faceOf('inbox') as ObservableSnapshot<InboxState | undefined>,
       defaultSink: (text, attachmentIds, mode, signal) => this.sink(session, text, attachmentIds, mode, signal),
+      quoteRemoveLabel: () => this.t('quote.remove'),
+      quoteInsertionAllowed: () => {
+        const state = session.getSnapshot()
+        return !state.removed && (state.subagent === null
+          || (state.subagent.address.mode === 'continuable' && state.subagent.parentAvailable === true))
+          && this.conversation().blocks.storeFor(session.sessionId).getSnapshot() === undefined
+      },
       steerQueue: () => { void this.steerQueue(session, shell) },
       commandAttachments: {
         serialize: async (ids) => {

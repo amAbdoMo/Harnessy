@@ -23,6 +23,10 @@ Chat 与 Trajectory 可以识别同一个持久 event family，但各自保留�
 
 `UiConversation.contextKey(kind, id)` 返回用于按索引查找目标节点的稳定键。Definition 拥有 `kind` 与业务标识；使用方调用此方法，不重复实现键序列化，也不扫描节点。
 
+`UiConversation.userText` 拥有通过 effect 注册的 `UserTextRule` 匹配器，并提供独立的 `UserTextEvaluator` 回调。[类型化文档 API](../../packages/client/ui-conversation/src/client/contract/user-text.ts) 定义可合并扩展的 `UserTextDataMap` 与 `UserTextFacts`、JSON 节点数据、UTF-16 来源范围、规则顺序和事实依赖。文档保留原始文本与调用方事实；业务节点替换互不重叠的来源范围。React 呈现由 `conversation.user.text` 工厂及其行内 keyed 节点 Slot 负责，节点渲染器不可用时回退为原始文本。
+
+`UiConversation.interactions` 按唯一 ID 注册 `TextInteractionDefinition` owner。`TextInteractionRequest` 包含 Session ID、选择或右键菜单触发类型、同步文本读取器、事件取消与 `open()` 准入方法。选中的 Chat 渲染器接收提供文本读取、清除选择和关闭操作的 `TextInteractionSurface`，不接收持久化消息偏移。[`InputActions.insertQuote`](../../packages/client/ui-conversation/src/client/contract/input.ts) 在插入前重新检查实时可编辑状态。[`DraftSnapshot`](../../packages/client/ui-conversation/src/client/contract/draft-editor.ts) 在引用标记范围旁存储可选的原子摘录范围；来源范围必须与草稿文本一致且互不重叠。
+
 ## Target 激活
 
 每个 Session 都保留单调增长的 active target 集合。创建或读取 target source 不会激活它。shell 会显式激活持久化选择或新选择的 View，其他消费者则通过 target source 的首个订阅激活 target。首次激活会创建该 target 的 builder，并从当前按 target 索引的 Context 调用一次 `replace()`。后续 flush 对每个 active target 调用 `apply()`，取消订阅不会移除 target。

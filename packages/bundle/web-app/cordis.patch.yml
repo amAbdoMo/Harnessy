@@ -337,6 +337,8 @@
 
     - id: ui-file-drag
       name: '@deepseek-ai/dsh-client-ui-file-drag'
+    - id: message-quotes
+      name: '@deepseek-ai/dsh-message-quotes'
 
     - id: ui-attachment
       name: '@deepseek-ai/dsh-client-ui-attachment'

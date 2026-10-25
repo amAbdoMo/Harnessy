@@ -15,6 +15,22 @@ import { SessionInputShell, type SessionInputDeps } from '../src/client/input/fa
 
 type ReferenceContent = Omit<DraftReference, 'offset' | 'length'>
 
+it('validates stored quote text and rejects overlapping reference or quote spans', () => {
+  const quote = { offset: 0, length: 8, text: 'chosen' }
+  const draft = { text: '> chosen', references: [], quotes: [quote] }
+  expect(parseStoredDraft(draft)).toEqual(draft)
+  const invalid = [
+    { ...draft, quotes: [{ ...quote, offset: -1 }] },
+    { ...draft, quotes: [{ ...quote, length: 9 }] },
+    { ...draft, quotes: [{ ...quote, text: 'other' }] },
+    { ...draft, quotes: [{ ...quote, text: '   ' }] },
+    { ...draft, quotes: [quote, quote] },
+    { ...draft, references: [{ source: 'file', ref: 'chosen', label: 'chosen',
+      offset: 2, length: 6, clipboardText: 'chosen' }] },
+  ]
+  for (const stored of invalid) expect(parseStoredDraft(stored)).toBeUndefined()
+})
+
 const file: ReferenceContent = {
   source: 'reference', ref: '@src/main.ts', label: 'main.ts', appearance: 'file', clipboardText: '@src/main.ts',
 }

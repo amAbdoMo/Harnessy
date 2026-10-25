@@ -161,8 +161,9 @@ describe('chat flow font-size axis', () => {
     const empty = declarationsFrom(css, emptySelector)
     expect(empty).toContain('height: 0')
     expect(empty).not.toContain('display: none')
-    expect(css).toContain(`.column > :not([hidden]):not(${emptySelector})`)
-    expect(css).toContain(`~ :not([hidden]):not(${emptySelector})`)
+    expect(css).toContain(`.column > :not([hidden]):not(.textInteraction):not(${emptySelector})`)
+    expect(css).toContain(`~ :not([hidden]):not(.textInteraction):not(${emptySelector})`)
+    expect(declarationsFrom(css, '.column > .textInteraction')).toContain('position: absolute')
   })
 
   it('the interrupted-turn tag stays fixed like the dense token variants', () => {

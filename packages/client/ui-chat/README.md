@@ -41,6 +41,8 @@ Chat supplies [file-drag actions](../ui-file-drag/README.md) and Session-scoped 
 
 Settings → General → Open chat links in selects the destination for ordinary clicks on Chat HTTP(S) links: In-App Sidebar (default) opens a new right-Sidebar Browser tab, while Default Browser opens an external tab. The setting follows Keyboard shortcuts and is shown only while the Sidebar Browser is available. If the Sidebar Browser is not registered, both choices use the external browser; modified clicks retain native behavior. The `ui-chat.linkOpening` preference persists on loopback browsers and stays process-local when settings cannot persist writes. Sent file references and skills confirmed by the message’s logged invocation also open in the right Sidebar. File paths use the viewed Session; skill names resolve through its current input-trigger source. Both use the prose file-link dotted underline on hover or focus. Sessions, directories, and command labels remain non-navigating references.
 
+Selecting visible user, Assistant, or expanded reasoning text offers the [quote action](../../session/message-quotes/README.md). The action appears after selection ends, stays within the Chat area, and hides while its source is clipped or covered by the composer. Escape, Session navigation, source removal, and plugin unloading dismiss it. Native context menus remain available. Sent quotes show literal excerpts; ordinary text retains existing file and skill navigation.
+
 <a id="system-prompt-row"></a>
 ## Hidden Chat rows
 

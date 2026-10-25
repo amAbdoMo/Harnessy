@@ -22,6 +22,7 @@ import type { createConversationStore } from '../stores.ts'
 import type { BusyEnterBehavior } from './composer-submission.ts'
 import type { ConversationSnapshot } from './snapshot.ts'
 import type { ViewTab } from './views.ts'
+import type { UserTextDocumentInput, UserTextEvaluator, UserTextId, UserTextNode } from './user-text.ts'
 
 /** Browser-owned draft attachment that has not crossed the durable Host boundary. */
 export type ComposerAttachment = ComposerImageAttachment | ComposerFileAttachment
@@ -123,6 +124,35 @@ export interface MessageImagesOwnerProps {
 /** Slot-backed renderer used by Conversation targets without importing an attachment implementation. */
 export type RenderMessageImages = (owner: Omit<MessageImagesOwnerProps, 'loadImage'>) => ReactNode
 
+/** Transform inputs and independently controlled rendering behavior. */
+export interface UserTextInput extends UserTextDocumentInput {
+  /** Optional caller presentation for unmatched text; it never enters matcher Facts or stored nodes. */
+  readonly renderText?: (text: string) => ReactNode
+  /** Enable renderer-owned reference actions; omitted values keep references read-only. */
+  readonly interactive?: boolean
+  /** Use CSS single-line overflow ellipsis without shortening source text. */
+  readonly ellipsis?: boolean
+}
+
+/** Rule invalidation and document evaluation supplied by the data layer. */
+export interface UserTextInjected {
+  hooks: { userTextRevision: ObservableSnapshot<number> }
+  /** Each invocation creates a caller-owned data-layer cache without registry subscriptions. */
+  createUserTextEvaluator: () => UserTextEvaluator
+  /** Report a failed rule while the original text remains visible. */
+  reportTransformFailure: (error: unknown) => void
+}
+
+/** JSON-only owner data common to every business text node. */
+export interface UserTextNodeOwnerProps {
+  readonly raw: string
+  readonly interactive: boolean
+}
+
+/** Complete props for the selected business node, including its Session scope. */
+export type UserTextNodeProps<Id extends UserTextId = UserTextId> =
+  PropsRuntime<'conversation.user.text.node', Id>
+
 /** Selector hook over the current Session's assembled Conversation. */
 export type UseConversation = SnapshotSelectorHook<ConversationSnapshot>
 /** Selector hook over the registered Conversation View roster. */
@@ -130,6 +160,14 @@ export type UseConversationViews = SnapshotSelectorHook<readonly ViewTab[]>
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotMap {
+    /** One business-owned inline renderer for a pure JSON text node. */
+    'conversation.user.text.node': {
+      kind: 'keyed'
+      scope: 'session'
+      inline: true
+      owner: UserTextNodeOwnerProps
+      keyProps: { [Id in UserTextId]: { node: UserTextNode<Id> } }
+    }
     /** Conversation shell beneath its root-scoped main-panel entry. */
     'main.conversation': { kind: 'single'; scope: 'session-maybe' }
     /** Strict per-Session Conversation body. */
@@ -229,6 +267,15 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   }
 
   interface SlotFactoryMap {
+    /** Parse one original text and render its business nodes through the owned keyed Slot. */
+    'conversation.user.text': {
+      scope: 'session'
+      props: UserTextInput
+      inject: UserTextInjected
+      children: {
+        'conversation.user.text.node': { kind: 'keyed'; scope: 'session'; inline: true }
+      }
+    }
     /** Reusable Conversation content instantiated by presentation hosts. */
     'conversation.content': {
       scope: 'session-maybe'

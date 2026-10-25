@@ -47,6 +47,8 @@ export function apply(ctx: Context): void {
 }
 ```
 
+A declaration may set `inline: true` for inline content. The renderer uses span anchors and inline error or missing-entry placeholders, including chain fallbacks; omitted `inline` retains div anchors. The declaration controls this presentation through unload and missing-entry states, so inline business nodes do not introduce block layout when their renderer disappears.
+
 ## Cardinality and scope
 
 The slot declaration fixes two independent axes.

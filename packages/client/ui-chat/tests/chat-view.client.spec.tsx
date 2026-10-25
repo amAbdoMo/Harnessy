@@ -17,7 +17,7 @@ import type {
   SessionListState, SessionSnapshot,
 } from '@deepseek-ai/dsh-api-session-controller/client'
 import type {
-  ConversationGroupedView,
+  ConversationGroupedView, UserTextInput,
   ConversationSnapshot, ConversationViewSnapshotStore, GroupKey, GroupSnapshot, NodeKey, TurnLocation,
 } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
@@ -27,6 +27,7 @@ import type { KeyedSnapshotSelectorHook, SnapshotSelectorHook } from '@deepseek-
 import { bindSnapshotSelector, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { createSnapshotStore, type ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import { EMPTY_CONVERSATION_SNAPSHOT } from '@deepseek-ai/dsh-client-ui-conversation/client'
+import { projectUserText } from '@deepseek-ai/dsh-client-ui-primitives'
 import { en as commonEn } from '@deepseek-ai/dsh-client-locale/src/locales/en.ts'
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
 import { PartialArguments } from '@deepseek-ai/dsh-util-values'
@@ -430,6 +431,7 @@ function makeHarness(
     },
     useInput: (() => { throw new Error('unused') }),
     inputActions: {
+      insertQuote: () => false,
       captureInsertion: () => ({ start: 0, end: 0, draftRev: 0 }),
       insertText: () => false,
       setDraft: () => {},
@@ -443,6 +445,11 @@ function makeHarness(
     actions: chat.actions,
     usePresentation: bindSnapshotSelector(derivePresentationPolicy(transcriptView)),
     renderSlot,
+    renderFactorySlot: (name, input) => {
+      expect(name).toBe('conversation.user.text')
+      const text = input as UserTextInput
+      return text.renderText === undefined ? projectUserText(text.text, []) : text.renderText(text.text)
+    },
     SessionProvider: SessionProviderStub,
     inspectCall: (callId: string) => { openView('trajectory', callId) },
     viewRequest: null,
@@ -460,6 +467,8 @@ function makeHarness(
     // Absent-service default; mention tests override with a real resolver.
     fileDrag: { prepare: async () => { throw new Error('Unexpected file drag') }, reportFailure: () => {} },
     fileMentions: () => undefined,
+    useInteractionIds: select => select([]),
+    dispatchInteraction: () => null,
     t,
   }
   const set = (next: HarnessUpdate): void => {
@@ -3163,6 +3172,26 @@ describe('ChatView', () => {
     expect(buttons[0]!.getAttribute('aria-disabled')).toBe('true')
     fireEvent.click(buttons[0]!)
     expect(h.forkAt).not.toHaveBeenCalled()
+  })
+
+  it('offers quoting only for finalized durable Assistant text while partial and interrupted text stay visible', () => {
+    const finalized: AssistantMessageNode = {
+      ...assistant(2, '# Durable'), messageId: 'quote-final' as NonNullable<AssistantMessageNode['messageId']>,
+    }
+    const h = makeHarness({ nodes: [user(1, 'question'), finalized] })
+    const view = render(<h.ChatView {...h.props} />)
+    const source = (label: string) => view.getByRole('heading', { name: label }).closest('[data-text-interaction-source]')
+    expect(source('Durable')).not.toBeNull()
+    act(() => {
+      h.setChat({ partial: { turn: 2, step: 1, blocks: [{ kind: 'text', text: '# Partial' }] } })
+    })
+    expect(source('Partial')).toBeNull()
+    act(() => {
+      h.setChat({ nodes: [finalized, { ...assistant(3, '# Interrupted'), interrupted: true }], partial: null })
+    })
+    expect(source('Interrupted')).toBeNull()
+    act(() => { h.setChat({ nodes: [finalized, assistant(4, '# No durable identity')] }) })
+    expect(source('No durable identity')).toBeNull()
   })
 
   it('renders assistant Markdown across history, streaming, final, and interrupted states while user text stays literal', () => {

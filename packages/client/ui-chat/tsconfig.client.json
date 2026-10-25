@@ -9,6 +9,7 @@
     "src"
   ],
   "references": [
+    { "path": "../ui-file-drag" },
     {
       "path": "../../util/brand"
     },
