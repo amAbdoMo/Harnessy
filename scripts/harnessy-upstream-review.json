@@ -7448,7 +7448,7 @@
       ],
       "tree": "fba9b92c26b09ae194e45f7db0dd35eb1d3e83a8",
       "subject": "test(approval): refresh localized shortcut reference snapshots",
-      "review": null
+      "review": "harnessy-fixed-approval-followups-20261025"
     },
     {
       "sha": "29959ed1ab7517bf209f51f04122ec0483ed69a7",
@@ -7514,7 +7514,7 @@
       ],
       "tree": "39e755b9e7021f529e41314b0970dce09b840e5d",
       "subject": "docs(approval): state label and icon source ownership",
-      "review": null
+      "review": "harnessy-fixed-approval-followups-20261025"
     },
     {
       "sha": "f45859314e3fc5f61e94e55924d8f5452f431f0e",
@@ -7532,7 +7532,7 @@
       ],
       "tree": "ab9510df6f8c47d0f315068fae5533f4cc1edebb",
       "subject": "fix(approval): clarify limited-scope Enter action",
-      "review": null
+      "review": "harnessy-fixed-approval-followups-20261025"
     },
     {
       "sha": "4287b2a9ce8f14aa562b7d1ca3b595796d0fce9c",
@@ -7551,7 +7551,7 @@
       ],
       "tree": "afd910e81142f05d063d77b0c273f890f3cbc7e8",
       "subject": "fix(approval): identify invalid action and request constraints",
-      "review": null
+      "review": "harnessy-fixed-approval-followups-20261025"
     },
     {
       "sha": "29904ae2a504c48bb6d3016098ec34e682b4012d",
@@ -7569,7 +7569,7 @@
       ],
       "tree": "ea2c03462cb4f2f07d2a8bcba7042fcac664675c",
       "subject": "fix(approval): keep generic question fallback answerable",
-      "review": null
+      "review": "harnessy-fixed-approval-followups-20261025"
     },
     {
       "sha": "5eba1ec9296b3499cd6a1b73e9e0f2a41fdb449e",
@@ -48214,6 +48214,124 @@
         "Retained shared framework run passed 128 of 133 cases; two file-link cases failed on Windows EPERM before adding the already-used capability guard, after which the owning filesystem file passed 19 with three explicit capability skips. The other five files passed. Four recorded cases (skill-load, Windows ACL skill, and two Office cases) passed unchanged replay after the two skill-only cases received a deterministic shell-free schema pin and refreshed stale working-directory context. Snapshot ownership/corpus checks passed all three cases; historical V2/V3 files and shared normalizers remain unchanged.",
         "The custom Harnessy build and normal Host/Client typechecks passed on the source implementation. Documentation aggregate passed 42 of 43 checks; doc-typecheck first caught a Vitest test-options typing error, then passed its full owning command after correction, compiling 82 documentation blocks. Package constraints and current persistence/type gates passed. Three linked Skill-row browser cases passed refresh and unchanged replay after current stable session selection and a fixture-local escaped Windows path alias; the only golden UI change is the existing Session controls group. New operations tests, README pairing and snapshot changes passed their final scoped checks and normal delivery hooks. No application UI was reset.",
         "No real-model Office task, visual appearance/fidelity certification, complete SDK wheel matrix, installed staging-runtime selection, main-app update, release or upstream ancestry merge was performed. The macOS computer-use group and remaining merged/unreviewed history stay pending. Exact prior Office follow-ups remain in their separate existing review."
+      ]
+    },
+    "harnessy-fixed-approval-followups-20261025": {
+      "status": "adopted",
+      "summary": "Adapt five complete fixed-approval follow-ups: precise invalid-request diagnostics, accurate limited-scope Enter copy/behavior and localized reference expectations, explicit displayed icon/label ownership, and an answerable generic fallback. Preserve Harnessy’s custom approval history, presentation and current question runtime; this does not qualify the separate Mac native feature group.",
+      "files": [
+        {
+          "path": "apps/web/tests/expected/shortcuts-workspace/macos-defaults.expected.md",
+          "disposition": "adopted",
+          "reason": "Apply only the reviewed Allow once → Allow and 允许一次 → 允许 fixed-reference rows. Real-browser replay checks the localized shortcut modals and simulated Mac defaults against these exact owner-local expectations; retain the remaining current Harnessy reference layout and bindings."
+        },
+        {
+          "path": "apps/web/tests/expected/shortcuts/en-US.expected.md",
+          "disposition": "adopted",
+          "reason": "Apply only the reviewed Allow once → Allow and 允许一次 → 允许 fixed-reference rows. Real-browser replay checks the localized shortcut modals and simulated Mac defaults against these exact owner-local expectations; retain the remaining current Harnessy reference layout and bindings."
+        },
+        {
+          "path": "apps/web/tests/expected/shortcuts/zh-CN.expected.md",
+          "disposition": "adopted",
+          "reason": "Apply only the reviewed Allow once → Allow and 允许一次 → 允许 fixed-reference rows. Real-browser replay checks the localized shortcut modals and simulated Mac defaults against these exact owner-local expectations; retain the remaining current Harnessy reference layout and bindings."
+        },
+        {
+          "path": "apps/web/tests/question-composer.e2e.ts",
+          "disposition": "adopted",
+          "reason": "Add two real Web-composition fallback cases for another-feature and cua-app-access with no specialized renderer. Submit Deny through the generic form, observe the Host answer, and check browser errors/warnings. Give each fixture its own scaffold/browser, abort the outstanding ask and await all resource cleanup."
+        },
+        {
+          "path": "docs/subsystems/user-questions.md",
+          "disposition": "adopted",
+          "reason": "State that callers admit icon URLs and own localized question/limited-grant copy; fixed cards own reject/always wording. Names/icons remain human-recognition metadata, never authorization identity. Keep current types and verbatim bilingual type examples in sync without adding runtime or persisted fields."
+        },
+        {
+          "path": "docs/subsystems/user-questions.zh.md",
+          "disposition": "adopted",
+          "reason": "State that callers admit icon URLs and own localized question/limited-grant copy; fixed cards own reject/always wording. Names/icons remain human-recognition metadata, never authorization identity. Keep current types and verbatim bilingual type examples in sync without adding runtime or persisted fields."
+        },
+        {
+          "path": "packages/client/ui-approval/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Add bilingual keyboard-scope documentation and re-record the confirmed pair while preserving Harnessy’s summary-only and recorded permission history contract. Enter grants once for tools or the current session for CUA; persistent access requires explicit activation."
+        },
+        {
+          "path": "packages/client/ui-approval/README.md",
+          "disposition": "adopted",
+          "reason": "Add bilingual keyboard-scope documentation and re-record the confirmed pair while preserving Harnessy’s summary-only and recorded permission history contract. Enter grants once for tools or the current session for CUA; persistent access requires explicit activation."
+        },
+        {
+          "path": "packages/client/ui-approval/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Add bilingual keyboard-scope documentation and re-record the confirmed pair while preserving Harnessy’s summary-only and recorded permission history contract. Enter grants once for tools or the current session for CUA; persistent access requires explicit activation."
+        },
+        {
+          "path": "packages/client/ui-approval/src/client/contract/slots.ts",
+          "disposition": "adopted",
+          "reason": "State that callers admit icon URLs and own localized question/limited-grant copy; fixed cards own reject/always wording. Names/icons remain human-recognition metadata, never authorization identity. Keep current types and verbatim bilingual type examples in sync without adding runtime or persisted fields."
+        },
+        {
+          "path": "packages/client/ui-approval/src/client/index.ts",
+          "disposition": "adopted",
+          "reason": "Use localized Allow/允许 for the fixed Enter reference while preserving current tool Allow once, application-specific limited labels, explicit persistent action, Harnessy checkpoints and summary-only presentation. No additional languages or UI reset."
+        },
+        {
+          "path": "packages/client/ui-approval/src/client/locales.ts",
+          "disposition": "adopted",
+          "reason": "Use localized Allow/允许 for the fixed Enter reference while preserving current tool Allow once, application-specific limited labels, explicit persistent action, Harnessy checkpoints and summary-only presentation. No additional languages or UI reset."
+        },
+        {
+          "path": "packages/client/ui-approval/tests/ui-approval.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt fixed application-card regression coverage to Harnessy’s current test runtime. Verify all three pointer decisions and Enter, optional icon absence, no free-text input, one synchronous submission lock and that Enter grants the limited action even when a persistent primary button is offered."
+        },
+        {
+          "path": "packages/client/ui-user-questions/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Document the generic fixed-approval fallback and caller-owned authorization in the existing answering section; preserve current custom UI documentation and re-record the confirmed bilingual pair."
+        },
+        {
+          "path": "packages/client/ui-user-questions/README.md",
+          "disposition": "adopted",
+          "reason": "Document the generic fixed-approval fallback and caller-owned authorization in the existing answering section; preserve current custom UI documentation and re-record the confirmed bilingual pair."
+        },
+        {
+          "path": "packages/client/ui-user-questions/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Document the generic fixed-approval fallback and caller-owned authorization in the existing answering section; preserve current custom UI documentation and re-record the confirmed bilingual pair."
+        },
+        {
+          "path": "packages/client/ui-user-questions/src/client/index.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s already-correct PendingQuestion fallback and its fixed-approval selector regression from b62dbb3e741fbe2d1880aea86cf858b8988e47d5. The generic composer remains available when no higher-priority feature renderer matches; real browser cases now answer both unrelated-feature and cua-app-access requests without the optional CUA bundle."
+        },
+        {
+          "path": "packages/client/ui-user-questions/tests/browser-plugin.client.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy’s already-correct PendingQuestion fallback and its fixed-approval selector regression from b62dbb3e741fbe2d1880aea86cf858b8988e47d5. The generic composer remains available when no higher-priority feature renderer matches; real browser cases now answer both unrelated-feature and cua-app-access requests without the optional CUA bundle."
+        },
+        {
+          "path": "packages/interaction/user-questions/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Apply exact BAD_INTENT diagnostics for unoffered action labels, missing scope detail, multiple questions, multiSelect, timed wait, duplicate action labels and extra options. Preserve the current live-root authentication, projection, timed-question and answerer runtime; rejection occurs before display."
+        },
+        {
+          "path": "packages/interaction/user-questions/src/types.ts",
+          "disposition": "adopted",
+          "reason": "State that callers admit icon URLs and own localized question/limited-grant copy; fixed cards own reject/always wording. Names/icons remain human-recognition metadata, never authorization identity. Keep current types and verbatim bilingual type examples in sync without adding runtime or persisted fields."
+        },
+        {
+          "path": "packages/interaction/user-questions/tests/user-questions.spec.ts",
+          "disposition": "adopted",
+          "reason": "Verify each invalid approval has its precise error and never reaches an answerer, including missing detail. Preserve both valid persistent-choice and limited-only requests and all existing service tests."
+        }
+      ],
+      "evidence": [
+        "Implementation 79b1a79c4901b51057adf88c093533fccee3130c; verified 2026-10-25 on Windows, Harnessy 0.1.17, Node 24.14.0 and pnpm 11.7.0. Reviewed all five exact commits and their complete changed-path union, including documentation, tests and existing retained implementations. No merges are in this group; reviewedThrough remains unchanged.",
+        "Focused owner run passed all 116 tests in four files: current user-question service, approval panel/checkpoint replay and generic browser-plugin selection. It includes all seven exact BAD_INTENT cases before display, valid requests with/without a persistent choice, pointer decisions and limited-scope Enter with a persistent action offered.",
+        "The custom Harnessy build passed, recording 383 client artifacts and 11 public values. All nine distinct selected real-browser cases have passing evidence: five approval cases in the first run (two generic fallbacks, optional non-native CUA with all three pointer choices plus limited-scope Enter, and two recorded command-rejection paths); four shortcut cases passed after adapting stock focus-style assumptions to Harnessy’s existing brand-border rule and selecting the seeded Session by its stable row id. These cover both localized references and Windows/simulated-Mac defaults. Only the three intended reference-label rows changed in the goldens. No native computer operation was performed.",
+        "All 22 quick documentation checks and all 43 full doc-sync checks passed, including verbatim types, catalogs, persistence history and bilingual pairing. Scoped production/test lints and the Harnessy identity/composition/state guard passed. Normal delivery hooks validate repository Host/Client types. The existing Android edits belong to another chat and are excluded from this delivery.",
+        "This review does not qualify Swift compilation, macOS permissions, input, capture, native packaging, an installed staging window, a main-app update, release publication or any upstream ancestry checkpoint. Those remain separate from source checks and staging source publication."
       ]
     }
   }
