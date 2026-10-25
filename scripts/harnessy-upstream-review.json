@@ -6803,7 +6803,7 @@
       ],
       "tree": "f5628b58fdb60f5c7c83d291c550d2f459c18067",
       "subject": "fix(file-drag): generalize transfers and address lifecycle review",
-      "review": null
+      "review": "harnessy-original-file-drag-and-image-pan-20261025"
     },
     {
       "sha": "5ae85515c014498e94b3ea668341b954960fad2c",
@@ -6971,7 +6971,7 @@
       ],
       "tree": "2637a89d679803758d2d8508f287dd7c17ac39e3",
       "subject": "feat(image): restore pan and sharing with plugin-owned transfers",
-      "review": null
+      "review": "harnessy-original-file-drag-and-image-pan-20261025"
     },
     {
       "sha": "9e6692931cbbb88cf7f597b305c7bf8996f5df09",
@@ -41660,6 +41660,751 @@
         "Full repository lint passed after the verified Host build; all sixteen hygiene gates passed. Final doc-sync passed all 43 gates after correcting the stale AttachmentAdmissionPart example in both languages and updating the existing generic-upload note factual realization and package documentation. The initial doc-sync aggregate had one source-equivalence failure; that failure and the affected documentation typecheck/pairing checks also passed focused rechecks.",
         "The Harnessy product static guard and two Node cases passed. All 140 selected product Vitest cases have passing evidence: the aggregate passed 138 and its unchanged welcome-startup owner timed out the first five-second case, then its second case saw an extra late mock call; both unchanged cases passed the focused recheck in 3.40 seconds. The initial aggregate is not claimed as clean. Three exact untracked compiler outputs were removed only after checking their tracked TypeScript sibling, emitted content and map source identity; no claim is made about the origin of those outputs.",
         "No upstream checkpoint, ancestry merge, installed staging runtime selection/update, release, main-app update, additional application copy or foreign Android work is included."
+      ]
+    },
+    "harnessy-original-file-drag-and-image-pan-20261025": {
+      "status": "adopted",
+      "summary": "Adapt original-file dragging and overflowing-image mouse panning into Harnessy, with generic plugin ownership, authorized native resource borrowing and cancellation-safe browser/Desktop lifetimes.",
+      "files": [
+        {
+          "path": ".agents/notes/implemented/architecture/2026-10-19-image-drag-plugin-ownership.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adapt the durable decision into a bilingual note and paired sidecar: plugin-owned transfers and feedback outside layout, explicit consumer callbacks, Session/Host authorization and opaque native handles. Preserve current Harnessy independent entry registration. Do not import upstream manual macOS/Chrome experiments as local verification; current limitations distinguish tested browser transfer from unchecked external-application delivery. No superseded active image-drag note exists."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-10-19-image-drag-plugin-ownership.md",
+          "disposition": "adopted",
+          "reason": "Adapt the durable decision into a bilingual note and paired sidecar: plugin-owned transfers and feedback outside layout, explicit consumer callbacks, Session/Host authorization and opaque native handles. Preserve current Harnessy independent entry registration. Do not import upstream manual macOS/Chrome experiments as local verification; current limitations distinguish tested browser transfer from unchecked external-application delivery. No superseded active image-drag note exists."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-10-19-image-drag-plugin-ownership.zh.md",
+          "disposition": "adopted",
+          "reason": "Adapt the durable decision into a bilingual note and paired sidecar: plugin-owned transfers and feedback outside layout, explicit consumer callbacks, Session/Host authorization and opaque native handles. Preserve current Harnessy independent entry registration. Do not import upstream manual macOS/Chrome experiments as local verification; current limitations distinguish tested browser transfer from unchecked external-application delivery. No superseded active image-drag note exists."
+        },
+        {
+          "path": "apps/desktop-host/package.json",
+          "disposition": "adopted",
+          "reason": "Authorize Session resource addresses through current filesystem read operations, local-path round trips, content hash, byte size and final version check. Capture service dependencies before awaits and combine the ten-second deadline with actual Host lifetime cancellation. Reject late authorization after shutdown. Route private replies through the current companion/device/browser Host without exposing filesystem paths to renderer JavaScript; add current dependency/project references and six authorization regressions."
+        },
+        {
+          "path": "apps/desktop-host/src/file-drag.ts",
+          "disposition": "adopted",
+          "reason": "Authorize Session resource addresses through current filesystem read operations, local-path round trips, content hash, byte size and final version check. Capture service dependencies before awaits and combine the ten-second deadline with actual Host lifetime cancellation. Reject late authorization after shutdown. Route private replies through the current companion/device/browser Host without exposing filesystem paths to renderer JavaScript; add current dependency/project references and six authorization regressions."
+        },
+        {
+          "path": "apps/desktop-host/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Authorize Session resource addresses through current filesystem read operations, local-path round trips, content hash, byte size and final version check. Capture service dependencies before awaits and combine the ten-second deadline with actual Host lifetime cancellation. Reject late authorization after shutdown. Route private replies through the current companion/device/browser Host without exposing filesystem paths to renderer JavaScript; add current dependency/project references and six authorization regressions."
+        },
+        {
+          "path": "apps/desktop-host/tests/file-drag.spec.ts",
+          "disposition": "adopted",
+          "reason": "Authorize Session resource addresses through current filesystem read operations, local-path round trips, content hash, byte size and final version check. Capture service dependencies before awaits and combine the ten-second deadline with actual Host lifetime cancellation. Reject late authorization after shutdown. Route private replies through the current companion/device/browser Host without exposing filesystem paths to renderer JavaScript; add current dependency/project references and six authorization regressions."
+        },
+        {
+          "path": "apps/desktop-host/tsconfig.json",
+          "disposition": "adopted",
+          "reason": "Authorize Session resource addresses through current filesystem read operations, local-path round trips, content hash, byte size and final version check. Capture service dependencies before awaits and combine the ten-second deadline with actual Host lifetime cancellation. Reject late authorization after shutdown. Route private replies through the current companion/device/browser Host without exposing filesystem paths to renderer JavaScript; add current dependency/project references and six authorization regressions."
+        },
+        {
+          "path": "apps/desktop/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update the current bilingual owner and sidecar with generic transfer injection, original filenames versus display labels, composer-only token intake, optional managed Markdown callbacks, image pan/zoom behavior and native lifecycle limits. Preserve custom UI and current contracts; detailed transfer policy has one home in ui-file-drag and Desktop docs."
+        },
+        {
+          "path": "apps/desktop/README.md",
+          "disposition": "adopted",
+          "reason": "Update the current bilingual owner and sidecar with generic transfer injection, original filenames versus display labels, composer-only token intake, optional managed Markdown callbacks, image pan/zoom behavior and native lifecycle limits. Preserve custom UI and current contracts; detailed transfer policy has one home in ui-file-drag and Desktop docs."
+        },
+        {
+          "path": "apps/desktop/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Update the current bilingual owner and sidecar with generic transfer injection, original filenames versus display labels, composer-only token intake, optional managed Markdown callbacks, image pan/zoom behavior and native lifecycle limits. Preserve custom UI and current contracts; detailed transfer policy has one home in ui-file-drag and Desktop docs."
+        },
+        {
+          "path": "apps/desktop/package.json",
+          "disposition": "adopted",
+          "reason": "Wire final generic packages into current profiles, exact package dependencies, source aliases and explicit Host/Client project owners. Preserve all custom packages, application entry points, release version and prior dependency versions; the lockfile adds only required workspace importers and mime. Frozen lock validation, full custom build, package hygiene and browser composition pass."
+        },
+        {
+          "path": "apps/desktop/src/file-drag-files.ts",
+          "disposition": "adopted",
+          "reason": "Use private random temporary directories, exclusive writes and retained removal ownership, with a 64 MiB aggregate byte budget including pending writes. Borrowed originals are never deleted. Release unused exports immediately and used exports after sixty seconds while running; shutdown awaits pending writes/removals, reports failed cleanup and permits retry. Real-filesystem owner cases preserve original generic-file bytes, names and quotas."
+        },
+        {
+          "path": "apps/desktop/src/file-drag.ts",
+          "disposition": "adopted",
+          "reason": "Use renderer-safe byte/resource variants and opaque prepared handles. Borrow only a Host-authorized file with matching export name, optional supplied content identity and fresh hash; otherwise use original bytes. Retain exact window and Host generation, reauthorize after awaits and before native start, bound ready/pending preparations to 32 and icon lookup to ten seconds, and release native preparation on cancellation/disposal. Reject unauthorized senders, stale generations, malformed requests and changed borrowed resources."
+        },
+        {
+          "path": "apps/desktop/src/host-process.ts",
+          "disposition": "adopted",
+          "reason": "Add correlated private file-resource requests to the current strict child-process protocol, preserving all custom channels. Validate positive safe request IDs and complete local resource fields; cap outstanding authorization requests at sixteen, retire them on shutdown, reject mismatched response kinds and propagate refusal. Add fake-child protocol, malformed-field, bound and lifecycle cases."
+        },
+        {
+          "path": "apps/desktop/src/image-drag-files.ts",
+          "disposition": "retained-newer",
+          "reason": "Review the initial image-only implementation and its generalization together. Ship the final generic ui-file-drag/FileTransfers, shared naming and Desktop file-drag owners directly; do not create the intermediate image-only package, native owner or callback declarations that the second reviewed commit deletes. Their gesture, lifetime and cleanup behavior is adapted and verified through the final owners."
+        },
+        {
+          "path": "apps/desktop/src/image-drag.ts",
+          "disposition": "retained-newer",
+          "reason": "Review the initial image-only implementation and its generalization together. Ship the final generic ui-file-drag/FileTransfers, shared naming and Desktop file-drag owners directly; do not create the intermediate image-only package, native owner or callback declarations that the second reviewed commit deletes. Their gesture, lifetime and cleanup behavior is adapted and verified through the final owners."
+        },
+        {
+          "path": "apps/desktop/src/ipc.ts",
+          "disposition": "adopted",
+          "reason": "Add prepare/start/release operations to the existing protocol-version-one product bridge, forwarding promises without exposing a native path. Keep every custom API and sender check. The plugin feature-detects the optional native capability for Web/older bridges; preload owner checks verify all three operations."
+        },
+        {
+          "path": "apps/desktop/src/main.ts",
+          "disposition": "adopted",
+          "reason": "Integrate native drag ownership into Harnessy sender authorization and exact backend Host generation. Keep close-to-tray alive, await cleanup before confirmed installation and actual quit, retain failed cleanup ownership for retry, and reinstall handlers after failed installation. Preserve all custom lifecycle, updater, workspace, website, companion and platform behavior. The existing Main owner verifies tray retention, real quit and failed-install restoration without performing an app update."
+        },
+        {
+          "path": "apps/desktop/src/preload-app.ts",
+          "disposition": "adopted",
+          "reason": "Add prepare/start/release operations to the existing protocol-version-one product bridge, forwarding promises without exposing a native path. Keep every custom API and sender check. The plugin feature-detects the optional native capability for Web/older bridges; preload owner checks verify all three operations."
+        },
+        {
+          "path": "apps/desktop/tests/host-process.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt native copy-drag, authorization, strict request/reply validation, real filesystem export/removal and release tests to current Harnessy mocks. Include empty-file quotas, icon deadline, pending cancellation, exact Host generation, tray retention, quit, failed cleanup and failed-install restoration. No real installer or operating-system external receiver is invoked."
+        },
+        {
+          "path": "apps/desktop/tests/image-drag-files.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt native copy-drag, authorization, strict request/reply validation, real filesystem export/removal and release tests to current Harnessy mocks. Include empty-file quotas, icon deadline, pending cancellation, exact Host generation, tray retention, quit, failed cleanup and failed-install restoration. No real installer or operating-system external receiver is invoked."
+        },
+        {
+          "path": "apps/desktop/tests/image-drag-release.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt native copy-drag, authorization, strict request/reply validation, real filesystem export/removal and release tests to current Harnessy mocks. Include empty-file quotas, icon deadline, pending cancellation, exact Host generation, tray retention, quit, failed cleanup and failed-install restoration. No real installer or operating-system external receiver is invoked."
+        },
+        {
+          "path": "apps/desktop/tests/image-drag.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt native copy-drag, authorization, strict request/reply validation, real filesystem export/removal and release tests to current Harnessy mocks. Include empty-file quotas, icon deadline, pending cancellation, exact Host generation, tray retention, quit, failed cleanup and failed-install restoration. No real installer or operating-system external receiver is invoked."
+        },
+        {
+          "path": "apps/desktop/tests/main-startup.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt native copy-drag, authorization, strict request/reply validation, real filesystem export/removal and release tests to current Harnessy mocks. Include empty-file quotas, icon deadline, pending cancellation, exact Host generation, tray retention, quit, failed cleanup and failed-install restoration. No real installer or operating-system external receiver is invoked."
+        },
+        {
+          "path": "apps/desktop/tests/preload-app.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt native copy-drag, authorization, strict request/reply validation, real filesystem export/removal and release tests to current Harnessy mocks. Include empty-file quotas, icon deadline, pending cancellation, exact Host generation, tray retention, quit, failed cleanup and failed-install restoration. No real installer or operating-system external receiver is invoked."
+        },
+        {
+          "path": "apps/desktop/tsconfig.host.json",
+          "disposition": "adopted",
+          "reason": "Wire final generic packages into current profiles, exact package dependencies, source aliases and explicit Host/Client project owners. Preserve all custom packages, application entry points, release version and prior dependency versions; the lockfile adds only required workspace importers and mime. Frozen lock validation, full custom build, package hygiene and browser composition pass."
+        },
+        {
+          "path": "apps/web/tests/document-preview.e2e.ts",
+          "disposition": "retained-newer",
+          "reason": "Adapt the selected zoom, pan, original-byte composer transfer and trusted detached-source drag regressions into Harnessy-owned apps/web/tests/document-zoom.e2e.ts, using the explicit custom overlay and install anchor. Retain the existing broader document-preview scenario and expected output rather than importing unrelated upstream Office/file-view layout and top-level snapshot placement. The focused browser test preserves custom toolbar placement and image/Blob identity, pans both axes, completes a trusted drag after closing the source tab, and rejects the retired token."
+        },
+        {
+          "path": "apps/web/tests/markdown-images.e2e.ts",
+          "disposition": "adopted",
+          "reason": "Add original-byte Markdown-image dragging without URL/text insertion or accidental lightbox activation. Compose the actual Harnessy bundle and pin-browse picker. Adapt seeded-Session navigation to the custom single-row list, wait for the app title outside Vitest expect.poll hooks, and compare file request keys using native path normalization on Windows. Preserve image security/loading, file-preview, keyboard/hover assertions and qualify the custom MCP/control golden unchanged in replay."
+        },
+        {
+          "path": "docs/config-catalog.md",
+          "disposition": "adopted",
+          "reason": "Regenerate current configuration, slot and plugin-package artifacts for ui-file-drag, preserving Harnessy custom packages and local callback injection instead of importing upstream generated catalog positions. Freshness checks pass."
+        },
+        {
+          "path": "docs/config-catalog.zh.md",
+          "disposition": "adopted",
+          "reason": "Regenerate current configuration, slot and plugin-package artifacts for ui-file-drag, preserving Harnessy custom packages and local callback injection instead of importing upstream generated catalog positions. Freshness checks pass."
+        },
+        {
+          "path": "docs/module-graph.md",
+          "disposition": "adopted",
+          "reason": "Regenerate both module graphs from the current complete Harnessy implementation, including final generic transfer packages and already delivered custom/provider changes. Do not copy upstream graphs or remove custom dependencies. The graph verifier passes."
+        },
+        {
+          "path": "docs/module-graph.zh.md",
+          "disposition": "adopted",
+          "reason": "Regenerate both module graphs from the current complete Harnessy implementation, including final generic transfer packages and already delivered custom/provider changes. Do not copy upstream graphs or remove custom dependencies. The graph verifier passes."
+        },
+        {
+          "path": "docs/upgrade-guide/v0.2.1-rc.2/file-drag-callbacks/guide.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "The imageDrag callback and required dragFailed-label changes describe an intermediate API never shipped in Harnessy. Do not introduce a misleading v0.2.1-rc.2 migration or require consumers to migrate from an absent package. Harnessy keeps MarkdownDelegate callbacks optional, retains existing labels, updates internal consumers, and documents the additive generic service in current package owners."
+        },
+        {
+          "path": "docs/upgrade-guide/v0.2.1-rc.2/file-drag-callbacks/guide.md",
+          "disposition": "excluded",
+          "reason": "The imageDrag callback and required dragFailed-label changes describe an intermediate API never shipped in Harnessy. Do not introduce a misleading v0.2.1-rc.2 migration or require consumers to migrate from an absent package. Harnessy keeps MarkdownDelegate callbacks optional, retains existing labels, updates internal consumers, and documents the additive generic service in current package owners."
+        },
+        {
+          "path": "docs/upgrade-guide/v0.2.1-rc.2/file-drag-callbacks/guide.zh.md",
+          "disposition": "excluded",
+          "reason": "The imageDrag callback and required dragFailed-label changes describe an intermediate API never shipped in Harnessy. Do not introduce a misleading v0.2.1-rc.2 migration or require consumers to migrate from an absent package. Harnessy keeps MarkdownDelegate callbacks optional, retains existing labels, updates internal consumers, and documents the additive generic service in current package owners."
+        },
+        {
+          "path": "docs/upgrade-guide/v0.2.1-rc.2/image-drag-labels/guide.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "The imageDrag callback and required dragFailed-label changes describe an intermediate API never shipped in Harnessy. Do not introduce a misleading v0.2.1-rc.2 migration or require consumers to migrate from an absent package. Harnessy keeps MarkdownDelegate callbacks optional, retains existing labels, updates internal consumers, and documents the additive generic service in current package owners."
+        },
+        {
+          "path": "docs/upgrade-guide/v0.2.1-rc.2/image-drag-labels/guide.md",
+          "disposition": "excluded",
+          "reason": "The imageDrag callback and required dragFailed-label changes describe an intermediate API never shipped in Harnessy. Do not introduce a misleading v0.2.1-rc.2 migration or require consumers to migrate from an absent package. Harnessy keeps MarkdownDelegate callbacks optional, retains existing labels, updates internal consumers, and documents the additive generic service in current package owners."
+        },
+        {
+          "path": "docs/upgrade-guide/v0.2.1-rc.2/image-drag-labels/guide.zh.md",
+          "disposition": "excluded",
+          "reason": "The imageDrag callback and required dragFailed-label changes describe an intermediate API never shipped in Harnessy. Do not introduce a misleading v0.2.1-rc.2 migration or require consumers to migrate from an absent package. Harnessy keeps MarkdownDelegate callbacks optional, retains existing labels, updates internal consumers, and documents the additive generic service in current package owners."
+        },
+        {
+          "path": "packages/bundle/web-app/cordis.patch.yml",
+          "disposition": "adopted",
+          "reason": "Wire final generic packages into current profiles, exact package dependencies, source aliases and explicit Host/Client project owners. Preserve all custom packages, application entry points, release version and prior dependency versions; the lockfile adds only required workspace importers and mime. Frozen lock validation, full custom build, package hygiene and browser composition pass."
+        },
+        {
+          "path": "packages/bundle/web-app/package.json",
+          "disposition": "adopted",
+          "reason": "Wire final generic packages into current profiles, exact package dependencies, source aliases and explicit Host/Client project owners. Preserve all custom packages, application entry points, release version and prior dependency versions; the lockfile adds only required workspace importers and mime. Frozen lock validation, full custom build, package hygiene and browser composition pass."
+        },
+        {
+          "path": "packages/client/ui-attachment/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update the current bilingual owner and sidecar with generic transfer injection, original filenames versus display labels, composer-only token intake, optional managed Markdown callbacks, image pan/zoom behavior and native lifecycle limits. Preserve custom UI and current contracts; detailed transfer policy has one home in ui-file-drag and Desktop docs."
+        },
+        {
+          "path": "packages/client/ui-attachment/README.md",
+          "disposition": "adopted",
+          "reason": "Update the current bilingual owner and sidecar with generic transfer injection, original filenames versus display labels, composer-only token intake, optional managed Markdown callbacks, image pan/zoom behavior and native lifecycle limits. Preserve custom UI and current contracts; detailed transfer policy has one home in ui-file-drag and Desktop docs."
+        },
+        {
+          "path": "packages/client/ui-attachment/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Update the current bilingual owner and sidecar with generic transfer injection, original filenames versus display labels, composer-only token intake, optional managed Markdown callbacks, image pan/zoom behavior and native lifecycle limits. Preserve custom UI and current contracts; detailed transfer policy has one home in ui-file-drag and Desktop docs."
+        },
+        {
+          "path": "packages/client/ui-attachment/package.json",
+          "disposition": "adopted",
+          "reason": "Wire final generic packages into current profiles, exact package dependencies, source aliases and explicit Host/Client project owners. Preserve all custom packages, application entry points, release version and prior dependency versions; the lockfile adds only required workspace importers and mime. Frozen lock validation, full custom build, package hygiene and browser composition pass."
+        },
+        {
+          "path": "packages/client/ui-attachment/src/MessageImage.tsx",
+          "disposition": "adopted",
+          "reason": "Inject final generic actions into current Chat/trajectory/tool image entries and read tokens through the current composer. Preserve upload-on-add controls, current rail/gallery geometry, all-subagent attachment-intake policy and custom UI. Resolve internal drops only over the composer, retain external file/directory intake, and preserve original export names independently of display labels."
+        },
+        {
+          "path": "packages/client/ui-attachment/src/client/ComposerAttachments.tsx",
+          "disposition": "adopted",
+          "reason": "Inject final generic actions into current Chat/trajectory/tool image entries and read tokens through the current composer. Preserve upload-on-add controls, current rail/gallery geometry, all-subagent attachment-intake policy and custom UI. Resolve internal drops only over the composer, retain external file/directory intake, and preserve original export names independently of display labels."
+        },
+        {
+          "path": "packages/client/ui-attachment/src/client/MessageImages.tsx",
+          "disposition": "adopted",
+          "reason": "Inject final generic actions into current Chat/trajectory/tool image entries and read tokens through the current composer. Preserve upload-on-add controls, current rail/gallery geometry, all-subagent attachment-intake policy and custom UI. Resolve internal drops only over the composer, retain external file/directory intake, and preserve original export names independently of display labels."
+        },
+        {
+          "path": "packages/client/ui-attachment/src/client/drop-events.ts",
+          "disposition": "adopted",
+          "reason": "Inject final generic actions into current Chat/trajectory/tool image entries and read tokens through the current composer. Preserve upload-on-add controls, current rail/gallery geometry, all-subagent attachment-intake policy and custom UI. Resolve internal drops only over the composer, retain external file/directory intake, and preserve original export names independently of display labels."
+        },
+        {
+          "path": "packages/client/ui-attachment/src/client/index.ts",
+          "disposition": "adopted",
+          "reason": "Inject final generic actions into current Chat/trajectory/tool image entries and read tokens through the current composer. Preserve upload-on-add controls, current rail/gallery geometry, all-subagent attachment-intake policy and custom UI. Resolve internal drops only over the composer, retain external file/directory intake, and preserve original export names independently of display labels."
+        },
+        {
+          "path": "packages/client/ui-attachment/src/client/labels.ts",
+          "disposition": "retained-newer",
+          "reason": "The first reviewed commit adds image-only dragFailed fields and the second removes them. Retain current consumer dictionaries and labels; the final generic file-drag plugin owns the new English/Chinese failure copy. No six excluded new languages or duplicated image-entry error strings are imported."
+        },
+        {
+          "path": "packages/client/ui-attachment/tests/composer-attachments.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt the owning fixture and regression cases to current Harnessy direct entry injection, existing queue/upload controls and current native protocol. Add fileDrag explicitly to affected Chat, tool, account and preview fixtures; preserve custom controls and existing assertions. Test original filenames including spaces, Chinese characters, # and %, optional legacy Markdown owners, composer-only/foreign-token refusal, cancellation and panning cleanup. Do not replace current fixtures with upstream Factory architecture."
+        },
+        {
+          "path": "packages/client/ui-attachment/tests/image-slot-isolation.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt the owning fixture and regression cases to current Harnessy direct entry injection, existing queue/upload controls and current native protocol. Add fileDrag explicitly to affected Chat, tool, account and preview fixtures; preserve custom controls and existing assertions. Test original filenames including spaces, Chinese characters, # and %, optional legacy Markdown owners, composer-only/foreign-token refusal, cancellation and panning cleanup. Do not replace current fixtures with upstream Factory architecture."
+        },
+        {
+          "path": "packages/client/ui-attachment/tests/message-image.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt the owning fixture and regression cases to current Harnessy direct entry injection, existing queue/upload controls and current native protocol. Add fileDrag explicitly to affected Chat, tool, account and preview fixtures; preserve custom controls and existing assertions. Test original filenames including spaces, Chinese characters, # and %, optional legacy Markdown owners, composer-only/foreign-token refusal, cancellation and panning cleanup. Do not replace current fixtures with upstream Factory architecture."
+        },
+        {
+          "path": "packages/client/ui-attachment/tests/plugin.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the owning fixture and regression cases to current Harnessy direct entry injection, existing queue/upload controls and current native protocol. Add fileDrag explicitly to affected Chat, tool, account and preview fixtures; preserve custom controls and existing assertions. Test original filenames including spaces, Chinese characters, # and %, optional legacy Markdown owners, composer-only/foreign-token refusal, cancellation and panning cleanup. Do not replace current fixtures with upstream Factory architecture."
+        },
+        {
+          "path": "packages/client/ui-attachment/tsconfig.json",
+          "disposition": "adopted",
+          "reason": "Wire final generic packages into current profiles, exact package dependencies, source aliases and explicit Host/Client project owners. Preserve all custom packages, application entry points, release version and prior dependency versions; the lockfile adds only required workspace importers and mime. Frozen lock validation, full custom build, package hygiene and browser composition pass."
+        },
+        {
+          "path": "packages/client/ui-chat/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update the current bilingual owner and sidecar with generic transfer injection, original filenames versus display labels, composer-only token intake, optional managed Markdown callbacks, image pan/zoom behavior and native lifecycle limits. Preserve custom UI and current contracts; detailed transfer policy has one home in ui-file-drag and Desktop docs."
+        },
+        {
+          "path": "packages/client/ui-chat/README.md",
+          "disposition": "adopted",
+          "reason": "Update the current bilingual owner and sidecar with generic transfer injection, original filenames versus display labels, composer-only token intake, optional managed Markdown callbacks, image pan/zoom behavior and native lifecycle limits. Preserve custom UI and current contracts; detailed transfer policy has one home in ui-file-drag and Desktop docs."
+        },
+        {
+          "path": "packages/client/ui-chat/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Update the current bilingual owner and sidecar with generic transfer injection, original filenames versus display labels, composer-only token intake, optional managed Markdown callbacks, image pan/zoom behavior and native lifecycle limits. Preserve custom UI and current contracts; detailed transfer policy has one home in ui-file-drag and Desktop docs."
+        },
+        {
+          "path": "packages/client/ui-chat/package.json",
+          "disposition": "adopted",
+          "reason": "Wire final generic packages into current profiles, exact package dependencies, source aliases and explicit Host/Client project owners. Preserve all custom packages, application entry points, release version and prior dependency versions; the lockfile adds only required workspace importers and mime. Frozen lock validation, full custom build, package hygiene and browser composition pass."
+        },
+        {
+          "path": "packages/client/ui-chat/src/client/apply.ts",
+          "disposition": "adopted",
+          "reason": "Inject generic fileDrag actions and viewed-Session resource addressing into the existing Chat view/delegate. Preserve custom navigation, Session references, file mentions, subagent UI, hierarchy and localized controls rather than adopting stock Chat or gallery architecture."
+        },
+        {
+          "path": "packages/client/ui-chat/src/client/chat/ChatView.tsx",
+          "disposition": "adopted",
+          "reason": "Inject generic fileDrag actions and viewed-Session resource addressing into the existing Chat view/delegate. Preserve custom navigation, Session references, file mentions, subagent UI, hierarchy and localized controls rather than adopting stock Chat or gallery architecture."
+        },
+        {
+          "path": "packages/client/ui-chat/src/client/contract/slots.ts",
+          "disposition": "adopted",
+          "reason": "Inject generic fileDrag actions and viewed-Session resource addressing into the existing Chat view/delegate. Preserve custom navigation, Session references, file mentions, subagent UI, hierarchy and localized controls rather than adopting stock Chat or gallery architecture."
+        },
+        {
+          "path": "packages/client/ui-chat/src/client/locale.ts",
+          "disposition": "retained-newer",
+          "reason": "The first reviewed commit adds image-only dragFailed fields and the second removes them. Retain current consumer dictionaries and labels; the final generic file-drag plugin owns the new English/Chinese failure copy. No six excluded new languages or duplicated image-entry error strings are imported."
+        },
+        {
+          "path": "packages/client/ui-chat/tests/apply-inject.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt the owning fixture and regression cases to current Harnessy direct entry injection, existing queue/upload controls and current native protocol. Add fileDrag explicitly to affected Chat, tool, account and preview fixtures; preserve custom controls and existing assertions. Test original filenames including spaces, Chinese characters, # and %, optional legacy Markdown owners, composer-only/foreign-token refusal, cancellation and panning cleanup. Do not replace current fixtures with upstream Factory architecture."
+        },
+        {
+          "path": "packages/client/ui-chat/tests/chat-apply.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt the owning fixture and regression cases to current Harnessy direct entry injection, existing queue/upload controls and current native protocol. Add fileDrag explicitly to affected Chat, tool, account and preview fixtures; preserve custom controls and existing assertions. Test original filenames including spaces, Chinese characters, # and %, optional legacy Markdown owners, composer-only/foreign-token refusal, cancellation and panning cleanup. Do not replace current fixtures with upstream Factory architecture."
+        },
+        {
+          "path": "packages/client/ui-chat/tests/chat-view.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt the owning fixture and regression cases to current Harnessy direct entry injection, existing queue/upload controls and current native protocol. Add fileDrag explicitly to affected Chat, tool, account and preview fixtures; preserve custom controls and existing assertions. Test original filenames including spaces, Chinese characters, # and %, optional legacy Markdown owners, composer-only/foreign-token refusal, cancellation and panning cleanup. Do not replace current fixtures with upstream Factory architecture."
+        },
+        {
+          "path": "packages/client/ui-chat/tests/quota-notice.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt the owning fixture and regression cases to current Harnessy direct entry injection, existing queue/upload controls and current native protocol. Add fileDrag explicitly to affected Chat, tool, account and preview fixtures; preserve custom controls and existing assertions. Test original filenames including spaces, Chinese characters, # and %, optional legacy Markdown owners, composer-only/foreign-token refusal, cancellation and panning cleanup. Do not replace current fixtures with upstream Factory architecture."
+        },
+        {
+          "path": "packages/client/ui-chat/tsconfig.client.json",
+          "disposition": "adopted",
+          "reason": "Wire final generic packages into current profiles, exact package dependencies, source aliases and explicit Host/Client project owners. Preserve all custom packages, application entry points, release version and prior dependency versions; the lockfile adds only required workspace importers and mime. Frozen lock validation, full custom build, package hygiene and browser composition pass."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/contract/slots.ts",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy direct image-entry registrations and existing message label API. Do not import the upstream conversation.images.content Factory or intermediate dragFailed requirement. Inject fileDrag locally into attachment, Chat and preview entries; regenerated catalogs and assembled browser/owner cases verify the current independent seats."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/locales.ts",
+          "disposition": "retained-newer",
+          "reason": "The first reviewed commit adds image-only dragFailed fields and the second removes them. Retain current consumer dictionaries and labels; the final generic file-drag plugin owns the new English/Chinese failure copy. No six excluded new languages or duplicated image-entry error strings are imported."
+        },
+        {
+          "path": "packages/client/ui-file-drag/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Ship the generic plugin with independent localized shell.overlay feedback, application-local random tokens and retained original File/DownloadURL transport, plus optional native resource borrowing and byte fallback. Source-node native dragend survives React unmount; plugin disposal aborts browser fetches and suppresses late native failure feedback. Guard completion by the active token so an old queued drop cannot clear a replacement. Adapt the bundler helper to Harnessy package-name arguments and React types/version metadata to the current repository."
+        },
+        {
+          "path": "packages/client/ui-file-drag/README.md",
+          "disposition": "adopted",
+          "reason": "Ship the generic plugin with independent localized shell.overlay feedback, application-local random tokens and retained original File/DownloadURL transport, plus optional native resource borrowing and byte fallback. Source-node native dragend survives React unmount; plugin disposal aborts browser fetches and suppresses late native failure feedback. Guard completion by the active token so an old queued drop cannot clear a replacement. Adapt the bundler helper to Harnessy package-name arguments and React types/version metadata to the current repository."
+        },
+        {
+          "path": "packages/client/ui-file-drag/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Ship the generic plugin with independent localized shell.overlay feedback, application-local random tokens and retained original File/DownloadURL transport, plus optional native resource borrowing and byte fallback. Source-node native dragend survives React unmount; plugin disposal aborts browser fetches and suppresses late native failure feedback. Guard completion by the active token so an old queued drop cannot clear a replacement. Adapt the bundler helper to Harnessy package-name arguments and React types/version metadata to the current repository."
+        },
+        {
+          "path": "packages/client/ui-file-drag/package.json",
+          "disposition": "adopted",
+          "reason": "Ship the generic plugin with independent localized shell.overlay feedback, application-local random tokens and retained original File/DownloadURL transport, plus optional native resource borrowing and byte fallback. Source-node native dragend survives React unmount; plugin disposal aborts browser fetches and suppresses late native failure feedback. Guard completion by the active token so an old queued drop cannot clear a replacement. Adapt the bundler helper to Harnessy package-name arguments and React types/version metadata to the current repository."
+        },
+        {
+          "path": "packages/client/ui-file-drag/src/client/feedback.tsx",
+          "disposition": "adopted",
+          "reason": "Ship the generic plugin with independent localized shell.overlay feedback, application-local random tokens and retained original File/DownloadURL transport, plus optional native resource borrowing and byte fallback. Source-node native dragend survives React unmount; plugin disposal aborts browser fetches and suppresses late native failure feedback. Guard completion by the active token so an old queued drop cannot clear a replacement. Adapt the bundler helper to Harnessy package-name arguments and React types/version metadata to the current repository."
+        },
+        {
+          "path": "packages/client/ui-file-drag/src/client/index.ts",
+          "disposition": "adopted",
+          "reason": "Ship the generic plugin with independent localized shell.overlay feedback, application-local random tokens and retained original File/DownloadURL transport, plus optional native resource borrowing and byte fallback. Source-node native dragend survives React unmount; plugin disposal aborts browser fetches and suppresses late native failure feedback. Guard completion by the active token so an old queued drop cannot clear a replacement. Adapt the bundler helper to Harnessy package-name arguments and React types/version metadata to the current repository."
+        },
+        {
+          "path": "packages/client/ui-file-drag/src/client/locales.ts",
+          "disposition": "adopted",
+          "reason": "Ship the generic plugin with independent localized shell.overlay feedback, application-local random tokens and retained original File/DownloadURL transport, plus optional native resource borrowing and byte fallback. Source-node native dragend survives React unmount; plugin disposal aborts browser fetches and suppresses late native failure feedback. Guard completion by the active token so an old queued drop cannot clear a replacement. Adapt the bundler helper to Harnessy package-name arguments and React types/version metadata to the current repository."
+        },
+        {
+          "path": "packages/client/ui-file-drag/src/client/transfers.ts",
+          "disposition": "adopted",
+          "reason": "Ship the generic plugin with independent localized shell.overlay feedback, application-local random tokens and retained original File/DownloadURL transport, plus optional native resource borrowing and byte fallback. Source-node native dragend survives React unmount; plugin disposal aborts browser fetches and suppresses late native failure feedback. Guard completion by the active token so an old queued drop cannot clear a replacement. Adapt the bundler helper to Harnessy package-name arguments and React types/version metadata to the current repository."
+        },
+        {
+          "path": "packages/client/ui-file-drag/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Ship the generic plugin with independent localized shell.overlay feedback, application-local random tokens and retained original File/DownloadURL transport, plus optional native resource borrowing and byte fallback. Source-node native dragend survives React unmount; plugin disposal aborts browser fetches and suppresses late native failure feedback. Guard completion by the active token so an old queued drop cannot clear a replacement. Adapt the bundler helper to Harnessy package-name arguments and React types/version metadata to the current repository."
+        },
+        {
+          "path": "packages/client/ui-file-drag/tests/plugin.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Ship the generic plugin with independent localized shell.overlay feedback, application-local random tokens and retained original File/DownloadURL transport, plus optional native resource borrowing and byte fallback. Source-node native dragend survives React unmount; plugin disposal aborts browser fetches and suppresses late native failure feedback. Guard completion by the active token so an old queued drop cannot clear a replacement. Adapt the bundler helper to Harnessy package-name arguments and React types/version metadata to the current repository."
+        },
+        {
+          "path": "packages/client/ui-file-drag/tests/transfers.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Ship the generic plugin with independent localized shell.overlay feedback, application-local random tokens and retained original File/DownloadURL transport, plus optional native resource borrowing and byte fallback. Source-node native dragend survives React unmount; plugin disposal aborts browser fetches and suppresses late native failure feedback. Guard completion by the active token so an old queued drop cannot clear a replacement. Adapt the bundler helper to Harnessy package-name arguments and React types/version metadata to the current repository."
+        },
+        {
+          "path": "packages/client/ui-file-drag/tsconfig.json",
+          "disposition": "adopted",
+          "reason": "Ship the generic plugin with independent localized shell.overlay feedback, application-local random tokens and retained original File/DownloadURL transport, plus optional native resource borrowing and byte fallback. Source-node native dragend survives React unmount; plugin disposal aborts browser fetches and suppresses late native failure feedback. Guard completion by the active token so an old queued drop cannot clear a replacement. Adapt the bundler helper to Harnessy package-name arguments and React types/version metadata to the current repository."
+        },
+        {
+          "path": "packages/client/ui-file-drag/tsdown.config.ts",
+          "disposition": "adopted",
+          "reason": "Ship the generic plugin with independent localized shell.overlay feedback, application-local random tokens and retained original File/DownloadURL transport, plus optional native resource borrowing and byte fallback. Source-node native dragend survives React unmount; plugin disposal aborts browser fetches and suppresses late native failure feedback. Guard completion by the active token so an old queued drop cannot clear a replacement. Adapt the bundler helper to Harnessy package-name arguments and React types/version metadata to the current repository."
+        },
+        {
+          "path": "packages/client/ui-image-drag/README.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Review the initial image-only implementation and its generalization together. Ship the final generic ui-file-drag/FileTransfers, shared naming and Desktop file-drag owners directly; do not create the intermediate image-only package, native owner or callback declarations that the second reviewed commit deletes. Their gesture, lifetime and cleanup behavior is adapted and verified through the final owners."
+        },
+        {
+          "path": "packages/client/ui-image-drag/README.md",
+          "disposition": "retained-newer",
+          "reason": "Review the initial image-only implementation and its generalization together. Ship the final generic ui-file-drag/FileTransfers, shared naming and Desktop file-drag owners directly; do not create the intermediate image-only package, native owner or callback declarations that the second reviewed commit deletes. Their gesture, lifetime and cleanup behavior is adapted and verified through the final owners."
+        },
+        {
+          "path": "packages/client/ui-image-drag/README.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Review the initial image-only implementation and its generalization together. Ship the final generic ui-file-drag/FileTransfers, shared naming and Desktop file-drag owners directly; do not create the intermediate image-only package, native owner or callback declarations that the second reviewed commit deletes. Their gesture, lifetime and cleanup behavior is adapted and verified through the final owners."
+        },
+        {
+          "path": "packages/client/ui-image-drag/package.json",
+          "disposition": "retained-newer",
+          "reason": "Review the initial image-only implementation and its generalization together. Ship the final generic ui-file-drag/FileTransfers, shared naming and Desktop file-drag owners directly; do not create the intermediate image-only package, native owner or callback declarations that the second reviewed commit deletes. Their gesture, lifetime and cleanup behavior is adapted and verified through the final owners."
+        },
+        {
+          "path": "packages/client/ui-image-drag/src/client/feedback.tsx",
+          "disposition": "retained-newer",
+          "reason": "Review the initial image-only implementation and its generalization together. Ship the final generic ui-file-drag/FileTransfers, shared naming and Desktop file-drag owners directly; do not create the intermediate image-only package, native owner or callback declarations that the second reviewed commit deletes. Their gesture, lifetime and cleanup behavior is adapted and verified through the final owners."
+        },
+        {
+          "path": "packages/client/ui-image-drag/src/client/index.ts",
+          "disposition": "retained-newer",
+          "reason": "Review the initial image-only implementation and its generalization together. Ship the final generic ui-file-drag/FileTransfers, shared naming and Desktop file-drag owners directly; do not create the intermediate image-only package, native owner or callback declarations that the second reviewed commit deletes. Their gesture, lifetime and cleanup behavior is adapted and verified through the final owners."
+        },
+        {
+          "path": "packages/client/ui-image-drag/src/index.ts",
+          "disposition": "retained-newer",
+          "reason": "Review the initial image-only implementation and its generalization together. Ship the final generic ui-file-drag/FileTransfers, shared naming and Desktop file-drag owners directly; do not create the intermediate image-only package, native owner or callback declarations that the second reviewed commit deletes. Their gesture, lifetime and cleanup behavior is adapted and verified through the final owners."
+        },
+        {
+          "path": "packages/client/ui-image-drag/tests/plugin.client.spec.tsx",
+          "disposition": "retained-newer",
+          "reason": "Review the initial image-only implementation and its generalization together. Ship the final generic ui-file-drag/FileTransfers, shared naming and Desktop file-drag owners directly; do not create the intermediate image-only package, native owner or callback declarations that the second reviewed commit deletes. Their gesture, lifetime and cleanup behavior is adapted and verified through the final owners."
+        },
+        {
+          "path": "packages/client/ui-image-drag/tsconfig.json",
+          "disposition": "retained-newer",
+          "reason": "Review the initial image-only implementation and its generalization together. Ship the final generic ui-file-drag/FileTransfers, shared naming and Desktop file-drag owners directly; do not create the intermediate image-only package, native owner or callback declarations that the second reviewed commit deletes. Their gesture, lifetime and cleanup behavior is adapted and verified through the final owners."
+        },
+        {
+          "path": "packages/client/ui-image-drag/tsdown.config.ts",
+          "disposition": "retained-newer",
+          "reason": "Review the initial image-only implementation and its generalization together. Ship the final generic ui-file-drag/FileTransfers, shared naming and Desktop file-drag owners directly; do not create the intermediate image-only package, native owner or callback declarations that the second reviewed commit deletes. Their gesture, lifetime and cleanup behavior is adapted and verified through the final owners."
+        },
+        {
+          "path": "packages/client/ui-primitives/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update the current bilingual owner and sidecar with generic transfer injection, original filenames versus display labels, composer-only token intake, optional managed Markdown callbacks, image pan/zoom behavior and native lifecycle limits. Preserve custom UI and current contracts; detailed transfer policy has one home in ui-file-drag and Desktop docs."
+        },
+        {
+          "path": "packages/client/ui-primitives/README.md",
+          "disposition": "adopted",
+          "reason": "Update the current bilingual owner and sidecar with generic transfer injection, original filenames versus display labels, composer-only token intake, optional managed Markdown callbacks, image pan/zoom behavior and native lifecycle limits. Preserve custom UI and current contracts; detailed transfer policy has one home in ui-file-drag and Desktop docs."
+        },
+        {
+          "path": "packages/client/ui-primitives/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Update the current bilingual owner and sidecar with generic transfer injection, original filenames versus display labels, composer-only token intake, optional managed Markdown callbacks, image pan/zoom behavior and native lifecycle limits. Preserve custom UI and current contracts; detailed transfer policy has one home in ui-file-drag and Desktop docs."
+        },
+        {
+          "path": "packages/client/ui-primitives/package.json",
+          "disposition": "adopted",
+          "reason": "Wire final generic packages into current profiles, exact package dependencies, source aliases and explicit Host/Client project owners. Preserve all custom packages, application entry points, release version and prior dependency versions; the lockfile adds only required workspace importers and mime. Frozen lock validation, full custom build, package hygiene and browser composition pass."
+        },
+        {
+          "path": "packages/client/ui-primitives/src/DraggableImage.tsx",
+          "disposition": "adopted",
+          "reason": "Add DraggableImage, generic explicit file-drag callback types and reversible gesture handling. Prepare on intent, cancel a premature managed drag quietly, preserve external cross-origin native fallback, suppress only the post-drag pointer click and preserve keyboard preview activation. Release unused preparation and abort pending reads when the source retires."
+        },
+        {
+          "path": "packages/client/ui-primitives/src/file-drag-actions.ts",
+          "disposition": "adopted",
+          "reason": "Add DraggableImage, generic explicit file-drag callback types and reversible gesture handling. Prepare on intent, cancel a premature managed drag quietly, preserve external cross-origin native fallback, suppress only the post-drag pointer click and preserve keyboard preview activation. Release unused preparation and abort pending reads when the source retires."
+        },
+        {
+          "path": "packages/client/ui-primitives/src/image-drag-actions.ts",
+          "disposition": "retained-newer",
+          "reason": "Review the initial image-only implementation and its generalization together. Ship the final generic ui-file-drag/FileTransfers, shared naming and Desktop file-drag owners directly; do not create the intermediate image-only package, native owner or callback declarations that the second reviewed commit deletes. Their gesture, lifetime and cleanup behavior is adapted and verified through the final owners."
+        },
+        {
+          "path": "packages/client/ui-primitives/src/image-drag.ts",
+          "disposition": "adopted",
+          "reason": "Add DraggableImage, generic explicit file-drag callback types and reversible gesture handling. Prepare on intent, cancel a premature managed drag quietly, preserve external cross-origin native fallback, suppress only the post-drag pointer click and preserve keyboard preview activation. Release unused preparation and abort pending reads when the source retires."
+        },
+        {
+          "path": "packages/client/ui-primitives/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Add DraggableImage, generic explicit file-drag callback types and reversible gesture handling. Prepare on intent, cancel a premature managed drag quietly, preserve external cross-origin native fallback, suppress only the post-drag pointer click and preserve keyboard preview activation. Release unused preparation and abort pending reads when the source retires."
+        },
+        {
+          "path": "packages/client/ui-primitives/src/markdown/MarkdownDelegate.tsx",
+          "disposition": "adopted",
+          "reason": "Add optional managed image dragging without breaking existing MarkdownDelegate owners. Retain native image dragging/lightbox without callbacks and all custom link/render behavior. Use decoded parsed paths and pathPartsOf for local export names, including Windows separators and encoded #/%/spaces; keep Session-scoped resource addresses private to the native authorization path."
+        },
+        {
+          "path": "packages/client/ui-primitives/src/markdown/render.tsx",
+          "disposition": "adopted",
+          "reason": "Add optional managed image dragging without breaking existing MarkdownDelegate owners. Retain native image dragging/lightbox without callbacks and all custom link/render behavior. Use decoded parsed paths and pathPartsOf for local export names, including Windows separators and encoded #/%/spaces; keep Session-scoped resource addresses private to the native authorization path."
+        },
+        {
+          "path": "packages/client/ui-primitives/tests/image-drag.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt the owning fixture and regression cases to current Harnessy direct entry injection, existing queue/upload controls and current native protocol. Add fileDrag explicitly to affected Chat, tool, account and preview fixtures; preserve custom controls and existing assertions. Test original filenames including spaces, Chinese characters, # and %, optional legacy Markdown owners, composer-only/foreign-token refusal, cancellation and panning cleanup. Do not replace current fixtures with upstream Factory architecture."
+        },
+        {
+          "path": "packages/client/ui-primitives/tests/markdown-image-entries.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt the owning fixture and regression cases to current Harnessy direct entry injection, existing queue/upload controls and current native protocol. Add fileDrag explicitly to affected Chat, tool, account and preview fixtures; preserve custom controls and existing assertions. Test original filenames including spaces, Chinese characters, # and %, optional legacy Markdown owners, composer-only/foreign-token refusal, cancellation and panning cleanup. Do not replace current fixtures with upstream Factory architecture."
+        },
+        {
+          "path": "packages/client/ui-primitives/tsconfig.json",
+          "disposition": "adopted",
+          "reason": "Wire final generic packages into current profiles, exact package dependencies, source aliases and explicit Host/Client project owners. Preserve all custom packages, application entry points, release version and prior dependency versions; the lockfile adds only required workspace importers and mime. Frozen lock validation, full custom build, package hygiene and browser composition pass."
+        },
+        {
+          "path": "packages/client/ui-settings-account/tests/quota-notice-hold.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt the owning fixture and regression cases to current Harnessy direct entry injection, existing queue/upload controls and current native protocol. Add fileDrag explicitly to affected Chat, tool, account and preview fixtures; preserve custom controls and existing assertions. Test original filenames including spaces, Chinese characters, # and %, optional legacy Markdown owners, composer-only/foreign-token refusal, cancellation and panning cleanup. Do not replace current fixtures with upstream Factory architecture."
+        },
+        {
+          "path": "packages/client/ui-sidebar-documentpreview/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update the current bilingual owner and sidecar with generic transfer injection, original filenames versus display labels, composer-only token intake, optional managed Markdown callbacks, image pan/zoom behavior and native lifecycle limits. Preserve custom UI and current contracts; detailed transfer policy has one home in ui-file-drag and Desktop docs."
+        },
+        {
+          "path": "packages/client/ui-sidebar-documentpreview/README.md",
+          "disposition": "adopted",
+          "reason": "Update the current bilingual owner and sidecar with generic transfer injection, original filenames versus display labels, composer-only token intake, optional managed Markdown callbacks, image pan/zoom behavior and native lifecycle limits. Preserve custom UI and current contracts; detailed transfer policy has one home in ui-file-drag and Desktop docs."
+        },
+        {
+          "path": "packages/client/ui-sidebar-documentpreview/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Update the current bilingual owner and sidecar with generic transfer injection, original filenames versus display labels, composer-only token intake, optional managed Markdown callbacks, image pan/zoom behavior and native lifecycle limits. Preserve custom UI and current contracts; detailed transfer policy has one home in ui-file-drag and Desktop docs."
+        },
+        {
+          "path": "packages/client/ui-sidebar-documentpreview/package.json",
+          "disposition": "adopted",
+          "reason": "Wire final generic packages into current profiles, exact package dependencies, source aliases and explicit Host/Client project owners. Preserve all custom packages, application entry points, release version and prior dependency versions; the lockfile adds only required workspace importers and mime. Frozen lock validation, full custom build, package hygiene and browser composition pass."
+        },
+        {
+          "path": "packages/client/ui-sidebar-documentpreview/src/client/image/ImageBody.module.css",
+          "disposition": "adopted",
+          "reason": "Adapt final selected image pan and transfer implementation into the existing zoom store/viewport and keyed preview body. Mouse dragging pans only overflowing images with capture/cancel/blur/unmount cleanup; contained images use original-file dragging. Retain stable image/Blob identity, current fit/preset controls, geometry and other document renderers."
+        },
+        {
+          "path": "packages/client/ui-sidebar-documentpreview/src/client/image/ImageBody.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt final selected image pan and transfer implementation into the existing zoom store/viewport and keyed preview body. Mouse dragging pans only overflowing images with capture/cancel/blur/unmount cleanup; contained images use original-file dragging. Retain stable image/Blob identity, current fit/preset controls, geometry and other document renderers."
+        },
+        {
+          "path": "packages/client/ui-sidebar-documentpreview/src/client/image/index.ts",
+          "disposition": "adopted",
+          "reason": "Adapt final selected image pan and transfer implementation into the existing zoom store/viewport and keyed preview body. Mouse dragging pans only overflowing images with capture/cancel/blur/unmount cleanup; contained images use original-file dragging. Retain stable image/Blob identity, current fit/preset controls, geometry and other document renderers."
+        },
+        {
+          "path": "packages/client/ui-sidebar-documentpreview/src/client/image/locales.ts",
+          "disposition": "retained-newer",
+          "reason": "The first reviewed commit adds image-only dragFailed fields and the second removes them. Retain current consumer dictionaries and labels; the final generic file-drag plugin owns the new English/Chinese failure copy. No six excluded new languages or duplicated image-entry error strings are imported."
+        },
+        {
+          "path": "packages/client/ui-sidebar-documentpreview/src/client/image/pan.ts",
+          "disposition": "adopted",
+          "reason": "Adapt final selected image pan and transfer implementation into the existing zoom store/viewport and keyed preview body. Mouse dragging pans only overflowing images with capture/cancel/blur/unmount cleanup; contained images use original-file dragging. Retain stable image/Blob identity, current fit/preset controls, geometry and other document renderers."
+        },
+        {
+          "path": "packages/client/ui-sidebar-documentpreview/src/client/index.ts",
+          "disposition": "adopted",
+          "reason": "Adapt final selected image pan and transfer implementation into the existing zoom store/viewport and keyed preview body. Mouse dragging pans only overflowing images with capture/cancel/blur/unmount cleanup; contained images use original-file dragging. Retain stable image/Blob identity, current fit/preset controls, geometry and other document renderers."
+        },
+        {
+          "path": "packages/client/ui-sidebar-documentpreview/tests/apply.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the owning fixture and regression cases to current Harnessy direct entry injection, existing queue/upload controls and current native protocol. Add fileDrag explicitly to affected Chat, tool, account and preview fixtures; preserve custom controls and existing assertions. Test original filenames including spaces, Chinese characters, # and %, optional legacy Markdown owners, composer-only/foreign-token refusal, cancellation and panning cleanup. Do not replace current fixtures with upstream Factory architecture."
+        },
+        {
+          "path": "packages/client/ui-sidebar-documentpreview/tests/document-seat.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt the owning fixture and regression cases to current Harnessy direct entry injection, existing queue/upload controls and current native protocol. Add fileDrag explicitly to affected Chat, tool, account and preview fixtures; preserve custom controls and existing assertions. Test original filenames including spaces, Chinese characters, # and %, optional legacy Markdown owners, composer-only/foreign-token refusal, cancellation and panning cleanup. Do not replace current fixtures with upstream Factory architecture."
+        },
+        {
+          "path": "packages/client/ui-sidebar-documentpreview/tests/image-body.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt the owning fixture and regression cases to current Harnessy direct entry injection, existing queue/upload controls and current native protocol. Add fileDrag explicitly to affected Chat, tool, account and preview fixtures; preserve custom controls and existing assertions. Test original filenames including spaces, Chinese characters, # and %, optional legacy Markdown owners, composer-only/foreign-token refusal, cancellation and panning cleanup. Do not replace current fixtures with upstream Factory architecture."
+        },
+        {
+          "path": "packages/client/ui-sidebar-documentpreview/tests/image-pan.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the owning fixture and regression cases to current Harnessy direct entry injection, existing queue/upload controls and current native protocol. Add fileDrag explicitly to affected Chat, tool, account and preview fixtures; preserve custom controls and existing assertions. Test original filenames including spaces, Chinese characters, # and %, optional legacy Markdown owners, composer-only/foreign-token refusal, cancellation and panning cleanup. Do not replace current fixtures with upstream Factory architecture."
+        },
+        {
+          "path": "packages/client/ui-sidebar-documentpreview/tests/image-registration.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the owning fixture and regression cases to current Harnessy direct entry injection, existing queue/upload controls and current native protocol. Add fileDrag explicitly to affected Chat, tool, account and preview fixtures; preserve custom controls and existing assertions. Test original filenames including spaces, Chinese characters, # and %, optional legacy Markdown owners, composer-only/foreign-token refusal, cancellation and panning cleanup. Do not replace current fixtures with upstream Factory architecture."
+        },
+        {
+          "path": "packages/client/ui-sidebar-documentpreview/tsconfig.client.json",
+          "disposition": "adopted",
+          "reason": "Wire final generic packages into current profiles, exact package dependencies, source aliases and explicit Host/Client project owners. Preserve all custom packages, application entry points, release version and prior dependency versions; the lockfile adds only required workspace importers and mime. Frozen lock validation, full custom build, package hygiene and browser composition pass."
+        },
+        {
+          "path": "packages/client/ui-tool/tests/assembly-surfaces.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt the owning fixture and regression cases to current Harnessy direct entry injection, existing queue/upload controls and current native protocol. Add fileDrag explicitly to affected Chat, tool, account and preview fixtures; preserve custom controls and existing assertions. Test original filenames including spaces, Chinese characters, # and %, optional legacy Markdown owners, composer-only/foreign-token refusal, cancellation and panning cleanup. Do not replace current fixtures with upstream Factory architecture."
+        },
+        {
+          "path": "packages/client/ui-tool/tests/chat-ptc-subcalls.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt the owning fixture and regression cases to current Harnessy direct entry injection, existing queue/upload controls and current native protocol. Add fileDrag explicitly to affected Chat, tool, account and preview fixtures; preserve custom controls and existing assertions. Test original filenames including spaces, Chinese characters, # and %, optional legacy Markdown owners, composer-only/foreign-token refusal, cancellation and panning cleanup. Do not replace current fixtures with upstream Factory architecture."
+        },
+        {
+          "path": "packages/client/ui-tool/tests/toolview-slot.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt the owning fixture and regression cases to current Harnessy direct entry injection, existing queue/upload controls and current native protocol. Add fileDrag explicitly to affected Chat, tool, account and preview fixtures; preserve custom controls and existing assertions. Test original filenames including spaces, Chinese characters, # and %, optional legacy Markdown owners, composer-only/foreign-token refusal, cancellation and panning cleanup. Do not replace current fixtures with upstream Factory architecture."
+        },
+        {
+          "path": "packages/extensions/cordis-client-runner/src/client/slot-catalog.ts",
+          "disposition": "adopted",
+          "reason": "Regenerate current configuration, slot and plugin-package artifacts for ui-file-drag, preserving Harnessy custom packages and local callback injection instead of importing upstream generated catalog positions. Freshness checks pass."
+        },
+        {
+          "path": "packages/preset/agent-preset/skills/cordis-composition-reference/references/packages.md",
+          "disposition": "adopted",
+          "reason": "Regenerate current configuration, slot and plugin-package artifacts for ui-file-drag, preserving Harnessy custom packages and local callback injection instead of importing upstream generated catalog positions. Freshness checks pass."
+        },
+        {
+          "path": "packages/util/file-drag/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Add browser-safe generic naming and branded native transfer declarations as a plain library. Use maintained mime 4.1.1 for suffix resolution, preserve compatible or unknown names, sanitize invalid/Windows-reserved export names and honor explicit output extensions. Use Harnessy 0.1.17 metadata, real name regressions and bilingual reference docs."
+        },
+        {
+          "path": "packages/util/file-drag/README.md",
+          "disposition": "adopted",
+          "reason": "Add browser-safe generic naming and branded native transfer declarations as a plain library. Use maintained mime 4.1.1 for suffix resolution, preserve compatible or unknown names, sanitize invalid/Windows-reserved export names and honor explicit output extensions. Use Harnessy 0.1.17 metadata, real name regressions and bilingual reference docs."
+        },
+        {
+          "path": "packages/util/file-drag/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Add browser-safe generic naming and branded native transfer declarations as a plain library. Use maintained mime 4.1.1 for suffix resolution, preserve compatible or unknown names, sanitize invalid/Windows-reserved export names and honor explicit output extensions. Use Harnessy 0.1.17 metadata, real name regressions and bilingual reference docs."
+        },
+        {
+          "path": "packages/util/file-drag/package.json",
+          "disposition": "adopted",
+          "reason": "Add browser-safe generic naming and branded native transfer declarations as a plain library. Use maintained mime 4.1.1 for suffix resolution, preserve compatible or unknown names, sanitize invalid/Windows-reserved export names and honor explicit output extensions. Use Harnessy 0.1.17 metadata, real name regressions and bilingual reference docs."
+        },
+        {
+          "path": "packages/util/file-drag/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Add browser-safe generic naming and branded native transfer declarations as a plain library. Use maintained mime 4.1.1 for suffix resolution, preserve compatible or unknown names, sanitize invalid/Windows-reserved export names and honor explicit output extensions. Use Harnessy 0.1.17 metadata, real name regressions and bilingual reference docs."
+        },
+        {
+          "path": "packages/util/file-drag/tests/names.spec.ts",
+          "disposition": "adopted",
+          "reason": "Add browser-safe generic naming and branded native transfer declarations as a plain library. Use maintained mime 4.1.1 for suffix resolution, preserve compatible or unknown names, sanitize invalid/Windows-reserved export names and honor explicit output extensions. Use Harnessy 0.1.17 metadata, real name regressions and bilingual reference docs."
+        },
+        {
+          "path": "packages/util/file-drag/tsconfig.json",
+          "disposition": "adopted",
+          "reason": "Add browser-safe generic naming and branded native transfer declarations as a plain library. Use maintained mime 4.1.1 for suffix resolution, preserve compatible or unknown names, sanitize invalid/Windows-reserved export names and honor explicit output extensions. Use Harnessy 0.1.17 metadata, real name regressions and bilingual reference docs."
+        },
+        {
+          "path": "pnpm-lock.yaml",
+          "disposition": "adopted",
+          "reason": "Wire final generic packages into current profiles, exact package dependencies, source aliases and explicit Host/Client project owners. Preserve all custom packages, application entry points, release version and prior dependency versions; the lockfile adds only required workspace importers and mime. Frozen lock validation, full custom build, package hygiene and browser composition pass."
+        },
+        {
+          "path": "scripts/doc-standard.spec.ts",
+          "disposition": "adopted",
+          "reason": "Register file-drag as an audited plain library and generic UI-file-drag as non-model-facing in current documentation classifiers. Preserve current classifications and enforce the existing README requirements instead of globally weakening them. Documentation standard tests and the model-experience verifier pass."
+        },
+        {
+          "path": "scripts/gen-cordis-catalog.ts",
+          "disposition": "adopted",
+          "reason": "Declare the current fileDrag service owner as a Client interface, linking its real package README; preserve existing custom service exceptions and regenerate the catalog."
+        },
+        {
+          "path": "scripts/no-unknown-casts.baseline.json",
+          "disposition": "retained-newer",
+          "reason": "The upstream hunk retires an allowance for its older composer fixture. Harnessy already removed that stale allowance in the image-upload adaptation; preserve the current baseline without introducing new unknown casts. The verifier passes with 1390 remaining legacy allowances."
+        },
+        {
+          "path": "scripts/verify-package-readme-model-experience.ts",
+          "disposition": "adopted",
+          "reason": "Register file-drag as an audited plain library and generic UI-file-drag as non-model-facing in current documentation classifiers. Preserve current classifications and enforce the existing README requirements instead of globally weakening them. Documentation standard tests and the model-experience verifier pass."
+        },
+        {
+          "path": "snapshots/web/document-preview/document.expected.md",
+          "disposition": "retained-newer",
+          "reason": "Adapt the selected zoom, pan, original-byte composer transfer and trusted detached-source drag regressions into Harnessy-owned apps/web/tests/document-zoom.e2e.ts, using the explicit custom overlay and install anchor. Retain the existing broader document-preview scenario and expected output rather than importing unrelated upstream Office/file-view layout and top-level snapshot placement. The focused browser test preserves custom toolbar placement and image/Blob identity, pans both axes, completes a trusted drag after closing the source tab, and rejects the retired token."
+        },
+        {
+          "path": "tsconfig.base.json",
+          "disposition": "adopted",
+          "reason": "Wire final generic packages into current profiles, exact package dependencies, source aliases and explicit Host/Client project owners. Preserve all custom packages, application entry points, release version and prior dependency versions; the lockfile adds only required workspace importers and mime. Frozen lock validation, full custom build, package hygiene and browser composition pass."
+        },
+        {
+          "path": "tsconfig.client.json",
+          "disposition": "adopted",
+          "reason": "Wire final generic packages into current profiles, exact package dependencies, source aliases and explicit Host/Client project owners. Preserve all custom packages, application entry points, release version and prior dependency versions; the lockfile adds only required workspace importers and mime. Frozen lock validation, full custom build, package hygiene and browser composition pass."
+        },
+        {
+          "path": "tsconfig.host.json",
+          "disposition": "adopted",
+          "reason": "Wire final generic packages into current profiles, exact package dependencies, source aliases and explicit Host/Client project owners. Preserve all custom packages, application entry points, release version and prior dependency versions; the lockfile adds only required workspace importers and mime. Frozen lock validation, full custom build, package hygiene and browser composition pass."
+        }
+      ],
+      "evidence": [
+        "Both exact upstream commits and their complete 146-path union reviewed; implementation 90f593baae640d42826ea2154858158b0866c910. Verified 2026-10-25 on Windows, Harnessy 0.1.17, Node 24.14.0 and pnpm 11.7.0. The intermediate image-only packages and migration instructions are explicitly superseded/excluded rather than shipped.",
+        "The expanded owner run passed 1540 of 1584 cases across 118 files; 44 failures were missing explicit fileDrag fixture injection or the Windows pnpm entrypoint environment. After corrections, all seven affected files passed all 47 cases, including the three already-passing cases in those files. Thus all 1584 selected cases have passing evidence; the initial aggregate is not claimed as clean. An additional six-file indirect-owner run passed 45 cases, covering tool/account fixtures, composer token rejection and both Desktop welcome variants. Its first run exposed missing service injection. The Harnessy product static guard, two Node cases and 138 Vitest cases passed; two unchanged welcome cases timed out under concurrent checking, then both passed in the focused indirect-owner run with a fifteen-second deadline.",
+        "Three built Harnessy browser cases passed unchanged replay for Markdown image/media security and original bytes, custom toolbar zoom and image/Blob identity, two-axis 80px pan, contained original PNG transfer without text/URL insertion or lightbox activation. The extended document scenario also passed in a later unchanged replay with trusted dragstart/dragend after source-tab removal, original-byte composer intake and retired-token refusal. The Markdown golden was refreshed only for current custom MCP/session controls and existing omitted response-rating buttons, then compared unchanged. Initial fixture failures used expect.poll outside a test, stock two-row navigation and non-native Windows path expectations; those were corrected without weakening the behavior assertions.",
+        "Negative controls reproduced stale queued drag completion clearing a replacement, fetch surviving plugin disposal, late native refusal feedback, resource authorization after Host disposal, zero-byte handle quota bypass and percent-encoded local export filenames. Corresponding corrected focused owner runs passed, including exact Host-generation rotation, icon deadline, original bytes/name, borrowed-original retention, failed temporary removal/retry and actual filesystem authorization. Source and tests preserve tray ownership and restore drag handlers after failed installation.",
+        "Complete custom build passed with 371 Client artifacts and eleven public values after correcting the upstream bundler helper signature to the existing Harnessy helper. Explicit React types and compiler project references were added. The current owning model-capabilities Client project reference prevents undeclared type ownership; the subsequent Client typecheck and complete build passed with no adjacent emitted outputs observed. This is positive build evidence, not an isolated causal claim for the prior stray outputs.",
+        "All sixteen hygiene gates passed, including publint, NodeNext declarations, package dependencies, Client loading, locale ownership, runtime closure and no new unknown casts. Frozen lockfile validation passed after removing unrelated provider-peer resolution churn. Full repository lint passed. The doc-sync aggregate passed 41 gates and failed Markdown paragraph placement plus the new UI package short-form Model Experience audit entry; both were corrected and passed focused rechecks. The Chat documentation addition passed named pairing and Markdown wrapping, and both regenerated module graphs passed their verifier. All 43 documentation gates therefore have passing evidence; the initial aggregate is not claimed as clean.",
+        "No upstream checkpoint/ancestry merge, actual external native receiver delivery, installed staging-runtime selection/update, release, main-app update or additional registered application copy is included. Foreign Android pairing changes remain untouched. The ledger records source adoption and verification; published source does not establish an installed app update."
       ]
     }
   }
