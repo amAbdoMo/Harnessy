@@ -3,7 +3,7 @@
   "baselineHead": "249d882737862fe8f6f03df3f537d656134bd171",
   "upstreamTip": "22ddee3792402c3e70ec5f86a63c3e3e895a2f60",
   "mergeBase": "5badb15009ae1756c3afe0ae0cef1faafc290ccc",
-  "reviewedThrough": "ef9944a01fba77c6a2ee3eecad46325b984611c2",
+  "reviewedThrough": "d2d8c47b4ad627b77052debeaf6018a1c8b9cd04",
   "entries": [
     {
       "sha": "22ddee3792402c3e70ec5f86a63c3e3e895a2f60",
@@ -51209,7 +51209,8 @@
         "Six deterministic checks executed the actual parsed/transpiled imported helper functions with Vitest assertions: valid extra cycles, missing required calls, no later remove, additions/removals from request headers, unchanged-header net no-ops, and replacement ordering. The old helper from the first commit rejects the same valid extra-cycle example, providing a negative control. Two existing real-loop tool-update/projection cases passed. Scoped lint and normal staged hooks passed.",
         "The owning live DeepSeek e2e file collected successfully and explicitly skipped both cases because DEEPSEEK_API_KEY is absent. No live-provider cache hit, token-usage, performance, real-model plan, or full SDK process result is claimed. This review qualifies the test-source logic change and retained runtime contract; it does not claim a runtime cache feature was newly implemented or live-qualified.",
         "The inherited merge proof is checked over the whole tree: diff 0f51ba..22e627 contains only the fixture owner, while its 559 first-parent paths have identical blobs to that already acquired parent. Both fresh merge-tree results equal the stored upstream trees. These inherited common/qualified paths retain current Harnessy choices; they are not a blanket adoption of stock source, extra languages, provider upgrades or releases.",
-        "reviewedThrough remains unchanged until a qualified normal checkpoint merge, full Harnessy product validation, exact acquired-ancestor comparison and normal staging delivery. No browser/full Desktop build, app update, release, Mac native verification or new checkout is part of this fixture batch."
+        "reviewedThrough remains unchanged until a qualified normal checkpoint merge, full Harnessy product validation, exact acquired-ancestor comparison and normal staging delivery. No browser/full Desktop build, app update, release, Mac native verification or new checkout is part of this fixture batch.",
+        "Integration preserves the current Harnessy Desktop README heading and pairing sidecar. The sole metadata conflict was the stock deepseek-harness-desktop versus current harnessy-desktop section prefix; both Markdown files remained identical to the current Harnessy tree, and named bilingual pairing was regenerated from them. No runtime, provider, UI or extra-language source was reintroduced by this resolution."
       ]
     }
   }
