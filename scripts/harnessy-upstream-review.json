@@ -5233,7 +5233,7 @@
       ],
       "tree": "063745bbe4d3cb3c4d665730a187992f5ce1fd2a",
       "subject": "feat(ui-conversation,ui-chat): 基于 user-text 支持富文本引用与草稿恢复 (#3206)",
-      "review": null
+      "review": "harnessy-durable-rich-text-quotes-20261025"
     },
     {
       "sha": "94092349ab23047f14ad293364b331c90c02452c",
@@ -18100,7 +18100,7 @@
       ],
       "tree": "89d1781a7fff24beb7b14087097d755109cff68e",
       "subject": "fix(web): make whitespace trimming linear and polish content contracts",
-      "review": null
+      "review": "harnessy-durable-rich-text-quotes-20261025"
     },
     {
       "sha": "1d0ede8c3acc70694801af59e42881afbb7c1c71",
@@ -18118,7 +18118,7 @@
       ],
       "tree": "926f577ad19b193eb6a57cf4c35965a6feda6311",
       "subject": "refactor(web): reconcile user text with cached forward candidates",
-      "review": null
+      "review": "harnessy-durable-rich-text-quotes-20261025"
     },
     {
       "sha": "cde1086c0a9161eb3b8e405ba4efe35aef624946",
@@ -18136,7 +18136,7 @@
       ],
       "tree": "d8a25052882bb5bf3a6b1f07fc236855469694d3",
       "subject": "fix(web): trim unused user text features and cover rendering",
-      "review": null
+      "review": "harnessy-durable-rich-text-quotes-20261025"
     },
     {
       "sha": "a46d5b143f6624fcd89dbdaff514c860427d301f",
@@ -18228,7 +18228,7 @@
       ],
       "tree": "7b1a25bf8718d221c2dcf0d3c96e42757572534e",
       "subject": "refactor(web): transform user text through business node slots",
-      "review": null
+      "review": "harnessy-durable-rich-text-quotes-20261025"
     },
     {
       "sha": "b52864330deab1655d90fb7d2e97f12b9d206a73",
@@ -42405,6 +42405,1091 @@
         "Complete custom build passed with 371 Client artifacts and eleven public values after correcting the upstream bundler helper signature to the existing Harnessy helper. Explicit React types and compiler project references were added. The current owning model-capabilities Client project reference prevents undeclared type ownership; the subsequent Client typecheck and complete build passed with no adjacent emitted outputs observed. This is positive build evidence, not an isolated causal claim for the prior stray outputs.",
         "All sixteen hygiene gates passed, including publint, NodeNext declarations, package dependencies, Client loading, locale ownership, runtime closure and no new unknown casts. Frozen lockfile validation passed after removing unrelated provider-peer resolution churn. Full repository lint passed. The doc-sync aggregate passed 41 gates and failed Markdown paragraph placement plus the new UI package short-form Model Experience audit entry; both were corrected and passed focused rechecks. The Chat documentation addition passed named pairing and Markdown wrapping, and both regenerated module graphs passed their verifier. All 43 documentation gates therefore have passing evidence; the initial aggregate is not claimed as clean.",
         "No upstream checkpoint/ancestry merge, actual external native receiver delivery, installed staging-runtime selection/update, release, main-app update or additional registered application copy is included. Foreign Android pairing changes remain untouched. The ledger records source adoption and verification; published source does not establish an installed app update."
+      ]
+    },
+    "harnessy-durable-rich-text-quotes-20261025": {
+      "status": "adopted",
+      "summary": "Adapt durable rich-text quotation, draft restoration and final pure UserText matching into Harnessy while preserving custom chat, reference navigation and composer behavior.",
+      "files": [
+        {
+          "path": ".agents/notes/implemented/architecture/2026-10-10-user-text-json-nodes.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Do not introduce additional upstream decision records describing all file/skill/goal keyed providers or an earlier persisted quote-index distinction that Harnessy never shipped. Keep one adapted durable-quote decision, current Conversation/Slots subsystem contracts and the complete matching/cache JSDoc. Preserve source authority, ordinary Markdown submission, independent evaluator ownership, literal excerpts and browser-owned draft spans without importing upstream implementation history."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-10-10-user-text-json-nodes.md",
+          "disposition": "excluded",
+          "reason": "Do not introduce additional upstream decision records describing all file/skill/goal keyed providers or an earlier persisted quote-index distinction that Harnessy never shipped. Keep one adapted durable-quote decision, current Conversation/Slots subsystem contracts and the complete matching/cache JSDoc. Preserve source authority, ordinary Markdown submission, independent evaluator ownership, literal excerpts and browser-owned draft spans without importing upstream implementation history."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-10-10-user-text-json-nodes.zh.md",
+          "disposition": "excluded",
+          "reason": "Do not introduce additional upstream decision records describing all file/skill/goal keyed providers or an earlier persisted quote-index distinction that Harnessy never shipped. Keep one adapted durable-quote decision, current Conversation/Slots subsystem contracts and the complete matching/cache JSDoc. Preserve source authority, ordinary Markdown submission, independent evaluator ownership, literal excerpts and browser-owned draft spans without importing upstream implementation history."
+        },
+        {
+          "path": ".agents/notes/implemented/feature/2026-08-26-web-rich-text-quotes.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Record one adapted durable decision covering semantic atomic drafts, ordinary Markdown messages, literal excerpts, source-independent persistence and retained custom reference presentation. Keep scope/alternatives and actual verification precise; introduce no duplicate historical quote-index record or archived-note edits."
+        },
+        {
+          "path": ".agents/notes/implemented/feature/2026-08-26-web-rich-text-quotes.md",
+          "disposition": "adopted",
+          "reason": "Record one adapted durable decision covering semantic atomic drafts, ordinary Markdown messages, literal excerpts, source-independent persistence and retained custom reference presentation. Keep scope/alternatives and actual verification precise; introduce no duplicate historical quote-index record or archived-note edits."
+        },
+        {
+          "path": ".agents/notes/implemented/feature/2026-08-26-web-rich-text-quotes.zh.md",
+          "disposition": "adopted",
+          "reason": "Record one adapted durable decision covering semantic atomic drafts, ordinary Markdown messages, literal excerpts, source-independent persistence and retained custom reference presentation. Keep scope/alternatives and actual verification precise; introduce no duplicate historical quote-index record or archived-note edits."
+        },
+        {
+          "path": ".agents/notes/implemented/simplification/2026-10-13-text-derived-message-quotes.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Do not introduce additional upstream decision records describing all file/skill/goal keyed providers or an earlier persisted quote-index distinction that Harnessy never shipped. Keep one adapted durable-quote decision, current Conversation/Slots subsystem contracts and the complete matching/cache JSDoc. Preserve source authority, ordinary Markdown submission, independent evaluator ownership, literal excerpts and browser-owned draft spans without importing upstream implementation history."
+        },
+        {
+          "path": ".agents/notes/implemented/simplification/2026-10-13-text-derived-message-quotes.md",
+          "disposition": "excluded",
+          "reason": "Do not introduce additional upstream decision records describing all file/skill/goal keyed providers or an earlier persisted quote-index distinction that Harnessy never shipped. Keep one adapted durable-quote decision, current Conversation/Slots subsystem contracts and the complete matching/cache JSDoc. Preserve source authority, ordinary Markdown submission, independent evaluator ownership, literal excerpts and browser-owned draft spans without importing upstream implementation history."
+        },
+        {
+          "path": ".agents/notes/implemented/simplification/2026-10-13-text-derived-message-quotes.zh.md",
+          "disposition": "excluded",
+          "reason": "Do not introduce additional upstream decision records describing all file/skill/goal keyed providers or an earlier persisted quote-index distinction that Harnessy never shipped. Keep one adapted durable-quote decision, current Conversation/Slots subsystem contracts and the complete matching/cache JSDoc. Preserve source authority, ordinary Markdown submission, independent evaluator ownership, literal excerpts and browser-owned draft spans without importing upstream implementation history."
+        },
+        {
+          "path": "apps/web/package.json",
+          "disposition": "retained-newer",
+          "reason": "The shipped web-app bundle manifest owns the message-quotes dependency and bare plugin row; the custom overlay and install anchor resolve that exact composition in the real browser checks. Do not add a redundant application dependency beside the current resolver manifests."
+        },
+        {
+          "path": "apps/web/tests/rich-text-quotes.e2e.ts",
+          "disposition": "adopted",
+          "reason": "Adapt current typed input fixtures to the additive quote action and supply the real interaction registry where Chat is assembled. Retain existing assertions and fail loudly on unexpected quote insertion. Passing indirect owner and tool-composition runs verify these surfaces."
+        },
+        {
+          "path": "apps/web/tsconfig.json",
+          "disposition": "adopted",
+          "reason": "Update the actual current package manifest, compiler owner, generated catalog, package map or paired documentation for the adopted quote/text services. Regenerate rather than transplant upstream catalogs; preserve custom profile resolution and exact existing dependency peers. Full custom build, frozen-lock validation, package hygiene and documentation checks qualify the current files."
+        },
+        {
+          "path": "docs/config-catalog.md",
+          "disposition": "adopted",
+          "reason": "Update the actual current package manifest, compiler owner, generated catalog, package map or paired documentation for the adopted quote/text services. Regenerate rather than transplant upstream catalogs; preserve custom profile resolution and exact existing dependency peers. Full custom build, frozen-lock validation, package hygiene and documentation checks qualify the current files."
+        },
+        {
+          "path": "docs/config-catalog.zh.md",
+          "disposition": "adopted",
+          "reason": "Update the actual current package manifest, compiler owner, generated catalog, package map or paired documentation for the adopted quote/text services. Regenerate rather than transplant upstream catalogs; preserve custom profile resolution and exact existing dependency peers. Full custom build, frozen-lock validation, package hygiene and documentation checks qualify the current files."
+        },
+        {
+          "path": "docs/module-graph.md",
+          "disposition": "adopted",
+          "reason": "Update the actual current package manifest, compiler owner, generated catalog, package map or paired documentation for the adopted quote/text services. Regenerate rather than transplant upstream catalogs; preserve custom profile resolution and exact existing dependency peers. Full custom build, frozen-lock validation, package hygiene and documentation checks qualify the current files."
+        },
+        {
+          "path": "docs/module-graph.zh.md",
+          "disposition": "adopted",
+          "reason": "Update the actual current package manifest, compiler owner, generated catalog, package map or paired documentation for the adopted quote/text services. Regenerate rather than transplant upstream catalogs; preserve custom profile resolution and exact existing dependency peers. Full custom build, frozen-lock validation, package hygiene and documentation checks qualify the current files."
+        },
+        {
+          "path": "docs/subsystems/slots.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update the actual current package manifest, compiler owner, generated catalog, package map or paired documentation for the adopted quote/text services. Regenerate rather than transplant upstream catalogs; preserve custom profile resolution and exact existing dependency peers. Full custom build, frozen-lock validation, package hygiene and documentation checks qualify the current files."
+        },
+        {
+          "path": "docs/subsystems/slots.md",
+          "disposition": "adopted",
+          "reason": "Update the actual current package manifest, compiler owner, generated catalog, package map or paired documentation for the adopted quote/text services. Regenerate rather than transplant upstream catalogs; preserve custom profile resolution and exact existing dependency peers. Full custom build, frozen-lock validation, package hygiene and documentation checks qualify the current files."
+        },
+        {
+          "path": "docs/subsystems/slots.zh.md",
+          "disposition": "adopted",
+          "reason": "Update the actual current package manifest, compiler owner, generated catalog, package map or paired documentation for the adopted quote/text services. Regenerate rather than transplant upstream catalogs; preserve custom profile resolution and exact existing dependency peers. Full custom build, frozen-lock validation, package hygiene and documentation checks qualify the current files."
+        },
+        {
+          "path": "packages/api/session-controller/README.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Session Controller continues accepting and correlating ordinary text without quote fields. Keep that existing transport contract and document quote serialization at its actual Conversation/message-quotes owners; the new Host admission and queue-correlation regressions verify the unchanged transport."
+        },
+        {
+          "path": "packages/api/session-controller/README.md",
+          "disposition": "retained-newer",
+          "reason": "Session Controller continues accepting and correlating ordinary text without quote fields. Keep that existing transport contract and document quote serialization at its actual Conversation/message-quotes owners; the new Host admission and queue-correlation regressions verify the unchanged transport."
+        },
+        {
+          "path": "packages/api/session-controller/README.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Session Controller continues accepting and correlating ordinary text without quote fields. Keep that existing transport contract and document quote serialization at its actual Conversation/message-quotes owners; the new Host admission and queue-correlation regressions verify the unchanged transport."
+        },
+        {
+          "path": "packages/api/session-controller/tests/commands-queue-attachment.host.spec.ts",
+          "disposition": "adopted",
+          "reason": "Add the selected ordinary-Markdown admission and quote-to-plain queue-edit/correlation regressions to the current Host harness. Retain actual APIs, use guaranteed context cleanup, and avoid awaiting the current synchronous Remote factory. No Host quote metadata or production transport changes are introduced."
+        },
+        {
+          "path": "packages/api/session-controller/tests/session-models.host.spec.ts",
+          "disposition": "adopted",
+          "reason": "Add the selected ordinary-Markdown admission and quote-to-plain queue-edit/correlation regressions to the current Host harness. Retain actual APIs, use guaranteed context cleanup, and avoid awaiting the current synchronous Remote factory. No Host quote metadata or production transport changes are introduced."
+        },
+        {
+          "path": "packages/bundle/web-app/cordis.patch.yml",
+          "disposition": "adopted",
+          "reason": "Update the actual current package manifest, compiler owner, generated catalog, package map or paired documentation for the adopted quote/text services. Regenerate rather than transplant upstream catalogs; preserve custom profile resolution and exact existing dependency peers. Full custom build, frozen-lock validation, package hygiene and documentation checks qualify the current files."
+        },
+        {
+          "path": "packages/bundle/web-app/package.json",
+          "disposition": "adopted",
+          "reason": "Update the actual current package manifest, compiler owner, generated catalog, package map or paired documentation for the adopted quote/text services. Regenerate rather than transplant upstream catalogs; preserve custom profile resolution and exact existing dependency peers. Full custom build, frozen-lock validation, package hygiene and documentation checks qualify the current files."
+        },
+        {
+          "path": "packages/client/ui-attachment/package.json",
+          "disposition": "retained-newer",
+          "reason": "Review the initial attachment-reference provider with its removal in the next reviewed commit; never introduce that superseded inline attachment API. Keep current upload receipts, original-file dragging, Session image cache, localized image galleries and explicit image-slot owners. Retain the existing root-scoped gallery factory and project references rather than transplanting stock helper types or fixtures for an absent provider."
+        },
+        {
+          "path": "packages/client/ui-attachment/src/client/AttachmentReference.module.css",
+          "disposition": "retained-newer",
+          "reason": "Review the initial attachment-reference provider with its removal in the next reviewed commit; never introduce that superseded inline attachment API. Keep current upload receipts, original-file dragging, Session image cache, localized image galleries and explicit image-slot owners. Retain the existing root-scoped gallery factory and project references rather than transplanting stock helper types or fixtures for an absent provider."
+        },
+        {
+          "path": "packages/client/ui-attachment/src/client/AttachmentReference.tsx",
+          "disposition": "retained-newer",
+          "reason": "Review the initial attachment-reference provider with its removal in the next reviewed commit; never introduce that superseded inline attachment API. Keep current upload receipts, original-file dragging, Session image cache, localized image galleries and explicit image-slot owners. Retain the existing root-scoped gallery factory and project references rather than transplanting stock helper types or fixtures for an absent provider."
+        },
+        {
+          "path": "packages/client/ui-attachment/src/client/MessageImages.tsx",
+          "disposition": "retained-newer",
+          "reason": "Review the initial attachment-reference provider with its removal in the next reviewed commit; never introduce that superseded inline attachment API. Keep current upload receipts, original-file dragging, Session image cache, localized image galleries and explicit image-slot owners. Retain the existing root-scoped gallery factory and project references rather than transplanting stock helper types or fixtures for an absent provider."
+        },
+        {
+          "path": "packages/client/ui-attachment/src/client/index.ts",
+          "disposition": "retained-newer",
+          "reason": "Review the initial attachment-reference provider with its removal in the next reviewed commit; never introduce that superseded inline attachment API. Keep current upload receipts, original-file dragging, Session image cache, localized image galleries and explicit image-slot owners. Retain the existing root-scoped gallery factory and project references rather than transplanting stock helper types or fixtures for an absent provider."
+        },
+        {
+          "path": "packages/client/ui-attachment/src/client/locales.ts",
+          "disposition": "retained-newer",
+          "reason": "Review the initial attachment-reference provider with its removal in the next reviewed commit; never introduce that superseded inline attachment API. Keep current upload receipts, original-file dragging, Session image cache, localized image galleries and explicit image-slot owners. Retain the existing root-scoped gallery factory and project references rather than transplanting stock helper types or fixtures for an absent provider."
+        },
+        {
+          "path": "packages/client/ui-attachment/src/client/user-text-rules.ts",
+          "disposition": "retained-newer",
+          "reason": "Review the initial attachment-reference provider with its removal in the next reviewed commit; never introduce that superseded inline attachment API. Keep current upload receipts, original-file dragging, Session image cache, localized image galleries and explicit image-slot owners. Retain the existing root-scoped gallery factory and project references rather than transplanting stock helper types or fixtures for an absent provider."
+        },
+        {
+          "path": "packages/client/ui-attachment/tests/attachment-reference.client.spec.tsx",
+          "disposition": "retained-newer",
+          "reason": "Review the initial attachment-reference provider with its removal in the next reviewed commit; never introduce that superseded inline attachment API. Keep current upload receipts, original-file dragging, Session image cache, localized image galleries and explicit image-slot owners. Retain the existing root-scoped gallery factory and project references rather than transplanting stock helper types or fixtures for an absent provider."
+        },
+        {
+          "path": "packages/client/ui-attachment/tests/message-image.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Update the actual typed standard-input fixture with a fail-loud insertQuote action while retaining all current image lifecycle, drag and localization assertions. The unchanged gallery behavior is exercised in the passing adjacent-owner run; no initial attachment-reference provider or unrelated stock gallery refactor is introduced."
+        },
+        {
+          "path": "packages/client/ui-attachment/tests/plugin.client.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Review the initial attachment-reference provider with its removal in the next reviewed commit; never introduce that superseded inline attachment API. Keep current upload receipts, original-file dragging, Session image cache, localized image galleries and explicit image-slot owners. Retain the existing root-scoped gallery factory and project references rather than transplanting stock helper types or fixtures for an absent provider."
+        },
+        {
+          "path": "packages/client/ui-attachment/tests/user-text-rules.client.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Review the initial attachment-reference provider with its removal in the next reviewed commit; never introduce that superseded inline attachment API. Keep current upload receipts, original-file dragging, Session image cache, localized image galleries and explicit image-slot owners. Retain the existing root-scoped gallery factory and project references rather than transplanting stock helper types or fixtures for an absent provider."
+        },
+        {
+          "path": "packages/client/ui-attachment/tests/user-text-rules.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Review the initial attachment-reference provider with its removal in the next reviewed commit; never introduce that superseded inline attachment API. Keep current upload receipts, original-file dragging, Session image cache, localized image galleries and explicit image-slot owners. Retain the existing root-scoped gallery factory and project references rather than transplanting stock helper types or fixtures for an absent provider."
+        },
+        {
+          "path": "packages/client/ui-attachment/tsconfig.json",
+          "disposition": "retained-newer",
+          "reason": "Review the initial attachment-reference provider with its removal in the next reviewed commit; never introduce that superseded inline attachment API. Keep current upload receipts, original-file dragging, Session image cache, localized image galleries and explicit image-slot owners. Retain the existing root-scoped gallery factory and project references rather than transplanting stock helper types or fixtures for an absent provider."
+        },
+        {
+          "path": "packages/client/ui-chat/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Add selection and area-local action ownership to current Harnessy Chat, including visible-source extraction, clipping/composer occlusion, Escape/navigation/plugin disposal, pending user bubbles and finalized durable Assistant/reasoning text. Preserve custom layout and existing ordinary reference navigation. Fix the missed parent eligibility predicate; a negative control and focused regression distinguish streaming, interrupted and unidentified output."
+        },
+        {
+          "path": "packages/client/ui-chat/README.md",
+          "disposition": "adopted",
+          "reason": "Add selection and area-local action ownership to current Harnessy Chat, including visible-source extraction, clipping/composer occlusion, Escape/navigation/plugin disposal, pending user bubbles and finalized durable Assistant/reasoning text. Preserve custom layout and existing ordinary reference navigation. Fix the missed parent eligibility predicate; a negative control and focused regression distinguish streaming, interrupted and unidentified output."
+        },
+        {
+          "path": "packages/client/ui-chat/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Add selection and area-local action ownership to current Harnessy Chat, including visible-source extraction, clipping/composer occlusion, Escape/navigation/plugin disposal, pending user bubbles and finalized durable Assistant/reasoning text. Preserve custom layout and existing ordinary reference navigation. Fix the missed parent eligibility predicate; a negative control and focused regression distinguish streaming, interrupted and unidentified output."
+        },
+        {
+          "path": "packages/client/ui-chat/src/client/apply.ts",
+          "disposition": "adopted",
+          "reason": "Add selection and area-local action ownership to current Harnessy Chat, including visible-source extraction, clipping/composer occlusion, Escape/navigation/plugin disposal, pending user bubbles and finalized durable Assistant/reasoning text. Preserve custom layout and existing ordinary reference navigation. Fix the missed parent eligibility predicate; a negative control and focused regression distinguish streaming, interrupted and unidentified output."
+        },
+        {
+          "path": "packages/client/ui-chat/src/client/chat/AssistantMarkdown.tsx",
+          "disposition": "adopted",
+          "reason": "Add selection and area-local action ownership to current Harnessy Chat, including visible-source extraction, clipping/composer occlusion, Escape/navigation/plugin disposal, pending user bubbles and finalized durable Assistant/reasoning text. Preserve custom layout and existing ordinary reference navigation. Fix the missed parent eligibility predicate; a negative control and focused regression distinguish streaming, interrupted and unidentified output."
+        },
+        {
+          "path": "packages/client/ui-chat/src/client/chat/AssistantNodeView.tsx",
+          "disposition": "adopted",
+          "reason": "Add selection and area-local action ownership to current Harnessy Chat, including visible-source extraction, clipping/composer occlusion, Escape/navigation/plugin disposal, pending user bubbles and finalized durable Assistant/reasoning text. Preserve custom layout and existing ordinary reference navigation. Fix the missed parent eligibility predicate; a negative control and focused regression distinguish streaming, interrupted and unidentified output."
+        },
+        {
+          "path": "packages/client/ui-chat/src/client/chat/ChatFlow.tsx",
+          "disposition": "retained-newer",
+          "reason": "Adapt quote/user-text integration through Harnessy's existing ChatNodeList, MessageItem, pending steering and submission bubbles, preserving custom turn/process layout. Do not add the absent stock ChatFlow/UserContent wrappers. Actual factory/navigation, durable eligibility, selection/occlusion and assembled browser regressions cover the retained owners."
+        },
+        {
+          "path": "packages/client/ui-chat/src/client/chat/ChatNodeSeat.tsx",
+          "disposition": "adopted",
+          "reason": "Add selection and area-local action ownership to current Harnessy Chat, including visible-source extraction, clipping/composer occlusion, Escape/navigation/plugin disposal, pending user bubbles and finalized durable Assistant/reasoning text. Preserve custom layout and existing ordinary reference navigation. Fix the missed parent eligibility predicate; a negative control and focused regression distinguish streaming, interrupted and unidentified output."
+        },
+        {
+          "path": "packages/client/ui-chat/src/client/chat/ChatView.module.css",
+          "disposition": "adopted",
+          "reason": "Add selection and area-local action ownership to current Harnessy Chat, including visible-source extraction, clipping/composer occlusion, Escape/navigation/plugin disposal, pending user bubbles and finalized durable Assistant/reasoning text. Preserve custom layout and existing ordinary reference navigation. Fix the missed parent eligibility predicate; a negative control and focused regression distinguish streaming, interrupted and unidentified output."
+        },
+        {
+          "path": "packages/client/ui-chat/src/client/chat/ChatView.tsx",
+          "disposition": "adopted",
+          "reason": "Add selection and area-local action ownership to current Harnessy Chat, including visible-source extraction, clipping/composer occlusion, Escape/navigation/plugin disposal, pending user bubbles and finalized durable Assistant/reasoning text. Preserve custom layout and existing ordinary reference navigation. Fix the missed parent eligibility predicate; a negative control and focused regression distinguish streaming, interrupted and unidentified output."
+        },
+        {
+          "path": "packages/client/ui-chat/src/client/chat/MessageItem.tsx",
+          "disposition": "adopted",
+          "reason": "Add selection and area-local action ownership to current Harnessy Chat, including visible-source extraction, clipping/composer occlusion, Escape/navigation/plugin disposal, pending user bubbles and finalized durable Assistant/reasoning text. Preserve custom layout and existing ordinary reference navigation. Fix the missed parent eligibility predicate; a negative control and focused regression distinguish streaming, interrupted and unidentified output."
+        },
+        {
+          "path": "packages/client/ui-chat/src/client/chat/ReasoningRow.tsx",
+          "disposition": "adopted",
+          "reason": "Add selection and area-local action ownership to current Harnessy Chat, including visible-source extraction, clipping/composer occlusion, Escape/navigation/plugin disposal, pending user bubbles and finalized durable Assistant/reasoning text. Preserve custom layout and existing ordinary reference navigation. Fix the missed parent eligibility predicate; a negative control and focused regression distinguish streaming, interrupted and unidentified output."
+        },
+        {
+          "path": "packages/client/ui-chat/src/client/chat/UserContent.tsx",
+          "disposition": "retained-newer",
+          "reason": "Adapt quote/user-text integration through Harnessy's existing ChatNodeList, MessageItem, pending steering and submission bubbles, preserving custom turn/process layout. Do not add the absent stock ChatFlow/UserContent wrappers. Actual factory/navigation, durable eligibility, selection/occlusion and assembled browser regressions cover the retained owners."
+        },
+        {
+          "path": "packages/client/ui-chat/src/client/chat/text-interaction.ts",
+          "disposition": "adopted",
+          "reason": "Add selection and area-local action ownership to current Harnessy Chat, including visible-source extraction, clipping/composer occlusion, Escape/navigation/plugin disposal, pending user bubbles and finalized durable Assistant/reasoning text. Preserve custom layout and existing ordinary reference navigation. Fix the missed parent eligibility predicate; a negative control and focused regression distinguish streaming, interrupted and unidentified output."
+        },
+        {
+          "path": "packages/client/ui-chat/src/client/chat/text-selection.ts",
+          "disposition": "adopted",
+          "reason": "Add selection and area-local action ownership to current Harnessy Chat, including visible-source extraction, clipping/composer occlusion, Escape/navigation/plugin disposal, pending user bubbles and finalized durable Assistant/reasoning text. Preserve custom layout and existing ordinary reference navigation. Fix the missed parent eligibility predicate; a negative control and focused regression distinguish streaming, interrupted and unidentified output."
+        },
+        {
+          "path": "packages/client/ui-chat/src/client/contract/slots.ts",
+          "disposition": "adopted",
+          "reason": "Add selection and area-local action ownership to current Harnessy Chat, including visible-source extraction, clipping/composer occlusion, Escape/navigation/plugin disposal, pending user bubbles and finalized durable Assistant/reasoning text. Preserve custom layout and existing ordinary reference navigation. Fix the missed parent eligibility predicate; a negative control and focused regression distinguish streaming, interrupted and unidentified output."
+        },
+        {
+          "path": "packages/client/ui-chat/src/client/conversation-nodes/message.ts",
+          "disposition": "excluded",
+          "reason": "Do not add optional durable user-message identity solely for quotes. This implementation extracts visible DOM text and persists no source index or source navigation. Existing Assistant durable identity remains required for Assistant selection eligibility; user records keep their current representation."
+        },
+        {
+          "path": "packages/client/ui-chat/tests/apply-inject.client.spec.tsx",
+          "disposition": "retained-newer",
+          "reason": "Keep current real-service/Slot fixture assembly instead of importing a different upstream mock structure. The full selected Chat/Conversation owner run exercises these unchanged tests; current typed fixtures and the real quote-plugin browser composition supply the new interaction and factory services."
+        },
+        {
+          "path": "packages/client/ui-chat/tests/chat-apply.client.spec.tsx",
+          "disposition": "retained-newer",
+          "reason": "Keep current real-service/Slot fixture assembly instead of importing a different upstream mock structure. The full selected Chat/Conversation owner run exercises these unchanged tests; current typed fixtures and the real quote-plugin browser composition supply the new interaction and factory services."
+        },
+        {
+          "path": "packages/client/ui-chat/tests/chat-font-axis-styles.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Add selection and area-local action ownership to current Harnessy Chat, including visible-source extraction, clipping/composer occlusion, Escape/navigation/plugin disposal, pending user bubbles and finalized durable Assistant/reasoning text. Preserve custom layout and existing ordinary reference navigation. Fix the missed parent eligibility predicate; a negative control and focused regression distinguish streaming, interrupted and unidentified output."
+        },
+        {
+          "path": "packages/client/ui-chat/tests/chat-view.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Add selection and area-local action ownership to current Harnessy Chat, including visible-source extraction, clipping/composer occlusion, Escape/navigation/plugin disposal, pending user bubbles and finalized durable Assistant/reasoning text. Preserve custom layout and existing ordinary reference navigation. Fix the missed parent eligibility predicate; a negative control and focused regression distinguish streaming, interrupted and unidentified output."
+        },
+        {
+          "path": "packages/client/ui-chat/tests/coverage-tails.client.spec.tsx",
+          "disposition": "retained-newer",
+          "reason": "Keep current real-service/Slot fixture assembly instead of importing a different upstream mock structure. The full selected Chat/Conversation owner run exercises these unchanged tests; current typed fixtures and the real quote-plugin browser composition supply the new interaction and factory services."
+        },
+        {
+          "path": "packages/client/ui-chat/tests/text-interaction.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Add selection and area-local action ownership to current Harnessy Chat, including visible-source extraction, clipping/composer occlusion, Escape/navigation/plugin disposal, pending user bubbles and finalized durable Assistant/reasoning text. Preserve custom layout and existing ordinary reference navigation. Fix the missed parent eligibility predicate; a negative control and focused regression distinguish streaming, interrupted and unidentified output."
+        },
+        {
+          "path": "packages/client/ui-chat/tests/text-selection.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Add selection and area-local action ownership to current Harnessy Chat, including visible-source extraction, clipping/composer occlusion, Escape/navigation/plugin disposal, pending user bubbles and finalized durable Assistant/reasoning text. Preserve custom layout and existing ordinary reference navigation. Fix the missed parent eligibility predicate; a negative control and focused regression distinguish streaming, interrupted and unidentified output."
+        },
+        {
+          "path": "packages/client/ui-chat/tests/user-content.client.spec.tsx",
+          "disposition": "retained-newer",
+          "reason": "Adapt quote/user-text integration through Harnessy's existing ChatNodeList, MessageItem, pending steering and submission bubbles, preserving custom turn/process layout. Do not add the absent stock ChatFlow/UserContent wrappers. Actual factory/navigation, durable eligibility, selection/occlusion and assembled browser regressions cover the retained owners."
+        },
+        {
+          "path": "packages/client/ui-conversation/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/README.md",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/package.json",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/apply.ts",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/contract/draft-editor.ts",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/contract/input.ts",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/contract/records.ts",
+          "disposition": "excluded",
+          "reason": "Do not add optional durable user-message identity solely for quotes. This implementation extracts visible DOM text and persists no source index or source navigation. Existing Assistant durable identity remains required for Assistant selection eligibility; user records keep their current representation."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/contract/slots.ts",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/contract/text-interaction.ts",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/contract/user-text.ts",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/conversation/assembly.ts",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/conversation/interaction-registry.ts",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/conversation/user-text-document.ts",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/conversation/user-text-registry.ts",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/draft.ts",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/index.ts",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/input/editor/DraftEditor.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/input/editor/QuoteNode.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/input/editor/keymap.ts",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/input/editor/projection.ts",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/input/editor/runtime.ts",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/input/facade.ts",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/input/hub.ts",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/input/prompt.ts",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/locales.ts",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/queue/QueueDock.module.css",
+          "disposition": "retained-newer",
+          "reason": "Retain Harnessy's existing dock geometry and controls. Supply full original preview text through the new factory and its own ellipsis policy, removing the hard 200-code-point truncation without replacing the dock layout. Queue owner tests cover the complete text and existing edit controls."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/queue/QueueDock.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/user-text/UserText.module.css",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/user-text/UserText.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/user-text/display-rules.ts",
+          "disposition": "retained-newer",
+          "reason": "Ship the final forward-candidate evaluator and linear whitespace matchers directly, with their current .client scheduling/registry/whitespace regressions. Do not create earlier transform/display helpers or transient test filenames that later reviewed commits replace."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/user-text/session-reference-rule.ts",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/src/client/user-text/whitespace-rules.ts",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/tests/apply-inject.client.spec.tsx",
+          "disposition": "retained-newer",
+          "reason": "Keep current real-service/Slot fixture assembly instead of importing a different upstream mock structure. The full selected Chat/Conversation owner run exercises these unchanged tests; current typed fixtures and the real quote-plugin browser composition supply the new interaction and factory services."
+        },
+        {
+          "path": "packages/client/ui-conversation/tests/draft-document.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/tests/editor-focus.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/tests/interaction-registry.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/tests/queue-dock.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/tests/quote-composer.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/tests/quote-user-text.client.spec.tsx",
+          "disposition": "retained-newer",
+          "reason": "Keep quote-specific presentation tests with packages/session/message-quotes, using the real pure matcher and a current Harnessy callback fixture. Do not import an additional copy or a secret-mask dependency solely to mirror upstream test wiring."
+        },
+        {
+          "path": "packages/client/ui-conversation/tests/user-text-component-fixture.client.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/tests/user-text-display.client.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Ship the final forward-candidate evaluator and linear whitespace matchers directly, with their current .client scheduling/registry/whitespace regressions. Do not create earlier transform/display helpers or transient test filenames that later reviewed commits replace."
+        },
+        {
+          "path": "packages/client/ui-conversation/tests/user-text-display.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Ship the final forward-candidate evaluator and linear whitespace matchers directly, with their current .client scheduling/registry/whitespace regressions. Do not create earlier transform/display helpers or transient test filenames that later reviewed commits replace."
+        },
+        {
+          "path": "packages/client/ui-conversation/tests/user-text-reference-composition.client.spec.ts",
+          "disposition": "excluded",
+          "reason": "This test specifically composes the excluded file/folder, skill and goal keyed providers. Retain current reference semantics; verify the adopted generic scheduler with its deterministic candidate/fact cases and preserve current navigation through dedicated callback and real-browser tests instead of inventing those providers for a test."
+        },
+        {
+          "path": "packages/client/ui-conversation/tests/user-text-registry.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/tests/user-text-registry.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Ship the final forward-candidate evaluator and linear whitespace matchers directly, with their current .client scheduling/registry/whitespace regressions. Do not create earlier transform/display helpers or transient test filenames that later reviewed commits replace."
+        },
+        {
+          "path": "packages/client/ui-conversation/tests/user-text-scheduling.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/tests/user-text-whitespace.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-conversation/tests/user-text.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt pure original-text JSON matching and independent fact-driven caches, scoped text-interaction dispatch, atomic QuoteNode editing, non-overlapping semantic draft persistence, undo/removal, Markdown serialization, failed-send restoration and full queue previews into current Conversation owners. Preserve existing command representation, attachment receipts, mobile caret/focus behavior and concurrent-send lifecycle; keep presentation callbacks outside facts and persisted nodes."
+        },
+        {
+          "path": "packages/client/ui-goal/README.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-goal/README.md",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-goal/README.zh.md",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-goal/src/client/GoalCommandInputView.tsx",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-goal/src/client/GoalCommandReference.tsx",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-goal/src/client/index.ts",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-goal/src/client/user-text-rules.ts",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-goal/tests/goal-command-input.client.spec.tsx",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-goal/tests/user-text-rules.client.spec.ts",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-goal/tests/user-text-rules.spec.ts",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-primitives/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Provide compact literal quote previews, content-fitting viewport-safe popovers, grouped hover ownership and inline Slot anchors/errors/fallbacks. Preserve existing nested-tooltip suppression; cancel a suppressed card so it cannot reclaim its replacement. Exclude code-language labels from selection and update only their seven expected DOM markers. Verify pointer gaps, scrollable excerpts, undo controls, failure placeholders and both actual themes."
+        },
+        {
+          "path": "packages/client/ui-primitives/README.md",
+          "disposition": "adopted",
+          "reason": "Provide compact literal quote previews, content-fitting viewport-safe popovers, grouped hover ownership and inline Slot anchors/errors/fallbacks. Preserve existing nested-tooltip suppression; cancel a suppressed card so it cannot reclaim its replacement. Exclude code-language labels from selection and update only their seven expected DOM markers. Verify pointer gaps, scrollable excerpts, undo controls, failure placeholders and both actual themes."
+        },
+        {
+          "path": "packages/client/ui-primitives/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Provide compact literal quote previews, content-fitting viewport-safe popovers, grouped hover ownership and inline Slot anchors/errors/fallbacks. Preserve existing nested-tooltip suppression; cancel a suppressed card so it cannot reclaim its replacement. Exclude code-language labels from selection and update only their seven expected DOM markers. Verify pointer gaps, scrollable excerpts, undo controls, failure placeholders and both actual themes."
+        },
+        {
+          "path": "packages/client/ui-primitives/src/HoverCard.module.css",
+          "disposition": "adopted",
+          "reason": "Provide compact literal quote previews, content-fitting viewport-safe popovers, grouped hover ownership and inline Slot anchors/errors/fallbacks. Preserve existing nested-tooltip suppression; cancel a suppressed card so it cannot reclaim its replacement. Exclude code-language labels from selection and update only their seven expected DOM markers. Verify pointer gaps, scrollable excerpts, undo controls, failure placeholders and both actual themes."
+        },
+        {
+          "path": "packages/client/ui-primitives/src/HoverCard.tsx",
+          "disposition": "adopted",
+          "reason": "Provide compact literal quote previews, content-fitting viewport-safe popovers, grouped hover ownership and inline Slot anchors/errors/fallbacks. Preserve existing nested-tooltip suppression; cancel a suppressed card so it cannot reclaim its replacement. Exclude code-language labels from selection and update only their seven expected DOM markers. Verify pointer gaps, scrollable excerpts, undo controls, failure placeholders and both actual themes."
+        },
+        {
+          "path": "packages/client/ui-primitives/src/HoverCardGroup.tsx",
+          "disposition": "adopted",
+          "reason": "Provide compact literal quote previews, content-fitting viewport-safe popovers, grouped hover ownership and inline Slot anchors/errors/fallbacks. Preserve existing nested-tooltip suppression; cancel a suppressed card so it cannot reclaim its replacement. Exclude code-language labels from selection and update only their seven expected DOM markers. Verify pointer gaps, scrollable excerpts, undo controls, failure placeholders and both actual themes."
+        },
+        {
+          "path": "packages/client/ui-primitives/src/QuotePreview.module.css",
+          "disposition": "adopted",
+          "reason": "Provide compact literal quote previews, content-fitting viewport-safe popovers, grouped hover ownership and inline Slot anchors/errors/fallbacks. Preserve existing nested-tooltip suppression; cancel a suppressed card so it cannot reclaim its replacement. Exclude code-language labels from selection and update only their seven expected DOM markers. Verify pointer gaps, scrollable excerpts, undo controls, failure placeholders and both actual themes."
+        },
+        {
+          "path": "packages/client/ui-primitives/src/QuotePreview.tsx",
+          "disposition": "adopted",
+          "reason": "Provide compact literal quote previews, content-fitting viewport-safe popovers, grouped hover ownership and inline Slot anchors/errors/fallbacks. Preserve existing nested-tooltip suppression; cancel a suppressed card so it cannot reclaim its replacement. Exclude code-language labels from selection and update only their seven expected DOM markers. Verify pointer gaps, scrollable excerpts, undo controls, failure placeholders and both actual themes."
+        },
+        {
+          "path": "packages/client/ui-primitives/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Provide compact literal quote previews, content-fitting viewport-safe popovers, grouped hover ownership and inline Slot anchors/errors/fallbacks. Preserve existing nested-tooltip suppression; cancel a suppressed card so it cannot reclaim its replacement. Exclude code-language labels from selection and update only their seven expected DOM markers. Verify pointer gaps, scrollable excerpts, undo controls, failure placeholders and both actual themes."
+        },
+        {
+          "path": "packages/client/ui-primitives/src/markdown/CodeBlock.tsx",
+          "disposition": "adopted",
+          "reason": "Provide compact literal quote previews, content-fitting viewport-safe popovers, grouped hover ownership and inline Slot anchors/errors/fallbacks. Preserve existing nested-tooltip suppression; cancel a suppressed card so it cannot reclaim its replacement. Exclude code-language labels from selection and update only their seven expected DOM markers. Verify pointer gaps, scrollable excerpts, undo controls, failure placeholders and both actual themes."
+        },
+        {
+          "path": "packages/client/ui-primitives/src/markdown/MarkdownText.tsx",
+          "disposition": "adopted",
+          "reason": "Provide compact literal quote previews, content-fitting viewport-safe popovers, grouped hover ownership and inline Slot anchors/errors/fallbacks. Preserve existing nested-tooltip suppression; cancel a suppressed card so it cannot reclaim its replacement. Exclude code-language labels from selection and update only their seven expected DOM markers. Verify pointer gaps, scrollable excerpts, undo controls, failure placeholders and both actual themes."
+        },
+        {
+          "path": "packages/client/ui-primitives/src/markdown/quote-text.ts",
+          "disposition": "adopted",
+          "reason": "Provide compact literal quote previews, content-fitting viewport-safe popovers, grouped hover ownership and inline Slot anchors/errors/fallbacks. Preserve existing nested-tooltip suppression; cancel a suppressed card so it cannot reclaim its replacement. Exclude code-language labels from selection and update only their seven expected DOM markers. Verify pointer gaps, scrollable excerpts, undo controls, failure placeholders and both actual themes."
+        },
+        {
+          "path": "packages/client/ui-primitives/src/user-text.tsx",
+          "disposition": "adopted",
+          "reason": "Provide compact literal quote previews, content-fitting viewport-safe popovers, grouped hover ownership and inline Slot anchors/errors/fallbacks. Preserve existing nested-tooltip suppression; cancel a suppressed card so it cannot reclaim its replacement. Exclude code-language labels from selection and update only their seven expected DOM markers. Verify pointer gaps, scrollable excerpts, undo controls, failure placeholders and both actual themes."
+        },
+        {
+          "path": "packages/client/ui-primitives/tests/fixtures/markdown-dom/code-fences.settled.txt",
+          "disposition": "adopted",
+          "reason": "Provide compact literal quote previews, content-fitting viewport-safe popovers, grouped hover ownership and inline Slot anchors/errors/fallbacks. Preserve existing nested-tooltip suppression; cancel a suppressed card so it cannot reclaim its replacement. Exclude code-language labels from selection and update only their seven expected DOM markers. Verify pointer gaps, scrollable excerpts, undo controls, failure placeholders and both actual themes."
+        },
+        {
+          "path": "packages/client/ui-primitives/tests/fixtures/markdown-dom/code-fences.streaming.txt",
+          "disposition": "adopted",
+          "reason": "Provide compact literal quote previews, content-fitting viewport-safe popovers, grouped hover ownership and inline Slot anchors/errors/fallbacks. Preserve existing nested-tooltip suppression; cancel a suppressed card so it cannot reclaim its replacement. Exclude code-language labels from selection and update only their seven expected DOM markers. Verify pointer gaps, scrollable excerpts, undo controls, failure placeholders and both actual themes."
+        },
+        {
+          "path": "packages/client/ui-primitives/tests/fixtures/markdown-dom/fence-trailing-blank-lines.settled.txt",
+          "disposition": "adopted",
+          "reason": "Provide compact literal quote previews, content-fitting viewport-safe popovers, grouped hover ownership and inline Slot anchors/errors/fallbacks. Preserve existing nested-tooltip suppression; cancel a suppressed card so it cannot reclaim its replacement. Exclude code-language labels from selection and update only their seven expected DOM markers. Verify pointer gaps, scrollable excerpts, undo controls, failure placeholders and both actual themes."
+        },
+        {
+          "path": "packages/client/ui-primitives/tests/fixtures/markdown-dom/fence-trailing-blank-lines.streaming.txt",
+          "disposition": "adopted",
+          "reason": "Provide compact literal quote previews, content-fitting viewport-safe popovers, grouped hover ownership and inline Slot anchors/errors/fallbacks. Preserve existing nested-tooltip suppression; cancel a suppressed card so it cannot reclaim its replacement. Exclude code-language labels from selection and update only their seven expected DOM markers. Verify pointer gaps, scrollable excerpts, undo controls, failure placeholders and both actual themes."
+        },
+        {
+          "path": "packages/client/ui-primitives/tests/fixtures/markdown-dom/lists-tight-loose-nested.settled.txt",
+          "disposition": "adopted",
+          "reason": "Provide compact literal quote previews, content-fitting viewport-safe popovers, grouped hover ownership and inline Slot anchors/errors/fallbacks. Preserve existing nested-tooltip suppression; cancel a suppressed card so it cannot reclaim its replacement. Exclude code-language labels from selection and update only their seven expected DOM markers. Verify pointer gaps, scrollable excerpts, undo controls, failure placeholders and both actual themes."
+        },
+        {
+          "path": "packages/client/ui-primitives/tests/fixtures/markdown-dom/lists-tight-loose-nested.streaming.txt",
+          "disposition": "adopted",
+          "reason": "Provide compact literal quote previews, content-fitting viewport-safe popovers, grouped hover ownership and inline Slot anchors/errors/fallbacks. Preserve existing nested-tooltip suppression; cancel a suppressed card so it cannot reclaim its replacement. Exclude code-language labels from selection and update only their seven expected DOM markers. Verify pointer gaps, scrollable excerpts, undo controls, failure placeholders and both actual themes."
+        },
+        {
+          "path": "packages/client/ui-primitives/tests/fixtures/markdown-dom/math-edge-cases.streaming.txt",
+          "disposition": "adopted",
+          "reason": "Provide compact literal quote previews, content-fitting viewport-safe popovers, grouped hover ownership and inline Slot anchors/errors/fallbacks. Preserve existing nested-tooltip suppression; cancel a suppressed card so it cannot reclaim its replacement. Exclude code-language labels from selection and update only their seven expected DOM markers. Verify pointer gaps, scrollable excerpts, undo controls, failure placeholders and both actual themes."
+        },
+        {
+          "path": "packages/client/ui-primitives/tests/hover-card-group.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Provide compact literal quote previews, content-fitting viewport-safe popovers, grouped hover ownership and inline Slot anchors/errors/fallbacks. Preserve existing nested-tooltip suppression; cancel a suppressed card so it cannot reclaim its replacement. Exclude code-language labels from selection and update only their seven expected DOM markers. Verify pointer gaps, scrollable excerpts, undo controls, failure placeholders and both actual themes."
+        },
+        {
+          "path": "packages/client/ui-primitives/tests/hover-card.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Provide compact literal quote previews, content-fitting viewport-safe popovers, grouped hover ownership and inline Slot anchors/errors/fallbacks. Preserve existing nested-tooltip suppression; cancel a suppressed card so it cannot reclaim its replacement. Exclude code-language labels from selection and update only their seven expected DOM markers. Verify pointer gaps, scrollable excerpts, undo controls, failure placeholders and both actual themes."
+        },
+        {
+          "path": "packages/client/ui-primitives/tests/quote-preview.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Provide compact literal quote previews, content-fitting viewport-safe popovers, grouped hover ownership and inline Slot anchors/errors/fallbacks. Preserve existing nested-tooltip suppression; cancel a suppressed card so it cannot reclaim its replacement. Exclude code-language labels from selection and update only their seven expected DOM markers. Verify pointer gaps, scrollable excerpts, undo controls, failure placeholders and both actual themes."
+        },
+        {
+          "path": "packages/client/ui-primitives/tests/quote-text.spec.ts",
+          "disposition": "adopted",
+          "reason": "Provide compact literal quote previews, content-fitting viewport-safe popovers, grouped hover ownership and inline Slot anchors/errors/fallbacks. Preserve existing nested-tooltip suppression; cancel a suppressed card so it cannot reclaim its replacement. Exclude code-language labels from selection and update only their seven expected DOM markers. Verify pointer gaps, scrollable excerpts, undo controls, failure placeholders and both actual themes."
+        },
+        {
+          "path": "packages/client/ui-reference/README.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-reference/README.md",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-reference/README.zh.md",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-reference/package.json",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-reference/src/client/FileReference.tsx",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-reference/src/client/index.ts",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-reference/src/client/locales.ts",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-reference/src/client/user-text-rules.ts",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-reference/tests/user-text-rules.client.spec.ts",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-reference/tests/user-text-rules.spec.ts",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-reference/tsconfig.json",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-renderer/src/client/scoped-slots.tsx",
+          "disposition": "adopted",
+          "reason": "Provide compact literal quote previews, content-fitting viewport-safe popovers, grouped hover ownership and inline Slot anchors/errors/fallbacks. Preserve existing nested-tooltip suppression; cancel a suppressed card so it cannot reclaim its replacement. Exclude code-language labels from selection and update only their seven expected DOM markers. Verify pointer gaps, scrollable excerpts, undo controls, failure placeholders and both actual themes."
+        },
+        {
+          "path": "packages/client/ui-renderer/tests/inline-slots.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Provide compact literal quote previews, content-fitting viewport-safe popovers, grouped hover ownership and inline Slot anchors/errors/fallbacks. Preserve existing nested-tooltip suppression; cancel a suppressed card so it cannot reclaim its replacement. Exclude code-language labels from selection and update only their seven expected DOM markers. Verify pointer gaps, scrollable excerpts, undo controls, failure placeholders and both actual themes."
+        },
+        {
+          "path": "packages/client/ui-sidebar-right/tests/expand-button.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt current typed input fixtures to the additive quote action and supply the real interaction registry where Chat is assembled. Retain existing assertions and fail loudly on unexpected quote insertion. Passing indirect owner and tool-composition runs verify these surfaces."
+        },
+        {
+          "path": "packages/client/ui-sidebar-right/tests/guide-body.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt current typed input fixtures to the additive quote action and supply the real interaction registry where Chat is assembled. Retain existing assertions and fail loudly on unexpected quote insertion. Passing indirect owner and tool-composition runs verify these surfaces."
+        },
+        {
+          "path": "packages/client/ui-sidebar-terminal/tests/terminal-guide.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt current typed input fixtures to the additive quote action and supply the real interaction registry where Chat is assembled. Retain existing assertions and fail loudly on unexpected quote insertion. Passing indirect owner and tool-composition runs verify these surfaces."
+        },
+        {
+          "path": "packages/client/ui-skill/README.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-skill/README.md",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-skill/README.zh.md",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-skill/package.json",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-skill/src/client/SkillReference.tsx",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-skill/src/client/index.ts",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-skill/src/client/user-text-rules.ts",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-skill/tests/user-text-rules.client.spec.ts",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-skill/tests/user-text-rules.spec.ts",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-skill/tsconfig.json",
+          "disposition": "excluded",
+          "reason": "Retain the current file/skill preview owners and command presentation. The upstream keyed reference-renderer/provider refactor, its additional file failure modal, command facts and associated declarations/tests are not required for quotes and would replace custom presentation. The adapted UserText factory delegates unmatched text to Harnessy's existing projectUserText; direct navigation regressions verify file and loaded-skill activation outside quotes while excerpt contents remain literal. No claim is made that the excluded provider-specific original-text competition grammar was implemented."
+        },
+        {
+          "path": "packages/client/ui-slots/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Provide compact literal quote previews, content-fitting viewport-safe popovers, grouped hover ownership and inline Slot anchors/errors/fallbacks. Preserve existing nested-tooltip suppression; cancel a suppressed card so it cannot reclaim its replacement. Exclude code-language labels from selection and update only their seven expected DOM markers. Verify pointer gaps, scrollable excerpts, undo controls, failure placeholders and both actual themes."
+        },
+        {
+          "path": "packages/client/ui-subagent/tests/conversation-ui.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt current typed input fixtures to the additive quote action and supply the real interaction registry where Chat is assembled. Retain existing assertions and fail loudly on unexpected quote insertion. Passing indirect owner and tool-composition runs verify these surfaces."
+        },
+        {
+          "path": "packages/client/ui-tool/tests/chat-ptc-subcalls.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt current typed input fixtures to the additive quote action and supply the real interaction registry where Chat is assembled. Retain existing assertions and fail loudly on unexpected quote insertion. Passing indirect owner and tool-composition runs verify these surfaces."
+        },
+        {
+          "path": "packages/client/ui-trajectory/tests/views.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt current typed input fixtures to the additive quote action and supply the real interaction registry where Chat is assembled. Retain existing assertions and fail loudly on unexpected quote insertion. Passing indirect owner and tool-composition runs verify these surfaces."
+        },
+        {
+          "path": "packages/client/ui-user-questions/tests/plan-review-panel.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt current typed input fixtures to the additive quote action and supply the real interaction registry where Chat is assembled. Retain existing assertions and fail loudly on unexpected quote insertion. Passing indirect owner and tool-composition runs verify these surfaces."
+        },
+        {
+          "path": "packages/client/ui-user-questions/tests/user-questions-composer.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt current typed input fixtures to the additive quote action and supply the real interaction registry where Chat is assembled. Retain existing assertions and fail loudly on unexpected quote insertion. Passing indirect owner and tool-composition runs verify these surfaces."
+        },
+        {
+          "path": "packages/client/ui-workflow-run/tests/workflow-run.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt current typed input fixtures to the additive quote action and supply the real interaction registry where Chat is assembled. Retain existing assertions and fail loudly on unexpected quote insertion. Passing indirect owner and tool-composition runs verify these surfaces."
+        },
+        {
+          "path": "packages/experimental/client-ui-voice-input/tests/voice-input.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Adapt current typed input fixtures to the additive quote action and supply the real interaction registry where Chat is assembled. Retain existing assertions and fail loudly on unexpected quote insertion. Passing indirect owner and tool-composition runs verify these surfaces."
+        },
+        {
+          "path": "packages/extensions/cordis-client-runner/src/client/slot-catalog.ts",
+          "disposition": "adopted",
+          "reason": "Update the actual current package manifest, compiler owner, generated catalog, package map or paired documentation for the adopted quote/text services. Regenerate rather than transplant upstream catalogs; preserve custom profile resolution and exact existing dependency peers. Full custom build, frozen-lock validation, package hygiene and documentation checks qualify the current files."
+        },
+        {
+          "path": "packages/preset/agent-preset/skills/cordis-composition-reference/references/packages.md",
+          "disposition": "adopted",
+          "reason": "Update the actual current package manifest, compiler owner, generated catalog, package map or paired documentation for the adopted quote/text services. Regenerate rather than transplant upstream catalogs; preserve custom profile resolution and exact existing dependency peers. Full custom build, frozen-lock validation, package hygiene and documentation checks qualify the current files."
+        },
+        {
+          "path": "packages/session/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update the actual current package manifest, compiler owner, generated catalog, package map or paired documentation for the adopted quote/text services. Regenerate rather than transplant upstream catalogs; preserve custom profile resolution and exact existing dependency peers. Full custom build, frozen-lock validation, package hygiene and documentation checks qualify the current files."
+        },
+        {
+          "path": "packages/session/README.md",
+          "disposition": "adopted",
+          "reason": "Update the actual current package manifest, compiler owner, generated catalog, package map or paired documentation for the adopted quote/text services. Regenerate rather than transplant upstream catalogs; preserve custom profile resolution and exact existing dependency peers. Full custom build, frozen-lock validation, package hygiene and documentation checks qualify the current files."
+        },
+        {
+          "path": "packages/session/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Update the actual current package manifest, compiler owner, generated catalog, package map or paired documentation for the adopted quote/text services. Regenerate rather than transplant upstream catalogs; preserve custom profile resolution and exact existing dependency peers. Full custom build, frozen-lock validation, package hygiene and documentation checks qualify the current files."
+        },
+        {
+          "path": "packages/session/message-quotes/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Add the effect-owned quote plugin, literal explicit-blockquote recognition, selection action, dictionaries, current package/compiler metadata and Host no-op entry. Preserve normal Host skill/Session-reference processing. Tests cover plugin disposal/admission, literal nested syntax, source ranges, ordinary navigation, and the actual custom browser composition."
+        },
+        {
+          "path": "packages/session/message-quotes/README.md",
+          "disposition": "adopted",
+          "reason": "Add the effect-owned quote plugin, literal explicit-blockquote recognition, selection action, dictionaries, current package/compiler metadata and Host no-op entry. Preserve normal Host skill/Session-reference processing. Tests cover plugin disposal/admission, literal nested syntax, source ranges, ordinary navigation, and the actual custom browser composition."
+        },
+        {
+          "path": "packages/session/message-quotes/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Add the effect-owned quote plugin, literal explicit-blockquote recognition, selection action, dictionaries, current package/compiler metadata and Host no-op entry. Preserve normal Host skill/Session-reference processing. Tests cover plugin disposal/admission, literal nested syntax, source ranges, ordinary navigation, and the actual custom browser composition."
+        },
+        {
+          "path": "packages/session/message-quotes/package.json",
+          "disposition": "adopted",
+          "reason": "Add the effect-owned quote plugin, literal explicit-blockquote recognition, selection action, dictionaries, current package/compiler metadata and Host no-op entry. Preserve normal Host skill/Session-reference processing. Tests cover plugin disposal/admission, literal nested syntax, source ranges, ordinary navigation, and the actual custom browser composition."
+        },
+        {
+          "path": "packages/session/message-quotes/src/client/QuoteSelection.module.css",
+          "disposition": "adopted",
+          "reason": "Add the effect-owned quote plugin, literal explicit-blockquote recognition, selection action, dictionaries, current package/compiler metadata and Host no-op entry. Preserve normal Host skill/Session-reference processing. Tests cover plugin disposal/admission, literal nested syntax, source ranges, ordinary navigation, and the actual custom browser composition."
+        },
+        {
+          "path": "packages/session/message-quotes/src/client/QuoteSelection.tsx",
+          "disposition": "adopted",
+          "reason": "Add the effect-owned quote plugin, literal explicit-blockquote recognition, selection action, dictionaries, current package/compiler metadata and Host no-op entry. Preserve normal Host skill/Session-reference processing. Tests cover plugin disposal/admission, literal nested syntax, source ranges, ordinary navigation, and the actual custom browser composition."
+        },
+        {
+          "path": "packages/session/message-quotes/src/client/QuotedUserText.tsx",
+          "disposition": "adopted",
+          "reason": "Add the effect-owned quote plugin, literal explicit-blockquote recognition, selection action, dictionaries, current package/compiler metadata and Host no-op entry. Preserve normal Host skill/Session-reference processing. Tests cover plugin disposal/admission, literal nested syntax, source ranges, ordinary navigation, and the actual custom browser composition."
+        },
+        {
+          "path": "packages/session/message-quotes/src/client/index.ts",
+          "disposition": "adopted",
+          "reason": "Add the effect-owned quote plugin, literal explicit-blockquote recognition, selection action, dictionaries, current package/compiler metadata and Host no-op entry. Preserve normal Host skill/Session-reference processing. Tests cover plugin disposal/admission, literal nested syntax, source ranges, ordinary navigation, and the actual custom browser composition."
+        },
+        {
+          "path": "packages/session/message-quotes/src/client/locales.ts",
+          "disposition": "adopted",
+          "reason": "Add the effect-owned quote plugin, literal explicit-blockquote recognition, selection action, dictionaries, current package/compiler metadata and Host no-op entry. Preserve normal Host skill/Session-reference processing. Tests cover plugin disposal/admission, literal nested syntax, source ranges, ordinary navigation, and the actual custom browser composition."
+        },
+        {
+          "path": "packages/session/message-quotes/src/client/quote-rule.ts",
+          "disposition": "adopted",
+          "reason": "Add the effect-owned quote plugin, literal explicit-blockquote recognition, selection action, dictionaries, current package/compiler metadata and Host no-op entry. Preserve normal Host skill/Session-reference processing. Tests cover plugin disposal/admission, literal nested syntax, source ranges, ordinary navigation, and the actual custom browser composition."
+        },
+        {
+          "path": "packages/session/message-quotes/src/client/quote-text.ts",
+          "disposition": "adopted",
+          "reason": "Add the effect-owned quote plugin, literal explicit-blockquote recognition, selection action, dictionaries, current package/compiler metadata and Host no-op entry. Preserve normal Host skill/Session-reference processing. Tests cover plugin disposal/admission, literal nested syntax, source ranges, ordinary navigation, and the actual custom browser composition."
+        },
+        {
+          "path": "packages/session/message-quotes/src/css-modules.d.ts",
+          "disposition": "adopted",
+          "reason": "Add the effect-owned quote plugin, literal explicit-blockquote recognition, selection action, dictionaries, current package/compiler metadata and Host no-op entry. Preserve normal Host skill/Session-reference processing. Tests cover plugin disposal/admission, literal nested syntax, source ranges, ordinary navigation, and the actual custom browser composition."
+        },
+        {
+          "path": "packages/session/message-quotes/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Add the effect-owned quote plugin, literal explicit-blockquote recognition, selection action, dictionaries, current package/compiler metadata and Host no-op entry. Preserve normal Host skill/Session-reference processing. Tests cover plugin disposal/admission, literal nested syntax, source ranges, ordinary navigation, and the actual custom browser composition."
+        },
+        {
+          "path": "packages/session/message-quotes/tests/browser-plugin.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Add the effect-owned quote plugin, literal explicit-blockquote recognition, selection action, dictionaries, current package/compiler metadata and Host no-op entry. Preserve normal Host skill/Session-reference processing. Tests cover plugin disposal/admission, literal nested syntax, source ranges, ordinary navigation, and the actual custom browser composition."
+        },
+        {
+          "path": "packages/session/message-quotes/tests/host-entry.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Add the effect-owned quote plugin, literal explicit-blockquote recognition, selection action, dictionaries, current package/compiler metadata and Host no-op entry. Preserve normal Host skill/Session-reference processing. Tests cover plugin disposal/admission, literal nested syntax, source ranges, ordinary navigation, and the actual custom browser composition."
+        },
+        {
+          "path": "packages/session/message-quotes/tests/quote-selection.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Add the effect-owned quote plugin, literal explicit-blockquote recognition, selection action, dictionaries, current package/compiler metadata and Host no-op entry. Preserve normal Host skill/Session-reference processing. Tests cover plugin disposal/admission, literal nested syntax, source ranges, ordinary navigation, and the actual custom browser composition."
+        },
+        {
+          "path": "packages/session/message-quotes/tests/quote-text.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Add the effect-owned quote plugin, literal explicit-blockquote recognition, selection action, dictionaries, current package/compiler metadata and Host no-op entry. Preserve normal Host skill/Session-reference processing. Tests cover plugin disposal/admission, literal nested syntax, source ranges, ordinary navigation, and the actual custom browser composition."
+        },
+        {
+          "path": "packages/session/message-quotes/tests/quote-user-text.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Add the effect-owned quote plugin, literal explicit-blockquote recognition, selection action, dictionaries, current package/compiler metadata and Host no-op entry. Preserve normal Host skill/Session-reference processing. Tests cover plugin disposal/admission, literal nested syntax, source ranges, ordinary navigation, and the actual custom browser composition."
+        },
+        {
+          "path": "packages/session/message-quotes/tsconfig.json",
+          "disposition": "adopted",
+          "reason": "Add the effect-owned quote plugin, literal explicit-blockquote recognition, selection action, dictionaries, current package/compiler metadata and Host no-op entry. Preserve normal Host skill/Session-reference processing. Tests cover plugin disposal/admission, literal nested syntax, source ranges, ordinary navigation, and the actual custom browser composition."
+        },
+        {
+          "path": "packages/session/message-quotes/tsdown.config.ts",
+          "disposition": "adopted",
+          "reason": "Add the effect-owned quote plugin, literal explicit-blockquote recognition, selection action, dictionaries, current package/compiler metadata and Host no-op entry. Preserve normal Host skill/Session-reference processing. Tests cover plugin disposal/admission, literal nested syntax, source ranges, ordinary navigation, and the actual custom browser composition."
+        },
+        {
+          "path": "pnpm-lock.yaml",
+          "disposition": "adopted",
+          "reason": "Update the actual current package manifest, compiler owner, generated catalog, package map or paired documentation for the adopted quote/text services. Regenerate rather than transplant upstream catalogs; preserve custom profile resolution and exact existing dependency peers. Full custom build, frozen-lock validation, package hygiene and documentation checks qualify the current files."
+        },
+        {
+          "path": "snapshots/session/subagent-spawn-in-process/runtime.cordis.yml",
+          "disposition": "excluded",
+          "reason": "This mixed quote commit adds unrelated recorded parent/child settlement ordering. Retain Harnessy's existing recorded subagent scenario and lifecycle ownership; do not silently alter its replay ordering as part of quote adoption. This is an explicit exclusion of that fixture-only hunk, not a claim that it was integrated."
+        },
+        {
+          "path": "snapshots/session/subagent-spawn-in-process/settlement-order.mjs",
+          "disposition": "excluded",
+          "reason": "This mixed quote commit adds unrelated recorded parent/child settlement ordering. Retain Harnessy's existing recorded subagent scenario and lifecycle ownership; do not silently alter its replay ordering as part of quote adoption. This is an explicit exclusion of that fixture-only hunk, not a claim that it was integrated."
+        },
+        {
+          "path": "snapshots/web/rich-text-quotes/snapshot.yml",
+          "disposition": "excluded",
+          "reason": "The quote browser scenario borrows a Session only as replay input and asserts persisted events directly; its golden is UI-only. Follow current expected-output ownership instead of declaring a top-level Session round-trip snapshot."
+        },
+        {
+          "path": "snapshots/web/rich-text-quotes/ui.expected.md",
+          "disposition": "retained-newer",
+          "reason": "Record the actual custom Harnessy interface under apps/web/tests/expected/rich-text-quotes/ui.expected.md and compare it unchanged in replay. Preserve custom MCP controls, Session rows, work-process presentation, account UI and current composer geometry instead of the stock golden."
+        },
+        {
+          "path": "tsconfig.base.json",
+          "disposition": "adopted",
+          "reason": "Update the actual current package manifest, compiler owner, generated catalog, package map or paired documentation for the adopted quote/text services. Regenerate rather than transplant upstream catalogs; preserve custom profile resolution and exact existing dependency peers. Full custom build, frozen-lock validation, package hygiene and documentation checks qualify the current files."
+        },
+        {
+          "path": "tsconfig.client.json",
+          "disposition": "adopted",
+          "reason": "Update the actual current package manifest, compiler owner, generated catalog, package map or paired documentation for the adopted quote/text services. Regenerate rather than transplant upstream catalogs; preserve custom profile resolution and exact existing dependency peers. Full custom build, frozen-lock validation, package hygiene and documentation checks qualify the current files."
+        },
+        {
+          "path": "tsconfig.host.json",
+          "disposition": "adopted",
+          "reason": "Update the actual current package manifest, compiler owner, generated catalog, package map or paired documentation for the adopted quote/text services. Regenerate rather than transplant upstream catalogs; preserve custom profile resolution and exact existing dependency peers. Full custom build, frozen-lock validation, package hygiene and documentation checks qualify the current files."
+        }
+      ],
+      "evidence": [
+        "Five exact upstream commits and their complete 214-path union reviewed together; implementation e6c35ca5334dd8a92ebcc7d9716f3f9a918c41f1. Verified 2026-10-25 on Windows, Harnessy 0.1.17, Node 24.14.0 and pnpm 11.7.0. Superseded attachment/display helpers, provider-specific reference refactors, unrelated subagent ordering and old snapshot placement are accounted for explicitly.",
+        "The broad selected-owner run covered 184 files and 3067 cases: 3059 passed, with eight failures confined to seven expected Markdown code-language markers and a custom Chat spacing assertion. After intentional marker/selector updates, all four affected or extended owner files passed 227 cases, including new navigation/null-renderer and durable Assistant eligibility regressions. The initial aggregate is not claimed as clean. A later factory-failure/recovery and literal-reference run passed all ten cases; a separate ten-file indirect-input run passed 260 cases, and five Host/tool composition files passed 68 cases. The final Host Markdown-admission case passed again after adapting the synchronous fixture API. Counts overlap and are not summed.",
+        "Two real built Harnessy browser cases passed qualified refresh and unchanged replay, then both passed on the final regenerated-catalog artifacts with light/dark screenshots inspected. Coverage includes pointer-up admission, Escape, historical paging, selection occlusion and restoration at the composer, whole-node removal/undo/Delete, Session switching and reload, legacy plain drafts, long scrollable literal excerpts at narrow viewports, exclusive adjacent popovers with hover bridges above/below, ordinary skill/Session-reference processing and persisted text-only submission without quote metadata. The first output write needed the new owner-local golden directory; a later theme loop needed genuine pointer re-entry after Escape. Neither required weakening product assertions.",
+        "An isolated negative control replaced only the parent finalized/durable eligibility predicate with true; the focused test failed on a streaming Partial source, then the exact production file was restored. The corrected focused owner run passed. The grouped HoverCard regression also reproduced a tooltip-hidden card reclaiming a replacement; preserving tooltip suppression and cancelling that hidden card passed all 59 selected primitive cases.",
+        "The complete final custom build passed with 373 Client artifacts and eleven public values. Full repository lint passed; subsequent added/changed Host and browser fixture lint passed after removing an await on the current synchronous Remote factory. Frozen-lock validation passed with only 48 intended workspace importer additions and no provider-peer churn. All sixteen hygiene gates passed, including publint, NodeNext consumers, package dependencies, Client loading, locale ownership, runtime closure and no new unknown casts. The Harnessy product static guard and two Desktop state-isolation cases passed.",
+        "The full doc-sync run passed 42 of 43 gates; its stale Cordis inspect catalog was regenerated and passed the focused freshness check, then included in the final build. All 43 documentation gates therefore have passing evidence; the original aggregate is not claimed as clean. Bilingual package/subsystem/decision pairing, links, wrapping, exported JSDoc, package model experience, limitations, repository references, frozen archives and documentation tests passed. Normal implementation pre-commit checks passed; only foreign Android files remained outside the commit.",
+        "No upstream checkpoint/ancestry merge, release, installed staging-runtime selection/update, main-app update or additional registered application copy is included. Browser checks run the explicit custom overlay and install anchor on disposable fixture data, not an installed Desktop window. Source publication does not establish an installed main update."
       ]
     }
   }
