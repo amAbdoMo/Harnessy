@@ -69,6 +69,7 @@
     "@deepseek-ai/dsh-experimental-speech-to-text": "workspace:*",
     "@deepseek-ai/dsh-experimental-voice-input-bundle": "workspace:*",
     "@deepseek-ai/dsh-experimental-plugin-market-bundle": "workspace:*",
-    "@deepseek-ai/dsh-experimental-personalized-recommendations": "workspace:*"
+    "@deepseek-ai/dsh-experimental-personalized-recommendations": "workspace:*",
+    "@deepseek-ai/dsh-experimental-subagent-oar": "workspace:*"
   }
 }

@@ -43,6 +43,7 @@
 | `@deepseek-ai/dsh-tool-ralph` | `ralph` | `ctx.tools`、`ctx.workflowEngine`、`ctx.subagents`、`ctx.systemPrompt`、`a calling Agent (exec.agent parents every fresh round)` | `tool/call`、`tool/result`、`workflow and child session events during execution` | - | 固定的前台工作流会在每个 Round 启动一个全新的结构化子级；模型只能选择不可变目标和可选的 Round 上限。 |
 | `@deepseek-ai/dsh-tool-skill` | `skill` | `ctx.tools`、`ctx.agents`、`ctx.skills`、`ctx.workingDirectory` | `tool/call`、`tool/result`、`user/message replacement catalogs via agent.inject()` | - | - |
 | `@deepseek-ai/dsh-tool-session-query` | `session_event_read`、`session_event_search`、`session_event_trace`、`session_search`、`session_trace` | `ctx.tools`、`ctx.systemPrompt`、`ctx.sessionQuery`、`a calling Agent for workspace authority` | `tool/call`、`tool/result` | - | 这 5 个只读工具会隐藏提供方游标，并根据不可变的调用 agent 会话为每个结果授权。该包需要选择启用；需要强制截止时间或限制行内输出的组合还会挂载通用超时或 spill 策略。 |
+| `@deepseek-ai/dsh-experimental-tool-subagent-oar` | `subagent_oar` | `ctx.tools`, `ctx.subagents`, `ctx.jobs`, `带 Job 控制工具的调用 Agent` | `tool/call`, `tool/result`, `父智能体拥有的后台 Job 及完成通知` | - | subagent_oar 工具在已配置的别名中选择独立的单次提供方。本目录展示 Codex 和 Claude Code 别名。原生模型、目录和权限设置属于提供方配置。已接受的任务使用现有 Job 控制工具。 |
 | `@deepseek-ai/dsh-tool-subagent` | `list_subagent_models`、`subagent` | `ctx.tools`、`ctx.subagents`、`ctx.systemPrompt`、`用于模型发现和所选路由校验的 ctx.llm` | `tool/call`、`tool/result`、`child session events through the chosen provider` | `subagent`、`subagent_fork` | 注册的委派工具名称取决于加载时 `toolName` 配置（默认为 `subagent`）；上述默认 schema 关闭模型选择，而发现 schema 则展示为已启用 Session 中可用的固定配套工具。Web preset 会在每个新顶层 Session 创建时读取插件页偏好，并为其子 Session 保留该决定；`subagent_fork` 始终使用固定路由。每个实例通过 `modelSelectionSettings`、`backgroundMode` 与 `enableRunInBackground` 独立控制是否读取模型选择设置及其后台行为。 |
 | `@deepseek-ai/dsh-tool-subagent-control` | `interrupt_agent`、`list_agents`、`send_message` | `ctx.tools`、`ctx.subagents`、`ctx.agents and ctx.sessionProjections (list_agents only)` | `tool/call`、`tool/result`、`child session events through ctx.subagents` | - | 这些是控制可继续后台 subagent 的全局命名工具：绑定提供方的 `tool-subagent` 实例注册不同的委派工具；本包注册一次 `send_message` 和 `interrupt_agent`，另由 `list_agents` 通过单独加载的 `/list-agents` 插件提供，其目录行使用 sessionProjections 和实时 Agent 注册表。 |
 | `@deepseek-ai/dsh-tool-jobs` | `job_kill`、`job_list`、`job_output` | `ctx.tools`、`ctx.jobs`、`ctx.systemPrompt` | `tool/call`、`tool/result`、`user/message via agent.inject() for background completion notices` | - | 与任务种类无关的后台任务控制器：后台 bash 命令、PTY 发送和 subagent 都通过相同的 3 个工具读取、列出和终止。加载该插件会挂接控制器，从而启用生产方的 `ctx.jobs.start()`。 |
@@ -2110,6 +2111,47 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 来源：[`packages/session-query/tool-session-query/src/index.ts`](../packages/session-query/tool-session-query/src/index.ts)
 
 这 5 个只读工具会隐藏提供方游标，并根据不可变的调用 agent 会话为每个结果授权。该包需要选择启用；需要强制截止时间或限制行内输出的组合还会挂载通用超时或 spill 策略。
+
+<a id="deepseek-aidsh-experimental-tool-subagent-oar"></a>
+
+## `@deepseek-ai/dsh-experimental-tool-subagent-oar`
+
+### `subagent_oar`
+
+将独立任务委派给已配置的外部智能体，每次调用选择运行时。子任务使用自己的上下文，不查看此对话。工具返回后台 Job id，稍后的完成通知包含最终答复。子任务不接受后续消息。一起启动独立任务，并在运行期间继续有用工作。只剩等待结果时结束当前轮次，不轮询。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "runtime": {
+      "type": "string",
+      "description": "Configured external runtime for this task.",
+      "enum": [
+        "codex",
+        "claude"
+      ]
+    },
+    "description": {
+      "type": "string",
+      "description": "A short description of the delegated task, for display."
+    },
+    "prompt": {
+      "type": "string",
+      "description": "The complete, self-contained task. Include all context the external agent needs."
+    }
+  },
+  "required": [
+    "runtime",
+    "description",
+    "prompt"
+  ]
+}
+```
+
+来源： [`packages/experimental/tool-subagent-oar/src/index.ts`](../packages/experimental/tool-subagent-oar/src/index.ts)
+
+subagent_oar 工具在已配置的别名中选择独立的单次提供方。本目录展示 Codex 和 Claude Code 别名。原生模型、目录和权限设置属于提供方配置。已接受的任务使用现有 Job 控制工具。
 
 <a id="deepseek-aidsh-tool-subagent"></a>
 

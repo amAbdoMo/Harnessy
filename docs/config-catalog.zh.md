@@ -1379,6 +1379,37 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-experimental-speech-to-text-sensevoice -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-experimental-subagent-oar -->
+<a id="deepseek-aidsh-experimental-subagent-oar"></a>
+
+## `@deepseek-ai/dsh-experimental-subagent-oar`
+
+- `inject`: `subagents` · `workingDirectory`
+- `source`: [`packages/experimental/subagent-oar/src/index.ts:30`](../packages/experimental/subagent-oar/src/index.ts)
+
+```ts config-catalog
+/** Native runtime selection and deployment settings for one provider instance. */
+export interface Config {
+  /** OAR default-runtime id; unknown ids fail during plugin activation. */
+  runtime: string
+  /** Name registered on ctx.subagents (default oar). */
+  providerName?: string
+  /** Child directory override; omission inherits the calling Session's current directory. */
+  cwd?: string
+  /** Native model id; omission preserves the runtime's model selection. */
+  model?: string
+  /** Native reasoning effort; unsupported choices fail during startup. */
+  effort?: string
+  /** Explicit entries applied after ambient credential scrubbing; null removes a value. */
+  env?: Record<string, string | null>
+  /** Native arguments; empty Claude arguments use dontAsk without prompts, while other runtimes preserve their defaults. */
+  launchArgs?: string[]
+  /** Optional turn deadline in milliseconds after startup; omission uses parent cancellation only. */
+  timeoutMs?: number
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-experimental-subagent-oar -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-experimental-tool-agent-team -->
 <a id="deepseek-aidsh-experimental-tool-agent-team"></a>
 
@@ -1397,6 +1428,25 @@ export interface Config {
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-experimental-tool-agent-team -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-experimental-tool-subagent-oar -->
+<a id="deepseek-aidsh-experimental-tool-subagent-oar"></a>
+
+## `@deepseek-ai/dsh-experimental-tool-subagent-oar`
+
+- `inject`: `tools` · `subagents` · `jobs`
+- `source`: [`packages/experimental/tool-subagent-oar/src/index.ts:15`](../packages/experimental/tool-subagent-oar/src/index.ts)
+
+```ts config-catalog
+/** Deployment-owned runtime choices exposed by the external delegation tool. */
+export interface Config {
+  /** Model-visible runtime aliases mapped to registered subagent provider names. */
+  providers: Record<string, string>
+  /** Model-facing tool name (default subagent_oar). */
+  toolName?: string
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-experimental-tool-subagent-oar -->
 
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-file-reference-local -->
 <a id="deepseek-aidsh-file-reference-local"></a>

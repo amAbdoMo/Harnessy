@@ -28,6 +28,8 @@
     // not declaration path aliases, keep each package/vendor source compiled
     // under its own tsconfig boundary.
     "paths": {
+      "@deepseek-ai/dsh-experimental-subagent-oar": ["./packages/experimental/subagent-oar/src/index.ts"],
+      "@deepseek-ai/dsh-experimental-tool-subagent-oar": ["./packages/experimental/tool-subagent-oar/src/index.ts"],
       "@deepseek-ai/dsh-experimental-action-cards": ["./packages/experimental/action-cards/src/index.ts"],
       "@deepseek-ai/dsh-experimental-action-cards/types": ["./packages/experimental/action-cards/src/types.ts"],
       "@deepseek-ai/dsh-experimental-client-ui-action-cards": ["./packages/experimental/client-ui-action-cards/src/index.ts"],

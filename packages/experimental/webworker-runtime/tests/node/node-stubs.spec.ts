@@ -25,6 +25,7 @@ import * as libreofficeKit from '../../src/node/external_packages/libreoffice-ki
 import * as execa from '../../src/node/external_packages/execa.ts'
 import * as got from '../../src/node/external_packages/got.ts'
 import * as piAi from '../../src/node/external_packages/pi-ai.ts'
+import * as piCodingAgent from '../../src/node/external_packages/pi-coding-agent.ts'
 import * as ripgrep from '../../src/node/external_packages/ripgrep.ts'
 import * as ws from '../../src/node/external_packages/ws.ts'
 import { REPLACED_EXTERNAL_PACKAGES } from '../../src/node/external_packages/replaced-externals.ts'
@@ -48,6 +49,16 @@ const CALLED: [string, Record<string, unknown>, readonly string[]][] = [
   ['node-pty', nodePty, ['spawn', 'open']],
   ['execa', execa, ['execa']],
   ['got', got.default, ['post']],
+  ['@earendil-works/pi-coding-agent', piCodingAgent, [
+    'getAgentDir', 'initTheme', 'createAgentSessionServices', 'createAgentSessionFromServices',
+    'createBashToolDefinition', 'createMcpExtension', 'defineTool', 'resolveCliModel',
+  ]],
+  ['@earendil-works/pi-coding-agent', { create: piCodingAgent.ModelRuntime.create }, ['create']],
+  ['@earendil-works/pi-coding-agent', { create: piCodingAgent.SettingsManager.create }, ['create']],
+  ['@earendil-works/pi-coding-agent', {
+    create: piCodingAgent.SessionManager.create, open: piCodingAgent.SessionManager.open,
+    inMemory: piCodingAgent.SessionManager.inMemory, list: piCodingAgent.SessionManager.list,
+  }, ['create', 'open', 'inMemory', 'list']],
   ['@deepseek-ai/pi-ai', piAi, [
     'createProvider', 'createModels', 'openAICompletionsApi', 'openAIResponsesApi', 'anthropicMessagesApi',
     'isContextOverflow', 'getSupportedThinkingLevels',
@@ -61,6 +72,9 @@ const CONSTRUCTED: [string, Record<string, unknown>, readonly string[]][] = [
   ['node:worker_threads', workerThreads, ['Worker']],
   ['node:perf_hooks', perfHooks, ['PerformanceObserver']],
   ['ws', ws, ['WebSocket']],
+  ['@earendil-works/pi-coding-agent', piCodingAgent, [
+    'ModelRegistry', 'ProjectTrustStore', 'ModelRuntime', 'SettingsManager', 'SessionManager',
+  ]],
 ]
 
 describe('not-implemented stubs', () => {

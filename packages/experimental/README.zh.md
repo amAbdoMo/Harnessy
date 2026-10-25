@@ -37,6 +37,8 @@ kind: "package-group"
 | [`plugin-recommendations`](plugin-recommendations/README.zh.md) | 内置可选插件推荐 | `ctx.pluginRecommendations` |
 | [`client-ui-plugin-recommendations`](client-ui-plugin-recommendations/README.zh.md) | 插件推荐卡片 | — |
 | [`personalized-recommendations`](personalized-recommendations/README.zh.md) | 默认关闭的推荐组合 | — |
+| [`subagent-oar`](subagent-oar/README.zh.md) | 为已安装的原生编程智能体提供可选 OAR 组合包 | 注册具名 `ctx.subagents` 提供方 |
+| [`tool-subagent-oar`](tool-subagent-oar/README.zh.md) | 通过父智能体拥有的后台 Job 选择运行时 | 在 `ctx.tools` 注册 `subagent_oar` |
 | [`agent-team-profile`](agent-team-profile/README.zh.md) | Agent Teams 协作、工具与 Web UI 组合包 | — |
 | [`agent-team`](agent-team/README.zh.md) | 具名 teammate，成员之间持久消息与共享任务板 | `ctx.agentTeams` |
 | [`client-ui-agent-team`](client-ui-agent-team/README.zh.md) | Web Team roster、任务板与 teammate 导航 | — |

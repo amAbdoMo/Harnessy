@@ -1,0 +1,26 @@
+{
+  // Independently checked Host tests keep external OAR protocol types out of
+  // the main test program. tsconfig.host.json references this declaration-only project.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "lib/oar-test/types",
+    "emitDeclarationOnly": true,
+    "rewriteRelativeImportExtensions": false
+  },
+  "include": [
+    "packages/experimental/subagent-oar/tests/**/*.ts",
+    "packages/experimental/tool-subagent-oar/tests/**/*.ts",
+    "packages/subagent/subagent-claude-code/tests/messages-fixture.ts",
+    "packages/test-support/loader-smoke/tests/fixtures/production-profile.ts",
+    "scripts/pnpm-invocation.ts"
+  ],
+  "references": [
+    { "path": "./packages/experimental/subagent-oar" },
+    { "path": "./packages/experimental/tool-subagent-oar" },
+    { "path": "./packages/test-support/agent-loop-testkit" },
+    { "path": "./packages/test-support/loader-smoke" },
+    { "path": "./packages/jobs/jobs-local" },
+    { "path": "./packages/jobs/tool-jobs" }
+  ]
+}

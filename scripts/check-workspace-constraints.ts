@@ -182,6 +182,7 @@ export function readWorkspaceManifests(repositoryRoot: string): WorkspaceManifes
 }
 
 const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
+  '@deepseek-ai/dsh-experimental-subagent-oar': ['LICENSE-OAR'],
   '@deepseek-ai/dsh-experimental-creation-recommendations': ['references/*.md', 'skills/*.md'],
   '@deepseek-ai/dsh-experimental-plugin-recommendations': ['skills/*.md'],
   '@deepseek-ai/dsh-experimental-personalized-recommendations': ['docs'],

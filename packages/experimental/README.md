@@ -37,6 +37,8 @@ Experimental prototypes may change their contracts and carry no support promise.
 | [`plugin-recommendations`](plugin-recommendations/README.md) | Shipped optional plugin recommendations | `ctx.pluginRecommendations` |
 | [`client-ui-plugin-recommendations`](client-ui-plugin-recommendations/README.md) | Plugin recommendation cards | — |
 | [`personalized-recommendations`](personalized-recommendations/README.md) | Default-disabled recommendation composition | — |
+| [`subagent-oar`](subagent-oar/README.md) | Optional OAR provider bundle for installed native coding agents | Registers named `ctx.subagents` providers |
+| [`tool-subagent-oar`](tool-subagent-oar/README.md) | Runtime selection with parent-owned background jobs | Registers `subagent_oar` on `ctx.tools` |
 | [`agent-team-profile`](agent-team-profile/README.md) | Agent Teams collaboration, tools, and Web UI bundle | — |
 | [`agent-team`](agent-team/README.md) | Named teammates with durable messages and a shared task board | `ctx.agentTeams` |
 | [`client-ui-agent-team`](client-ui-agent-team/README.md) | Team roster, task board, and teammate navigation for Web | — |

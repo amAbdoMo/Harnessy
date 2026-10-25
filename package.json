@@ -282,6 +282,8 @@
     "@e2e-dev/web": "^0.13.0",
     "ai": "^7.0.0",
     "@ai-sdk/openai": "^4.0.91",
-    "zod": "^4.1.8"
+    "zod": "^4.1.8",
+    "@deepseek-ai/dsh-experimental-subagent-oar": "workspace:*",
+    "@deepseek-ai/dsh-experimental-tool-subagent-oar": "workspace:*"
   }
 }

@@ -34,6 +34,7 @@ import * as nodeModule from './builtin_modules/implemented/module.ts'
 import * as nodeOs from './builtin_modules/implemented/os.ts'
 import * as nodePath from './builtin_modules/implemented/path.ts'
 import * as nodePerfHooks from './builtin_modules/implemented/perf_hooks.ts'
+import * as nodeStringDecoder from './builtin_modules/implemented/string_decoder.ts'
 import * as nodeStream from './builtin_modules/implemented/stream.ts'
 import * as nodeStreamPromises from './builtin_modules/implemented/stream/promises.ts'
 import * as nodeTimersPromises from './builtin_modules/implemented/timers/promises.ts'
@@ -53,6 +54,7 @@ import * as libreofficeKit from './external_packages/libreoffice-kit.ts'
 import * as nodePty from './external_packages/node-pty.ts'
 import * as execa from './external_packages/execa.ts'
 import * as got from './external_packages/got.ts'
+import * as piCodingAgent from './external_packages/pi-coding-agent.ts'
 import * as piAi from './external_packages/pi-ai.ts'
 import * as ripgrep from './external_packages/ripgrep.ts'
 import * as sharp from './external_packages/sharp.ts'
@@ -79,6 +81,7 @@ const BUILTINS: Record<string, StaticModuleFactory> = {
   'path/posix': () => nodePath,
   perf_hooks: () => nodePerfHooks,
   sqlite: () => nodeSqlite,
+  string_decoder: () => nodeStringDecoder,
   stream: () => nodeStream,
   'stream/promises': () => nodeStreamPromises,
   'timers/promises': () => nodeTimersPromises,
@@ -102,6 +105,7 @@ const EXTERNALS: Record<string, StaticModuleFactory> = {
   'got': () => got,
   'ws': () => ws,
   '@vscode/ripgrep': () => ripgrep,
+  '@earendil-works/pi-coding-agent': () => piCodingAgent,
   '@earendil-works/pi-ai': () => piAi,
 }
 

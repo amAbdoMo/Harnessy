@@ -56,6 +56,7 @@ describe('Oxlint executable contract', () => {
     const probes = [
       ['host package source', 'packages/fs/fs-observation-policy/src', 'packages/fs/fs-observation-policy/tsconfig.json'],
       ['host package test', 'packages/fs/fs-observation-policy/tests', 'tsconfig.host.json'],
+      ['OAR host test', 'packages/experimental/subagent-oar/tests', 'tsconfig.oar-tests.json'],
       ['client package source', 'packages/client/ui-primitives/src', 'packages/client/ui-primitives/tsconfig.json'],
       // A test under packages/client states its face in the filename, so the
       // probe carries the Client suffix to reach the Client aggregate.

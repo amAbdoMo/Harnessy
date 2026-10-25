@@ -22,7 +22,7 @@ import { once } from 'node:events'
 import { createServer } from 'node:http'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { tmpdir } from 'node:os'
-import { dirname, extname, join, normalize } from 'node:path'
+import { dirname, extname, join, posix } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
 import type { Browser } from 'playwright'
@@ -191,7 +191,7 @@ async function respond(
   overrides: ReadonlyMap<string, string>,
 ): Promise<void> {
   const path = new URL(request.url ?? '/', 'http://127.0.0.1').pathname
-  const relative = normalize(decodeURIComponent(path)).replace(/^\/+/, '')
+  const relative = posix.normalize(decodeURIComponent(path)).replace(/^\/+/, '')
   try {
     const body = await readFile(overrides.get(relative) ?? join(DIST_ROOT, relative))
     response.writeHead(200, { 'content-type': MIME[extname(relative)] ?? 'application/octet-stream' })
@@ -455,10 +455,11 @@ async function bootPreview(origin: string, browser: Browser): Promise<void> {
     await page.getByText('Update to-do list', { exact: true }).waitFor()
     await page.getByText('Error: ENOENT: no such file, open missing.txt', { exact: true }).waitFor()
 
-    const subagents = page.getByRole('button', { name: '2 subagents', exact: true })
+    const subagents = page.getByRole('button', { name: '0 working, 2 done', exact: true })
     await subagents.waitFor({ timeout: 15_000 })
     await subagents.hover()
     const catalog = page.getByRole('tree', { name: 'Subagent sessions' })
+    await catalog.getByRole('treeitem', { name: 'Show or hide 2 completed subagents', exact: true }).click()
     await catalog.getByRole('treeitem', { name: /Review preview architecture/ }).waitFor()
     await catalog.getByRole('treeitem', { name: /Continue preview verification/ }).waitFor()
     await catalog.press('Escape')

@@ -79,6 +79,7 @@ import * as PluginMarketTools from '@deepseek-ai/dsh-plugin-market/tools'
 import SandboxPolicy from '@deepseek-ai/dsh-sandbox-policy'
 import McpResources from '@deepseek-ai/dsh-mcp-resources'
 import * as ToolSubagent from '@deepseek-ai/dsh-tool-subagent'
+import * as ToolSubagentOar from '@deepseek-ai/dsh-experimental-tool-subagent-oar'
 import { registerListSubagentModels } from '../packages/subagent/tool-subagent/src/list-models.ts'
 import * as ToolWeb from '@deepseek-ai/dsh-tool-web'
 import WorkflowEngine from '@deepseek-ai/dsh-workflow'
@@ -563,6 +564,19 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
     note:
       'The five read-only tools hide provider cursors and authorize every result from the immutable calling agent session. The package is opt-in; compositions that need enforced deadlines or bounded inline output also mount the generic timeout or spill policies.',
+  },
+  {
+    pkg: '@deepseek-ai/dsh-experimental-tool-subagent-oar',
+    dir: 'tool-subagent-oar',
+    source: 'packages/experimental/tool-subagent-oar/src/index.ts',
+    requires: ['ctx.tools', 'ctx.subagents', 'ctx.jobs', 'a calling Agent with job controls'],
+    writes: ['tool/call', 'tool/result', 'parent-owned background job and completion notices'],
+    async mount(ctx) {
+      await ctx.plugin(SubagentRuntime)
+      await ctx.plugin(LocalJobRegistry)
+      await ctx.plugin(ToolSubagentOar, { providers: { codex: 'oar-codex', claude: 'oar-claude' } })
+    },
+    note: 'The subagent_oar tool selects among configured aliases for independent one-shot providers. This catalog shows Codex and Claude Code aliases. Native model, directory and permission settings belong to provider configuration. Accepted tasks use the existing job controls.',
   },
   {
     pkg: '@deepseek-ai/dsh-tool-subagent',
