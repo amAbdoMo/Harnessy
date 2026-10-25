@@ -24929,7 +24929,8 @@
       ],
       "tree": "258ae8820f9dbb96ec6b2460446a893ec56adc6e",
       "subject": "Merge pull request #5459 from deepseek-harness/worktree/installer-root-validation",
-      "review": null
+      "review": "harnessy-existing-canonical-installer-root-fix-20261025",
+      "mergeEvidence": "Inspected both parents and all six first-parent changed paths. A fresh git merge-tree --write-tree reproduces the recorded tree 258ae8820f9dbb96ec6b2460446a893ec56adc6e exactly, so the merge contains no additional conflict-resolution changes. Its missing side ancestry consists of the reviewed canonical-root fix; the pending first-parent SDK batch is not thereby marked reviewed or acquired."
     },
     {
       "sha": "454c6bfa835ff157496daf82aefd044039c2377e",
@@ -25024,7 +25025,7 @@
       ],
       "tree": "6eea76401f72c2794bb1b295d76c934a987365c8",
       "subject": "fix(desktop): reject canonical drive roots in installer",
-      "review": null
+      "review": "harnessy-existing-canonical-installer-root-fix-20261025"
     },
     {
       "sha": "22e627169e80dd79dd4aa188f3d32c68ddbb4b61",
@@ -48351,6 +48352,49 @@
         "The first invocation used the local default 5000 ms budget and timed out in the invoke-handler phase. CI already grants 90000 ms through vitest.config.ts/coverageTestTimeoutOptions; that declared budget also covers teardown. Neither the fixture source timeout nor polling/retry behavior was changed to obtain a pass.",
         "The upstream merge is clean: reconstructed tree 9b75f30d9bc8bdbef2efdd824c099850995bbcdf equals its recorded tree, and the remerge diff is empty. The prior checkpoint already accounts for the inherited side-branch ancestors. Normal pre-commit staged lint and whitespace checks passed on the exact imported test change.",
         "This review covers only the Windows handler fix and its clean upstream merge. The qualified checkpoint is integrated through a normal three-way merge after the exact fix was imported in 0df984352ca5423e5d94a455c8aa03ceac35811c. No source conflict resolutions are needed; reviewedThrough records the accepted checkpoint. The completed Android patch is committed separately, unchanged. This does not qualify later upstream commits, the native Mac feature, a full Desktop/browser build, an app update or release."
+      ]
+    },
+    "harnessy-existing-canonical-installer-root-fix-20261025": {
+      "status": "adopted",
+      "summary": "Recognize the existing, unchanged Harnessy backport of normalized Windows drive-root rejection. Verify the actual production NSIS validator with a native, non-registering fixture and a failing legacy negative control; preserve current documentation and the later installer harness.",
+      "files": [
+        {
+          "path": "apps/desktop/README.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Retain the current confirmed pairing sidecar for the live Harnessy Desktop README, rather than copying hashes for the older upstream document. The named pair check passes and the current documentation corpus passed all 43 gates in the preceding qualified source run."
+        },
+        {
+          "path": "apps/desktop/README.md",
+          "disposition": "retained-newer",
+          "reason": "Retain the current Harnessy Desktop contract, including the exact canonical-drive-root rejection statement, custom identity and current installation/update rules. The reviewed behavior is already implemented by the existing backport; do not replace the README with older stock documentation."
+        },
+        {
+          "path": "apps/desktop/README.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Retain the matching current Chinese installation contract and canonical-drive-root rejection statement. Existing bilingual pairing passes and the native validator confirms the documented normalization behavior."
+        },
+        {
+          "path": "apps/desktop/installer/path.nsh",
+          "disposition": "adopted",
+          "reason": "Reuse the existing unchanged adoption from a22fc19fff4f6cc517895253b9df481cffe20b56. The entire current validator file matches this upstream commit exactly. Reject GetFullPathNameW results shorter than four characters after normalization; keep the existing fixed-drive, length, device-name, protected-directory and reparse-point checks."
+        },
+        {
+          "path": "apps/desktop/tests/expected/windows-installer.json",
+          "disposition": "retained-newer",
+          "reason": "Keep the existing canonical-drive-roots-rejected-before-ownership-check expectation together with the newer current fixture inventory. This review does not claim a fresh execution of the full installer UI golden."
+        },
+        {
+          "path": "apps/desktop/tests/windows-installer-smoke.ps1",
+          "disposition": "retained-newer",
+          "reason": "Keep the existing imported root, double-separator and triple-separator cases and their result marker in the current UI fixture. Preserve later Harnessy installer harness ownership and private-product safeguards; no installer application is built, registered or launched in this focused verification."
+        }
+      ],
+      "evidence": [
+        "Implementation a22fc19fff4f6cc517895253b9df481cffe20b56 is already in current Harnessy history. Inspected both exact upstream commits, all six affected paths, the current consumer and current NSIS source. Verified 2026-10-25 on Windows, Harnessy 0.1.17, Node 24.14.0 and the pinned electron-builder NSIS 3.0.4.1 compiler.",
+        "The current complete path.nsh file equals the upstream fixed file. A temporary native executable compiled that production file directly and called InstallerValidatePath. It rejected C drive roots with one, two and three trailing separators and accepted a private temporary child path. All four acceptance checks passed.",
+        "A second temporary executable used only the legacy post-normalization condition ($0 == 0) instead of the fixed $0 < 4 condition. It failed the same acceptance policy on the double-trailing-separator root, demonstrating the intended regression. Neither fixture invoked InstallerPreflight, installed/registered an app, wrote to candidate destinations or created shortcuts. Both fixture executables and temporary sources were removed after their results were captured.",
+        "Current English/Chinese Desktop README pairing passes. The mandatory Harnessy product guard passes its identity/composition/state checks, two Node cases and all 140 Vitest cases. An initial cold welcome import timed out under the local five-second default and contaminated its following case; both unchanged cases then passed isolated at the original timeout, and the full product aggregate passed with the repository-declared CI lane budget of 90000 ms. No production startup or test source was changed to obtain that pass.",
+        "The focused native probe does not establish the full installer UI, ownership/promotion, upgrade, uninstall, signed release or installed-app behavior. This review leaves reviewedThrough at the already integrated Windows-handler checkpoint; it does not qualify or acquire the four pending SDK-test ancestors before this later merge. The separate Mac native feature and main-app update remain unverified."
       ]
     }
   }
