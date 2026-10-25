@@ -11545,7 +11545,7 @@
       ],
       "tree": "a0785ed5c175959d3cdcf4d6c50eb0b4c8367c8d",
       "subject": "test(headless): configure policy for the OAR Loader fixture",
-      "review": null
+      "review": "harnessy-oar-native-background-delegation-20261025"
     },
     {
       "sha": "4db9ed50f8710ef9bf83da37c3d2ab52545ecc66",
@@ -11690,7 +11690,7 @@
       ],
       "tree": "d035a8e91e5a46e35b0e863391b2998ef68a8db0",
       "subject": "feat: add standalone OAR subagent provider and tool",
-      "review": null
+      "review": "harnessy-oar-native-background-delegation-20261025"
     },
     {
       "sha": "c12e805dc7591f302fc31098c9b059dc4e4068d2",
@@ -46090,6 +46090,506 @@
         "Two Office recorded-session cases passed source-profile refresh and unchanged replay. The Windows fixture supplies the known generated-workspace path spellings through the existing cwdAliases input, covering short-name and embedded JSON spellings without weakening the shared normalizer. Disposable file copies avoid requiring file-symlink privileges. Historical V3 files remain unchanged.",
         "Host build passed. Documentation aggregate passed 40 of 43 checks; stale config/package catalogs and bilingual confirmation were regenerated, then all three owning verifiers passed, including 953 consistent documentation pairs. Scoped lint and normal staged lint/pairing/whitespace hooks passed. Product verification passed 138 of 140 cases; the two welcome tests first hit a cold-import timeout and cascading mock state, then both passed in the final focused run. No production welcome change was made and the initial aggregate is not claimed as clean.",
         "Only source/build and native CLI output checks are established. No real-model Office task, visual appearance certification, complete Python SDK wheel/installer qualification, installed staging-runtime selection or main-app update was performed. No UI language packs, upstream ancestry, releases or application updates are included; reviewedThrough remains unchanged."
+      ]
+    },
+    "harnessy-oar-native-background-delegation-20261025": {
+      "status": "adopted",
+      "summary": "Adapt optional OAR native delegation to Harnessy’s current provider, directory and parent-owned Jobs services. Preserve existing roles and custom UI, safe native permission defaults, environment isolation and explicit browser-worker refusal. Exclude unrelated SDK compression and global Node-floor history.",
+      "files": [
+        {
+          "path": ".agents/notes/implemented/architecture/2026-07-10-single-file-executable-sdk-runtime-distribution.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Retain Harnessy’s current uncompressed Python SDK executable route. These hunks enable Brotli or change its empty-file decompression handling and documentation; OAR’s provider bundle does not require that carrier-format change. Importing an unrelated executable format without installed-wheel qualification would expand this selected native-delegation task."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-07-10-single-file-executable-sdk-runtime-distribution.md",
+          "disposition": "excluded",
+          "reason": "Retain Harnessy’s current uncompressed Python SDK executable route. These hunks enable Brotli or change its empty-file decompression handling and documentation; OAR’s provider bundle does not require that carrier-format change. Importing an unrelated executable format without installed-wheel qualification would expand this selected native-delegation task."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-07-10-single-file-executable-sdk-runtime-distribution.zh.md",
+          "disposition": "excluded",
+          "reason": "Retain Harnessy’s current uncompressed Python SDK executable route. These hunks enable Brotli or change its empty-file decompression handling and documentation; OAR’s provider bundle does not require that carrier-format change. Importing an unrelated executable format without installed-wheel qualification would expand this selected native-delegation task."
+        },
+        {
+          "path": ".agents/notes/implemented/process/2026-10-15-node-24-runtime-floor.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Do not import upstream global Node-floor history into this older Harnessy release. The optional OAR integration documents its dependency’s Node 24 requirement and is qualified on Node 24.14.0; Node 22 remains unqualified for OAR. This record does not claim that the repository-wide upstream floor change has been adopted."
+        },
+        {
+          "path": ".agents/notes/implemented/process/2026-10-15-node-24-runtime-floor.md",
+          "disposition": "excluded",
+          "reason": "Do not import upstream global Node-floor history into this older Harnessy release. The optional OAR integration documents its dependency’s Node 24 requirement and is qualified on Node 24.14.0; Node 22 remains unqualified for OAR. This record does not claim that the repository-wide upstream floor change has been adopted."
+        },
+        {
+          "path": ".agents/notes/implemented/process/2026-10-15-node-24-runtime-floor.zh.md",
+          "disposition": "excluded",
+          "reason": "Do not import upstream global Node-floor history into this older Harnessy release. The optional OAR integration documents its dependency’s Node 24 requirement and is qualified on Node 24.14.0; Node 22 remains unqualified for OAR. This record does not claim that the repository-wide upstream floor change has been adopted."
+        },
+        {
+          "path": "THIRD_PARTY_NOTICES.md",
+          "disposition": "adopted",
+          "reason": "Regenerate runtime dependency notices including embedded OAR, Pi SDK, cross-spawn, which and the browser decoder from current manifests and the declared Host embedding inputs."
+        },
+        {
+          "path": "apps/desktop/scripts/runtime-patch-policy.ts",
+          "disposition": "retained-newer",
+          "reason": "Keep Harnessy’s production-lock-selected patch owner in apps/desktop/scripts/runtime-dependency-patches.ts and its existing tests, rather than introducing upstream’s separate policy table. The OAR library and patch are embedded in the provider; @botiverse/oar is a development dependency and is absent from the packed provider’s installed dependency list. Focused packed-artifact and existing runtime patch checks establish the current route; no Desktop installation is claimed."
+        },
+        {
+          "path": "apps/desktop/tests/prepare-runtime-patches.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Keep Harnessy’s production-lock-selected patch owner in apps/desktop/scripts/runtime-dependency-patches.ts and its existing tests, rather than introducing upstream’s separate policy table. The OAR library and patch are embedded in the provider; @botiverse/oar is a development dependency and is absent from the packed provider’s installed dependency list. Focused packed-artifact and existing runtime patch checks establish the current route; no Desktop installation is claimed."
+        },
+        {
+          "path": "docs/config-catalog.md",
+          "disposition": "adopted",
+          "reason": "Regenerate current configuration/tool/package references and graphs from Harnessy’s current source; keep English/Chinese alignment. Do not import unrelated later APIs, language packs or upstream product defaults."
+        },
+        {
+          "path": "docs/config-catalog.zh.md",
+          "disposition": "adopted",
+          "reason": "Regenerate current configuration/tool/package references and graphs from Harnessy’s current source; keep English/Chinese alignment. Do not import unrelated later APIs, language packs or upstream product defaults."
+        },
+        {
+          "path": "docs/module-graph.md",
+          "disposition": "adopted",
+          "reason": "Regenerate current configuration/tool/package references and graphs from Harnessy’s current source; keep English/Chinese alignment. Do not import unrelated later APIs, language packs or upstream product defaults."
+        },
+        {
+          "path": "docs/module-graph.zh.md",
+          "disposition": "adopted",
+          "reason": "Regenerate current configuration/tool/package references and graphs from Harnessy’s current source; keep English/Chinese alignment. Do not import unrelated later APIs, language packs or upstream product defaults."
+        },
+        {
+          "path": "docs/tool-catalog.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Regenerate current configuration/tool/package references and graphs from Harnessy’s current source; keep English/Chinese alignment. Do not import unrelated later APIs, language packs or upstream product defaults."
+        },
+        {
+          "path": "docs/tool-catalog.md",
+          "disposition": "adopted",
+          "reason": "Regenerate current configuration/tool/package references and graphs from Harnessy’s current source; keep English/Chinese alignment. Do not import unrelated later APIs, language packs or upstream product defaults."
+        },
+        {
+          "path": "docs/tool-catalog.zh.md",
+          "disposition": "adopted",
+          "reason": "Regenerate current configuration/tool/package references and graphs from Harnessy’s current source; keep English/Chinese alignment. Do not import unrelated later APIs, language packs or upstream product defaults."
+        },
+        {
+          "path": "package.json",
+          "disposition": "adopted",
+          "reason": "Add only the OAR provider/tool, patched OAR 0.67.0 and declared runtime dependencies. Preserve every existing package and snapshot record in the dependency lock, including the older Pi provider peer graph; frozen installation and a semantic old-record comparison passed. Do not import SDK compression patch changes."
+        },
+        {
+          "path": "packages/core/tools/tests/gen-tool-catalog.spec.ts",
+          "disposition": "adopted",
+          "reason": "Add the OAR tool to the existing generated catalog using the current SubagentRuntime, LocalJobs and parent-owned Job API. Retain the current catalog grouping and tool acknowledgements."
+        },
+        {
+          "path": "packages/experimental/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Regenerate current configuration/tool/package references and graphs from Harnessy’s current source; keep English/Chinese alignment. Do not import unrelated later APIs, language packs or upstream product defaults."
+        },
+        {
+          "path": "packages/experimental/README.md",
+          "disposition": "adopted",
+          "reason": "Regenerate current configuration/tool/package references and graphs from Harnessy’s current source; keep English/Chinese alignment. Do not import unrelated later APIs, language packs or upstream product defaults."
+        },
+        {
+          "path": "packages/experimental/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Regenerate current configuration/tool/package references and graphs from Harnessy’s current source; keep English/Chinese alignment. Do not import unrelated later APIs, language packs or upstream product defaults."
+        },
+        {
+          "path": "packages/experimental/subagent-oar/LICENSE-OAR",
+          "disposition": "adopted",
+          "reason": "Adapt the provider to Harnessy’s current SubagentRuntime and WorkingDirectory services, explicit resolved cwd and one-shot capabilities. Preserve safe native permission defaults, credential scrub and native removals; isolate fixture settings directories and adapt Windows command/junction fixtures. Embed patched OAR with its Apache license, expose an optional disabled bundle in the existing Plugins page, and document native-runtime, cancellation, process ownership and Node 24 limits. Native real-account tests are retained as opt-in cases, not reported as executed."
+        },
+        {
+          "path": "packages/experimental/subagent-oar/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adapt the provider to Harnessy’s current SubagentRuntime and WorkingDirectory services, explicit resolved cwd and one-shot capabilities. Preserve safe native permission defaults, credential scrub and native removals; isolate fixture settings directories and adapt Windows command/junction fixtures. Embed patched OAR with its Apache license, expose an optional disabled bundle in the existing Plugins page, and document native-runtime, cancellation, process ownership and Node 24 limits. Native real-account tests are retained as opt-in cases, not reported as executed."
+        },
+        {
+          "path": "packages/experimental/subagent-oar/README.md",
+          "disposition": "adopted",
+          "reason": "Adapt the provider to Harnessy’s current SubagentRuntime and WorkingDirectory services, explicit resolved cwd and one-shot capabilities. Preserve safe native permission defaults, credential scrub and native removals; isolate fixture settings directories and adapt Windows command/junction fixtures. Embed patched OAR with its Apache license, expose an optional disabled bundle in the existing Plugins page, and document native-runtime, cancellation, process ownership and Node 24 limits. Native real-account tests are retained as opt-in cases, not reported as executed."
+        },
+        {
+          "path": "packages/experimental/subagent-oar/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Adapt the provider to Harnessy’s current SubagentRuntime and WorkingDirectory services, explicit resolved cwd and one-shot capabilities. Preserve safe native permission defaults, credential scrub and native removals; isolate fixture settings directories and adapt Windows command/junction fixtures. Embed patched OAR with its Apache license, expose an optional disabled bundle in the existing Plugins page, and document native-runtime, cancellation, process ownership and Node 24 limits. Native real-account tests are retained as opt-in cases, not reported as executed."
+        },
+        {
+          "path": "packages/experimental/subagent-oar/icon.svg",
+          "disposition": "adopted",
+          "reason": "Adapt the provider to Harnessy’s current SubagentRuntime and WorkingDirectory services, explicit resolved cwd and one-shot capabilities. Preserve safe native permission defaults, credential scrub and native removals; isolate fixture settings directories and adapt Windows command/junction fixtures. Embed patched OAR with its Apache license, expose an optional disabled bundle in the existing Plugins page, and document native-runtime, cancellation, process ownership and Node 24 limits. Native real-account tests are retained as opt-in cases, not reported as executed."
+        },
+        {
+          "path": "packages/experimental/subagent-oar/locale/en.json",
+          "disposition": "adopted",
+          "reason": "Adapt the provider to Harnessy’s current SubagentRuntime and WorkingDirectory services, explicit resolved cwd and one-shot capabilities. Preserve safe native permission defaults, credential scrub and native removals; isolate fixture settings directories and adapt Windows command/junction fixtures. Embed patched OAR with its Apache license, expose an optional disabled bundle in the existing Plugins page, and document native-runtime, cancellation, process ownership and Node 24 limits. Native real-account tests are retained as opt-in cases, not reported as executed."
+        },
+        {
+          "path": "packages/experimental/subagent-oar/locale/zh.json",
+          "disposition": "adopted",
+          "reason": "Adapt the provider to Harnessy’s current SubagentRuntime and WorkingDirectory services, explicit resolved cwd and one-shot capabilities. Preserve safe native permission defaults, credential scrub and native removals; isolate fixture settings directories and adapt Windows command/junction fixtures. Embed patched OAR with its Apache license, expose an optional disabled bundle in the existing Plugins page, and document native-runtime, cancellation, process ownership and Node 24 limits. Native real-account tests are retained as opt-in cases, not reported as executed."
+        },
+        {
+          "path": "packages/experimental/subagent-oar/package.json",
+          "disposition": "adopted",
+          "reason": "Adapt the provider to Harnessy’s current SubagentRuntime and WorkingDirectory services, explicit resolved cwd and one-shot capabilities. Preserve safe native permission defaults, credential scrub and native removals; isolate fixture settings directories and adapt Windows command/junction fixtures. Embed patched OAR with its Apache license, expose an optional disabled bundle in the existing Plugins page, and document native-runtime, cancellation, process ownership and Node 24 limits. Native real-account tests are retained as opt-in cases, not reported as executed."
+        },
+        {
+          "path": "packages/experimental/subagent-oar/src/environment.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the provider to Harnessy’s current SubagentRuntime and WorkingDirectory services, explicit resolved cwd and one-shot capabilities. Preserve safe native permission defaults, credential scrub and native removals; isolate fixture settings directories and adapt Windows command/junction fixtures. Embed patched OAR with its Apache license, expose an optional disabled bundle in the existing Plugins page, and document native-runtime, cancellation, process ownership and Node 24 limits. Native real-account tests are retained as opt-in cases, not reported as executed."
+        },
+        {
+          "path": "packages/experimental/subagent-oar/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the provider to Harnessy’s current SubagentRuntime and WorkingDirectory services, explicit resolved cwd and one-shot capabilities. Preserve safe native permission defaults, credential scrub and native removals; isolate fixture settings directories and adapt Windows command/junction fixtures. Embed patched OAR with its Apache license, expose an optional disabled bundle in the existing Plugins page, and document native-runtime, cancellation, process ownership and Node 24 limits. Native real-account tests are retained as opt-in cases, not reported as executed."
+        },
+        {
+          "path": "packages/experimental/subagent-oar/src/run.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the provider to Harnessy’s current SubagentRuntime and WorkingDirectory services, explicit resolved cwd and one-shot capabilities. Preserve safe native permission defaults, credential scrub and native removals; isolate fixture settings directories and adapt Windows command/junction fixtures. Embed patched OAR with its Apache license, expose an optional disabled bundle in the existing Plugins page, and document native-runtime, cancellation, process ownership and Node 24 limits. Native real-account tests are retained as opt-in cases, not reported as executed."
+        },
+        {
+          "path": "packages/experimental/subagent-oar/tests/environment.e2e.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the provider to Harnessy’s current SubagentRuntime and WorkingDirectory services, explicit resolved cwd and one-shot capabilities. Preserve safe native permission defaults, credential scrub and native removals; isolate fixture settings directories and adapt Windows command/junction fixtures. Embed patched OAR with its Apache license, expose an optional disabled bundle in the existing Plugins page, and document native-runtime, cancellation, process ownership and Node 24 limits. Native real-account tests are retained as opt-in cases, not reported as executed."
+        },
+        {
+          "path": "packages/experimental/subagent-oar/tests/fixtures/claude-protocol.mjs",
+          "disposition": "adopted",
+          "reason": "Adapt the provider to Harnessy’s current SubagentRuntime and WorkingDirectory services, explicit resolved cwd and one-shot capabilities. Preserve safe native permission defaults, credential scrub and native removals; isolate fixture settings directories and adapt Windows command/junction fixtures. Embed patched OAR with its Apache license, expose an optional disabled bundle in the existing Plugins page, and document native-runtime, cancellation, process ownership and Node 24 limits. Native real-account tests are retained as opt-in cases, not reported as executed."
+        },
+        {
+          "path": "packages/experimental/subagent-oar/tests/fixtures/codex-startup.mjs",
+          "disposition": "adopted",
+          "reason": "Adapt the provider to Harnessy’s current SubagentRuntime and WorkingDirectory services, explicit resolved cwd and one-shot capabilities. Preserve safe native permission defaults, credential scrub and native removals; isolate fixture settings directories and adapt Windows command/junction fixtures. Embed patched OAR with its Apache license, expose an optional disabled bundle in the existing Plugins page, and document native-runtime, cancellation, process ownership and Node 24 limits. Native real-account tests are retained as opt-in cases, not reported as executed."
+        },
+        {
+          "path": "packages/experimental/subagent-oar/tests/fixtures/environment-driver.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the provider to Harnessy’s current SubagentRuntime and WorkingDirectory services, explicit resolved cwd and one-shot capabilities. Preserve safe native permission defaults, credential scrub and native removals; isolate fixture settings directories and adapt Windows command/junction fixtures. Embed patched OAR with its Apache license, expose an optional disabled bundle in the existing Plugins page, and document native-runtime, cancellation, process ownership and Node 24 limits. Native real-account tests are retained as opt-in cases, not reported as executed."
+        },
+        {
+          "path": "packages/experimental/subagent-oar/tests/fixtures/environment-probe.mjs",
+          "disposition": "adopted",
+          "reason": "Adapt the provider to Harnessy’s current SubagentRuntime and WorkingDirectory services, explicit resolved cwd and one-shot capabilities. Preserve safe native permission defaults, credential scrub and native removals; isolate fixture settings directories and adapt Windows command/junction fixtures. Embed patched OAR with its Apache license, expose an optional disabled bundle in the existing Plugins page, and document native-runtime, cancellation, process ownership and Node 24 limits. Native real-account tests are retained as opt-in cases, not reported as executed."
+        },
+        {
+          "path": "packages/experimental/subagent-oar/tests/fixtures/loader/composition.patch.yml",
+          "disposition": "adopted",
+          "reason": "Adapt the provider to Harnessy’s current SubagentRuntime and WorkingDirectory services, explicit resolved cwd and one-shot capabilities. Preserve safe native permission defaults, credential scrub and native removals; isolate fixture settings directories and adapt Windows command/junction fixtures. Embed patched OAR with its Apache license, expose an optional disabled bundle in the existing Plugins page, and document native-runtime, cancellation, process ownership and Node 24 limits. Native real-account tests are retained as opt-in cases, not reported as executed."
+        },
+        {
+          "path": "packages/experimental/subagent-oar/tests/fixtures/loader/driver.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the provider to Harnessy’s current SubagentRuntime and WorkingDirectory services, explicit resolved cwd and one-shot capabilities. Preserve safe native permission defaults, credential scrub and native removals; isolate fixture settings directories and adapt Windows command/junction fixtures. Embed patched OAR with its Apache license, expose an optional disabled bundle in the existing Plugins page, and document native-runtime, cancellation, process ownership and Node 24 limits. Native real-account tests are retained as opt-in cases, not reported as executed."
+        },
+        {
+          "path": "packages/experimental/subagent-oar/tests/fixtures/loader/fixture.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the provider to Harnessy’s current SubagentRuntime and WorkingDirectory services, explicit resolved cwd and one-shot capabilities. Preserve safe native permission defaults, credential scrub and native removals; isolate fixture settings directories and adapt Windows command/junction fixtures. Embed patched OAR with its Apache license, expose an optional disabled bundle in the existing Plugins page, and document native-runtime, cancellation, process ownership and Node 24 limits. Native real-account tests are retained as opt-in cases, not reported as executed."
+        },
+        {
+          "path": "packages/experimental/subagent-oar/tests/loader-composition.e2e.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the provider to Harnessy’s current SubagentRuntime and WorkingDirectory services, explicit resolved cwd and one-shot capabilities. Preserve safe native permission defaults, credential scrub and native removals; isolate fixture settings directories and adapt Windows command/junction fixtures. Embed patched OAR with its Apache license, expose an optional disabled bundle in the existing Plugins page, and document native-runtime, cancellation, process ownership and Node 24 limits. Native real-account tests are retained as opt-in cases, not reported as executed."
+        },
+        {
+          "path": "packages/experimental/subagent-oar/tests/native.e2e.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the provider to Harnessy’s current SubagentRuntime and WorkingDirectory services, explicit resolved cwd and one-shot capabilities. Preserve safe native permission defaults, credential scrub and native removals; isolate fixture settings directories and adapt Windows command/junction fixtures. Embed patched OAR with its Apache license, expose an optional disabled bundle in the existing Plugins page, and document native-runtime, cancellation, process ownership and Node 24 limits. Native real-account tests are retained as opt-in cases, not reported as executed."
+        },
+        {
+          "path": "packages/experimental/subagent-oar/tests/packed-artifact.e2e.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the provider to Harnessy’s current SubagentRuntime and WorkingDirectory services, explicit resolved cwd and one-shot capabilities. Preserve safe native permission defaults, credential scrub and native removals; isolate fixture settings directories and adapt Windows command/junction fixtures. Embed patched OAR with its Apache license, expose an optional disabled bundle in the existing Plugins page, and document native-runtime, cancellation, process ownership and Node 24 limits. Native real-account tests are retained as opt-in cases, not reported as executed."
+        },
+        {
+          "path": "packages/experimental/subagent-oar/tests/permission-mode.e2e.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the provider to Harnessy’s current SubagentRuntime and WorkingDirectory services, explicit resolved cwd and one-shot capabilities. Preserve safe native permission defaults, credential scrub and native removals; isolate fixture settings directories and adapt Windows command/junction fixtures. Embed patched OAR with its Apache license, expose an optional disabled bundle in the existing Plugins page, and document native-runtime, cancellation, process ownership and Node 24 limits. Native real-account tests are retained as opt-in cases, not reported as executed."
+        },
+        {
+          "path": "packages/experimental/subagent-oar/tests/startup-cleanup.e2e.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the provider to Harnessy’s current SubagentRuntime and WorkingDirectory services, explicit resolved cwd and one-shot capabilities. Preserve safe native permission defaults, credential scrub and native removals; isolate fixture settings directories and adapt Windows command/junction fixtures. Embed patched OAR with its Apache license, expose an optional disabled bundle in the existing Plugins page, and document native-runtime, cancellation, process ownership and Node 24 limits. Native real-account tests are retained as opt-in cases, not reported as executed."
+        },
+        {
+          "path": "packages/experimental/subagent-oar/tests/subagent-oar.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the provider to Harnessy’s current SubagentRuntime and WorkingDirectory services, explicit resolved cwd and one-shot capabilities. Preserve safe native permission defaults, credential scrub and native removals; isolate fixture settings directories and adapt Windows command/junction fixtures. Embed patched OAR with its Apache license, expose an optional disabled bundle in the existing Plugins page, and document native-runtime, cancellation, process ownership and Node 24 limits. Native real-account tests are retained as opt-in cases, not reported as executed."
+        },
+        {
+          "path": "packages/experimental/subagent-oar/tsconfig.json",
+          "disposition": "adopted",
+          "reason": "Adapt the provider to Harnessy’s current SubagentRuntime and WorkingDirectory services, explicit resolved cwd and one-shot capabilities. Preserve safe native permission defaults, credential scrub and native removals; isolate fixture settings directories and adapt Windows command/junction fixtures. Embed patched OAR with its Apache license, expose an optional disabled bundle in the existing Plugins page, and document native-runtime, cancellation, process ownership and Node 24 limits. Native real-account tests are retained as opt-in cases, not reported as executed."
+        },
+        {
+          "path": "packages/experimental/subagent-oar/tsdown.config.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the provider to Harnessy’s current SubagentRuntime and WorkingDirectory services, explicit resolved cwd and one-shot capabilities. Preserve safe native permission defaults, credential scrub and native removals; isolate fixture settings directories and adapt Windows command/junction fixtures. Embed patched OAR with its Apache license, expose an optional disabled bundle in the existing Plugins page, and document native-runtime, cancellation, process ownership and Node 24 limits. Native real-account tests are retained as opt-in cases, not reported as executed."
+        },
+        {
+          "path": "packages/experimental/tool-subagent-oar/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adapt runtime selection to the current parent-owned Jobs service instead of upstream’s unavailable startActivation API. Return a background job id, require a registered real agent controller before native start, keep job cancellation live beyond the tool call and use canonical settleRun disposal. Preserve Harnessy’s configured roles, custom UI and existing delegation backends; no per-call cwd or permission override is added."
+        },
+        {
+          "path": "packages/experimental/tool-subagent-oar/README.md",
+          "disposition": "adopted",
+          "reason": "Adapt runtime selection to the current parent-owned Jobs service instead of upstream’s unavailable startActivation API. Return a background job id, require a registered real agent controller before native start, keep job cancellation live beyond the tool call and use canonical settleRun disposal. Preserve Harnessy’s configured roles, custom UI and existing delegation backends; no per-call cwd or permission override is added."
+        },
+        {
+          "path": "packages/experimental/tool-subagent-oar/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Adapt runtime selection to the current parent-owned Jobs service instead of upstream’s unavailable startActivation API. Return a background job id, require a registered real agent controller before native start, keep job cancellation live beyond the tool call and use canonical settleRun disposal. Preserve Harnessy’s configured roles, custom UI and existing delegation backends; no per-call cwd or permission override is added."
+        },
+        {
+          "path": "packages/experimental/tool-subagent-oar/locale/en.json",
+          "disposition": "adopted",
+          "reason": "Adapt runtime selection to the current parent-owned Jobs service instead of upstream’s unavailable startActivation API. Return a background job id, require a registered real agent controller before native start, keep job cancellation live beyond the tool call and use canonical settleRun disposal. Preserve Harnessy’s configured roles, custom UI and existing delegation backends; no per-call cwd or permission override is added."
+        },
+        {
+          "path": "packages/experimental/tool-subagent-oar/locale/zh.json",
+          "disposition": "adopted",
+          "reason": "Adapt runtime selection to the current parent-owned Jobs service instead of upstream’s unavailable startActivation API. Return a background job id, require a registered real agent controller before native start, keep job cancellation live beyond the tool call and use canonical settleRun disposal. Preserve Harnessy’s configured roles, custom UI and existing delegation backends; no per-call cwd or permission override is added."
+        },
+        {
+          "path": "packages/experimental/tool-subagent-oar/package.json",
+          "disposition": "adopted",
+          "reason": "Adapt runtime selection to the current parent-owned Jobs service instead of upstream’s unavailable startActivation API. Return a background job id, require a registered real agent controller before native start, keep job cancellation live beyond the tool call and use canonical settleRun disposal. Preserve Harnessy’s configured roles, custom UI and existing delegation backends; no per-call cwd or permission override is added."
+        },
+        {
+          "path": "packages/experimental/tool-subagent-oar/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Adapt runtime selection to the current parent-owned Jobs service instead of upstream’s unavailable startActivation API. Return a background job id, require a registered real agent controller before native start, keep job cancellation live beyond the tool call and use canonical settleRun disposal. Preserve Harnessy’s configured roles, custom UI and existing delegation backends; no per-call cwd or permission override is added."
+        },
+        {
+          "path": "packages/experimental/tool-subagent-oar/tests/tool-subagent-oar.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt runtime selection to the current parent-owned Jobs service instead of upstream’s unavailable startActivation API. Return a background job id, require a registered real agent controller before native start, keep job cancellation live beyond the tool call and use canonical settleRun disposal. Preserve Harnessy’s configured roles, custom UI and existing delegation backends; no per-call cwd or permission override is added."
+        },
+        {
+          "path": "packages/experimental/tool-subagent-oar/tsconfig.json",
+          "disposition": "adopted",
+          "reason": "Adapt runtime selection to the current parent-owned Jobs service instead of upstream’s unavailable startActivation API. Return a background job id, require a registered real agent controller before native start, keep job cancellation live beyond the tool call and use canonical settleRun disposal. Preserve Harnessy’s configured roles, custom UI and existing delegation backends; no per-call cwd or permission override is added."
+        },
+        {
+          "path": "packages/experimental/webworker-runtime/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adapt string_decoder and Pi native SDK metadata compatibility to the current browser worker. Preserve versions.node=0.0.0, current probe behavior and current unsupported-operation messages. Metadata may load, while native SDK calls fail explicitly. Add the global alias and use the maintained decoder dependency; focused worker cases and the actual packed-preview browser check cover the change."
+        },
+        {
+          "path": "packages/experimental/webworker-runtime/README.md",
+          "disposition": "adopted",
+          "reason": "Adapt string_decoder and Pi native SDK metadata compatibility to the current browser worker. Preserve versions.node=0.0.0, current probe behavior and current unsupported-operation messages. Metadata may load, while native SDK calls fail explicitly. Add the global alias and use the maintained decoder dependency; focused worker cases and the actual packed-preview browser check cover the change."
+        },
+        {
+          "path": "packages/experimental/webworker-runtime/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Adapt string_decoder and Pi native SDK metadata compatibility to the current browser worker. Preserve versions.node=0.0.0, current probe behavior and current unsupported-operation messages. Metadata may load, while native SDK calls fail explicitly. Add the global alias and use the maintained decoder dependency; focused worker cases and the actual packed-preview browser check cover the change."
+        },
+        {
+          "path": "packages/experimental/webworker-runtime/package.json",
+          "disposition": "adopted",
+          "reason": "Adapt string_decoder and Pi native SDK metadata compatibility to the current browser worker. Preserve versions.node=0.0.0, current probe behavior and current unsupported-operation messages. Metadata may load, while native SDK calls fail explicitly. Add the global alias and use the maintained decoder dependency; focused worker cases and the actual packed-preview browser check cover the change."
+        },
+        {
+          "path": "packages/experimental/webworker-runtime/src/module-proxies.ts",
+          "disposition": "adopted",
+          "reason": "Adapt string_decoder and Pi native SDK metadata compatibility to the current browser worker. Preserve versions.node=0.0.0, current probe behavior and current unsupported-operation messages. Metadata may load, while native SDK calls fail explicitly. Add the global alias and use the maintained decoder dependency; focused worker cases and the actual packed-preview browser check cover the change."
+        },
+        {
+          "path": "packages/experimental/webworker-runtime/src/node/builtin_modules/implemented/string_decoder.ts",
+          "disposition": "adopted",
+          "reason": "Adapt string_decoder and Pi native SDK metadata compatibility to the current browser worker. Preserve versions.node=0.0.0, current probe behavior and current unsupported-operation messages. Metadata may load, while native SDK calls fail explicitly. Add the global alias and use the maintained decoder dependency; focused worker cases and the actual packed-preview browser check cover the change."
+        },
+        {
+          "path": "packages/experimental/webworker-runtime/src/node/builtins.ts",
+          "disposition": "adopted",
+          "reason": "Adapt string_decoder and Pi native SDK metadata compatibility to the current browser worker. Preserve versions.node=0.0.0, current probe behavior and current unsupported-operation messages. Metadata may load, while native SDK calls fail explicitly. Add the global alias and use the maintained decoder dependency; focused worker cases and the actual packed-preview browser check cover the change."
+        },
+        {
+          "path": "packages/experimental/webworker-runtime/src/node/external_packages/pi-coding-agent.ts",
+          "disposition": "adopted",
+          "reason": "Adapt string_decoder and Pi native SDK metadata compatibility to the current browser worker. Preserve versions.node=0.0.0, current probe behavior and current unsupported-operation messages. Metadata may load, while native SDK calls fail explicitly. Add the global alias and use the maintained decoder dependency; focused worker cases and the actual packed-preview browser check cover the change."
+        },
+        {
+          "path": "packages/experimental/webworker-runtime/src/node/external_packages/replaced-externals.ts",
+          "disposition": "adopted",
+          "reason": "Adapt string_decoder and Pi native SDK metadata compatibility to the current browser worker. Preserve versions.node=0.0.0, current probe behavior and current unsupported-operation messages. Metadata may load, while native SDK calls fail explicitly. Add the global alias and use the maintained decoder dependency; focused worker cases and the actual packed-preview browser check cover the change."
+        },
+        {
+          "path": "packages/experimental/webworker-runtime/src/node/globals/process.ts",
+          "disposition": "adopted",
+          "reason": "Adapt string_decoder and Pi native SDK metadata compatibility to the current browser worker. Preserve versions.node=0.0.0, current probe behavior and current unsupported-operation messages. Metadata may load, while native SDK calls fail explicitly. Add the global alias and use the maintained decoder dependency; focused worker cases and the actual packed-preview browser check cover the change."
+        },
+        {
+          "path": "packages/experimental/webworker-runtime/src/string-decoder-types.ts",
+          "disposition": "adopted",
+          "reason": "Adapt string_decoder and Pi native SDK metadata compatibility to the current browser worker. Preserve versions.node=0.0.0, current probe behavior and current unsupported-operation messages. Metadata may load, while native SDK calls fail explicitly. Add the global alias and use the maintained decoder dependency; focused worker cases and the actual packed-preview browser check cover the change."
+        },
+        {
+          "path": "packages/experimental/webworker-runtime/tests/node/builtins-table.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt string_decoder and Pi native SDK metadata compatibility to the current browser worker. Preserve versions.node=0.0.0, current probe behavior and current unsupported-operation messages. Metadata may load, while native SDK calls fail explicitly. Add the global alias and use the maintained decoder dependency; focused worker cases and the actual packed-preview browser check cover the change."
+        },
+        {
+          "path": "packages/experimental/webworker-runtime/tests/node/node-stubs.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt string_decoder and Pi native SDK metadata compatibility to the current browser worker. Preserve versions.node=0.0.0, current probe behavior and current unsupported-operation messages. Metadata may load, while native SDK calls fail explicitly. Add the global alias and use the maintained decoder dependency; focused worker cases and the actual packed-preview browser check cover the change."
+        },
+        {
+          "path": "packages/experimental/webworker-runtime/tests/node/process-shim.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt string_decoder and Pi native SDK metadata compatibility to the current browser worker. Preserve versions.node=0.0.0, current probe behavior and current unsupported-operation messages. Metadata may load, while native SDK calls fail explicitly. Add the global alias and use the maintained decoder dependency; focused worker cases and the actual packed-preview browser check cover the change."
+        },
+        {
+          "path": "packages/experimental/webworker-runtime/tests/node/string-decoder.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt string_decoder and Pi native SDK metadata compatibility to the current browser worker. Preserve versions.node=0.0.0, current probe behavior and current unsupported-operation messages. Metadata may load, while native SDK calls fail explicitly. Add the global alias and use the maintained decoder dependency; focused worker cases and the actual packed-preview browser check cover the change."
+        },
+        {
+          "path": "packages/preset/agent-preset/skills/cordis-composition-reference/references/packages.md",
+          "disposition": "adopted",
+          "reason": "Regenerate current configuration/tool/package references and graphs from Harnessy’s current source; keep English/Chinese alignment. Do not import unrelated later APIs, language packs or upstream product defaults."
+        },
+        {
+          "path": "patches/@botiverse__oar@0.67.0.patch",
+          "disposition": "adopted",
+          "reason": "Apply the upstream native-probe environment overlay, explicit Claude permission-mode handling and Codex startup failure kill-and-await cleanup. Additionally replace OAR’s forced danger-full-access Codex default with explicit environment override or inherited native configuration. Actual native-process and packed-provider fixtures verify the patched behavior."
+        },
+        {
+          "path": "patches/@yao-pkg__pkg@6.21.0.patch",
+          "disposition": "excluded",
+          "reason": "Retain Harnessy’s current uncompressed Python SDK executable route. These hunks enable Brotli or change its empty-file decompression handling and documentation; OAR’s provider bundle does not require that carrier-format change. Importing an unrelated executable format without installed-wheel qualification would expand this selected native-delegation task."
+        },
+        {
+          "path": "pnpm-lock.yaml",
+          "disposition": "adopted",
+          "reason": "Add only the OAR provider/tool, patched OAR 0.67.0 and declared runtime dependencies. Preserve every existing package and snapshot record in the dependency lock, including the older Pi provider peer graph; frozen installation and a semantic old-record comparison passed. Do not import SDK compression patch changes."
+        },
+        {
+          "path": "pnpm-workspace.yaml",
+          "disposition": "adopted",
+          "reason": "Add only the OAR provider/tool, patched OAR 0.67.0 and declared runtime dependencies. Preserve every existing package and snapshot record in the dependency lock, including the older Pi provider peer graph; frozen installation and a semantic old-record comparison passed. Do not import SDK compression patch changes."
+        },
+        {
+          "path": "python/sdk-runtime/README.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Retain Harnessy’s current uncompressed Python SDK executable route. These hunks enable Brotli or change its empty-file decompression handling and documentation; OAR’s provider bundle does not require that carrier-format change. Importing an unrelated executable format without installed-wheel qualification would expand this selected native-delegation task."
+        },
+        {
+          "path": "python/sdk-runtime/README.md",
+          "disposition": "excluded",
+          "reason": "Retain Harnessy’s current uncompressed Python SDK executable route. These hunks enable Brotli or change its empty-file decompression handling and documentation; OAR’s provider bundle does not require that carrier-format change. Importing an unrelated executable format without installed-wheel qualification would expand this selected native-delegation task."
+        },
+        {
+          "path": "python/sdk-runtime/README.zh.md",
+          "disposition": "excluded",
+          "reason": "Retain Harnessy’s current uncompressed Python SDK executable route. These hunks enable Brotli or change its empty-file decompression handling and documentation; OAR’s provider bundle does not require that carrier-format change. Importing an unrelated executable format without installed-wheel qualification would expand this selected native-delegation task."
+        },
+        {
+          "path": "scripts/build-exe-for-python-sdk.spec.ts",
+          "disposition": "excluded",
+          "reason": "Retain Harnessy’s current uncompressed Python SDK executable route. These hunks enable Brotli or change its empty-file decompression handling and documentation; OAR’s provider bundle does not require that carrier-format change. Importing an unrelated executable format without installed-wheel qualification would expand this selected native-delegation task."
+        },
+        {
+          "path": "scripts/build-exe-for-python-sdk.ts",
+          "disposition": "excluded",
+          "reason": "Retain Harnessy’s current uncompressed Python SDK executable route. These hunks enable Brotli or change its empty-file decompression handling and documentation; OAR’s provider bundle does not require that carrier-format change. Importing an unrelated executable format without installed-wheel qualification would expand this selected native-delegation task."
+        },
+        {
+          "path": "scripts/check-workspace-constraints.spec.ts",
+          "disposition": "adopted",
+          "reason": "Require the provider’s LICENSE-OAR in its exact published payload, along with the optional bundle patch. Reject missing license and unrelated payload files; the owner suite passed 112 cases."
+        },
+        {
+          "path": "scripts/check-workspace-constraints.ts",
+          "disposition": "adopted",
+          "reason": "Require the provider’s LICENSE-OAR in its exact published payload, along with the optional bundle patch. Reject missing license and unrelated payload files; the owner suite passed 112 cases."
+        },
+        {
+          "path": "scripts/gen-third-party-notices.spec.ts",
+          "disposition": "adopted",
+          "reason": "Disclose Host-embedded dependency inputs, include the OAR Apache license and resolve repository URLs without assuming HTTPS spelling. Owner regressions and the generated notice verifier cover the behavior."
+        },
+        {
+          "path": "scripts/gen-third-party-notices.ts",
+          "disposition": "adopted",
+          "reason": "Disclose Host-embedded dependency inputs, include the OAR Apache license and resolve repository URLs without assuming HTTPS spelling. Owner regressions and the generated notice verifier cover the behavior."
+        },
+        {
+          "path": "scripts/gen-tool-catalog.ts",
+          "disposition": "adopted",
+          "reason": "Add the OAR tool to the existing generated catalog using the current SubagentRuntime, LocalJobs and parent-owned Job API. Retain the current catalog grouping and tool acknowledgements."
+        },
+        {
+          "path": "scripts/pkg-sea-compression.spec.ts",
+          "disposition": "excluded",
+          "reason": "Retain Harnessy’s current uncompressed Python SDK executable route. These hunks enable Brotli or change its empty-file decompression handling and documentation; OAR’s provider bundle does not require that carrier-format change. Importing an unrelated executable format without installed-wheel qualification would expand this selected native-delegation task."
+        },
+        {
+          "path": "scripts/release/families.spec.ts",
+          "disposition": "adopted",
+          "reason": "Account for both experimental packages in the existing package-family inventory without publishing a release or changing release targets."
+        },
+        {
+          "path": "snapshots/session/product-subagent-oar/cordis.snapshot.yml",
+          "disposition": "adopted",
+          "reason": "Record and replay the current shipped headless composition with its OAR tool schema and Job acknowledgement. The PONG recording establishes composition and model-visible schema, not an authenticated native delegation. Preserve current Session generations and current provider/tool APIs."
+        },
+        {
+          "path": "snapshots/session/product-subagent-oar/cordis.yml",
+          "disposition": "adopted",
+          "reason": "Record and replay the current shipped headless composition with its OAR tool schema and Job acknowledgement. The PONG recording establishes composition and model-visible schema, not an authenticated native delegation. Preserve current Session generations and current provider/tool APIs."
+        },
+        {
+          "path": "snapshots/session/product-subagent-oar/session.v4.jsonl",
+          "disposition": "adopted",
+          "reason": "Record and replay the current shipped headless composition with its OAR tool schema and Job acknowledgement. The PONG recording establishes composition and model-visible schema, not an authenticated native delegation. Preserve current Session generations and current provider/tool APIs."
+        },
+        {
+          "path": "snapshots/session/product-subagent-oar/snapshot.yml",
+          "disposition": "adopted",
+          "reason": "Record and replay the current shipped headless composition with its OAR tool schema and Job acknowledgement. The PONG recording establishes composition and model-visible schema, not an authenticated native delegation. Preserve current Session generations and current provider/tool APIs."
+        },
+        {
+          "path": "snapshots/session/product-subagent-oar/system-prompt.expected.md",
+          "disposition": "adopted",
+          "reason": "Record and replay the current shipped headless composition with its OAR tool schema and Job acknowledgement. The PONG recording establishes composition and model-visible schema, not an authenticated native delegation. Preserve current Session generations and current provider/tool APIs."
+        },
+        {
+          "path": "snapshots/session/product-subagent-oar/tool-schemas.expected.json",
+          "disposition": "adopted",
+          "reason": "Record and replay the current shipped headless composition with its OAR tool schema and Job acknowledgement. The PONG recording establishes composition and model-visible schema, not an authenticated native delegation. Preserve current Session generations and current provider/tool APIs."
+        },
+        {
+          "path": "tsconfig.base.json",
+          "disposition": "adopted",
+          "reason": "Add source aliases and project references. Check OAR tests in the separately referenced tsconfig.oar-tests.json program to keep the ordinary 4 GB Host compiler bounded. A deliberate invalid OAR test was rejected by the normal Host aggregate, then removed; focused declarations and full custom build passed. This is not a test/typecheck exclusion."
+        },
+        {
+          "path": "tsconfig.host.json",
+          "disposition": "adopted",
+          "reason": "Add source aliases and project references. Check OAR tests in the separately referenced tsconfig.oar-tests.json program to keep the ordinary 4 GB Host compiler bounded. A deliberate invalid OAR test was rejected by the normal Host aggregate, then removed; focused declarations and full custom build passed. This is not a test/typecheck exclusion."
+        }
+      ],
+      "evidence": [
+        "Implementation 7c9e4f2e02d85cf2998d7d0123c40bd5302f5b14, verified 2026-10-25 on Windows, Harnessy 0.1.17, Node 24.14.0, pnpm 11.7.0. This review accounts for exactly two upstream commits and their complete 97-path union. Other OAR history, merged ancestors and the mixed Office/macOS groups remain pending. reviewedThrough is unchanged.",
+        "Final owner run passed 43 cases; an overlapping owner/notice/release-family/project-face run passed 119. Focused browser-worker plus tool-catalog run passed 64. Native-process environment and packed-provider e2e passed two cases with private CODEX_HOME/CLAUDE_CONFIG_DIR. Loader composition passed without probing installed agents. The packed provider runs its patched fixture with no separately resolvable @botiverse/oar. These fixtures verify dispatch, permission arguments, environment removal, directory changes, Job admission/cancellation and disposal, not real-account model quality.",
+        "Keyless OAR source-profile snapshot refresh and unchanged replay passed. The recording exposes the current tool schema and returns PONG without calling the native provider. Existing Session generations remain unchanged.",
+        "Full custom Harnessy build passed with 381 client artifacts and 11 public values; final Host build passed after the Promise-return cleanup. The OAR test program passed strict compilation at the ordinary 4 GB limit. A temporary invalid type in its tests made the normal Host aggregate fail with TS2322; removal restored successful compilation. Type-aware scoped lint passed.",
+        "Documentation aggregate passed all 43 checks. Hygiene passed 15 of 16; vendor rescope initially mistook the unchanged cordis agent-preset id for a package reference. Three existing preset-id exceptions were added for the previously adopted Creator paths; the owning rescope verifier then passed. Product verification passed 138 of 140; the welcome pair first hit a cold-load timeout and cascading state, then both passed in isolation without production changes.",
+        "The actual packed-preview browser case passed empty and seeded worker startup, settings/credential persistence, tool output, subagent catalog and earlier-history navigation. Its Windows fixture now normalizes URLs as POSIX paths; the prior platform-path mismatch returned 404 for its generated VFS image. The fixture uses Harnessy’s current working/done subagent control and explicit completed group rather than reverting the UI to its old label.",
+        "No live authenticated native delegation, additional runtime qualification, installed Desktop payload/installer, staging-runtime selection, main-app update, release or upstream ancestry merge was performed. OAR is disabled by default and needs Node 24 and separately installed/authenticated native agents. Startup cancellation waits for OAR; native process/history ownership and unattended permissions remain documented limitations."
       ]
     }
   }
