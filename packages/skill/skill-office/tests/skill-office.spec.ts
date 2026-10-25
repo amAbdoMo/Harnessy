@@ -8,9 +8,9 @@ import Include from '@deepseek-ai/cordis-plugin-include'
 import SkillRegistry from '@deepseek-ai/dsh-skill'
 import * as SkillOffice from '@deepseek-ai/dsh-skill-office'
 import { isSea } from 'node:sea'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi, type TestContext } from 'vitest'
 import { execa } from 'execa'
-import { strToU8, zipSync } from 'fflate'
+import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
 
 vi.mock('node:sea', () => ({ isSea: vi.fn(() => false) }))
 
@@ -147,7 +147,7 @@ it('rejects unavailable CLI and Node paths before exposing an executable command
   }
 })
 
-it('executes capabilities, PDF export and image export using only loaded paths from a separate workspace', async () => {
+it.for(['docx', 'pptx', 'xlsx'] as const)('executes bundled Office operations for %s using only loaded paths in a separate workspace', { timeout: 60_000 }, async (format, test: TestContext) => {
   const root = await mkdtemp(join(tmpdir(), 'office CLI 工作目录 '))
   const ctx = new Context()
   try {
@@ -158,37 +158,54 @@ it('executes capabilities, PDF export and image export using only loaded paths f
     expect(json).toBeDefined()
     const { libreofficeKit } = JSON.parse(json!) as { libreofficeKit: { node: string; cli: string } }
     const result = await execa(libreofficeKit.node, [libreofficeKit.cli, 'capabilities'], {
-      cwd: root, env: { PATH: '' }, timeout: 20_000, killSignal: 'SIGKILL', reject: false,
+      cwd: root, env: { PATH: '' }, cancelSignal: test.signal, timeout: 20_000, killSignal: 'SIGKILL', reject: false,
     })
     expect(result.timedOut, result.stderr).toBe(false)
     expect(result.signal, result.stderr).toBeUndefined()
     expect(result.exitCode, result.stderr).toBe(0)
     expect(JSON.parse(result.stdout)).toMatchObject({ runtime: { version: '0.1.5', cliPath: libreofficeKit.cli } })
-    const input = join(root, 'input.docx')
-    const original = zipSync({
+    const input = join(root, `input.${format}`)
+    const original = format === 'docx' ? zipSync({
       '[Content_Types].xml': strToU8('<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>'),
       '_rels/.rels': strToU8('<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'),
       'word/document.xml': strToU8('<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>Office CLI discovery</w:t></w:r></w:p><w:sectPr/></w:body></w:document>'),
-    })
+    }) : await readFile(new URL(`./fixtures/color-blocks.${format}`, import.meta.url))
     await writeFile(input, original)
     const pdf = join(root, 'result.pdf')
     await execa(libreofficeKit.node, [libreofficeKit.cli, 'convert', '--input', input, '--output', pdf], {
-      cwd: root, env: { PATH: '' }, timeout: 30_000, killSignal: 'SIGKILL',
+      cwd: root, env: { PATH: '' }, cancelSignal: test.signal, timeout: 30_000, killSignal: 'SIGKILL',
     })
     expect((await readFile(pdf)).subarray(0, 5).toString()).toBe('%PDF-')
     const preview = join(root, 'exported-images')
-    await execa(libreofficeKit.node, [libreofficeKit.cli, 'render', '--input', input, '--output-dir', preview, '--pages', '1'], {
-      cwd: root, env: { PATH: '' }, timeout: 30_000, killSignal: 'SIGKILL',
+    const region = format === 'xlsx' ? ['--sheet', 'Render', '--range', 'A1:B2'] : ['--pages', '1']
+    await execa(libreofficeKit.node, [libreofficeKit.cli, 'render', '--input', input, '--output-dir', preview, ...region], {
+      cwd: root, env: { PATH: '' }, cancelSignal: test.signal, timeout: 30_000, killSignal: 'SIGKILL',
     })
     const images = (await readdir(preview)).filter(path => path.endsWith('.png'))
     expect(images).toHaveLength(1)
     expect((await readFile(join(preview, images[0]!))).subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+    if (format === 'xlsx') {
+      const workbook = unzipSync(original)
+      const sheet = 'xl/worksheets/sheet1.xml'
+      workbook[sheet] = strToU8(strFromU8(workbook[sheet]!).replace('A1:B2', 'A1:C2')
+        .replace('</row></sheetData>', '<c r="C2"><f>SUM(2,3)</f><v>0</v></c></row></sheetData>'))
+      const formulas = join(root, 'formulas.xlsx')
+      const stale = zipSync(workbook)
+      await writeFile(formulas, stale)
+      const recalculated = join(root, 'recalculated.xlsx')
+      await execa(libreofficeKit.node, [libreofficeKit.cli, 'recalculate', '--input', formulas, '--output', recalculated], {
+        cwd: root, env: { PATH: '' }, cancelSignal: test.signal, timeout: 30_000, killSignal: 'SIGKILL',
+      })
+      const refreshed = unzipSync(await readFile(recalculated))
+      expect(strFromU8(refreshed[sheet]!)).toMatch(/<c\b[^>]*\br="C2"[^>]*><f\b[^>]*>SUM\(2,3\)<\/f><v>5<\/v><\/c>/)
+      expect(await readFile(formulas)).toEqual(Buffer.from(stale))
+    }
     expect(await readFile(input)).toEqual(Buffer.from(original))
   } finally {
     await ctx.fiber.dispose()
     await rm(root, { recursive: true, force: true })
   }
-}, 60_000)
+})
 
 it('requires standalone Node in Electron and SEA, while permitting explicit CLI opt-out', async () => {
   const ctx = new Context()

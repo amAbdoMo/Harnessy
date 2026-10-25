@@ -1,6 +1,7 @@
 - banner:
   - navigation "Session hierarchy": Load the editing-cordis-compositions ski
-  - button "More actions"
+  - group "Session controls":
+    - button "More actions"
   - button "Open right sidebar"
   - tablist:
     - tab "Chat" [selected]

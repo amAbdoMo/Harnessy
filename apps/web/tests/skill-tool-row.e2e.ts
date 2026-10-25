@@ -37,10 +37,7 @@ describe.skipIf(MODE === 'record')('web e2e: dedicated Skill tool row', () => {
     await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
     await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
 
-    const groupRow = page.locator('[role="treeitem"]').first()
-    await groupRow.waitFor({ timeout: 15_000 })
-    await groupRow.click()
-    const sessionRow = page.locator('[role="treeitem"]').nth(1)
+    const sessionRow = page.locator(`[data-row-key="session:${SEED_ID}"]`)
     await sessionRow.waitFor({ timeout: 10_000 })
     await sessionRow.click()
     const skillRow = page.locator('[data-tool="skill"]')
@@ -69,7 +66,9 @@ describe.skipIf(MODE === 'record')('web e2e: dedicated Skill tool row', () => {
     expect(await output.textContent()).toContain('Agent presets are ordinary `@deepseek-ai/dsh-agent-preset` declarations carried by bundle patches.')
     expect(await output.evaluate(element => getComputedStyle(element.parentElement!).maxHeight)).toBe('260px')
 
-    const snapshot = (await captureStableAria(page, '[class*="centerCol"]', scaffold.workspaceCwd))
+    const snapshot = (await captureStableAria(page, '[class*="centerCol"]', scaffold.workspaceCwd, {
+      replacements: [[JSON.stringify(scaffold.workspaceCwd).slice(1, -1), '{{cwd}}']],
+    }))
       .replace(/\b\d{1,2}\/\d{1,2}(?= \{\{clock\}\})/g, '{{date}}')
       .split(SEED_ID).join('{{seededId}}')
     await compareOrRefreshGolden(UI_EXPECTED, snapshot, MODE)

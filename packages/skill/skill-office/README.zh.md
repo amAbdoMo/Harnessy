@@ -65,6 +65,7 @@ Agent（智能体）可以加载 Word、PowerPoint 和 Excel 工作流，默认�
 |---|---|
 | [`src/index.ts`](src/index.ts) | 提供方注册与配置资源路径。 |
 | [`assets/`](assets/) | 路由、格式与操作工作流，以及可选只读 OOXML 检查器。 |
+| [`tests/skill-office.spec.ts`](tests/skill-office.spec.ts) | 加载验证、三种格式的原生 PDF/PNG 导出，以及电子表格重算时的公式与缓存保留检查。 |
 
 </details>
 

@@ -420,7 +420,7 @@ describe('FileSystemSkillProvider', () => {
     expect((await ctx.skills.list()).map(skill => skill.name)).toEqual(['good-skill'])
   })
 
-  it.each([false, true])('publishes regular-file paths for linked skills while retaining their resource roots (filesystem service: %s)', async (withFileSystem) => {
+  it.skipIf(!symlinksUsable()).each([false, true])('publishes regular-file paths for linked skills while retaining their resource roots (filesystem service: %s)', async (withFileSystem) => {
     const home = await tempDir('skill-symlink-home')
     const external = await tempDir('skill-symlink-external')
     await writeSkill(external, 'linked-dir', 'Linked directory')

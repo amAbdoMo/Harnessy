@@ -65,6 +65,7 @@ The provider registers seven bundled candidates and reads their descriptions fro
 |---|---|
 | [`src/index.ts`](src/index.ts) | Provider registration and configured resource paths. |
 | [`assets/`](assets/) | Router, format and operation workflows, and an optional read-only OOXML checker. |
+| [`tests/skill-office.spec.ts`](tests/skill-office.spec.ts) | Loading validation, native PDF/PNG exports for three formats, and formula/cache preservation during spreadsheet recalculation. |
 
 </details>
 

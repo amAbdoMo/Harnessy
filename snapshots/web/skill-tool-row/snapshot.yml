@@ -1,7 +1,7 @@
 version: 1
 scenario: skill-tool-row
 profile: web
-composition: default
+composition: skill-load
 recording: authored
 header:
   class: skill
