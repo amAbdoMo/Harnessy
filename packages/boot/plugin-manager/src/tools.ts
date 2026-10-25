@@ -18,7 +18,7 @@ export const inject = ['tools', 'pluginManager', 'sandboxPolicy']
 export function apply(ctx: Context): void {
   ctx.tools.register(defineTool({
     name: 'plugin_manager',
-    description: 'List plugins or bundles in the current profile, enable or disable them, install a bundle, or remove an installed bundle. Every action requires danger-full-access permission or approval for this call. Approval does not change the session permission mode. Changes affect every session in this profile. List first to obtain exact identifiers. Package installation can execute allowed build scripts. Live profiles apply changes immediately; startup profiles require restart. Incompatible DSH peer dependencies block installation and activation. Version exemptions risk crashes and data loss: warn the user and obtain explicit permission for the exact plugin and runtime versions before granting one.',
+    description: 'List plugins or bundles in the current profile, enable or disable them, install a bundle, or remove an installed bundle. Every action requires danger-full-access permission or approval for this call. Approval does not change the session permission mode. Changes affect every session in this profile. List first to obtain exact identifiers. Package installation can execute allowed build scripts. Live profile configuration changes apply immediately; package replacements and startup profiles require restart. Unmet DSH version requirements (engines.dsh, else DSH peer dependencies) block installation and activation. Version exemptions risk crashes and data loss: warn the user and obtain explicit permission for the exact plugin and runtime versions before granting one.',
     parameters: {
       action: { type: 'string', required: true, enum: ['list_plugins', 'list_bundles', 'set_plugin', 'set_bundle', 'install_bundle', 'remove_bundle', 'list_version_exemptions', 'set_version_exemption'], description: 'Management operation.' },
       target: { type: 'string', description: 'Plugin entry id, bundle package name, or installation spec, according to action.' },
@@ -61,7 +61,9 @@ export function apply(ctx: Context): void {
           const rows = args.action === 'list_plugins' ? await manager.listPlugins() : await manager.listBundles()
           const entries = rows.slice(offset, offset + limit).map(({ meta: _meta, ...row }) =>
             'rows' in row
-              ? { ...row, rows: row.rows.map(({ meta: _rowMeta, ...declared }) => declared) }
+              ? (({ updatable: _updatable, ...bundle }) => ({
+                ...bundle, rows: bundle.rows.map(({ meta: _rowMeta, ...declared }) => declared),
+              }))(row)
               : row)
           return JSON.stringify({ entries, total: rows.length,
             nextOffset: offset + entries.length < rows.length ? offset + entries.length : null })

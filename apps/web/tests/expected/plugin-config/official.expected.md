@@ -21,7 +21,7 @@
     - button "查看 网页搜索": 网页搜索
     - text: 设置 DeepSeek 的搜索提供方。
 - heading "可选与实验性插件" [level=3]
-- text: "4"
+- text: "5"
 - list:
   - listitem:
     - button "查看 智能体团队": 智能体团队
@@ -35,6 +35,10 @@
     - button "查看 开发者工具": 开发者工具
     - text: 实验性 查看调试会话原始数据、聊天消息分组数据，以及调试 NodeJS 后端
     - switch "启用 开发者工具"
+  - listitem:
+    - button "查看 自定义插件市场": 自定义插件市场
+    - text: 实验性 在插件页添加「发现」标签页，从你添加的插件市场索引浏览和安装插件。
+    - switch "启用 自定义插件市场"
   - listitem:
     - button "查看 语音输入": 语音输入
     - text: 实验性 在本机使用 SenseVoice 转写录音，首次使用需安装依赖。

@@ -1,0 +1,85 @@
+## Discover details
+
+- heading "Plugins" [level=1]
+- text: Install, enable, and configure plugins
+- button "About plugins"
+- tablist "Plugin views":
+  - tab "Installed"
+  - tab "Discover" [selected]
+- tabpanel "Discover":
+  - button "Discover"
+  - heading "Sample plugin" [level=3]
+  - text: 1.2.0 @fixture/market-example
+  - button "Install Sample plugin": Install
+  - paragraph: A plugin from a configured index.
+  - region "Details":
+    - heading "Market plugin guide" [level=1]
+    - paragraph:
+      - text: A
+      - strong: configured
+      - text: plugin.
+  - heading "Versions" [level=4]
+  - list "Versions of Sample plugin":
+    - listitem:
+      - text: 1.2.0 Recommended Sep 10, 2026
+      - button "Install Sample plugin 1.2.0": Install
+  - heading "Source" [level=4]
+  - term: Author
+  - definition: Fixture author
+  - term: Package
+  - definition:
+    - code: "@fixture/market-example@1.2.0"
+  - term: Registry
+  - definition:
+    - code: http://<fixture-registry>/
+  - term: Published
+  - definition: September 10, 2026
+  - term: Plugin market
+  - definition: Fixture market
+## Confirmed installation
+
+- dialog "Install plugin":
+  - heading "Install plugin" [level=2]
+  - button "Close"
+  - paragraph: Sample plugin
+  - paragraph: Version 1.2.0
+  - paragraph: "@fixture/market-example@1.2.0"
+  - status: Checking…
+## Installed details
+
+- button "Back to plugins": Plugins
+- button "Uninstall @fixture/bundle": Uninstall
+- switch "Enable @fixture/bundle"
+- heading "@fixture/bundle" [level=3]
+- text: v0.0.1
+- paragraph:
+  - code: "@fixture/bundle"
+- paragraph: Registry description for the fixture bundle.
+- region "Details":
+  - heading "Installed plugin guide" [level=1]
+  - paragraph:
+    - text: Keep
+    - strong: your current settings
+    - text: .
+- heading "Components" [level=4]
+- text: 3 total · 3 off
+- list:
+  - listitem:
+    - text: "@fixture/bundle Registry description for the fixture bundle."
+    - code: fixture-row
+    - text: "Off"
+  - listitem:
+    - text: File Search
+    - code: fixture-search
+    - code: "@fixture/bundle/search"
+    - text: "Off"
+  - listitem:
+    - text: "@fixture/bundle/review"
+    - code: fixture-review
+    - text: "Off"
+- heading "Source" [level=4]
+- term: Code source
+- definition:
+  - code: file:<plugin-fixture>/bundle
+- term: Current version
+- definition: 0.0.1

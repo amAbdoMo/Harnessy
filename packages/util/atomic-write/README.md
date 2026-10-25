@@ -40,6 +40,8 @@ Parent directories are created as needed, and readers observe either the old or 
 
 ### Coordinating writers
 
+Pass `signal` in `FileLockOptions` to cancel acquisition or contention waits. Cancellation never releases another writer’s lock; after acquisition the operation owns its cancellation, and its lock is released on settlement.
+
 For a read-render-commit cycle that a bare atomic commit cannot make safe on its own, hold the writer lock around the operation:
 
 ```text

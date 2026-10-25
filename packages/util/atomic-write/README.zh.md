@@ -40,6 +40,8 @@ await writeFileAtomic('/home/u/.dsh/cordis.patch.yml', text, { mode: 0o600 })
 
 ### 协调写入方
 
+通过 `FileLockOptions.signal` 可取消获取锁或竞争等待。取消不会释放其他写入者的锁；获取锁后由操作自身负责取消，操作结束时释放其持有的锁。
+
 对于单靠原子提交无法保证安全的读-渲染-提交循环，请在操作期间持有写锁：
 
 ```text

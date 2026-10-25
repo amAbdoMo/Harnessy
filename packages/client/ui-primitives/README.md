@@ -55,6 +55,7 @@ Check this table before writing a control in a feature package. A plugin cannot 
 | `MenuGroup`, `observeStickyMenuGroups` | Localized, accessible groups for custom menus and listboxes, with shared sticky-heading styling and native intersection/size observation; the caller owns the observer's lifetime. |
 | `Pill` | Selectable capsule button for view switchers and filters; takes `active` and `onClick`. |
 | `SegmentedTabs` | Controlled equal-width tabs with a sliding indicator and Left/Right, Home, and End navigation. The caller supplies labels, tab/panel ids, and panel content. |
+| `DetailDocument`, `detailDocumentState`, `useDetailDocumentLabels` | Scrollable plugin Markdown with loading, absent, and retry states, localized renderer labels, and owner-supplied image resolution; raw HTML is omitted. |
 | `Tag` | Read-only capsule badge; `tone` selects one of eight palettes. |
 | `PathLabel` | Single-line file path with subdued directories, a primary filename, and the full path on hover. Fitting paths align left; clipped paths preserve their suffix with a left-edge fade that updates on path and size changes. |
 | `StateDot` | Solid green `done`, amber `warning`, red `error`, and neutral-grey `idle` marks in a 10px slot, plus a tertiary-grey 14px rotating `ongoing` loader whose animations pin to document time zero on mount and on every animation restart, such as a list reorder, so every visible loader rotates in phase. `aria-hidden`, so the render site owns the name. `appearance="step"` shows a filled check for completion and a hollow pending circle. |

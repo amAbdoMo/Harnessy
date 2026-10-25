@@ -2,7 +2,7 @@
 // managed scaffold profile: installed bundles, their rows, and bundle enablement. Zero
 // model calls: everything is client state, seeded Session state, profile files, and the settings
 // document, so there is no fixture and a stray stream would fail loud on the open llm seam.
-import { mkdtemp, readFile } from 'node:fs/promises'
+import { mkdtemp, readFile, realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import type { Browser, Locator, Page } from 'playwright'
@@ -182,26 +182,29 @@ describe('web e2e: plugin manager', () => {
         await skeleton.waitFor({ state: 'detached' })
         expect(await panel.getAttribute('aria-busy')).toBe('false')
         for (const action of await actions.all()) expect(await action.isDisabled()).toBe(false)
-        const official = panel.locator('[data-plugin-group="official"]')
-        await official.locator('[data-plugin-package]').first().waitFor()
-        // The Official group lists the shipped bundles and then the
-        // configuration-only items; an item card carries no action cell, so the
-        // placeholder rows model the bundle cards alone.
-        const loaded = await measure(official, ':scope > ul > li[data-plugin-package]')
-        expect(loaded.rows).toHaveLength(OPTIONAL_BUNDLES.length)
+        const extensions = panel.locator('[data-plugin-group="extensions"]')
+        await extensions.locator('[data-plugin-package]').first().waitFor()
+        const loaded = await measure(extensions, ':scope > ul > li[data-plugin-package]')
+        expect(await extensions.locator('[data-plugin-package]').count()).toBe(OPTIONAL_BUNDLES.length)
+        expect(loaded.rows).toHaveLength(loading.rows.length)
         const compare = (name: string, a: typeof loading.pageHeader, b: typeof loaded.pageHeader, axes: readonly (keyof typeof a)[] = ['x', 'y', 'width', 'height']) => {
           for (const axis of axes) {
             expect(Math.abs(a[axis] - b[axis]), `${width}px ${name}.${axis}: loading=${a[axis]}, loaded=${b[axis]}`).toBeLessThanOrEqual(0.1)
           }
         }
         compare('pageHeader', loading.pageHeader, loaded.pageHeader)
-        compare('groupHeader', loading.groupHeader, loaded.groupHeader)
+        compare('groupHeader', loading.groupHeader, loaded.groupHeader, ['x', 'width', 'height'])
+        const relative = (rect: typeof loading.pageHeader, group: typeof loading.groupHeader) => ({ ...rect, y: rect.y - group.y })
         for (const [index, row] of loading.rows.entries()) {
           const real = loaded.rows[index]
           if (real === undefined) break
-          for (const part of ['row', 'head', 'icon', 'main', 'titleRow', 'actions'] as const) compare(`row ${index + 1} ${part}`, row[part], real[part])
+          for (const part of ['row', 'head', 'icon', 'main', 'titleRow', 'actions'] as const) {
+            compare(`row ${index + 1} ${part}`, relative(row[part], loading.groupHeader), relative(real[part], loaded.groupHeader))
+          }
           // Painted text bars are deliberately shorter than real copy; their line origins and heights align.
-          for (const part of ['title', 'description'] as const) compare(`row ${index + 1} ${part}`, row[part], real[part], ['x', 'y', 'height'])
+          for (const part of ['title', 'description'] as const) {
+            compare(`row ${index + 1} ${part}`, relative(row[part], loading.groupHeader), relative(real[part], loaded.groupHeader), ['x', 'y', 'height'])
+          }
         }
         facts.push(`${width}px: ${loaded.rows.length} rows; page/group headers, rows, icons, text lines and blank action spaces align within 0.1px`)
         expect(consoleWatch.pageErrors).toEqual([])
@@ -357,11 +360,17 @@ describe('web e2e: plugin manager', () => {
     expect(await toggle.getAttribute('aria-checked')).toBe('true')
     expect(await toggle.isDisabled()).toBe(false)
     await panel.getByText(/cannot resolve profile bundle/).waitFor({ timeout: 10_000 })
+    await panel.getByRole('alert').filter({ hasText: '无法读取详细介绍' }).waitFor()
     expect((await scaffold.ctx.pluginManager.listBundles()).find(row => row.name === '@fixture/missing-bundle'))
       .toMatchObject({ enabled: true, installed: false, removable: true, error: { code: 'operation-error' }, rows: [] })
     await compareOrRefreshGolden(join(SNAPSHOT_DIR, 'missing-bundle.expected.md'),
       await captureStableAria(page, '[data-plugin-panel]', scaffold.workspaceCwd, {
-        replacements: [[scaffold.harnessHome, '{{home}}']],
+        replacements: [
+          [join(await realpath(scaffold.harnessHome), 'profiles', 'scaffold').replaceAll('\\', '\\\\'), '{{home}}/profiles/scaffold'],
+          [(await realpath(scaffold.harnessHome)).replaceAll('\\', '\\\\'), '{{home}}'],
+          [scaffold.harnessHome.replaceAll('\\', '\\\\'), '{{home}}'],
+          [scaffold.harnessHome, '{{home}}'],
+        ],
       }), MODE)
     await toggle.click()
     await expect.poll(async () => (JSON.parse(await homeFile('profiles', 'scaffold', 'package.json')) as {
@@ -422,23 +431,27 @@ describe('web e2e: plugin manager', () => {
     expect(await open.evaluate(element => element.matches(':focus-visible'))).toBe(true)
     const focusRing = await open.evaluate((element) => {
       const style = getComputedStyle(element, '::after')
+      const brand = document.createElement('span')
+      brand.style.color = 'var(--dsw-alias-brand-primary)'
+      element.append(brand)
+      const brandColor = getComputedStyle(brand).color
+      brand.remove()
       return {
         radius: style.borderRadius,
         cardRadius: style.getPropertyValue('--dsw-radius-xl').trim(),
         outlineStyle: style.outlineStyle,
-        outlineWidth: Number.parseFloat(style.outlineWidth),
+        borderColor: getComputedStyle(element).borderColor,
+        brandColor,
       }
     })
     expect(focusRing.radius).toBe(hoverRadius)
     expect(focusRing.radius).toBe(focusRing.cardRadius)
-    expect(focusRing.outlineStyle).toBe('solid')
-    expect(focusRing.outlineWidth).toBeGreaterThan(0)
-    // The profile's own group holds its fixture bundle and the scaffold's defaults bundle; the installation's
-    // optional bundles open the Official group, followed by the official plugins that registered their
-    // configuration, and its other bundles stay off the page.
+    expect(focusRing.outlineStyle).toBe('none')
+    expect(focusRing.borderColor).toBe(focusRing.brandColor)
+    // Profile packages, optional bundles, and configuration-only items have separate custom groups.
     expect(await panel.locator('[data-plugin-group="bundles"] [data-plugin-package]').count()).toBe(2)
-    expect(await panel.locator('[data-plugin-group="official"] [data-plugin-package]').count()).toBe(OPTIONAL_BUNDLES.length)
-    expect(await panel.locator('[data-plugin-group="official"] [data-plugin-item]').count()).toBe(4)
+    expect(await panel.locator('[data-plugin-group="extensions"] [data-plugin-package]').count()).toBe(OPTIONAL_BUNDLES.length)
+    expect(await panel.locator('[data-plugin-group="basic"] [data-plugin-item]').count()).toBe(4)
     expect(await panel.getByText('实验性', { exact: true }).count())
       .toBe(OPTIONAL_BUNDLES.filter(name => name.startsWith('@deepseek-ai/dsh-experimental-')).length)
     expect(await panel.locator('[data-plugin-package="@deepseek-ai/dsh-experimental-inspector"]').count()).toBe(0)
@@ -460,9 +473,10 @@ describe('web e2e: plugin manager', () => {
   }, 60_000)
 
   it('keeps off-state switch thumbs light in both themes', async () => {
+    onTestFailed(() => saveFailureShot(page, 'web-e2e-plugin-manager-switch-themes'))
     // The off-state thumb must stay light so an operable toggle cannot read as
     // disabled, whose only other difference is reduced opacity.
-    for (const [theme, label] of [['light', '浅色'], ['dark', '深色']] as const) {
+    for (const [theme, label] of [['light', 'Light'], ['dark', 'Dark']] as const) {
       await openSettings(page, 'zh')
       const settings = page.getByRole('dialog', { name: '设置', exact: true })
       await settings.getByRole('button', { name: '通用设置', exact: true }).click()
@@ -493,7 +507,7 @@ describe('web e2e: plugin manager', () => {
     await openSettings(page, 'zh')
     const settings = page.getByRole('dialog', { name: '设置', exact: true })
     await settings.getByRole('button', { name: '通用设置', exact: true }).click()
-    await settings.getByRole('button', { name: '浅色', exact: true }).click()
+    await settings.getByRole('button', { name: 'Light', exact: true }).click()
     await expect.poll(() => page.evaluate(() => document.body.hasAttribute('data-ds-dark-theme'))).toBe(false)
     await closeSettings()
   })
@@ -561,7 +575,7 @@ describe('web e2e: plugin manager', () => {
     await panel.getByText('Registry description for the fixture bundle.', { exact: true }).first().waitFor()
     expect([...scaffold.ctx.loader.entries()].some(entry => entry.options.name.startsWith('@fixture/bundle'))).toBe(false)
     await compareOrRefreshGolden(EXPORTS_EXPECTED, await captureStableAria(page, '[data-plugin-panel]', scaffold.workspaceCwd, {
-      replacements: [[FIXTURE_PLUGINS, '{{fixtures}}']],
+      replacements: [[join(FIXTURE_PLUGINS, 'fixture-bundle'), '{{fixtures}}/fixture-bundle'], [FIXTURE_PLUGINS, '{{fixtures}}']],
     }), MODE)
     try {
       await setLanguage('en')
@@ -570,7 +584,7 @@ describe('web e2e: plugin manager', () => {
       expect(await search.getByText('Search package introduction.', { exact: true }).count()).toBe(0)
       expect(await review.getByText('审查工作区中的改动。', { exact: true }).count()).toBe(0)
       await compareOrRefreshGolden(EXPORTS_EN_EXPECTED, await captureStableAria(page, '[data-plugin-panel]', scaffold.workspaceCwd, {
-        replacements: [[FIXTURE_PLUGINS, '{{fixtures}}']],
+        replacements: [[join(FIXTURE_PLUGINS, 'fixture-bundle'), '{{fixtures}}/fixture-bundle'], [FIXTURE_PLUGINS, '{{fixtures}}']],
       }), MODE)
       expect(await panel.locator('[data-plugin-name]').textContent()).toBe('@fixture/bundle')
     } finally {
@@ -845,7 +859,8 @@ describe('web e2e: plugin manager', () => {
     const install = dialog.getByRole('button', { name: '安装', exact: true })
     expect(await install.isDisabled()).toBe(true)
     expect(await dialog.getByRole('note').textContent()).toContain('请确认插件来源可信')
-    expect(await dialog.getByRole('note').textContent()).toContain('暂不支持自动更新')
+    expect(await dialog.getByRole('note').textContent()).toContain('插件不会自动更新')
+    expect(await dialog.getByRole('note').textContent()).toContain('“版本”部分检查并确认更新')
     await dialog.getByRole('button', { name: '插件安装引导和示例' }).click()
     // The guide carries the package-name example only; the former template strings keep their replacement reminder.
     await expect.poll(() => dialog.getByRole('listitem').count()).toBe(1)
@@ -867,7 +882,7 @@ describe('web e2e: plugin manager', () => {
     await field.fill('@fixture/bundle')
     await install.click()
     await dialog.getByRole('alert').waitFor({ timeout: 5_000 })
-    expect(await dialog.getByRole('alert').textContent()).toBe('该插件已安装。如需升级，请卸载后重新安装')
+    expect(await dialog.getByRole('alert').textContent()).toBe('该插件已安装。请在详情页检查“版本”，或卸载后重新安装')
     // A path the Host cannot read as a package is refused with its reason, and the spec stays editable.
     await field.fill(join(scaffold.harnessHome, 'no-such-plugin'))
     await install.click()

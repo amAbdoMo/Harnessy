@@ -215,6 +215,26 @@ describe('writeFileAtomic', () => {
 })
 
 describe('withFileLock', () => {
+  it('cancels a waiting writer without releasing the current holder', async () => {
+    const target = join(await scratch(), 'document')
+    const release: PromiseWithResolvers<void> = Promise.withResolvers()
+    const entered: PromiseWithResolvers<void> = Promise.withResolvers()
+    const holder = withFileLock(target, async () => { entered.resolve(); await release.promise })
+    await entered.promise
+    const controller = new AbortController()
+    const operation = vi.fn(async () => {})
+    try {
+      const waiter = withFileLock(target, operation, { waitMs: 10_000, signal: controller.signal })
+      const rejected = expect(waiter).rejects.toThrow()
+      controller.abort()
+      await rejected
+      expect(operation).not.toHaveBeenCalled()
+      expect(await readFile(`${target}.lock`, 'utf8')).toBe(record(process.pid))
+      await expect(withFileLock(target, operation, { signal: controller.signal })).rejects.toThrow()
+    } finally { release.resolve(); await holder }
+    await expect(stat(`${target}.lock`)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
   it('retries EPERM only when the lock path currently exists', async () => {
     const dir = await scratch()
     const target = join(dir, 'document')

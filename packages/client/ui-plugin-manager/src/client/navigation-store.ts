@@ -8,8 +8,12 @@ type View =
   | { readonly kind: 'item'; readonly id: string }
   | { readonly kind: 'row'; readonly name: string; readonly rowId: string }
 
-type NavigationState = { view: View }
-type NavigationActions = { setView: (draft: NavigationState, view: View) => void }
+/** `installed` is the page's own tab; other values name contributed `plugins.tab` entries. */
+type NavigationState = { view: View; tab: string }
+type NavigationActions = {
+  setView: (draft: NavigationState, view: View) => void
+  setTab: (draft: NavigationState, tab: string) => void
+}
 
 /**
  * Create plugin page selection before the first page render.
@@ -17,9 +21,10 @@ type NavigationActions = { setView: (draft: NavigationState, view: View) => void
  */
 export function createNavigationStore(): EngineStoreHandle<NavigationState, NavigationActions> {
   return defineStore({
-    init: (): NavigationState => ({ view: { kind: 'list' } }),
+    init: (): NavigationState => ({ view: { kind: 'list' }, tab: 'installed' }),
     actions: {
       setView: (draft, view: View) => { draft.view = view },
+      setTab: (draft, tab: string) => { draft.tab = tab },
     },
   })
 }
