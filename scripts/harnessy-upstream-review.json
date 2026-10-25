@@ -3,7 +3,7 @@
   "baselineHead": "249d882737862fe8f6f03df3f537d656134bd171",
   "upstreamTip": "22ddee3792402c3e70ec5f86a63c3e3e895a2f60",
   "mergeBase": "5badb15009ae1756c3afe0ae0cef1faafc290ccc",
-  "reviewedThrough": "d2d8c47b4ad627b77052debeaf6018a1c8b9cd04",
+  "reviewedThrough": "3b00aebf40ac73f9b86c159941ce730dcd75fbb6",
   "entries": [
     {
       "sha": "22ddee3792402c3e70ec5f86a63c3e3e895a2f60",
@@ -109901,7 +109901,9 @@
         "Built custom-Harnessy Models, seeded-history and Coding Tools browser replay: 29 passed, two recording cases skipped. After adding the native Windows preview expected variant, the full seeded-history file replayed unchanged with 13 passed and two recording skips. Portable preview, released JSONL and global normalizers are unchanged. Reruns are not additional distinct cases.",
         "build:custom-harness passed (383 client artifacts, 11 public values); full lint:contracts-ready and final delta lint passed. test:docs passed 22 checks; doc-sync passed all 43 gates; normal staged lint/pairing/whitespace/vendor hooks passed for each source commit. These are source/built-test checks, not installed staging-window, publication, main-app update, real-provider, native-Mac or release evidence.",
         "Previewed normal merge with checkpoint 3b00aebf40ac73f9b86c159941ce730dcd75fbb6: 13 conflicts only, all at already adapted owners. Keep the current exact files for built custom Models snapshots, Models visible rows/settings-owner tests and paired docs, locale .await(), live credential failure signals/tests, closed skill watcher guard, and localized snapshot diagnostics/docs. The module-level duplicate diagnostic prose is omitted because the local method docs/README own it. This retains verified fixes and custom behavior, not a blanket ours merge.",
-        "reviewedThrough stays at the prior integrated checkpoint until a qualified normal merge. Qualification still requires ledger closure, post-resolution product guard, exact 38 acquired-ancestor comparison, normal pre-push checks and verified origin/staging publication. Main, tags, releases and native Mac qualification are outside this batch."
+        "reviewedThrough stays at the prior integrated checkpoint until a qualified normal merge. Qualification still requires ledger closure, post-resolution product guard, exact 38 acquired-ancestor comparison, normal pre-push checks and verified origin/staging publication. Main, tags, releases and native Mac qualification are outside this batch.",
+        "Normal three-way integration resolved only the 13 previewed overlaps with the individually reviewed current versions. Every source/test/doc blob after resolution equals the qualified pre-merge source tree; all selected behavior was already implemented by the five supporting commits. Corpus ownership/redaction/header checks passed all three cases, including the Windows preview variant. Integration is not app installation or main update.",
+        "Independent checkpoint review found no blocker: exact 38-commit closure and all 46 direct paths accounted, 18 recorded merge trees matched, 25880 inherited blob/mode comparisons had zero mismatches, and all 13 conflict resolutions retained intended behavior. Post-resolution verify:harnessy-product passed identity/composition/state checks, two Node tests and all 140 Vitest cases using the declared 90000 ms CI test budget. Source blobs are unchanged from the already tested five supporting commits."
       ]
     }
   }
