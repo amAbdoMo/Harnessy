@@ -8,7 +8,7 @@ import { Context } from '@deepseek-ai/cordis'
 import SkillRegistry from '@deepseek-ai/dsh-skill'
 
 interface FakeWatcherControl {
-  emitter: EventEmitter
+  emitter: EventEmitter & { close(): Promise<void> }
   closeCalls: number
   options: Record<string, unknown>
   path: string
@@ -28,6 +28,7 @@ const watcherHarness = vi.hoisted(() => ({
   watchers: [] as FakeWatcherControl[],
   startupErrors: [] as Error[],
   closeErrors: 0,
+  lateCloseErrors: [] as Error[],
   deferredReady: 0,
   watchFiles: [] as FakeWatchFileControl[],
   statGates: [] as FakeStatGate[],
@@ -73,6 +74,11 @@ vi.mock('chokidar', () => ({
           watcherHarness.closeErrors -= 1
           throw new Error('close failed')
         }
+        const lateError = watcherHarness.lateCloseErrors.shift()
+        if (lateError !== undefined) {
+          emitter.removeAllListeners()
+          queueMicrotask(() => { emitter.emit('error', lateError) })
+        }
       }
       watcherHarness.watchers.push(control)
       queueMicrotask(() => {
@@ -117,6 +123,7 @@ beforeEach(() => {
   watcherHarness.watchers.length = 0
   watcherHarness.startupErrors.length = 0
   watcherHarness.closeErrors = 0
+  watcherHarness.lateCloseErrors.length = 0
   watcherHarness.deferredReady = 0
   watcherHarness.watchFiles.length = 0
   watcherHarness.statGates.length = 0
@@ -317,6 +324,44 @@ describe('skill-filesystem watcher failures', () => {
     await fiber.dispose()
   })
 
+  it('keeps a healthy replacement when a retired watcher emits an error', async () => {
+    const home = await tempDir('skill-watch-retired-error')
+    const root = join(home, '.dsh/skills')
+    await writeSkill(root, 'retained-skill')
+    const ctx = new Context()
+    await ctx.plugin(SkillRegistry)
+    const fiber = await ctx.plugin(SkillFileSystem, {
+      dshHome: join(home, '.dsh'), agentsHome: join(home, '.agents'), watch: true,
+    })
+    const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => {})
+    try {
+      await ctx.skills.list()
+      const original = watcherHarness.watchers[0]
+      if (original === undefined) throw new Error('expected a root watcher')
+      original.emitter.close = async () => {
+        original.closeCalls += 1
+        original.emitter.removeAllListeners()
+      }
+      original.emitter.emit('error', new Error('live watcher failed'))
+      await vi.waitFor(() => { expect(watcherHarness.watchers).toHaveLength(2) })
+      expect((await ctx.skills.snapshot()).complete).toBe(true)
+      expect(warn).toHaveBeenCalled()
+      warn.mockClear()
+      let invalidations = 0
+      ctx.on('skills/change', () => { invalidations += 1 })
+
+      original.emitter.emit('error', new Error('retired watcher failed'))
+      expect(warn).not.toHaveBeenCalled()
+      await settle()
+      expect(invalidations).toBe(0)
+      expect(watcherHarness.watchers).toHaveLength(2)
+      expect(watcherHarness.watchers[1]?.closeCalls).toBe(0)
+    } finally {
+      await fiber.dispose()
+      warn.mockRestore()
+    }
+  })
+
   it('re-probes a retained root after child unlink and observes immediate recreation', async () => {
     const home = await tempDir('skill-watch-root-reprobe')
     const root = join(home, '.dsh/skills')
@@ -419,6 +464,45 @@ describe('skill-filesystem watcher failures', () => {
     disposeProvider()
   })
 
+  it('absorbs a close error when disposal wins before readiness is observed', async () => {
+    const home = await tempDir('skill-watch-aborted-close-error')
+    const root = join(home, '.dsh/skills')
+    await writeSkill(root, 'racing-skill')
+    watcherHarness.deferredReady = 1
+    watcherHarness.lateCloseErrors.push(new Error('closed before readiness'))
+    const statGate: FakeStatGate = {
+      started: Promise.withResolvers<undefined>(), release: Promise.withResolvers<undefined>(),
+    }
+    watcherHarness.statGates.push(statGate)
+    const ctx = new Context()
+    await ctx.plugin(SkillRegistry)
+    let provider!: InstanceType<typeof SkillFileSystem.FileSystemSkillProvider>
+    const disposeProvider = ctx.skills.registerProvider((control) => {
+      provider = new SkillFileSystem.FileSystemSkillProvider(ctx, control, {
+        dshHome: join(home, '.dsh'), agentsHome: join(home, '.agents'), watch: true,
+      })
+      return provider
+    })
+    const discovery = provider.list({})
+    let disposal: Promise<void> | undefined
+    try {
+      await statGate.started.promise
+      disposal = provider.dispose()
+      statGate.release.resolve(undefined)
+      await expect(discovery).rejects.toThrow('skill-filesystem watcher disposed')
+      await disposal
+      // A rejection of the unobserved readiness promise reaches Vitest's unhandled-error check.
+      await new Promise<void>((resolve) => { setImmediate(resolve) })
+      expect(watcherHarness.watchers[0]?.closeCalls).toBeGreaterThan(0)
+    } finally {
+      statGate.release.resolve(undefined)
+      await disposal
+      await provider.dispose()
+      await Promise.allSettled([discovery])
+      disposeProvider()
+    }
+  })
+
   it('contains an opening watcher rejection during provider teardown', async () => {
     const home = await tempDir('skill-watch-opening-reject')
     const root = join(home, '.dsh/skills')
@@ -448,5 +532,42 @@ describe('skill-filesystem watcher failures', () => {
     await expect(discovery).rejects.toThrow('opening failed during disposal')
     await disposal
     disposeProvider()
+  })
+
+  it('contains a watcher error emitted after close removed its listeners', async () => {
+    const home = await tempDir('skill-watch-close-error')
+    const root = join(home, '.dsh/skills')
+    await writeSkill(root, 'closing-skill')
+    const ctx = new Context()
+    await ctx.plugin(SkillRegistry)
+    let provider!: InstanceType<typeof SkillFileSystem.FileSystemSkillProvider>
+    const disposeProvider = ctx.skills.registerProvider((control) => {
+      provider = new SkillFileSystem.FileSystemSkillProvider(ctx, control, {
+        dshHome: join(home, '.dsh'),
+        agentsHome: join(home, '.agents'),
+        watch: true,
+        watchPollIntervalMs: 10,
+        watchStabilityThresholdMs: 20,
+      })
+      return provider
+    })
+
+    await provider.list({})
+    await vi.waitFor(() => { expect(watcherHarness.watchers).toHaveLength(1) })
+    const control = watcherHarness.watchers[0]
+    if (control === undefined) throw new Error('expected an open root watcher')
+    // Mirror the real close(): it drops every listener before a pending write-settle poll fires.
+    control.emitter.close = async () => {
+      control.closeCalls += 1
+      control.emitter.removeAllListeners()
+    }
+    await provider.dispose()
+    disposeProvider()
+    expect(control.emitter.listenerCount('error')).toBe(1)
+
+    expect(() => control.emitter.emit('error', Object.assign(
+      new Error("EPERM: operation not permitted, stat 'C:\\Temp\\dsh\\.credentials.yaml'"),
+      { code: 'EPERM', syscall: 'stat' },
+    ))).not.toThrow()
   })
 })

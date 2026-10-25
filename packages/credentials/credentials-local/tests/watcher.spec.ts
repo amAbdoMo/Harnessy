@@ -52,7 +52,7 @@ interface FakeChokidar {
   __instances: Array<{
     path: string
     options: { awaitWriteFinish: { stabilityThreshold: number; pollInterval: number } }
-    watcher: import('node:events').EventEmitter
+    watcher: import('node:events').EventEmitter & { close: () => Promise<void> }
   }>
 }
 
@@ -164,6 +164,32 @@ describe('watcher pipeline', () => {
       expect(fsHarness.nextReadError).toBeUndefined()
     })
     expect(await ctx.credentials.resolve(KEY)).toEqual({ value: 'good', source: 'file' })
+  })
+
+  it('contains a watcher error emitted after close removed its listeners', async () => {
+    const dir = await tempDir()
+    const path = join(dir, '.credentials.yaml')
+    const ctx = new Context()
+    const fiber = ctx.plugin(LocalCredentialProvider, { path, debounceMs: 5 })
+    await fiber
+    const signal = ctx.credentials.sourceFailureSignal
+    let sourceFailures = 0
+    ctx.on('credentials/source-failed', () => { sourceFailures += 1 })
+    const [instance] = await fakeInstances()
+    // Mirror the real close(): it drops every listener before a pending write-settle poll fires.
+    instance!.watcher.close = vi.fn(() => {
+      instance!.watcher.removeAllListeners()
+      return Promise.resolve()
+    })
+    await fiber.dispose()
+
+    expect(instance!.watcher.listenerCount('error')).toBe(1)
+    expect(() => instance!.watcher.emit('error', Object.assign(
+      new Error("EPERM: operation not permitted, stat 'C:\\Temp\\dsh\\.credentials.yaml'"),
+      { code: 'EPERM', syscall: 'stat' },
+    ))).not.toThrow()
+    expect(signal.aborted).toBe(false)
+    expect(sourceFailures).toBe(0)
   })
 
   it('quiesces the refresh pipeline before dispose completes', async () => {

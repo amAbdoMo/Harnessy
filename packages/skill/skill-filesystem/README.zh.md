@@ -83,7 +83,7 @@ skill 可以是被扫描根目录顶层的目录 bundle `<name>/SKILL.md`，也�
 
 ### 变更检测
 
-现有根目录会被监视，因此新增、改名或删除 skill（或编辑其 frontmatter）会在下一个模型步骤触发目录刷新；`references`、`scripts`、`assets` 等 bundle 资源下的编辑不会触发。当第一方 `write` 与 `edit` 工具的目标可能影响受监视的 skill 时，它们会直接使提供方失效，因此模型无需等待宿主 watcher 即可观察到自身的文件系统变更。外部 IDE、Git 与 shell 变更由宿主 watcher 捕获；尚不存在的根目录会被探测，直至其出现。
+现有根目录会被监视，因此新增、改名或删除 skill（或编辑其 frontmatter）会在下一个模型步骤触发目录刷新；`references`、`scripts`、`assets` 等 bundle 资源下的编辑不会触发。当第一方 `write` 与 `edit` 工具的目标可能影响受监视的 skill 时，它们会直接使提供方失效，因此模型无需等待宿主 watcher 即可观察到自身的文件系统变更。外部 IDE、Git 与 shell 变更由宿主 watcher 捕获；尚不存在的根目录会被探测，直至其出现。已关闭的 watcher 会吸收延迟错误，不会使发现结果失效或替换其仍在工作的后继 watcher。
 
 ### 可观察的成功与失败
 
