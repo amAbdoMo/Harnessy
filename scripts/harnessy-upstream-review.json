@@ -9119,7 +9119,7 @@
       ],
       "tree": "3d634bb9424a1903d02f0f04cc823297556ae523",
       "subject": "feat(plugin-detail): show Markdown plugin details on bundle and market entry pages",
-      "review": null
+      "review": "harnessy-plugin-markets-versions-details-20261025"
     },
     {
       "sha": "14dcb78ee80abbece20cecbbe5abd0d1d7fbf214",
@@ -9521,7 +9521,7 @@
       ],
       "tree": "6df2b0806d61f3b463e93816516908038307852c",
       "subject": "feat(plugins): check for updates from the refresh button and fix the merged version styles",
-      "review": null
+      "review": "harnessy-plugin-markets-versions-details-20261025"
     },
     {
       "sha": "20b1297fe2749c1929ac661348d5d8292117e66c",
@@ -9870,7 +9870,7 @@
       ],
       "tree": "9873f95d42773d5a7b2c993666af01d4b3292cc6",
       "subject": "feat(plugins): check and install newer registry versions of third-party bundles",
-      "review": null
+      "review": "harnessy-plugin-markets-versions-details-20261025"
     },
     {
       "sha": "ae0dfd100331180899dceefcd6410945f814abc7",
@@ -13423,7 +13423,7 @@
       ],
       "tree": "7bd20df23baf8d10047ba8e1cc95ce34e66fab20",
       "subject": "feat(plugin-market): name the plugin and version in a Discover install",
-      "review": null
+      "review": "harnessy-plugin-markets-versions-details-20261025"
     },
     {
       "sha": "b227127d6240efe007588c26c67439bf8fcbadca",
@@ -13450,7 +13450,7 @@
       ],
       "tree": "ebf8c7d3f0b0bee2b440bbb388064f60567c3786",
       "subject": "feat(plugin-market): add the Custom plugin markets bundle and Discover tab",
-      "review": null
+      "review": "harnessy-plugin-markets-versions-details-20261025"
     },
     {
       "sha": "bf1a2bf69c76af82eb583aad596f7e3eceb81d31",
@@ -43490,6 +43490,1228 @@
         "The complete final custom build passed with 373 Client artifacts and eleven public values. Full repository lint passed; subsequent added/changed Host and browser fixture lint passed after removing an await on the current synchronous Remote factory. Frozen-lock validation passed with only 48 intended workspace importer additions and no provider-peer churn. All sixteen hygiene gates passed, including publint, NodeNext consumers, package dependencies, Client loading, locale ownership, runtime closure and no new unknown casts. The Harnessy product static guard and two Desktop state-isolation cases passed.",
         "The full doc-sync run passed 42 of 43 gates; its stale Cordis inspect catalog was regenerated and passed the focused freshness check, then included in the final build. All 43 documentation gates therefore have passing evidence; the original aggregate is not claimed as clean. Bilingual package/subsystem/decision pairing, links, wrapping, exported JSDoc, package model experience, limitations, repository references, frozen archives and documentation tests passed. Normal implementation pre-commit checks passed; only foreign Android files remained outside the commit.",
         "No upstream checkpoint/ancestry merge, release, installed staging-runtime selection/update, main-app update or additional registered application copy is included. Browser checks run the explicit custom overlay and install anchor on disposable fixture data, not an installed Desktop window. Source publication does not establish an installed main update."
+      ]
+    },
+    "harnessy-plugin-markets-versions-details-20261025": {
+      "status": "adopted",
+      "summary": "Adapt opt-in configured plugin markets, exact confirmed installation, refresh-driven registry version checks, restart-safe updates and Markdown details into Harnessy's existing custom plugin manager.",
+      "files": [
+        {
+          "path": ".agents/notes/implemented/architecture/2026-10-14-registry-bundle-updates.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Do not import upstream proposal/implementation history or the removal of proposal records that Harnessy does not have. Current package READMEs, the plugin-market user guide, versioned upgrade guides, source contracts and verified reusable lessons own this adaptation. In particular, do not import the registry-update note whose remove/install/remount sequence can retain cached Node code and reorder bundle selection."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-10-14-registry-bundle-updates.md",
+          "disposition": "excluded",
+          "reason": "Do not import upstream proposal/implementation history or the removal of proposal records that Harnessy does not have. Current package READMEs, the plugin-market user guide, versioned upgrade guides, source contracts and verified reusable lessons own this adaptation. In particular, do not import the registry-update note whose remove/install/remount sequence can retain cached Node code and reorder bundle selection."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-10-14-registry-bundle-updates.zh.md",
+          "disposition": "excluded",
+          "reason": "Do not import upstream proposal/implementation history or the removal of proposal records that Harnessy does not have. Current package READMEs, the plugin-market user guide, versioned upgrade guides, source contracts and verified reusable lessons own this adaptation. In particular, do not import the registry-update note whose remove/install/remount sequence can retain cached Node code and reorder bundle selection."
+        },
+        {
+          "path": ".agents/notes/implemented/feature/2026-10-02-plugin-market-discover.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Do not import upstream proposal/implementation history or the removal of proposal records that Harnessy does not have. Current package READMEs, the plugin-market user guide, versioned upgrade guides, source contracts and verified reusable lessons own this adaptation. In particular, do not import the registry-update note whose remove/install/remount sequence can retain cached Node code and reorder bundle selection."
+        },
+        {
+          "path": ".agents/notes/implemented/feature/2026-10-02-plugin-market-discover.md",
+          "disposition": "excluded",
+          "reason": "Do not import upstream proposal/implementation history or the removal of proposal records that Harnessy does not have. Current package READMEs, the plugin-market user guide, versioned upgrade guides, source contracts and verified reusable lessons own this adaptation. In particular, do not import the registry-update note whose remove/install/remount sequence can retain cached Node code and reorder bundle selection."
+        },
+        {
+          "path": ".agents/notes/implemented/feature/2026-10-02-plugin-market-discover.zh.md",
+          "disposition": "excluded",
+          "reason": "Do not import upstream proposal/implementation history or the removal of proposal records that Harnessy does not have. Current package READMEs, the plugin-market user guide, versioned upgrade guides, source contracts and verified reusable lessons own this adaptation. In particular, do not import the registry-update note whose remove/install/remount sequence can retain cached Node code and reorder bundle selection."
+        },
+        {
+          "path": ".agents/notes/implemented/feature/2026-10-02-plugin-market-index-format.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Do not import upstream proposal/implementation history or the removal of proposal records that Harnessy does not have. Current package READMEs, the plugin-market user guide, versioned upgrade guides, source contracts and verified reusable lessons own this adaptation. In particular, do not import the registry-update note whose remove/install/remount sequence can retain cached Node code and reorder bundle selection."
+        },
+        {
+          "path": ".agents/notes/implemented/feature/2026-10-02-plugin-market-index-format.md",
+          "disposition": "excluded",
+          "reason": "Do not import upstream proposal/implementation history or the removal of proposal records that Harnessy does not have. Current package READMEs, the plugin-market user guide, versioned upgrade guides, source contracts and verified reusable lessons own this adaptation. In particular, do not import the registry-update note whose remove/install/remount sequence can retain cached Node code and reorder bundle selection."
+        },
+        {
+          "path": ".agents/notes/implemented/feature/2026-10-02-plugin-market-index-format.zh.md",
+          "disposition": "excluded",
+          "reason": "Do not import upstream proposal/implementation history or the removal of proposal records that Harnessy does not have. Current package READMEs, the plugin-market user guide, versioned upgrade guides, source contracts and verified reusable lessons own this adaptation. In particular, do not import the registry-update note whose remove/install/remount sequence can retain cached Node code and reorder bundle selection."
+        },
+        {
+          "path": ".agents/notes/implemented/feature/2026-10-15-plugin-detail-documents.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Do not import upstream proposal/implementation history or the removal of proposal records that Harnessy does not have. Current package READMEs, the plugin-market user guide, versioned upgrade guides, source contracts and verified reusable lessons own this adaptation. In particular, do not import the registry-update note whose remove/install/remount sequence can retain cached Node code and reorder bundle selection."
+        },
+        {
+          "path": ".agents/notes/implemented/feature/2026-10-15-plugin-detail-documents.md",
+          "disposition": "excluded",
+          "reason": "Do not import upstream proposal/implementation history or the removal of proposal records that Harnessy does not have. Current package READMEs, the plugin-market user guide, versioned upgrade guides, source contracts and verified reusable lessons own this adaptation. In particular, do not import the registry-update note whose remove/install/remount sequence can retain cached Node code and reorder bundle selection."
+        },
+        {
+          "path": ".agents/notes/implemented/feature/2026-10-15-plugin-detail-documents.zh.md",
+          "disposition": "excluded",
+          "reason": "Do not import upstream proposal/implementation history or the removal of proposal records that Harnessy does not have. Current package READMEs, the plugin-market user guide, versioned upgrade guides, source contracts and verified reusable lessons own this adaptation. In particular, do not import the registry-update note whose remove/install/remount sequence can retain cached Node code and reorder bundle selection."
+        },
+        {
+          "path": ".agents/notes/proposed/feature/2026-10-02-plugin-market-index-format.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Do not import upstream proposal/implementation history or the removal of proposal records that Harnessy does not have. Current package READMEs, the plugin-market user guide, versioned upgrade guides, source contracts and verified reusable lessons own this adaptation. In particular, do not import the registry-update note whose remove/install/remount sequence can retain cached Node code and reorder bundle selection."
+        },
+        {
+          "path": ".agents/notes/proposed/feature/2026-10-02-plugin-market-index-format.md",
+          "disposition": "excluded",
+          "reason": "Do not import upstream proposal/implementation history or the removal of proposal records that Harnessy does not have. Current package READMEs, the plugin-market user guide, versioned upgrade guides, source contracts and verified reusable lessons own this adaptation. In particular, do not import the registry-update note whose remove/install/remount sequence can retain cached Node code and reorder bundle selection."
+        },
+        {
+          "path": ".agents/notes/proposed/feature/2026-10-02-plugin-market-index-format.zh.md",
+          "disposition": "excluded",
+          "reason": "Do not import upstream proposal/implementation history or the removal of proposal records that Harnessy does not have. Current package READMEs, the plugin-market user guide, versioned upgrade guides, source contracts and verified reusable lessons own this adaptation. In particular, do not import the registry-update note whose remove/install/remount sequence can retain cached Node code and reorder bundle selection."
+        },
+        {
+          "path": "THIRD_PARTY_NOTICES.md",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "apps/cli/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "apps/cli/README.md",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "apps/cli/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "apps/cli/package.json",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "apps/cli/tests/plugin.spec.ts",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "apps/web/package.json",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "apps/web/tests/cot-translation-paid.e2e.ts",
+          "disposition": "excluded",
+          "reason": "These are selector/expectation changes for the separate thinking-translation feature, which is absent from this Harnessy integration. They are not required for market or local bundle documents; do not introduce that feature or its fixtures through a mixed detail-document commit."
+        },
+        {
+          "path": "apps/web/tests/cot-translation.e2e.ts",
+          "disposition": "excluded",
+          "reason": "These are selector/expectation changes for the separate thinking-translation feature, which is absent from this Harnessy integration. They are not required for market or local bundle documents; do not introduce that feature or its fixtures through a mixed detail-document commit."
+        },
+        {
+          "path": "apps/web/tests/expected/cot-translation-paid/paid-choices.expected.md",
+          "disposition": "excluded",
+          "reason": "These are selector/expectation changes for the separate thinking-translation feature, which is absent from this Harnessy integration. They are not required for market or local bundle documents; do not introduce that feature or its fixtures through a mixed detail-document commit."
+        },
+        {
+          "path": "apps/web/tests/expected/cot-translation/preferences.expected.md",
+          "disposition": "excluded",
+          "reason": "These are selector/expectation changes for the separate thinking-translation feature, which is absent from this Harnessy integration. They are not required for market or local bundle documents; do not introduce that feature or its fixtures through a mixed detail-document commit."
+        },
+        {
+          "path": "apps/web/tests/expected/plugin-config/official.expected.md",
+          "disposition": "adopted",
+          "reason": "Update current plugin-management browser expectations and controls for the optional market card, version instructions and local detail failures. Keep custom three-group ordering, brand-edge focus and current theme controls; normalize only fixture-owned paths. The explicit Harnessy overlay scenario separately verifies Discover, named/versioned confirmation, local documents and restart-required updates without installing an external package."
+        },
+        {
+          "path": "apps/web/tests/expected/plugin-manager/live-enabled.expected.md",
+          "disposition": "adopted",
+          "reason": "Update current plugin-management browser expectations and controls for the optional market card, version instructions and local detail failures. Keep custom three-group ordering, brand-edge focus and current theme controls; normalize only fixture-owned paths. The explicit Harnessy overlay scenario separately verifies Discover, named/versioned confirmation, local documents and restart-required updates without installing an external package."
+        },
+        {
+          "path": "apps/web/tests/expected/plugin-manager/loading.expected.md",
+          "disposition": "retained-newer",
+          "reason": "Retain the four-placeholder loading expectation. The current browser test verifies all five optional cards, compares the first four against the placeholders relative to their group header, and preserves Harnessy's three groups. Unchanged replay passes without importing the stock Official group."
+        },
+        {
+          "path": "apps/web/tests/expected/plugin-manager/manager.expected.md",
+          "disposition": "adopted",
+          "reason": "Update current plugin-management browser expectations and controls for the optional market card, version instructions and local detail failures. Keep custom three-group ordering, brand-edge focus and current theme controls; normalize only fixture-owned paths. The explicit Harnessy overlay scenario separately verifies Discover, named/versioned confirmation, local documents and restart-required updates without installing an external package."
+        },
+        {
+          "path": "apps/web/tests/expected/plugin-manager/preview.expected.md",
+          "disposition": "excluded",
+          "reason": "Do not add the stock offered-bundle preview/catalog flow. Harnessy keeps its installed, built-in and optional groups; its dedicated built-browser scenario verifies installed local documents and configured-market documents instead."
+        },
+        {
+          "path": "apps/web/tests/expected/plugin-manager/refresh.expected.md",
+          "disposition": "adopted",
+          "reason": "Update current plugin-management browser expectations and controls for the optional market card, version instructions and local detail failures. Keep custom three-group ordering, brand-edge focus and current theme controls; normalize only fixture-owned paths. The explicit Harnessy overlay scenario separately verifies Discover, named/versioned confirmation, local documents and restart-required updates without installing an external package."
+        },
+        {
+          "path": "apps/web/tests/plugin-manager.e2e.ts",
+          "disposition": "adopted",
+          "reason": "Update current plugin-management browser expectations and controls for the optional market card, version instructions and local detail failures. Keep custom three-group ordering, brand-edge focus and current theme controls; normalize only fixture-owned paths. The explicit Harnessy overlay scenario separately verifies Discover, named/versioned confirmation, local documents and restart-required updates without installing an external package."
+        },
+        {
+          "path": "docs/capability-seams.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "docs/capability-seams.md",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "docs/capability-seams.zh.md",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "docs/config-catalog.md",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "docs/config-catalog.zh.md",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "docs/cookbook/adding-a-package.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "docs/cookbook/adding-a-package.md",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "docs/cookbook/adding-a-package.zh.md",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "docs/event-producer-consumer.md",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "docs/event-producer-consumer.zh.md",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "docs/module-graph.md",
+          "disposition": "retained-newer",
+          "reason": "The current graph generator and bilingual pairing checker compute the existing bytes for this owner. Regenerate from Harnessy declarations rather than importing another branch's generated graph or pairing hashes."
+        },
+        {
+          "path": "docs/module-graph.zh.md",
+          "disposition": "retained-newer",
+          "reason": "The current graph generator and bilingual pairing checker compute the existing bytes for this owner. Regenerate from Harnessy declarations rather than importing another branch's generated graph or pairing hashes."
+        },
+        {
+          "path": "docs/subsystems/boot.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "The current graph generator and bilingual pairing checker compute the existing bytes for this owner. Regenerate from Harnessy declarations rather than importing another branch's generated graph or pairing hashes."
+        },
+        {
+          "path": "docs/subsystems/boot.md",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "docs/subsystems/boot.zh.md",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "docs/tool-catalog.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "docs/tool-catalog.md",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "docs/tool-catalog.zh.md",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "docs/upgrade-guide/v0.2.1-alpha.2/plugin-manager-view-fields/guide.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Keep upgrade guides under Harnessy 0.1.17: plugin-version-requirements and plugin-manager-view-fields document the adopted public changes. Do not introduce upstream release-version directories or imply that a Harnessy release was published."
+        },
+        {
+          "path": "docs/upgrade-guide/v0.2.1-alpha.2/plugin-manager-view-fields/guide.md",
+          "disposition": "excluded",
+          "reason": "Keep upgrade guides under Harnessy 0.1.17: plugin-version-requirements and plugin-manager-view-fields document the adopted public changes. Do not introduce upstream release-version directories or imply that a Harnessy release was published."
+        },
+        {
+          "path": "docs/upgrade-guide/v0.2.1-alpha.2/plugin-manager-view-fields/guide.zh.md",
+          "disposition": "excluded",
+          "reason": "Keep upgrade guides under Harnessy 0.1.17: plugin-version-requirements and plugin-manager-view-fields document the adopted public changes. Do not introduce upstream release-version directories or imply that a Harnessy release was published."
+        },
+        {
+          "path": "docs/upgrade-guide/v0.2.1-alpha.3/plugin-engines-dsh/guide.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Keep upgrade guides under Harnessy 0.1.17: plugin-version-requirements and plugin-manager-view-fields document the adopted public changes. Do not introduce upstream release-version directories or imply that a Harnessy release was published."
+        },
+        {
+          "path": "docs/upgrade-guide/v0.2.1-alpha.3/plugin-engines-dsh/guide.md",
+          "disposition": "excluded",
+          "reason": "Keep upgrade guides under Harnessy 0.1.17: plugin-version-requirements and plugin-manager-view-fields document the adopted public changes. Do not introduce upstream release-version directories or imply that a Harnessy release was published."
+        },
+        {
+          "path": "docs/upgrade-guide/v0.2.1-alpha.3/plugin-engines-dsh/guide.zh.md",
+          "disposition": "excluded",
+          "reason": "Keep upgrade guides under Harnessy 0.1.17: plugin-version-requirements and plugin-manager-view-fields document the adopted public changes. Do not introduce upstream release-version directories or imply that a Harnessy release was published."
+        },
+        {
+          "path": "docs/user/develop/basic/publish.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "docs/user/develop/basic/publish.md",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "docs/user/develop/basic/publish.zh.md",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "docs/user/guide/plugin-market.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "docs/user/guide/plugin-market.md",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "docs/user/guide/plugin-market.zh.md",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "packages/api/remotes/package.json",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "packages/api/remotes/src/client/index.ts",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "packages/api/remotes/src/remote-events.ts",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "packages/api/remotes/tsconfig.client.json",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "packages/api/remotes/tsconfig.host.json",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "packages/boot/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "packages/boot/README.md",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "packages/boot/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "packages/boot/app-boot/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Prefer a package's engines.dsh requirement, retain legacy DSH peer fallback and version exemptions, expose unmet requirements, and register the exact optional market bundle without selecting it. Adapt current consumers and compatibility tests together; do not replace Harnessy profile/data owners."
+        },
+        {
+          "path": "packages/boot/app-boot/README.md",
+          "disposition": "adopted",
+          "reason": "Prefer a package's engines.dsh requirement, retain legacy DSH peer fallback and version exemptions, expose unmet requirements, and register the exact optional market bundle without selecting it. Adapt current consumers and compatibility tests together; do not replace Harnessy profile/data owners."
+        },
+        {
+          "path": "packages/boot/app-boot/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Prefer a package's engines.dsh requirement, retain legacy DSH peer fallback and version exemptions, expose unmet requirements, and register the exact optional market bundle without selecting it. Adapt current consumers and compatibility tests together; do not replace Harnessy profile/data owners."
+        },
+        {
+          "path": "packages/boot/app-boot/src/compatibility-preflight.ts",
+          "disposition": "adopted",
+          "reason": "Prefer a package's engines.dsh requirement, retain legacy DSH peer fallback and version exemptions, expose unmet requirements, and register the exact optional market bundle without selecting it. Adapt current consumers and compatibility tests together; do not replace Harnessy profile/data owners."
+        },
+        {
+          "path": "packages/boot/app-boot/src/plugin-compatibility.ts",
+          "disposition": "adopted",
+          "reason": "Prefer a package's engines.dsh requirement, retain legacy DSH peer fallback and version exemptions, expose unmet requirements, and register the exact optional market bundle without selecting it. Adapt current consumers and compatibility tests together; do not replace Harnessy profile/data owners."
+        },
+        {
+          "path": "packages/boot/app-boot/src/profile.ts",
+          "disposition": "adopted",
+          "reason": "Prefer a package's engines.dsh requirement, retain legacy DSH peer fallback and version exemptions, expose unmet requirements, and register the exact optional market bundle without selecting it. Adapt current consumers and compatibility tests together; do not replace Harnessy profile/data owners."
+        },
+        {
+          "path": "packages/boot/app-boot/tests/plugin-compatibility.spec.ts",
+          "disposition": "adopted",
+          "reason": "Prefer a package's engines.dsh requirement, retain legacy DSH peer fallback and version exemptions, expose unmet requirements, and register the exact optional market bundle without selecting it. Adapt current consumers and compatibility tests together; do not replace Harnessy profile/data owners."
+        },
+        {
+          "path": "packages/boot/plugin-manager/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adapt registry listing and updates into the existing protected manager. Check compatibility first; hold one profile lock, replace in place, retain selection/order/running code and require restart. Recover the previous exact version after failure/cancellation without deselecting it. Track and cancel registry configuration/view subprocesses through disposal. Read installed bundle details locally; exclude the stock offered-catalog/CDN manager branch. Preserve existing approval, registry recovery and management protections."
+        },
+        {
+          "path": "packages/boot/plugin-manager/README.md",
+          "disposition": "adopted",
+          "reason": "Adapt registry listing and updates into the existing protected manager. Check compatibility first; hold one profile lock, replace in place, retain selection/order/running code and require restart. Recover the previous exact version after failure/cancellation without deselecting it. Track and cancel registry configuration/view subprocesses through disposal. Read installed bundle details locally; exclude the stock offered-catalog/CDN manager branch. Preserve existing approval, registry recovery and management protections."
+        },
+        {
+          "path": "packages/boot/plugin-manager/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Adapt registry listing and updates into the existing protected manager. Check compatibility first; hold one profile lock, replace in place, retain selection/order/running code and require restart. Recover the previous exact version after failure/cancellation without deselecting it. Track and cancel registry configuration/view subprocesses through disposal. Read installed bundle details locally; exclude the stock offered-catalog/CDN manager branch. Preserve existing approval, registry recovery and management protections."
+        },
+        {
+          "path": "packages/boot/plugin-manager/package.json",
+          "disposition": "adopted",
+          "reason": "Adapt registry listing and updates into the existing protected manager. Check compatibility first; hold one profile lock, replace in place, retain selection/order/running code and require restart. Recover the previous exact version after failure/cancellation without deselecting it. Track and cancel registry configuration/view subprocesses through disposal. Read installed bundle details locally; exclude the stock offered-catalog/CDN manager branch. Preserve existing approval, registry recovery and management protections."
+        },
+        {
+          "path": "packages/boot/plugin-manager/src/bundle-detail.ts",
+          "disposition": "adopted",
+          "reason": "Adapt registry listing and updates into the existing protected manager. Check compatibility first; hold one profile lock, replace in place, retain selection/order/running code and require restart. Recover the previous exact version after failure/cancellation without deselecting it. Track and cancel registry configuration/view subprocesses through disposal. Read installed bundle details locally; exclude the stock offered-catalog/CDN manager branch. Preserve existing approval, registry recovery and management protections."
+        },
+        {
+          "path": "packages/boot/plugin-manager/src/failure.ts",
+          "disposition": "adopted",
+          "reason": "Adapt registry listing and updates into the existing protected manager. Check compatibility first; hold one profile lock, replace in place, retain selection/order/running code and require restart. Recover the previous exact version after failure/cancellation without deselecting it. Track and cancel registry configuration/view subprocesses through disposal. Read installed bundle details locally; exclude the stock offered-catalog/CDN manager branch. Preserve existing approval, registry recovery and management protections."
+        },
+        {
+          "path": "packages/boot/plugin-manager/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Adapt registry listing and updates into the existing protected manager. Check compatibility first; hold one profile lock, replace in place, retain selection/order/running code and require restart. Recover the previous exact version after failure/cancellation without deselecting it. Track and cancel registry configuration/view subprocesses through disposal. Read installed bundle details locally; exclude the stock offered-catalog/CDN manager branch. Preserve existing approval, registry recovery and management protections."
+        },
+        {
+          "path": "packages/boot/plugin-manager/src/operations.ts",
+          "disposition": "adopted",
+          "reason": "Adapt registry listing and updates into the existing protected manager. Check compatibility first; hold one profile lock, replace in place, retain selection/order/running code and require restart. Recover the previous exact version after failure/cancellation without deselecting it. Track and cancel registry configuration/view subprocesses through disposal. Read installed bundle details locally; exclude the stock offered-catalog/CDN manager branch. Preserve existing approval, registry recovery and management protections."
+        },
+        {
+          "path": "packages/boot/plugin-manager/src/tools.ts",
+          "disposition": "adopted",
+          "reason": "Adapt registry listing and updates into the existing protected manager. Check compatibility first; hold one profile lock, replace in place, retain selection/order/running code and require restart. Recover the previous exact version after failure/cancellation without deselecting it. Track and cancel registry configuration/view subprocesses through disposal. Read installed bundle details locally; exclude the stock offered-catalog/CDN manager branch. Preserve existing approval, registry recovery and management protections."
+        },
+        {
+          "path": "packages/boot/plugin-manager/src/types.ts",
+          "disposition": "adopted",
+          "reason": "Adapt registry listing and updates into the existing protected manager. Check compatibility first; hold one profile lock, replace in place, retain selection/order/running code and require restart. Recover the previous exact version after failure/cancellation without deselecting it. Track and cancel registry configuration/view subprocesses through disposal. Read installed bundle details locally; exclude the stock offered-catalog/CDN manager branch. Preserve existing approval, registry recovery and management protections."
+        },
+        {
+          "path": "packages/boot/plugin-manager/src/versions.ts",
+          "disposition": "adopted",
+          "reason": "Adapt registry listing and updates into the existing protected manager. Check compatibility first; hold one profile lock, replace in place, retain selection/order/running code and require restart. Recover the previous exact version after failure/cancellation without deselecting it. Track and cancel registry configuration/view subprocesses through disposal. Read installed bundle details locally; exclude the stock offered-catalog/CDN manager branch. Preserve existing approval, registry recovery and management protections."
+        },
+        {
+          "path": "packages/boot/plugin-manager/tests/bundle-detail.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt registry listing and updates into the existing protected manager. Check compatibility first; hold one profile lock, replace in place, retain selection/order/running code and require restart. Recover the previous exact version after failure/cancellation without deselecting it. Track and cancel registry configuration/view subprocesses through disposal. Read installed bundle details locally; exclude the stock offered-catalog/CDN manager branch. Preserve existing approval, registry recovery and management protections."
+        },
+        {
+          "path": "packages/boot/plugin-manager/tests/manager.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt registry listing and updates into the existing protected manager. Check compatibility first; hold one profile lock, replace in place, retain selection/order/running code and require restart. Recover the previous exact version after failure/cancellation without deselecting it. Track and cancel registry configuration/view subprocesses through disposal. Read installed bundle details locally; exclude the stock offered-catalog/CDN manager branch. Preserve existing approval, registry recovery and management protections."
+        },
+        {
+          "path": "packages/boot/plugin-manager/tests/operations.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt registry listing and updates into the existing protected manager. Check compatibility first; hold one profile lock, replace in place, retain selection/order/running code and require restart. Recover the previous exact version after failure/cancellation without deselecting it. Track and cancel registry configuration/view subprocesses through disposal. Read installed bundle details locally; exclude the stock offered-catalog/CDN manager branch. Preserve existing approval, registry recovery and management protections."
+        },
+        {
+          "path": "packages/boot/plugin-manager/tests/tools.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt registry listing and updates into the existing protected manager. Check compatibility first; hold one profile lock, replace in place, retain selection/order/running code and require restart. Recover the previous exact version after failure/cancellation without deselecting it. Track and cancel registry configuration/view subprocesses through disposal. Read installed bundle details locally; exclude the stock offered-catalog/CDN manager branch. Preserve existing approval, registry recovery and management protections."
+        },
+        {
+          "path": "packages/boot/plugin-manager/tests/versions.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt registry listing and updates into the existing protected manager. Check compatibility first; hold one profile lock, replace in place, retain selection/order/running code and require restart. Recover the previous exact version after failure/cancellation without deselecting it. Track and cancel registry configuration/view subprocesses through disposal. Read installed bundle details locally; exclude the stock offered-catalog/CDN manager branch. Preserve existing approval, registry recovery and management protections."
+        },
+        {
+          "path": "packages/boot/plugin-manager/tsconfig.json",
+          "disposition": "adopted",
+          "reason": "Adapt registry listing and updates into the existing protected manager. Check compatibility first; hold one profile lock, replace in place, retain selection/order/running code and require restart. Recover the previous exact version after failure/cancellation without deselecting it. Track and cancel registry configuration/view subprocesses through disposal. Read installed bundle details locally; exclude the stock offered-catalog/CDN manager branch. Preserve existing approval, registry recovery and management protections."
+        },
+        {
+          "path": "packages/boot/plugin-market/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Add the configured-index Host service, bounded worker parsing, paging, read-only listing tool and document/cache owners. Start with no index sources. Preserve cancellation and await Git-cache fixture teardown before restoring process-global Git configuration; use Windows junction fixtures and runner-owned time budgets. No runnable Harnessy clone or registered app is created."
+        },
+        {
+          "path": "packages/boot/plugin-market/README.md",
+          "disposition": "adopted",
+          "reason": "Add the configured-index Host service, bounded worker parsing, paging, read-only listing tool and document/cache owners. Start with no index sources. Preserve cancellation and await Git-cache fixture teardown before restoring process-global Git configuration; use Windows junction fixtures and runner-owned time budgets. No runnable Harnessy clone or registered app is created."
+        },
+        {
+          "path": "packages/boot/plugin-market/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Add the configured-index Host service, bounded worker parsing, paging, read-only listing tool and document/cache owners. Start with no index sources. Preserve cancellation and await Git-cache fixture teardown before restoring process-global Git configuration; use Windows junction fixtures and runner-owned time budgets. No runnable Harnessy clone or registered app is created."
+        },
+        {
+          "path": "packages/boot/plugin-market/package.json",
+          "disposition": "adopted",
+          "reason": "Add the configured-index Host service, bounded worker parsing, paging, read-only listing tool and document/cache owners. Start with no index sources. Preserve cancellation and await Git-cache fixture teardown before restoring process-global Git configuration; use Windows junction fixtures and runner-owned time budgets. No runnable Harnessy clone or registered app is created."
+        },
+        {
+          "path": "packages/boot/plugin-market/src/detail-files.ts",
+          "disposition": "adopted",
+          "reason": "Add the configured-index Host service, bounded worker parsing, paging, read-only listing tool and document/cache owners. Start with no index sources. Preserve cancellation and await Git-cache fixture teardown before restoring process-global Git configuration; use Windows junction fixtures and runner-owned time budgets. No runnable Harnessy clone or registered app is created."
+        },
+        {
+          "path": "packages/boot/plugin-market/src/detail.ts",
+          "disposition": "adopted",
+          "reason": "Add the configured-index Host service, bounded worker parsing, paging, read-only listing tool and document/cache owners. Start with no index sources. Preserve cancellation and await Git-cache fixture teardown before restoring process-global Git configuration; use Windows junction fixtures and runner-owned time budgets. No runnable Harnessy clone or registered app is created."
+        },
+        {
+          "path": "packages/boot/plugin-market/src/index-url.ts",
+          "disposition": "adopted",
+          "reason": "Add the configured-index Host service, bounded worker parsing, paging, read-only listing tool and document/cache owners. Start with no index sources. Preserve cancellation and await Git-cache fixture teardown before restoring process-global Git configuration; use Windows junction fixtures and runner-owned time budgets. No runnable Harnessy clone or registered app is created."
+        },
+        {
+          "path": "packages/boot/plugin-market/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Add the configured-index Host service, bounded worker parsing, paging, read-only listing tool and document/cache owners. Start with no index sources. Preserve cancellation and await Git-cache fixture teardown before restoring process-global Git configuration; use Windows junction fixtures and runner-owned time budgets. No runnable Harnessy clone or registered app is created."
+        },
+        {
+          "path": "packages/boot/plugin-market/src/parse-thread.ts",
+          "disposition": "adopted",
+          "reason": "Add the configured-index Host service, bounded worker parsing, paging, read-only listing tool and document/cache owners. Start with no index sources. Preserve cancellation and await Git-cache fixture teardown before restoring process-global Git configuration; use Windows junction fixtures and runner-owned time budgets. No runnable Harnessy clone or registered app is created."
+        },
+        {
+          "path": "packages/boot/plugin-market/src/parse.ts",
+          "disposition": "adopted",
+          "reason": "Add the configured-index Host service, bounded worker parsing, paging, read-only listing tool and document/cache owners. Start with no index sources. Preserve cancellation and await Git-cache fixture teardown before restoring process-global Git configuration; use Windows junction fixtures and runner-owned time budgets. No runnable Harnessy clone or registered app is created."
+        },
+        {
+          "path": "packages/boot/plugin-market/src/repository-cache.ts",
+          "disposition": "adopted",
+          "reason": "Add the configured-index Host service, bounded worker parsing, paging, read-only listing tool and document/cache owners. Start with no index sources. Preserve cancellation and await Git-cache fixture teardown before restoring process-global Git configuration; use Windows junction fixtures and runner-owned time budgets. No runnable Harnessy clone or registered app is created."
+        },
+        {
+          "path": "packages/boot/plugin-market/src/search.ts",
+          "disposition": "adopted",
+          "reason": "Add the configured-index Host service, bounded worker parsing, paging, read-only listing tool and document/cache owners. Start with no index sources. Preserve cancellation and await Git-cache fixture teardown before restoring process-global Git configuration; use Windows junction fixtures and runner-owned time budgets. No runnable Harnessy clone or registered app is created."
+        },
+        {
+          "path": "packages/boot/plugin-market/src/tools.ts",
+          "disposition": "adopted",
+          "reason": "Add the configured-index Host service, bounded worker parsing, paging, read-only listing tool and document/cache owners. Start with no index sources. Preserve cancellation and await Git-cache fixture teardown before restoring process-global Git configuration; use Windows junction fixtures and runner-owned time budgets. No runnable Harnessy clone or registered app is created."
+        },
+        {
+          "path": "packages/boot/plugin-market/src/types.ts",
+          "disposition": "adopted",
+          "reason": "Add the configured-index Host service, bounded worker parsing, paging, read-only listing tool and document/cache owners. Start with no index sources. Preserve cancellation and await Git-cache fixture teardown before restoring process-global Git configuration; use Windows junction fixtures and runner-owned time budgets. No runnable Harnessy clone or registered app is created."
+        },
+        {
+          "path": "packages/boot/plugin-market/src/worker.ts",
+          "disposition": "adopted",
+          "reason": "Add the configured-index Host service, bounded worker parsing, paging, read-only listing tool and document/cache owners. Start with no index sources. Preserve cancellation and await Git-cache fixture teardown before restoring process-global Git configuration; use Windows junction fixtures and runner-owned time budgets. No runnable Harnessy clone or registered app is created."
+        },
+        {
+          "path": "packages/boot/plugin-market/tests/built-worker.e2e.ts",
+          "disposition": "adopted",
+          "reason": "Add the configured-index Host service, bounded worker parsing, paging, read-only listing tool and document/cache owners. Start with no index sources. Preserve cancellation and await Git-cache fixture teardown before restoring process-global Git configuration; use Windows junction fixtures and runner-owned time budgets. No runnable Harnessy clone or registered app is created."
+        },
+        {
+          "path": "packages/boot/plugin-market/tests/configuration.spec.ts",
+          "disposition": "adopted",
+          "reason": "Add the configured-index Host service, bounded worker parsing, paging, read-only listing tool and document/cache owners. Start with no index sources. Preserve cancellation and await Git-cache fixture teardown before restoring process-global Git configuration; use Windows junction fixtures and runner-owned time budgets. No runnable Harnessy clone or registered app is created."
+        },
+        {
+          "path": "packages/boot/plugin-market/tests/detail-files.spec.ts",
+          "disposition": "adopted",
+          "reason": "Add the configured-index Host service, bounded worker parsing, paging, read-only listing tool and document/cache owners. Start with no index sources. Preserve cancellation and await Git-cache fixture teardown before restoring process-global Git configuration; use Windows junction fixtures and runner-owned time budgets. No runnable Harnessy clone or registered app is created."
+        },
+        {
+          "path": "packages/boot/plugin-market/tests/detail-reader.spec.ts",
+          "disposition": "adopted",
+          "reason": "Add the configured-index Host service, bounded worker parsing, paging, read-only listing tool and document/cache owners. Start with no index sources. Preserve cancellation and await Git-cache fixture teardown before restoring process-global Git configuration; use Windows junction fixtures and runner-owned time budgets. No runnable Harnessy clone or registered app is created."
+        },
+        {
+          "path": "packages/boot/plugin-market/tests/detail-remote.spec.ts",
+          "disposition": "adopted",
+          "reason": "Add the configured-index Host service, bounded worker parsing, paging, read-only listing tool and document/cache owners. Start with no index sources. Preserve cancellation and await Git-cache fixture teardown before restoring process-global Git configuration; use Windows junction fixtures and runner-owned time budgets. No runnable Harnessy clone or registered app is created."
+        },
+        {
+          "path": "packages/boot/plugin-market/tests/fixtures/market.patch.yml",
+          "disposition": "adopted",
+          "reason": "Add the configured-index Host service, bounded worker parsing, paging, read-only listing tool and document/cache owners. Start with no index sources. Preserve cancellation and await Git-cache fixture teardown before restoring process-global Git configuration; use Windows junction fixtures and runner-owned time budgets. No runnable Harnessy clone or registered app is created."
+        },
+        {
+          "path": "packages/boot/plugin-market/tests/market-parse-failure.spec.ts",
+          "disposition": "adopted",
+          "reason": "Add the configured-index Host service, bounded worker parsing, paging, read-only listing tool and document/cache owners. Start with no index sources. Preserve cancellation and await Git-cache fixture teardown before restoring process-global Git configuration; use Windows junction fixtures and runner-owned time budgets. No runnable Harnessy clone or registered app is created."
+        },
+        {
+          "path": "packages/boot/plugin-market/tests/market.spec.ts",
+          "disposition": "adopted",
+          "reason": "Add the configured-index Host service, bounded worker parsing, paging, read-only listing tool and document/cache owners. Start with no index sources. Preserve cancellation and await Git-cache fixture teardown before restoring process-global Git configuration; use Windows junction fixtures and runner-owned time budgets. No runnable Harnessy clone or registered app is created."
+        },
+        {
+          "path": "packages/boot/plugin-market/tests/parse-thread.spec.ts",
+          "disposition": "adopted",
+          "reason": "Add the configured-index Host service, bounded worker parsing, paging, read-only listing tool and document/cache owners. Start with no index sources. Preserve cancellation and await Git-cache fixture teardown before restoring process-global Git configuration; use Windows junction fixtures and runner-owned time budgets. No runnable Harnessy clone or registered app is created."
+        },
+        {
+          "path": "packages/boot/plugin-market/tests/parse-worker.spec.ts",
+          "disposition": "adopted",
+          "reason": "Add the configured-index Host service, bounded worker parsing, paging, read-only listing tool and document/cache owners. Start with no index sources. Preserve cancellation and await Git-cache fixture teardown before restoring process-global Git configuration; use Windows junction fixtures and runner-owned time budgets. No runnable Harnessy clone or registered app is created."
+        },
+        {
+          "path": "packages/boot/plugin-market/tests/parse.spec.ts",
+          "disposition": "adopted",
+          "reason": "Add the configured-index Host service, bounded worker parsing, paging, read-only listing tool and document/cache owners. Start with no index sources. Preserve cancellation and await Git-cache fixture teardown before restoring process-global Git configuration; use Windows junction fixtures and runner-owned time budgets. No runnable Harnessy clone or registered app is created."
+        },
+        {
+          "path": "packages/boot/plugin-market/tests/repository-cache.spec.ts",
+          "disposition": "adopted",
+          "reason": "Add the configured-index Host service, bounded worker parsing, paging, read-only listing tool and document/cache owners. Start with no index sources. Preserve cancellation and await Git-cache fixture teardown before restoring process-global Git configuration; use Windows junction fixtures and runner-owned time budgets. No runnable Harnessy clone or registered app is created."
+        },
+        {
+          "path": "packages/boot/plugin-market/tests/tools.spec.ts",
+          "disposition": "adopted",
+          "reason": "Add the configured-index Host service, bounded worker parsing, paging, read-only listing tool and document/cache owners. Start with no index sources. Preserve cancellation and await Git-cache fixture teardown before restoring process-global Git configuration; use Windows junction fixtures and runner-owned time budgets. No runnable Harnessy clone or registered app is created."
+        },
+        {
+          "path": "packages/boot/plugin-market/tsconfig.json",
+          "disposition": "adopted",
+          "reason": "Add the configured-index Host service, bounded worker parsing, paging, read-only listing tool and document/cache owners. Start with no index sources. Preserve cancellation and await Git-cache fixture teardown before restoring process-global Git configuration; use Windows junction fixtures and runner-owned time budgets. No runnable Harnessy clone or registered app is created."
+        },
+        {
+          "path": "packages/boot/plugin-market/tsdown.config.ts",
+          "disposition": "adopted",
+          "reason": "Add the configured-index Host service, bounded worker parsing, paging, read-only listing tool and document/cache owners. Start with no index sources. Preserve cancellation and await Git-cache fixture teardown before restoring process-global Git configuration; use Windows junction fixtures and runner-owned time budgets. No runnable Harnessy clone or registered app is created."
+        },
+        {
+          "path": "packages/bundle/web-app/package.json",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "packages/bundle/web-app/presets/cordis.patch.yml",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "packages/bundle/web-app/presets/ptc.patch.yml",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "packages/bundle/web-app/presets/standard.patch.yml",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "packages/client/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "packages/client/README.md",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "packages/client/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "packages/client/ui-plugin-manager/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Add contributed navigation, named/versioned confirmed installation, stale-version invalidation, refresh-driven checks, update progress/restart feedback and locale-aware local details. Retain basic/extensions/bundles, custom registry recovery, current theme/focus behavior and custom configuration owners. Do not import offered catalog entries, stock availability fields, a More page, automatic updates, or the remove/remount update sequence."
+        },
+        {
+          "path": "packages/client/ui-plugin-manager/README.md",
+          "disposition": "adopted",
+          "reason": "Add contributed navigation, named/versioned confirmed installation, stale-version invalidation, refresh-driven checks, update progress/restart feedback and locale-aware local details. Retain basic/extensions/bundles, custom registry recovery, current theme/focus behavior and custom configuration owners. Do not import offered catalog entries, stock availability fields, a More page, automatic updates, or the remove/remount update sequence."
+        },
+        {
+          "path": "packages/client/ui-plugin-manager/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Add contributed navigation, named/versioned confirmed installation, stale-version invalidation, refresh-driven checks, update progress/restart feedback and locale-aware local details. Retain basic/extensions/bundles, custom registry recovery, current theme/focus behavior and custom configuration owners. Do not import offered catalog entries, stock availability fields, a More page, automatic updates, or the remove/remount update sequence."
+        },
+        {
+          "path": "packages/client/ui-plugin-manager/src/client/BundleDetailSection.tsx",
+          "disposition": "adopted",
+          "reason": "Add contributed navigation, named/versioned confirmed installation, stale-version invalidation, refresh-driven checks, update progress/restart feedback and locale-aware local details. Retain basic/extensions/bundles, custom registry recovery, current theme/focus behavior and custom configuration owners. Do not import offered catalog entries, stock availability fields, a More page, automatic updates, or the remove/remount update sequence."
+        },
+        {
+          "path": "packages/client/ui-plugin-manager/src/client/PluginManagerPage.module.css",
+          "disposition": "adopted",
+          "reason": "Add contributed navigation, named/versioned confirmed installation, stale-version invalidation, refresh-driven checks, update progress/restart feedback and locale-aware local details. Retain basic/extensions/bundles, custom registry recovery, current theme/focus behavior and custom configuration owners. Do not import offered catalog entries, stock availability fields, a More page, automatic updates, or the remove/remount update sequence."
+        },
+        {
+          "path": "packages/client/ui-plugin-manager/src/client/PluginManagerPage.tsx",
+          "disposition": "adopted",
+          "reason": "Add contributed navigation, named/versioned confirmed installation, stale-version invalidation, refresh-driven checks, update progress/restart feedback and locale-aware local details. Retain basic/extensions/bundles, custom registry recovery, current theme/focus behavior and custom configuration owners. Do not import offered catalog entries, stock availability fields, a More page, automatic updates, or the remove/remount update sequence."
+        },
+        {
+          "path": "packages/client/ui-plugin-manager/src/client/detail-store.ts",
+          "disposition": "adopted",
+          "reason": "Add contributed navigation, named/versioned confirmed installation, stale-version invalidation, refresh-driven checks, update progress/restart feedback and locale-aware local details. Retain basic/extensions/bundles, custom registry recovery, current theme/focus behavior and custom configuration owners. Do not import offered catalog entries, stock availability fields, a More page, automatic updates, or the remove/remount update sequence."
+        },
+        {
+          "path": "packages/client/ui-plugin-manager/src/client/index.ts",
+          "disposition": "adopted",
+          "reason": "Add contributed navigation, named/versioned confirmed installation, stale-version invalidation, refresh-driven checks, update progress/restart feedback and locale-aware local details. Retain basic/extensions/bundles, custom registry recovery, current theme/focus behavior and custom configuration owners. Do not import offered catalog entries, stock availability fields, a More page, automatic updates, or the remove/remount update sequence."
+        },
+        {
+          "path": "packages/client/ui-plugin-manager/src/client/locales.ts",
+          "disposition": "adopted",
+          "reason": "Add contributed navigation, named/versioned confirmed installation, stale-version invalidation, refresh-driven checks, update progress/restart feedback and locale-aware local details. Retain basic/extensions/bundles, custom registry recovery, current theme/focus behavior and custom configuration owners. Do not import offered catalog entries, stock availability fields, a More page, automatic updates, or the remove/remount update sequence."
+        },
+        {
+          "path": "packages/client/ui-plugin-manager/src/client/manager-store.ts",
+          "disposition": "adopted",
+          "reason": "Add contributed navigation, named/versioned confirmed installation, stale-version invalidation, refresh-driven checks, update progress/restart feedback and locale-aware local details. Retain basic/extensions/bundles, custom registry recovery, current theme/focus behavior and custom configuration owners. Do not import offered catalog entries, stock availability fields, a More page, automatic updates, or the remove/remount update sequence."
+        },
+        {
+          "path": "packages/client/ui-plugin-manager/src/client/navigation-store.ts",
+          "disposition": "adopted",
+          "reason": "Add contributed navigation, named/versioned confirmed installation, stale-version invalidation, refresh-driven checks, update progress/restart feedback and locale-aware local details. Retain basic/extensions/bundles, custom registry recovery, current theme/focus behavior and custom configuration owners. Do not import offered catalog entries, stock availability fields, a More page, automatic updates, or the remove/remount update sequence."
+        },
+        {
+          "path": "packages/client/ui-plugin-manager/src/client/presentation.ts",
+          "disposition": "adopted",
+          "reason": "Add contributed navigation, named/versioned confirmed installation, stale-version invalidation, refresh-driven checks, update progress/restart feedback and locale-aware local details. Retain basic/extensions/bundles, custom registry recovery, current theme/focus behavior and custom configuration owners. Do not import offered catalog entries, stock availability fields, a More page, automatic updates, or the remove/remount update sequence."
+        },
+        {
+          "path": "packages/client/ui-plugin-manager/src/client/slot-contract.ts",
+          "disposition": "adopted",
+          "reason": "Add contributed navigation, named/versioned confirmed installation, stale-version invalidation, refresh-driven checks, update progress/restart feedback and locale-aware local details. Retain basic/extensions/bundles, custom registry recovery, current theme/focus behavior and custom configuration owners. Do not import offered catalog entries, stock availability fields, a More page, automatic updates, or the remove/remount update sequence."
+        },
+        {
+          "path": "packages/client/ui-plugin-manager/src/client/tab-ledger.ts",
+          "disposition": "adopted",
+          "reason": "Add contributed navigation, named/versioned confirmed installation, stale-version invalidation, refresh-driven checks, update progress/restart feedback and locale-aware local details. Retain basic/extensions/bundles, custom registry recovery, current theme/focus behavior and custom configuration owners. Do not import offered catalog entries, stock availability fields, a More page, automatic updates, or the remove/remount update sequence."
+        },
+        {
+          "path": "packages/client/ui-plugin-manager/src/client/versions.tsx",
+          "disposition": "adopted",
+          "reason": "Add contributed navigation, named/versioned confirmed installation, stale-version invalidation, refresh-driven checks, update progress/restart feedback and locale-aware local details. Retain basic/extensions/bundles, custom registry recovery, current theme/focus behavior and custom configuration owners. Do not import offered catalog entries, stock availability fields, a More page, automatic updates, or the remove/remount update sequence."
+        },
+        {
+          "path": "packages/client/ui-plugin-manager/tests/browser-plugin.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Add contributed navigation, named/versioned confirmed installation, stale-version invalidation, refresh-driven checks, update progress/restart feedback and locale-aware local details. Retain basic/extensions/bundles, custom registry recovery, current theme/focus behavior and custom configuration owners. Do not import offered catalog entries, stock availability fields, a More page, automatic updates, or the remove/remount update sequence."
+        },
+        {
+          "path": "packages/client/ui-plugin-manager/tests/components.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Add contributed navigation, named/versioned confirmed installation, stale-version invalidation, refresh-driven checks, update progress/restart feedback and locale-aware local details. Retain basic/extensions/bundles, custom registry recovery, current theme/focus behavior and custom configuration owners. Do not import offered catalog entries, stock availability fields, a More page, automatic updates, or the remove/remount update sequence."
+        },
+        {
+          "path": "packages/client/ui-plugin-manager/tests/config-ledger.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Add contributed navigation, named/versioned confirmed installation, stale-version invalidation, refresh-driven checks, update progress/restart feedback and locale-aware local details. Retain basic/extensions/bundles, custom registry recovery, current theme/focus behavior and custom configuration owners. Do not import offered catalog entries, stock availability fields, a More page, automatic updates, or the remove/remount update sequence."
+        },
+        {
+          "path": "packages/client/ui-plugin-manager/tests/detail-store.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Add contributed navigation, named/versioned confirmed installation, stale-version invalidation, refresh-driven checks, update progress/restart feedback and locale-aware local details. Retain basic/extensions/bundles, custom registry recovery, current theme/focus behavior and custom configuration owners. Do not import offered catalog entries, stock availability fields, a More page, automatic updates, or the remove/remount update sequence."
+        },
+        {
+          "path": "packages/client/ui-plugin-manager/tests/manager-store.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Add contributed navigation, named/versioned confirmed installation, stale-version invalidation, refresh-driven checks, update progress/restart feedback and locale-aware local details. Retain basic/extensions/bundles, custom registry recovery, current theme/focus behavior and custom configuration owners. Do not import offered catalog entries, stock availability fields, a More page, automatic updates, or the remove/remount update sequence."
+        },
+        {
+          "path": "packages/client/ui-plugin-market/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Add Discover through the contributed tab slot, keeping current Installed groups and custom theme. Configured indexes supply results and exact confirmed targets; their registry choice is transient. Reuse modal autofocus and current client bundling; do not restore the stock More/catalog navigation. Browser replay and light/dark inspection qualify the current interface."
+        },
+        {
+          "path": "packages/client/ui-plugin-market/README.md",
+          "disposition": "adopted",
+          "reason": "Add Discover through the contributed tab slot, keeping current Installed groups and custom theme. Configured indexes supply results and exact confirmed targets; their registry choice is transient. Reuse modal autofocus and current client bundling; do not restore the stock More/catalog navigation. Browser replay and light/dark inspection qualify the current interface."
+        },
+        {
+          "path": "packages/client/ui-plugin-market/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Add Discover through the contributed tab slot, keeping current Installed groups and custom theme. Configured indexes supply results and exact confirmed targets; their registry choice is transient. Reuse modal autofocus and current client bundling; do not restore the stock More/catalog navigation. Browser replay and light/dark inspection qualify the current interface."
+        },
+        {
+          "path": "packages/client/ui-plugin-market/package.json",
+          "disposition": "adopted",
+          "reason": "Add Discover through the contributed tab slot, keeping current Installed groups and custom theme. Configured indexes supply results and exact confirmed targets; their registry choice is transient. Reuse modal autofocus and current client bundling; do not restore the stock More/catalog navigation. Browser replay and light/dark inspection qualify the current interface."
+        },
+        {
+          "path": "packages/client/ui-plugin-market/src/client/DiscoverSection.module.css",
+          "disposition": "adopted",
+          "reason": "Add Discover through the contributed tab slot, keeping current Installed groups and custom theme. Configured indexes supply results and exact confirmed targets; their registry choice is transient. Reuse modal autofocus and current client bundling; do not restore the stock More/catalog navigation. Browser replay and light/dark inspection qualify the current interface."
+        },
+        {
+          "path": "packages/client/ui-plugin-market/src/client/DiscoverSection.tsx",
+          "disposition": "adopted",
+          "reason": "Add Discover through the contributed tab slot, keeping current Installed groups and custom theme. Configured indexes supply results and exact confirmed targets; their registry choice is transient. Reuse modal autofocus and current client bundling; do not restore the stock More/catalog navigation. Browser replay and light/dark inspection qualify the current interface."
+        },
+        {
+          "path": "packages/client/ui-plugin-market/src/client/PluginDetailSection.tsx",
+          "disposition": "adopted",
+          "reason": "Add Discover through the contributed tab slot, keeping current Installed groups and custom theme. Configured indexes supply results and exact confirmed targets; their registry choice is transient. Reuse modal autofocus and current client bundling; do not restore the stock More/catalog navigation. Browser replay and light/dark inspection qualify the current interface."
+        },
+        {
+          "path": "packages/client/ui-plugin-market/src/client/index.ts",
+          "disposition": "adopted",
+          "reason": "Add Discover through the contributed tab slot, keeping current Installed groups and custom theme. Configured indexes supply results and exact confirmed targets; their registry choice is transient. Reuse modal autofocus and current client bundling; do not restore the stock More/catalog navigation. Browser replay and light/dark inspection qualify the current interface."
+        },
+        {
+          "path": "packages/client/ui-plugin-market/src/client/locales.ts",
+          "disposition": "adopted",
+          "reason": "Add Discover through the contributed tab slot, keeping current Installed groups and custom theme. Configured indexes supply results and exact confirmed targets; their registry choice is transient. Reuse modal autofocus and current client bundling; do not restore the stock More/catalog navigation. Browser replay and light/dark inspection qualify the current interface."
+        },
+        {
+          "path": "packages/client/ui-plugin-market/src/client/market-store.ts",
+          "disposition": "adopted",
+          "reason": "Add Discover through the contributed tab slot, keeping current Installed groups and custom theme. Configured indexes supply results and exact confirmed targets; their registry choice is transient. Reuse modal autofocus and current client bundling; do not restore the stock More/catalog navigation. Browser replay and light/dark inspection qualify the current interface."
+        },
+        {
+          "path": "packages/client/ui-plugin-market/src/client/presentation.ts",
+          "disposition": "adopted",
+          "reason": "Add Discover through the contributed tab slot, keeping current Installed groups and custom theme. Configured indexes supply results and exact confirmed targets; their registry choice is transient. Reuse modal autofocus and current client bundling; do not restore the stock More/catalog navigation. Browser replay and light/dark inspection qualify the current interface."
+        },
+        {
+          "path": "packages/client/ui-plugin-market/src/css-modules.d.ts",
+          "disposition": "adopted",
+          "reason": "Add Discover through the contributed tab slot, keeping current Installed groups and custom theme. Configured indexes supply results and exact confirmed targets; their registry choice is transient. Reuse modal autofocus and current client bundling; do not restore the stock More/catalog navigation. Browser replay and light/dark inspection qualify the current interface."
+        },
+        {
+          "path": "packages/client/ui-plugin-market/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Add Discover through the contributed tab slot, keeping current Installed groups and custom theme. Configured indexes supply results and exact confirmed targets; their registry choice is transient. Reuse modal autofocus and current client bundling; do not restore the stock More/catalog navigation. Browser replay and light/dark inspection qualify the current interface."
+        },
+        {
+          "path": "packages/client/ui-plugin-market/tests/browser-plugin.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Add Discover through the contributed tab slot, keeping current Installed groups and custom theme. Configured indexes supply results and exact confirmed targets; their registry choice is transient. Reuse modal autofocus and current client bundling; do not restore the stock More/catalog navigation. Browser replay and light/dark inspection qualify the current interface."
+        },
+        {
+          "path": "packages/client/ui-plugin-market/tests/discover.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Add Discover through the contributed tab slot, keeping current Installed groups and custom theme. Configured indexes supply results and exact confirmed targets; their registry choice is transient. Reuse modal autofocus and current client bundling; do not restore the stock More/catalog navigation. Browser replay and light/dark inspection qualify the current interface."
+        },
+        {
+          "path": "packages/client/ui-plugin-market/tests/market-store.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Add Discover through the contributed tab slot, keeping current Installed groups and custom theme. Configured indexes supply results and exact confirmed targets; their registry choice is transient. Reuse modal autofocus and current client bundling; do not restore the stock More/catalog navigation. Browser replay and light/dark inspection qualify the current interface."
+        },
+        {
+          "path": "packages/client/ui-plugin-market/tests/node-plugin.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Add Discover through the contributed tab slot, keeping current Installed groups and custom theme. Configured indexes supply results and exact confirmed targets; their registry choice is transient. Reuse modal autofocus and current client bundling; do not restore the stock More/catalog navigation. Browser replay and light/dark inspection qualify the current interface."
+        },
+        {
+          "path": "packages/client/ui-plugin-market/tests/plugin-detail.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Add Discover through the contributed tab slot, keeping current Installed groups and custom theme. Configured indexes supply results and exact confirmed targets; their registry choice is transient. Reuse modal autofocus and current client bundling; do not restore the stock More/catalog navigation. Browser replay and light/dark inspection qualify the current interface."
+        },
+        {
+          "path": "packages/client/ui-plugin-market/tests/presentation.client.spec.ts",
+          "disposition": "adopted",
+          "reason": "Add Discover through the contributed tab slot, keeping current Installed groups and custom theme. Configured indexes supply results and exact confirmed targets; their registry choice is transient. Reuse modal autofocus and current client bundling; do not restore the stock More/catalog navigation. Browser replay and light/dark inspection qualify the current interface."
+        },
+        {
+          "path": "packages/client/ui-plugin-market/tsconfig.json",
+          "disposition": "adopted",
+          "reason": "Add Discover through the contributed tab slot, keeping current Installed groups and custom theme. Configured indexes supply results and exact confirmed targets; their registry choice is transient. Reuse modal autofocus and current client bundling; do not restore the stock More/catalog navigation. Browser replay and light/dark inspection qualify the current interface."
+        },
+        {
+          "path": "packages/client/ui-plugin-market/tsdown.config.ts",
+          "disposition": "adopted",
+          "reason": "Add Discover through the contributed tab slot, keeping current Installed groups and custom theme. Configured indexes supply results and exact confirmed targets; their registry choice is transient. Reuse modal autofocus and current client bundling; do not restore the stock More/catalog navigation. Browser replay and light/dark inspection qualify the current interface."
+        },
+        {
+          "path": "packages/client/ui-primitives/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Add the shared detail document presentation and opt-in raw HTML omission, preserving existing quote textInteractionSource and normal Markdown behavior. Extend the Desktop image route allowlist narrowly to authenticated market/manager detail routes. Settled/streaming Markdown and media-route tests qualify the change."
+        },
+        {
+          "path": "packages/client/ui-primitives/README.md",
+          "disposition": "adopted",
+          "reason": "Add the shared detail document presentation and opt-in raw HTML omission, preserving existing quote textInteractionSource and normal Markdown behavior. Extend the Desktop image route allowlist narrowly to authenticated market/manager detail routes. Settled/streaming Markdown and media-route tests qualify the change."
+        },
+        {
+          "path": "packages/client/ui-primitives/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Add the shared detail document presentation and opt-in raw HTML omission, preserving existing quote textInteractionSource and normal Markdown behavior. Extend the Desktop image route allowlist narrowly to authenticated market/manager detail routes. Settled/streaming Markdown and media-route tests qualify the change."
+        },
+        {
+          "path": "packages/client/ui-primitives/src/DetailDocument.module.css",
+          "disposition": "adopted",
+          "reason": "Add the shared detail document presentation and opt-in raw HTML omission, preserving existing quote textInteractionSource and normal Markdown behavior. Extend the Desktop image route allowlist narrowly to authenticated market/manager detail routes. Settled/streaming Markdown and media-route tests qualify the change."
+        },
+        {
+          "path": "packages/client/ui-primitives/src/DetailDocument.tsx",
+          "disposition": "adopted",
+          "reason": "Add the shared detail document presentation and opt-in raw HTML omission, preserving existing quote textInteractionSource and normal Markdown behavior. Extend the Desktop image route allowlist narrowly to authenticated market/manager detail routes. Settled/streaming Markdown and media-route tests qualify the change."
+        },
+        {
+          "path": "packages/client/ui-primitives/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Add the shared detail document presentation and opt-in raw HTML omission, preserving existing quote textInteractionSource and normal Markdown behavior. Extend the Desktop image route allowlist narrowly to authenticated market/manager detail routes. Settled/streaming Markdown and media-route tests qualify the change."
+        },
+        {
+          "path": "packages/client/ui-primitives/src/markdown/MarkdownText.tsx",
+          "disposition": "adopted",
+          "reason": "Add the shared detail document presentation and opt-in raw HTML omission, preserving existing quote textInteractionSource and normal Markdown behavior. Extend the Desktop image route allowlist narrowly to authenticated market/manager detail routes. Settled/streaming Markdown and media-route tests qualify the change."
+        },
+        {
+          "path": "packages/client/ui-primitives/src/markdown/render.tsx",
+          "disposition": "adopted",
+          "reason": "Add the shared detail document presentation and opt-in raw HTML omission, preserving existing quote textInteractionSource and normal Markdown behavior. Extend the Desktop image route allowlist narrowly to authenticated market/manager detail routes. Settled/streaming Markdown and media-route tests qualify the change."
+        },
+        {
+          "path": "packages/client/ui-primitives/tests/detail-document.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Add the shared detail document presentation and opt-in raw HTML omission, preserving existing quote textInteractionSource and normal Markdown behavior. Extend the Desktop image route allowlist narrowly to authenticated market/manager detail routes. Settled/streaming Markdown and media-route tests qualify the change."
+        },
+        {
+          "path": "packages/client/ui-primitives/tests/markdown-path-images.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Add the shared detail document presentation and opt-in raw HTML omission, preserving existing quote textInteractionSource and normal Markdown behavior. Extend the Desktop image route allowlist narrowly to authenticated market/manager detail routes. Settled/streaming Markdown and media-route tests qualify the change."
+        },
+        {
+          "path": "packages/client/ui-primitives/tests/markdown-render-units.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Add the shared detail document presentation and opt-in raw HTML omission, preserving existing quote textInteractionSource and normal Markdown behavior. Extend the Desktop image route allowlist narrowly to authenticated market/manager detail routes. Settled/streaming Markdown and media-route tests qualify the change."
+        },
+        {
+          "path": "packages/client/ui-primitives/tests/markdown.client.spec.tsx",
+          "disposition": "adopted",
+          "reason": "Add the shared detail document presentation and opt-in raw HTML omission, preserving existing quote textInteractionSource and normal Markdown behavior. Extend the Desktop image route allowlist narrowly to authenticated market/manager detail routes. Settled/streaming Markdown and media-route tests qualify the change."
+        },
+        {
+          "path": "packages/core/tools/tests/gen-tool-catalog.spec.ts",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "packages/experimental/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "packages/experimental/README.md",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "packages/experimental/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "packages/experimental/plugin-market-bundle/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Ship Custom plugin markets as an optional, disabled bundle with English/Chinese display metadata and Harnessy 0.1.17 package metadata. Its six other UI language packs are not introduced. Keep experimental dependencies out of the default web-app bundle; use the launcher's approved optional installation path."
+        },
+        {
+          "path": "packages/experimental/plugin-market-bundle/README.md",
+          "disposition": "adopted",
+          "reason": "Ship Custom plugin markets as an optional, disabled bundle with English/Chinese display metadata and Harnessy 0.1.17 package metadata. Its six other UI language packs are not introduced. Keep experimental dependencies out of the default web-app bundle; use the launcher's approved optional installation path."
+        },
+        {
+          "path": "packages/experimental/plugin-market-bundle/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Ship Custom plugin markets as an optional, disabled bundle with English/Chinese display metadata and Harnessy 0.1.17 package metadata. Its six other UI language packs are not introduced. Keep experimental dependencies out of the default web-app bundle; use the launcher's approved optional installation path."
+        },
+        {
+          "path": "packages/experimental/plugin-market-bundle/cordis.patch.yml",
+          "disposition": "adopted",
+          "reason": "Ship Custom plugin markets as an optional, disabled bundle with English/Chinese display metadata and Harnessy 0.1.17 package metadata. Its six other UI language packs are not introduced. Keep experimental dependencies out of the default web-app bundle; use the launcher's approved optional installation path."
+        },
+        {
+          "path": "packages/experimental/plugin-market-bundle/icon.svg",
+          "disposition": "adopted",
+          "reason": "Ship Custom plugin markets as an optional, disabled bundle with English/Chinese display metadata and Harnessy 0.1.17 package metadata. Its six other UI language packs are not introduced. Keep experimental dependencies out of the default web-app bundle; use the launcher's approved optional installation path."
+        },
+        {
+          "path": "packages/experimental/plugin-market-bundle/locale/en.json",
+          "disposition": "adopted",
+          "reason": "Ship Custom plugin markets as an optional, disabled bundle with English/Chinese display metadata and Harnessy 0.1.17 package metadata. Its six other UI language packs are not introduced. Keep experimental dependencies out of the default web-app bundle; use the launcher's approved optional installation path."
+        },
+        {
+          "path": "packages/experimental/plugin-market-bundle/locale/zh.json",
+          "disposition": "adopted",
+          "reason": "Ship Custom plugin markets as an optional, disabled bundle with English/Chinese display metadata and Harnessy 0.1.17 package metadata. Its six other UI language packs are not introduced. Keep experimental dependencies out of the default web-app bundle; use the launcher's approved optional installation path."
+        },
+        {
+          "path": "packages/experimental/plugin-market-bundle/package.json",
+          "disposition": "adopted",
+          "reason": "Ship Custom plugin markets as an optional, disabled bundle with English/Chinese display metadata and Harnessy 0.1.17 package metadata. Its six other UI language packs are not introduced. Keep experimental dependencies out of the default web-app bundle; use the launcher's approved optional installation path."
+        },
+        {
+          "path": "packages/experimental/plugin-market-bundle/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Ship Custom plugin markets as an optional, disabled bundle with English/Chinese display metadata and Harnessy 0.1.17 package metadata. Its six other UI language packs are not introduced. Keep experimental dependencies out of the default web-app bundle; use the launcher's approved optional installation path."
+        },
+        {
+          "path": "packages/experimental/plugin-market-bundle/tsconfig.json",
+          "disposition": "adopted",
+          "reason": "Ship Custom plugin markets as an optional, disabled bundle with English/Chinese display metadata and Harnessy 0.1.17 package metadata. Its six other UI language packs are not introduced. Keep experimental dependencies out of the default web-app bundle; use the launcher's approved optional installation path."
+        },
+        {
+          "path": "packages/experimental/plugin-market-bundle/tsdown.config.ts",
+          "disposition": "adopted",
+          "reason": "Ship Custom plugin markets as an optional, disabled bundle with English/Chinese display metadata and Harnessy 0.1.17 package metadata. Its six other UI language packs are not introduced. Keep experimental dependencies out of the default web-app bundle; use the launcher's approved optional installation path."
+        },
+        {
+          "path": "packages/extensions/cordis-client-runner/src/client/slot-catalog.ts",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "packages/extensions/tool-cordis/src/api-catalog.ts",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "packages/preset/agent-preset/skills/cordis-composition-reference/references/packages.md",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "packages/util/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "packages/util/README.md",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "packages/util/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "packages/util/plugin-detail/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Add shared locale-document/README selection, bounded local/CDN reads, image rules and explicit HTML omission. Local realpath confinement also rejects Windows absolute cross-drive relative results; junction escape and cross-drive negative controls qualify the adaptation. Keep user-facing documentation at its actual owner."
+        },
+        {
+          "path": "packages/util/plugin-detail/README.md",
+          "disposition": "adopted",
+          "reason": "Add shared locale-document/README selection, bounded local/CDN reads, image rules and explicit HTML omission. Local realpath confinement also rejects Windows absolute cross-drive relative results; junction escape and cross-drive negative controls qualify the adaptation. Keep user-facing documentation at its actual owner."
+        },
+        {
+          "path": "packages/util/plugin-detail/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Add shared locale-document/README selection, bounded local/CDN reads, image rules and explicit HTML omission. Local realpath confinement also rejects Windows absolute cross-drive relative results; junction escape and cross-drive negative controls qualify the adaptation. Keep user-facing documentation at its actual owner."
+        },
+        {
+          "path": "packages/util/plugin-detail/package.json",
+          "disposition": "adopted",
+          "reason": "Add shared locale-document/README selection, bounded local/CDN reads, image rules and explicit HTML omission. Local realpath confinement also rejects Windows absolute cross-drive relative results; junction escape and cross-drive negative controls qualify the adaptation. Keep user-facing documentation at its actual owner."
+        },
+        {
+          "path": "packages/util/plugin-detail/src/document.ts",
+          "disposition": "adopted",
+          "reason": "Add shared locale-document/README selection, bounded local/CDN reads, image rules and explicit HTML omission. Local realpath confinement also rejects Windows absolute cross-drive relative results; junction escape and cross-drive negative controls qualify the adaptation. Keep user-facing documentation at its actual owner."
+        },
+        {
+          "path": "packages/util/plugin-detail/src/files.ts",
+          "disposition": "adopted",
+          "reason": "Add shared locale-document/README selection, bounded local/CDN reads, image rules and explicit HTML omission. Local realpath confinement also rejects Windows absolute cross-drive relative results; junction escape and cross-drive negative controls qualify the adaptation. Keep user-facing documentation at its actual owner."
+        },
+        {
+          "path": "packages/util/plugin-detail/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Add shared locale-document/README selection, bounded local/CDN reads, image rules and explicit HTML omission. Local realpath confinement also rejects Windows absolute cross-drive relative results; junction escape and cross-drive negative controls qualify the adaptation. Keep user-facing documentation at its actual owner."
+        },
+        {
+          "path": "packages/util/plugin-detail/src/response.ts",
+          "disposition": "adopted",
+          "reason": "Add shared locale-document/README selection, bounded local/CDN reads, image rules and explicit HTML omission. Local realpath confinement also rejects Windows absolute cross-drive relative results; junction escape and cross-drive negative controls qualify the adaptation. Keep user-facing documentation at its actual owner."
+        },
+        {
+          "path": "packages/util/plugin-detail/src/types.ts",
+          "disposition": "adopted",
+          "reason": "Add shared locale-document/README selection, bounded local/CDN reads, image rules and explicit HTML omission. Local realpath confinement also rejects Windows absolute cross-drive relative results; junction escape and cross-drive negative controls qualify the adaptation. Keep user-facing documentation at its actual owner."
+        },
+        {
+          "path": "packages/util/plugin-detail/tests/document.spec.ts",
+          "disposition": "adopted",
+          "reason": "Add shared locale-document/README selection, bounded local/CDN reads, image rules and explicit HTML omission. Local realpath confinement also rejects Windows absolute cross-drive relative results; junction escape and cross-drive negative controls qualify the adaptation. Keep user-facing documentation at its actual owner."
+        },
+        {
+          "path": "packages/util/plugin-detail/tests/files.spec.ts",
+          "disposition": "adopted",
+          "reason": "Add shared locale-document/README selection, bounded local/CDN reads, image rules and explicit HTML omission. Local realpath confinement also rejects Windows absolute cross-drive relative results; junction escape and cross-drive negative controls qualify the adaptation. Keep user-facing documentation at its actual owner."
+        },
+        {
+          "path": "packages/util/plugin-detail/tsconfig.json",
+          "disposition": "adopted",
+          "reason": "Add shared locale-document/README selection, bounded local/CDN reads, image rules and explicit HTML omission. Local realpath confinement also rejects Windows absolute cross-drive relative results; junction escape and cross-drive negative controls qualify the adaptation. Keep user-facing documentation at its actual owner."
+        },
+        {
+          "path": "packages/util/plugin-market-index/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Add format-1 index validation, exact npm/Git installation targets, metadata and multilingual fuzzy search. Reject credential-bearing URLs and invalid paths. Keep parser state independent of the per-profile Host service and use the existing package/version conventions."
+        },
+        {
+          "path": "packages/util/plugin-market-index/README.md",
+          "disposition": "adopted",
+          "reason": "Add format-1 index validation, exact npm/Git installation targets, metadata and multilingual fuzzy search. Reject credential-bearing URLs and invalid paths. Keep parser state independent of the per-profile Host service and use the existing package/version conventions."
+        },
+        {
+          "path": "packages/util/plugin-market-index/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Add format-1 index validation, exact npm/Git installation targets, metadata and multilingual fuzzy search. Reject credential-bearing URLs and invalid paths. Keep parser state independent of the per-profile Host service and use the existing package/version conventions."
+        },
+        {
+          "path": "packages/util/plugin-market-index/package.json",
+          "disposition": "adopted",
+          "reason": "Add format-1 index validation, exact npm/Git installation targets, metadata and multilingual fuzzy search. Reject credential-bearing URLs and invalid paths. Keep parser state independent of the per-profile Host service and use the existing package/version conventions."
+        },
+        {
+          "path": "packages/util/plugin-market-index/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Add format-1 index validation, exact npm/Git installation targets, metadata and multilingual fuzzy search. Reject credential-bearing URLs and invalid paths. Keep parser state independent of the per-profile Host service and use the existing package/version conventions."
+        },
+        {
+          "path": "packages/util/plugin-market-index/src/types.ts",
+          "disposition": "adopted",
+          "reason": "Add format-1 index validation, exact npm/Git installation targets, metadata and multilingual fuzzy search. Reject credential-bearing URLs and invalid paths. Keep parser state independent of the per-profile Host service and use the existing package/version conventions."
+        },
+        {
+          "path": "packages/util/plugin-market-index/tests/plugin-market-index.spec.ts",
+          "disposition": "adopted",
+          "reason": "Add format-1 index validation, exact npm/Git installation targets, metadata and multilingual fuzzy search. Reject credential-bearing URLs and invalid paths. Keep parser state independent of the per-profile Host service and use the existing package/version conventions."
+        },
+        {
+          "path": "packages/util/plugin-market-index/tsconfig.json",
+          "disposition": "adopted",
+          "reason": "Add format-1 index validation, exact npm/Git installation targets, metadata and multilingual fuzzy search. Reject credential-bearing URLs and invalid paths. Keep parser state independent of the per-profile Host service and use the existing package/version conventions."
+        },
+        {
+          "path": "pnpm-lock.yaml",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "python/sdk-runtime/package.json",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "scripts/check-workspace-constraints.ts",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "scripts/doc-standard.spec.ts",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "scripts/gen-cordis-catalog.ts",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "scripts/gen-doc-graphs.ts",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "scripts/gen-tool-catalog.ts",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "scripts/release/families.spec.ts",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "scripts/verify-package-readme-model-experience.ts",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "snapshots/session/plugin-manager-mcp/tool-schemas.expected.json",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "snapshots/session/plugin-manager/tool-schemas.expected.json",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "tsconfig.base.json",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "tsconfig.client.json",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "tsconfig.host.json",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        },
+        {
+          "path": "website/docs.ts",
+          "disposition": "adopted",
+          "reason": "Update current Harnessy consumers, manifests, compiler/source aliases, preset-conditional tool rows, package guidance and generated catalogs for the selected capabilities. Preserve custom owners and the existing dependency peer graph. Generate artifacts from current declarations, include only the correct optional dependencies, and qualify breaking fields in Harnessy 0.1.17 upgrade guides."
+        }
+      ],
+      "evidence": [
+        "Five exact upstream commits and their complete 241-path union reviewed together; implementation e5b87f02d4823a10ada9d90606971b25d67f8152. Verified 2026-10-25 on Windows, Harnessy 0.1.17, Node 24.14.0 and pnpm 11.7.0. Path dispositions account for omitted stock catalog/preview and unrelated thinking-translation fixtures, rehomed upgrade guides and retained generated owners.",
+        "Compatibility source owners passed 256 cases. The initial Host group had five Windows cache timeouts/teardown failures; all fifteen cache cases passed after awaiting cache lifetime completion and using runner-owned Windows budgets. Utilities passed thirty cases, atomic-write/inventory passed 102 with two platform skips, and adjacent selected owners passed 111. Later current manager/primitive owners passed 271, and manager/package-operation owners passed 185 after the registry-disposal fix. Two focused cancellation cases passed again after strict fixture corrections; generator/release-family owners passed 65. These overlapping counts are not summed, and the initial failing aggregates are not claimed as clean.",
+        "An actual changed-module runtime fixture demonstrated that remove/install/HMR can report applied while executing the old module. Selection-order negative controls also failed that sequence. In-place exact replacement now preserves running code and bundle order and reports restart-required; failure/cancellation reinstalls the previous version under the same profile lock. Concurrent requests are checked against the installed version after acquiring the lock. A separate failing registry-disposal regression demonstrated the missing cancellation lifetime before tracking and awaiting configuration reads.",
+        "Local detail negative controls reproduced a cross-drive Windows file escape before adding the absolute-relative-path check. Junction/realpath, document selection and image tests pass. Missing source aliases caused whole-workspace reflection retries and memory exhaustion; explicit source aliases for detail/market type and tool entries restored normal generation and the complete custom build. No larger heap or broad runtime fallback is the shipped solution.",
+        "The final complete custom build passed with 375 Client artifacts and eleven public values. Eighteen selected built-browser checks passed unchanged replay: seventeen manager/market cases plus the affected plugin-configuration list. The Harnessy scenario uses the explicit custom overlay and disposable profile data, parses a real loopback index through its Worker, confirms exact plugin/version/registry, reads local documents and presents a simulated restart-required result without an external install. Discovery and local-detail screenshots were inspected in both palettes. Browser fixture adaptations preserve current groups, focus and theme controls; temporary path/registry substitutions are owner-local.",
+        "Two plugin-management recorded-session cases passed qualified refresh and unchanged replay with updated schema descriptions and current working-directory context. Unused shell/skill tools are disabled only in those cases' matching recording/replay compositions; current v4 recordings and their own prompt/schema sidecars changed, while historical v3 generations and shared normalizers remain untouched.",
+        "All sixteen final hygiene gates passed. The full documentation run passed 42 of 43 gates; its stale configuration catalog was regenerated and passed the focused freshness check, then the documentation site was rebuilt from the corrected source. All 43 documentation gates therefore have passing evidence; the original aggregate is not claimed as clean. Full source lint and subsequent changed-file lint passed. The Harnessy product guard passed 140 cases. Frozen-lock validation passed with intended importer/new-package additions and no existing provider-peer updates. Normal delivery hooks are required for the implementation and ledger commits.",
+        "The atomic-write cancellation prerequisite adapts only the file-lock signal/waiting hunk of 504b6df8301724d340fbe092f5c9a3e8b7778bbd, with its cancellation test and paired documentation. That commit's binary-write/CUA work and complete mixed path set remain pending; this review does not mark that prerequisite commit complete.",
+        "No ancestry/checkpoint merge, release, installed staging-runtime update or selection, main-app update, or additional registered application is included. A source build and publication do not establish that main updated. Remaining selected features and unreviewed ancestors remain pending in this ledger."
       ]
     }
   }
