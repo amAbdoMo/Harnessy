@@ -71,9 +71,9 @@ Gradle 属性 `companion.pcModelSelection` 默认为 `true`。启用后，[模�
 
 打开链接仅导入，不会自动配对。无历史／无界面的 [InvitationActivity](<app/src/main/java/io/harnessy/companion/nativeapp/InvitationActivity.kt>) 仅接受 `harnessy` scheme 与 `pair` host，清除传入 Intent 的 data、extras 和 ClipData，并通过一次性内存收件箱传递有界文本。保留的主任务接收不含邀请的干净 Intent；恢复不是新的邀请送达。配对界面禁止屏幕捕获，API 33 及以上禁用最近任务截图，较旧设备使用安全窗口保护。不导航任何 URL。[Invitation.parse](<app/src/main/java/io/harnessy/companion/protocol/Invitation.java>) 要求准确规范的 `harnessy://pair#` 文本、版本／字段／密钥／源／电脑 ID 验证，以及未过期的邀请。取消、过期、转入后台或认证成功时丢弃邀请、链接和秘密引用；Java 与提供方缓冲区清除仍是尽力而为。
 
-明确执行配对后，通过 [PhoneIdentity.createForPairing](<app/src/main/java/io/harnessy/companion/identity/PhoneIdentity.java>) 创建独立的注册别名。配对视图显示手机公开 SPKI DER 的完整 64 个小写字符 SHA-256 指纹，用于与电脑对话框比较。签名器调用 `signTranscript(alias, bytes)`，从不导出私钥。同一电脑已有配对时必须先明确忘记它再注册。丢失或无效的配对密钥绝不会被静默替换。
+**设置 → 电脑连接 → 关联电脑**会打开配对表单，不会忘记已有电脑。明确执行配对后，通过 [PhoneIdentity.createForPairing](<app/src/main/java/io/harnessy/companion/identity/PhoneIdentity.java>) 创建独立的注册别名。配对视图显示手机公开 SPKI DER 的完整 64 个小写字符 SHA-256 指纹，用于与电脑对话框比较。签名器调用 `signTranscript(alias, bytes)`，从不导出私钥。同一电脑已有配对时必须先明确忘记它再注册。丢失或无效的配对密钥绝不会被静默替换。
 
-仅认证后的 `onConfirmed` 授权 ID／代次、固定电脑公钥／源／派生电脑 ID 及手机别名进入 [PairingStore](<app/src/main/java/io/harnessy/companion/pairing/PairingStore.java>)。协议不含电脑名称，因此展示名称是通用的本地化标签。使用前根据 [Protocol](<app/src/main/java/io/harnessy/companion/protocol/Protocol.java>) 重新验证已存元数据。UI 展示第一项已存电脑；虽然存储保留最多 32 项记录，但尚无已存电脑选择器。
+仅认证后的 `onConfirmed` 授权 ID／代次、固定电脑公钥／源／派生电脑 ID 及手机别名进入 [PairingStore](<app/src/main/java/io/harnessy/companion/pairing/PairingStore.java>)。协议不含电脑名称，因此展示名称是通用的本地化标签。使用前根据 [Protocol](<app/src/main/java/io/harnessy/companion/protocol/Protocol.java>) 重新验证已存元数据。UI 使用第一项已存电脑。保存显式注册的电脑时会将其置于首位，因此返回前台或恢复进程后仍使用该电脑，不移除其他配对或密钥别名。存储最多保留 32 项记录；UI 不提供已存电脑选择器。
 
 [OperationStore](<app/src/main/java/io/harnessy/companion/pairing/OperationStore.java>) 最多保留 32 项最小送达阻止记录，以及 32 项公开电脑 ID／别名修复标记。现有单个偏好文档读取有效 v1/v2 时不会重写；下一次合法写入会输出 v3，并保留阻止记录与修复标记，不改变配对密钥。v3 阻止记录按电脑 ID 和 Session ID 键控，仅含 `{kind, pcId, sessionId, operationId}`，不含标题、Workspace ID、文本或重试载荷。移除时先比较准确的预期阻止记录。注册持久化或本地忘记操作前先写入修复标记。SharedPreferences 的 `commit()` 失败可能改变内存而无法确认磁盘持久性：控制器继续阻止操作并保留别名，不声称回滚，也不删除可能已被引用的密钥。即使已确定的配对元数据不存在，修复标记仍可标识别名。损坏或未知版本文档不会自动重置。已确认存储结算在前台退役后仍保留，并在后续存储修改前与新元数据协调；清除送达不确定性不会清除独立的配对修复阻止状态。
 

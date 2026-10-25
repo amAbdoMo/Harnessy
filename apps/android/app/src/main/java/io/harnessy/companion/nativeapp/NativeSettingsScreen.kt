@@ -83,9 +83,12 @@ fun NativeSettingsScreen(state: NativeUiState, actions: CompanionActions, settin
                                     modifier = Modifier.testTag("pause_connection")) { Text(stringResource(R.string.native_pause)) }
                                 TextButton(onClick = actions::refresh, enabled = companion.foreground && pc.connection == Connection.ONLINE,
                                     modifier = Modifier.testTag("settings_refresh")) { Text(stringResource(R.string.refresh)) }
+                                TextButton(onClick = actions::showPairing, enabled = companion.foreground && metadataReady,
+                                    modifier = Modifier.testTag("pair_pc")) { Text(stringResource(R.string.pair_pc)) }
                             }
                         } else {
-                            Button(onClick = actions::showPairing, enabled = companion.foreground && metadataReady) {
+                            Button(onClick = actions::showPairing, enabled = companion.foreground && metadataReady,
+                                modifier = Modifier.testTag("pair_pc")) {
                                 Text(stringResource(R.string.pair_pc))
                             }
                         }

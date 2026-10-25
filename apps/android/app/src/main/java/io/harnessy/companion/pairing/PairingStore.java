@@ -26,10 +26,12 @@ public final class PairingStore {
     private final SharedPreferences preferences;
 
     public PairingStore(Context context) {
-        preferences = context.getApplicationContext().getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE);
+        this(context.getApplicationContext().getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE));
     }
 
-    /** Empty means no stored document. Invalid/unsupported documents throw and are never reset. */
+    PairingStore(SharedPreferences preferences) { this.preferences = preferences; }
+
+    /** Primary PC first; empty means no stored document. Invalid/unsupported documents are never reset. */
     public List<PairingMetadata> list() throws StorageException {
         Map<String, ?> stored = preferences.getAll();
         if (stored.isEmpty()) return Collections.emptyList();
@@ -43,11 +45,11 @@ public final class PairingStore {
         }
     }
 
-    /** Replaces one PC's public metadata after enrollment; never writes invitation text or session content. */
+    /** Saves the explicitly enrolled PC as primary, retaining other PCs; no invitation text or session content. */
     public void save(PairingMetadata pairing) throws StorageException {
         List<PairingMetadata> next = new ArrayList<>(list());
         next.removeIf(previous -> previous.pc.id.equals(pairing.pc.id));
-        next.add(pairing);
+        next.add(0, pairing);
         write(next);
     }
 

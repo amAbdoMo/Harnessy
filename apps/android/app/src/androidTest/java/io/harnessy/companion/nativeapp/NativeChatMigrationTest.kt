@@ -376,6 +376,21 @@ class NativeChatMigrationTest {
     }
 
     @Test
+    fun pairedSettingsCanStartAnotherPcLinkWithoutForgettingTheCurrentPc() {
+        val actions = RecordingActions()
+        compose.setContent {
+            NativeTheme(ThemePreference.SYSTEM) {
+                NativeSettingsScreen(NativeUiState(companion = pairedState(SendState.READY)), actions,
+                    NativeSettingsActions({}, {}, {}, {}))
+            }
+        }
+
+        compose.onNodeWithTag("settings").performScrollToNode(hasTestTag("pair_pc"))
+        compose.onNodeWithTag("pair_pc").assertIsEnabled().performClick()
+        compose.runOnIdle { assertEquals(listOf("pairing"), actions.events) }
+    }
+
+    @Test
     fun settingsDisclosuresExposeForgetOnlyWhenOpenedWithoutIssuingCommands() {
         val actions = RecordingActions()
         compose.setContent {
