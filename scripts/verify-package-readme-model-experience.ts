@@ -46,6 +46,7 @@ const NO_MODEL_EXPERIENCE_SECTION: Readonly<Record<string, string>> = {
  * blocks. A package moves on or off this list with its context behavior.
  */
 const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
+  'packages/experimental/translator': { kind: 'none', reason: 'Translates consumer-owned text without contributing to model requests or Session logs.' },
   'packages/host/companion-host': { kind: 'indirect', reason: 'Authorized follow-up admission delegates logged user text and model request assembly to the existing Session and Agent owners.' },
   'packages/util/companion-protocol': { kind: 'none', reason: 'Cryptographic and wire encoding helpers add no model input; the authorized submission consumer owns every logged task.' },
   'packages/host/companion-relay': { kind: 'none', reason: 'The relay forwards authenticated live ciphertext without interpreting Session content or constructing model input.' },

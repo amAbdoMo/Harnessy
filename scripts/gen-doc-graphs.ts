@@ -108,6 +108,13 @@ const GROUP_ORDER = [
 
 const SERVICE_ROLES: ServiceRole[] = [
   {
+    key: 'translator',
+    pkg: 'experimental-translator',
+    title: 'Anonymous text translation',
+    mode: 'service',
+    note: 'Resolves Google or Bing requests and bounds provider calls independently of Sessions.',
+  },
+  {
     key: 'actionCards', pkg: 'experimental-action-cards', title: 'Optional conversation action cards', mode: 'service',
     consumers: ['experimental-creation-recommendations', 'experimental-plugin-recommendations', 'experimental-client-ui-action-cards'],
     note: 'Logs admitted proposals and human decisions; reports status on the next ordinary model request.',

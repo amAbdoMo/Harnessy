@@ -50,6 +50,7 @@ export { REGION_BEGIN, REGION_END }
  * errors, so the partition can never silently drift from the service API.
  */
 export const SERVICE_PAGE: Record<string, string> = {
+  translator: 'translation.md',
   speechToText: 'voice-input.md',
   speechController: 'voice-input.md',
   otel: 'otel.md',
@@ -716,6 +717,11 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   SpeechProviderInfo: 'voice-input.md',
   SpeechInput: 'voice-input.md',
   SpeechRequest: 'voice-input.md',
+  TranslationProvider: 'translation.md',
+  TranslationRequest: 'translation.md',
+  TranslationSpec: 'translation.md',
+  TranslationError: 'translation.md',
+  TranslationErrorCode: 'translation.md',
   SpeechSpec: 'voice-input.md',
   Transcript: 'voice-input.md',
   SpeechCatalog: 'voice-input.md',

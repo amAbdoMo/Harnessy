@@ -214,6 +214,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@deepseek-ai/dsh-experimental-subagent-oar` | yes | Experimental one-shot subagents through OAR runtimes |
 | `@deepseek-ai/dsh-experimental-tool-agent-team` | yes | Scoped model-facing Agent Teams tools over ctx.agentTeams |
 | `@deepseek-ai/dsh-experimental-tool-subagent-oar` | yes | Delegate standalone tasks to configured external subagent providers |
+| `@deepseek-ai/dsh-experimental-translator` | yes | Cancellation-aware anonymous Google and Bing text translation |
 
 ## extensions
 

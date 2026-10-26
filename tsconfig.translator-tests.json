@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "lib/translator-test/types",
+    "emitDeclarationOnly": true,
+    "rewriteRelativeImportExtensions": false
+  },
+  "include": [
+    "packages/experimental/translator/tests/**/*.ts"
+  ],
+  "references": [
+    { "path": "./packages/experimental/translator" },
+    { "path": "./packages/boot/app-boot" }
+  ]
+}

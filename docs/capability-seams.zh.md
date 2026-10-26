@@ -9,6 +9,8 @@
 
 ```mermaid
 flowchart LR
+  pkg_experimental_translator["experimental-translator"]
+  svc_translator["ctx.translator<br/>Anonymous text translation"]
   pkg_experimental_action_cards["experimental-action-cards"]
   svc_actionCards["ctx.actionCards<br/>Optional conversation action cards"]
   pkg_experimental_creation_recommendations["experimental-creation-recommendations"]
@@ -372,6 +374,7 @@ flowchart LR
   pkg_experimental_ptc_runtime_python --> svc_ptcRuntime
   pkg_experimental_speech_to_text --> svc_speechToText
   pkg_experimental_speech_to_text_sensevoice --> svc_speechToText
+  pkg_experimental_translator --> svc_translator
   pkg_file_reference --> svc_fileReferences
   pkg_file_reference_local --> svc_fileReferences
   pkg_fs --> svc_fs
@@ -642,6 +645,7 @@ flowchart LR
 
 | ctx 键 | 角色 | 所属包 | 实现 | 直接消费方 | 配套插件 | 说明 |
 | --- | --- | --- | --- | --- | --- | --- |
+| `ctx.translator` | `service` | [`experimental-translator`](../packages/experimental/translator) | - | - | - | 独立于 Session 解析 Google 或 Bing 请求，并限制 Provider 调用。 |
 | `ctx.actionCards` | `service` | [`experimental-action-cards`](../packages/experimental/action-cards) | - | [`experimental-creation-recommendations`](../packages/experimental/creation-recommendations), [`experimental-plugin-recommendations`](../packages/experimental/plugin-recommendations), [`experimental-client-ui-action-cards`](../packages/experimental/client-ui-action-cards) | - | 记录已接受的提议及人工决定；在下一次普通模型请求中报告状态。 |
 | `ctx.pluginRecommendations` | `service` | [`experimental-plugin-recommendations`](../packages/experimental/plugin-recommendations) | - | [`experimental-client-ui-plugin-recommendations`](../packages/experimental/client-ui-plugin-recommendations) | - | 提供目录匹配，只有人工点击后才启用内置可选插件。 |
 | `ctx.companionHost` | `service` | [`companion-host`](../packages/host/companion-host) | - | `desktop-host` | - | 负责 Desktop 原生配对控制及可撤销的认证手机 Session 访问；管理与邀请密钥不属于渲染器 RPC 操作。 |

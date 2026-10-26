@@ -1463,6 +1463,35 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-experimental-tool-subagent-oar -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-experimental-translator -->
+<a id="deepseek-aidsh-experimental-translator"></a>
+
+## `@deepseek-ai/dsh-experimental-translator`
+
+- `source`: [`packages/experimental/translator/src/index.ts:19`](../packages/experimental/translator/src/index.ts)
+
+```ts config-catalog
+/** Routing and bounds for one anonymous provider request. */
+export interface Config {
+  /** Provider selected when a consumer omits it. */
+  provider: TranslationProvider
+  /** Google-compatible anonymous translation endpoint. */
+  googleEndpoint: string
+  /** Bing-compatible Microsoft Edge browser translation endpoint. */
+  bingEndpoint: string
+  /** Deadline covering the request and complete response body, in milliseconds. */
+  timeoutMs: number
+  /** Maximum UTF-16 code units per request; at least two to admit one supplementary-plane character. */
+  maxTextChars: number
+  /** Maximum response body bytes before JSON parsing. */
+  maxResponseBytes: number
+}
+
+/** Anonymous browser endpoint selected for one translation. */
+export type TranslationProvider = 'google' | 'bing'
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-experimental-translator -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-file-reference-local -->
 <a id="deepseek-aidsh-file-reference-local"></a>
 

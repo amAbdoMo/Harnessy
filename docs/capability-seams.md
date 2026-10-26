@@ -7,6 +7,8 @@ A service can be a core spine service, a swappable capability seam, a bundle/com
 
 ```mermaid
 flowchart LR
+  pkg_experimental_translator["experimental-translator"]
+  svc_translator["ctx.translator<br/>Anonymous text translation"]
   pkg_experimental_action_cards["experimental-action-cards"]
   svc_actionCards["ctx.actionCards<br/>Optional conversation action cards"]
   pkg_experimental_creation_recommendations["experimental-creation-recommendations"]
@@ -370,6 +372,7 @@ flowchart LR
   pkg_experimental_ptc_runtime_python --> svc_ptcRuntime
   pkg_experimental_speech_to_text --> svc_speechToText
   pkg_experimental_speech_to_text_sensevoice --> svc_speechToText
+  pkg_experimental_translator --> svc_translator
   pkg_file_reference --> svc_fileReferences
   pkg_file_reference_local --> svc_fileReferences
   pkg_fs --> svc_fs
@@ -640,6 +643,7 @@ flowchart LR
 
 | ctx key | Role | Owner | Implementations | Direct consumers | Companion plugins | Note |
 | --- | --- | --- | --- | --- | --- | --- |
+| `ctx.translator` | `service` | [`experimental-translator`](../packages/experimental/translator) | - | - | - | Resolves Google or Bing requests and bounds provider calls independently of Sessions. |
 | `ctx.actionCards` | `service` | [`experimental-action-cards`](../packages/experimental/action-cards) | - | [`experimental-creation-recommendations`](../packages/experimental/creation-recommendations), [`experimental-plugin-recommendations`](../packages/experimental/plugin-recommendations), [`experimental-client-ui-action-cards`](../packages/experimental/client-ui-action-cards) | - | Logs admitted proposals and human decisions; reports status on the next ordinary model request. |
 | `ctx.pluginRecommendations` | `service` | [`experimental-plugin-recommendations`](../packages/experimental/plugin-recommendations) | - | [`experimental-client-ui-plugin-recommendations`](../packages/experimental/client-ui-plugin-recommendations) | - | Offers catalog matches and enables a shipped optional plugin only after a human click. |
 | `ctx.companionHost` | `service` | [`companion-host`](../packages/host/companion-host) | - | `desktop-host` | - | Owns Desktop-native pairing controls and revocable authenticated phone Session access; management and invitation secrets are not renderer RPC operations. |
