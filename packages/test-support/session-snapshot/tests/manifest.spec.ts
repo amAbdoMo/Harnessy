@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseSnapshotManifest, writesCurrentSessionFixtures } from '../src/manifest.ts'
+import { parseSnapshotManifest, preservesSessionFixtureInput, writesCurrentSessionFixtures } from '../src/manifest.ts'
 
 describe('snapshot manifest', () => {
   it('parses an owning scenario', () => {
@@ -63,6 +63,25 @@ describe('snapshot manifest', () => {
       profile: 'web',
       session: { source: '../../session/tool-call-turn/session.jsonl' },
     })
+  })
+
+  it('preserves an explicit source recording in every write mode without claiming migration coverage', () => {
+    const source = parseSnapshotManifest('version: 1\nprofile: headless\nimmutableInput: source-recording\n')
+    expect(source).toEqual({ version: 1, profile: 'headless', immutableInput: 'source-recording' })
+    expect(preservesSessionFixtureInput(source)).toBe(true)
+    expect(preservesSessionFixtureInput({ version: 1, profile: 'headless' })).toBe(false)
+    for (const mode of ['record', 'refresh', 'replay'] as const) {
+      expect(writesCurrentSessionFixtures(source, mode)).toBe(false)
+    }
+  })
+
+  it.each([
+    'version: 1\nprofile: headless\nimmutableInput: arbitrary\n',
+    'version: 1\nprofile: web\nimmutableInput: source-recording\n',
+    'version: 1\nprofile: headless\nimmutableInput: source-recording\nsession:\n  source: ../owner/session.v4.jsonl\n',
+    'version: 1\nprofile: headless\nimmutableInput: source-recording\nsessionFormat:\n  version: 0\n  coverage: [multi-hop]\n',
+  ])('rejects unsupported or conflicting source-recording metadata %s', (source) => {
+    expect(() => parseSnapshotManifest(source)).toThrow('manifest.immutableInput')
   })
 
   it('parses composition, recording, header, and exceptional replay metadata', () => {

@@ -45,6 +45,7 @@ import {
   stabilizeRefreshLog,
   tokenizeSessionFixtureCwd,
   writesCurrentSessionFixtures,
+  preservesSessionFixtureInput,
   type HarvestedLog,
   type NormalizeContext,
   type SnapshotManifest,
@@ -238,9 +239,9 @@ async function writeSessionFixtures(
   existing: readonly string[],
   ctx: NormalizeContext,
 ): Promise<string[]> {
-  const names = actualLogs.map((log, index) => scenario.manifest.sessionFormat === undefined
-    ? sessionFixtureName(index, sessionHeaderVersion(log.content, `harvested Session ${index}`))
-    : writerSnapshotName(index))
+  const names = actualLogs.map((log, index) => preservesSessionFixtureInput(scenario.manifest)
+    ? writerSnapshotName(index)
+    : sessionFixtureName(index, sessionHeaderVersion(log.content, `harvested Session ${index}`)))
   const prior = names.map((_, index) => existing[index] ?? '')
   const replacements = mode === 'refresh'
     ? refreshFixtureReplacements(actualLogs.map(harvested), prior)
@@ -1093,7 +1094,7 @@ describe('headless recorded-session snapshots', () => {
     const skipped = scenario.manifest.platform === 'posix' && process.platform === 'win32'
       || scenario.manifest.platform === 'pwsh' && !hasPwsh
       || mode === 'record' && scenario.manifest.recording === 'authored'
-      || mode === 'record' && scenario.manifest.sessionFormat !== undefined
+      || mode === 'record' && preservesSessionFixtureInput(scenario.manifest)
     const scenarioTest = skipped ? it.skip : mode === 'replay' ? it.concurrent : it
     const inputLabel = retainedToolInput === undefined ? '' : ' from retained V3 input'
     const surfaceLabel = surface === 'companion-history' ? ' for companion history' : ''
@@ -1278,17 +1279,17 @@ describe('headless recorded-session snapshots', () => {
       expect(actualLogs, `${scenario.name}: persisted session count`).toHaveLength(fixtures.length)
       const writerFiles = (await readdir(scenario.dir)).filter(name => /^writer(?:\.[1-9]\d*)?\.expected\.jsonl$/u.test(name)).sort()
       if (mode === 'replay') {
-        expect(writerFiles, 'native writer oracle inventory').toEqual(scenario.manifest.sessionFormat === undefined
-          ? [] : fixtures.map((_, index) => writerSnapshotName(index)).sort())
+        expect(writerFiles, 'native writer oracle inventory').toEqual(preservesSessionFixtureInput(scenario.manifest)
+          ? fixtures.map((_, index) => writerSnapshotName(index)).sort() : [])
       }
       let expected = fixtures
-      if (scenario.manifest.sessionFormat !== undefined) {
+      if (preservesSessionFixtureInput(scenario.manifest)) {
         if (mode === 'refresh') await writeSessionFixtures(scenario, actualLogs, fixtures, actualContext)
         expected = await Promise.all(fixtures.map((_, index) => readFile(join(scenario.dir, writerSnapshotName(index)), 'utf8')))
         for (const [index, content] of expected.entries()) {
           expect(sessionHeaderVersion(content, writerSnapshotName(index))).toBeLessThanOrEqual(SESSION_FORMAT_VERSION)
         }
-        expect(await fixtureSessions(scenario), 'historical replay input remains unchanged').toEqual(fixtures)
+        expect(await fixtureSessions(scenario), 'preserved replay input remains unchanged').toEqual(fixtures)
       }
       const actualSnapshots = normalizeSessionSnapshots(actualLogs.map(log => log.content), actualContext, { nativeWriterOutput: true })
       const expectedSnapshots = normalizeSessionSnapshots(expected, contextOf(expected), { nativeWriterOutput: true })

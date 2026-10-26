@@ -1,0 +1,11 @@
+version: 1
+scenario: agent-instructions-group-failure
+profile: headless
+composition: agent-instructions-group-failure
+recording: authored
+immutableInput: source-recording
+header:
+  class: agent-instructions-focused
+  pin: true
+  systemPromptSource: agent-instructions-budget
+  toolSchemasSource: agent-instructions-budget

@@ -1311,6 +1311,9 @@ export function defineAcpSnapshotSuite(options: SnapshotSuiteOptions): void {
         const dir = join(snapshotsDir, scenario.name)
         const manifestPath = join(dir, 'snapshot.yml')
         const manifest = parseSnapshotManifest(await readFile(manifestPath, 'utf8'), manifestPath)
+        if (manifest.immutableInput !== undefined) {
+          throw new Error(`${manifestPath}: immutable source recordings require the dedicated headless snapshot runner`)
+        }
         const input = JSON.parse(await readFile(join(dir, 'input.json'), 'utf8')) as InputScript
         const overrideFile = join(dir, 'replay.override.json')
         const workspaceDir = join(dir, 'workspace')

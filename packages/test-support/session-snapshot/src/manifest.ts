@@ -122,6 +122,17 @@ export interface SnapshotManifest {
   session?: SnapshotSessionReference
   /** Historical generation retained by an owner instead of tracking the current writer. */
   sessionFormat?: SnapshotSessionFormatManifest
+  /** Preserve a headless current-format source recording and compare a separate writer output. */
+  immutableInput?: 'source-recording'
+}
+
+/**
+ * Whether an owner preserves its Session input instead of replacing it with writer output.
+ * @param manifest - Parsed ownership and input-preservation metadata.
+ * @returns True for retained generations and explicitly immutable source recordings.
+ */
+export function preservesSessionFixtureInput(manifest: SnapshotManifest): boolean {
+  return manifest.sessionFormat !== undefined || manifest.immutableInput === 'source-recording'
 }
 
 /** Snapshot execution modes that may read or replace committed fixture generations. */
@@ -140,7 +151,7 @@ export function writesCurrentSessionFixtures(
   manifest: SnapshotManifest,
   mode: SnapshotSessionWriteMode,
 ): boolean {
-  return mode !== 'replay' && manifest.session === undefined && manifest.sessionFormat === undefined
+  return mode !== 'replay' && manifest.session === undefined && !preservesSessionFixtureInput(manifest)
 }
 
 const PROFILES = new Set<SnapshotProfile>(['headless', 'sdk', 'acp', 'web'])
@@ -223,6 +234,7 @@ export function parseSnapshotManifest(source: string, path = 'snapshot.yml'): Sn
       'input',
       'session',
       'sessionFormat',
+      'immutableInput',
     ], 'manifest')
     if (root.version !== 1) throw new Error('manifest.version must equal 1')
     const scenario = root.scenario === undefined ? undefined : name(root.scenario, 'manifest.scenario')
@@ -409,6 +421,15 @@ export function parseSnapshotManifest(source: string, path = 'snapshot.yml'): Sn
       }
     }
 
+    if (root.immutableInput !== undefined) {
+      if (root.immutableInput !== 'source-recording') {
+        throw new Error('manifest.immutableInput must equal source-recording')
+      }
+      if (root.profile !== 'headless' || session !== undefined || sessionFormat !== undefined) {
+        throw new Error('manifest.immutableInput requires an owning headless scenario without sessionFormat')
+      }
+    }
+
     return {
       version: 1,
       ...(scenario === undefined ? {} : { scenario }),
@@ -424,6 +445,7 @@ export function parseSnapshotManifest(source: string, path = 'snapshot.yml'): Sn
       ...(input === undefined ? {} : { input }),
       ...(session === undefined ? {} : { session }),
       ...(sessionFormat === undefined ? {} : { sessionFormat }),
+      ...(root.immutableInput === undefined ? {} : { immutableInput: root.immutableInput }),
     }
   } catch (error) {
     /* v8 ignore next -- every parser and validator above throws Error instances. */

@@ -1,7 +1,7 @@
 /** Retained V3 replay inputs, current-writer fixtures, and bounded older migration coverage. */
 
 import { SESSION_FORMAT_VERSION } from '@deepseek-ai/dsh-session'
-import type { SnapshotSessionFormatManifest } from '@deepseek-ai/dsh-session-snapshot'
+import type { SnapshotManifest, SnapshotSessionFormatManifest } from '@deepseek-ai/dsh-session-snapshot'
 
 /** One owning scenario's selected parent and child generations. */
 export interface SnapshotCorpusScenarioGenerations {
@@ -11,6 +11,8 @@ export interface SnapshotCorpusScenarioGenerations {
   readonly selectedVersions: readonly number[]
   /** Explicit historical generation and the behavior it preserves. */
   readonly retained?: SnapshotSessionFormatManifest
+  /** Current-format source recording preserved without claiming historical migration coverage. */
+  readonly immutableInput?: SnapshotManifest['immutableInput']
 }
 
 /** Counts returned after the corpus policy accepts the inventory. */
@@ -57,6 +59,10 @@ export function assertSnapshotCorpusPolicy(
       throw new Error(
         `${scenario.key}: selected Session generation v${mismatched} does not match expected v${expectedVersion}`,
       )
+    }
+    if (scenario.immutableInput !== undefined
+      && (scenario.retained !== undefined || selectedVersion !== SESSION_FORMAT_VERSION)) {
+      throw new Error(`${scenario.key}: immutable source recording must use current v${SESSION_FORMAT_VERSION} without retained migration coverage`)
     }
     if (scenario.retained === undefined) {
       if (selectedVersion === RETAINED_BASELINE_VERSION) {

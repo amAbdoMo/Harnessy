@@ -134,9 +134,10 @@ describe('skill-filesystem watcher failures', () => {
     const target = await tempDir('skill-watch-canonical-target')
     const aliasParent = await tempDir('skill-watch-canonical-alias')
     const alias = join(aliasParent, 'alias')
+    // Windows recursive mkdir can reject missing descendants reached through a junction.
+    await writeSkill(join(target, '.dsh/skills'), 'canonical-skill')
     await symlink(target, alias, process.platform === 'win32' ? 'junction' : 'dir')
     const root = join(alias, '.dsh/skills')
-    await writeSkill(root, 'canonical-skill')
     const ctx = new Context()
     await ctx.plugin(SkillRegistry)
     const fiber = await ctx.plugin(SkillFileSystem, {

@@ -44,6 +44,20 @@ describe('recorded-session corpus policy', () => {
       .toThrow('Session corpus lacks v3 coverage: adjacent-migration')
   })
 
+  it('keeps immutable current source recordings separate from historical migration coverage', () => {
+    const source = { key: 'session/source', selectedVersions: [SESSION_FORMAT_VERSION], immutableInput: 'source-recording' } as const
+    expect(assertSnapshotCorpusPolicy([baseline, current, completeV0, ...adjacent, source]))
+      .toEqual({ currentRoles: 9, baselineRoles: 8, retainedRoles: 3, retainedScenarios: 3 })
+    expect(() => assertSnapshotCorpusPolicy([baseline, current, completeV0, ...adjacent,
+      { ...source, selectedVersions: [SESSION_FORMAT_VERSION - 1] },
+    ])).toThrow('immutable source recording must use current')
+    expect(() => assertSnapshotCorpusPolicy([baseline, current, completeV0, ...adjacent,
+      { ...source, retained: { version: SESSION_FORMAT_VERSION, coverage: ['retired-tools'] } },
+    ])).toThrow('immutable source recording must use current')
+    expect(() => assertSnapshotCorpusPolicy([current, completeV0, source]))
+      .toThrow('coverage: adjacent-migration')
+  })
+
   it('retains retired tools in the current format without claiming migration coverage', () => {
     const retired = {
       key: 'web/retired', selectedVersions: [SESSION_FORMAT_VERSION],

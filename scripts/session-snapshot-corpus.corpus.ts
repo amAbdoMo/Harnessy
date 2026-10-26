@@ -203,6 +203,7 @@ it('keeps V3 replay input plus bounded declared historical migration coverage', 
     ...(scenario.manifest.sessionFormat === undefined
       ? {}
       : { retained: scenario.manifest.sessionFormat }),
+    ...(scenario.manifest.immutableInput === undefined ? {} : { immutableInput: scenario.manifest.immutableInput }),
   })))
 
   const summary = assertSnapshotCorpusPolicy(inventory)
