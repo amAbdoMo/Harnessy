@@ -1251,7 +1251,8 @@ export interface InspectorOptions {
 
 ## `@deepseek-ai/dsh-experimental-ptc-runtime-python`
 
-- `source`: [`packages/experimental/ptc-runtime-python/src/index.ts:42`](../packages/experimental/ptc-runtime-python/src/index.ts)
+- `inject`: `sandbox` · `sandboxPolicy`
+- `source`: [`packages/experimental/ptc-runtime-python/src/index.ts:45`](../packages/experimental/ptc-runtime-python/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config: every cap, changeable from `cordis.yml` (no hardcoded tunables). */
