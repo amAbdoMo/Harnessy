@@ -24319,7 +24319,8 @@
       ],
       "tree": "9aa75320e4ddfd6e6820c888726189877e77fb2b",
       "subject": "Merge pull request #5693 from deepseek-harness/worktree/agents-home-instructions-20261005",
-      "review": null
+      "review": "harnessy-shared-agents-instructions-20261026",
+      "mergeEvidence": "Inspected every constituent first-parent delta and both parent deltas for 7150c591b49e36fbb46445f2b94e541d71322798. A fresh normal merge-tree exactly equals recorded tree 9aa75320e4ddfd6e6820c888726189877e77fb2b; no manual resolution. All 56 first-parent paths have the same blob/mode or absence as reviewed second parent 8a93894ef960484441030606985d50c93a18d7d2. All ten newly included commit identities and their complete 56-path union are accounted for; no unchecked side branch is included."
     },
     {
       "sha": "231d5a311e147a39ca03c837045a2dc05f539428",
@@ -24401,7 +24402,7 @@
       ],
       "tree": "9aa75320e4ddfd6e6820c888726189877e77fb2b",
       "subject": "perf(agent-instructions): cache previously rendered duplicates",
-      "review": null
+      "review": "harnessy-shared-agents-instructions-20261026"
     },
     {
       "sha": "0516f66d83223e97f2b1457ce519027f537ddbe1",
@@ -24410,7 +24411,7 @@
       ],
       "tree": "602e01e7672d01e138401dd00134e6647c81bf2d",
       "subject": "fix(agent-instructions): preserve groups when hidden candidates fail",
-      "review": null
+      "review": "harnessy-shared-agents-instructions-20261026"
     },
     {
       "sha": "b981255be6d2120f2486f7d0e172d662d44762a4",
@@ -24419,7 +24420,7 @@
       ],
       "tree": "c94d24d06786093129bb26f65b6562e08d246185",
       "subject": "fix(agent-instructions): keep budget-omitted duplicates excluded",
-      "review": null
+      "review": "harnessy-shared-agents-instructions-20261026"
     },
     {
       "sha": "052a926704cead3f7f3a8ca98c9e4f8feeb313ac",
@@ -24428,7 +24429,7 @@
       ],
       "tree": "5ab05db4609ef7d2d5a4f5222c886337b0190f6b",
       "subject": "docs(agent-instructions): align shared-root decision with process homes",
-      "review": null
+      "review": "harnessy-shared-agents-instructions-20261026"
     },
     {
       "sha": "21d0c2e29c9ba2b729b2aadadcd251468b6e64d2",
@@ -24437,7 +24438,7 @@
       ],
       "tree": "49ba9a05f932b7afca2102d07fc57379469f9b99",
       "subject": "feat(agent-instructions): load the shared agents-root AGENTS.md",
-      "review": null
+      "review": "harnessy-shared-agents-instructions-20261026"
     },
     {
       "sha": "d7f0a264477748e4cae9a9cc39eccb54116c0317",
@@ -24446,7 +24447,7 @@
       ],
       "tree": "c52b87f01b8f94e03f4b1243d29bff53495782ae",
       "subject": "fix(agent-instructions): enforce process homes for plugin rows",
-      "review": null
+      "review": "harnessy-shared-agents-instructions-20261026"
     },
     {
       "sha": "c8e538efa43c1c36ec7af8c0ab7f7b98c4a2dc76",
@@ -24455,7 +24456,7 @@
       ],
       "tree": "e494a8b5c558716775a19b0c2af6ccf074324af8",
       "subject": "fix(agent-instructions): consume the owner-resolved home option",
-      "review": null
+      "review": "harnessy-shared-agents-instructions-20261026"
     },
     {
       "sha": "b603bd924e4d5a14eb74e45cef4a627b4bff0b0a",
@@ -24464,7 +24465,7 @@
       ],
       "tree": "2bf318dc8fc97bb1dad618571859984e6a419085",
       "subject": "docs(agent-instructions): correct the home-removal scope and thread one home",
-      "review": null
+      "review": "harnessy-shared-agents-instructions-20261026"
     },
     {
       "sha": "25f167209552404a2796cd2fc5a5870ff2553ee4",
@@ -24473,7 +24474,7 @@
       ],
       "tree": "f8f968588eaa2a215f7be918d7c9a7463129ac9d",
       "subject": "refactor(agent-instructions): drop the per-row dshHome override",
-      "review": null
+      "review": "harnessy-shared-agents-instructions-20261026"
     },
     {
       "sha": "dd302f718b425813e4b68edb0d270c8acd821ebf",
@@ -125310,6 +125311,302 @@
         "Host build passed at the existing 4096 MB limit after moving translator tests into an explicitly referenced declaration program. A temporary invalid test assignment was rejected through the Host aggregate with TS2322, then removed. The lint-project discovery regression passed its selected case, with 13 unrelated cases not selected. Full source lint passed and the new terminology-check change passed scoped lint.",
         "Documentation aggregate: 41 checks passed initially; two failures were repaired and their complete owning checks then passed. All 963 bilingual pairs are consistent after adding the missing guide switchers. The concrete-terms gate now permits only the exact retired filename field in this ledger while still rejecting authored wording, other files, other paths and extra text. Its owner tests passed 56 cases, with one native-symlink case skipped on Windows. The 16 hygiene gates passed without skips.",
         "Normal integration preview contains 29 individually inspected conflicts: preserve current custom capability/module/config graphs and OAR/companion owners, current paired text/hashes, local translator version/formatting and no-network test, the selected private-package omission, later named-ID ordering tests, existing lock importers and referenced test programs. Selecting these exact current versions reproduces the qualified tree at every conflict and leaves no automatic source delta outside them. reviewedThrough remains unchanged until the clean normal merge and post-resolution checks."
+      ]
+    },
+    "harnessy-shared-agents-instructions-20261026": {
+      "status": "adopted",
+      "summary": "Adapt shared agents-root instructions and process-home policy while preserving Harnessy working-directory tracking and isolated main/staging homes. Cache hidden duplicates, preserve last-good candidate groups through unavailable siblings, and keep byte-budget exclusions stable.",
+      "files": [
+        {
+          "path": ".agents/notes/implemented/architecture/2026-07-24-single-harness-home-resolver.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final shared agents-root instruction implementation, process-home policy, ordered global deduplication, hidden duplicate caching, budget exclusion and atomic group recovery with paired documentation and owner tests. Preserve current WorkingDirectory integration, captured absolute tool-touch paths, custom composition and main/staging home isolation."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-07-24-single-harness-home-resolver.md",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final shared agents-root instruction implementation, process-home policy, ordered global deduplication, hidden duplicate caching, budget exclusion and atomic group recovery with paired documentation and owner tests. Preserve current WorkingDirectory integration, captured absolute tool-touch paths, custom composition and main/staging home isolation."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-07-24-single-harness-home-resolver.zh.md",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final shared agents-root instruction implementation, process-home policy, ordered global deduplication, hidden duplicate caching, budget exclusion and atomic group recovery with paired documentation and owner tests. Preserve current WorkingDirectory integration, captured absolute tool-touch paths, custom composition and main/staging home isolation."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-10-05-shared-agents-root-instructions.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final shared agents-root instruction implementation, process-home policy, ordered global deduplication, hidden duplicate caching, budget exclusion and atomic group recovery with paired documentation and owner tests. Preserve current WorkingDirectory integration, captured absolute tool-touch paths, custom composition and main/staging home isolation."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-10-05-shared-agents-root-instructions.md",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final shared agents-root instruction implementation, process-home policy, ordered global deduplication, hidden duplicate caching, budget exclusion and atomic group recovery with paired documentation and owner tests. Preserve current WorkingDirectory integration, captured absolute tool-touch paths, custom composition and main/staging home isolation."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-10-05-shared-agents-root-instructions.zh.md",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final shared agents-root instruction implementation, process-home policy, ordered global deduplication, hidden duplicate caching, budget exclusion and atomic group recovery with paired documentation and owner tests. Preserve current WorkingDirectory integration, captured absolute tool-touch paths, custom composition and main/staging home isolation."
+        },
+        {
+          "path": "apps/cli/tests/profiles/headless/tests/workspace-context-resume.expected.e2e.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the current resume owner to process DSH_HOME/DSH_AGENTS_HOME and explicit instruction-only headless fixture composition. Keep offline-edit and changed-precedence assertions; refreshed separate owner-local expected outputs and both actual resume replays passed."
+        },
+        {
+          "path": "apps/cli/tests/profiles/headless/workspace-context-resume-snapshot.patch.yml",
+          "disposition": "adopted",
+          "reason": "Adapt the current resume owner to process DSH_HOME/DSH_AGENTS_HOME and explicit instruction-only headless fixture composition. Keep offline-edit and changed-precedence assertions; refreshed separate owner-local expected outputs and both actual resume replays passed."
+        },
+        {
+          "path": "docs/config-catalog.md",
+          "disposition": "adopted",
+          "reason": "Regenerate the current configuration catalog to remove only the instruction-row dshHome option. Preserve all Harnessy custom package/configuration entries and other providers explicit home fields."
+        },
+        {
+          "path": "docs/config-catalog.zh.md",
+          "disposition": "adopted",
+          "reason": "Regenerate the current configuration catalog to remove only the instruction-row dshHome option. Preserve all Harnessy custom package/configuration entries and other providers explicit home fields."
+        },
+        {
+          "path": "docs/persistence-catalog.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Regenerate from the current Harnessy source. Only source-location pointers move; persisted fields and schema digests remain unchanged. Preserve all frozen historical generations and custom events; no migration or acknowledgement is invented."
+        },
+        {
+          "path": "docs/persistence-catalog.md",
+          "disposition": "adopted",
+          "reason": "Regenerate from the current Harnessy source. Only source-location pointers move; persisted fields and schema digests remain unchanged. Preserve all frozen historical generations and custom events; no migration or acknowledgement is invented."
+        },
+        {
+          "path": "docs/persistence-catalog.zh.md",
+          "disposition": "adopted",
+          "reason": "Regenerate from the current Harnessy source. Only source-location pointers move; persisted fields and schema digests remain unchanged. Preserve all frozen historical generations and custom events; no migration or acknowledgement is invented."
+        },
+        {
+          "path": "docs/persistence-schema.json",
+          "disposition": "adopted",
+          "reason": "Regenerate from the current Harnessy source. Only source-location pointers move; persisted fields and schema digests remain unchanged. Preserve all frozen historical generations and custom events; no migration or acknowledgement is invented."
+        },
+        {
+          "path": "docs/upgrade-guide/v0.2.1-alpha.1/instruction-home-override/guide.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adapt the row-specific dshHome removal guide to Harnessy version 0.1.17 at instruction-home-override; preserve the actual local release sequence and both language switchers. Do not create the stock version directory."
+        },
+        {
+          "path": "docs/upgrade-guide/v0.2.1-alpha.1/instruction-home-override/guide.md",
+          "disposition": "adopted",
+          "reason": "Adapt the row-specific dshHome removal guide to Harnessy version 0.1.17 at instruction-home-override; preserve the actual local release sequence and both language switchers. Do not create the stock version directory."
+        },
+        {
+          "path": "docs/upgrade-guide/v0.2.1-alpha.1/instruction-home-override/guide.zh.md",
+          "disposition": "adopted",
+          "reason": "Adapt the row-specific dshHome removal guide to Harnessy version 0.1.17 at instruction-home-override; preserve the actual local release sequence and both language switchers. Do not create the stock version directory."
+        },
+        {
+          "path": "packages/context/agent-instructions/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final shared agents-root instruction implementation, process-home policy, ordered global deduplication, hidden duplicate caching, budget exclusion and atomic group recovery with paired documentation and owner tests. Preserve current WorkingDirectory integration, captured absolute tool-touch paths, custom composition and main/staging home isolation."
+        },
+        {
+          "path": "packages/context/agent-instructions/README.md",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final shared agents-root instruction implementation, process-home policy, ordered global deduplication, hidden duplicate caching, budget exclusion and atomic group recovery with paired documentation and owner tests. Preserve current WorkingDirectory integration, captured absolute tool-touch paths, custom composition and main/staging home isolation."
+        },
+        {
+          "path": "packages/context/agent-instructions/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final shared agents-root instruction implementation, process-home policy, ordered global deduplication, hidden duplicate caching, budget exclusion and atomic group recovery with paired documentation and owner tests. Preserve current WorkingDirectory integration, captured absolute tool-touch paths, custom composition and main/staging home isolation."
+        },
+        {
+          "path": "packages/context/agent-instructions/src/config.ts",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final shared agents-root instruction implementation, process-home policy, ordered global deduplication, hidden duplicate caching, budget exclusion and atomic group recovery with paired documentation and owner tests. Preserve current WorkingDirectory integration, captured absolute tool-touch paths, custom composition and main/staging home isolation."
+        },
+        {
+          "path": "packages/context/agent-instructions/src/files.ts",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final shared agents-root instruction implementation, process-home policy, ordered global deduplication, hidden duplicate caching, budget exclusion and atomic group recovery with paired documentation and owner tests. Preserve current WorkingDirectory integration, captured absolute tool-touch paths, custom composition and main/staging home isolation."
+        },
+        {
+          "path": "packages/context/agent-instructions/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final shared agents-root instruction implementation, process-home policy, ordered global deduplication, hidden duplicate caching, budget exclusion and atomic group recovery with paired documentation and owner tests. Preserve current WorkingDirectory integration, captured absolute tool-touch paths, custom composition and main/staging home isolation."
+        },
+        {
+          "path": "packages/context/agent-instructions/src/render.ts",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final shared agents-root instruction implementation, process-home policy, ordered global deduplication, hidden duplicate caching, budget exclusion and atomic group recovery with paired documentation and owner tests. Preserve current WorkingDirectory integration, captured absolute tool-touch paths, custom composition and main/staging home isolation."
+        },
+        {
+          "path": "packages/context/agent-instructions/src/state.ts",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final shared agents-root instruction implementation, process-home policy, ordered global deduplication, hidden duplicate caching, budget exclusion and atomic group recovery with paired documentation and owner tests. Preserve current WorkingDirectory integration, captured absolute tool-touch paths, custom composition and main/staging home isolation."
+        },
+        {
+          "path": "packages/context/agent-instructions/tests/agent-instructions.e2e.ts",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final shared agents-root instruction implementation, process-home policy, ordered global deduplication, hidden duplicate caching, budget exclusion and atomic group recovery with paired documentation and owner tests. Preserve current WorkingDirectory integration, captured absolute tool-touch paths, custom composition and main/staging home isolation."
+        },
+        {
+          "path": "packages/context/agent-instructions/tests/agent-instructions.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final shared agents-root instruction implementation, process-home policy, ordered global deduplication, hidden duplicate caching, budget exclusion and atomic group recovery with paired documentation and owner tests. Preserve current WorkingDirectory integration, captured absolute tool-touch paths, custom composition and main/staging home isolation."
+        },
+        {
+          "path": "packages/skill/skill-filesystem/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Use the shared agents-home resolver for the skill root; retain current explicit provider overrides, settings, volatile roots, per-instance closed/aborted watcher guards and realpath behavior."
+        },
+        {
+          "path": "packages/test-support/session-snapshot/package.json",
+          "disposition": "adopted",
+          "reason": "Add only the filesystem workspace dependency required by the new outage fixture. Preserve existing package pins and importers; frozen offline installation passed. The qualified worktree also contains separate browser wrapper workspace links for a still-pending later group."
+        },
+        {
+          "path": "packages/test-support/session-snapshot/tests/fixtures/workspace-context-global-failure.ts",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final shared agents-root instruction implementation, process-home policy, ordered global deduplication, hidden duplicate caching, budget exclusion and atomic group recovery with paired documentation and owner tests. Preserve current WorkingDirectory integration, captured absolute tool-touch paths, custom composition and main/staging home isolation."
+        },
+        {
+          "path": "packages/util/home-paths/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final shared agents-root instruction implementation, process-home policy, ordered global deduplication, hidden duplicate caching, budget exclusion and atomic group recovery with paired documentation and owner tests. Preserve current WorkingDirectory integration, captured absolute tool-touch paths, custom composition and main/staging home isolation."
+        },
+        {
+          "path": "packages/util/home-paths/README.md",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final shared agents-root instruction implementation, process-home policy, ordered global deduplication, hidden duplicate caching, budget exclusion and atomic group recovery with paired documentation and owner tests. Preserve current WorkingDirectory integration, captured absolute tool-touch paths, custom composition and main/staging home isolation."
+        },
+        {
+          "path": "packages/util/home-paths/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final shared agents-root instruction implementation, process-home policy, ordered global deduplication, hidden duplicate caching, budget exclusion and atomic group recovery with paired documentation and owner tests. Preserve current WorkingDirectory integration, captured absolute tool-touch paths, custom composition and main/staging home isolation."
+        },
+        {
+          "path": "packages/util/home-paths/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final shared agents-root instruction implementation, process-home policy, ordered global deduplication, hidden duplicate caching, budget exclusion and atomic group recovery with paired documentation and owner tests. Preserve current WorkingDirectory integration, captured absolute tool-touch paths, custom composition and main/staging home isolation."
+        },
+        {
+          "path": "packages/util/home-paths/tests/home-paths.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final shared agents-root instruction implementation, process-home policy, ordered global deduplication, hidden duplicate caching, budget exclusion and atomic group recovery with paired documentation and owner tests. Preserve current WorkingDirectory integration, captured absolute tool-touch paths, custom composition and main/staging home isolation."
+        },
+        {
+          "path": "pnpm-lock.yaml",
+          "disposition": "adopted",
+          "reason": "Add only the filesystem workspace dependency required by the new outage fixture. Preserve existing package pins and importers; frozen offline installation passed. The qualified worktree also contains separate browser wrapper workspace links for a still-pending later group."
+        },
+        {
+          "path": "snapshots/session/agent-instructions-budget/cordis.snapshot.yml",
+          "disposition": "adopted",
+          "reason": "Adopt shared-root, byte-budget and whole-group-failure scenarios. Narrow only the two new private test compositions to instruction loading and give them an owned header class; preserve shipped profiles, old sidecars, normalizers, existing generations and every persisted-record assertion."
+        },
+        {
+          "path": "snapshots/session/agent-instructions-budget/cordis.yml",
+          "disposition": "adopted",
+          "reason": "Adopt shared-root, byte-budget and whole-group-failure scenarios. Narrow only the two new private test compositions to instruction loading and give them an owned header class; preserve shipped profiles, old sidecars, normalizers, existing generations and every persisted-record assertion."
+        },
+        {
+          "path": "snapshots/session/agent-instructions-budget/session.v4.jsonl",
+          "disposition": "adopted",
+          "reason": "Import the exact upstream blob without rewriting any committed generation. The two new current-format recordings use explicit immutableInput ownership and separate fully compared writer outputs, retaining their original bytes. The existing instruction scenario remains explicitly POSIX-owned."
+        },
+        {
+          "path": "snapshots/session/agent-instructions-budget/snapshot.yml",
+          "disposition": "adopted",
+          "reason": "Adopt shared-root, byte-budget and whole-group-failure scenarios. Narrow only the two new private test compositions to instruction loading and give them an owned header class; preserve shipped profiles, old sidecars, normalizers, existing generations and every persisted-record assertion."
+        },
+        {
+          "path": "snapshots/session/agent-instructions-budget/workspace/.agents/AGENTS.md",
+          "disposition": "adopted",
+          "reason": "Adopt shared-root, byte-budget and whole-group-failure scenarios. Narrow only the two new private test compositions to instruction loading and give them an owned header class; preserve shipped profiles, old sidecars, normalizers, existing generations and every persisted-record assertion."
+        },
+        {
+          "path": "snapshots/session/agent-instructions-budget/workspace/.dsh/AGENTS.md",
+          "disposition": "adopted",
+          "reason": "Adopt shared-root, byte-budget and whole-group-failure scenarios. Narrow only the two new private test compositions to instruction loading and give them an owned header class; preserve shipped profiles, old sidecars, normalizers, existing generations and every persisted-record assertion."
+        },
+        {
+          "path": "snapshots/session/agent-instructions-budget/workspace/AGENTS.md",
+          "disposition": "adopted",
+          "reason": "Adopt shared-root, byte-budget and whole-group-failure scenarios. Narrow only the two new private test compositions to instruction loading and give them an owned header class; preserve shipped profiles, old sidecars, normalizers, existing generations and every persisted-record assertion."
+        },
+        {
+          "path": "snapshots/session/agent-instructions-budget/workspace/task.txt",
+          "disposition": "adopted",
+          "reason": "Adopt shared-root, byte-budget and whole-group-failure scenarios. Narrow only the two new private test compositions to instruction loading and give them an owned header class; preserve shipped profiles, old sidecars, normalizers, existing generations and every persisted-record assertion."
+        },
+        {
+          "path": "snapshots/session/agent-instructions-group-failure/cordis.snapshot.yml",
+          "disposition": "adopted",
+          "reason": "Adopt shared-root, byte-budget and whole-group-failure scenarios. Narrow only the two new private test compositions to instruction loading and give them an owned header class; preserve shipped profiles, old sidecars, normalizers, existing generations and every persisted-record assertion."
+        },
+        {
+          "path": "snapshots/session/agent-instructions-group-failure/cordis.yml",
+          "disposition": "adopted",
+          "reason": "Adopt shared-root, byte-budget and whole-group-failure scenarios. Narrow only the two new private test compositions to instruction loading and give them an owned header class; preserve shipped profiles, old sidecars, normalizers, existing generations and every persisted-record assertion."
+        },
+        {
+          "path": "snapshots/session/agent-instructions-group-failure/session.v4.jsonl",
+          "disposition": "adopted",
+          "reason": "Import the exact upstream blob without rewriting any committed generation. The two new current-format recordings use explicit immutableInput ownership and separate fully compared writer outputs, retaining their original bytes. The existing instruction scenario remains explicitly POSIX-owned."
+        },
+        {
+          "path": "snapshots/session/agent-instructions-group-failure/snapshot.yml",
+          "disposition": "adopted",
+          "reason": "Adopt shared-root, byte-budget and whole-group-failure scenarios. Narrow only the two new private test compositions to instruction loading and give them an owned header class; preserve shipped profiles, old sidecars, normalizers, existing generations and every persisted-record assertion."
+        },
+        {
+          "path": "snapshots/session/agent-instructions-group-failure/workspace/.agents/AGENTS.md",
+          "disposition": "adopted",
+          "reason": "Adopt shared-root, byte-budget and whole-group-failure scenarios. Narrow only the two new private test compositions to instruction loading and give them an owned header class; preserve shipped profiles, old sidecars, normalizers, existing generations and every persisted-record assertion."
+        },
+        {
+          "path": "snapshots/session/agent-instructions-group-failure/workspace/.dsh/AGENTS.md",
+          "disposition": "adopted",
+          "reason": "Adopt shared-root, byte-budget and whole-group-failure scenarios. Narrow only the two new private test compositions to instruction loading and give them an owned header class; preserve shipped profiles, old sidecars, normalizers, existing generations and every persisted-record assertion."
+        },
+        {
+          "path": "snapshots/session/agent-instructions-group-failure/workspace/first.txt",
+          "disposition": "adopted",
+          "reason": "Adopt shared-root, byte-budget and whole-group-failure scenarios. Narrow only the two new private test compositions to instruction loading and give them an owned header class; preserve shipped profiles, old sidecars, normalizers, existing generations and every persisted-record assertion."
+        },
+        {
+          "path": "snapshots/session/agent-instructions-group-failure/workspace/second.txt",
+          "disposition": "adopted",
+          "reason": "Adopt shared-root, byte-budget and whole-group-failure scenarios. Narrow only the two new private test compositions to instruction loading and give them an owned header class; preserve shipped profiles, old sidecars, normalizers, existing generations and every persisted-record assertion."
+        },
+        {
+          "path": "snapshots/session/agent-instructions/cordis.snapshot.yml",
+          "disposition": "adopted",
+          "reason": "Adopt shared-root, byte-budget and whole-group-failure scenarios. Narrow only the two new private test compositions to instruction loading and give them an owned header class; preserve shipped profiles, old sidecars, normalizers, existing generations and every persisted-record assertion."
+        },
+        {
+          "path": "snapshots/session/agent-instructions/cordis.yml",
+          "disposition": "adopted",
+          "reason": "Adopt shared-root, byte-budget and whole-group-failure scenarios. Narrow only the two new private test compositions to instruction loading and give them an owned header class; preserve shipped profiles, old sidecars, normalizers, existing generations and every persisted-record assertion."
+        },
+        {
+          "path": "snapshots/session/agent-instructions/session.v4.jsonl",
+          "disposition": "adopted",
+          "reason": "Import the exact upstream blob without rewriting any committed generation. The two new current-format recordings use explicit immutableInput ownership and separate fully compared writer outputs, retaining their original bytes. The existing instruction scenario remains explicitly POSIX-owned."
+        },
+        {
+          "path": "snapshots/session/agent-instructions/workspace/.agents/AGENTS.md",
+          "disposition": "adopted",
+          "reason": "Adopt shared-root, byte-budget and whole-group-failure scenarios. Narrow only the two new private test compositions to instruction loading and give them an owned header class; preserve shipped profiles, old sidecars, normalizers, existing generations and every persisted-record assertion."
+        }
+      ],
+      "evidence": [
+        "Implementation 020aae6989d59dbad7fb1f80bcbc5ce1fc362e85. Reviewed all ten exact upstream commits through 7150c591b49e36fbb46445f2b94e541d71322798 and their 56-path union, including removed per-row overrides and intermediate correction commits. The upstream merge rebuild is byte-identical; no manual merge delta exists.",
+        "Verified 2026-10-26 on Windows with Harnessy 0.1.17, Node 24.14.0, pnpm 11.7.0 and Vitest 4.1.8. Integrated owner run: 16 files, 432 passing tests and seven explicit platform skips across instruction/home/skill owners, browser recovery, snapshot manifests/corpus policy and translation pairing. Captured tool-touch regression failed with its current-directory capture disabled, then passed after restoration.",
+        "Two actual headless workspace-context resume cases passed. Both new instruction snapshot scenarios passed refresh and replay; metadata/pin ownership and corpus checks passed. Their source v4 blobs and the existing instruction v4 blob match upstream exactly, and no previously committed generation changed. A deliberate expected-instruction corruption failed exact persisted-record comparison; restoring it passed. The existing POSIX instruction scenario and native symlink cases were not claimed as Windows execution.",
+        "The Windows native canonical-root fixture writes its real target before making the junction, retaining alias/canonical-root assertions. The full watcher owner passed 32 cases with three explicit platform skips; production canonicalization and watcher lifetime guards are unchanged. This repair is included in the integrated 432-case run.",
+        "Minimal lock importer additions passed frozen offline installation. Affected package declaration builds, full Host build, complete source lint, documentation and hygiene checks passed; exact command outcomes are retained in the task artifacts. No provider key, live model, native Mac execution, installed staging window, main update or release was exercised.",
+        "The local instruction row uses process DSH_HOME/DSH_AGENTS_HOME; existing Desktop launchers already set distinct main/staging roots. Other providers keep their explicit overrides. Persistence generation changed only source-line references, not persisted fields or digests. No additional checkout, worktree, runnable app, shortcut, update or release was created.",
+        "Separate partial browser-recovery and Markdown parsing ports in the same qualified worktree do not qualify their remaining row-25/row-22 groups. Those entries stay pending. Three inventory-ordering commits immediately after this group were previously fully reviewed and verified, allowing the proposed normal checkpoint to reach a71a21298fb3d2cb3de6bfee53a294f4fecde63a only after this review gap closes.",
+        "Normal merge preview has sixteen individually inspected conflicts. Exact current resolutions preserve current WorkingDirectory/captured-touch tests, Volatile/custom skill settings, source-generated custom catalogs, aligned paired notes and narrow immutable instruction compositions. The only additional automatic deltas are one duplicate filesystem lock importer and three stock v0.2.1-alpha.1 guide paths; retain the single qualified lock entry and the adopted v0.1.17 guide instead. Each conflicted file reproduces its qualified current bytes outside and inside the selected resolution. No other automatic source delta is present."
       ]
     }
   }
