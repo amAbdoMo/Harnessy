@@ -24271,7 +24271,8 @@
       ],
       "tree": "8f51be075f0160e370b7a6684874458f075baf18",
       "subject": "Merge pull request #5677 from deepseek-harness/worktree/plugin-session-records-20261004",
-      "review": null
+      "review": "harnessy-experimental-plugin-session-records-20261026",
+      "mergeEvidence": "Inspected both parent deltas and inherited blobs/modes for 973a7fb8e4d03635599e786f69ab0d3249111ae5. Fresh merge-tree exactly equals recorded tree 8f51be075f0160e370b7a6684874458f075baf18; no manual resolution. All 39 inherited paths equal reviewed second parent c954a07535789f07771dee844f8be976e3832b9a. Twelve exact constituents and their 146-path first-parent union, including 44 directly changed paths, are explicitly accounted for; no unchecked side branch is included."
     },
     {
       "sha": "a71a21298fb3d2cb3de6bfee53a294f4fecde63a",
@@ -24309,7 +24310,7 @@
       ],
       "tree": "cdc8679b59d111d3a12ed2310dd4f73deebc8f6b",
       "subject": "docs(session): separate experimental persistence catalogue",
-      "review": null
+      "review": "harnessy-experimental-plugin-session-records-20261026"
     },
     {
       "sha": "7150c591b49e36fbb46445f2b94e541d71322798",
@@ -24347,7 +24348,7 @@
       ],
       "tree": "6d0e4d5b946d26056913191233fcf7291a3960a5",
       "subject": "fix(scripts): normalize plugin record compiler paths",
-      "review": null
+      "review": "harnessy-experimental-plugin-session-records-20261026"
     },
     {
       "sha": "cb4407427f0e23180ccaeed179a125978ff47a5e",
@@ -24366,7 +24367,8 @@
       ],
       "tree": "63c1dd7aefcf9a2882f248cbdff759263a21e9ba",
       "subject": "Merge master into plugin record catalogue",
-      "review": null
+      "review": "harnessy-experimental-plugin-session-records-20261026",
+      "mergeEvidence": "Inspected both parent deltas and inherited blobs/modes for 9a4a750a0580d6ea15142a824e85cb5f97e246c0. Fresh merge-tree exactly equals recorded tree 63c1dd7aefcf9a2882f248cbdff759263a21e9ba; no manual resolution. All 102 inherited paths equal reviewed second parent 7d8956397049be8694e34af8c9c3abeafd32a8fe. Twelve exact constituents and their 146-path first-parent union, including 44 directly changed paths, are explicitly accounted for; no unchecked side branch is included."
     },
     {
       "sha": "70723f41c8bf9c58f28773d1c2a44f2fd1f05553",
@@ -24384,7 +24386,7 @@
       ],
       "tree": "b183354800188aaac8f093566a38d90729d3873b",
       "subject": "test(session): reuse catalogue fixture cleanup",
-      "review": null
+      "review": "harnessy-experimental-plugin-session-records-20261026"
     },
     {
       "sha": "350dbb45dff5620c1cd18627d3fa74d4fe6ad44e",
@@ -24483,7 +24485,7 @@
       ],
       "tree": "0a378d4491594e119f4b1ac650389000f7f6fc60",
       "subject": "feat(session): catalogue experimental plugin records",
-      "review": null
+      "review": "harnessy-experimental-plugin-session-records-20261026"
     },
     {
       "sha": "7d8956397049be8694e34af8c9c3abeafd32a8fe",
@@ -24829,7 +24831,7 @@
       ],
       "tree": "5fbf1da9dd70ab0727ac671690e29e145d73ae28",
       "subject": "fix(scripts): find plugin record calls spelled with legacy octal escapes",
-      "review": null
+      "review": "harnessy-experimental-plugin-session-records-20261026"
     },
     {
       "sha": "f9719330dbda58f84f518988cda03619a22e4701",
@@ -25004,7 +25006,7 @@
       ],
       "tree": "46e3be3eaa58acac114ea03cdd002ac845c35ce7",
       "subject": "fix(scripts): find plugin record calls spelled with any escape",
-      "review": null
+      "review": "harnessy-experimental-plugin-session-records-20261026"
     },
     {
       "sha": "1678f0f5f5833c85640382adad89e8b278d3cd0e",
@@ -25013,7 +25015,7 @@
       ],
       "tree": "7870a9a94288e4440a887780551ab52f2a719d70",
       "subject": "fix(session): address review of plugin records",
-      "review": null
+      "review": "harnessy-experimental-plugin-session-records-20261026"
     },
     {
       "sha": "ab1e7811b924d6c99dd7c31d5b8a0545817790fa",
@@ -25022,7 +25024,7 @@
       ],
       "tree": "2e7798ba3deaa6bd2c092e8946d6414111b15907",
       "subject": "fix(typert-generator): omit #private class members from declarations",
-      "review": null
+      "review": "harnessy-experimental-plugin-session-records-20261026"
     },
     {
       "sha": "75542dd10ace73b59cdf7a6bdeeb7351591f53c4",
@@ -25031,7 +25033,7 @@
       ],
       "tree": "fb752829fe86936204c16fa400f4aa1a5a575aee",
       "subject": "feat(session): let experimental packages append plugin records",
-      "review": null
+      "review": "harnessy-experimental-plugin-session-records-20261026"
     },
     {
       "sha": "115f92b5ed280091ed13369a64d77d62231451d9",
@@ -25040,7 +25042,7 @@
       ],
       "tree": "fb9c6c1ecb4aa4b047d1b55071431079f8522035",
       "subject": "fix(typert-generator): omit static blocks from class declarations",
-      "review": null
+      "review": "harnessy-experimental-plugin-session-records-20261026"
     },
     {
       "sha": "7f83658b4a4ea6466017f7a40b04e574d5575b06",
@@ -125607,6 +125609,753 @@
         "The local instruction row uses process DSH_HOME/DSH_AGENTS_HOME; existing Desktop launchers already set distinct main/staging roots. Other providers keep their explicit overrides. Persistence generation changed only source-line references, not persisted fields or digests. No additional checkout, worktree, runnable app, shortcut, update or release was created.",
         "Separate partial browser-recovery and Markdown parsing ports in the same qualified worktree do not qualify their remaining row-25/row-22 groups. Those entries stay pending. Three inventory-ordering commits immediately after this group were previously fully reviewed and verified, allowing the proposed normal checkpoint to reach a71a21298fb3d2cb3de6bfee53a294f4fecde63a only after this review gap closes.",
         "Normal merge preview has sixteen individually inspected conflicts. Exact current resolutions preserve current WorkingDirectory/captured-touch tests, Volatile/custom skill settings, source-generated custom catalogs, aligned paired notes and narrow immutable instruction compositions. The only additional automatic deltas are one duplicate filesystem lock importer and three stock v0.2.1-alpha.1 guide paths; retain the single qualified lock entry and the adopted v0.1.17 guide instead. Each conflicted file reproduces its qualified current bytes outside and inside the selected resolution. No other automatic source delta is present."
+      ]
+    },
+    "harnessy-experimental-plugin-session-records-20261026": {
+      "status": "adopted",
+      "summary": "Adapt experimental plugin-owned Session records as ignorable log-only state, with production-only typed ownership, separate current-source catalog and executed caller safeguards. Preserve existing Harnessy ignorable appends and SDK projections; filter static/private implementation details from generated declarations.",
+      "files": [
+        {
+          "path": ".agents/notes/implemented/architecture/2026-08-30-retain-ignorable-external-session-events.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Update the current paired decision for experimental record ownership and best-effort format migration. Correct the stock claim that the helper is the only marker writer: the existing Harnessy fast-mode owner still marks known log-only events through ordinary Session.append."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-08-30-retain-ignorable-external-session-events.md",
+          "disposition": "adopted",
+          "reason": "Update the current paired decision for experimental record ownership and best-effort format migration. Correct the stock claim that the helper is the only marker writer: the existing Harnessy fast-mode owner still marks known log-only events through ordinary Session.append."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-08-30-retain-ignorable-external-session-events.zh.md",
+          "disposition": "adopted",
+          "reason": "Update the current paired decision for experimental record ownership and best-effort format migration. Correct the stock claim that the helper is the only marker writer: the existing Harnessy fast-mode owner still marks known log-only events through ordinary Session.append."
+        },
+        {
+          "path": ".agents/notes/implemented/bug-fix/2026-09-06-packed-install-private-npm-cache.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": ".agents/notes/implemented/bug-fix/2026-09-06-packed-install-private-npm-cache.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": ".agents/notes/implemented/bug-fix/2026-09-06-packed-install-private-npm-cache.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": ".agents/notes/implemented/process/2026-08-10-npm-release-sequences.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": ".agents/notes/implemented/process/2026-08-10-npm-release-sequences.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": ".agents/notes/implemented/process/2026-08-10-npm-release-sequences.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": ".agents/notes/implemented/testing/2026-09-06-frontend-performance-budgets.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": ".agents/notes/implemented/testing/2026-09-06-frontend-performance-budgets.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": ".agents/notes/implemented/testing/2026-09-06-frontend-performance-budgets.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "apps/cli/tests/profiles/sdk/dynamic-tool-cache.e2e.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "apps/desktop/README.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "apps/desktop/README.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "apps/desktop/README.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "apps/desktop/installer/path.nsh",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "apps/desktop/tests/expected/windows-installer.json",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "apps/desktop/tests/windows-installer-smoke.ps1",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "apps/web/tests/developer-tools-settings.e2e.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "apps/web/tests/expected/models-settings/image-only.expected.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "apps/web/tests/expected/models-settings/refreshing.expected.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "apps/web/tests/models-settings.e2e.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "apps/web/tests/seeded-history.e2e.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "benchmarks/long-session-browser/README.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "benchmarks/long-session-browser/README.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "benchmarks/long-session-browser/README.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "benchmarks/long-session-browser/long-session.bench.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "docs/capability-seams.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "docs/capability-seams.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "docs/capability-seams.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "docs/config-catalog.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "docs/config-catalog.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "docs/cookbook/adding-a-session-format-version.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final helper ownership, paired API reference, generator, documentation inventory or owning behavior/type tests at its current Harnessy owner. Preserve current custom Session behavior, source-plane checks, local versions, existing SDK transports and all frozen Session inputs. No consumer is invented merely to populate the catalog."
+        },
+        {
+          "path": "docs/cookbook/adding-a-session-format-version.md",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final helper ownership, paired API reference, generator, documentation inventory or owning behavior/type tests at its current Harnessy owner. Preserve current custom Session behavior, source-plane checks, local versions, existing SDK transports and all frozen Session inputs. No consumer is invented merely to populate the catalog."
+        },
+        {
+          "path": "docs/cookbook/adding-a-session-format-version.zh.md",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final helper ownership, paired API reference, generator, documentation inventory or owning behavior/type tests at its current Harnessy owner. Preserve current custom Session behavior, source-plane checks, local versions, existing SDK transports and all frozen Session inputs. No consumer is invented merely to populate the catalog."
+        },
+        {
+          "path": "docs/deepseek-llm-api-wire-extensions.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "docs/deepseek-llm-api-wire-extensions.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "docs/deepseek-llm-api-wire-extensions.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "docs/event-producer-consumer.md",
+          "disposition": "retained-newer",
+          "reason": "Intermediate generated bus-page edits do not survive in the final checkpoint. Preserve/recompute the current Harnessy generated event inventory and custom consumers; standalone plugin records add no typed live bus event."
+        },
+        {
+          "path": "docs/event-producer-consumer.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Intermediate generated bus-page edits do not survive in the final checkpoint. Preserve/recompute the current Harnessy generated event inventory and custom consumers; standalone plugin records add no typed live bus event."
+        },
+        {
+          "path": "docs/experimental-persistence-catalog.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Generate the separate current-source experimental record catalog and main-catalog link from the actual fork. Keep production-owned declarations separate from released event roots; the complete schema, all 65 root keys/kinds/digests and known-event module remain byte-identical. No invented acknowledgement, format bump or historical generation change."
+        },
+        {
+          "path": "docs/experimental-persistence-catalog.md",
+          "disposition": "adopted",
+          "reason": "Generate the separate current-source experimental record catalog and main-catalog link from the actual fork. Keep production-owned declarations separate from released event roots; the complete schema, all 65 root keys/kinds/digests and known-event module remain byte-identical. No invented acknowledgement, format bump or historical generation change."
+        },
+        {
+          "path": "docs/experimental-persistence-catalog.zh.md",
+          "disposition": "adopted",
+          "reason": "Generate the separate current-source experimental record catalog and main-catalog link from the actual fork. Keep production-owned declarations separate from released event roots; the complete schema, all 65 root keys/kinds/digests and known-event module remain byte-identical. No invented acknowledgement, format bump or historical generation change."
+        },
+        {
+          "path": "docs/module-graph.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "docs/module-graph.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "docs/persistence-catalog.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Generate the separate current-source experimental record catalog and main-catalog link from the actual fork. Keep production-owned declarations separate from released event roots; the complete schema, all 65 root keys/kinds/digests and known-event module remain byte-identical. No invented acknowledgement, format bump or historical generation change."
+        },
+        {
+          "path": "docs/persistence-catalog.md",
+          "disposition": "adopted",
+          "reason": "Generate the separate current-source experimental record catalog and main-catalog link from the actual fork. Keep production-owned declarations separate from released event roots; the complete schema, all 65 root keys/kinds/digests and known-event module remain byte-identical. No invented acknowledgement, format bump or historical generation change."
+        },
+        {
+          "path": "docs/persistence-catalog.zh.md",
+          "disposition": "adopted",
+          "reason": "Generate the separate current-source experimental record catalog and main-catalog link from the actual fork. Keep production-owned declarations separate from released event roots; the complete schema, all 65 root keys/kinds/digests and known-event module remain byte-identical. No invented acknowledgement, format bump or historical generation change."
+        },
+        {
+          "path": "docs/subsystems/README.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "docs/subsystems/README.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "docs/subsystems/README.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "docs/subsystems/session.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final helper ownership, paired API reference, generator, documentation inventory or owning behavior/type tests at its current Harnessy owner. Preserve current custom Session behavior, source-plane checks, local versions, existing SDK transports and all frozen Session inputs. No consumer is invented merely to populate the catalog."
+        },
+        {
+          "path": "docs/subsystems/session.md",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final helper ownership, paired API reference, generator, documentation inventory or owning behavior/type tests at its current Harnessy owner. Preserve current custom Session behavior, source-plane checks, local versions, existing SDK transports and all frozen Session inputs. No consumer is invented merely to populate the catalog."
+        },
+        {
+          "path": "docs/subsystems/session.zh.md",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final helper ownership, paired API reference, generator, documentation inventory or owning behavior/type tests at its current Harnessy owner. Preserve current custom Session behavior, source-plane checks, local versions, existing SDK transports and all frozen Session inputs. No consumer is invented merely to populate the catalog."
+        },
+        {
+          "path": "docs/subsystems/translation.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "docs/subsystems/translation.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "docs/subsystems/translation.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "package.json",
+          "disposition": "adopted",
+          "reason": "Register the plugin-record caller command and execute it in the existing blocking shared hygiene aggregate, with graph coverage. Preserve every current Harnessy check, safe build, custom Windows profile, release guard and CI opt-in policy; import no later scheduler or private runner changes."
+        },
+        {
+          "path": "packages/boot/hmr/src/watch-config.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/boot/hmr/tests/watch-config.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/client/ui-schedule/tests/task-manager-page.client.spec.tsx",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/client/ui-settings-models/README.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/client/ui-settings-models/README.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/client/ui-settings-models/README.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/client/ui-settings-models/src/client/ModelsSection.tsx",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/client/ui-settings-models/src/client/store.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/client/ui-settings-models/tests/components.client.spec.tsx",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/client/ui-settings-models/tests/store.client.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/client/ui-trajectory/tests/client-bundle.client.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/core/session/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final helper ownership, paired API reference, generator, documentation inventory or owning behavior/type tests at its current Harnessy owner. Preserve current custom Session behavior, source-plane checks, local versions, existing SDK transports and all frozen Session inputs. No consumer is invented merely to populate the catalog."
+        },
+        {
+          "path": "packages/core/session/README.md",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final helper ownership, paired API reference, generator, documentation inventory or owning behavior/type tests at its current Harnessy owner. Preserve current custom Session behavior, source-plane checks, local versions, existing SDK transports and all frozen Session inputs. No consumer is invented merely to populate the catalog."
+        },
+        {
+          "path": "packages/core/session/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final helper ownership, paired API reference, generator, documentation inventory or owning behavior/type tests at its current Harnessy owner. Preserve current custom Session behavior, source-plane checks, local versions, existing SDK transports and all frozen Session inputs. No consumer is invented merely to populate the catalog."
+        },
+        {
+          "path": "packages/core/session/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final typed experimental record helper, reader and separate PluginRecordMap onto current Session append/publication. Preserve known log-only ignorable append options, current assertion safety, lossless detached JSON, immutable envelopes, sequence assignment, observer containment, reentrant rejection, deferred detachment and fork/restore retention. Add no model-visible projection or released event-map member."
+        },
+        {
+          "path": "packages/core/session/src/types.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the final typed experimental record helper, reader and separate PluginRecordMap onto current Session append/publication. Preserve known log-only ignorable append options, current assertion safety, lossless detached JSON, immutable envelopes, sequence assignment, observer containment, reentrant rejection, deferred detachment and fork/restore retention. Add no model-visible projection or released event-map member."
+        },
+        {
+          "path": "packages/core/session/tests/gen-persistence-catalog.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final helper ownership, paired API reference, generator, documentation inventory or owning behavior/type tests at its current Harnessy owner. Preserve current custom Session behavior, source-plane checks, local versions, existing SDK transports and all frozen Session inputs. No consumer is invented merely to populate the catalog."
+        },
+        {
+          "path": "packages/core/session/tests/plugin-records.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final helper ownership, paired API reference, generator, documentation inventory or owning behavior/type tests at its current Harnessy owner. Preserve current custom Session behavior, source-plane checks, local versions, existing SDK transports and all frozen Session inputs. No consumer is invented merely to populate the catalog."
+        },
+        {
+          "path": "packages/core/session/tests/plugin-records.type-test.ts",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final helper ownership, paired API reference, generator, documentation inventory or owning behavior/type tests at its current Harnessy owner. Preserve current custom Session behavior, source-plane checks, local versions, existing SDK transports and all frozen Session inputs. No consumer is invented merely to populate the catalog."
+        },
+        {
+          "path": "packages/credentials/credentials-local/src/index.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/credentials/credentials-local/tests/watcher.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/experimental/README.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/experimental/README.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/experimental/README.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/experimental/translator/README.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/experimental/translator/README.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/experimental/translator/README.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/experimental/translator/package.json",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/experimental/translator/src/error.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/experimental/translator/src/index.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/experimental/translator/src/provider.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/experimental/translator/src/types.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/experimental/translator/tests/fixtures/cordis.yml",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/experimental/translator/tests/translator.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/experimental/translator/tests/upstream.e2e.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/experimental/translator/tsconfig.json",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/extensions/tool-cordis/src/api-catalog.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/llm/llm-deepseek/tests/adapter.e2e.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/llm/plugin-package-inventory-deepseek/README.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/llm/plugin-package-inventory-deepseek/README.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/llm/plugin-package-inventory-deepseek/README.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/llm/plugin-package-inventory-deepseek/src/index.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/llm/plugin-package-inventory-deepseek/src/types.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/llm/plugin-package-inventory-deepseek/tests/inventory.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/llm/plugin-package-inventory-deepseek/tests/private-package-composition.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/preset/agent-preset/skills/cordis-composition-reference/references/packages.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/preset/agent-preset/skills/cordis-plugin-development/references/practices.md",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final helper ownership, paired API reference, generator, documentation inventory or owning behavior/type tests at its current Harnessy owner. Preserve current custom Session behavior, source-plane checks, local versions, existing SDK transports and all frozen Session inputs. No consumer is invented merely to populate the catalog."
+        },
+        {
+          "path": "packages/session/session-persistence/tests/live-write-contract.ts",
+          "disposition": "adopted",
+          "reason": "Use the final shared live-write test for real SessionStore append, flush, persistence close and reopen. The actual JSONL owner invokes it; test-only map augmentation does not authorize production consumers or change backend formats."
+        },
+        {
+          "path": "packages/skill/skill-filesystem/src/index.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/skill/skill-filesystem/tests/skill-filesystem-watcher.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/test-support/session-snapshot/README.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/test-support/session-snapshot/README.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/test-support/session-snapshot/README.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/test-support/session-snapshot/src/harness.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/test-support/session-snapshot/tests/harness.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "packages/typert/generator/src/analyzer.ts",
+          "disposition": "adopted",
+          "reason": "Adapt only class-declaration filtering to omit static blocks and every ES-private member while retaining existing private/protected filtering and other fork analyzer behavior. Add the private-method fixture/assertion and refresh only the owning type-model expectation; demonstrated negative controls expose both leaks."
+        },
+        {
+          "path": "packages/typert/generator/tests/__snapshots__/type-model.spec.ts.snap",
+          "disposition": "adopted",
+          "reason": "Adapt only class-declaration filtering to omit static blocks and every ES-private member while retaining existing private/protected filtering and other fork analyzer behavior. Add the private-method fixture/assertion and refresh only the owning type-model expectation; demonstrated negative controls expose both leaks."
+        },
+        {
+          "path": "packages/typert/generator/tests/fixtures/type-model/packages/host/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Adapt only class-declaration filtering to omit static blocks and every ES-private member while retaining existing private/protected filtering and other fork analyzer behavior. Add the private-method fixture/assertion and refresh only the owning type-model expectation; demonstrated negative controls expose both leaks."
+        },
+        {
+          "path": "packages/typert/generator/tests/type-model.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt only class-declaration filtering to omit static blocks and every ES-private member while retaining existing private/protected filtering and other fork analyzer behavior. Add the private-method fixture/assertion and refresh only the owning type-model expectation; demonstrated negative controls expose both leaks."
+        },
+        {
+          "path": "packages/util/native-command/tests/file-applications-windows.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "pnpm-lock.yaml",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "python/development.i18n.yaml",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "python/development.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "python/development.zh.md",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "python/sdk/tests/test_smoke_model.py",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "scripts/gen-cordis-catalog.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "scripts/gen-doc-graphs.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "scripts/gen-persistence-catalog.ts",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final helper ownership, paired API reference, generator, documentation inventory or owning behavior/type tests at its current Harnessy owner. Preserve current custom Session behavior, source-plane checks, local versions, existing SDK transports and all frozen Session inputs. No consumer is invented merely to populate the catalog."
+        },
+        {
+          "path": "scripts/persistence-catalog-source.ts",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final helper ownership, paired API reference, generator, documentation inventory or owning behavior/type tests at its current Harnessy owner. Preserve current custom Session behavior, source-plane checks, local versions, existing SDK transports and all frozen Session inputs. No consumer is invented merely to populate the catalog."
+        },
+        {
+          "path": "scripts/persistence-catalog-text.ts",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final helper ownership, paired API reference, generator, documentation inventory or owning behavior/type tests at its current Harnessy owner. Preserve current custom Session behavior, source-plane checks, local versions, existing SDK transports and all frozen Session inputs. No consumer is invented merely to populate the catalog."
+        },
+        {
+          "path": "scripts/persistence-changes.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final helper ownership, paired API reference, generator, documentation inventory or owning behavior/type tests at its current Harnessy owner. Preserve current custom Session behavior, source-plane checks, local versions, existing SDK transports and all frozen Session inputs. No consumer is invented merely to populate the catalog."
+        },
+        {
+          "path": "scripts/plugin-record-catalog.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adopt production-only experimental package/declaration discovery, exact package-derived namespace, required documented literal properties, unique names and compact deterministic source annotations. Keep test declarations and expanded types outside the released schema; preserve honest empty output until an actual experimental consumer exists."
+        },
+        {
+          "path": "scripts/plugin-record-catalog.ts",
+          "disposition": "adopted",
+          "reason": "Adopt production-only experimental package/declaration discovery, exact package-derived namespace, required documented literal properties, unique names and compact deterministic source annotations. Keep test declarations and expanded types outside the released schema; preserve honest empty output until an actual experimental consumer exists."
+        },
+        {
+          "path": "scripts/primary-runtime/prepare.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "scripts/release/families.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "scripts/release/verify-packed-install.spec.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "scripts/release/verify-packed-install.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "scripts/run-gates.spec.ts",
+          "disposition": "adopted",
+          "reason": "Register the plugin-record caller command and execute it in the existing blocking shared hygiene aggregate, with graph coverage. Preserve every current Harnessy check, safe build, custom Windows profile, release guard and CI opt-in policy; import no later scheduler or private runner changes."
+        },
+        {
+          "path": "scripts/run-gates.ts",
+          "disposition": "adopted",
+          "reason": "Register the plugin-record caller command and execute it in the existing blocking shared hygiene aggregate, with graph coverage. Preserve every current Harnessy check, safe build, custom Windows profile, release guard and CI opt-in policy; import no later scheduler or private runner changes."
+        },
+        {
+          "path": "scripts/smoke-python-runtime.py",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "scripts/type-equiv.manifest.json",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final helper ownership, paired API reference, generator, documentation inventory or owning behavior/type tests at its current Harnessy owner. Preserve current custom Session behavior, source-plane checks, local versions, existing SDK transports and all frozen Session inputs. No consumer is invented merely to populate the catalog."
+        },
+        {
+          "path": "scripts/verify-package-readme-model-experience.ts",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "scripts/verify-plugin-record-callers.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adopt final syntax-aware caller and production-only compiler admission, including escaped spellings and normalized Windows paths. Only experimental production owners may reference the writer; keys require source catalog declarations and Host/Client face inclusion. Test-only augmentations, transitive imports, missing owner/corpus and invalid writes fail. This is a repository rule, not confinement of arbitrary external code."
+        },
+        {
+          "path": "scripts/verify-plugin-record-callers.ts",
+          "disposition": "adopted",
+          "reason": "Adopt final syntax-aware caller and production-only compiler admission, including escaped spellings and normalized Windows paths. Only experimental production owners may reference the writer; keys require source catalog declarations and Host/Client face inclusion. Test-only augmentations, transitive imports, missing owner/corpus and invalid writes fail. This is a repository rule, not confinement of arbitrary external code."
+        },
+        {
+          "path": "tsconfig.base.json",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "tsconfig.host.json",
+          "disposition": "retained-newer",
+          "reason": "Identical blob/mode or absence to the reviewed second parent in 9a4a750a0580d6ea15142a824e85cb5f97e246c0 from 7d8956397049be8694e34af8c9c3abeafd32a8fe. This is inherited common history, already acquired or fully reviewed in this group. Preserve current Harnessy custom owners, isolated homes, package versions, explicit privacy omission, excluded UI languages and all frozen records; no novel branch-specific change is present."
+        },
+        {
+          "path": "website/docs.ts",
+          "disposition": "adopted",
+          "reason": "Adopt/adapt the final helper ownership, paired API reference, generator, documentation inventory or owning behavior/type tests at its current Harnessy owner. Preserve current custom Session behavior, source-plane checks, local versions, existing SDK transports and all frozen Session inputs. No consumer is invented merely to populate the catalog."
+        }
+      ],
+      "evidence": [
+        "Implementation 5a2768f96efb027672457eb59bd95b262f803d75. Reviewed all twelve constituents through 973a7fb8e4d03635599e786f69ab0d3249111ae5, both synchronization merges, 44 directly changed paths and the complete 146-path union. Both fresh merge-tree results equal recorded trees with no manual resolution; the older common-history parent 7d8956397049be8694e34af8c9c3abeafd32a8fe is already acquired.",
+        "Verified 2026-10-26 on Windows, Harnessy 0.1.17, Node 24.14.0, pnpm 11.7.0 and Vitest 4.1.8. Source API/catalog/caller/gate/persistence run passed 384 tests with five explicit platform skips; fifteen additional Session owner files passed 437 tests. Initial catalog red tests exposed missing output/render integration and passed once the real generator changes were present.",
+        "Typert owner passed all 57 cases. Initial and isolated negative controls exposed static initialization and private-method leakage, respectively; restored filter replay passed. Only the owning snapshot was refreshed, retaining current analyzer behavior; its final expectation matches upstream blob 0827b270ec42a56ff9cf6c7f88aa7bde580a86f0.",
+        "Actual JSONL live-write/remount selection passed 12 cases with 173 unrelated cases not selected; V3-to-V4 migration/codec/validation passed 40. Existing SDK protocol/client/server and persistence fast-mode owners passed, as did 30 Python client/notification cases with one built-profile case deselected. Additional exact plugin-specific SDK server/client cases passed within their 82-case owners, and both Python ordinary/plugin notification variants passed. Events, notification feeds and callbacks retain exact records while final responses omit them. No live provider or native Mac behavior is inferred.",
+        "Current-source generation leaves the complete persistence schema byte-identical, with all 65 root keys/kinds/digests and generated known-event bytes unchanged. The separate experimental catalog is honestly empty; test-only map declarations neither enter it nor authorize production writes. Frozen historical files and the Session format version are unchanged.",
+        "The source core leaf and new plugin-record type-test program compiled. The first ordinary Host aggregate reached its 4096 MB limit; the two new record test files now form an explicitly referenced declaration-only program, still selected by normal builds and lint discovery. A deliberate invalid test assignment failed through the Host aggregate with TS2322; the probe and generated declarations were removed. The discovery regression passed its selected case with thirteen unrelated cases not selected, and confirmed cleanup. The ordinary full Host build then passed at the unchanged 4096 MB limit, including the type-test negative expectations.",
+        "Complete source lint passed after fixing one SDK test arrow-parenthesis style diagnostic. All 43 documentation checks and all 17 hygiene checks passed. Keyless assembled cordis-inspect-jsdoc replay passed unchanged, with 154 unrelated cases not selected; no Session input or expected recording changed. The real built SDK-profile Python fast-mode case passed with two fake-peer cases deselected. Actual built Session exports passed ordinary ignorable append, frozen plugin payload, empty model-history and fork retention smoke assertions without launching an app.",
+        "Normal merge preview has only four conflicts. Preserve the corrected two-language ignorable-event note and its matching pairing record, rather than the incorrect stock sole-marker-writer statement; preserve the current type-model assertion without importing an extra explanatory comment. Each selected conflict resolution reproduces the qualified current file exactly and no automatic source delta remains elsewhere.",
+        "No source publication, installed staging runtime, main-app update or release is established by intermediate tests. This ledger review is emitted only after final qualification. Later Python sandbox/CI/browser groups remain separate pending work; this review grants no authorization to enable private/live-service workflows or create other checkouts/apps."
       ]
     }
   }
