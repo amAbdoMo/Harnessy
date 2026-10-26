@@ -61,11 +61,7 @@ jobs:
           packages/llm/llm-retry/tests/loader-composition.spec.ts
           packages/llm/llm-retry/tests/persistence.spec.ts
 
-      - name: Type-check the desktop host
-        shell: pwsh
-        run: pnpm exec tsc -b tsconfig.host.json --pretty false
-
-      - name: Build the Harnessy client
+      - name: Build and type-check Harnessy
         shell: pwsh
         run: pnpm run build:custom-harness
 

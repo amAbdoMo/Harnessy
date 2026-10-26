@@ -9,8 +9,8 @@
   en: 5207d17725c07a27
   zh: 258884c4300ac63a
 /development-guide/setup-tutorial/prerequisites:
-  en: a8543c278338a02d
-  zh: b5790c5fea7c0bc6
+  en: 214f2c79890f1e89
+  zh: b1fc812762ad3073
 /development-guide/setup-tutorial/windows-and-wsl-2:
   en: e86be579be6f1813
   zh: 14f6a220337d0861
@@ -21,17 +21,17 @@
   en: 3221d1076554001f
   zh: 29f166be6a5c04d9
 /development-guide/contributor-reference/typescript-project-layout:
-  en: 5a9f703d9ee291ed
-  zh: b20ffd274edd4bdf
+  en: 11271a595327432f
+  zh: e28b7b69259b9a52
 /development-guide/contributor-reference/environment-variables:
   en: dba2c72ee6ffa930
   zh: b65c27fbb9129ec8
 /development-guide/contributor-reference/git-integrations:
-  en: dc98eda4f4021feb
-  zh: b08766708803cf10
+  en: 2d34584064589920
+  zh: 74cd9b1f4ed576aa
 /development-guide/contributor-reference/ci-gates:
-  en: 286fb001d05af5eb
-  zh: b24e52ef46450abc
+  en: 462565cee885c549
+  zh: ad30d2fd1ec2745c
 /development-guide/contributor-reference/daily-commands:
   en: 08aa6ec1cdabfeb7
   zh: dcce5ae9d3c829d0

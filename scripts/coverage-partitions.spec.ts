@@ -1,8 +1,8 @@
-import { access, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
+import { access, copyFile, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   COVERAGE_PARTITION_MODE_ENV,
@@ -26,6 +26,7 @@ import {
   END_OF_LINE_COLUMN,
   canonicalizeEndOfLineColumns,
 } from './coverage-canonical-locations.ts'
+import { runGate } from './run-gates.ts'
 
 const passed: CoverageCommandResult = { exitCode: 0, signalCode: null }
 
@@ -269,18 +270,124 @@ describe('coverage file inventory', () => {
     expect(durations.get('packages/a/tests/y.spec.ts')).toBe(7)
   })
 
-  it('extracts per-file durations from partition json reports', async () => {
+  it('extracts per-file durations from compact partition timing reports', async () => {
     const root = await temporaryRoot()
-    const report = join(root, 'partition-1.report.json')
+    const report = join(root, 'partition-1.times.json')
     await writeFile(report, JSON.stringify({
-      testResults: [
-        { name: join(root, 'packages/a/tests/x.spec.ts'), startTime: 1000, endTime: 1500 },
-        { name: 'not-a-spec', startTime: 1, endTime: 2 },
-      ],
+      'packages/a/tests/x.spec.ts': 500,
+      'packages/a/tests/y.spec.ts': 0,
+      'packages/a/tests/invalid.spec.ts': -1,
+      'packages/a/tests/malformed.spec.ts': 'unknown',
     }))
-    const durations = collectPartitionDurations([report], root)
+    const durations = collectPartitionDurations([report])
     expect(durations.get('packages/a/tests/x.spec.ts')).toBe(500)
+    expect(durations.get('packages/a/tests/y.spec.ts')).toBe(0)
+    expect(durations.size).toBe(2)
   })
+
+  it.each(['null', '[]', '42', '"invalid"', '{'])('ignores corrupt timing metadata %s', async (contents) => {
+    const root = await temporaryRoot()
+    const report = join(root, 'partition.times.json')
+    await writeFile(report, contents)
+    expect(collectPartitionDurations([report])).toEqual(new Map())
+  })
+
+  it('ignores absent and nonfinite timings without losing measured files', async () => {
+    const root = await temporaryRoot()
+    const report = join(root, 'partition.times.json')
+    await writeFile(report, '{"valid.spec.ts":5,"infinite.spec.ts":1e309,"negative.spec.ts":-2}')
+
+    expect(collectPartitionDurations([join(root, 'absent.json'), report])).toEqual(new Map([['valid.spec.ts', 5]]))
+  })
+})
+
+describe('real coverage partition reports', () => {
+  it.each([
+    { uncoveredBranch: false, failedTimingWrite: false },
+    { uncoveredBranch: true, failedTimingWrite: false },
+    { uncoveredBranch: false, failedTimingWrite: true },
+  ])('keeps merged coverage authoritative with $uncoveredBranch uncovered branch and $failedTimingWrite failed timing write', async ({ uncoveredBranch, failedTimingWrite }) => {
+    const root = await temporaryRoot()
+    const scripts = join(root, 'scripts')
+    await mkdir(scripts)
+    for (const file of ['coverage-file-times.ts', 'coverage-canonical-locations.ts']) {
+      await copyFile(fileURLToPath(new URL(file, import.meta.url)), join(scripts, file))
+    }
+    await writeFile(join(root, 'package.json'), '{"type":"module"}')
+    await writeFile(join(root, 'cwd.mjs'), `process.chdir(${JSON.stringify(root)})\n`)
+    await writeFile(join(root, 'vitest.config.ts'), [
+      'const partition = process.env.DSH_COVERAGE_PARTITION_MODE === "1"',
+      'export default { test: {',
+      '  projects: [{ test: { name: "thread-safe", globals: true, include: ["*.spec.js"] } }],',
+      '  coverage: { provider: "v8", include: ["subject.js"], reportOnFailure: true,',
+      '    reporter: partition ? [] : ["json-summary"],',
+      '    thresholds: partition ? undefined : { perFile: true, statements: 100, branches: 100, functions: 100, lines: 100 },',
+      '  },',
+      '} }',
+      '',
+    ].join('\n'))
+    await writeFile(join(root, 'subject.js'), [
+      'export function choose(value) {',
+      ...uncoveredBranch ? ['  if (value === null) return 0'] : [],
+      '  if (value) return 1',
+      '  return 2',
+      '}',
+      '',
+    ].join('\n'))
+    const files = ['yes.spec.js', 'no.spec.js']
+    for (const [index, file] of files.entries()) {
+      await writeFile(join(root, file), `import { choose } from './subject.js'\nit('chooses ${index}', () => expect(choose(${index === 0 ? 'true' : 'false'})).toBe(${index + 1}))\n`)
+    }
+    const controller = new AbortController()
+    const timer = setTimeout(() => { controller.abort() }, 90_000)
+    const children: ReturnType<typeof runGate>[] = []
+    const commands: { label: string; status: number | null; output: string }[] = []
+    const coordinator = new CoveragePartitionCoordinator({
+      root, partitions: 2, pnpmEntrypoint: '/fixture/pnpm.cjs', files,
+      projectOf: new Map(files.map(file => [file, 'thread-safe'])),
+      runCommand: async (command) => {
+        if (failedTimingWrite && command.label === 'partition 1/2') {
+          const argument = command.args.find(arg => arg.startsWith('--outputFile.fileTimes='))
+          if (argument === undefined) throw new Error('partition has no timing output')
+          await mkdir(join(root, argument.slice('--outputFile.fileTimes='.length)))
+        }
+        const pending = runGate({
+          id: command.label, label: command.label, displayCommand: 'node Vitest fixture', command: process.execPath,
+          args: ['--import', pathToFileURL(join(root, 'cwd.mjs')).href,
+            fileURLToPath(new URL('../node_modules/vitest/vitest.mjs', import.meta.url)), ...command.args.slice(3)],
+          env: command.env,
+        }, controller.signal)
+        children.push(pending)
+        const result = await pending
+        const output = result.output.map(chunk => chunk.text).join('')
+        commands.push({ label: command.label, status: result.exitCode, output })
+        expect(result.aborted, output).toBe(false)
+        expect(result.error, output).toBeUndefined()
+        expect(result.signalCode, output).toBeNull()
+        return { exitCode: result.exitCode, signalCode: result.signalCode, outputTail: output }
+      },
+    })
+    try {
+      const exitCode = await coordinator.run()
+      expect(commands.filter(command => command.label.startsWith('partition')).map(command => command.status).sort())
+        .toEqual(failedTimingWrite ? [0, 1] : [0, 0])
+      expect(exitCode, commands.map(command => command.output).join('\n')).toBe(uncoveredBranch || failedTimingWrite ? 1 : 0)
+      const measuredFiles = [...readFileDurations(root).keys()]
+      expect(measuredFiles).toHaveLength(failedTimingWrite ? 1 : 2)
+      expect(measuredFiles.every(file => files.includes(file))).toBe(true)
+      if (failedTimingWrite) {
+        expect(commands.find(command => command.label === 'partition 1/2')?.output).toContain('EISDIR')
+      }
+      if (uncoveredBranch) {
+        expect(commands.find(command => command.label === 'merged coverage report')?.output)
+          .toContain('does not meet global threshold')
+      }
+    } finally {
+      clearTimeout(timer)
+      controller.abort()
+      await Promise.allSettled(children)
+    }
+  }, 120_000)
 })
 
 /**
@@ -511,9 +618,10 @@ describe('coverage partition coordinator', () => {
         '--maxWorkers=1',
         '--reporter=default',
         '--reporter=blob',
-        '--reporter=json',
         '--testTimeout=30000',
       ]))
+      expect(command.args).not.toContain('--reporter=json')
+      expect(command.args).toContain('--reporter=./scripts/coverage-file-times.ts')
       expect(command.args).not.toContain('--shard=1/3')
       expect(command.args.some(argument => argument.startsWith('--config='))).toBe(true)
       expect(command.env).toEqual({
@@ -643,6 +751,23 @@ describe('coverage partition coordinator', () => {
       pnpmEntrypoint: '/pnpm.cjs',
       files: ['a.spec.ts', 'b.spec.ts'],
       runCommand,
+    })
+
+    await expect(coordinator.run()).rejects.toThrow('coverage partitions produced')
+    expect(runCommand).toHaveBeenCalledTimes(2)
+  })
+
+  it('rejects an extra copy of a partition blob before merge', async () => {
+    const root = await temporaryRoot()
+    const runCommand = vi.fn(async (command: CoverageCommand) => {
+      await writeBlob(command)
+      if (command.blobPath !== undefined && command.label === 'partition 1/2') {
+        await copyFile(command.blobPath, join(dirname(command.blobPath), 'duplicate.json'))
+      }
+      return passed
+    })
+    const coordinator = new CoveragePartitionCoordinator({
+      root, partitions: 2, pnpmEntrypoint: '/pnpm.cjs', files: ['a.spec.ts', 'b.spec.ts'], runCommand,
     })
 
     await expect(coordinator.run()).rejects.toThrow('coverage partitions produced')

@@ -50,11 +50,22 @@ describe('Custom Harness Windows workflow', () => {
     const steps = checks.steps.filter(isRecord)
     const product = steps.findIndex(step => step.run === 'pnpm run verify:harnessy-product')
     const upgrade = steps.findIndex(step => step.run === 'pnpm run verify:harnessy-upgrade')
-    const compilation = steps.findIndex(step => step.run === 'pnpm exec tsc -b tsconfig.host.json --pretty false')
+    const compilation = steps.findIndex(step => step.run === 'pnpm run build:custom-harness')
     expect(product).toBeGreaterThanOrEqual(0)
     expect(upgrade).toBeGreaterThan(product)
     expect(compilation).toBeGreaterThan(upgrade)
     expect(steps[upgrade]).not.toHaveProperty('continue-on-error', true)
+    expect(steps[compilation]).toMatchObject({ shell: 'pwsh' })
+    expect(steps[compilation]).not.toHaveProperty('continue-on-error', true)
+    expect(steps.some(step => step.run === 'pnpm exec tsc -b tsconfig.host.json --pretty false')).toBe(false)
+    const manifest: unknown = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'))
+    expect(manifest).toMatchObject({ scripts: {
+      'build:custom-harness': 'tsx scripts/build.ts --profile custom-harness',
+      'build:lib': 'pnpm run build:lib:host && pnpm run build:lib:client',
+    } })
+    if (!isRecord(manifest) || !isRecord(manifest.scripts)) throw new TypeError('Build scripts must be defined')
+    expect(manifest.scripts['build:lib:host']).toContain('tsc -b tsconfig.host.json')
+    expect(manifest.scripts['build:lib:client']).toContain('tsc -b tsconfig.client.json')
   })
 
   it('installs the account-chooser browser through the workspace that owns Playwright', () => {
@@ -88,6 +99,59 @@ describe('Custom Harness Windows workflow', () => {
       'apps/desktop/.desktop-build/packaging-runs/**',
       '',
     ].join('\n'))
+  })
+})
+
+describe('Inherited pull-request CI opt-in', () => {
+  it.each([
+    ['pull_request', undefined, false],
+    ['pull_request', 'false', false],
+    ['pull_request', 'true', true],
+    ['push', 'true', false],
+    ['workflow_dispatch', 'true', false],
+    ['pull_request_target', 'true', false],
+  ])('requires an explicit PR opt-in for event %s and value %s', (event, optIn, expected) => {
+    const workflow = loadWorkflow('.github/workflows/ci.yml')
+    if (!isRecord(workflow.jobs)) throw new TypeError('Inherited CI must define jobs')
+    expect(Object.keys(workflow.jobs)).toContain('all-checks-passed')
+    for (const [name, job] of Object.entries(workflow.jobs)) {
+      if (!isRecord(job) || typeof job.if !== 'string') throw new TypeError(`${name} must define its opt-in condition`)
+      expect(evaluateExpression(job.if, {
+        github: { event_name: event },
+        vars: { CUSTOM_HARNESS_RUN_UPSTREAM_CI: optIn },
+        cancelled: () => false,
+      }), name).toBe(expected)
+    }
+  })
+
+  it('withholds the upstream verdict after cancellation and serializes compatibility startup', () => {
+    const workflow = loadWorkflow('.github/workflows/ci.yml')
+    const aggregate = workflowJob(workflow, 'all-checks-passed')
+    if (typeof aggregate.if !== 'string') throw new TypeError('Inherited verdict must define its condition')
+    expect(evaluateExpression(aggregate.if, {
+      github: { event_name: 'pull_request' },
+      vars: { CUSTOM_HARNESS_RUN_UPSTREAM_CI: 'true' },
+      cancelled: () => true,
+    })).toBe(false)
+    expect(workflowJob(workflow, 'node-compat').strategy).toMatchObject({ 'max-parallel': 1 })
+    expect(workflowJob(workflow, 'python-runtime').needs).toBe('python-sdk')
+  })
+
+  it.each([
+    ['node-24-coverage', 'Linux', 'DSH_CI_FAILOVER_LINUX'],
+    ['windows-coverage', 'Windows', 'DSH_CI_FAILOVER_WINDOWS'],
+  ])('isolates %s duration history by operating system and runner pool', (name, platform, pool) => {
+    const job = workflowJob(loadWorkflow('.github/workflows/ci.yml'), name)
+    if (!Array.isArray(job.steps)) throw new TypeError(`${name} must define steps`)
+    const caches = job.steps.filter(isRecord).filter(step => isRecord(step.with) && step.with.path === '.coverage-times.json')
+    expect(caches).toHaveLength(2)
+    for (const step of caches) {
+      if (!isRecord(step.with) || typeof step.with.key !== 'string') throw new TypeError('Coverage cache must define its key')
+      expect(step.with.key).toContain(`coverage-times-${platform}-`)
+      expect(step.with.key).toContain('${{ runner.environment }}')
+      expect(step.with.key).toContain(pool)
+      expect(step.with.key).toContain('${{ github.run_id }}-${{ github.run_attempt }}')
+    }
   })
 })
 
@@ -581,7 +645,7 @@ describe('CI workflow', () => {
       const cores = jobName === 'windows-native-tests' ? 2 : 16
       expect(evaluateRunsOn(job['runs-on'], { vars: { DSH_CI_FAILOVER_WINDOWS: 'blacksmith' } }))
         .toBe(`blacksmith-${cores}vcpu-windows-2025`)
-      expect(job.if).toBe("github.event_name == 'pull_request'")
+      expect(job.if).toBe("github.event_name == 'pull_request' && vars.CUSTOM_HARNESS_RUN_UPSTREAM_CI == 'true'")
     }
 
     // windows-build runs the blocking build/site pair.
@@ -851,7 +915,7 @@ describe('CI workflow', () => {
     const aggregate = workflowJob(workflow, 'all-checks-passed')
 
     expect(benchmark['runs-on']).toBe('ubuntu-24.04')
-    expect(benchmark.if).toBe("github.event_name == 'pull_request'")
+    expect(benchmark.if).toBe("github.event_name == 'pull_request' && vars.CUSTOM_HARNESS_RUN_UPSTREAM_CI == 'true'")
     expect(benchmark.needs).toBeUndefined()
     expect(benchmark['continue-on-error']).toBeUndefined()
     expect(benchmark.env).toBeUndefined()
@@ -928,17 +992,17 @@ describe('CI workflow', () => {
     }
 
     // Pin the post-merge runtime, Wine, and standby inventory.
-    const NOT_PUSH_REACHABLE = new Set([
-      "github.event_name == 'workflow_dispatch' && inputs.suite == 'larger-runner-benchmark'",
-      "github.event_name == 'workflow_dispatch' && inputs.suite == 'consolidated-runner-benchmark'",
-    ])
     const pushReachable = Object.entries(workflow.jobs)
       .filter(([, job]) => {
         if (!isRecord(job)) return false
         if (job.if === undefined) return true // unconditional: runs on every event
         if (job.if === false) return false // `if: false` parses as a boolean
         if (typeof job.if !== 'string') return true // unrecognized shape: surface it
-        return !NOT_PUSH_REACHABLE.has(job.if.trim())
+        return Boolean(evaluateExpression(job.if, {
+          github: { event_name: 'push', ref: 'refs/heads/master', repository: 'owner/HarnessY' },
+          inputs: { suite: '' },
+          vars: { CUSTOM_HARNESS_RUN_UPSTREAM_CI: 'true' },
+        }))
       })
       .map(([name]) => name)
       .sort()
@@ -1002,7 +1066,7 @@ describe('CI workflow', () => {
     }
 
     expect(pythonRuntime).toMatchObject({
-      if: "github.event_name == 'pull_request'",
+      if: "github.event_name == 'pull_request' && vars.CUSTOM_HARNESS_RUN_UPSTREAM_CI == 'true'",
       name: 'python runtime / release-shaped matrix',
       uses: './.github/workflows/build-exe-for-python-sdk.yml',
       with: {
