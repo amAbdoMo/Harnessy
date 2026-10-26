@@ -210,6 +210,7 @@
   // suffixes are mutually exclusive, so each aggregate excludes the other's
   // and the package test glob above needs no per-file entry.
   "exclude": [
+    "packages/core/session/tests/plugin-record*.ts",
     "packages/experimental/translator/tests/**",
     "packages/experimental/cua/tests/**",
     "packages/experimental/cua-macos/tests/**",
@@ -230,6 +231,7 @@
     "scripts/client-bundle-purity.spec.ts"
   ],
   "references": [
+    { "path": "./tsconfig.plugin-record-tests.json" },
     { "path": "./tsconfig.translator-tests.json" },
     { "path": "./tsconfig.oar-tests.json" },
     { "path": "./tsconfig.cua-tests.json" },

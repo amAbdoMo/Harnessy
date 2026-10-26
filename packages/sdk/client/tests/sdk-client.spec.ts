@@ -256,6 +256,28 @@ describe('DeepSeekHarness', () => {
     await harness.close()
   })
 
+  it('retains plugin records in events and notifications without changing the final response', async () => {
+    const harness = harnessWith({ FAKE_PLUGIN_RECORD: '1', FAKE_TEXT: 'assistant answer' })
+    const seen: HarnessNotification[] = []
+    const result = await harness.run('retain the record', {
+      sessionId: 'plugin-record',
+      onNotification: (notification) => { seen.push(notification) },
+    })
+    const record = {
+      type: 'plugin:sdk-test/state', seq: 3, time: 0,
+      data: { enabled: true, text: 'record-only' }, ignorable: true,
+    }
+
+    expect(result.events.filter(event => event.type === record.type)).toEqual([record])
+    const expected = { method: 'session.event', params: { sessionId: 'plugin-record', event: record } }
+    for (const notifications of [result.notifications, seen]) {
+      expect(notifications.filter(notification => notification.method === 'session.event'
+        && (notification.params.event as { type?: string }).type === record.type)).toEqual([expected])
+    }
+    expect(result.finalResponse).toBe('assistant answer')
+    await harness.close()
+  })
+
   it('keeps events root-scoped while streaming notifications for the session tree', async () => {
     const harness = harnessWith({ FAKE_SUBAGENT: '1' })
     const seen: HarnessNotification[] = []

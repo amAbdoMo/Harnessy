@@ -12,6 +12,7 @@
  * - `FAKE_REASON_KIND`: the `session.finished` reason kind (default `completed`; `none` omits the reason).
  * - `FAKE_ABORT_REASON_KIND`: nested cause for an `aborted` turn (default `user`).
  * - `FAKE_SUBAGENT`: also emit a child session (subagent.started + child event + subagent.finished).
+ * - `FAKE_PLUGIN_RECORD`: emit an ignorable plugin record after the assistant message.
  * - `FAKE_ECHO_CWD`: prefix the assistant text with the process cwd.
  * - `FAKE_ECHO_ENV`: comma-separated env names to echo as `name=value` lines in the assistant text.
  * - `FAKE_MALFORMED`: `initialize` returns `{}` (no serverInfo); `prompt` returns `{}` (no accepted).
@@ -165,6 +166,15 @@ function runTurn(sessionId: string): void {
     },
     stream: env.FAKE_EMPTY_MESSAGE !== undefined ? usageOnlyStream() : textStream(text),
   })
+  if (env.FAKE_PLUGIN_RECORD !== undefined) {
+    notify('session.event', {
+      sessionId,
+      event: {
+        type: 'plugin:sdk-test/state', seq: seq++, time: 0,
+        data: { enabled: true, text: 'record-only' }, ignorable: true,
+      },
+    })
+  }
   const reasonKind = env.FAKE_REASON_KIND ?? 'completed'
   if (reasonKind !== 'none') {
     if (env.FAKE_MALFORMED_REASON === 'no-data') {

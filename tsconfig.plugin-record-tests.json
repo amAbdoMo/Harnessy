@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "lib/plugin-record-test/types",
+    "emitDeclarationOnly": true,
+    "rewriteRelativeImportExtensions": false
+  },
+  "include": [
+    "packages/core/session/tests/plugin-record*.ts"
+  ],
+  "references": [
+    { "path": "./packages/core/session" },
+    { "path": "./packages/llm/llm" }
+  ]
+}

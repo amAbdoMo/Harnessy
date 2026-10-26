@@ -59,6 +59,7 @@ describe('Oxlint executable contract', () => {
       ['OAR host test', 'packages/experimental/subagent-oar/tests', 'tsconfig.oar-tests.json'],
       ['CUA host test', 'packages/experimental/cua/tests', 'tsconfig.cua-tests.json'],
       ['translator host test', 'packages/experimental/translator/tests', 'tsconfig.translator-tests.json'],
+      ['plugin record host test', 'packages/core/session/tests', 'tsconfig.plugin-record-tests.json', '.ts', 'plugin-record-oxlint-contract-'],
       ['client package source', 'packages/client/ui-primitives/src', 'packages/client/ui-primitives/tsconfig.json'],
       // A test under packages/client states its face in the filename, so the
       // probe carries the Client suffix to reach the Client aggregate.
@@ -73,12 +74,12 @@ describe('Oxlint executable contract', () => {
 probePromise()
 `
 
+    const paths: Array<readonly [label: string, path: string, tsconfig: string]> = []
     try {
-      const paths: Array<readonly [label: string, path: string, tsconfig: string]> = []
-      for (const [label, parent, tsconfig, extension = '.ts'] of probes) {
-        const path = join(repositoryRoot, parent, `oxlint-contract-${suffix}${extension}`)
-        await writeFile(path, source)
+      for (const [label, parent, tsconfig, extension = '.ts', prefix = 'oxlint-contract-'] of probes) {
+        const path = join(repositoryRoot, parent, `${prefix}${suffix}${extension}`)
         paths.push([label, relative(repositoryRoot, path), tsconfig])
+        await writeFile(path, source)
       }
       const clientScript = 'scripts/client-bundle-purity.spec.ts'
 
@@ -107,8 +108,7 @@ probePromise()
       expect(output).not.toContain('Unmatched file:')
     } finally {
       await Promise.all([
-        ...probes.map(([, parent, , extension = '.ts']) =>
-          rm(join(repositoryRoot, parent, `oxlint-contract-${suffix}${extension}`), { force: true })),
+        ...paths.map(([, path]) => rm(join(repositoryRoot, path), { force: true })),
         rm(configPath, { force: true }),
       ])
     }

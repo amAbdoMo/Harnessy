@@ -12,12 +12,18 @@ import AgentRegistry, { type Agent, type AgentHandle } from '@deepseek-ai/dsh-ag
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
 
-import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
+import SessionStore, { appendPluginRecord, SessionId } from '@deepseek-ai/dsh-session'
 import * as JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
 import * as LlmDeepSeek from '@deepseek-ai/dsh-llm-deepseek-api-key'
 import SubagentRuntime, { type SubagentResult, type SubagentRunEndInfo } from '@deepseek-ai/dsh-subagent'
 import type { JsonRpcTransportPeer } from '@deepseek-ai/dsh-sdk-protocol'
 import { HarnessSdkJsonRpcServer } from '../src/index.ts'
+
+declare module '@deepseek-ai/dsh-session/types' {
+  interface PluginRecordMap {
+    'plugin:sdk-test/state': { enabled: boolean; text: string }
+  }
+}
 
 class FakeTransport implements JsonRpcTransportPeer {
   notifications: { method: string; params?: Record<string, unknown> }[] = []
@@ -118,6 +124,31 @@ async function settleSubagent(
 }
 
 describe('HarnessSdkJsonRpcServer', () => {
+  it('forwards a plugin record with its complete ignorable envelope', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SessionStore)
+    const transport = new FakeTransport()
+    const server = new HarnessSdkJsonRpcServer(ctx, transport)
+    try {
+      const session = ctx.sessions.create(SessionId('plugin-record'))
+      const seq = appendPluginRecord(session, 'plugin:sdk-test/state', { enabled: true, text: 'record-only' })
+
+      expect(transport.notifications).toEqual([{
+        method: 'session.event',
+        params: {
+          sessionId: 'plugin-record',
+          event: {
+            type: 'plugin:sdk-test/state', seq: 0, time: session.eventAt(seq)?.time,
+            data: { enabled: true, text: 'record-only' }, ignorable: true,
+          },
+        },
+      }])
+    } finally {
+      await server.shutdown()
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('creates a harness agent and calls the configured OpenAI-compatible endpoint', { timeout: 15_000 }, async () => {
     const storageDir = await mkdtemp(join(tmpdir(), 'dsh-jsonrpc-'))
     const llmServer = await mockCompletionServer()

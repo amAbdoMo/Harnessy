@@ -343,7 +343,7 @@ describe('gate graph validation', () => {
       'rescope-vendor', 'publint', 'constraints', 'default-product-isolation', 'package-dependencies', 'application-entrypoints',
       'dsh-package-licenses', 'node-next-types',
       'optional-dependency-imports', 'client-packages', 'client-ui-i18n', 'client-route-resolution', 'no-bare-dispatcher',
-      'no-unknown-casts',
+      'plugin-record-callers', 'no-unknown-casts',
       'cordis-config', 'runtime-closure',
     ])
   })

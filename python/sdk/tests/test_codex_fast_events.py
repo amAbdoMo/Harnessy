@@ -10,8 +10,10 @@ import pytest
 from deepseek_harness import DeepSeekHarness, Notification
 
 
-def test_session_run_retains_ignorable_codex_fast_events_and_forwards_notifications(
+@pytest.mark.parametrize("event_type", ["llm-pi-ai/fast-mode", "plugin:python-sdk-test/state"])
+def test_session_run_retains_ignorable_events_and_forwards_notifications(
     tmp_path: Path,
+    event_type: str,
 ) -> None:
     """Unknown plugin preferences remain available without becoming assistant text."""
     script = tmp_path / "fake_fast_transcript.py"
@@ -34,8 +36,8 @@ for line in sys.stdin:
         event({"type": "agent/inbox/spliced", "seq": 0, "time": 0, "data": {"target": "next-turn", "start": 0, "inserted": [{"id": "message-1"}]}})
         notify("session.status", {"sessionId": session_id, "status": "running"})
         print(json.dumps({"jsonrpc": "2.0", "id": request["id"], "result": {"messageId": "message-1"}}), flush=True)
-        event({"type": "llm-pi-ai/fast-mode", "seq": 1, "time": 0, "data": {"enabled": True}, "ignorable": True})
-        event({"type": "llm-pi-ai/fast-mode", "seq": 2, "time": 0, "data": {"enabled": False}, "ignorable": True})
+        event({"type": sys.argv[1], "seq": 1, "time": 0, "data": {"enabled": True}, "ignorable": True})
+        event({"type": sys.argv[1], "seq": 2, "time": 0, "data": {"enabled": False}, "ignorable": True})
         event({"type": "assistant/message", "seq": 3, "time": 0, "data": {"message": {"role": "assistant", "content": [{"type": "text", "text": "FAST_MODE_OK"}]}}})
         event({"type": "turn/end", "seq": 4, "time": 0, "data": {"turn": 1, "reason": {"kind": "completed"}}})
         notify("session.status", {"sessionId": session_id, "status": "idle"})
@@ -48,7 +50,7 @@ for line in sys.stdin:
 
     seen: list[Notification] = []
     with DeepSeekHarness(
-        _launch_args=(sys.executable, str(script)),
+        _launch_args=(sys.executable, str(script), event_type),
         cwd=str(tmp_path),
     ) as harness:
         result = harness.run(
@@ -59,17 +61,20 @@ for line in sys.stdin:
 
     expected_path = Path(__file__).parent / "expected" / "codex-fast-notifications.json"
     expected_notifications = json.loads(expected_path.read_text(encoding="utf-8"))
-    fast_events = [event for event in result.events if event["type"] == "llm-pi-ai/fast-mode"]
-    assert fast_events == [notification["params"]["event"] for notification in expected_notifications]
-    assert fast_events[0]["data"]["enabled"] is True
-    assert fast_events[1]["data"]["enabled"] is False
-    assert all(event["ignorable"] is True for event in fast_events)
+    if event_type == "plugin:python-sdk-test/state":
+        for notification in expected_notifications:
+            notification["params"]["event"]["type"] = event_type
+    retained_events = [event for event in result.events if event["type"] == event_type]
+    assert retained_events == [notification["params"]["event"] for notification in expected_notifications]
+    assert retained_events[0]["data"]["enabled"] is True
+    assert retained_events[1]["data"]["enabled"] is False
+    assert all(event["ignorable"] is True for event in retained_events)
     for notifications in (result.notifications, seen):
         projected = [
             {"method": notification.method, "params": notification.payload}
             for notification in notifications
             if notification.method == "session.event"
-            and notification.payload["event"]["type"] == "llm-pi-ai/fast-mode"
+            and notification.payload["event"]["type"] == event_type
         ]
         assert projected == expected_notifications
     assert result.final_response == "FAST_MODE_OK"
