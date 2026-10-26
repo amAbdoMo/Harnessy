@@ -24,6 +24,22 @@ describe('concrete terminology policy', () => {
       .toEqual([{ file: 'packages/example/src/source.ts', line: 1 }])
   })
 
+  it('preserves only the exact retired filename field in the upstream ledger', () => {
+    const file = 'scripts/harnessy-upstream-review.json'
+    const retiredPath = `packages/client/ui-conversation/src/client/contract/context-${blockedTerm}.ts`
+    const field = `  "path": ${JSON.stringify(retiredPath)},`
+    expect(findConcreteTermViolations(file, field)).toEqual([])
+    expect(findConcreteTermViolations(file, `  "reason": ${JSON.stringify(retiredPath)},`))
+      .toEqual([{ file, line: 1 }])
+    expect(findConcreteTermViolations(file, `${field} ${blockedTerm}`)).toEqual([{ file, line: 1 }])
+    expect(findConcreteTermViolations(file, `"path": "other-${blockedTerm}.ts",`))
+      .toEqual([{ file, line: 1 }])
+    expect(findConcreteTermViolations('scripts/other.json', field))
+      .toEqual([{ file: 'scripts/other.json', line: 1 }])
+    expect(findConcreteTermViolations(retiredPath, ''))
+      .toEqual([{ file: retiredPath, line: null }])
+  })
+
   it('normalizes compatibility characters before scanning', () => {
     const fullwidthTerm = blockedTerm.split('')
       .map(character => String.fromCodePoint(character.charCodeAt(0) + 0xfee0))

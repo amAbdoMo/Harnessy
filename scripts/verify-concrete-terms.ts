@@ -30,11 +30,18 @@ function containsBlockedTerm(value: string): boolean {
   return value.normalize('NFKC').toLowerCase().includes(blockedTerm)
 }
 
+function isRetiredReviewPath(file: string, line: string): boolean {
+  if (file !== 'scripts/harnessy-upstream-review.json') return false
+  // The ledger preserves this deleted filename exactly; authored review text stays checked.
+  const retiredPath = `packages/client/ui-conversation/src/client/contract/context-${blockedTerm}.ts`
+  return line.trim() === `"path": ${JSON.stringify(retiredPath)},`
+}
+
 /**
  * Find the blocked term in one maintained tracked file.
  * @param file - repository-relative tracked path.
  * @param source - text contents or symlink target.
- * @returns violations outside vendored sources, frozen Agent Notes, historical schemas and their checked generated regions.
+ * @returns violations outside frozen content, checked historical schema regions and the exact retired review path.
  */
 export function findConcreteTermViolations(file: string, source: string): ConcreteTermViolation[] {
   if (isExcluded(file)) return []
@@ -44,6 +51,7 @@ export function findConcreteTermViolations(file: string, source: string): Concre
   const schemaRegion = historicalSchemaRegion(file, source)
   for (const [index, line] of lines.entries()) {
     if (schemaRegion !== undefined && index >= schemaRegion[0] && index < schemaRegion[1]) continue
+    if (isRetiredReviewPath(file, line)) continue
     if (containsBlockedTerm(line)) violations.push({ file, line: index + 1 })
   }
   return violations
