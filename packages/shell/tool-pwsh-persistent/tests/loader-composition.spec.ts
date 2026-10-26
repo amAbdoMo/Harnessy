@@ -36,12 +36,10 @@ const hasPwsh = spawnSync(
   { encoding: 'utf8' },
 ).status === 0
 
-// Shell and console-host versions for a failure message: the Windows console host, not this
-// process, decides how the prompt marker and its tail reach the session, and its build on the
-// self-hosted pool is unknown.
+// The system conhost version identifies the OS; node-pty's bundled OpenConsole renders these Windows PTYs.
 const HOST_FACTS_COMMAND = [
   '"pwsh $($PSVersionTable.PSVersion) PSReadLine $((Get-Module PSReadLine -ListAvailable | Sort-Object Version -Descending | Select-Object -First 1).Version)"',
-  'if ($env:OS -eq \'Windows_NT\') { "conhost $((Get-Item (Join-Path $env:SystemRoot \'System32\\conhost.exe\')).VersionInfo.FileVersion)" }',
+  'if ($env:OS -eq \'Windows_NT\') { "system conhost (unused) $((Get-Item (Join-Path $env:SystemRoot \'System32\\conhost.exe\')).VersionInfo.FileVersion)" }',
 ].join('; ')
 
 function hostFacts(): string {
@@ -55,9 +53,9 @@ function hostFacts(): string {
   return [
     `host: ${process.platform} ${process.arch} ${release()} (${version()}); node ${process.version}`,
     `shell: ${pwshPath}; ${shell}`,
-    // dsh-subprocess-local spawns node-pty without useConptyDll, so the system console host,
-    // not the OpenConsole build node-pty bundles, renders every session.
-    'conpty: system conhost',
+    process.platform === 'win32'
+      ? 'conpty: node-pty bundled OpenConsole (useConptyDll=true)'
+      : 'conpty: not applicable (POSIX PTY)',
   ].join('\n')
 }
 
@@ -242,22 +240,21 @@ describe.skipIf(!hasPwsh)('persistent pwsh through a real cordis.yml Loader comp
     expect(large).toContain('<response clipped>')
     expect(large).not.toContain('beginning of this command output was dropped')
 
+    const afterScroll = text(await execute('after-scroll', 'Write-Output "cwd=$PWD keep=$env:KEEP"'))
+    expect(afterScroll).toBe(`cwd=${join(root, 'nested')} keep=loader`)
+
     const exited = text(await execute('exit', 'exit'))
     expect(exited).toContain('next pwsh call starts from the workspace')
     expect(text(await execute('after-exit', 'Write-Output "$PWD"'))).toBe(root)
 
-    // Six commands settle on the controlled prompt; no send may fall back to the
-    // silence tier, which is the 3.3 s-per-call degradation this suite pins. The
-    // counts alone do not say which tier settled which send, so every reason the
-    // run recorded and the per-send timeline ride in the failure message (the
-    // self-hosted Windows lane reported one to two stdin_read settlements per
-    // run on 2026-09-25..27, every other send at the plain silence bound). The
-    // message is built only when an assertion is about to fail: formatting runs
-    // the host-facts shell probe, which a passing run must not pay for.
-    const stdinReads = settleReasons.filter(reason => reason === 'stdin_read').length
-    const degraded = stdinReads < 6 || settleReasons.includes('inferred_idle')
+    // Each live-shell command must regain the controlled prompt, including after scrolling and restart.
+    const expected: TerminalWaitReason[] = [
+      'stdin_read', 'stdin_read', 'stdin_read', 'stdin_read',
+      'stdin_read', 'stdin_read', 'session_exit', 'stdin_read',
+    ]
+    const degraded = settleReasons.length !== expected.length
+      || settleReasons.some((reason, index) => reason !== expected[index])
     const failure = degraded ? `${JSON.stringify(settleReasons)}\n${timeline.format()}` : ''
-    expect(stdinReads, failure).toBeGreaterThanOrEqual(6)
-    expect(settleReasons, failure).not.toContain('inferred_idle')
+    expect(settleReasons, failure).toEqual(expected)
   }, 120_000)
 })
