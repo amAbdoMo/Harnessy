@@ -755,6 +755,14 @@ jobs:
       - name: Prepare ephemeral Python snapshot owners
         run: node scripts/harnessy-python-native-snapshots.mjs prepare
 
+      - name: Refresh the shared Python header pin
+        env:
+          DSH_SNAPSHOT: refresh
+        run: >-
+          node node_modules/vitest/vitest.mjs run
+          --config vitest.snapshot.config.ts snapshots/session/headless.snapshot.ts
+          -t 'refreshs ptc-python-turn through dsh' --reporter=default
+
       - name: Refresh the Python snapshot owners
         id: snapshot_refresh
         env:

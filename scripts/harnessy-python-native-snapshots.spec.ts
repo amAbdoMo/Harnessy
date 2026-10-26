@@ -228,6 +228,11 @@ describe('manual Python native snapshot phase', () => {
     expect(job.permissions).toEqual({ contents: 'read' })
     const steps = job.steps as Record<string, unknown>[]
     const names = steps.map(step => step.name)
+    expect(names.indexOf('Prepare ephemeral Python snapshot owners')).toBeLessThan(names.indexOf('Refresh the shared Python header pin'))
+    expect(names.indexOf('Refresh the shared Python header pin')).toBeLessThan(names.indexOf('Refresh the Python snapshot owners'))
+    const pinRefresh = steps.find(step => step.name === 'Refresh the shared Python header pin')
+    expect(pinRefresh?.run).toContain("-t 'refreshs ptc-python-turn through dsh'")
+    expect(record(pinRefresh?.env).DSH_SNAPSHOT).toBe('refresh')
     expect(names.indexOf('Refresh the Python snapshot owners')).toBeLessThan(names.indexOf('Replay the Python snapshot owners read-only'))
     expect(record(steps.find(step => step.name === 'Refresh the Python snapshot owners')?.env).DSH_SNAPSHOT).toBe('refresh')
     expect(steps.find(step => step.name === 'Replay the Python snapshot owners read-only')?.env).toBeUndefined()
