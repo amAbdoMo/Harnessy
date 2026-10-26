@@ -6,13 +6,14 @@ on:
   workflow_dispatch:
     inputs:
       suite:
-        description: Manual CI suite to run
+        description: Manual CI suite to run (Harnessy native checks require staging)
         required: true
         default: larger-runner-benchmark
         type: choice
         options:
           - larger-runner-benchmark
           - consolidated-runner-benchmark
+          - harnessy-native-verification
 
 # New master pushes and manual runs replace obsolete checks in this workflow/ref.
 # Standby drills share cancellation; use completed runs as readiness evidence.
@@ -521,3 +522,146 @@ jobs:
         env:
           DSH_GATE_CONCURRENCY: ${{ matrix.workers }}
         run: pnpm run check:ci:windows-blocking
+
+  # Explicit one-off fork diagnostics; this suite does not grant desktop permissions.
+  harnessy-native-verification:
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      && github.ref == 'refs/heads/staging'
+      && github.repository != 'deepseek-ai/deepseek-harness'
+      && inputs.suite == 'harnessy-native-verification'
+    name: Harnessy native verification / ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - platform: linux
+            runner: ubuntu-24.04
+          - platform: macos
+            runner: macos-latest
+    env:
+      DSH_TELEMETRY_DISABLED: '1'
+      DSH_COVERAGE_TEST_TIMEOUT_MS: '90000'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.7.0'
+          dest: ${{ runner.temp }}/setup-pnpm-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - uses: actions/setup-python@v6.3.0
+        with:
+          python-version: '3.12'
+
+      - name: Record exact native environment
+        run: |
+          mkdir -p .artifacts/native-verification
+          {
+            git rev-parse HEAD
+            node --version
+            pnpm --version
+            python3 --version
+            uname -a
+            node -e 'console.log(JSON.stringify({platform:process.platform,arch:process.arch}))'
+            if [[ "$RUNNER_OS" == 'macOS' ]]; then sw_vers; xcrun swift --version; fi
+          } | tee .artifacts/native-verification/environment.txt
+
+      - name: Install immutable dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Provision Linux native compiler
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -yq --no-install-recommends musl-tools
+
+      - name: Build host native system payload
+        run: |
+          node --import tsx/esm native/system/scripts/build.ts
+          node node_modules/typescript/bin/tsc -b native/system/tsconfig.json
+
+      - name: Require Linux Landlock enforcement
+        if: runner.os == 'Linux'
+        working-directory: native/system
+        env:
+          NALR_REQUIRE_LANDLOCK: '1'
+        run: node test/launcher.test.js
+
+      - name: Exercise real Python runtime and confinement owners
+        run: >-
+          node node_modules/vitest/vitest.mjs run
+          packages/experimental/ptc-runtime-python/tests
+          --maxWorkers=1 --no-file-parallelism
+          --reporter=default --reporter=json
+          --outputFile.json=.artifacts/native-verification/python-runtime.json
+
+      - name: Require actual policy enforcement cases
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const report = JSON.parse(readFileSync('.artifacts/native-verification/python-runtime.json', 'utf8'));
+          const required = [
+            'denies direct Python writes under the standing read-only policy',
+            'permits workspace writes while denying direct and symlink writes outside it',
+            'boots under confinement with stdin EOF, fd-3 bindings, resource limits and a scrubbed environment',
+            'retains the read-only policy in Python child processes',
+            'reports CPU termination according to the selected launcher signal transport',
+          ];
+          const suites = report.testResults.filter(suite => suite.name.replaceAll('\\', '/').endsWith('/ptc-runtime-python/tests/sandbox.spec.ts'));
+          if (suites.length !== 1) throw new Error('Expected exactly one Python sandbox result');
+          for (const title of required) {
+            const matches = suites[0].assertionResults.filter(test => test.title === title);
+            if (matches.length !== 1 || matches[0].status !== 'passed') throw new Error(`Native case must pass without skip: ${title}`);
+          }
+          if (report.success !== true || report.numFailedTests !== 0) throw new Error('Python owner report failed');
+          console.log('Required real sandbox cases passed');
+          NODE
+
+      - name: Verify Python wire vocabulary against real CPython
+        run: >-
+          node node_modules/vitest/vitest.mjs run
+          --config vitest.e2e.config.ts
+          packages/experimental/ptc-runtime-python/tests/protocol-mirror.e2e.ts
+          --maxWorkers=1
+
+      - name: Compile optional Mac Computer Use helper
+        if: ${{ !cancelled() && runner.os == 'macOS' }}
+        run: swift build --package-path packages/experimental/cua-macos/native --configuration release
+
+      - name: Run offline Swift native unit owners
+        if: ${{ !cancelled() && runner.os == 'macOS' }}
+        run: python3 packages/experimental/cua-macos/native/tests/test_swift.py
+
+      - name: Run optional Mac Computer Use TypeScript owners
+        if: ${{ !cancelled() && runner.os == 'macOS' }}
+        run: >-
+          node node_modules/vitest/vitest.mjs run
+          packages/experimental/cua-macos/tests
+          packages/experimental/cua/tests
+          --maxWorkers=1 --no-file-parallelism
+          --reporter=default --reporter=json
+          --outputFile.json=.artifacts/native-verification/cua-owner.json
+
+      - name: Retain native verification reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: harnessy-native-verification-${{ matrix.platform }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .artifacts/native-verification/
+          retention-days: 7
+          if-no-files-found: error
