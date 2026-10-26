@@ -14,6 +14,7 @@ on:
           - larger-runner-benchmark
           - consolidated-runner-benchmark
           - harnessy-native-verification
+          - harnessy-python-snapshot-verification
 
 # New master pushes and manual runs replace obsolete checks in this workflow/ref.
 # Standby drills share cancellation; use completed runs as readiness evidence.
@@ -663,5 +664,142 @@ jobs:
         with:
           name: harnessy-native-verification-${{ matrix.platform }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: .artifacts/native-verification/
+          retention-days: 7
+          if-no-files-found: error
+
+  harnessy-python-snapshot-verification:
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      && github.ref == 'refs/heads/staging'
+      && github.repository != 'deepseek-ai/deepseek-harness'
+      && inputs.suite == 'harnessy-python-snapshot-verification'
+    name: Python PTC snapshots / ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - platform: linux
+            runner: ubuntu-24.04
+          - platform: macos
+            runner: macos-latest
+    env:
+      DSH_TELEMETRY_DISABLED: '1'
+      DSH_PYTHON_NATIVE_SNAPSHOT_PHASE: '1'
+      UPSTREAM_FIXTURE_COMMIT: 2de9059b4f6fdbaf5461abc4789fa8d78094e258
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.7.0'
+          dest: ${{ runner.temp }}/setup-pnpm-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - uses: actions/setup-python@v6.3.0
+        with:
+          python-version: '3.12'
+
+      - name: Record exact source and native environment
+        run: |
+          mkdir -p .artifacts/python-native-snapshot-phase-ci/${{ matrix.platform }}/evidence
+          {
+            git rev-parse HEAD
+            node --version
+            pnpm --version
+            python3 --version
+            uname -a
+            node -e 'console.log(JSON.stringify({platform:process.platform,arch:process.arch}))'
+            if [[ "$RUNNER_OS" == 'macOS' ]]; then sw_vers; fi
+          } | tee .artifacts/python-native-snapshot-phase-ci/${{ matrix.platform }}/evidence/environment.txt
+
+      - name: Install immutable dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Provision Linux native compiler
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -yq --no-install-recommends musl-tools
+
+      - name: Build host native system payload
+        run: |
+          node --import tsx/esm native/system/scripts/build.ts
+          node node_modules/typescript/bin/tsc -b native/system/tsconfig.json
+
+      - name: Require Linux Landlock enforcement
+        if: runner.os == 'Linux'
+        working-directory: native/system
+        env:
+          NALR_REQUIRE_LANDLOCK: '1'
+        run: node test/launcher.test.js
+
+      - name: Build checked Host library artifacts
+        run: node --import tsx/esm scripts/compile-referenced-projects.ts host-libraries
+
+      - name: Fetch exact upstream snapshot blobs
+        run: git fetch --no-tags --depth=1 https://github.com/deepseek-ai/deepseek-harness.git "$UPSTREAM_FIXTURE_COMMIT"
+
+      - name: Prepare ephemeral Python snapshot owners
+        run: node scripts/harnessy-python-native-snapshots.mjs prepare
+
+      - name: Refresh the Python snapshot owners
+        id: snapshot_refresh
+        env:
+          DSH_SNAPSHOT: refresh
+        run: >-
+          node node_modules/vitest/vitest.mjs run
+          --config vitest.snapshot.config.ts snapshots/session/headless.snapshot.ts
+          -t 'ptc-python-(turn|read-only)' --reporter=default --reporter=json
+          --outputFile.json=.artifacts/python-native-snapshot-phase-ci/${{ matrix.platform }}/evidence/snapshot-refresh.json
+
+      - name: Replay the Python snapshot owners read-only
+        id: snapshot_replay
+        run: >-
+          node node_modules/vitest/vitest.mjs run
+          --config vitest.snapshot.config.ts snapshots/session/headless.snapshot.ts
+          -t 'ptc-python-(turn|read-only)' --reporter=default --reporter=json
+          --outputFile.json=.artifacts/python-native-snapshot-phase-ci/${{ matrix.platform }}/evidence/snapshot-replay.json
+
+      - name: Smoke the built public Python runtime package
+        id: built_package_smoke
+        run: >-
+          node scripts/harnessy-python-built-smoke.mjs
+          --report .artifacts/python-native-snapshot-phase-ci/${{ matrix.platform }}/evidence/built-package-smoke.json
+
+      - name: Capture source and writer evidence
+        if: always()
+        env:
+          PYTHON_SNAPSHOT_REFRESH_OUTCOME: ${{ steps.snapshot_refresh.outcome }}
+          PYTHON_SNAPSHOT_REPLAY_OUTCOME: ${{ steps.snapshot_replay.outcome }}
+          PYTHON_BUILT_SMOKE_OUTCOME: ${{ steps.built_package_smoke.outcome }}
+        run: node scripts/harnessy-python-native-snapshots.mjs capture
+
+      - name: Restore temporary Python snapshot files
+        if: always()
+        run: node scripts/harnessy-python-native-snapshots.mjs restore
+
+      - name: Verify source cleanup
+        if: always()
+        run: node scripts/harnessy-python-native-snapshots.mjs verify
+
+      - name: Retain Python native snapshot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-native-snapshot-verification-${{ matrix.platform }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .artifacts/python-native-snapshot-phase-ci/${{ matrix.platform }}/evidence/
           retention-days: 7
           if-no-files-found: error
