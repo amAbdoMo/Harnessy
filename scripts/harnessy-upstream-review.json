@@ -24233,7 +24233,8 @@
       ],
       "tree": "dc2c0ba597b86bf98d4399639a882f66a52e6ce2",
       "subject": "Merge pull request #5716 from deepseek-harness/worktree/pr-ci-speed-independent-20261005",
-      "review": null
+      "review": "harnessy-checked-artifact-builds-and-ci-scheduling-20261026",
+      "mergeEvidence": "Inspected both parent deltas, all ten exact constituents and their complete forty-path union. Fresh merge-tree exactly equals recorded tree dc2c0ba597b86bf98d4399639a882f66a52e6ce2; remerge diff has no manual hunks. All changed paths have explicit adapted, retained or excluded dispositions. This review does not acquire the preceding unqualified Python sandbox ancestry."
     },
     {
       "sha": "2de9059b4f6fdbaf5461abc4789fa8d78094e258",
@@ -24292,7 +24293,7 @@
       ],
       "tree": "66d2d1f9265f077c7916b50c9a357e57b12300c2",
       "subject": "perf(ci): start runtime checks within the existing job ceiling",
-      "review": null
+      "review": "harnessy-checked-artifact-builds-and-ci-scheduling-20261026"
     },
     {
       "sha": "310a9e4de4deac7c98096795611314cd4b0b1a30",
@@ -24395,7 +24396,7 @@
       ],
       "tree": "383997f95cbd9735b343b3b49e005dfd8f2f9c21",
       "subject": "perf(ci): emit benchmark artifacts without repeated type checks",
-      "review": null
+      "review": "harnessy-checked-artifact-builds-and-ci-scheduling-20261026"
     },
     {
       "sha": "8a93894ef960484441030606985d50c93a18d7d2",
@@ -24569,7 +24570,7 @@
       ],
       "tree": "7d09a6d2362bbfcb1d8b30d970993cef25cc09a0",
       "subject": "fix(ci): validate Python closure before artifact builds",
-      "review": null
+      "review": "harnessy-checked-artifact-builds-and-ci-scheduling-20261026"
     },
     {
       "sha": "b885088946a6d67b50e5e0f2c27aed750809c084",
@@ -24587,7 +24588,7 @@
       ],
       "tree": "547c9357d07b139ed9058f6942037ffd02a56591",
       "subject": "docs(ci): clarify artifact and scheduler dependencies",
-      "review": null
+      "review": "harnessy-checked-artifact-builds-and-ci-scheduling-20261026"
     },
     {
       "sha": "bb9dfc663b5843de6208c81b880d0fbe9360b611",
@@ -24605,7 +24606,7 @@
       ],
       "tree": "619dfa67ce40c21591a849102a73127d7dfac3d4",
       "subject": "perf(ci): consolidate compatibility startup within one worker",
-      "review": null
+      "review": "harnessy-checked-artifact-builds-and-ci-scheduling-20261026"
     },
     {
       "sha": "e994542a3161c1b5ab7b41ef3199cab7b13f2f3e",
@@ -24623,7 +24624,7 @@
       ],
       "tree": "81ea2d708f74fa3450ec63bc9a7f9a09520293ef",
       "subject": "perf(ci): bound worker job overlap without extending the critical path",
-      "review": null
+      "review": "harnessy-checked-artifact-builds-and-ci-scheduling-20261026"
     },
     {
       "sha": "c880291a0b57afd5829306a398959cf0ec0ee3b1",
@@ -24650,7 +24651,7 @@
       ],
       "tree": "d7bbb8320205bb35a680e8053b9c56d891a67870",
       "subject": "fix(test): pass loader URLs on Windows",
-      "review": null
+      "review": "harnessy-checked-artifact-builds-and-ci-scheduling-20261026"
     },
     {
       "sha": "536aaef0b331505579f487b549df7bcbe810b002",
@@ -24659,7 +24660,7 @@
       ],
       "tree": "ce496b7b86328d2a304caa316acc13b43faec372",
       "subject": "fix(ci): preserve workflow concurrency and portable artifact checks",
-      "review": null
+      "review": "harnessy-checked-artifact-builds-and-ci-scheduling-20261026"
     },
     {
       "sha": "ef29f117da89a4a1381fef536f5908f3ad080134",
@@ -24677,7 +24678,7 @@
       ],
       "tree": "c2d625c92b3fe0149638ac07bc2eb440f9addb3b",
       "subject": "perf(ci): remove repeated aggregate compilation and gate work",
-      "review": null
+      "review": "harnessy-checked-artifact-builds-and-ci-scheduling-20261026"
     },
     {
       "sha": "1fb43c6f78c952f5e112d9f8222d2eac736f2758",
@@ -126356,6 +126357,221 @@
         "Complete source lint passed after fixing one SDK test arrow-parenthesis style diagnostic. All 43 documentation checks and all 17 hygiene checks passed. Keyless assembled cordis-inspect-jsdoc replay passed unchanged, with 154 unrelated cases not selected; no Session input or expected recording changed. The real built SDK-profile Python fast-mode case passed with two fake-peer cases deselected. Actual built Session exports passed ordinary ignorable append, frozen plugin payload, empty model-history and fork retention smoke assertions without launching an app.",
         "Normal merge preview has only four conflicts. Preserve the corrected two-language ignorable-event note and its matching pairing record, rather than the incorrect stock sole-marker-writer statement; preserve the current type-model assertion without importing an extra explanatory comment. Each selected conflict resolution reproduces the qualified current file exactly and no automatic source delta remains elsewhere.",
         "No source publication, installed staging runtime, main-app update or release is established by intermediate tests. This ledger review is emitted only after final qualification. Later Python sandbox/CI/browser groups remain separate pending work; this review grants no authorization to enable private/live-service workflows or create other checkouts/apps."
+      ]
+    },
+    "harnessy-checked-artifact-builds-and-ci-scheduling-20261026": {
+      "status": "adopted",
+      "summary": "Adapt checked artifact preparation, compact coverage timings, serial compatibility startup and bounded explicit packing while retaining complete default compilation, custom Harnessy protections and deliberate infrastructure opt-in. Exclude unchecked benchmark emission and selected optional release/preview shortcuts.",
+      "files": [
+        {
+          "path": ".agents/notes/implemented/process/2026-10-05-pr-artifact-typechecks.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adapt paired current-state contributor/decision prose to actual fork check ownership, dynamically referenced auxiliary tests, explicit artifact caller obligations, compact timings and bounded packing. Preserve normal checked benchmark commands; exclude unchecked emission and stock job-count/performance claims. Clearly distinguish focused automatic Windows checks from optional inherited exhaustive/multi-platform checks."
+        },
+        {
+          "path": ".agents/notes/implemented/process/2026-10-05-pr-artifact-typechecks.md",
+          "disposition": "adopted",
+          "reason": "Adapt paired current-state contributor/decision prose to actual fork check ownership, dynamically referenced auxiliary tests, explicit artifact caller obligations, compact timings and bounded packing. Preserve normal checked benchmark commands; exclude unchecked emission and stock job-count/performance claims. Clearly distinguish focused automatic Windows checks from optional inherited exhaustive/multi-platform checks."
+        },
+        {
+          "path": ".agents/notes/implemented/process/2026-10-05-pr-artifact-typechecks.zh.md",
+          "disposition": "adopted",
+          "reason": "Adapt paired current-state contributor/decision prose to actual fork check ownership, dynamically referenced auxiliary tests, explicit artifact caller obligations, compact timings and bounded packing. Preserve normal checked benchmark commands; exclude unchecked emission and stock job-count/performance claims. Clearly distinguish focused automatic Windows checks from optional inherited exhaustive/multi-platform checks."
+        },
+        {
+          "path": ".agents/notes/implemented/testing/2026-09-04-session-open-performance-gate.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adapt paired current-state contributor/decision prose to actual fork check ownership, dynamically referenced auxiliary tests, explicit artifact caller obligations, compact timings and bounded packing. Preserve normal checked benchmark commands; exclude unchecked emission and stock job-count/performance claims. Clearly distinguish focused automatic Windows checks from optional inherited exhaustive/multi-platform checks."
+        },
+        {
+          "path": ".agents/notes/implemented/testing/2026-09-04-session-open-performance-gate.md",
+          "disposition": "adopted",
+          "reason": "Adapt paired current-state contributor/decision prose to actual fork check ownership, dynamically referenced auxiliary tests, explicit artifact caller obligations, compact timings and bounded packing. Preserve normal checked benchmark commands; exclude unchecked emission and stock job-count/performance claims. Clearly distinguish focused automatic Windows checks from optional inherited exhaustive/multi-platform checks."
+        },
+        {
+          "path": ".agents/notes/implemented/testing/2026-09-04-session-open-performance-gate.zh.md",
+          "disposition": "adopted",
+          "reason": "Adapt paired current-state contributor/decision prose to actual fork check ownership, dynamically referenced auxiliary tests, explicit artifact caller obligations, compact timings and bounded packing. Preserve normal checked benchmark commands; exclude unchecked emission and stock job-count/performance claims. Clearly distinguish focused automatic Windows checks from optional inherited exhaustive/multi-platform checks."
+        },
+        {
+          "path": ".github/workflows/build-exe-for-python-sdk.yml",
+          "disposition": "adopted",
+          "reason": "Select checked referenced artifacts only for inherited CI pull-request calls, whose required aggregate also depends on complete consumer and Windows builds at the same revision. Release, master and ordinary manual calls retain full default compilation. Preserve inherited platform/secret trust conditions and do not dispatch this release-shaped workflow as part of adoption."
+        },
+        {
+          "path": ".github/workflows/build-preview-cloudflare.yml",
+          "disposition": "excluded",
+          "reason": "Retain the existing complete checked build and its owning assertions in preview, live-service and signed/npm release diagnostics. Do not activate DeepSeek infrastructure or replace their default checks with faster artifact-only compilation. The explicit checked artifact helper is available to qualified callers, but these workflow optimizations are intentionally omitted in this fork."
+        },
+        {
+          "path": ".github/workflows/ci.yml",
+          "disposition": "adopted",
+          "reason": "Adapt final OS/environment/pool/run-attempt duration cache isolation, serial compatibility matrix and Python-runtime-after-SDK scheduling. Preserve the supported keyless Windows full build, all inherited definitions and complete blocking consumer/Windows full-build owners. Apply the existing fork opt-in policy to every inherited PR worker and aggregate; no optional skipped verdict is called passed. Preserve full benchmark preparation and unrelated fork release/packaging protections."
+        },
+        {
+          "path": ".github/workflows/e2e.yml",
+          "disposition": "excluded",
+          "reason": "Retain the existing complete checked build and its owning assertions in preview, live-service and signed/npm release diagnostics. Do not activate DeepSeek infrastructure or replace their default checks with faster artifact-only compilation. The explicit checked artifact helper is available to qualified callers, but these workflow optimizations are intentionally omitted in this fork."
+        },
+        {
+          "path": ".github/workflows/release-vendor.yml",
+          "disposition": "excluded",
+          "reason": "Retain the existing complete checked build and its owning assertions in preview, live-service and signed/npm release diagnostics. Do not activate DeepSeek infrastructure or replace their default checks with faster artifact-only compilation. The explicit checked artifact helper is available to qualified callers, but these workflow optimizations are intentionally omitted in this fork."
+        },
+        {
+          "path": ".github/workflows/release.yml",
+          "disposition": "excluded",
+          "reason": "Retain the existing complete checked build and its owning assertions in preview, live-service and signed/npm release diagnostics. Do not activate DeepSeek infrastructure or replace their default checks with faster artifact-only compilation. The explicit checked artifact helper is available to qualified callers, but these workflow optimizations are intentionally omitted in this fork."
+        },
+        {
+          "path": "docs/development.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adapt paired current-state contributor/decision prose to actual fork check ownership, dynamically referenced auxiliary tests, explicit artifact caller obligations, compact timings and bounded packing. Preserve normal checked benchmark commands; exclude unchecked emission and stock job-count/performance claims. Clearly distinguish focused automatic Windows checks from optional inherited exhaustive/multi-platform checks."
+        },
+        {
+          "path": "docs/development.md",
+          "disposition": "adopted",
+          "reason": "Adapt paired current-state contributor/decision prose to actual fork check ownership, dynamically referenced auxiliary tests, explicit artifact caller obligations, compact timings and bounded packing. Preserve normal checked benchmark commands; exclude unchecked emission and stock job-count/performance claims. Clearly distinguish focused automatic Windows checks from optional inherited exhaustive/multi-platform checks."
+        },
+        {
+          "path": "docs/development.zh.md",
+          "disposition": "adopted",
+          "reason": "Adapt paired current-state contributor/decision prose to actual fork check ownership, dynamically referenced auxiliary tests, explicit artifact caller obligations, compact timings and bounded packing. Preserve normal checked benchmark commands; exclude unchecked emission and stock job-count/performance claims. Clearly distinguish focused automatic Windows checks from optional inherited exhaustive/multi-platform checks."
+        },
+        {
+          "path": "package.json",
+          "disposition": "retained-newer",
+          "reason": "Inspected the intermediate helper aliases and final removal: this cohort has no net root-manifest change. Retain Harnessy full checked build/typecheck/lint scripts, custom profile scripts, release guards and current local version."
+        },
+        {
+          "path": "packages/typert/generator/src/tsdown-plugin.ts",
+          "disposition": "excluded",
+          "reason": "Intentionally omit benchmark-only unchecked emission and its Typert diagnostics-owner rename/comment. Fork CI is opt-in and cannot guarantee an independent full-check verdict by default; preserve current checked test:bench preparation and the accurate same-orchestration compiler ownership. No upstream M4 measurement is claimed for Harnessy."
+        },
+        {
+          "path": "scripts/build-exe-for-python-sdk.spec.ts",
+          "disposition": "adopted",
+          "reason": "Add explicit artifact-only builder selection after runtime-closure verification and before deploy/pack, reject incompatible skip/artifact flags before subprocesses, and retain the complete ordinary default and current source/runtime packaging guards. Dry-run and failing-closure tests establish command selection, not native packaged execution."
+        },
+        {
+          "path": "scripts/build-exe-for-python-sdk.ts",
+          "disposition": "adopted",
+          "reason": "Add explicit artifact-only builder selection after runtime-closure verification and before deploy/pack, reject incompatible skip/artifact flags before subprocesses, and retain the complete ordinary default and current source/runtime packaging guards. Dry-run and failing-closure tests establish command selection, not native packaged execution."
+        },
+        {
+          "path": "scripts/build.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt explicit checked-reference library/artifact mode while preserving ordinary complete Host/Client checks and custom profile/environment/record guards. Discover every declared reference, including translator and plugin-record test programs, keep Host 4096 MB and serial stage order, and require a separate full-check owner for aggregate-only programs. Do not introduce benchmark noCheck mode."
+        },
+        {
+          "path": "scripts/build.ts",
+          "disposition": "adopted",
+          "reason": "Adapt explicit checked-reference library/artifact mode while preserving ordinary complete Host/Client checks and custom profile/environment/record guards. Discover every declared reference, including translator and plugin-record test programs, keep Host 4096 MB and serial stage order, and require a separate full-check owner for aggregate-only programs. Do not introduce benchmark noCheck mode."
+        },
+        {
+          "path": "scripts/ci-workflow.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt final OS/environment/pool/run-attempt duration cache isolation, serial compatibility matrix and Python-runtime-after-SDK scheduling. Preserve the supported keyless Windows full build, all inherited definitions and complete blocking consumer/Windows full-build owners. Apply the existing fork opt-in policy to every inherited PR worker and aggregate; no optional skipped verdict is called passed. Preserve full benchmark preparation and unrelated fork release/packaging protections."
+        },
+        {
+          "path": "scripts/compile-referenced-projects.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt explicit checked-reference library/artifact mode while preserving ordinary complete Host/Client checks and custom profile/environment/record guards. Discover every declared reference, including translator and plugin-record test programs, keep Host 4096 MB and serial stage order, and require a separate full-check owner for aggregate-only programs. Do not introduce benchmark noCheck mode."
+        },
+        {
+          "path": "scripts/compile-referenced-projects.ts",
+          "disposition": "adopted",
+          "reason": "Adapt explicit checked-reference library/artifact mode while preserving ordinary complete Host/Client checks and custom profile/environment/record guards. Discover every declared reference, including translator and plugin-record test programs, keep Host 4096 MB and serial stage order, and require a separate full-check owner for aggregate-only programs. Do not introduce benchmark noCheck mode."
+        },
+        {
+          "path": "scripts/coverage-file-times.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adopt compact advisory per-file cost reports without retained modules/coverage maps. Keep canonical and blob reporters, complete partition inventory, one-worker partitions, merged 100% thresholds, and failure propagation even when blobs allow merging. Real two-partition passing and uncovered-branch/report-error controls qualify the changed path."
+        },
+        {
+          "path": "scripts/coverage-file-times.ts",
+          "disposition": "adopted",
+          "reason": "Adopt compact advisory per-file cost reports without retained modules/coverage maps. Keep canonical and blob reporters, complete partition inventory, one-worker partitions, merged 100% thresholds, and failure propagation even when blobs allow merging. Real two-partition passing and uncovered-branch/report-error controls qualify the changed path."
+        },
+        {
+          "path": "scripts/coverage-partitions.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adopt compact advisory per-file cost reports without retained modules/coverage maps. Keep canonical and blob reporters, complete partition inventory, one-worker partitions, merged 100% thresholds, and failure propagation even when blobs allow merging. Real two-partition passing and uncovered-branch/report-error controls qualify the changed path."
+        },
+        {
+          "path": "scripts/coverage-partitions.ts",
+          "disposition": "adopted",
+          "reason": "Adopt compact advisory per-file cost reports without retained modules/coverage maps. Keep canonical and blob reporters, complete partition inventory, one-worker partitions, merged 100% thresholds, and failure propagation even when blobs allow merging. Real two-partition passing and uncovered-branch/report-error controls qualify the changed path."
+        },
+        {
+          "path": "scripts/preview-workflow.spec.ts",
+          "disposition": "excluded",
+          "reason": "Retain the existing complete checked build and its owning assertions in preview, live-service and signed/npm release diagnostics. Do not activate DeepSeek infrastructure or replace their default checks with faster artifact-only compilation. The explicit checked artifact helper is available to qualified callers, but these workflow optimizations are intentionally omitted in this fork."
+        },
+        {
+          "path": "scripts/release/pack.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt explicit bounded pinned-pnpm parallel packing with exact public family filters, real lifecycle hooks, every expected tarball validated before publish order, and default serial order. Preserve Harnessy client-profile validation, runtime closure, current versions and PUBLISH_DISABLED_FILE enforcement. Actual CLI tests use disposable private roots; no repository family was packed or published."
+        },
+        {
+          "path": "scripts/release/pack.ts",
+          "disposition": "adopted",
+          "reason": "Adapt explicit bounded pinned-pnpm parallel packing with exact public family filters, real lifecycle hooks, every expected tarball validated before publish order, and default serial order. Preserve Harnessy client-profile validation, runtime closure, current versions and PUBLISH_DISABLED_FILE enforcement. Actual CLI tests use disposable private roots; no repository family was packed or published."
+        },
+        {
+          "path": "scripts/run-ci-bench.ts",
+          "disposition": "excluded",
+          "reason": "Intentionally omit benchmark-only unchecked emission and its Typert diagnostics-owner rename/comment. Fork CI is opt-in and cannot guarantee an independent full-check verdict by default; preserve current checked test:bench preparation and the accurate same-orchestration compiler ownership. No upstream M4 measurement is claimed for Harnessy."
+        },
+        {
+          "path": "scripts/run-gates.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt exactly seven source compatibility specs into one serial fork-isolated worker invocation with the environment bound, remove the redundant Node22 Web build and retain lazy-search build dependency. Preserve normal typecheck and full consumer/Windows build owners, artifact-reader/HMR dependencies, existing source checks and checked benchmark path; intentionally omit unchecked benchmark scheduling."
+        },
+        {
+          "path": "scripts/run-gates.ts",
+          "disposition": "adopted",
+          "reason": "Adapt exactly seven source compatibility specs into one serial fork-isolated worker invocation with the environment bound, remove the redundant Node22 Web build and retain lazy-search build dependency. Preserve normal typecheck and full consumer/Windows build owners, artifact-reader/HMR dependencies, existing source checks and checked benchmark path; intentionally omit unchecked benchmark scheduling."
+        },
+        {
+          "path": "scripts/tests/ci-release-selfhosted.spec.ts",
+          "disposition": "excluded",
+          "reason": "Retain the existing complete checked build and its owning assertions in preview, live-service and signed/npm release diagnostics. Do not activate DeepSeek infrastructure or replace their default checks with faster artifact-only compilation. The explicit checked artifact helper is available to qualified callers, but these workflow optimizations are intentionally omitted in this fork."
+        },
+        {
+          "path": "scripts/translation-links.spec.ts",
+          "disposition": "adopted",
+          "reason": "Previously implemented at 9a5e43b601 with reusable exact-text GFM parses, supplied-tree parity and reparsing after link normalization changes offsets. All existing pairing/link diagnostics and authored text remain checked; the normalized-offset negative control fails if stale AST reuse is restored. Ninety owning tests passed in that source qualification."
+        },
+        {
+          "path": "scripts/translation-links.ts",
+          "disposition": "adopted",
+          "reason": "Previously implemented at 9a5e43b601 with reusable exact-text GFM parses, supplied-tree parity and reparsing after link normalization changes offsets. All existing pairing/link diagnostics and authored text remain checked; the normalized-offset negative control fails if stale AST reuse is restored. Ninety owning tests passed in that source qualification."
+        },
+        {
+          "path": "scripts/translation-pairing-record.ts",
+          "disposition": "adopted",
+          "reason": "Previously implemented at 9a5e43b601 with reusable exact-text GFM parses, supplied-tree parity and reparsing after link normalization changes offsets. All existing pairing/link diagnostics and authored text remain checked; the normalized-offset negative control fails if stale AST reuse is restored. Ninety owning tests passed in that source qualification."
+        },
+        {
+          "path": "scripts/translation-pairing.spec.ts",
+          "disposition": "adopted",
+          "reason": "Previously implemented at 9a5e43b601 with reusable exact-text GFM parses, supplied-tree parity and reparsing after link normalization changes offsets. All existing pairing/link diagnostics and authored text remain checked; the normalized-offset negative control fails if stale AST reuse is restored. Ninety owning tests passed in that source qualification."
+        },
+        {
+          "path": "scripts/verify-translation-pairing.ts",
+          "disposition": "adopted",
+          "reason": "Previously implemented at 9a5e43b601 with reusable exact-text GFM parses, supplied-tree parity and reparsing after link normalization changes offsets. All existing pairing/link diagnostics and authored text remain checked; the normalized-offset negative control fails if stale AST reuse is restored. Ninety owning tests passed in that source qualification."
+        }
+      ],
+      "evidence": [
+        "Implementation e46bc7f4260a3d9bdaee02e25a45c96db77a7108. Translation parse reuse was previously qualified and published at 9a5e43b601. Exact cohort 853ad0bb9fd5ccf997a7f723b5eaf050dc6f7aad through 8a7d5014bfa4d1cfcc92cdbfadbca0d041242191 comprises ten commits and forty first-parent paths, including an intermediate-only root manifest. No manual merge resolution is present.",
+        "Verified 2026-10-26 on Windows, Harnessy0.1.17, Node24.14.0, pnpm11.7.0 and Vitest4.1.8. Final seven-owner run passed 313 cases with five explicit existing Windows skips; real pinned-pnpm packing owner passed sixteen. Fixture compiler diagnostics are deliberate rejection tests, not ignored failures. Workflow/native diagnostic owners passed95 after the final parent assertion edits, including21 diagnostic cases. Actual Node22/26 execution and hosted performance are not inferred.",
+        "Real temporary compiler programs compare complete emitted artifacts and reject package and auxiliary-test type errors. The ordinary full compiler also rejects aggregate-only errors. Real coverage partitions pass merged100% coverage, reject an uncovered branch, reporter failure, and missing/duplicate blobs. Timing failures remain advisory only when they do not affect canonical coverage success. Real temporary pack hooks demonstrate exact member selection, bounded overlap, tarball validation, failure cleanup, custom profiles and the unpublishable Harnessy marker.",
+        "All inherited PR jobs and their aggregate require the existing explicit fork opt-in. The aggregate includes complete consumer and Windows build verdicts alongside compatibility and Python runtime. Supported custom Windows retains normal build:custom-harness, whose default full Host and Client compilers are asserted; only its redundant preceding Host-only compile was removed. Negative controls removing one opt-in or substituting artifact-only supported compilation both failed assertions and source bytes were restored.",
+        "Ordinary full Host compilation and bundling passed at unchanged4096MB. Complete source lint passed after correcting four test-only lint diagnostics, with final native-condition assertions also checked by scoped typed lint. The documentation aggregate passed42 gates and found one stale Python guide pairing record; both guide languages were read, only that metadata was corrected, and the exact corpus-wide pairing gate then passed all968 pairs. Thus all43 documentation checks are qualified without repeating unaffected gates. All17 hygiene gates and140 product plus two Node tests passed. The independent script reviewer found no actionable defects. Normal delivery hooks must still pass; no installed staging-window or main-app update is established by source checks.",
+        "The approved one-time manual Linux/Mac diagnostic lane is separate from this upstream cohort. Its addition leaves all seven inherited master/manual job definitions unchanged and is restricted to explicit fork staging dispatch. Source/fixture tests do not claim native execution. Python confinement, native Mac Computer Use, recordings and packaged runtime remain pending until their own qualification; the checkpoint remains973a7fb8e4d03635599e786f69ab0d3249111ae5.",
+        "No release/tag/master push, product update, upstream ancestry merge, private/live-service activation, new local app checkout or automatic multi-platform enablement is performed by this review. Excluded paths retain complete checked commands and their matching tests."
       ]
     }
   }
