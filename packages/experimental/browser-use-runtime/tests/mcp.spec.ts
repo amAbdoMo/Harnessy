@@ -213,6 +213,105 @@ describe('Session MCP Loader composition', () => {
     }
   })
 
+  it('waits for deleted-directory recovery before starting the MCP process in the original project', async () => {
+    const { ctx, root } = await load()
+    const original = await realpath(root)
+    const selected = join(original, 'selected')
+    await mkdir(selected)
+    const release = Promise.withResolvers<undefined>()
+    const stat = ctx.fs.stat.bind(ctx.fs)
+    let checking = false
+    let created = false
+    let restoreStat: (() => void) | undefined
+    let initializing!: Agent
+    const creation = ctx.agents.create({
+      sessionId: SessionId('recovered-directory'), meta: { cwd: original },
+      setup: (inner, agent) => {
+        initializing = agent
+        inner.on('agent/created', async () => {
+          await ctx.workingDirectory.set(agent, selected)
+          await rm(selected, { recursive: true })
+          const probe = vi.spyOn(ctx.fs, 'stat').mockImplementationOnce(async (target, signal) => {
+            checking = true
+            await release.promise
+            return stat(target, signal)
+          })
+          restoreStat = () => { probe.mockRestore() }
+        }, { prepend: true })
+      },
+    }).then((handle) => {
+      created = true
+      return handle
+    })
+    const settled = Promise.allSettled([creation])
+    try {
+      await vi.waitFor(() => { expect(checking).toBe(true) })
+      expect(created).toBe(false)
+      await expect(readFile(join(root, 'events.ndjson'))).rejects.toMatchObject({ code: 'ENOENT' })
+      release.resolve(undefined)
+      expect(await settled).toMatchObject([{ status: 'fulfilled' }])
+      expect(ctx.workingDirectory.get(initializing.session)).toBe(original)
+      expect(initializing.session.header.cwd).toBe(original)
+      expect(initializing.session.snapshotEvents().filter(event => event.type === 'working-directory/change').map(event => event.data))
+        .toEqual([{ cwd: selected }, { cwd: original }])
+      expect((await events(root)).filter(event => event.event === 'start').map(event => event.cwd)).toEqual([original, original])
+      expect((await execute(ctx, initializing)).isError).toBe(false)
+    } finally {
+      release.resolve(undefined)
+      await settled
+      restoreStat?.()
+    }
+  })
+
+  it('rejects an unavailable original project before spawning an MCP process', async () => {
+    const { ctx, root } = await load()
+    const original = join(await realpath(root), 'original')
+    const selected = join(await realpath(root), 'selected')
+    await Promise.all([original, selected].map(directory => mkdir(directory)))
+    await expect(ctx.agents.create({
+      sessionId: SessionId('unavailable-original'), meta: { cwd: original },
+      setup: (inner, agent) => {
+        inner.on('agent/created', async () => {
+          await ctx.workingDirectory.set(agent, selected)
+          await Promise.all([original, selected].map(directory => rm(directory, { recursive: true })))
+        }, { prepend: true })
+      },
+    })).rejects.toThrow('working-directory: directory does not exist')
+    expect(ctx.agents.get(SessionId('unavailable-original'))).toBeUndefined()
+    expect(ctx.sessions.get(SessionId('unavailable-original'))).toBeUndefined()
+    await expect(readFile(join(root, 'events.ndjson'))).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('cancels directory validation without spawning a process or retaining the attachment', async () => {
+    const { ctx, root } = await load(true)
+    const release = Promise.withResolvers<undefined>()
+    const stat = ctx.fs.stat.bind(ctx.fs)
+    let checking = false
+    const probe = vi.spyOn(ctx.fs, 'stat').mockImplementationOnce(async (target, signal) => {
+      checking = true
+      await release.promise
+      return stat(target, signal)
+    })
+    const controller = new AbortController()
+    const creation = ctx.agents.create({ sessionId: SessionId('canceled-directory'), signal: controller.signal })
+    const settled = Promise.allSettled([creation])
+    try {
+      await vi.waitFor(() => { expect(checking).toBe(true) })
+      controller.abort(new Error('cancel directory validation'))
+      release.resolve(undefined)
+      await expect(creation).rejects.toThrow('cancel directory validation')
+      expect(ctx.agents.get(SessionId('canceled-directory'))).toBeUndefined()
+      expect(ctx.sessions.get(SessionId('canceled-directory'))).toBeUndefined()
+      await expect(readFile(join(root, 'events.ndjson'))).rejects.toMatchObject({ code: 'ENOENT' })
+    } finally {
+      release.resolve(undefined)
+      await settled
+      probe.mockRestore()
+    }
+    const successor = await ctx.agents.create({ sessionId: SessionId('directory-successor') })
+    expect((await execute(ctx, successor.agent)).isError).toBe(false)
+  })
+
   it('discovers schemas before the first model request and retains distinct state across turns', async () => {
     const { ctx, root, model, browser } = await load(false, undefined, 5000, [TOOL, '<unlisted-tools>'])
     const first = await ctx.agents.create({ sessionId: SessionId('first'), meta: { cwd: root }, agentOptions: { provider: 'fixture', model: 'fixture' } })
