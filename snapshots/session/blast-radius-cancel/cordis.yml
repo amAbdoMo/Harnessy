@@ -1,0 +1,8 @@
+# Live recording composition for Blast Radius cancellation through the public band API.
+- insert:
+    - id: claude-code-mods
+      name: '@deepseek-ai/dsh-experimental-claude-code-mods'
+    - id: blast-radius
+      name: '@deepseek-ai/dsh-experimental-claude-code-mods/examples/blast-radius/index.ts'
+    - id: blast-radius-cancel-actor
+      name: './fixture-actor.ts'

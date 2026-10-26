@@ -4,7 +4,7 @@ import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import { join, resolve } from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import type { Agent } from '@deepseek-ai/dsh-agent'
@@ -1046,6 +1046,58 @@ describe('a mod\'s $.tool.call reaches the mods loaded before it', () => {
 })
 
 describe('the band above the prompt', () => {
+  it('cancels a Blast Radius hold with its real timer child before running the command', { timeout: 30_000 }, async () => {
+    const blastRadius = (await import('../examples/blast-radius/index.ts')).default
+    const ran: string[] = []
+    const h = await harness([blastRadius], new MockAdapter([
+      toolCallResponse('held-command', 'bash', { command: 'git reset --hard' }),
+    ]), {
+      services: async (ctx) => { await ctx.plugin(LocalSubprocessRuntime) },
+    })
+    h.ctx.tools.register(echoTool('bash', ran))
+    const agent = await h.agent()
+    const spawn = h.ctx.subprocess.spawn.bind(h.ctx.subprocess)
+    const timers: ReturnType<typeof spawn>[] = []
+    const started = Promise.withResolvers<AbortSignal | undefined>()
+    const observed = vi.spyOn(h.ctx.subprocess, 'spawn').mockImplementation((spec) => {
+      if (spec.argv[0] === 'sleep') throw new Error('spawn sleep ENOENT')
+      const child = spawn(spec)
+      if (spec.argv[0] === process.execPath && spec.argv[1] === '-e') {
+        timers.push(child)
+        started.resolve(spec.signal)
+      }
+      return child
+    })
+    onTestFinished(async () => {
+      observed.mockRestore()
+      for (const child of timers) child.terminate()
+      await Promise.allSettled(timers.map(child => child.done))
+      for (const child of timers) expect(await child.waitForExit(AbortSignal.timeout(15_000))).toBe(true)
+    })
+
+    const turning = h.turn(agent, 'reset it')
+    const signal = await started.promise
+    const completed = Promise.allSettled(timers.map(child => child.done))
+    agent.cancel({ kind: 'user' })
+    await turning
+    expect(signal?.aborted).toBe(true)
+    expect(ran).toEqual([])
+    expect(timers).not.toHaveLength(0)
+    // Cancellation can precede the provider's target startup; reject only with that same abort reason.
+    for (const outcome of await completed) {
+      if (outcome.status === 'rejected') expect(outcome.reason).toBe(signal?.reason)
+    }
+    for (const child of timers) expect(await child.waitForExit(AbortSignal.timeout(15_000))).toBe(true)
+    const observing = new AbortController()
+    const drawing = h.ctx.claudeCodeMods.watchBand(agent, observing.signal)[Symbol.asyncIterator]()
+    try {
+      expect(await drawing.next()).toMatchObject({ done: false, value: { tree: null } })
+    } finally {
+      observing.abort()
+      await drawing.return?.()
+    }
+  })
+
   it('draws Token Weather from session facts, redraws on the state it read, and resolves a Blast Radius hold by a press', { timeout: 30_000 }, async () => {
     const tokenWeather = (await import('../examples/token-weather/index.ts')).default
     const blastRadius = (await import('../examples/blast-radius/index.ts')).default
@@ -1075,15 +1127,17 @@ describe('the band above the prompt', () => {
         await ctx.plugin(TokenMeter)
         await ctx.plugin(LocalFileSystem, { cwd: workspace })
         await ctx.plugin(LocalSubprocessRuntime)
-        const subprocess = ctx.get('subprocess')!
-        const spawn = subprocess.spawn.bind(subprocess)
-        // The published example calls POSIX sleep; keep its real delay portable through an owned Node child.
-        vi.spyOn(subprocess, 'spawn').mockImplementation(spec => spawn(spec.argv[0] !== 'sleep' ? spec : {
-          ...spec,
-          argv: [process.execPath, '-e', 'setTimeout(() => {}, Number(process.argv[1]) * 1000)', ...spec.argv.slice(1)],
-        }))
       },
     })
+    // Windows has no POSIX sleep executable; every other subprocess uses the real provider.
+    const spawn = h.ctx.subprocess.spawn.bind(h.ctx.subprocess)
+    const firstWait = Promise.withResolvers<readonly string[]>()
+    const withoutSleep = vi.spyOn(h.ctx.subprocess, 'spawn').mockImplementation((spec) => {
+      if (spec.argv[0] === 'sleep' || spec.argv[0] === process.execPath && spec.argv[1] === '-e') firstWait.resolve(spec.argv)
+      if (spec.argv[0] === 'sleep') throw new Error('spawn sleep ENOENT')
+      return spawn(spec)
+    })
+    onTestFinished(() => { withoutSleep.mockRestore() })
     h.ctx.tools.register(echoTool('bash', ran))
     const agent = await h.agent()
     const mods = h.ctx.claudeCodeMods
@@ -1100,8 +1154,9 @@ describe('the band above the prompt', () => {
     await waitFor(() => JSON.stringify(seen.at(-1)).includes('of context'))
     expect(h.warn).not.toHaveBeenCalledWith(expect.stringMatching(/ui.render hook skipped/))
 
-    // A risky command holds; the hook polls with real sleeps while the band offers Proceed and Cancel.
+    // A risky command holds while the band offers Proceed and Cancel.
     const holding = h.turn(agent, 'reset it')
+    expect((await firstWait.promise)[0]).toBe(process.execPath)
     await waitFor(() => JSON.stringify(seen.at(-1)).includes('Cancel'))
     const drawn = seen.at(-1) as { generation: number; tree: unknown }
     const buttonId = (tree: unknown, label: string): string | undefined =>

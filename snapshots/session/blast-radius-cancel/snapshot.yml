@@ -1,0 +1,11 @@
+version: 1
+scenario: blast-radius-cancel
+profile: headless
+composition: blast-radius-cancel
+recording: authored
+permission: danger-full-access
+header:
+  class: blast-radius-cancel
+  pin: true
+workspace:
+  final: true

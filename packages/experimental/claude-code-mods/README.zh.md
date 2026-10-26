@@ -55,6 +55,8 @@ export default defineMod({ name: 'token-weather', version: '0.1.0', root: import
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-experimental-claude-code-mods)是所有可接受字段的完整来源。[examples](examples/) 目录以插件目录的形式收录了 Anthropic [Getting started with Claude Code mods](https://claude.dev/blog/getting-started-with-claude-code-mods/) 一文中的三个模组，它们同样可在 `claude --plugin-dir` 下运行：Token Weather 的已发布模块、类型与测试原样保留，Blast Radius 与 Replay Theater 则由已发布片段补全。[可选叠加层](cordis.source.patch.yml)把桥接、三个模组与 [Web 横幅](../client-ui-claude-code-mods/README.zh.md)组合起来用于源码启动。
 
+Blast Radius 的 DSH 包装使用当前运行的可执行文件提供 Node 计时子进程，因此 Proceed/Cancel 等待在 Windows 上不依赖 POSIX `sleep`。等待仍通过 `$.process.run` 执行，暂停钩子自身的运行时间预算，并随事件取消子进程。独立的 Claude Code hooks 模块默认使用 `sleep 0.25`；其预演命令也需要宿主机提供相应工具。
+
 ### 你的模组会收到哪些事件
 
 | 事件 | 触发自 | 钩子可以 |

@@ -1,6 +1,6 @@
 // Blast Radius, from "Getting started with Claude Code mods"
 // (https://claude.dev/blog/getting-started-with-claude-code-mods/, Anthropic, 2026-10-01).
-// The post publishes the tool.call hook below unchanged; the rest of the module
+// The tool.call hook accepts waitArgv for DSH's portable timer; the rest of the module
 // (classify, measure, the pane and band trees) is completed to the post's
 // description of the mod, which is marked where it starts.
 
@@ -19,21 +19,26 @@ const RISKS = [
 // What the hook is holding: one command at a time, until a button decides.
 let held = null;
 
-export function register(on) {
+export function register(on, { waitArgv = ["sleep", "0.25"] } = {}) {
   on("tool.call", { tool: "Bash" }, async ($, e, next) => {
     const risk = classify(String(e.command ?? ""));
     if (risk === null) return next(e);                 // everything else runs as normal
 
     const report = await measure($, risk, await $.session.cwd());  // git status, git clean -n, du, ...
     held = { command: e.command, risk, report, decision: null };
-    const opened = await $.ui.open({ id: "blast-radius", title: "Blast Radius", focus: true });
-    if (!opened.isPlaced) held.where = "band";         // too narrow for a pane: draw above the prompt
+    const pending = held;
+    try {
+      const opened = await $.ui.open({ id: "blast-radius", title: "Blast Radius", focus: true });
+      if (!opened.isPlaced) pending.where = "band";    // too narrow for a pane: draw above the prompt
 
-    while (held.decision === null && !next.signal.aborted) {
-      await $.process.run(["sleep", "0.25"]);          // time inside $ calls doesn't count against the hook's time limit
+      while (pending.decision === null && !next.signal.aborted) {
+        await $.process.run(waitArgv);                 // time inside $ calls doesn't count against the hook's time limit
+      }
+      if (pending.decision === "proceed") return next(e);
+      return { deny: `Blast Radius held this command: the user pressed Cancel. It would have: ${report.summary}.` };
+    } finally {
+      if (held === pending) held = null;
     }
-    if (held.decision === "proceed") return next(e);   // let it run
-    return { deny: `Blast Radius held this command: the user pressed Cancel. It would have: ${report.summary}.` };
   });
 
   // —— completed to the post's description (not in the published excerpt) ——
