@@ -26,10 +26,12 @@ The recording itself is part of the evidence: use a real server booted from that
 
 A GIF for a specific pull request demonstrates that pull request's tree, so stage per pull request:
 
-1. Require a clean worktree, record its exact commit with `git rev-parse HEAD`, then build that recorded tree — here, `pnpm run build && pnpm run build:web`. A GIF recorded against another commit's build misattributes the evidence.
-2. Boot one server per port from that tree with fresh scratch `DSH_HOME`, `DSH_AGENTS_HOME`, workspace, and session state. Give the browser a fresh isolated context or profile as well; if the browser workflow cannot create one, clear that origin's cookies and site storage before navigation so persisted client state cannot affect the evidence. Source the root `.env` for the API key through the application's normal path; never echo the key.
+1. Require a clean worktree, record its exact commit with `git rev-parse HEAD`, then build that recorded tree — here, `pnpm run build && pnpm run build:web`. For Harnessy, use the [staging build procedure](../../../HARNESSY-STAGING-DELIVERY.md#safe-builds) and its custom build profile. A GIF recorded against another commit's build misattributes the evidence.
+2. Boot one server per port from that tree with fresh scratch `DSH_HOME`, `DSH_AGENTS_HOME`, workspace, and session state. Give the browser a fresh isolated context or profile as well; if the browser workflow cannot create one, clear that origin's cookies and site storage before navigation so persisted client state cannot affect the evidence. Resolve API credentials through the application's normal provider; never read or display their values.
 3. Treat one storyboard as one evidence run: every published frame comes from that server and those state roots, workspace, session, and model-backed scenario run. If capture automation fails, discard its frames and rerun from fresh roots; never splice frames from separate runs.
 4. When switching between pull requests, stop the old server by PID or an exact match on its command line. A broad `pkill -f` pattern can match and kill the shell that launched it — including your own.
+
+Managed credentials can exist even when `DEEPSEEK_API_KEY` and root `.env` are absent. Identify the selected staging/test home's configured `dsh-credentials-local` store without opening its contents. When those credentials are authorized for the recording, a recording overlay can set that provider's `path` to the store's absolute path while other state stays in scratch homes. Preserve [main/staging isolation](../../../HARNESSY-STAGING-DELIVERY.md); another app's home is not an automatic credential fallback. If no authorized source is available, report the missing credential prerequisite.
 
 ## Record the flow
 
