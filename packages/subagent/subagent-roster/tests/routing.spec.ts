@@ -8,18 +8,33 @@ import { readdir, readFile } from 'node:fs/promises'
 import { describe, expect, it } from 'vitest'
 import { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import type { LlmModelReasoningInfo } from '@deepseek-ai/dsh-llm'
+import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
+import WorkingDirectory from '@deepseek-ai/dsh-working-directory'
 import { MockAdapter } from '../../../core/agent-loop/tests/mock-adapter.ts'
 import { DELEGATE_TOOL } from '../src/tools.ts'
 import {
-  bootRoster,
+  bootRoster as bootBareRoster,
   delegate,
   definition,
   documentOf,
-  headerAgent,
+  stubAgent,
   listSubagents,
   parametersOf,
   text,
 } from './harness.ts'
+
+async function bootRoster(options: Parameters<typeof bootBareRoster>[0] = {}) {
+  const roster = await bootBareRoster(options)
+  await roster.ctx.plugin(LocalFileSystem)
+  await roster.ctx.plugin(WorkingDirectory, {})
+  return roster
+}
+
+let callingAgentNumber = 0
+
+function callingAgent(roster: Awaited<ReturnType<typeof bootRoster>>) {
+  return stubAgent(roster.ctx, `routing-parent-${++callingAgentNumber}`).agent
+}
 
 /** The package's own implementation directory, read to prove it names no vendor. */
 const SOURCE_DIR = new URL('../src/', import.meta.url)
@@ -61,7 +76,7 @@ describe('fixed model routes', () => {
   it('sends the definition route to the child whatever the parent does', async () => {
     const roster = await bootRoster({ settings: documentOf([fixed]) })
     catalog(roster, ['alpha'], EFFORTS)
-    const result = await delegate(roster, { subagent: 'code', task: 'Do it.' }, headerAgent())
+    const result = await delegate(roster, { subagent: 'code', task: 'Do it.' }, callingAgent(roster))
     expect(result.isError).toBe(false)
     expect(roster.requests[0]?.agentOptions).toEqual({
       provider: 'alpha',
@@ -78,7 +93,7 @@ describe('fixed model routes', () => {
   ])('refuses %s from a call against a fixed definition', async (_label, selection) => {
     const roster = await bootRoster({ settings: documentOf([fixed]) })
     catalog(roster, ['alpha', 'beta'], EFFORTS)
-    const result = await delegate(roster, { subagent: 'code', task: 'Do it.', ...selection }, headerAgent())
+    const result = await delegate(roster, { subagent: 'code', task: 'Do it.', ...selection }, callingAgent(roster))
     expect(result.isError).toBe(true)
     expect(text(result)).toContain('fixes its model, so this call cannot select a route')
     expect(roster.requests).toHaveLength(0)
@@ -87,7 +102,7 @@ describe('fixed model routes', () => {
 
   it('reports the fixed route and its effort in the directory', async () => {
     const roster = await bootRoster({ settings: documentOf([fixed]) })
-    const result = await listSubagents(roster, headerAgent())
+    const result = await listSubagents(roster, callingAgent(roster))
     expect(text(result)).toContain('model alpha/small at low')
     await roster.dispose()
   })
@@ -107,7 +122,7 @@ describe('fixed definitions that name no route', () => {
 
   it('sends no route, so the child inherits the parent route', async () => {
     const roster = await bootRoster({ settings: documentOf([inheriting]) })
-    const result = await delegate(roster, { subagent: 'code', task: 'Do it.' }, headerAgent())
+    const result = await delegate(roster, { subagent: 'code', task: 'Do it.' }, callingAgent(roster))
     expect(result.isError).toBe(false)
     // An omitted route is exactly the `configured === undefined` case the shared
     // selection path already handles by contributing no agent options.
@@ -122,7 +137,7 @@ describe('fixed definitions that name no route', () => {
   ])('refuses %s with SUBAGENT_ROUTE_FIXED and starts no child', async (_label, selection) => {
     const roster = await bootRoster({ settings: documentOf([inheriting]) })
     catalog(roster, ['alpha', 'beta'], EFFORTS)
-    const result = await delegate(roster, { subagent: 'code', task: 'Do it.', ...selection }, headerAgent())
+    const result = await delegate(roster, { subagent: 'code', task: 'Do it.', ...selection }, callingAgent(roster))
     expect(result.isError).toBe(true)
     expect(text(result)).toContain('fixes its model, so this call cannot select a route')
     expect(roster.requests).toHaveLength(0)
@@ -131,14 +146,14 @@ describe('fixed definitions that name no route', () => {
 
   it('reports the inherited route in the directory rather than a selection', async () => {
     const roster = await bootRoster({ settings: documentOf([inheriting]) })
-    const result = await listSubagents(roster, headerAgent())
+    const result = await listSubagents(roster, callingAgent(roster))
     expect(text(result)).toContain('model inherit')
     await roster.dispose()
   })
 
   it('is what every shipped role does, so a delegation selects nothing for it', async () => {
     const roster = await bootRoster()
-    const result = await delegate(roster, { subagent: 'code', task: 'Do it.' }, headerAgent())
+    const result = await delegate(roster, { subagent: 'code', task: 'Do it.' }, callingAgent(roster))
     expect(result.isError).toBe(false)
     expect(roster.requests[0]?.agentOptions).toBeUndefined()
 
@@ -147,7 +162,7 @@ describe('fixed definitions that name no route', () => {
     const refused = await delegate(
       roster,
       { subagent: 'code', task: 'Again.', provider: 'alpha', model: 'small' },
-      headerAgent(),
+      callingAgent(roster),
     )
     expect(refused.isError).toBe(true)
     expect(text(refused)).toContain('fixes its model, so this call cannot select a route')
@@ -171,12 +186,12 @@ describe('automatic model routing', () => {
     const first = await delegate(
       roster,
       { subagent: 'code', task: 'One.', provider: 'alpha', model: 'small' },
-      headerAgent(),
+      callingAgent(roster),
     )
     const second = await delegate(
       roster,
       { subagent: 'code', task: 'Two.', provider: 'beta', model: 'large' },
-      headerAgent(),
+      callingAgent(roster),
     )
     expect(first.isError).toBe(false)
     expect(second.isError).toBe(false)
@@ -193,7 +208,7 @@ describe('automatic model routing', () => {
     const result = await delegate(
       roster,
       { subagent: 'code', task: 'One.', provider: 'gamma', model: 'unlisted' },
-      headerAgent(),
+      callingAgent(roster),
     )
     expect(result.isError).toBe(true)
     expect(text(result)).toBe('Error: child LLM route "gamma/unlisted" is not allowed for this Session')
@@ -213,7 +228,7 @@ describe('automatic model routing', () => {
     const result = await delegate(
       roster,
       { subagent: 'code', task: 'One.', provider: 'beta', model: 'large' },
-      headerAgent(),
+      callingAgent(roster),
     )
     expect(result.isError).toBe(false)
     // The effort belonged to the route that was replaced, so it is not sent.
@@ -223,7 +238,7 @@ describe('automatic model routing', () => {
 
   it('carries no route at all when the definition configures none and the call selects none', async () => {
     const roster = await bootRoster({ settings: authorized })
-    const result = await delegate(roster, { subagent: 'code', task: 'One.' }, headerAgent())
+    const result = await delegate(roster, { subagent: 'code', task: 'One.' }, callingAgent(roster))
     expect(result.isError).toBe(false)
     expect(roster.requests[0]?.agentOptions).toBeUndefined()
     await roster.dispose()
@@ -239,13 +254,13 @@ describe('automatic routing authority', () => {
     const result = await delegate(
       roster,
       { subagent: 'code', task: 'One.', provider: 'alpha', model: 'small' },
-      headerAgent(),
+      callingAgent(roster),
     )
     expect(result.isError).toBe(true)
     expect(text(result)).toContain('child model selection is disabled for this tool instance')
     expect(roster.requests).toHaveLength(0)
 
-    const inherited = await delegate(roster, { subagent: 'code', task: 'Two.' }, headerAgent())
+    const inherited = await delegate(roster, { subagent: 'code', task: 'Two.' }, callingAgent(roster))
     expect(inherited.isError).toBe(false)
     expect(roster.requests[0]?.agentOptions).toBeUndefined()
     await roster.dispose()
@@ -258,7 +273,7 @@ describe('automatic routing authority', () => {
     const result = await delegate(
       roster,
       { subagent: 'code', task: 'One.', reasoning_effort: 'high' },
-      headerAgent(),
+      callingAgent(roster),
     )
     expect(result.isError).toBe(true)
     expect(text(result)).toContain('fixes its model')
@@ -280,7 +295,7 @@ describe('reasoning effort capability', () => {
     const result = await delegate(
       roster,
       { subagent: 'code', task: 'One.', provider: 'alpha', model: 'small', reasoning_effort: 'high' },
-      headerAgent(),
+      callingAgent(roster),
     )
     expect(result.isError).toBe(true)
     expect(text(result)).toContain('does not support reasoning effort "high"')
@@ -298,7 +313,7 @@ describe('reasoning effort capability', () => {
     const accepted = await delegate(
       roster,
       { subagent: 'code', task: 'One.', provider: 'alpha', model: 'small', reasoning_effort: 'low' },
-      headerAgent(),
+      callingAgent(roster),
     )
     expect(accepted.isError).toBe(false)
     expect(roster.requests[0]?.agentOptions).toEqual({
@@ -317,7 +332,7 @@ describe('reasoning effort capability', () => {
     const result = await delegate(
       roster,
       { subagent: 'code', task: 'One.', provider: 'alpha', model: 'small', reasoning_effort: 'high' },
-      headerAgent(),
+      callingAgent(roster),
     )
     expect(result.isError).toBe(true)
     expect(text(result)).toContain('does not support reasoning effort "high"')
@@ -332,7 +347,7 @@ describe('reasoning effort capability', () => {
       })]),
     })
     catalog(roster, ['alpha'], EFFORTS)
-    const result = await delegate(roster, { subagent: 'code', task: 'One.' }, headerAgent())
+    const result = await delegate(roster, { subagent: 'code', task: 'One.' }, callingAgent(roster))
     expect(result.isError).toBe(true)
     expect(text(result)).toContain('does not support reasoning effort "max"')
     expect(roster.requests).toHaveLength(0)
@@ -348,7 +363,7 @@ describe('route resolution over a multi-provider catalog', () => {
     })
     // The definition's route wins over the backend default, and both are catalog data.
     catalog(roster, ['alpha', 'beta'])
-    const result = await delegate(roster, { subagent: 'code', task: 'One.' }, headerAgent())
+    const result = await delegate(roster, { subagent: 'code', task: 'One.' }, callingAgent(roster))
     expect(result.isError).toBe(false)
     expect(roster.requests[0]?.agentOptions).toEqual({ provider: 'beta', model: 'large' })
     await roster.dispose()
@@ -359,7 +374,7 @@ describe('route resolution over a multi-provider catalog', () => {
       settings: documentOf([definition({ id: 'code', model: { mode: 'fixed', route: BETA_LARGE } })]),
     })
     catalog(roster, ['alpha'])
-    const result = await delegate(roster, { subagent: 'code', task: 'One.' }, headerAgent())
+    const result = await delegate(roster, { subagent: 'code', task: 'One.' }, callingAgent(roster))
     expect(result.isError).toBe(true)
     expect(text(result)).toContain('no adapter registered for provider "beta"')
     expect(roster.requests).toHaveLength(0)
@@ -371,7 +386,7 @@ describe('route resolution over a multi-provider catalog', () => {
       withoutLlm: true,
       settings: documentOf([definition({ id: 'code', model: { mode: 'fixed', route: ALPHA_SMALL } })]),
     })
-    const result = await delegate(roster, { subagent: 'code', task: 'One.' }, headerAgent())
+    const result = await delegate(roster, { subagent: 'code', task: 'One.' }, callingAgent(roster))
     expect(result.isError).toBe(true)
     expect(text(result)).toContain('the `llm` service is unavailable')
     expect(roster.requests).toHaveLength(0)
@@ -397,7 +412,7 @@ describe('backends that own their model space', () => {
       children: [{ name: 'spawn', capabilities: { runtimeRoute: false } }],
       settings: documentOf([ownRoute]),
     })
-    const result = await delegate(roster, { subagent: 'code', task: 'One.' }, headerAgent())
+    const result = await delegate(roster, { subagent: 'code', task: 'One.' }, callingAgent(roster))
     expect(result.isError).toBe(false)
     expect(roster.requests[0]?.agentOptions).toEqual({
       provider: 'vendor',
@@ -413,7 +428,7 @@ describe('backends that own their model space', () => {
       children: [{ name: 'spawn', capabilities: { runtimeRoute: false }, refuse: { failure: 'error' } }],
       settings: documentOf([ownRoute]),
     })
-    const result = await delegate(roster, { subagent: 'code', task: 'One.' }, headerAgent())
+    const result = await delegate(roster, { subagent: 'code', task: 'One.' }, callingAgent(roster))
     // The route reached the backend rather than being refused here, and the
     // backend's own refusal is what the caller reads.
     expect(result.isError).toBe(true)
@@ -427,7 +442,7 @@ describe('backends that own their model space', () => {
       children: [{ name: 'spawn', capabilities: { runtimeRoute: true } }],
       settings: documentOf([ownRoute]),
     })
-    const result = await delegate(roster, { subagent: 'code', task: 'One.' }, headerAgent())
+    const result = await delegate(roster, { subagent: 'code', task: 'One.' }, callingAgent(roster))
     expect(result.isError).toBe(true)
     expect(text(result)).toContain('the `llm` service is unavailable')
     expect(roster.requests).toHaveLength(0)
@@ -449,7 +464,7 @@ describe('provider-agnostic routing', () => {
   it('accepts a definition naming a provider this package has never heard of', async () => {
     const roster = await bootRoster({ settings: documentOf([thirdProvider]) })
     catalog(roster, ['gamma'])
-    const result = await delegate(roster, { subagent: 'audit', task: 'Audit it.' }, headerAgent())
+    const result = await delegate(roster, { subagent: 'audit', task: 'Audit it.' }, callingAgent(roster))
     expect(result.isError).toBe(false)
     expect(roster.requests[0]?.agentOptions).toEqual({ provider: 'gamma', model: 'auditor' })
     await roster.dispose()
@@ -459,7 +474,7 @@ describe('provider-agnostic routing', () => {
     const roster = await bootRoster({ settings: documentOf([thirdProvider]) })
     // With no adapter registered for `gamma` the same definition fails at the
     // catalog, not at a hard-coded list inside this package.
-    const result = await delegate(roster, { subagent: 'audit', task: 'Audit it.' }, headerAgent())
+    const result = await delegate(roster, { subagent: 'audit', task: 'Audit it.' }, callingAgent(roster))
     expect(result.isError).toBe(true)
     expect(text(result)).toContain('no adapter registered for provider "gamma"')
     await roster.dispose()
