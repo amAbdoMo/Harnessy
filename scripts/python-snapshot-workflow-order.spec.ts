@@ -5,7 +5,7 @@ import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import { WorkflowRunId } from '@deepseek-ai/dsh-workflow'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
-import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
+import { mountAgentLoopTestDependencies, provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
 import SubagentRuntime from '@deepseek-ai/dsh-subagent'
 import * as spawn from '@deepseek-ai/dsh-subagent-spawn-in-process'
 import { MockAdapter, textResponse } from '../packages/core/agent-loop/tests/mock-adapter.ts'
@@ -58,6 +58,7 @@ describe('advanced Python snapshot workflow ordering', () => {
       name: 'workflow-order-driver-test',
       async apply(inner: Context) {
         await mountAgentLoopTestDependencies(inner)
+        provideWorkingDirectoryFixture(inner)
         await inner.plugin(AgentLoop, { agents: [] })
         await inner.plugin(SubagentRuntime)
         await inner.plugin(spawn, { providerName: 'spawn' })

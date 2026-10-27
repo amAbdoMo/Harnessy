@@ -321,7 +321,7 @@ const TOOL_PACKAGES: ToolPackage[] = [
     pkg: '@deepseek-ai/dsh-tools',
     dir: 'tools',
     source: 'packages/core/tools/src/ptc.ts',
-    requires: ['ctx.tools', 'ctx.ptcRuntime (execution time)', 'ctx.systemPrompt'],
+    requires: ['ctx.workingDirectory (Agent executions)', 'ctx.tools', 'ctx.ptcRuntime (execution time)', 'ctx.systemPrompt'],
     writes: ['tool/call', 'one tool/ptc-dispatch-start + tool/ptc-dispatch pair per bridged sub-call', 'tool/result'],
     // The registry's OWN tool: run_code exists only under a non-native mode
     // (the registry registers it in its constructor; the PTC runtime is read

@@ -3,6 +3,8 @@ scenario: persistent-tools
 profile: sdk
 composition: sdk-minimal
 recording: live
+immutableInput: source-recording
+platform: posix
 header:
   class: sdk-minimal
   pin: true

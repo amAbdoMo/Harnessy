@@ -85,10 +85,12 @@ describe('release families', () => {
       '@deepseek-ai/dsh-experimental-subagent-oar',
       '@deepseek-ai/dsh-experimental-tool-agent-team',
       '@deepseek-ai/dsh-experimental-tool-subagent-oar',
+      '@deepseek-ai/dsh-experimental-tool-worktree',
       '@deepseek-ai/dsh-experimental-translator',
       '@deepseek-ai/dsh-experimental-voice-input-bundle',
       '@deepseek-ai/dsh-experimental-webworker-packer',
       '@deepseek-ai/dsh-experimental-webworker-runtime',
+      '@deepseek-ai/dsh-experimental-worktree',
     ])
   })
 

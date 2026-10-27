@@ -24,17 +24,19 @@ function fixture(selectedOwners = owners) {
     writeFileSync(join(dir, 'snapshot.yml'), 'immutableInput: source-recording\n')
     writeFileSync(join(dir, 'session.v4.jsonl'), `input ${owner}\n`)
   }
-  const sdk = join(repo, 'snapshots/sdk/ptc-turn'); mkdirSync(sdk, { recursive: true })
-  writeFileSync(join(sdk, 'snapshot.yml'), 'immutableInput: source-recording\n')
-  writeFileSync(join(sdk, 'session.v4.jsonl'), 'sdk input\n')
+  for (const owner of ['ptc-turn', 'persistent-tools']) {
+    const sdk = join(repo, 'snapshots/sdk', owner); mkdirSync(sdk, { recursive: true })
+    writeFileSync(join(sdk, 'snapshot.yml'), 'immutableInput: source-recording\n')
+    writeFileSync(join(sdk, 'session.v4.jsonl'), `sdk input ${owner}\n`)
+  }
   git('add', '.'); git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'fixture')
   const evidence = join(repo, '.artifacts/evidence')
   return { repo, evidence }
 }
-function reports(evidence: string) {
+function reports(evidence: string, selectedOwners = owners, sdkOwner = 'ptc-turn') {
   for (const [file, value] of [
-    ['headless-refresh.json', report(owners, 'refresh')], ['headless-replay.json', report(owners, 'replay')],
-    ['sdk-refresh.json', report(['ptc-turn'], 'refresh')], ['sdk-replay.json', report(['ptc-turn'], 'replay')],
+    ['headless-refresh.json', report(selectedOwners, 'refresh')], ['headless-replay.json', report(selectedOwners, 'replay')],
+    ['sdk-refresh.json', report([sdkOwner], 'refresh')], ['sdk-replay.json', report([sdkOwner], 'replay')],
     ['built-package-smoke.json', { status: 'success', errors: [], checks: [
       'built public package exports resolve from the Python runtime package', 'public built entrypoint and both packaged Python assets exist',
       'built package launches Python, returns a value, and permits workspace writes', 'built package denies writes outside its workspace',
@@ -46,35 +48,51 @@ function reports(evidence: string) {
 describe('bounded integration snapshot lane', () => {
   const directoryOwners = ['compaction-output-reserve', 'compaction-summary-headroom', 'worktree', 'ptc-turn']
 
-  it('bounds the directory fixture selection independently of primary SDK and Python checks', async () => {
+  it('bounds directory fixtures and the persistent SDK owner independently of primary checks', async () => {
     const { repo, evidence } = fixture(directoryOwners)
     await freezeSnapshotInputs(repo, evidence, 'directory-fixtures')
-    for (const verb of ['refresh', 'replay']) writeFileSync(join(evidence, `headless-${verb}.json`), JSON.stringify(report(directoryOwners, verb)))
+    reports(evidence, directoryOwners, 'persistent-tools')
     writeFileSync(join(repo, 'snapshots/session/worktree/writer.expected.jsonl'), 'current writer\n')
+    writeFileSync(join(repo, 'snapshots/sdk/persistent-tools/writer.expected.jsonl'), 'SDK current writer\n')
+    writeFileSync(join(repo, 'snapshots/sdk/persistent-tools/tool-schemas.expected.json'), '{}\n')
     const result = await captureIntegrationEvidence(repo, evidence, {
       freeze: 'success', headlessRefresh: 'success', headlessReplay: 'success',
-      sdkRefresh: 'skipped', sdkReplay: 'skipped', pythonMetadata: 'skipped', builtPackageSmoke: 'skipped',
+      sdkRefresh: 'success', sdkReplay: 'success', pythonMetadata: 'skipped', builtPackageSmoke: 'skipped',
     }, 'directory-fixtures')
     expect(result.qualified).toBe(true)
     expect(result.selection).toBe('directory-fixtures')
-    expect(Object.keys(result.ownerReports)).toEqual(['headless-refresh.json', 'headless-replay.json'])
+    expect(Object.keys(result.ownerReports)).toEqual(['headless-refresh.json', 'headless-replay.json', 'sdk-refresh.json', 'sdk-replay.json'])
     expect(isAllowedOutput('snapshots/sdk/ptc-turn/writer.expected.jsonl', 'directory-fixtures')).toBe(false)
     expect(isAllowedOutput('snapshots/session/working-directory/writer.expected.jsonl', 'directory-fixtures')).toBe(false)
+    expect(isAllowedOutput('snapshots/sdk/persistent-tools/session.v4.jsonl', 'directory-fixtures')).toBe(false)
+    expect(isAllowedOutput('snapshots/sdk/persistent-tools/tool-schemas.expected.json', 'directory-fixtures')).toBe(true)
+    for (const file of ['writer.1.expected.jsonl', 'system-prompt.1.expected.md', 'tool-schemas.1.expected.json']) {
+      expect(isAllowedOutput(`snapshots/sdk/persistent-tools/${file}`, 'directory-fixtures')).toBe(false)
+    }
   })
 
-  it.each(['input', 'unselected output', 'missing owner', 'skipped owner'] as const)('rejects directory fixture evidence with %s', async (failure) => {
+  it.each(['input', 'unselected output', 'numbered SDK output', 'missing owner', 'skipped owner', 'missing SDK owner', 'skipped SDK owner', 'skipped SDK step'] as const)('rejects directory fixture evidence with %s', async (failure) => {
     const { repo, evidence } = fixture(directoryOwners)
     await freezeSnapshotInputs(repo, evidence, 'directory-fixtures')
-    for (const verb of ['refresh', 'replay']) writeFileSync(join(evidence, `headless-${verb}.json`), JSON.stringify(report(directoryOwners, verb)))
+    reports(evidence, directoryOwners, 'persistent-tools')
     if (failure === 'input') writeFileSync(join(repo, 'snapshots/session/worktree/session.v4.jsonl'), 'changed')
     if (failure === 'unselected output') writeFileSync(join(repo, 'snapshots/sdk/ptc-turn/writer.expected.jsonl'), 'unselected')
+    if (failure === 'numbered SDK output') writeFileSync(join(repo, 'snapshots/sdk/persistent-tools/writer.1.expected.jsonl'), 'unselected')
     if (failure === 'missing owner') writeFileSync(join(evidence, 'headless-replay.json'), JSON.stringify(report(directoryOwners.slice(1), 'replay')))
+    if (failure === 'missing SDK owner') writeFileSync(join(evidence, 'sdk-replay.json'), JSON.stringify(report(['ptc-turn'], 'replay')))
+    if (failure === 'skipped SDK owner') {
+      const skipped = report(['persistent-tools'], 'replay')
+      skipped.testResults[0]!.assertionResults[0]!.status = 'skipped'
+      writeFileSync(join(evidence, 'sdk-replay.json'), JSON.stringify(skipped))
+    }
     if (failure === 'skipped owner') {
       const skipped = report(directoryOwners, 'replay')
       skipped.testResults[0]!.assertionResults[0]!.status = 'skipped'
       writeFileSync(join(evidence, 'headless-replay.json'), JSON.stringify(skipped))
     }
-    await expect(captureIntegrationEvidence(repo, evidence, outcomes, 'directory-fixtures')).rejects.toThrow()
+    await expect(captureIntegrationEvidence(repo, evidence, {
+      ...outcomes, ...failure === 'skipped SDK step' ? { sdkReplay: 'skipped' } : {},
+    }, 'directory-fixtures')).rejects.toThrow()
     expect(JSON.parse(readFileSync(join(evidence, 'phase.json'), 'utf8'))).toMatchObject({ qualified: false })
   })
 
@@ -85,7 +103,7 @@ describe('bounded integration snapshot lane', () => {
     await expect(captureIntegrationEvidence(repo, evidence, outcomes)).rejects.toThrow('selection changed after freeze')
   })
 
-  it('selects only Linux and the four named recordings for the fixture diagnostic', () => {
+  it('selects Linux, four headless recordings and one SDK recording for the fixture diagnostic', () => {
     const workflow = load(readFileSync(join(root, '.github/workflows/ci-master.yml'), 'utf8')) as {
       jobs: Record<string, {
         strategy: { matrix: { include: string } }
@@ -105,7 +123,12 @@ describe('bounded integration snapshot lane', () => {
     for (const name of ['Refresh selected headless owners', 'Replay selected headless owners']) {
       expect(job.steps.find(step => step.name === name)?.run).toContain(pattern)
     }
-    for (const name of ['Refresh SDK PTC owner', 'Replay SDK PTC owner', 'Check Python SDK PTC metadata', 'Smoke the built public Python runtime package']) {
+    for (const name of ['Refresh selected SDK owner', 'Replay selected SDK owner']) {
+      const step = job.steps.find(step => step.name === name)!
+      expect(step.if).toBeUndefined()
+      expect(step.run).toContain("'persistent-tools' || 'ptc-turn'")
+    }
+    for (const name of ['Check Python SDK PTC metadata', 'Smoke the built public Python runtime package']) {
       expect(evaluate(job.steps.find(step => step.name === name)!.if!, suite)).toBe(false)
     }
   })

@@ -124,9 +124,6 @@
   "packages/acp/acp/tests/approval.spec.ts": {
     "cfa5e037e20d61e7139f1482c8be264ec74720280b531c39791eca1947834b5c": 1
   },
-  "packages/acp/acp/tests/bridge.spec.ts": {
-    "a0a51a92f7a4db90baaf3a95b40a9816d4d628534f6fc97e766b8da3f1ea71d8": 1
-  },
   "packages/acp/acp/tests/content.spec.ts": {
     "45e226235f6b865973de0f0fe92892cfb0007e0596ed4263015df7e4db1e578d": 1,
     "806c78568a3ca86f0863f896ddc033cb78cd927981b012dd1187e1069de3da50": 1,

@@ -771,24 +771,22 @@ jobs:
           -t '${{ inputs.suite == 'harnessy-headless-fixture-verification' && '(compaction-output-reserve|compaction-summary-headroom|worktree|ptc-turn) through dsh' || 'ptc-python-(turn|read-only)|ptc-turn through dsh|working-directory(-consumers|-admission)? through dsh' }}' --reporter=default --reporter=json
           --outputFile.json=.artifacts/integration-snapshot-phase-ci/${{ matrix.platform }}/evidence/headless-replay.json
 
-      - name: Refresh SDK PTC owner
-        if: inputs.suite == 'harnessy-integration-snapshot-verification'
+      - name: Refresh selected SDK owner
         id: sdk_refresh
         env:
           DSH_SNAPSHOT: refresh
         run: >-
           node node_modules/vitest/vitest.mjs run
           --config vitest.snapshot.config.ts snapshots/sdk/sdk.snapshot.ts
-          -t 'ptc-turn through dsh --profile sdk' --reporter=default --reporter=json
+          -t '${{ inputs.suite == 'harnessy-headless-fixture-verification' && 'persistent-tools' || 'ptc-turn' }} through dsh --profile sdk' --reporter=default --reporter=json
           --outputFile.json=.artifacts/integration-snapshot-phase-ci/${{ matrix.platform }}/evidence/sdk-refresh.json
 
-      - name: Replay SDK PTC owner
-        if: inputs.suite == 'harnessy-integration-snapshot-verification'
+      - name: Replay selected SDK owner
         id: sdk_replay
         run: >-
           node node_modules/vitest/vitest.mjs run
           --config vitest.snapshot.config.ts snapshots/sdk/sdk.snapshot.ts
-          -t 'ptc-turn through dsh --profile sdk' --reporter=default --reporter=json
+          -t '${{ inputs.suite == 'harnessy-headless-fixture-verification' && 'persistent-tools' || 'ptc-turn' }} through dsh --profile sdk' --reporter=default --reporter=json
           --outputFile.json=.artifacts/integration-snapshot-phase-ci/${{ matrix.platform }}/evidence/sdk-replay.json
 
       - name: Check Python SDK PTC metadata

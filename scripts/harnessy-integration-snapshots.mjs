@@ -11,6 +11,7 @@ const DIRECTORY_FIXTURES = ['compaction-output-reserve', 'compaction-summary-hea
 const SESSION = /(?:^|\/)session(?:\.\d+)?(?:\.v[1-9]\d*)?\.jsonl$/u
 const OUTPUT = /^(?:writer(?:\.[1-9]\d*)?\.expected\.jsonl|system-prompt(?:\.[1-9]\d*)?\.expected\.md|tool-schemas(?:\.[1-9]\d*)?\.expected\.json)$/u
 const SDK_OUTPUT = new Set(['notifications.current.expected.jsonl', 'result.expected.json', 'writer.expected.jsonl'])
+const SDK_DIRECTORY_OUTPUT = new Set([...SDK_OUTPUT, 'system-prompt.expected.md', 'tool-schemas.expected.json'])
 const sha = bytes => createHash('sha256').update(bytes).digest('hex')
 const check = (condition, message) => { if (!condition) throw new Error(message) }
 const git = (root, ...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 })
@@ -57,7 +58,8 @@ export function isAllowedOutput(path, selection = 'primary') {
   const parts = path.split('/')
   if (parts.length !== 4 || parts[0] !== 'snapshots') return false
   if (parts[1] === 'session' && owners.includes(parts[2])) return OUTPUT.test(parts[3])
-  if (selection === 'directory-fixtures') return false
+  if (selection === 'directory-fixtures') return parts[1] === 'sdk' && parts[2] === 'persistent-tools'
+    && SDK_DIRECTORY_OUTPUT.has(parts[3])
   if (parts[1] === 'session' && parts[2] === 'text-turn') return /^(?:system-prompt|tool-schemas)(?:\.[1-9]\d*)?\.expected\.(?:md|json)$/u.test(parts[3])
   return parts[1] === 'sdk' && parts[2] === 'ptc-turn' && SDK_OUTPUT.has(parts[3])
 }
@@ -70,10 +72,9 @@ export async function freezeSnapshotInputs(root, evidence, selection = 'primary'
     const manifest = load(await readFile(resolve(root, 'snapshots/session', owner, 'snapshot.yml'), 'utf8'), { schema: JSON_SCHEMA })
     check(manifest?.immutableInput === 'source-recording', `${owner}: refresh must preserve its Session input`)
   }
-  if (selection === 'primary') {
-    const sdk = load(await readFile(resolve(root, 'snapshots/sdk/ptc-turn/snapshot.yml'), 'utf8'), { schema: JSON_SCHEMA })
-    check(sdk?.immutableInput === 'source-recording', 'sdk/ptc-turn: refresh must preserve its Session input')
-  }
+  const sdkOwner = selection === 'primary' ? 'ptc-turn' : 'persistent-tools'
+  const sdk = load(await readFile(resolve(root, 'snapshots/sdk', sdkOwner, 'snapshot.yml'), 'utf8'), { schema: JSON_SCHEMA })
+  check(sdk?.immutableInput === 'source-recording', `sdk/${sdkOwner}: refresh must preserve its Session input`)
   check(paths(root, 'diff', '--name-only', '-z', 'HEAD', '--', '.').length === 0, 'source checkout must be clean before validation')
   const all = paths(root, 'ls-files', '-z', '--', 'snapshots/')
   check(all.some(path => SESSION.test(path)), 'no tracked Session inputs')
@@ -134,7 +135,8 @@ export async function captureIntegrationEvidence(root, evidence, outcomes, selec
   }
   const ownerReports = {}
   const reports = [['headless-refresh.json', owners, 'refresh'], ['headless-replay.json', owners, 'replay']]
-  if (selection === 'primary') reports.push(['sdk-refresh.json', ['ptc-turn'], 'refresh'], ['sdk-replay.json', ['ptc-turn'], 'replay'])
+  const sdkOwner = selection === 'primary' ? 'ptc-turn' : 'persistent-tools'
+  reports.push(['sdk-refresh.json', [sdkOwner], 'refresh'], ['sdk-replay.json', [sdkOwner], 'replay'])
   for (const [file, owners, verb] of reports) {
     try {
       checkOwnerReport(JSON.parse(await readFile(resolve(evidence, file), 'utf8')), owners, verb)
@@ -145,8 +147,8 @@ export async function captureIntegrationEvidence(root, evidence, outcomes, selec
     try { assertNativeBuiltSmokeReport(await readFile(resolve(evidence, 'built-package-smoke.json'))) }
     catch (error) { errors.push(`built package: ${String(error)}`) }
   }
-  const requiredOutcomes = ['freeze', 'headlessRefresh', 'headlessReplay']
-  if (selection === 'primary') requiredOutcomes.push('sdkRefresh', 'sdkReplay', 'pythonMetadata', 'builtPackageSmoke')
+  const requiredOutcomes = ['freeze', 'headlessRefresh', 'headlessReplay', 'sdkRefresh', 'sdkReplay']
+  if (selection === 'primary') requiredOutcomes.push('pythonMetadata', 'builtPackageSmoke')
   for (const key of requiredOutcomes) {
     if (outcomes[key] !== 'success') errors.push(`${key}: ${outcomes[key] ?? 'missing'}`)
   }
