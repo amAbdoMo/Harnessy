@@ -345,7 +345,7 @@
         "properties": {
           "cwd": {
             "type": "string",
-            "description": "Initial child working directory. Relative paths use your current directory; omitted inherits it. Later directory changes in either agent are independent."
+            "description": "Initial child working directory. Relative paths use your current directory; omitted inherits it."
           },
           "description": {
             "type": "string",
@@ -374,7 +374,7 @@
         "properties": {
           "cwd": {
             "type": "string",
-            "description": "Initial child working directory. Relative paths use your current directory; omitted inherits it. Later directory changes in either agent are independent."
+            "description": "Initial child working directory. Relative paths use your current directory; omitted inherits it."
           },
           "description": {
             "type": "string",
