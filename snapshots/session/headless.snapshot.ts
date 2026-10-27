@@ -1080,7 +1080,16 @@ describe('headless recorded-session snapshots', () => {
       .toThrow('native tool-result messages match migration output')
   })
 
-  const runs = scenarios.flatMap((scenario): {
+  const refreshOrder = [...scenarios].sort((left, right) =>
+    Number(right.manifest.header.pin === true) - Number(left.manifest.header.pin === true))
+  const runOrder = mode === 'replay' ? scenarios : refreshOrder
+  it('refreshes class pins before scenarios sharing their sidecars', () => {
+    const position = new Map(refreshOrder.map((scenario, index) => [scenario, index]))
+    for (const scenario of refreshOrder) {
+      expect(position.get(pinOf(scenario)), scenario.name).toBeLessThanOrEqual(position.get(scenario)!)
+    }
+  })
+  const runs = runOrder.flatMap((scenario): {
     scenario: HeadlessScenario; retainedToolInput?: string; surface: 'session' | 'companion-history'
   }[] => [
     { scenario, surface: 'session' },

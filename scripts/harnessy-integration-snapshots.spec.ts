@@ -7,7 +7,7 @@ import { describe, expect, it, onTestFinished } from 'vitest'
 import { captureIntegrationEvidence, checkOwnerReport, digestTracked, freezeSnapshotInputs, isAllowedOutput } from './harnessy-integration-snapshots.mjs'
 
 const root = resolve(import.meta.dirname, '..')
-const owners = ['ptc-python-turn', 'ptc-python-read-only', 'working-directory', 'working-directory-consumers', 'working-directory-admission']
+const owners = ['ptc-turn', 'ptc-python-turn', 'ptc-python-read-only', 'working-directory', 'working-directory-consumers', 'working-directory-admission']
 const outcomes = Object.fromEntries(['freeze', 'headlessRefresh', 'headlessReplay', 'sdkRefresh', 'sdkReplay', 'pythonMetadata', 'builtPackageSmoke'].map(key => [key, 'success']))
 function report(names: string[], verb: string) {
   return { success: true, numFailedTests: 0, numFailedTestSuites: 0, numPassedTests: names.length,

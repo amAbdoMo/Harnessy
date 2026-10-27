@@ -6,7 +6,7 @@ import { dirname, resolve } from 'node:path'
 import { JSON_SCHEMA, load } from 'js-yaml'
 import { assertNativeBuiltSmokeReport } from './harnessy-python-native-snapshots.mjs'
 
-const HEADLESS = ['ptc-python-turn', 'ptc-python-read-only', 'working-directory', 'working-directory-consumers', 'working-directory-admission']
+const HEADLESS = ['ptc-turn', 'ptc-python-turn', 'ptc-python-read-only', 'working-directory', 'working-directory-consumers', 'working-directory-admission']
 const SESSION = /(?:^|\/)session(?:\.\d+)?(?:\.v[1-9]\d*)?\.jsonl$/u
 const OUTPUT = /^(?:writer(?:\.[1-9]\d*)?\.expected\.jsonl|system-prompt(?:\.[1-9]\d*)?\.expected\.md|tool-schemas(?:\.[1-9]\d*)?\.expected\.json)$/u
 const SDK_OUTPUT = new Set(['notifications.current.expected.jsonl', 'result.expected.json', 'writer.expected.jsonl'])

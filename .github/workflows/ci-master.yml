@@ -759,7 +759,7 @@ jobs:
         run: >-
           node node_modules/vitest/vitest.mjs run
           --config vitest.snapshot.config.ts snapshots/session/headless.snapshot.ts
-          -t 'ptc-python-(turn|read-only)|working-directory(-consumers|-admission)? through dsh' --reporter=default --reporter=json
+          -t 'ptc-python-(turn|read-only)|ptc-turn through dsh|working-directory(-consumers|-admission)? through dsh' --reporter=default --reporter=json
           --outputFile.json=.artifacts/integration-snapshot-phase-ci/${{ matrix.platform }}/evidence/headless-refresh.json
 
       - name: Replay selected headless owners
@@ -767,7 +767,7 @@ jobs:
         run: >-
           node node_modules/vitest/vitest.mjs run
           --config vitest.snapshot.config.ts snapshots/session/headless.snapshot.ts
-          -t 'ptc-python-(turn|read-only)|working-directory(-consumers|-admission)? through dsh' --reporter=default --reporter=json
+          -t 'ptc-python-(turn|read-only)|ptc-turn through dsh|working-directory(-consumers|-admission)? through dsh' --reporter=default --reporter=json
           --outputFile.json=.artifacts/integration-snapshot-phase-ci/${{ matrix.platform }}/evidence/headless-replay.json
 
       - name: Refresh SDK PTC owner

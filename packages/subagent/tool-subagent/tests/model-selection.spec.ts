@@ -27,6 +27,7 @@ const REASONING = {
 } as const
 
 function parentWithRoute(
+  ctx: Context,
   options: Agent['options'] = {
     provider: 'alpha',
     model: 'parent-model',
@@ -34,7 +35,7 @@ function parentWithRoute(
   },
 ): Agent {
   const id = SessionId('parent-with-route')
-  return { id, options, session: Session.create(id) } as unknown as Agent
+  return { id, options, session: Session.create(id), ctx } as unknown as Agent
 }
 
 describe('dsh-tool-subagent model selection', () => {
@@ -113,6 +114,7 @@ describe('dsh-tool-subagent model selection', () => {
     const schema = ctx.tools.schemas(agent).find(entry => entry.name === 'subagent')!
     const props = (schema.parameters as { properties?: Record<string, unknown> }).properties ?? {}
     expect(Object.keys(props).sort()).toEqual([
+      'cwd',
       'description',
       'model',
       'prompt',
@@ -135,7 +137,7 @@ describe('dsh-tool-subagent model selection', () => {
     const ctx = await setup({ provider: 'mock' })
     const schema = ctx.tools.schemas().find(entry => entry.name === 'subagent')!
     const props = (schema.parameters as { properties?: Record<string, unknown> }).properties ?? {}
-    expect(Object.keys(props).sort()).toEqual(['description', 'prompt', 'run_in_background'])
+    expect(Object.keys(props).sort()).toEqual(['cwd', 'description', 'prompt', 'run_in_background'])
     expect(schema.description).not.toContain('list_subagent_models')
     expect(ctx.tools.get('list_subagent_models')).toBeUndefined()
 
@@ -170,7 +172,7 @@ describe('dsh-tool-subagent model selection', () => {
     }, { onStart: (request) => { requests.push(request) } })
     ctx.llm.registerAdapter(['alpha'], new MockAdapter([], REASONING))
     const parent = modelSelectionSetupAgent(ctx)
-    ;(parent as { options: Agent['options'] }).options = parentWithRoute().options
+    ;(parent as { options: Agent['options'] }).options = parentWithRoute(ctx).options
 
     const selected = await callSubagent(ctx, {
       description: 'route work',
@@ -210,7 +212,7 @@ describe('dsh-tool-subagent model selection', () => {
     }, { onStart: (request) => { requests.push(request) } })
     ctx.llm.registerAdapter(['alpha'], new MockAdapter([], REASONING))
     const parent = modelSelectionSetupAgent(ctx)
-    ;(parent as { options: Agent['options'] }).options = parentWithRoute().options
+    ;(parent as { options: Agent['options'] }).options = parentWithRoute(ctx).options
 
     const result = await callSubagent(ctx, {
       description: 'effort work',
@@ -223,7 +225,7 @@ describe('dsh-tool-subagent model selection', () => {
     const inherited = await setup({ provider: 'mock', withModelSelection: true })
     inherited.llm.registerAdapter(['alpha'], new MockAdapter([], REASONING))
     const inheritedParent = modelSelectionSetupAgent(inherited)
-    ;(inheritedParent as { options: Agent['options'] }).options = parentWithRoute().options
+    ;(inheritedParent as { options: Agent['options'] }).options = parentWithRoute(inherited).options
     const inheritedResult = await callSubagent(inherited, {
       description: 'parent effort work',
       prompt: 'do it',
@@ -236,7 +238,7 @@ describe('dsh-tool-subagent model selection', () => {
     const ctx = await setup({ provider: 'mock', withModelSelection: true })
     ctx.llm.registerAdapter(['alpha'], new MockAdapter([], REASONING))
     const parent = modelSelectionSetupAgent(ctx)
-    ;(parent as { options: Agent['options'] }).options = parentWithRoute().options
+    ;(parent as { options: Agent['options'] }).options = parentWithRoute(ctx).options
     const result = await callSubagent(ctx, {
       description: 'same route work',
       prompt: 'do it',
@@ -257,7 +259,7 @@ describe('dsh-tool-subagent model selection', () => {
       defaultEffort: ReasoningEffortId('low'),
     }))
     const parent = modelSelectionSetupAgent(ctx)
-    ;(parent as { options: Agent['options'] }).options = parentWithRoute().options
+    ;(parent as { options: Agent['options'] }).options = parentWithRoute(ctx).options
 
     const result = await callSubagent(ctx, {
       description: 'unsupported effort',
@@ -386,7 +388,7 @@ describe('dsh-tool-subagent model selection', () => {
     const result = await callSubagent(
       ctx,
       { description: 'same route', prompt: 'do it' },
-      { agent: parentWithRoute() },
+      { agent: parentWithRoute(ctx) },
     )
     expect(result.isError).toBe(true)
     expect(text(result)).toContain('does not support reasoning effort "high"')
@@ -403,7 +405,7 @@ describe('dsh-tool-subagent model selection', () => {
     const result = await callSubagent(
       ctx,
       { description: 'configured route', prompt: 'do it' },
-      { agent: parentWithRoute() },
+      { agent: parentWithRoute(ctx) },
     )
 
     expect(result.isError).toBe(true)

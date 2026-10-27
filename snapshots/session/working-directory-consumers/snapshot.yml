@@ -5,7 +5,10 @@ composition: claude-code-mods
 recording: authored
 immutableInput: source-recording
 header:
-  class: claude-code-mods
+  class: working-directory-consumers
+  pin: true
+  promptChanges: 3
+  toolSchemasSource: claude-code-mods
 platform: posix
 workspace:
   final: true

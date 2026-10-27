@@ -8,5 +8,5 @@ platform: posix
 header:
   class: working-directory-admission
   pin: true
-  systemPromptSource: text-turn
+  promptChanges: 1
   toolSchemasSource: text-turn

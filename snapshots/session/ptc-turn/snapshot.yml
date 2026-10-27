@@ -3,6 +3,7 @@ scenario: ptc-turn
 profile: headless
 composition: ptc
 recording: live
+immutableInput: source-recording
 header:
   class: ptc
   pin: true
