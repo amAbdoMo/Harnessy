@@ -1,7 +1,8 @@
 - banner:
   - navigation "Session hierarchy": Use one run_code program to
   - text: PTC mode
-  - button "More actions"
+  - group "Session controls":
+    - button "More actions"
   - button "Open right sidebar"
   - tablist:
     - tab "Chat" [selected]
@@ -27,19 +28,19 @@
   - code: present
   - text: succeeded for
   - code:
-    - button "Open report.txt in sidebar": report.txt
+    - button "Open {{cwd}}/workspace/report.txt in sidebar": report.txt
   - text: and
   - code:
-    - button "Open 说明.txt in sidebar": 说明.txt
+    - button "Open {{cwd}}/workspace/说明.txt in sidebar": 说明.txt
   - text: ", after which the program deliberately threw the string"
   - code: AFTER_PRESENT
   - text: — no retries, no extra files.
 - paragraph: PRESENT_DONE
-- button "Preview report.txt in sidebar"
+- button "Preview {{cwd}}/workspace/report.txt in sidebar"
 - text: report.txt delivered report
 - button "Open in Test Editor"
 - button "More ways to open"
-- button "Preview 说明.txt in sidebar"
+- button "Preview {{cwd}}/workspace/说明.txt in sidebar"
 - text: 说明.txt delivered note
 - button "Open in Test Editor"
 - button "More ways to open"

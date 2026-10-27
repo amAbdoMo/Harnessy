@@ -16,6 +16,7 @@ on:
           - harnessy-native-verification
           - harnessy-integration-snapshot-verification
           - harnessy-web-snapshot-verification
+          - harnessy-headless-fixture-verification
 
 # New master pushes and manual runs replace obsolete checks in this workflow/ref.
 # Standby drills share cancellation; use completed runs as readiness evidence.
@@ -673,7 +674,7 @@ jobs:
       github.event_name == 'workflow_dispatch'
       && github.ref == 'refs/heads/staging'
       && github.repository != 'deepseek-ai/deepseek-harness'
-      && inputs.suite == 'harnessy-integration-snapshot-verification'
+      && (inputs.suite == 'harnessy-integration-snapshot-verification' || inputs.suite == 'harnessy-headless-fixture-verification')
     name: Integration snapshots / ${{ matrix.platform }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
@@ -686,14 +687,11 @@ jobs:
       fail-fast: false
       max-parallel: 1
       matrix:
-        include:
-          - platform: linux
-            runner: ubuntu-24.04
-          - platform: macos
-            runner: macos-latest
+        include: ${{ fromJSON(inputs.suite == 'harnessy-headless-fixture-verification' && '[{"platform":"linux","runner":"ubuntu-24.04"}]' || '[{"platform":"linux","runner":"ubuntu-24.04"},{"platform":"macos","runner":"macos-latest"}]') }}
     env:
       DSH_TELEMETRY_DISABLED: '1'
       DSH_INTEGRATION_SNAPSHOT_PHASE: '1'
+      HARNESSY_SNAPSHOT_SET: ${{ inputs.suite == 'harnessy-headless-fixture-verification' && 'directory-fixtures' || 'primary' }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -760,18 +758,21 @@ jobs:
         run: >-
           node node_modules/vitest/vitest.mjs run
           --config vitest.snapshot.config.ts snapshots/session/headless.snapshot.ts
-          -t 'ptc-python-(turn|read-only)|ptc-turn through dsh|working-directory(-consumers|-admission)? through dsh' --reporter=default --reporter=json
+          -t '${{ inputs.suite == 'harnessy-headless-fixture-verification' && '(compaction-output-reserve|compaction-summary-headroom|worktree|ptc-turn) through dsh' || 'ptc-python-(turn|read-only)|ptc-turn through dsh|working-directory(-consumers|-admission)? through dsh' }}' --reporter=default --reporter=json
           --outputFile.json=.artifacts/integration-snapshot-phase-ci/${{ matrix.platform }}/evidence/headless-refresh.json
 
       - name: Replay selected headless owners
         id: headless_replay
+        env:
+          DSH_SNAPSHOT: replay
         run: >-
           node node_modules/vitest/vitest.mjs run
           --config vitest.snapshot.config.ts snapshots/session/headless.snapshot.ts
-          -t 'ptc-python-(turn|read-only)|ptc-turn through dsh|working-directory(-consumers|-admission)? through dsh' --reporter=default --reporter=json
+          -t '${{ inputs.suite == 'harnessy-headless-fixture-verification' && '(compaction-output-reserve|compaction-summary-headroom|worktree|ptc-turn) through dsh' || 'ptc-python-(turn|read-only)|ptc-turn through dsh|working-directory(-consumers|-admission)? through dsh' }}' --reporter=default --reporter=json
           --outputFile.json=.artifacts/integration-snapshot-phase-ci/${{ matrix.platform }}/evidence/headless-replay.json
 
       - name: Refresh SDK PTC owner
+        if: inputs.suite == 'harnessy-integration-snapshot-verification'
         id: sdk_refresh
         env:
           DSH_SNAPSHOT: refresh
@@ -782,6 +783,7 @@ jobs:
           --outputFile.json=.artifacts/integration-snapshot-phase-ci/${{ matrix.platform }}/evidence/sdk-refresh.json
 
       - name: Replay SDK PTC owner
+        if: inputs.suite == 'harnessy-integration-snapshot-verification'
         id: sdk_replay
         run: >-
           node node_modules/vitest/vitest.mjs run
@@ -790,11 +792,13 @@ jobs:
           --outputFile.json=.artifacts/integration-snapshot-phase-ci/${{ matrix.platform }}/evidence/sdk-replay.json
 
       - name: Check Python SDK PTC metadata
+        if: inputs.suite == 'harnessy-integration-snapshot-verification'
         id: python_metadata
         run: >-
           python3 -c "import runpy; runpy.run_path('python/sdk/tests/test_ptc_metadata.py')['test_ptc_metadata_matches_recorded_sdk_event_projection']()"
 
       - name: Smoke the built public Python runtime package
+        if: inputs.suite == 'harnessy-integration-snapshot-verification'
         id: built_package_smoke
         run: >-
           node scripts/harnessy-python-built-smoke.mjs

@@ -7,9 +7,10 @@ export interface OwnerReport { success: boolean; numFailedTests: number; numFail
 /**
  * Identify a reviewable output in the selected owners.
  * @param path - Repository-relative path.
+ * @param selection - Primary integration checks or the closed directory-fixtures selection.
  * @returns Whether the path is an allowed output.
  */
-export function isAllowedOutput(path: string): boolean
+export function isAllowedOutput(path: string, selection?: string): boolean
 /**
  * Hash a tracked file or link while refusing linked ancestors and Session inputs.
  * @param root - Repository root.
@@ -21,9 +22,14 @@ export function digestTracked(root: string, relativePath: string): Promise<strin
  * Record hashes of tracked snapshots before running the owners.
  * @param root - Repository root.
  * @param evidence - Evidence directory.
+ * @param selection - Primary integration checks or the closed directory-fixtures selection.
  * @returns Source revision and tracked snapshot hashes.
  */
-export function freezeSnapshotInputs(root: string, evidence: string): Promise<{ sourceHead: string; baseline: Record<string, string> }>
+export function freezeSnapshotInputs(root: string, evidence: string, selection?: string): Promise<{
+  sourceHead: string
+  selection: string
+  baseline: Record<string, string>
+}>
 /**
  * Require each selected owner to have one passing assertion.
  * @param report - Vitest JSON report.
@@ -36,6 +42,12 @@ export function checkOwnerReport(report: OwnerReport, owners: string[], verb: st
  * @param root - Repository root.
  * @param evidence - Evidence directory.
  * @param outcomes - Hosted step outcomes.
+ * @param selection - Primary integration checks or the closed directory-fixtures selection.
  * @returns Qualification result.
  */
-export function captureIntegrationEvidence(root: string, evidence: string, outcomes: Record<string, string | undefined>): Promise<{ qualified: boolean; errors: string[] }>
+export function captureIntegrationEvidence(root: string, evidence: string, outcomes: Record<string, string | undefined>, selection?: string): Promise<{
+  qualified: boolean
+  selection: string
+  ownerReports: Record<string, Record<string, string>>
+  errors: string[]
+}>

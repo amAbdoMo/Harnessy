@@ -78,11 +78,11 @@ Client 的终端发现归属于当前窗口中的每个 Session。并发视图�
 <a id="model-experience"></a>
 ## 模型体验
 
-无；此包只处理用户交互式终端，不向模型请求添加内容。
+通过启动终端时的 [working-directory](../../session/working-directory/README.zh.md) 恢复间接影响模型；终端屏幕只在浏览器与 Host 之间传输。
 
 #### KV 缓存影响
 
-无；终端输出只在浏览器与 Host 之间传输。
+恢复可能向下一次模型请求追加目录变更通知；终端输出本身不会进入模型上下文。
 
 ## 已知限制与延期工作
 

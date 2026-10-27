@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdtempSync, mkdirSync, readFileSync, readlinkSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { runInNewContext } from 'node:vm'
 import { load } from 'js-yaml'
 import { describe, expect, it, onTestFinished } from 'vitest'
 import { captureIntegrationEvidence, checkOwnerReport, digestTracked, freezeSnapshotInputs, isAllowedOutput } from './harnessy-integration-snapshots.mjs'
@@ -13,12 +14,12 @@ function report(names: string[], verb: string) {
   return { success: true, numFailedTests: 0, numFailedTestSuites: 0, numPassedTests: names.length,
     testResults: [{ assertionResults: names.map(name => ({ fullName: `${verb}s ${name} through dsh`, status: 'passed' })) }] }
 }
-function fixture() {
+function fixture(selectedOwners = owners) {
   const repo = mkdtempSync(join(tmpdir(), 'integration-snapshot-'))
   onTestFinished(() => { rmSync(repo, { recursive: true, force: true }) })
   const git = (...args: string[]) => execFileSync('git', args, { cwd: repo, stdio: 'ignore' })
   git('init', '-q')
-  for (const owner of owners) {
+  for (const owner of selectedOwners) {
     const dir = join(repo, 'snapshots/session', owner); mkdirSync(dir, { recursive: true })
     writeFileSync(join(dir, 'snapshot.yml'), 'immutableInput: source-recording\n')
     writeFileSync(join(dir, 'session.v4.jsonl'), `input ${owner}\n`)
@@ -43,6 +44,72 @@ function reports(evidence: string) {
 }
 
 describe('bounded integration snapshot lane', () => {
+  const directoryOwners = ['compaction-output-reserve', 'compaction-summary-headroom', 'worktree', 'ptc-turn']
+
+  it('bounds the directory fixture selection independently of primary SDK and Python checks', async () => {
+    const { repo, evidence } = fixture(directoryOwners)
+    await freezeSnapshotInputs(repo, evidence, 'directory-fixtures')
+    for (const verb of ['refresh', 'replay']) writeFileSync(join(evidence, `headless-${verb}.json`), JSON.stringify(report(directoryOwners, verb)))
+    writeFileSync(join(repo, 'snapshots/session/worktree/writer.expected.jsonl'), 'current writer\n')
+    const result = await captureIntegrationEvidence(repo, evidence, {
+      freeze: 'success', headlessRefresh: 'success', headlessReplay: 'success',
+      sdkRefresh: 'skipped', sdkReplay: 'skipped', pythonMetadata: 'skipped', builtPackageSmoke: 'skipped',
+    }, 'directory-fixtures')
+    expect(result.qualified).toBe(true)
+    expect(result.selection).toBe('directory-fixtures')
+    expect(Object.keys(result.ownerReports)).toEqual(['headless-refresh.json', 'headless-replay.json'])
+    expect(isAllowedOutput('snapshots/sdk/ptc-turn/writer.expected.jsonl', 'directory-fixtures')).toBe(false)
+    expect(isAllowedOutput('snapshots/session/working-directory/writer.expected.jsonl', 'directory-fixtures')).toBe(false)
+  })
+
+  it.each(['input', 'unselected output', 'missing owner', 'skipped owner'] as const)('rejects directory fixture evidence with %s', async (failure) => {
+    const { repo, evidence } = fixture(directoryOwners)
+    await freezeSnapshotInputs(repo, evidence, 'directory-fixtures')
+    for (const verb of ['refresh', 'replay']) writeFileSync(join(evidence, `headless-${verb}.json`), JSON.stringify(report(directoryOwners, verb)))
+    if (failure === 'input') writeFileSync(join(repo, 'snapshots/session/worktree/session.v4.jsonl'), 'changed')
+    if (failure === 'unselected output') writeFileSync(join(repo, 'snapshots/sdk/ptc-turn/writer.expected.jsonl'), 'unselected')
+    if (failure === 'missing owner') writeFileSync(join(evidence, 'headless-replay.json'), JSON.stringify(report(directoryOwners.slice(1), 'replay')))
+    if (failure === 'skipped owner') {
+      const skipped = report(directoryOwners, 'replay')
+      skipped.testResults[0]!.assertionResults[0]!.status = 'skipped'
+      writeFileSync(join(evidence, 'headless-replay.json'), JSON.stringify(skipped))
+    }
+    await expect(captureIntegrationEvidence(repo, evidence, outcomes, 'directory-fixtures')).rejects.toThrow()
+    expect(JSON.parse(readFileSync(join(evidence, 'phase.json'), 'utf8'))).toMatchObject({ qualified: false })
+  })
+
+  it('rejects an unknown or changed selection instead of broadening output admission', async () => {
+    expect(() => isAllowedOutput('snapshots/session/worktree/writer.expected.jsonl', 'unchecked')).toThrow('unknown integration')
+    const { repo, evidence } = fixture(directoryOwners)
+    await freezeSnapshotInputs(repo, evidence, 'directory-fixtures')
+    await expect(captureIntegrationEvidence(repo, evidence, outcomes)).rejects.toThrow('selection changed after freeze')
+  })
+
+  it('selects only Linux and the four named recordings for the fixture diagnostic', () => {
+    const workflow = load(readFileSync(join(root, '.github/workflows/ci-master.yml'), 'utf8')) as {
+      jobs: Record<string, {
+        strategy: { matrix: { include: string } }
+        env: Record<string, string>
+        steps: { name?: string; if?: string; run?: string }[]
+      }>
+    }
+    const job = workflow.jobs['harnessy-integration-snapshot-verification']!
+    const evaluate = (expression: string, suite: string): unknown => runInNewContext(expression.replace(/^\$\{\{\s*|\s*\}\}$/gu, ''), { inputs: { suite }, fromJSON: JSON.parse }, { timeout: 1000 })
+    const suite = 'harnessy-headless-fixture-verification'
+    expect(evaluate(job.strategy.matrix.include, suite)).toEqual([{ platform: 'linux', runner: 'ubuntu-24.04' }])
+    expect(evaluate(job.strategy.matrix.include, 'harnessy-integration-snapshot-verification')).toEqual([
+      { platform: 'linux', runner: 'ubuntu-24.04' }, { platform: 'macos', runner: 'macos-latest' },
+    ])
+    expect(evaluate(job.env.HARNESSY_SNAPSHOT_SET!, suite)).toBe('directory-fixtures')
+    const pattern = '(compaction-output-reserve|compaction-summary-headroom|worktree|ptc-turn) through dsh'
+    for (const name of ['Refresh selected headless owners', 'Replay selected headless owners']) {
+      expect(job.steps.find(step => step.name === name)?.run).toContain(pattern)
+    }
+    for (const name of ['Refresh SDK PTC owner', 'Replay SDK PTC owner', 'Check Python SDK PTC metadata', 'Smoke the built public Python runtime package']) {
+      expect(evaluate(job.steps.find(step => step.name === name)!.if!, suite)).toBe(false)
+    }
+  })
+
   it('admits only named output files and no Session inputs', () => {
     expect(isAllowedOutput('snapshots/session/working-directory/writer.expected.jsonl')).toBe(true)
     expect(isAllowedOutput('snapshots/session/text-turn/system-prompt.expected.md')).toBe(true)
@@ -141,6 +208,6 @@ describe('bounded integration snapshot lane', () => {
     expect(steps.find(step => step.name === 'Capture and verify integration evidence')?.if).toBe('always()')
     expect(steps.find(step => step.name === 'Retain integration snapshot evidence')?.if).toBe('always()')
     expect(steps.find(step => step.name === 'Refresh selected headless owners')?.env?.DSH_SNAPSHOT).toBe('refresh')
-    expect(steps.find(step => step.name === 'Replay selected headless owners')?.env).toBeUndefined()
+    expect(steps.find(step => step.name === 'Replay selected headless owners')?.env?.DSH_SNAPSHOT).toBe('replay')
   })
 })

@@ -295,7 +295,10 @@ describe('gate graph validation', () => {
     for (const mode of ['doc-sync', 'ci-static'] as const) {
       const gates = withPnpmEntrypoint(() => gatesForMode(mode))
       const predecessors = gates.find(gate => gate.id === 'cli-help')?.after
-      expect(predecessors).toEqual(expect.arrayContaining(['docs-site-build', 'doc-graphs']))
+      expect(predecessors).toEqual(expect.arrayContaining([
+        'docs-site-build', 'doc-graphs', 'cordis-catalog', 'cordis-inspect-catalog',
+        'tool-catalog', 'export-jsdoc',
+      ]))
       if (mode === 'doc-sync') expect(predecessors).toContain('doc-typecheck')
     }
   })

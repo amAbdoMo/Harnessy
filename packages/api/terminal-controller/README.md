@@ -78,11 +78,11 @@ Closing saves an unfinished cleanup request before releasing the tab, then await
 <a id="model-experience"></a>
 ## Model Experience
 
-None, as this package handles user terminal interaction without adding model input.
+Indirectly, through [working-directory](../../session/working-directory/README.md) recovery when starting a terminal; terminal screens remain private to the browser and Host.
 
 #### KV Cache effect
 
-None; terminal output travels only between the browser and Host.
+Recovery can append a directory-change notice to the next model request; terminal output itself never enters model context.
 
 ## Known Limitations and Deferred Work
 

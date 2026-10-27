@@ -788,10 +788,11 @@ function docSyncLeafGates(options: {
     pnpmScript('doc-graphs', 'verify-doc-graphs', { label: 'doc graphs' }),
     pnpmScript('cli-help', 'verify-cli-help', {
       label: 'CLI help reference',
-      // Profile help loads runtime modules; avoid sharing its deadline with compilation and graph scans.
+      // Profile help loads runtime modules; avoid sharing its deadline with compiler-backed catalog scans.
       after: [
         ...options.includeDocTypecheck === false ? [] : ['doc-typecheck'],
         'docs-site-build', 'doc-graphs',
+        'cordis-catalog', 'cordis-inspect-catalog', 'tool-catalog', 'export-jsdoc',
       ],
     }),
     pnpmScript('markdown-links', 'verify-md-links', { label: 'markdown links', quick: true }),

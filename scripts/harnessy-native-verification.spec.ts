@@ -101,6 +101,7 @@ describe('Manual Harnessy native diagnostics', () => {
     expect(options).toEqual([
       'larger-runner-benchmark', 'consolidated-runner-benchmark', nativeJob,
       'harnessy-integration-snapshot-verification', 'harnessy-web-snapshot-verification',
+      'harnessy-headless-fixture-verification',
     ])
   })
 
