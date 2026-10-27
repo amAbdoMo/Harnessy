@@ -36,6 +36,7 @@ export interface SnapshotPhaseState {
   readonly original: {
     readonly turnManifestBase64: string
     readonly turnManifestSha256: string
+    readonly compositionFiles: Readonly<Record<string, string>>
     readonly sidecars: readonly SnapshotSidecarBackup[]
   }
   readonly injected: {
@@ -95,6 +96,10 @@ export interface SnapshotCaptureReport {
     readonly after: string
     readonly stagedInputAfter?: string
   }>>
+  readonly compositionFiles?: {
+    readonly before: Readonly<Record<string, string>>
+    readonly afterSnapshotRuns: Readonly<Record<string, string | undefined>>
+  }
   readonly frozenGenerations?: {
     readonly before: Readonly<Record<string, string>>
     readonly afterSnapshotRuns: Readonly<Record<string, string>>
@@ -114,6 +119,10 @@ export interface SnapshotRestoreReport {
   readonly restored: boolean
   readonly turnManifestSha256Before?: string
   readonly turnManifestSha256After?: string
+  readonly compositionFiles?: {
+    readonly before: Readonly<Record<string, string>>
+    readonly afterCleanup: Readonly<Record<string, string>>
+  }
   readonly frozenGenerations?: {
     readonly before: Readonly<Record<string, string>>
     readonly afterCleanup?: Readonly<Record<string, string>>
@@ -172,3 +181,9 @@ export function restoreSnapshotInputs(options: Pick<SnapshotPhaseOptions, 'repoR
  * @param env - GitHub Actions environment to validate.
  */
 export function requireManualStagingCi(env: Readonly<Record<string, string | undefined>>): void
+
+/** Verify the cleanup receipt against the restored checkout.
+ * @param options - Checkout, phase location, platform, and optional fixture baseline.
+ * @returns The verified cleanup receipt.
+ */
+export function verifyCleanup(options: Pick<SnapshotPhaseOptions, 'repoRoot' | 'phaseRoot' | 'platform' | 'turnManifestHash'>): Promise<SnapshotRestoreReport>

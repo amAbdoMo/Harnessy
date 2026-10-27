@@ -27,7 +27,7 @@ English | [中文](README.zh.md)
 
 Mount this plugin when agents should work from the workspace's own instruction files. `dsh-base` already includes it with a 65,536-byte budget, so base-backed profiles only need to replace the row when they want another `maxBytes`; providerless trees load nothing until a filesystem provider is present.
 
-The applicable instruction chain follows the Session's current execution directory and reloads before the next request after a directory change. These context files do not change the original project used for settings or sandbox authority. Filesystem-enabled compositions must also mount the working-directory service.
+The applicable instruction chain follows the Session's current execution directory, validating or recovering it before baseline discovery and reloading before the next request after a directory change. These context files do not change the original project used for settings or sandbox authority. Filesystem-enabled compositions must also mount the working-directory service.
 
 ### What the agent gets
 

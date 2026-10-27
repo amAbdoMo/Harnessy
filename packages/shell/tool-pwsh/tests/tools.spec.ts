@@ -461,6 +461,7 @@ describe('execution through the bash seam', () => {
     if (result.isError) throw new Error('expected pwsh success')
     expect(result.value).toEqual({
       kind: 'foreground',
+      cwd: process.cwd(),
       exitCode: 2,
       signal: null,
       timedOut: false,
@@ -768,7 +769,7 @@ describe('background execution through the job runtime', () => {
     const started = await call(ctx, 'pwsh', { command: 'Write-Output bg-ok', description: 'test command', run_in_background: true })
     expect(started.isError).toBe(false)
     if (started.isError) throw new Error('expected background pwsh success')
-    expect(started.value).toEqual({ kind: 'background', jobId: 'pwsh-1' })
+    expect(started.value).toEqual({ kind: 'background', jobId: 'pwsh-1', cwd: process.cwd() })
     expect(text(started)).toBe('started background job pwsh-1')
 
     const read = await callUntilText(ctx, 'job_output', { job_id: 'pwsh-1' }, 'bg-ok')

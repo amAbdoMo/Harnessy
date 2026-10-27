@@ -45,6 +45,7 @@ import {
   stabilizeRefreshLog,
   tokenizeSessionFixtureCwd,
   writesCurrentSessionFixtures,
+  preservesSessionFixtureInput,
   materializeProfilePatch,
   formatSystemPromptSnapshot,
   formatToolSchemasSnapshot,
@@ -848,13 +849,13 @@ describe('TypeScript SDK snapshots over the jsonrpc runtime', () => {
   })
 
   for (const scenario of sdkScenarios) {
-    const scenarioTest = recording
-      && (scenario.manifest.recording === 'authored' || scenario.manifest.sessionFormat !== undefined)
+    const scenarioTest = scenario.manifest.platform === 'posix' && process.platform === 'win32'
+      || recording && (scenario.manifest.recording === 'authored' || preservesSessionFixtureInput(scenario.manifest))
       ? it.skip
       : it
     scenarioTest(`${mode}s ${scenario.name} through dsh --profile sdk`, async () => {
       const scenarioDir = scenario.dir
-      const retained = scenario.manifest.sessionFormat !== undefined
+      const retained = preservesSessionFixtureInput(scenario.manifest)
       const notificationsExpectedPath = join(scenarioDir, retained ? 'notifications.current.expected.jsonl' : 'notifications.expected.jsonl')
       const resultExpectedPath = join(scenarioDir, 'result.expected.json')
       const hasWireGoldens = existsSync(notificationsExpectedPath) || existsSync(resultExpectedPath)
@@ -1082,7 +1083,7 @@ describe('TypeScript SDK snapshots over the jsonrpc runtime', () => {
 
       if (retained) {
         expect(await Promise.all((await fixtureFiles(scenario)).map(file => readFile(file, 'utf8'))),
-          'historical replay input remains unchanged').toEqual(replayContents)
+          'retained replay input remains unchanged').toEqual(replayContents)
         for (const [index, content] of expectedContents.entries()) {
           expect(sessionHeaderVersion(content, writerSnapshotName(index))).toBeLessThanOrEqual(SESSION_FORMAT_VERSION)
         }

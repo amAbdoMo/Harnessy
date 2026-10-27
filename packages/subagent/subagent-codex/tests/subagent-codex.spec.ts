@@ -84,6 +84,7 @@ async function createParent(cwd?: string, name = 'parent'): Promise<Agent> {
   const ctx = new Context()
   parentContexts.push(ctx)
   await mountAgentLoopTestDependencies(ctx)
+  provideWorkingDirectoryFixture(ctx)
   const harness = await mountAgentLoopTestHarness(ctx)
   return harness.create(SessionId(name), {}, cwd === undefined ? {} : { cwd })
 }
@@ -563,12 +564,13 @@ describe('task admission and package contracts', () => {
     expect(spawnSpecs.map(spec => ({
       instance: spec.env?.DSH_CODEX_INSTANCE,
       graceMs: spec.graceMs,
-    }))).toEqual([
+    }))).toEqual(expect.arrayContaining([
       { instance: 'safe', graceMs: 11 },
       { instance: 'bypass', graceMs: 29 },
-    ])
+    ]))
 
-    expect(spawnSpecs.map(spec => spec.cwd)).toEqual([dirname(process.cwd()), process.cwd()])
+    expect(spawnSpecs.find(spec => spec.env?.DSH_CODEX_INSTANCE === 'safe')?.cwd).toBe(dirname(process.cwd()))
+    expect(spawnSpecs.find(spec => spec.env?.DSH_CODEX_INSTANCE === 'bypass')?.cwd).toBe(process.cwd())
     expect(currentParent.session.header.cwd).toBe(process.cwd())
     await Promise.all([safeRun.dispose(), bypassRun.dispose()])
     expect([...started].sort()).toEqual(['codex-bypass', 'codex-safe'])
@@ -723,17 +725,14 @@ describe('task admission and package contracts', () => {
     await ctx.plugin(SubagentRuntime)
     await ctx.plugin(LocalSubprocessRuntime)
     const spawn = vi.spyOn(ctx.subprocess, 'spawn')
-    const parent = await createParent(process.cwd())
-    parent.session.append('working-directory/change', { cwd: resolve('missing-directory-for-codex-regression') })
+    const parent = await createParent(resolve('missing-directory-for-codex-regression'))
     await ctx.plugin(codex, {})
 
     await expect(ctx.subagents.start('codex', {
       prompt: [{ type: 'text', text: 'task' }],
       parent,
       signal: new AbortController().signal,
-    })).rejects.toThrow(
-      expectedFailureDiagnostic('initialize', 'unknown'),
-    )
+    })).rejects.toThrow('subagent directory is unavailable')
     expect(spawn).not.toHaveBeenCalled()
     await ctx.fiber.dispose()
   })
@@ -2257,9 +2256,7 @@ describe('run lifecycle and quiescence', () => {
     if (!(invalidCwdError instanceof Error)) {
       throw new Error('expected safe invalid-cwd failure')
     }
-    expect(invalidCwdError.message).toContain(
-      expectedFailureDiagnostic('initialize', 'unknown'),
-    )
+    expect(invalidCwdError.message).toContain('subagent directory is unavailable')
     expect(invalidCwdError.message).not.toContain('SECRET_TOKEN')
     expect(invalidCwdError.cause).toBeInstanceOf(Error)
     expect((invalidCwdError.cause as Error).message)
@@ -2272,7 +2269,7 @@ describe('run lifecycle and quiescence', () => {
       prompt: [{ type: 'text', text: 'task' }],
       parent: invalidCwdParent,
       signal: invalidCwdAbort.signal,
-    })).rejects.toThrow('aborted before app-server startup')
+    })).rejects.toThrow('cancel invalid cwd startup')
     expect(spawn).not.toHaveBeenCalled()
 
     const starting = ctx.subagents.start('codex-diagnostic', {

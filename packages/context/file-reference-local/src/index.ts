@@ -113,12 +113,12 @@ export class LocalFileReferenceService extends FileReferenceService {
     }, 'file-reference-local: search cache')
   }
 
-  override list(
+  override async list(
     agent: Agent,
     query: string,
     signal: AbortSignal,
   ): Promise<FileReferenceCandidate[]> {
-    const cwd = this.ctx.workingDirectory.get(agent.session)
+    const cwd = await this.ctx.workingDirectory.ensure(agent, signal)
     let search = this.searches.get(agent)
     if (search !== undefined && search.root !== cwd) {
       search.dispose()
@@ -128,7 +128,7 @@ export class LocalFileReferenceService extends FileReferenceService {
       search = new WorkspaceFileSearch(cwd, this.config)
       this.searches.set(agent, search)
     }
-    return search.list(query, signal)
+    return await search.list(query, signal)
   }
 }
 

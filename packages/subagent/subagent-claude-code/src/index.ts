@@ -82,7 +82,7 @@ class ClaudeCodeProvider implements SubagentProvider {
   ) {}
 
   async start(request: ResolvedSubagentStartRequest) {
-    const parentCwd = this.ctx.workingDirectory.get(request.parent.session)
+    const parentCwd = request.cwd
     let cwd: string
     try {
       cwd = resolveChildCwd(

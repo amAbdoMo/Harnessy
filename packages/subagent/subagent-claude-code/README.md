@@ -25,7 +25,7 @@ Install this Profile Bundle when a delegated task should run as a fresh, unatten
 <a id="use-this-package"></a>
 ## Use this package
 
-New child processes and protocol sessions use the parent Session’s current directory from `ctx.workingDirectory`, including its configured fallback. A configured `cwd` override, when supported, still takes precedence; existing children keep their startup directory.
+New child processes and protocol sessions use the parent Session’s current directory from `ctx.workingDirectory`, including its configured fallback. A configured `cwd` override, when supported, takes precedence over inheritance; an explicit child `cwd` takes precedence over the override; existing children keep their startup directory.
 
 Mount this provider when a delegation should run as a real Claude Code session in the parent's workspace. The common path is explicit: install the Bundle into a Profile, optionally configure the provider row, and expose it to the model through a delegation tool row.
 

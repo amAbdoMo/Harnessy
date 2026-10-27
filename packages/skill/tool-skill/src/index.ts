@@ -131,8 +131,9 @@ export function apply(ctx: Context, config: Config = {}): void {
       }
       // The agent is its own scope key, so the lookup resolves the layered
       // registry exactly as this agent's composition sees it.
+      const cwd = exec.agent === undefined ? undefined : await ctx.workingDirectory.ensure(exec.agent, exec.signal)
       const lookup = {
-        cwd: exec.agent === undefined ? undefined : ctx.workingDirectory.get(exec.agent.session),
+        cwd,
         signal: exec.signal, scope: exec.agent,
       }
       const summary = (await ctx.skills.list(lookup)).find(skill => skill.name === args.name)
@@ -187,7 +188,9 @@ export function apply(ctx: Context, config: Config = {}): void {
     const names = invokedSkillNames(messages)
     if (names.length === 0) return decision
     signal.throwIfAborted()
-    const lookup = { cwd: ctx.workingDirectory.get(agent.session), signal, scope: agent }
+    const cwd = await ctx.workingDirectory.ensure(agent, signal)
+    signal.throwIfAborted()
+    const lookup = { cwd, signal, scope: agent }
     const injections: UserMessage[] = []
     for (const name of names) {
       const skill = await ctx.skills.get(name, lookup)
@@ -222,9 +225,9 @@ export function apply(ctx: Context, config: Config = {}): void {
     if (decision.kind === 'reject') return decision
     signal.throwIfAborted()
     const toolVisible = ctx.tools.get(skillTool.name, agent) === skillTool
-    const snapshot = toolVisible
-      ? await ctx.skills.snapshot({ cwd: ctx.workingDirectory.get(agent.session), signal, scope: agent })
-      : { skills: [], complete: true }
+    const cwd = toolVisible ? await ctx.workingDirectory.ensure(agent, signal) : undefined
+    signal.throwIfAborted()
+    const snapshot = toolVisible ? await ctx.skills.snapshot({ cwd, signal, scope: agent }) : { skills: [], complete: true }
     signal.throwIfAborted()
     if (!snapshot.complete) return decision
     const skills = snapshot.skills.filter(isModelInvocable)

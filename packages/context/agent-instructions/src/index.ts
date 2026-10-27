@@ -129,7 +129,7 @@ export function apply(ctx: Context, config: Config): void {
     const authorityMessages = [...claimed]
     const workingDirectory = ctx.get('workingDirectory')
     if (workingDirectory === undefined) throw new Error('agent-instructions requires the working-directory service when a filesystem is present')
-    const cwd = workingDirectory.get(agent.session)
+    const cwd = await workingDirectory.ensure(agent, signal)
     const projectRoot = await findProjectRoot(cwd, resolved.projectRootMarkers, fileSystem, signal)
     const identity = workspaceBaselineIdentity(resolved, cwd, projectRoot)
     if (touchedPaths.length === 0 && pending.length > 0

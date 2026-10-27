@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { Context } from '@deepseek-ai/cordis'
@@ -43,6 +43,7 @@ async function mount(
   await ctx.plugin(Lsp)
   if (provider) (ctx.lsp as Lsp).registerProvider(provider)
   await ctx.plugin(ToolLsp, config)
+  vi.spyOn(ctx.workingDirectory, 'ensure').mockImplementation(async agent => ctx.workingDirectory.get(agent.session))
   return { ctx }
 }
 
@@ -216,6 +217,16 @@ describe('tool-lsp execution', () => {
     const result = await call(ctx, { operation: 'goToDefinition', file_path: 'a.ts', line: 1, character: 1 }, null)
     expect(result.isError).toBe(true)
     expect(result.error?.info?.code).toBe('LSP_WORKSPACE_REQUIRED')
+  })
+
+  it('does not query a provider when directory validation fails', async () => {
+    const provider = stubProvider(() => okLocations)
+    const { ctx } = await mount(provider)
+    const ensure = vi.spyOn(ctx.workingDirectory, 'ensure')
+    ensure.mockRejectedValueOnce(new Error('workspace unavailable'))
+    const result = await call(ctx, { operation: 'hover', file_path: 'a.ts', line: 1, character: 1 })
+    expect(result.isError).toBe(true)
+    expect(provider.seen).toEqual([])
   })
 
   it('surfaces a structured LSP_UNAVAILABLE when no provider handles the file', async () => {

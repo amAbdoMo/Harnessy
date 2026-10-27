@@ -82,11 +82,12 @@ async function setupScheduleHost(): Promise<{ ctx: Context; parent: Agent; dispa
 }
 
 /** The one-shot spawn request shape both in-process providers build. */
-function spawnRequest(parent: Agent) {
+function spawnRequest(ctx: Context, parent: Agent) {
   return {
     label: 'child task',
     prompt: [{ type: 'text' as const, text: 'child task' }],
     parent,
+    cwd: ctx.workingDirectory.get(parent.session),
     signal: new AbortController().signal,
     descriptor: snapshotSubagentDescriptor({
       mode: 'one-shot' as const,
@@ -105,7 +106,7 @@ function toolResultTexts(agent: Agent): string[] {
 describe('a delegated child under a preset that mounts the Schedule tools', () => {
   it('sees schedule_create and is refused with subagent_session without storing a task', async () => {
     const { ctx, parent, dispatched } = await setupScheduleHost()
-    const run = await startInProcessRun(spawnRequest(parent), {})
+    const run = await startInProcessRun(spawnRequest(ctx, parent), {})
     await run.result
 
     const child = run.localAgent

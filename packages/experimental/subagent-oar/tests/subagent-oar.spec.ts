@@ -36,7 +36,7 @@ afterEach(async () => {
 async function request(signal = new AbortController().signal): Promise<ResolvedSubagentStartRequest> {
   const ctx = new Context()
   const parent = await externalTestParent(ctx, process.cwd())
-  return { parent, descriptor: { version: 1, mode: 'one-shot', provider: 'oar' }, signal, prompt: [{ type: 'text', text: 'Complete the task.' }] }
+  return { parent, cwd: process.cwd(), descriptor: { version: 1, mode: 'one-shot', provider: 'oar' }, signal, prompt: [{ type: 'text', text: 'Complete the task.' }] }
 }
 
 function spec(runtime: Runtime, overrides: Partial<OarRunSpec> = {}): OarRunSpec {
@@ -155,7 +155,7 @@ describe('OAR provider composition', () => {
       await ctx.plugin(SubagentRuntime)
       await ctx.plugin(oar, { runtime: 'codex', model: 'native-model', effort: 'high' })
       const provider = ctx.subagents.getProvider('oar')
-      const run = await provider!.start(await request())
+      const run = await provider!.start({ ...await request(), cwd: process.cwd() })
       await expect(run.result).resolves.toMatchObject({ output: [{ type: 'text', text: 'registered answer' }] })
       await expect(run.dispose()).rejects.toThrow('stage: dispose')
       expect(options[0]).toMatchObject({ model: 'native-model', effort: 'high' })

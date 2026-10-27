@@ -214,6 +214,9 @@
     "packages/experimental/translator/tests/**",
     "packages/experimental/cua/tests/**",
     "packages/experimental/cua-macos/tests/**",
+    "packages/session/working-directory/tests/**",
+    "packages/experimental/worktree/tests/**",
+    "packages/experimental/tool-worktree/tests/**",
     "packages/experimental/subagent-oar/tests/**",
     "packages/experimental/tool-subagent-oar/tests/**",
     "apps/desktop/tests/keyboard.spec.ts",
@@ -231,6 +234,7 @@
     "scripts/client-bundle-purity.spec.ts"
   ],
   "references": [
+    { "path": "./tsconfig.worktree-tests.json" },
     { "path": "./tsconfig.plugin-record-tests.json" },
     { "path": "./tsconfig.translator-tests.json" },
     { "path": "./tsconfig.oar-tests.json" },
@@ -535,6 +539,8 @@
     { "path": "./packages/experimental/creation-recommendations" },
     { "path": "./packages/experimental/plugin-recommendations" },
     { "path": "./packages/experimental/personalized-recommendations" },
+    { "path": "./packages/experimental/worktree" },
+    { "path": "./packages/experimental/tool-worktree" },
     { "path": "./packages/experimental/subagent-oar" },
     { "path": "./packages/experimental/tool-subagent-oar" },
     { "path": "./packages/experimental/cua/tsconfig.host.json" },

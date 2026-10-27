@@ -9,7 +9,9 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-tool-bash` runs Bash commands and returns stdout, stderr, and exit markers. Each call uses a fresh shell; cwd, variables, and functions do not persist. With a job registry composed, every command is a job from its start: `run_in_background` returns the id at once, a foreground command that outlives its timeout returns the same id, and `job_output`/`job_kill` collect and stop it. Commands receive the managed `DSH_*` environment; sandbox denials can be retried once with wider `sandbox_permissions`, a `justification`, and user approval. Nonzero exits are results for the agent to interpret. Mount an executor such as `dsh-bash-local` or `dsh-bash-sandbox` with `dsh-shell-env`.
+`dsh-tool-bash` runs Bash commands and returns stdout, stderr, and exit markers. Each call uses a fresh shell; cwd, variables, and functions do not persist. With a job registry, each command is a job: `run_in_background` returns its id immediately, and a timed-out foreground command returns the same id. `job_output` and `job_kill` collect and stop it. Commands receive the managed `DSH_*` environment. Sandbox denials can be retried once with user approval. Nonzero exits are results for the agent to interpret.
+
+Completed, detached, and promoted results record the executor's initial working directory as presentation metadata for historical navigation.
 
 ## Table of Contents
 

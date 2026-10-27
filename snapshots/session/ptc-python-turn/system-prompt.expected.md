@@ -53,7 +53,7 @@ class BashArgs(TypedDict):
     command: str
     # Timeout in milliseconds. The executor applies its configured default and cap; on expiry the command moves to the background as a job instead of being killed.
     timeoutMs: NotRequired[float]
-    # Working directory for this command. Defaults to the session workspace; a relative path is resolved against it.
+    # Working directory for this command. Defaults to the Session current directory; a relative path is resolved against it.
     workdir: NotRequired[str]
     # Run in the background and return a job id immediately (collect with job_output, stop with job_kill). No timeout applies.
     run_in_background: NotRequired[bool]
@@ -486,12 +486,22 @@ class WebSearchOutputSources(TypedDict):
     url: str
     title: NotRequired[str]
     snippet: NotRequired[str]
+    summary: NotRequired[str]
     publishedAt: NotRequired[str]
 
 class WebSearchOutput(TypedDict):
     content: NotRequired[str]
     sources: list[WebSearchOutputSources]
     truncated: bool
+
+class WorkingDirectoryArgs(TypedDict):
+    # Existing directory to enter. Omit to read the current directory.
+    cd: NotRequired[str]
+    # Additional keys beyond those declared are allowed.
+
+class WorkingDirectoryOutput(TypedDict):
+    # Current absolute working directory.
+    cwd: str
 
 class WriteArgs(TypedDict):
     # Path to write, resolved by the filesystem backend. Provide `file_path` before `content` in the arguments.
@@ -555,6 +565,8 @@ class Tools(Protocol):
         """Fetch the content of a specific HTTP(S) URL and return it decoded to text."""
     async def web_search(self, args: WebSearchArgs) -> WebSearchOutput:
         """Search the web for current information. Returns an optional summary answer and a list of source URLs."""
+    async def working_directory(self, args: WorkingDirectoryArgs) -> WorkingDirectoryOutput:
+        """Read the current working directory, or change it with cd. Relative paths use the current directory. Existing shells and running processes keep their own directories."""
     async def write(self, args: WriteArgs) -> WriteOutput:
         """Create or fully replace a UTF-8 text file."""
 

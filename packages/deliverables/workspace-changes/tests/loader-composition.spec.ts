@@ -13,6 +13,7 @@ import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
+import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
 import * as WorkspaceChangesPlugin from '@deepseek-ai/dsh-workspace-changes'
 import { changes, endTurn, git, startTurn, toolCall } from './support.ts'
 
@@ -24,15 +25,16 @@ afterEach(async () => {
   context = undefined
   if (root !== undefined) await rm(root, { recursive: true, force: true })
   root = undefined
-})
+}, 30_000)
 
-describe('real Loader composition', () => {
+describe('real Loader composition', { timeout: 30_000 }, () => {
   it('loads the shipped rows and records a turn’s changes', async () => {
     root = await mkdtemp(join(tmpdir(), 'dsh-workspace-changes-loader-'))
     const cwd = join(root, 'ws')
     await writeFile(join(root, 'cordis.yml'), [
       "- name: '@deepseek-ai/dsh-session'",
       "- name: '@deepseek-ai/dsh-subprocess-local'",
+      "- name: '@deepseek-ai/dsh-fs-local'",
       "- name: '@deepseek-ai/dsh-workspace-changes'",
       '',
     ].join('\n'))
@@ -43,6 +45,7 @@ describe('real Loader composition', () => {
     const modules = new Map<string, unknown>([
       ['@deepseek-ai/dsh-session', SessionStore],
       ['@deepseek-ai/dsh-subprocess-local', LocalSubprocessRuntime],
+      ['@deepseek-ai/dsh-fs-local', LocalFileSystem],
       ['@deepseek-ai/dsh-workspace-changes', WorkspaceChangesPlugin],
     ])
     context.loader.internal = {

@@ -168,7 +168,6 @@ class CommandCodeSubagentProvider implements SubagentProvider {
   readonly inheritsParentContext = false
 
   constructor(
-    private readonly ctx: Context,
     private readonly api: CommandCodeDelegationApi,
     private readonly instructionsPrefix: string,
   ) {}
@@ -181,7 +180,7 @@ class CommandCodeSubagentProvider implements SubagentProvider {
    */
   async start(request: ResolvedSubagentStartRequest): Promise<SubagentRun> {
     const workspace = request.parent.session.header.cwd
-    const cwd = this.ctx.workingDirectory.get(request.parent.session)
+    const cwd = request.cwd
     const spec = backendRunSpec(request, this.api.viewFor(workspace ?? null))
     const roleInstructions = request.persona ?? ''
     const instructions = [this.instructionsPrefix.trim(), roleInstructions.trim()].filter(Boolean).join('\n\n')
@@ -218,5 +217,5 @@ export function registerCommandCodeBackend(
   api: CommandCodeDelegationApi,
   instructionsPrefix = '',
 ): () => void {
-  return ctx.subagents.registerProvider(new CommandCodeSubagentProvider(ctx, api, instructionsPrefix))
+  return ctx.subagents.registerProvider(new CommandCodeSubagentProvider(api, instructionsPrefix))
 }

@@ -97,7 +97,7 @@ export function apply(ctx: Context, config: Config): void {
     inheritsParentContext: false,
     start: request => startOarRun(request, {
       ...spec,
-      cwd: resolveChildCwd('subagent-oar', cwd, ctx.workingDirectory.get(request.parent.session)),
+      cwd: resolveChildCwd('subagent-oar', request.cwdExplicit ? undefined : cwd, request.cwd),
     }),
   }
   ctx.subagents.registerProvider(provider)

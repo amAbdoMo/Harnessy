@@ -94,6 +94,7 @@ describe('dsh-tool-subagent', () => {
     const schema = ctx.tools.schemas().find(s => s.name === 'subagent')
     const props = (schema!.parameters as { properties?: Record<string, unknown> }).properties ?? {}
     expect(Object.keys(props).sort()).toEqual([
+      'cwd',
       'description',
       'prompt',
     ])
@@ -106,6 +107,7 @@ describe('dsh-tool-subagent', () => {
     const ctx = await setup({ provider: 'mock', enableRunInBackground: false })
     const parentId = SessionId('sess-off')
     const parent = {
+      ...fakeAgent(),
       id: parentId,
       inject: () => {},
       options: {},
@@ -632,6 +634,7 @@ describe('dsh-tool-subagent', () => {
 
   it('passes the tool abort signal as the provider cancellation channel', async () => {
     const cancelled = vi.fn()
+    const entered = Promise.withResolvers<undefined>()
     const ctx = await projectedContext()
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
@@ -650,6 +653,7 @@ describe('dsh-tool-subagent', () => {
       },
       inheritsParentContext: false,
       start: async (request) => {
+        entered.resolve(undefined)
         if (request.signal.aborted) throw new Error('start aborted')
         let resolveResult: (r: { output: never[]; stopReason: 'aborted' }) => void
         const result = new Promise<{ output: never[]; stopReason: 'aborted' }>((res) => { resolveResult = res })
@@ -670,8 +674,7 @@ describe('dsh-tool-subagent', () => {
     const controller = new AbortController()
     const pending = callSubagent(ctx, { description: 'd', prompt: 'p' }, { signal: controller.signal })
     // Let provider.start install its listener before aborting.
-    await Promise.resolve()
-    await Promise.resolve()
+    await entered.promise
     controller.abort()
     const result = await pending
     expect(cancelled).toHaveBeenCalledTimes(1)
@@ -1242,6 +1245,7 @@ describe('dsh-tool-subagent background mode', () => {
   it('reports startup rollback failure after cancellation as a failed job', async () => {
     const ctx = await backgroundSetup({ provider: 'mock' })
     const parent = await ownerAgent(ctx, 'sess-parent')
+    const entered = Promise.withResolvers<undefined>()
     ctx.subagents.registerProvider({
       name: 'broken-start-rollback',
       capabilities: {
@@ -1256,6 +1260,7 @@ describe('dsh-tool-subagent background mode', () => {
       },
       inheritsParentContext: false,
       start: request => new Promise((_resolve, reject) => {
+        entered.resolve(undefined)
         request.signal.addEventListener('abort', () => {
           reject(new AggregateError(
             [new Error('startup aborted'), new Error('cleanup failed')],
@@ -1273,6 +1278,7 @@ describe('dsh-tool-subagent background mode', () => {
       arguments: { description: 'broken rollback', prompt: 'p', run_in_background: true },
       agent: parent,
     })
+    await entered.promise
     await ctx.tools.execute({
       signal: testToolSignal,
       callId: ToolCallId('broken-rollback-kill'),
@@ -1333,6 +1339,7 @@ describe('dsh-tool-subagent background mode', () => {
     expect(text(startOne)).toBe('started background subagent job subagent-1')
     expect(text(startTwo)).toBe('started background subagent job subagent-2')
 
+    await vi.waitFor(() => { expect(starts).toBe(2) })
     const withReason = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('k1'), name: 'job_kill', arguments: { job_id: 'subagent-1', reason: 'superseded' }, agent: parent })
     const withoutReason = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('k2'), name: 'job_kill', arguments: { job_id: 'subagent-2' }, agent: parent })
     expect(text(withReason)).toBe('requested cancellation of job subagent-1')

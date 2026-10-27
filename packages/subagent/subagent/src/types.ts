@@ -170,6 +170,10 @@ export interface SubagentCapabilities {
  * {@link SubagentProvider.start}.
  */
 export interface SubagentStartRequest {
+  /** Initial child directory, relative to the parent directory when not absolute. */
+  readonly cwd?: string
+  /** Whether a captured `cwd` represents an explicit caller selection. */
+  readonly cwdExplicit?: boolean
   /** Host-owned setup for a separately authorized task; requires the provider's `childSetup` capability. */
   readonly childSetup?: SubagentChildSetup
   /** Optional short display label persisted with a session-backed child. */
@@ -177,9 +181,8 @@ export interface SubagentStartRequest {
   /** Content delivered as the child's user message. */
   readonly prompt: ContentBlock[]
   /**
-   * The spawning agent. In-process providers derive workspace, lineage, and
-   * delegation depth from its durable session state. ACP reads only its cwd,
-   * and only when no deployment `cwd` override is configured.
+   * The spawning agent supplies lineage, original project metadata, and
+   * delegation depth. Providers receive the captured execution directory separately.
    */
   readonly parent: Agent
   /**
@@ -252,6 +255,10 @@ export interface SubagentChildSetup {
  * the durable child descriptor.
  */
 export interface ResolvedSubagentStartRequest extends SubagentStartRequest {
+  /** Absolute directory selected before provider startup. */
+  readonly cwd: string
+  /** Whether the caller explicitly selected the directory. */
+  readonly cwdExplicit?: boolean
   /** Detached descriptor a session-backed provider persists in the child log. */
   readonly descriptor: SubagentDescriptorData
 }
@@ -264,6 +271,8 @@ export interface ResolvedSubagentStartRequest extends SubagentStartRequest {
  * history.
  */
 export interface ContinuableCreateRequest {
+  /** Absolute directory captured before provider preparation. */
+  readonly cwd: string
   /** The reserved durable child session id, for provider diagnostics. */
   readonly sessionId: SessionId
   /** The delegating parent agent whose history a seeding provider reads. */

@@ -104,7 +104,9 @@ describe('agent loop', () => {
     const adapter = new MockAdapter([])
     const ctx = await harness(adapter)
     try {
-      ctx.systemPrompt.context({ name: 'directory', order: 0, required: true, text: 'Current working directory: /workspace.' })
+      ctx.systemPrompt.context({ name: 'directory', order: 0, required: true, text: '{{unneeded_context_variable}}' })
+      const errors: unknown[] = []
+      ctx.on('agent/error', ({ error }) => { errors.push(error) })
       const agent = await ctx.agentLoop.create(SessionId(`runtime-context-${decision}`), { provider: 'mock', model: 'mock' })
       ctx.on('agent/pre-step', async () => decision === 'reject' ? { kind: 'reject' as const } : { kind: 'enter' as const, messages: [] })
       send(agent, 'do not admit')
@@ -112,6 +114,9 @@ describe('agent loop', () => {
       expect(adapter.requests).toHaveLength(0)
       expect(agent.session.snapshotEvents().filter(event => event.type === 'user/message')).toHaveLength(0)
       expect(agent.session.snapshotEvents().filter(event => event.type === 'step/start')).toHaveLength(0)
+      expect(errors).toEqual([])
+      expect(agent.session.snapshotEvents().findLast(event => event.type === 'turn/end')?.data.reason.kind)
+        .toBe(decision === 'reject' ? 'blocked' : 'completed')
     } finally {
       await ctx.fiber.dispose()
     }

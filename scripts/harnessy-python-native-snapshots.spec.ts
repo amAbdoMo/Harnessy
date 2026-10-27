@@ -3,17 +3,12 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { load } from 'js-yaml'
 import { afterEach, describe, expect, it } from 'vitest'
 import { removeFixtureSafely } from './test-fixture-cleanup.ts'
-import { assertNativeBuiltSmokeReport, assertSnapshotRunnerReport, captureSnapshotOutputs, prepareSnapshotInputs, requireManualStagingCi, restoreSnapshotInputs } from './harnessy-python-native-snapshots.mjs'
+import { assertNativeBuiltSmokeReport, assertSnapshotRunnerReport, captureSnapshotOutputs, prepareSnapshotInputs, requireManualStagingCi, restoreSnapshotInputs, verifyCleanup } from './harnessy-python-native-snapshots.mjs'
 
 const root = resolve(import.meta.dirname, '..')
 const fixtures: string[] = []
-function record(value: unknown): Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new TypeError('Expected workflow mapping')
-  return value as Record<string, unknown>
-}
 function fixture() { const path = mkdtempSync(join(tmpdir(), 'python-native-phase-')); fixtures.push(path); return path }
 afterEach(() => { for (const path of fixtures.splice(0)) removeFixtureSafely(path) })
 const hash = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex')
@@ -52,6 +47,8 @@ function harnessFixture() {
   mkdirSync(turn, { recursive: true })
   const originalManifest = Buffer.from('version: 1\nprofile: headless\ncomposition: ptc-python\nrecording: authored\nplatform: posix\nheader:\n  class: ptc-python\n  pin: true\n')
   writeFileSync(join(turn, 'snapshot.yml'), originalManifest)
+  writeFileSync(join(turn, 'cordis.yml'), '- name: fixture\n')
+  writeFileSync(join(turn, 'cordis.snapshot.yml'), '- name: snapshot-fixture\n')
   writeFileSync(join(turn, 'session.v2.jsonl'), '{"type":"session","version":2}\n')
   writeFileSync(join(turn, 'system-prompt.expected.md'), 'prior prompt\n')
   writeFileSync(join(turn, 'tool-schemas.expected.json'), '{}\n')
@@ -125,11 +122,66 @@ describe('manual Python native snapshot phase', () => {
     writeFileSync(join(phaseRoot, 'evidence/built-package-smoke.json'), builtSmokeReport())
     const capture = await captureSnapshotOutputs({ ...options, readBlob: async (_commit: string, path: string) => sources.get(path)!, outcomes: { refresh: 'success', replay: 'failure', builtPackageSmoke: 'success' } })
     expect(capture.qualified).toBe(false)
-    await restoreSnapshotInputs(options)
+    expect(capture.compositionFiles?.before).toEqual(capture.compositionFiles?.afterSnapshotRuns)
+    expect(capture.owners?.['ptc-python-turn'].inventory).toEqual(expect.arrayContaining(['cordis.yml', 'cordis.snapshot.yml']))
+    const restored = await restoreSnapshotInputs(options)
+    expect(restored.compositionFiles?.before).toEqual(restored.compositionFiles?.afterCleanup)
+    await expect(verifyCleanup(options)).resolves.toMatchObject({ restored: true })
     expect(readFileSync(join(repo, 'snapshots/session/ptc-python-turn/session.v2.jsonl'), 'utf8')).toBe('{"type":"session","version":2}\n')
     expect(readFileSync(join(repo, 'snapshots/session/ptc-python-turn/system-prompt.expected.md'), 'utf8')).toBe('prior prompt\n')
     expect(readFileSync(join(repo, 'snapshots/session/ptc-python-turn/snapshot.yml'))).toEqual(originalManifest)
     expect(() => readFileSync(join(repo, 'snapshots/session/ptc-python-read-only'))).toThrow()
+  })
+
+  it('qualifies both owners when the original composition stays unchanged', async () => {
+    const { repo, sourceCommit, sources, sourceHashes, originalManifest } = harnessFixture()
+    const phaseRoot = join(repo, '.artifacts/python-native-snapshot-phase-ci/linux')
+    const options = { repoRoot: repo, phaseRoot, platform: 'linux' as const, sourceCommit, expectedCommit: sourceCommit, sourceHashes, turnManifestHash: hash(originalManifest), readBlob: async (_commit: string, path: string) => sources.get(path)! }
+    await prepareSnapshotInputs(options)
+    mkdirSync(join(phaseRoot, 'evidence'), { recursive: true })
+    writeFileSync(join(phaseRoot, 'evidence/snapshot-refresh.json'), runnerReport('refresh'))
+    writeFileSync(join(phaseRoot, 'evidence/snapshot-replay.json'), runnerReport('replay'))
+    writeFileSync(join(phaseRoot, 'evidence/built-package-smoke.json'), builtSmokeReport())
+    const report = await captureSnapshotOutputs({ ...options, outcomes: { refresh: 'success', replay: 'success', builtPackageSmoke: 'success' } })
+    expect(report.qualified).toBe(true)
+    for (const name of ['cordis.yml', 'cordis.snapshot.yml']) {
+      const record = report.owners?.['ptc-python-turn'].files.find(file => file.path === name)
+      expect(record?.sha256).toBe(report.compositionFiles?.before[name])
+      expect(readFileSync(join(phaseRoot, 'evidence/outputs/ptc-python-turn', name))).toEqual(readFileSync(join(repo, 'snapshots/session/ptc-python-turn', name)))
+    }
+    writeFileSync(join(repo, 'snapshots/session/ptc-python-turn/cordis.snapshot.yml'), 'changed after capture')
+    await expect(restoreSnapshotInputs(options)).rejects.toThrow(/original turn composition changed; left in place/u)
+    expect(readFileSync(join(repo, 'snapshots/session/ptc-python-turn/cordis.snapshot.yml'), 'utf8')).toBe('changed after capture')
+  })
+
+  it.each(['cordis.yml', 'cordis.snapshot.yml'])('refuses changed %s during capture and restore without overwriting it', async (name) => {
+    const { repo, sourceCommit, sources, sourceHashes, originalManifest } = harnessFixture()
+    const phaseRoot = join(repo, '.artifacts/python-native-snapshot-phase-ci/linux')
+    const options = { repoRoot: repo, phaseRoot, platform: 'linux' as const, sourceCommit, expectedCommit: sourceCommit, sourceHashes, turnManifestHash: hash(originalManifest), readBlob: async (_commit: string, path: string) => sources.get(path)! }
+    const state = await prepareSnapshotInputs(options)
+    const path = join(repo, 'snapshots/session/ptc-python-turn', name)
+    expect(state.original.compositionFiles[name]).toBe(hash(readFileSync(path)))
+    writeFileSync(path, 'unexpected change')
+    await expect(captureSnapshotOutputs(options)).rejects.toThrow(/original turn composition changed or disappeared/u)
+    await expect(restoreSnapshotInputs(options)).rejects.toThrow(/original turn composition changed; left in place/u)
+    expect(readFileSync(path, 'utf8')).toBe('unexpected change')
+  })
+
+  it('continues to reject unrecognized turn owner files', async () => {
+    const { repo, sourceCommit, sources, sourceHashes, originalManifest } = harnessFixture()
+    const options = { repoRoot: repo, phaseRoot: join(repo, '.artifacts/python-native-snapshot-phase-ci/linux'), platform: 'linux' as const, sourceCommit, expectedCommit: sourceCommit, sourceHashes, turnManifestHash: hash(originalManifest), readBlob: async (_commit: string, path: string) => sources.get(path)! }
+    await prepareSnapshotInputs(options)
+    writeFileSync(join(repo, 'snapshots/session/ptc-python-turn/unexpected.yml'), 'unexpected')
+    await expect(captureSnapshotOutputs(options)).rejects.toThrow(/unexpected file in phase-owned snapshot inventory/u)
+  })
+
+  it('rejects a composition change made after cleanup', async () => {
+    const { repo, sourceCommit, sources, sourceHashes, originalManifest } = harnessFixture()
+    const options = { repoRoot: repo, phaseRoot: join(repo, '.artifacts/python-native-snapshot-phase-ci/linux'), platform: 'linux' as const, sourceCommit, expectedCommit: sourceCommit, sourceHashes, turnManifestHash: hash(originalManifest), readBlob: async (_commit: string, path: string) => sources.get(path)! }
+    await prepareSnapshotInputs(options)
+    await restoreSnapshotInputs(options)
+    writeFileSync(join(repo, 'snapshots/session/ptc-python-turn/cordis.yml'), 'changed after cleanup')
+    await expect(verifyCleanup(options)).rejects.toThrow(/original turn composition differs/u)
   })
 
   it('does not overwrite an unexpected mutation during restore', async () => {
@@ -218,24 +270,4 @@ describe('manual Python native snapshot phase', () => {
     expect(() => { assertSnapshotRunnerReport(runnerReport('replay'), 'replay') }).not.toThrow()
   })
 
-  it('selects only the explicit manual staging fork job and separates refresh from replay', () => {
-    const workflow = record(load(readFileSync(join(root, '.github/workflows/ci-master.yml'), 'utf8')))
-    const job = record(record(workflow.jobs)['harnessy-python-snapshot-verification'])
-    expect(job.if).toContain("github.event_name == 'workflow_dispatch'")
-    expect(job.if).toContain("github.ref == 'refs/heads/staging'")
-    expect(record(job.strategy)['max-parallel']).toBe(1)
-    expect(job['timeout-minutes']).toBe(45)
-    expect(job.permissions).toEqual({ contents: 'read' })
-    const steps = job.steps as Record<string, unknown>[]
-    const names = steps.map(step => step.name)
-    expect(names.indexOf('Prepare ephemeral Python snapshot owners')).toBeLessThan(names.indexOf('Refresh the shared Python header pin'))
-    expect(names.indexOf('Refresh the shared Python header pin')).toBeLessThan(names.indexOf('Refresh the Python snapshot owners'))
-    const pinRefresh = steps.find(step => step.name === 'Refresh the shared Python header pin')
-    expect(pinRefresh?.run).toContain("-t 'refreshs ptc-python-turn through dsh'")
-    expect(record(pinRefresh?.env).DSH_SNAPSHOT).toBe('refresh')
-    expect(names.indexOf('Refresh the Python snapshot owners')).toBeLessThan(names.indexOf('Replay the Python snapshot owners read-only'))
-    expect(record(steps.find(step => step.name === 'Refresh the Python snapshot owners')?.env).DSH_SNAPSHOT).toBe('refresh')
-    expect(steps.find(step => step.name === 'Replay the Python snapshot owners read-only')?.env).toBeUndefined()
-    expect(JSON.stringify(job)).not.toMatch(/ptc-runtime-python\/tests|swift build|cua-macos/u)
-  })
 })

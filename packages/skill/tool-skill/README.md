@@ -25,7 +25,7 @@ Agents can discover and load skills during a session. Before the first request, 
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount the plugin alongside the skill registry to give agents a session skill catalog and the `skill` loader tool. It requires `ctx.agents`, `ctx.tools`, `ctx.skills`, and `ctx.workingDirectory`. Discovery, catalog replacement, tool loading, and explicit `/name` invocation use the current execution directory; this does not select a different project settings or permission scope.
+Mount the plugin alongside the skill registry to give agents a session skill catalog and the `skill` loader tool. It requires `ctx.agents`, `ctx.tools`, `ctx.skills`, and `ctx.workingDirectory`. Live discovery, catalog replacement, tool loading, and explicit `/name` invocation validate the current execution directory before lookup; this does not select different project settings or permission scope. Cold session catalogs use committed directory projections and never activate an Agent.
 
 ### When to choose it
 

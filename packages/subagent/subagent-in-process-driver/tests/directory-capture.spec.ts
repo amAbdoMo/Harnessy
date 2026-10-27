@@ -40,6 +40,7 @@ async function setup() {
 function request(parent: Agent, signal = new AbortController().signal) {
   return {
     parent,
+    cwd: parent.ctx.get('workingDirectory')!.get(parent.session),
     signal,
     prompt: [{ type: 'text' as const, text: 'child task' }],
     descriptor: snapshotSubagentDescriptor({ mode: 'one-shot', provider: 'spawn' }),

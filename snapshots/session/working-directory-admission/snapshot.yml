@@ -3,6 +3,7 @@ scenario: working-directory-admission
 profile: headless
 composition: working-directory-admission
 recording: authored
+immutableInput: source-recording
 platform: posix
 header:
   class: working-directory-admission

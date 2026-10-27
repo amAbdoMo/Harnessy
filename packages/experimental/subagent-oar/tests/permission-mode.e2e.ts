@@ -40,7 +40,7 @@ it.skipIf(process.env.DSH_OAR_NATIVE_PERMISSIONS !== '1').for([
   })
   const parent = await externalTestParent(ctx, workspace)
   const run = await startOarRun({
-    parent, descriptor: { version: 1, mode: 'one-shot', provider: 'oar' }, signal: test.signal,
+    parent, cwd: workspace, descriptor: { version: 1, mode: 'one-shot', provider: 'oar' }, signal: test.signal,
     prompt: [{ type: 'text', text: 'Use Write to create the permission marker, then return OAR_PERMISSION_DONE.' }],
   }, {
     runtime: claudeRuntime, cwd: workspace,

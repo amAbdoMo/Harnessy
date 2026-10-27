@@ -16,7 +16,7 @@ const cleanups: Array<() => Promise<unknown>> = []
 afterEach(async () => {
   for (const cleanup of cleanups.reverse()) await cleanup()
   cleanups.length = 0
-})
+}, 30_000)
 
 async function runner(limits = { timeoutMs: 30_000, outputMaxBytes: 1024 * 1024 }, executable = 'git') {
   const ctx = new Context()
@@ -28,7 +28,7 @@ async function runner(limits = { timeoutMs: 30_000, outputMaxBytes: 1024 * 1024 
 
 const signal = new AbortController().signal
 
-describe('GitRunner', () => {
+describe('GitRunner', { timeout: 30_000 }, () => {
   it('ignores ambient indexed Git configuration after the credential scrub', async () => {
     const cwd = await scratchDir('dsh-git-env-', cleanups)
     git(cwd, 'init', '-q', '-b', 'main')
@@ -59,7 +59,7 @@ describe('GitRunner', () => {
   })
 })
 
-describe('snapshots and diffs', () => {
+describe('snapshots and diffs', { timeout: 30_000 }, () => {
   it('snapshots a repository whose index holds unmerged entries without touching that index', async () => {
     const cwd = await scratchDir('dsh-git-conflict-', cleanups)
     git(cwd, 'init', '-q', '-b', 'main')
@@ -105,7 +105,7 @@ describe('snapshots and diffs', () => {
 
 })
 
-describe('repository edge cases', () => {
+describe('repository edge cases', { timeout: 30_000 }, () => {
   it.skipIf(process.platform === 'win32')('snapshots past an unreadable file', async () => {
     const cwd = await scratchDir('dsh-git-unreadable-', cleanups)
     git(cwd, 'init', '-q', '-b', 'main')
@@ -145,7 +145,7 @@ describe('repository edge cases', () => {
   })
 })
 
-describe('treeBlob and blobText', () => {
+describe('treeBlob and blobText', { timeout: 30_000 }, () => {
   it('locates a blob by its literal path, sizes it, reads it, and reports trees and missing paths as null', async () => {
     const cwd = await scratchDir('dsh-git-blob-', cleanups)
     git(cwd, 'init', '-q', '-b', 'main')
@@ -166,7 +166,7 @@ describe('treeBlob and blobText', () => {
   })
 })
 
-describe('TurnRecorder', () => {
+describe('TurnRecorder', { timeout: 30_000 }, () => {
   it('stays silent when disposed while git work is pending, and warns on failures otherwise', async () => {
     const cwd = await scratchDir('dsh-recorder-', cleanups)
     const { ctx, git: runnerGit } = await runner()

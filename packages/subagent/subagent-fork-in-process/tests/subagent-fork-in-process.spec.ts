@@ -217,6 +217,7 @@ describe('dsh-subagent-fork-in-process', () => {
     const fresh = await provider.prepareContinuable!({
       sessionId: SessionId('continuable-fresh'),
       parent,
+      cwd: ctx.workingDirectory.get(parent.session),
       signal,
     })
     expect(fresh.seed).toBeUndefined()
@@ -227,6 +228,7 @@ describe('dsh-subagent-fork-in-process', () => {
     const seeded = await provider.prepareContinuable!({
       sessionId: SessionId('continuable-seeded'),
       parent,
+      cwd: ctx.workingDirectory.get(parent.session),
       signal,
     })
     expect(seeded.seed).toBeDefined()

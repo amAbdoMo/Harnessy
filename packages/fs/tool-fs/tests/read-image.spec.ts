@@ -7,7 +7,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
@@ -93,8 +93,8 @@ let dir: string
 let home: string
 
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), 'dsh-read-image-'))
-  home = await mkdtemp(join(tmpdir(), 'dsh-read-image-home-'))
+  dir = await realpath(await mkdtemp(join(tmpdir(), 'dsh-read-image-')))
+  home = await realpath(await mkdtemp(join(tmpdir(), 'dsh-read-image-home-')))
 })
 afterEach(async () => {
   for (const ctx of contexts.splice(0).reverse()) await ctx.fiber.dispose()

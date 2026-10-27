@@ -249,7 +249,7 @@ describe('dsh-subagent-spawn-in-process', () => {
     controller.abort()
     const { ctx, parent } = await setup([])
     await expect(start(ctx, 'spawn', { prompt: [{ type: 'text', text: 'p' }], parent, signal: controller.signal }))
-      .rejects.toThrow('aborted before child publication')
+      .rejects.toBe(controller.signal.reason)
   })
 
   it('same-tick cancellation rejects start and prevents child publication', async () => {
@@ -314,6 +314,7 @@ describe('dsh-subagent-spawn-in-process', () => {
     const spec = await provider.prepareContinuable!({
       sessionId: SessionId('continuable-child'),
       parent,
+      cwd: ctx.workingDirectory.get(parent.session),
       signal: new AbortController().signal,
     })
     expect(spec.seed).toBeUndefined()
@@ -543,7 +544,7 @@ describe('dsh-subagent-spawn-in-process', () => {
     await expect(start(ctx, 'spawn', {
       prompt: [{ type: 'text', text: 'do X' }],
       parent: parentHandle.agent,
-    })).rejects.toThrow(/inactive context/)
+    })).rejects.toHaveProperty('cause.message', expect.stringMatching(/inactive context/))
     expect(ctx.agents.list().length).toBe(before)
     expect(ctx.sessions.list()).toHaveLength(sessionsBefore)
     expect(published).toEqual([])

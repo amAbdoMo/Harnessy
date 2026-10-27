@@ -9,7 +9,7 @@ import { SessionSkillCatalog } from '../src/skill-catalog.ts'
 
 function observation(
   sessionId: SessionId,
-  options: { readonly cwd?: string; readonly agentPreset?: string } = {},
+  options: { readonly cwd?: string; readonly workingDirectory?: string | null; readonly agentPreset?: string } = {},
 ): SessionObservation {
   const events = Object.freeze([])
   const lease = (): SessionObservation => ({
@@ -27,6 +27,7 @@ function observation(
     projections: {
       asOfSeq: -1,
       values: {
+        ...options.workingDirectory === undefined ? {} : { workingDirectory: options.workingDirectory },
         ...options.agentPreset === undefined ? {} : { agentPreset: options.agentPreset },
       },
     },
@@ -40,6 +41,10 @@ async function context(): Promise<Context> {
   const ctx = new Context()
   await ctx.plugin(SessionStore)
   await ctx.plugin(AgentRegistry)
+  ctx.provide('workingDirectory', {
+    defaultDirectory: '/host-default',
+    ensure: vi.fn(async (agent: Agent) => agent.session.header.cwd ?? '/host-default'),
+  } as never)
   return ctx
 }
 
@@ -47,7 +52,7 @@ describe('SessionSkillCatalog', () => {
   it('reads a cold Session catalog without resuming an Agent', async () => {
     const ctx = await context()
     const sessionId = SessionId('cold-skills')
-    const observed = observation(sessionId, { cwd: '/cold/project' })
+    const observed = observation(sessionId, { cwd: '/original/project', workingDirectory: '/cold/project' })
     const dispose = vi.spyOn(observed, Symbol.dispose)
     const observeSession = vi.fn(() => Promise.resolve(observed))
     ctx.provide('sessionQuery', { observeSession } as never)
@@ -68,8 +73,9 @@ describe('SessionSkillCatalog', () => {
     ]))
     ctx.provide('skills', { list } as never)
     const catalog = new SessionSkillCatalog(ctx)
+    const signal = new AbortController().signal
 
-    await expect(catalog.list({ sessionId }, new AbortController().signal)).resolves.toEqual({
+    await expect(catalog.list({ sessionId }, signal)).resolves.toEqual({
       skills: [{
         name: 'review',
         description: 'Review the current change.',
@@ -78,7 +84,7 @@ describe('SessionSkillCatalog', () => {
         modelInvocable: true,
       }],
     })
-    expect(observeSession).toHaveBeenCalledWith(sessionId)
+    expect(observeSession).toHaveBeenCalledWith(sessionId, { signal })
     expect(dispose).toHaveBeenCalledOnce()
     expect(resume).not.toHaveBeenCalled()
     expect(ctx.agents.list()).toEqual([])
@@ -91,6 +97,7 @@ describe('SessionSkillCatalog', () => {
     const session = ctx.sessions.create(sessionId, { meta: { cwd: '/live/project' } })
     const agent = { id: sessionId, session, status: 'idle', ctx } as Agent
     await ctx.agents.register(agent)
+    const ensure = vi.spyOn(ctx.workingDirectory, 'ensure')
     ctx.provide('sessionQuery', {
       observeSession: () => Promise.resolve(observation(sessionId, { cwd: '/live/project' })),
     } as never)
@@ -115,6 +122,24 @@ describe('SessionSkillCatalog', () => {
     })
     expect(scopedList).toHaveBeenCalledWith({ cwd: '/live/project', scope: agent })
     expect(acquireScope).not.toHaveBeenCalled()
+    expect(ensure).toHaveBeenCalledWith(agent, expect.any(AbortSignal))
+  })
+
+  it('does not list a live catalog after directory validation is cancelled', async () => {
+    const ctx = await context()
+    const sessionId = SessionId('cancelled-live-skills')
+    const session = ctx.sessions.create(sessionId, { meta: { cwd: '/live/project' } })
+    const agent = { id: sessionId, session, status: 'idle', ctx } as Agent
+    await ctx.agents.register(agent)
+    const ensure = vi.spyOn(ctx.workingDirectory, 'ensure')
+    const list = vi.fn(() => Promise.resolve([]))
+    ctx.provide('skills', { list } as never)
+    ensure.mockRejectedValueOnce(new Error('cancelled'))
+    const catalog = new SessionSkillCatalog(ctx)
+
+    await expect(catalog.list({ sessionId }, new AbortController().signal))
+      .rejects.toMatchObject({ code: 'gateway/internal' })
+    expect(list).not.toHaveBeenCalled()
   })
 
   it('uses the recorded preset standing scope for a cold Session', async () => {
@@ -192,7 +217,7 @@ describe('SessionSkillCatalog', () => {
     await expect(failed).rejects.toThrow('skill registry is absent')
   })
 
-  it('rejects observations without projections or a project cwd', async () => {
+  it('rejects observations without projections and uses the deployment fallback without a project cwd', async () => {
     const ctx = await context()
     const sessionId = SessionId('incomplete-skills')
     const withoutProjections = { ...observation(sessionId, { cwd: '/project' }), projections: undefined }
@@ -205,9 +230,10 @@ describe('SessionSkillCatalog', () => {
     const unprojected = catalog.list({ sessionId }, new AbortController().signal)
     await expect(unprojected).rejects.toMatchObject({ code: 'gateway/internal' })
     await expect(unprojected).rejects.toThrow('projected Session observation')
-    const cwdless = catalog.list({ sessionId }, new AbortController().signal)
-    await expect(cwdless).rejects.toMatchObject({ code: 'gateway/internal' })
-    await expect(cwdless).rejects.toThrow('has no project cwd')
+    const list = vi.fn(() => Promise.resolve([]))
+    ctx.provide('skills', { list } as never)
+    await expect(catalog.list({ sessionId }, new AbortController().signal)).resolves.toEqual({ skills: [] })
+    expect(list).toHaveBeenCalledWith({ cwd: '/host-default', scope: undefined })
   })
 
   it('classifies a provider listing failure', async () => {

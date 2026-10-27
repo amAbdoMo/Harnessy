@@ -1,0 +1,28 @@
+# Bilingual-pair consistency record for 2026-10-27-nested-operation-targets.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/persistence-changes/2026-10-27-nested-operation-targets.md
+/:
+  en: 3d5a424ae7d7e46b
+  zh: c22a8e4a62d8cc1a
+/2026-10-27-nested-operation-targets:
+  en: 9ad97f119de7d437
+  zh: 1f6e8efbf41e5dac
+/2026-10-27-nested-operation-targets/summary:
+  en: 2fa5b3278e26a5fa
+  zh: 3c68d28d81b08d0e
+/2026-10-27-nested-operation-targets/table-of-contents:
+  en: 6cf314a069ceb451
+  zh: 9adff678e9ecab3b
+/2026-10-27-nested-operation-targets/declaration:
+  en: 6907136f28e48c90
+  zh: 02f8298485f3d8e7
+/2026-10-27-nested-operation-targets/compatibility:
+  en: b121f19e33a7c85e
+  zh: d2ee3c08fb647571
+/2026-10-27-nested-operation-targets/verification:
+  en: c83bbd65c2707393
+  zh: c029f90ccee57ee7
+/2026-10-27-nested-operation-targets/dev-note:
+  en: b75c8458928b72b9
+  zh: 003ba4e17b4b5269

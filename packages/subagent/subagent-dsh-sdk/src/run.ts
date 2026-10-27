@@ -37,11 +37,13 @@ export interface SdkRunSpec {
   /** Absolute isolated Harness home for the nested runtime. */
   dshHome: string
   /**
-   * Absolute working directory for the child process AND the workspace cwd
-   * of its SDK session. The provider resolves it before this spec exists:
+   * Absolute execution directory for the child process and its live SDK Session.
+   * The provider resolves it before this spec exists:
    * config override, else the delegating parent session's workspace.
    */
   cwd: string
+  /** Parent project or deployment fallback used for the child session origin. */
+  originCwd?: string | undefined
   /** Provider route the child runtime initializes with. */
   provider: string
   /** Model the child runtime initializes with. */
@@ -246,7 +248,7 @@ export async function startSdkRun(request: SubagentStartRequest, spec: SdkRunSpe
     shutdownTimeoutMs: spec.shutdownTimeoutMs,
     disposeEofGraceMs: spec.disposeEofGraceMs,
     disposeGraceMs: spec.disposeGraceMs,
-    cwd: spec.cwd,
+    cwd: spec.originCwd ?? spec.cwd,
     provider: spec.provider,
     model: spec.model,
     ...spec.reasoningEffort === undefined ? {} : { reasoningEffort: spec.reasoningEffort },
@@ -319,8 +321,14 @@ export async function startSdkRun(request: SubagentStartRequest, spec: SdkRunSpe
   const result: Promise<SubagentResult> = settleRunResult({
     attempt: async () => {
       try {
+        const child = harness.session(childSessionId)
+        const run = async () => {
+          await child.setWorkingDirectory(spec.cwd)
+          if (flags.cancelled) return 'cancelled' as const
+          return child.run(request.prompt, { onNotification: observe })
+        }
         const turn = await Promise.race([
-          harness.session(childSessionId).run(request.prompt, { onNotification: observe }),
+          run(),
           cancelSettled.then(() => 'cancelled' as const),
         ])
         if (turn === 'cancelled') return { output: collectOutput(), stopReason: 'aborted' }

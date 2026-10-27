@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-新子进程及其协议会话使用 `ctx.workingDirectory` 提供的父 Session 当前目录，包括服务配置的默认目录。若提供方支持并配置了 `cwd` 覆盖值，该值仍优先；已有子进程保留启动目录。
+新子进程及其协议会话使用 `ctx.workingDirectory` 提供的父 Session 当前目录，包括服务配置的默认目录。若提供方支持并配置了 `cwd` 覆盖值，该值优先于继承目录；显式子代理 `cwd` 优先于覆盖值；已有子进程保留启动目录。
 
 当组合需要一个支持 Agent Client Protocol、完全隔离且在进程外运行的子 agent 时，挂载本提供方。常用路径是显式的：挂载 seam、挂载本提供方，并给出一个启动 ACP agent 的命令。
 

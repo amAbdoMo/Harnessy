@@ -11,6 +11,7 @@ import type { DiffCallView, DiffResultView, ToolResult } from '@deepseek-ai/dsh-
 import type {} from '@deepseek-ai/dsh-fs'
 import { computeHunkDiffs, diffsFromMeta } from './diff.ts'
 import { remediateFsError } from './error.ts'
+import { mutationResult } from './mutation-result.ts'
 import { sessionResolveOptions } from './session-cwd.ts'
 import type { FsSandboxController } from './sandbox.ts'
 
@@ -100,7 +101,7 @@ export function applyEditTool(ctx: Context, sandbox: FsSandboxController): void 
         type: 'object',
         additionalProperties: false,
         properties: {
-          path: { type: 'string', required: true },
+          path: { type: 'string', required: true, description: 'Canonical absolute path in the filesystem execution world.' },
           before: { type: 'string', required: true },
           after: { type: 'string', required: true },
         },
@@ -143,12 +144,7 @@ export function applyEditTool(ctx: Context, sandbox: FsSandboxController): void 
         // stable model-facing diagnostic; anything else passes through.
         throw remediateFsError(sandbox.mapError(error, sandboxPolicy), target.displayPath)
       }
-      ctx.emit('fs/observed', target, { kind: 'present', version: outcome.version }, exec)
-      return {
-        path: target.displayPath,
-        before: outcome.before,
-        after: outcome.after,
-      }
+      return mutationResult(ctx, target, outcome, exec)
     },
     // Pure display: a diff card of the literal replacement (old_string → new_string), derived
     // from the call args. `oldText: old_string || null` matches claude-agent-acp's Edit arm;

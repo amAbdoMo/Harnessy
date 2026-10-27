@@ -20,6 +20,7 @@ import { SessionSeq } from '@deepseek-ai/dsh-session'
 import type { Session } from '@deepseek-ai/dsh-session'
 import {
   assertSubagentMaxDepth,
+  captureChildDirectory,
   delegationDepthOf,
   parentAgentOptionsForDelegation,
   settleRun,
@@ -388,6 +389,10 @@ export function apply(ctx: Context, config: Config, session?: Session): void {
             : ' This call waits for the result by default.'
           : ' This call waits for the subagent and returns its result.') + choiceDescription,
         parameters: {
+          cwd: {
+            type: 'string',
+            description: 'Initial child working directory. Relative paths use your current directory; omitted inherits it.',
+          },
           description: {
             type: 'string',
             required: true,
@@ -476,6 +481,7 @@ export function apply(ctx: Context, config: Config, session?: Session): void {
             throw new Error('subagent tool requires a calling agent (exec.agent was undefined)')
           }
 
+          const cwd = await captureChildDirectory(parent, args.cwd, exec.signal)
           const modelRequest = args as DelegationModelRequest
           const parentOptions = parentAgentOptionsForDelegation(parent)
           const requiresRoutePreflight = hasDelegationModelRequest(modelRequest)
@@ -514,6 +520,8 @@ export function apply(ctx: Context, config: Config, session?: Session): void {
           exec.signal.throwIfAborted()
           const maxDepth = runtimeCtx.subagents.resolveMaxDepth(config.maxDepth)
           const request = {
+            cwd,
+            cwdExplicit: args.cwd !== undefined,
             label: args.description,
             prompt: [{ type: 'text', text: args.prompt }] as ContentBlock[],
             parent,

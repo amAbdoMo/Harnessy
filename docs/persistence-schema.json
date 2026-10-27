@@ -18066,7 +18066,7 @@
       "kind": "event",
       "event": "tool/ptc-dispatch",
       "surface": false,
-      "digest": "100f6dca1468538239522cde3533e5bd721d0f1a7b50bea8b0eb533ea6c96163",
+      "digest": "d66e11dddf5dfa3c71547e2cbd7b0608824cd8d6243fc16f532017ff28e8fba5",
       "schema": {
         "root": 0,
         "nodes": [
@@ -18080,22 +18080,22 @@
               },
               {
                 "name": "ignorable",
-                "type": 26,
+                "type": 29,
                 "optional": true
               },
               {
                 "name": "seq",
-                "type": 19,
+                "type": 17,
                 "optional": false
               },
               {
                 "name": "time",
-                "type": 19,
+                "type": 17,
                 "optional": false
               },
               {
                 "name": "type",
-                "type": 33,
+                "type": 37,
                 "optional": false
               }
             ],
@@ -18123,6 +18123,11 @@
                 "name": "isError",
                 "type": 32,
                 "optional": false
+              },
+              {
+                "name": "meta",
+                "type": 33,
+                "optional": true
               },
               {
                 "name": "name",
@@ -18163,8 +18168,8 @@
               10,
               13,
               15,
-              17,
-              28
+              19,
+              21
             ]
           },
           {
@@ -18264,6 +18269,51 @@
             "kind": "object",
             "properties": [
               {
+                "name": "attachment",
+                "type": 16,
+                "optional": false
+              },
+              {
+                "name": "type",
+                "type": 18,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "attachmentId",
+                "type": 6,
+                "optional": false
+              },
+              {
+                "name": "bytes",
+                "type": 17,
+                "optional": false
+              },
+              {
+                "name": "name",
+                "type": 6,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "primitive",
+            "type": "number"
+          },
+          {
+            "kind": "literal",
+            "value": "file"
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
                 "name": "arguments",
                 "type": 6,
                 "optional": false
@@ -18280,7 +18330,7 @@
               },
               {
                 "name": "type",
-                "type": 16,
+                "type": 20,
                 "optional": false
               }
             ],
@@ -18295,17 +18345,17 @@
             "properties": [
               {
                 "name": "attachment",
-                "type": 18,
+                "type": 22,
                 "optional": false
               },
               {
                 "name": "offloaded",
-                "type": 26,
+                "type": 29,
                 "optional": true
               },
               {
                 "name": "type",
-                "type": 27,
+                "type": 30,
                 "optional": false
               }
             ],
@@ -18321,17 +18371,17 @@
               },
               {
                 "name": "bytes",
-                "type": 19,
+                "type": 17,
                 "optional": false
               },
               {
                 "name": "height",
-                "type": 19,
+                "type": 17,
                 "optional": false
               },
               {
                 "name": "mediaType",
-                "type": 20,
+                "type": 23,
                 "optional": false
               },
               {
@@ -18341,28 +18391,24 @@
               },
               {
                 "name": "originalDimensions",
-                "type": 25,
+                "type": 28,
                 "optional": true
               },
               {
                 "name": "width",
-                "type": 19,
+                "type": 17,
                 "optional": false
               }
             ],
             "indices": []
           },
           {
-            "kind": "primitive",
-            "type": "number"
-          },
-          {
             "kind": "union",
             "types": [
-              21,
-              22,
-              23,
-              24
+              24,
+              25,
+              26,
+              27
             ]
           },
           {
@@ -18386,12 +18432,12 @@
             "properties": [
               {
                 "name": "height",
-                "type": 19,
+                "type": 17,
                 "optional": false
               },
               {
                 "name": "width",
-                "type": 19,
+                "type": 17,
                 "optional": false
               }
             ],
@@ -18404,47 +18450,6 @@
           {
             "kind": "literal",
             "value": "image"
-          },
-          {
-            "kind": "object",
-            "properties": [
-              {
-                "name": "attachment",
-                "type": 29,
-                "optional": false
-              },
-              {
-                "name": "type",
-                "type": 30,
-                "optional": false
-              }
-            ],
-            "indices": []
-          },
-          {
-            "kind": "object",
-            "properties": [
-              {
-                "name": "attachmentId",
-                "type": 6,
-                "optional": false
-              },
-              {
-                "name": "bytes",
-                "type": 19,
-                "optional": false
-              },
-              {
-                "name": "name",
-                "type": 6,
-                "optional": false
-              }
-            ],
-            "indices": []
-          },
-          {
-            "kind": "literal",
-            "value": "file"
           },
           {
             "kind": "object",
@@ -18470,6 +18475,35 @@
           {
             "kind": "primitive",
             "type": "boolean"
+          },
+          {
+            "kind": "union",
+            "types": [
+              6,
+              17,
+              32,
+              34,
+              35,
+              36
+            ]
+          },
+          {
+            "kind": "array",
+            "element": 33
+          },
+          {
+            "kind": "primitive",
+            "type": "null"
+          },
+          {
+            "kind": "object",
+            "properties": [],
+            "indices": [
+              {
+                "key": 6,
+                "value": 33
+              }
+            ]
           },
           {
             "kind": "literal",
@@ -23043,15 +23077,6 @@
       "sources": []
     },
     {
-      "digest": "0ee52de154f8955c7abc82cffebc57452dcc8c44dccbdb6ad16c71a11305ead8",
-      "names": [
-        "packages/core/tools/src/types.ts#PtcDispatchEventData"
-      ],
-      "sources": [
-        "packages/core/tools/src/types.ts:20"
-      ]
-    },
-    {
       "digest": "0eeb17e1df89b1ebc2902116fe7145e0d321ef0db26e6bdebc802cb8513a01c1",
       "names": [],
       "sources": []
@@ -23070,11 +23095,6 @@
     },
     {
       "digest": "0fe52387f65052702ed9d7cd59db826468936595d1b3eec207e7a823adc719db",
-      "names": [],
-      "sources": []
-    },
-    {
-      "digest": "100f6dca1468538239522cde3533e5bd721d0f1a7b50bea8b0eb533ea6c96163",
       "names": [],
       "sources": []
     },
@@ -23581,7 +23601,7 @@
         "packages/core/tools/src/types.ts#PtcDispatchStartEventData"
       ],
       "sources": [
-        "packages/core/tools/src/types.ts:11"
+        "packages/core/tools/src/types.ts:12"
       ]
     },
     {
@@ -23776,7 +23796,7 @@
         "packages/core/tools/src/types.ts#ToolRestriction"
       ],
       "sources": [
-        "packages/core/tools/src/types.ts:68"
+        "packages/core/tools/src/types.ts:71"
       ]
     },
     {
@@ -25364,7 +25384,7 @@
       "names": [],
       "sources": [
         "packages/core/session/src/types.ts:383",
-        "packages/core/tools/src/types.ts:24"
+        "packages/core/tools/src/types.ts:27"
       ]
     },
     {
@@ -25967,6 +25987,15 @@
       ]
     },
     {
+      "digest": "cef171adf021a1867d244618a3dbbaafc22beb17c7f3df3ee203393271c8c6f6",
+      "names": [
+        "packages/core/tools/src/types.ts#PtcDispatchEventData"
+      ],
+      "sources": [
+        "packages/core/tools/src/types.ts:21"
+      ]
+    },
+    {
       "digest": "cffcdc19881ab61ec0a9ce18743996f7ac44ac8889f34dfac36ae745574aa22f",
       "names": [
         "packages/goal/goal/src/domain.ts#GoalClearChangeMeta"
@@ -26009,6 +26038,11 @@
     },
     {
       "digest": "d63b8b8ffad9c02fd80c43a17df4f240c1fe8118ecca9de34f9d5871838ab5b9",
+      "names": [],
+      "sources": []
+    },
+    {
+      "digest": "d66e11dddf5dfa3c71547e2cbd7b0608824cd8d6243fc16f532017ff28e8fba5",
       "names": [],
       "sources": []
     },

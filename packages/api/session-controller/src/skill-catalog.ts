@@ -2,11 +2,25 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-agent-preset-registry/types'
+import type {} from '@deepseek-ai/dsh-working-directory'
 import { SessionQueryError } from '@deepseek-ai/dsh-session-query'
 import { isUserInvocable } from '@deepseek-ai/dsh-skill'
 import type { ScopeKey } from '@deepseek-ai/dsh-scope'
 import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import type { SkillListRequest, SkillListValue } from './types.ts'
+
+function isCancelled(signal: AbortSignal, error: unknown): boolean {
+  return error === signal.reason
+    || (error instanceof SessionQueryError && error.code === 'SESSION_QUERY_ABORTED')
+}
+
+function throwIfCancelled(signal: AbortSignal): void {
+  try {
+    signal.throwIfAborted()
+  } catch (error: unknown) {
+    throw new RemoteError('gateway/cancelled', 'skill catalog read was cancelled', {}, { cause: error })
+  }
+}
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -17,7 +31,7 @@ declare module '@deepseek-ai/cordis' {
 
 /** Host service backing `ctx.remote.skills` without activating a cold Agent. */
 export class SessionSkillCatalog extends TypertRemoteService {
-  static inject = ['agents', 'sessionQuery', 'typert']
+  static inject = ['agents', 'sessionQuery', 'typert', 'workingDirectory']
 
   /** @param ctx - Host context carrying Session reads and optional skill/preset services. */
   constructor(ctx: Context) {
@@ -27,24 +41,29 @@ export class SessionSkillCatalog extends TypertRemoteService {
   /**
    * List the user-invocable skills visible to one Session composition.
    * @param request - Session identity whose cwd and preset select the catalog view.
-   * @param signal - caller lifetime carried by the Remote transport; admitted catalog reads retain their existing completion semantics.
+   * @param signal - caller lifetime carried by the Remote transport.
    * @returns user-invocable skill metadata without loading skill bodies.
    * @throws RemoteError when the Session cannot be inspected or no registry can serve it.
    */
   @Remote
   async list(request: SkillListRequest, signal: AbortSignal): Promise<SkillListValue> {
-    void signal
+    throwIfCancelled(signal)
     const { sessionId } = request
     let cwd: string | undefined
     let agentPreset: string | undefined
     try {
-      using observation = await this.ctx.sessionQuery.observeSession(sessionId)
+      using observation = await this.ctx.sessionQuery.observeSession(sessionId, { signal })
+      throwIfCancelled(signal)
       if (observation.projections === undefined) {
         throw new Error('skill catalog requires a projected Session observation')
       }
-      cwd = observation.header.cwd
+      cwd = observation.projections.values.workingDirectory ?? observation.header.cwd
       agentPreset = observation.projections.values.agentPreset ?? undefined
     } catch (error: unknown) {
+      if (isCancelled(signal, error)) {
+        throw new RemoteError('gateway/cancelled', 'skill catalog read was cancelled', {}, { cause: error })
+      }
+      if (error instanceof RemoteError) throw error
       if (error instanceof SessionQueryError
         && error.code === 'SESSION_QUERY_SESSION_NOT_FOUND') {
         throw new RemoteError('session/not-found', `session "${sessionId}" not found`, { sessionId })
@@ -55,11 +74,15 @@ export class SessionSkillCatalog extends TypertRemoteService {
         {},
       )
     }
-    if (cwd === undefined) {
-      throw new RemoteError('gateway/internal', `session "${sessionId}" has no project cwd`, {})
-    }
-
     const live = this.ctx.agents.get(sessionId)
+    if (live !== undefined) {
+      try {
+        cwd = await this.ctx.workingDirectory.ensure(live, signal)
+      } catch (error: unknown) {
+        throw new RemoteError('gateway/internal', `session "${sessionId}" directory could not be inspected: ${String(error)}`, {})
+      }
+    }
+    cwd ??= this.ctx.workingDirectory.defaultDirectory
     const presets = this.ctx.get('agentPresets')
     const scoped = live === undefined ? undefined : presets?.serviceFor(live, 'skills')
     const skillRegistry = scoped ?? this.ctx.get('skills')
@@ -74,7 +97,10 @@ export class SessionSkillCatalog extends TypertRemoteService {
     await using lease = live === undefined ? await this.scopeFor(agentPreset) : undefined
     const scope = live ?? lease?.key
     try {
-      const skills = (await skillRegistry.list({ cwd, scope })).filter(isUserInvocable)
+      throwIfCancelled(signal)
+      const listed = await skillRegistry.list({ cwd, scope })
+      throwIfCancelled(signal)
+      const skills = listed.filter(isUserInvocable)
       return {
         skills: skills.map(skill => ({
           name: skill.name,
@@ -85,6 +111,8 @@ export class SessionSkillCatalog extends TypertRemoteService {
         })),
       }
     } catch (error: unknown) {
+      if (isCancelled(signal, error)) throw new RemoteError('gateway/cancelled', 'skill catalog read was cancelled', {}, { cause: error })
+      if (error instanceof RemoteError) throw error
       throw new RemoteError('gateway/internal', `skill listing failed: ${String(error)}`, {})
     }
   }

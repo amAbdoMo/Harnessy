@@ -12,9 +12,9 @@ import type { ToolExecution } from '@deepseek-ai/dsh-tools'
 /**
  * The session workspace cwd for this call, or `undefined` when none applies.
  * @param ctx - consumer context injecting the working-directory service.
- * @param exec - the tool-execution context; only its optional `agent` is read.
+ * @param exec - the tool-execution context; its optional `agent` and cancellation signal are used.
  * @returns the calling agent's current directory, or undefined for a non-agent caller.
  */
-export function sessionCwd(ctx: Context, exec: ToolExecution): string | undefined {
-  return exec.agent === undefined ? undefined : ctx.workingDirectory.get(exec.agent.session)
+export async function sessionCwd(ctx: Context, exec: ToolExecution): Promise<string | undefined> {
+  return exec.agent === undefined ? undefined : await ctx.workingDirectory.ensure(exec.agent, exec.signal)
 }

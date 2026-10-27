@@ -100,7 +100,7 @@ describe('continuable committed directory capture', () => {
       const release = Promise.withResolvers<undefined>()
       const preparation = vi.spyOn(provider, 'prepareContinuable').mockImplementation(async (request) => {
         const prepared = prepare(request)
-        entered.resolve(ctx.workingDirectory.get(parent.session))
+        entered.resolve(request.cwd)
         await release.promise
         return prepared
       })
@@ -109,7 +109,7 @@ describe('continuable committed directory capture', () => {
       const spec = startSpec(parent, providerName)
       const starting = ctx.subagents.startContinuable(spec)
       try {
-        expect(await entered.promise).toBe(paths.parentDir)
+        expect(await entered.promise).toBe(paths.pendingDir)
         await pendingSet
         expect(ctx.workingDirectory.get(parent.session)).toBe(paths.pendingDir)
         await ctx.workingDirectory.set(parent, paths.laterDir)
@@ -124,7 +124,7 @@ describe('continuable committed directory capture', () => {
       const started = await starting
       const child = ctx.agents.get(started.childId)
       if (child === undefined) throw new Error('expected the child to remain live')
-      expect(ctx.workingDirectory.get(child.session)).toBe(paths.parentDir)
+      expect(ctx.workingDirectory.get(child.session)).toBe(paths.pendingDir)
       expect(child.session.header).toMatchObject({ cwd: paths.origin, parentSession: parent.id })
       expect(ctx.sandboxPolicy.resolve({ session: child.session })).toMatchObject({ mode: 'workspace-write', workspaceRoot: paths.origin })
       await vi.waitFor(() => { expect(adapter.requests).toHaveLength(2) })
@@ -132,7 +132,7 @@ describe('continuable committed directory capture', () => {
       await ctx.subagents.drainContinuableChildren(parent, [started.childId])
       expect(ctx.agents.get(started.childId)).toBeUndefined()
       const stored = await loadStoredSession(ctx.sessionPersistence, started.childId)
-      expect(directoryChanges(stored.events.slice(stored.inheritedEventCount))).toEqual([paths.parentDir, captured])
+      expect(directoryChanges(stored.events.slice(stored.inheritedEventCount))).toEqual([paths.pendingDir, captured])
       expect(directoryChanges(stored.events.slice(0, stored.inheritedEventCount)))
         .toEqual(providerName === 'fork' ? [paths.seedDir] : [])
       const storedChild = Session.create(started.childId, stored.events, stored.meta, stored.inheritedEventCount)

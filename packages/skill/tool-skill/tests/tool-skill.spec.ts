@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -65,6 +65,7 @@ async function setup(home: string, config: toolSkill.Config = {}): Promise<Conte
   await ctx.plugin(SkillRegistry)
   await ctx.plugin(SkillFileSystem, { dshHome: join(home, '.dsh'), agentsHome: join(home, '.agents'), watch: false })
   await ctx.plugin(toolSkill, config)
+  vi.spyOn(ctx.workingDirectory, 'ensure').mockImplementation(async agent => ctx.workingDirectory.get(agent.session))
   return ctx
 }
 
@@ -224,6 +225,7 @@ describe('dsh-tool-skill', () => {
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(AgentRegistry)
     const home = await tempDir('tool-schema')
+    vi.spyOn(ctx.workingDirectory, 'ensure').mockImplementation(async agent => ctx.workingDirectory.get(agent.session))
     await ctx.plugin(SkillRegistry)
     await ctx.plugin(SkillFileSystem, { dshHome: join(home, '.dsh'), agentsHome: join(home, '.agents'), watch: false })
     ctx.skills.register({ name: 'lifecycle-skill', description: 'Lifecycle', source: 'runtime', content: 'body' })
@@ -260,10 +262,27 @@ describe('dsh-tool-skill', () => {
       },
     }))
     const controller = new AbortController()
+    const ensure = vi.spyOn(ctx.workingDirectory, 'ensure')
 
     await composePrefix(ctx, '/workspace', controller.signal)
 
     expect(seenSignal).toBe(controller.signal)
+    expect(ensure).toHaveBeenCalledWith(expect.anything(), controller.signal)
+  })
+
+  it('does not query skills when live directory validation fails', async () => {
+    const home = await tempDir('tool-prefix-cancelled-directory')
+    const ctx = await setup(home)
+    const ensure = vi.spyOn(ctx.workingDirectory, 'ensure')
+    const list = vi.fn(() => Promise.resolve([]))
+    ctx.skills.registerProvider(() => ({ name: 'cancelled-directory', list, get: async () => undefined }))
+    ensure.mockRejectedValueOnce(new Error('directory validation cancelled'))
+    try {
+      await expect(composePrefix(ctx, '/workspace')).rejects.toThrow('directory validation cancelled')
+      expect(list).not.toHaveBeenCalled()
+    } finally {
+      await ctx.fiber.dispose()
+    }
   })
 
   it('injects a stable durable name-and-description catalog at the first step', async () => {

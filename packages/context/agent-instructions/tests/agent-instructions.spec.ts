@@ -3067,6 +3067,7 @@ describe('workspace context request injection', () => {
     try {
       await ctx.plugin(RecordingFileSystem)
       const fs = ctx.fs as RecordingFileSystem
+      fs.entries.set(cwd, { type: 'directory' })
       fs.missingOnResolve.add(join(cwd, '.git'))
       fs.entries.set(join(root, '.git'), { type: 'directory' })
       fs.entries.set(join(root, 'AGENTS.md'), { type: 'file', content: 'provider parent rule' })
@@ -3329,6 +3330,7 @@ describe('workspace context request injection', () => {
       const ctx = new Context()
       await ctx.plugin(RecordingFileSystem)
       const fs = ctx.fs as RecordingFileSystem
+      fs.entries.set(cwd, { type: 'directory' })
       fs.throwOnStat.add(join(cwd, '.git'))
       fs.entries.set(join(root, '.git'), { type: 'directory' })
       fs.entries.set(join(root, 'AGENTS.md'), { type: 'file', content: 'ancestor rule must not load' })

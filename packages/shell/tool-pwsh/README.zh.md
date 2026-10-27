@@ -11,6 +11,8 @@ kind: "package-reference"
 
 `dsh-tool-pwsh` 让 agent（智能体）通过已挂载的 shell 执行器运行 PowerShell 命令。每次调用使用全新进程；组合中有 job 注册表时，每条命令从启动那一刻起就是一个任务，因此 `run_in_background` 立即返回 id，超过超时仍在运行的前台命令返回同一个 id，输出可观测。命令使用原生 Windows 路径和 `$env:NAME` 变量，不做方言翻译。调用获得受管 `DSH_*` 环境，沙箱执行会落实 Windows 语言模式与命名管道要求。请与 `dsh-pwsh-local` 等 PowerShell 执行器及 `dsh-shell-env` 插件一起挂载。
 
+已完成、已转入后台及超时后转为后台任务的结果会记录执行器的初始工作目录，作为历史导航的展示元数据。
+
 ## 目录
 
 - [使用本包](#use-this-package)

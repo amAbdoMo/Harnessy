@@ -44,6 +44,7 @@ async function createParent(cwd?: string, name = 'parent'): Promise<Agent> {
   const ctx = new Context()
   parentContexts.push(ctx)
   await mountAgentLoopTestDependencies(ctx)
+  provideWorkingDirectoryFixture(ctx)
   const harness = await mountAgentLoopTestHarness(ctx)
   return harness.create(SessionId(name), {}, cwd === undefined ? {} : { cwd })
 }
@@ -627,7 +628,7 @@ describe('cwd resolution', () => {
       const ctx = await setup({})
       const parent = await createParent(file)
       await expect(ctx.subagents.start('acp', { prompt: [{ type: 'text' as const, text: 'p' }], parent, signal: new AbortController().signal }))
-        .rejects.toThrow(`subagent-acp: ${expectedFailure('stage: initialize; category: configuration')}`)
+        .rejects.toThrow('subagent directory is unavailable')
     } finally {
       rmSync(tmp, { recursive: true, force: true })
     }
@@ -646,7 +647,7 @@ describe('cwd resolution', () => {
       await ctx.plugin(acp, { providerName: 'acp', command: 'touch', args: [sentinel], permission: 'reject', env: {} })
       const parent = await createParent(join(tmp, 'vanished'))
       await expect(ctx.subagents.start('acp', { prompt: [{ type: 'text' as const, text: 'p' }], parent, signal: new AbortController().signal }))
-        .rejects.toThrow(`subagent-acp: ${expectedFailure('stage: initialize; category: configuration')}`)
+        .rejects.toThrow('subagent directory is unavailable')
       expect(existsSync(sentinel)).toBe(false)
     } finally {
       rmSync(tmp, { recursive: true, force: true })
@@ -791,7 +792,7 @@ describe('dsh-subagent-acp', () => {
       prompt: [{ type: 'text' as const, text: 'p' }],
       parent,
       signal: controller.signal,
-    })).rejects.toThrow('subagent request was aborted before the ACP child started')
+    })).rejects.toThrow('This operation was aborted')
   })
 
   it('reports an initialize-stage process exit without copying the transport error', async () => {

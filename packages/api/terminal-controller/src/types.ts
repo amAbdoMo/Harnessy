@@ -30,7 +30,7 @@ export interface TerminalShell {
   readonly name: string
 }
 
-/** Working directory and limits shared by new and restored terminals. */
+/** Current selected directory and limits; new terminals validate and recover their startup directory before launch. */
 export interface TerminalEnvironment {
   readonly cwd: string
   readonly maxInputBytes: number

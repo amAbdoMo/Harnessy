@@ -37,6 +37,7 @@ async function setup(script: Script, parentOptions: Partial<AgentOptions> = {}) 
 
 function request(parent: Agent, signal = new AbortController().signal) {
   return {
+    cwd: parent.ctx.get('workingDirectory')!.get(parent.session),
     label: 'child task',
     prompt: [{ type: 'text' as const, text: 'child task' }],
     parent,

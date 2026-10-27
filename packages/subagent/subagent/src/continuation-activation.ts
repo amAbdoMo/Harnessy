@@ -629,7 +629,7 @@ export class ContinuableActivationRegistry {
       if (create !== undefined) {
         child.session.append('subagent/descriptor', create.descriptor)
         appendDelegatedPolicyOverrides(child.session, create.delegatedPolicies)
-        const directories = this.ownerCtx.get('workingDirectory')
+        const directories = childCtx.get('workingDirectory')
         if (directories === undefined) throw new Error('continuable subagents require the working-directory service')
         await directories.set(child, create.cwd, inputs.signal)
       }

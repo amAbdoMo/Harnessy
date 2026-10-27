@@ -1,5 +1,5 @@
 /** Session identity, allocation races, human execution permissions and real PTY behavior. */
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -9,6 +9,7 @@ import { Session, SessionId, SESSION_FORMAT_VERSION, type SessionEvent } from '@
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import WorkingDirectory from '@deepseek-ai/dsh-working-directory'
+import type { WorkingDirectoryService } from '@deepseek-ai/dsh-working-directory'
 import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
 import type { SandboxExecutionPolicy, SandboxMode } from '@deepseek-ai/dsh-sandbox'
 import { SubprocessExecutableNotFoundError, type SubprocessRuntime, type SubprocessTerminalEnvironment, type SubprocessTerminalHandle } from '@deepseek-ai/dsh-subprocess'
@@ -32,13 +33,16 @@ function owner(ctx: Context, id = 'session', cwd?: string): Agent {
   return { id: sessionId, ctx, session } as Agent
 }
 
-async function fixture(overrides: Partial<Config> = {}) {
+async function fixture(overrides: Partial<Config> = {}, options: { defaultDirectory?: string; ensureWorkingDirectory?: boolean } = {}) {
   const ctx = new Context()
   roots.push(ctx)
   await ctx.plugin(SessionProjectionRegistry)
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(LocalFileSystem)
-  await ctx.plugin(WorkingDirectory, { defaultDirectory: '/workspace' })
+  await ctx.plugin(WorkingDirectory, { defaultDirectory: options.defaultDirectory ?? '/workspace' })
+  if (options.ensureWorkingDirectory !== true) {
+    vi.spyOn(ctx.workingDirectory, 'ensure').mockImplementation(async agent => ctx.workingDirectory.get(agent.session))
+  }
   const effects = vi.spyOn(ctx.fiber, 'effect')
   const sandboxPolicy = { defaultMode: 'danger-full-access', workspaceRoot: '/workspace', resolve: vi.fn((): SandboxExecutionPolicy => ({ mode: 'danger-full-access', workspaceRoot: '/workspace' })) }
   ctx.provide('sandboxPolicy', sandboxPolicy as never)
@@ -85,6 +89,104 @@ describe('TerminalController', () => {
     expect(controller.environment(agent, signal())).toMatchObject({ cwd: '/workspace' })
     await controller.create(agent, request, signal())
     await controller.close(agent, id)
+  })
+
+  it('selects the directory provider from the Agent context', async () => {
+    const { controller, subprocess, sandboxPolicy } = await fixture()
+    const agentContext = new Context()
+    roots.push(agentContext)
+    agentContext.provide('subprocess', subprocess as never)
+    agentContext.provide('sandboxPolicy', sandboxPolicy as never)
+    const scopedDirectory: Pick<WorkingDirectoryService, 'get' | 'ensure'> = {
+      get: () => '/agent-workspace',
+      ensure: async () => '/agent-workspace',
+    }
+    agentContext.provide('workingDirectory', scopedDirectory as WorkingDirectoryService)
+    const agent = owner(agentContext)
+    expect(controller.environment(agent, signal())).toMatchObject({ cwd: '/agent-workspace' })
+    await controller.create(agent, request, signal())
+    expect(subprocess.spawnTerminal).toHaveBeenCalledWith(expect.objectContaining({ cwd: '/agent-workspace' }))
+    await controller.close(agent, id)
+  })
+
+  it('recovers a deleted selection before spawning and records the recovered startup directory', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-terminal-recovery-'))
+    const selected = join(root, 'selected')
+    await mkdir(selected)
+    try {
+      const { ctx, controller, subprocess } = await fixture({}, { defaultDirectory: root, ensureWorkingDirectory: true })
+      const agent = owner(ctx, 'recovering-session', root)
+      const ensure = vi.spyOn(ctx.workingDirectory, 'ensure')
+      await ctx.workingDirectory.set(agent, selected)
+      const selectedPath = ctx.workingDirectory.get(agent.session)
+      const canonicalRoot = await realpath(root)
+      await rm(selected, { recursive: true })
+
+      expect(controller.environment(agent, signal()).cwd).toBe(selectedPath)
+      const created = await controller.create(agent, request, signal())
+      expect(created.cwd).toBe(canonicalRoot)
+      expect(ctx.workingDirectory.get(agent.session)).toBe(canonicalRoot)
+      expect(ensure).toHaveBeenCalledOnce()
+      expect(subprocess.spawnTerminal).toHaveBeenCalledWith(expect.objectContaining({ cwd: created.cwd }))
+      expect(agent.session.header.cwd).toBe(root)
+
+      await mkdir(selected)
+      await ctx.workingDirectory.set(agent, selected)
+      expect(await controller.create(agent, request, signal())).toBe(created)
+      expect(created.cwd).toBe(canonicalRoot)
+      expect(ensure).toHaveBeenCalledOnce()
+      expect(subprocess.spawnTerminal).toHaveBeenCalledOnce()
+
+      await controller.create(agent, { ...request, id: 'second-after-recovery' as WebTerminalId }, signal())
+      expect(ensure).toHaveBeenCalledTimes(2)
+      expect(subprocess.spawnTerminal).toHaveBeenCalledTimes(2)
+      await controller.close(agent, id)
+      await controller.close(agent, 'second-after-recovery' as WebTerminalId)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('does not spawn when directory validation is cancelled or the recovery origin is missing', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-terminal-no-origin-'))
+    const selected = join(root, 'selected')
+    await mkdir(selected)
+    try {
+      const { ctx, controller, subprocess } = await fixture({}, { defaultDirectory: join(root, 'missing'), ensureWorkingDirectory: true })
+      const agent = owner(ctx, 'missing-origin', join(root, 'missing'))
+      await ctx.workingDirectory.set(agent, selected)
+      await rm(selected, { recursive: true })
+      await expect(controller.create(agent, request, signal())).rejects.toThrow('working-directory: directory does not exist')
+      expect(subprocess.spawnTerminal).not.toHaveBeenCalled()
+
+      const abort = new AbortController()
+      abort.abort(new Error('request cancelled'))
+      await expect(controller.create(owner(ctx, 'cancelled', root), { ...request, id: 'cancelled' as WebTerminalId }, abort.signal)).rejects.toThrow('request cancelled')
+      expect(subprocess.spawnTerminal).not.toHaveBeenCalled()
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('settles a create cancelled while directory validation is pending without resolving a shell', async () => {
+    const { ctx, controller, agent, subprocess } = await fixture()
+    const ensureStarted = Promise.withResolvers<undefined>()
+    const finishEnsure = Promise.withResolvers<undefined>()
+    vi.spyOn(ctx.workingDirectory, 'ensure').mockImplementationOnce(async (_agent, ensureSignal) => {
+      ensureStarted.resolve(undefined)
+      await finishEnsure.promise
+      ensureSignal?.throwIfAborted()
+      return '/workspace'
+    })
+    const abort = new AbortController()
+    const creating = controller.create(agent, request, abort.signal)
+    await ensureStarted.promise
+    abort.abort(new Error('request cancelled during directory validation'))
+    finishEnsure.resolve(undefined)
+    await expect(creating).rejects.toThrow('request cancelled during directory validation')
+    expect(subprocess.terminalEnvironment).not.toHaveBeenCalled()
+    expect(subprocess.resolveExecutable).not.toHaveBeenCalled()
+    expect(subprocess.spawnTerminal).not.toHaveBeenCalled()
   })
 
   it('creates the environment default shell and keeps an existing identity when that default changes', async () => {
@@ -324,13 +426,14 @@ describe('TerminalController', () => {
     expect(subprocess.spawnTerminal).toHaveBeenCalledWith(expect.objectContaining({ cwd: '/another-workspace' }))
   })
 
-  it.each(['subprocess', 'sandboxPolicy'] as const)('fails clearly when the Session lacks %s', async (missing) => {
-    const { controller, subprocess, sandboxPolicy } = await fixture()
+  it.each(['subprocess', 'sandboxPolicy', 'workingDirectory'] as const)('fails clearly when the Session lacks %s', async (missing) => {
+    const { controller, ctx, subprocess, sandboxPolicy } = await fixture()
     const isolated = new Context()
     roots.push(isolated)
     if (missing !== 'subprocess') isolated.provide('subprocess', subprocess as never)
     if (missing !== 'sandboxPolicy') isolated.provide('sandboxPolicy', sandboxPolicy as never)
-    expect(() => controller.environment(owner(isolated), signal())).toThrow('requires subprocess and sandbox policy providers')
+    if (missing !== 'workingDirectory') isolated.provide('workingDirectory', ctx.workingDirectory)
+    expect(() => controller.environment(owner(isolated), signal())).toThrow('requires subprocess, sandbox policy, and working-directory providers')
   })
 
   it('allows Agent sandbox-mode changes while retaining the same user terminal', async () => {

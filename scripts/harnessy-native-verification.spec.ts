@@ -98,7 +98,7 @@ describe('Manual Harnessy native diagnostics', () => {
       }
     }
     const options = record(record(record(record(workflow().on).workflow_dispatch).inputs).suite).options
-    expect(options).toEqual(['larger-runner-benchmark', 'consolidated-runner-benchmark', nativeJob, 'harnessy-python-snapshot-verification'])
+    expect(options).toEqual(['larger-runner-benchmark', 'consolidated-runner-benchmark', nativeJob, 'harnessy-integration-snapshot-verification'])
   })
 
   it('bounds standard hosted runs and retains read-only access without product credentials', () => {

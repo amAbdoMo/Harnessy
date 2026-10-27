@@ -28,6 +28,7 @@ async function harness(): Promise<Context> {
   await ctx.plugin(SystemPrompt, { personaPrefix: '' })
   await ctx.plugin(ToolRegistry)
   await ctx.plugin(AgentRegistry)
+  vi.spyOn(ctx.workingDirectory, 'ensure').mockImplementation(async agent => ctx.workingDirectory.get(agent.session))
   return ctx
 }
 
@@ -59,6 +60,40 @@ async function stubAgent(
 }
 
 describe('LocalFileReferenceService', () => {
+  it('validates the live directory before listing through the per-agent search', async () => {
+    const ctx = await harness()
+    try {
+      const { agent } = await stubAgent(ctx)
+      await ctx.plugin(LocalFileReferenceService)
+      const ensure = vi.spyOn(ctx.workingDirectory, 'ensure')
+      const signal = new AbortController().signal
+      await expect(ctx.fileReferences.list(agent, 'README', signal))
+        .resolves.toEqual([{ path: 'README.md', kind: 'file' }])
+      expect(ensure).toHaveBeenCalledWith(agent, signal)
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
+
+  it('does not query a cached search when directory validation fails', async () => {
+    const ctx = await harness()
+    try {
+      const { agent } = await stubAgent(ctx)
+      await ctx.plugin(LocalFileReferenceService)
+      const ensure = vi.spyOn(ctx.workingDirectory, 'ensure')
+      const signal = new AbortController().signal
+      await ctx.fileReferences.list(agent, 'README', signal)
+      const list = vi.spyOn(WorkspaceFileSearch.prototype, 'list')
+      ensure.mockRejectedValueOnce(new Error('directory validation cancelled'))
+
+      await expect(ctx.fileReferences.list(agent, 'README', signal))
+        .rejects.toThrow('directory validation cancelled')
+      expect(list).not.toHaveBeenCalled()
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('replaces the cached index after a committed directory change without changing the project', async () => {
     const ctx = await harness()
     try {

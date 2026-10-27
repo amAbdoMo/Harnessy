@@ -22,7 +22,7 @@ import { Session, SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 
 function fakeParent(id = 'parent-1'): Agent {
-  return { id: SessionId(id) } as unknown as Agent
+  return { id: SessionId(id), ctx: { get: (name: string) => name === 'workingDirectory' ? { ensure: async () => process.cwd() } : undefined } } as unknown as Agent
 }
 
 const ALL_CAPS: SubagentCapabilities = {
@@ -145,6 +145,8 @@ describe('SubagentRuntime', () => {
 
     expect(provider.lastRequest).toEqual({
       ...request,
+      cwd: process.cwd(),
+      cwdExplicit: false,
       descriptor: {
         version: SUBAGENT_DESCRIPTOR_VERSION,
         mode: 'one-shot',
@@ -284,7 +286,7 @@ describe('SubagentRuntime', () => {
     onTestFinished(() => ctx.fiber.dispose())
     const parentSession = Session.create(SessionId('catalog-parent'))
     const childSession = Session.create(SessionId('catalog-child'))
-    const parent = { id: parentSession.id, session: parentSession } as Agent
+    const parent = { ...fakeParent(parentSession.id), session: parentSession } as Agent
     const localAgent = { id: childSession.id, session: childSession, options: {} } as Agent
     const result = Promise.withResolvers<SubagentResult>()
     const cleanupFailure = new Error('dispose also failed')

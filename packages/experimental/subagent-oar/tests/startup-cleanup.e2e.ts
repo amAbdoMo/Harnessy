@@ -64,7 +64,7 @@ async function fixture(test: TestContext) {
   const start = (failure: 'initialize' | 'thread' | 'missing-thread-id', hold: boolean) => {
     let outcome: Outcome | undefined
     const promise = startOarRun({
-      parent, descriptor: { version: 1, mode: 'one-shot', provider: 'oar' }, signal: test.signal, prompt: [{ type: 'text', text: 'fixture task' }],
+      parent, cwd: root, descriptor: { version: 1, mode: 'one-shot', provider: 'oar' }, signal: test.signal, prompt: [{ type: 'text', text: 'fixture task' }],
     }, {
       runtime, cwd: root, timeoutMs: 10_000, launchArgs: [],
       env: {

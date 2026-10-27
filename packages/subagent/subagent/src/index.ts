@@ -29,7 +29,10 @@
  * @module @deepseek-ai/dsh-subagent
  */
 import type { Volatile } from '@deepseek-ai/cordis'
+import { isAbsolute } from 'node:path'
 
+import { captureChildDirectory } from './child-directory.ts'
+export { captureChildDirectory } from './child-directory.ts'
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-attachment'
@@ -562,12 +565,18 @@ export class SubagentRuntime extends TypertRemoteService {
     this.assertCapabilities(provider, request)
     assertSubagentMaxDepth(request.maxDepth)
     if (request.outputSchema !== undefined) assertObjectJsonSchema(request.outputSchema)
+    if (request.childSetup !== undefined && !isAbsolute(request.childSetup.cwd)) {
+      throw new SubagentError('childSetup.cwd must be an absolute directory', 'INVALID_CHILD_SETUP')
+    }
     const descriptor = snapshotSubagentDescriptor({
       mode: 'one-shot',
       provider: name,
       ...request.label !== undefined ? { label: request.label } : {},
     })
-    const resolved: ResolvedSubagentStartRequest = { ...request, descriptor }
+    const cwd = await captureChildDirectory(request.parent, request.childSetup?.cwd ?? request.cwd, request.signal)
+    const resolved: ResolvedSubagentStartRequest = {
+      ...request, cwd, cwdExplicit: request.cwdExplicit ?? request.cwd !== undefined, descriptor,
+    }
     const run = await provider.start(resolved)
     const child = run.localAgent?.session
     if (child !== undefined) {

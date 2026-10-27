@@ -163,6 +163,7 @@
     "@deepseek-ai/dsh-otel": "workspace:*",
     "@deepseek-ai/dsh-workspace": "workspace:*",
     "@deepseek-ai/schemastery": "workspace:~",
-    "@deepseek-ai/dsh-plugin-market": "workspace:*"
+    "@deepseek-ai/dsh-plugin-market": "workspace:*",
+    "@deepseek-ai/dsh-tool-working-directory": "workspace:*"
   }
 }

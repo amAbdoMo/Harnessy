@@ -1,0 +1,34 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "lib/worktree-test/types",
+    "emitDeclarationOnly": true,
+    "rewriteRelativeImportExtensions": false
+  },
+  "include": [
+    "packages/experimental/worktree/tests/**/*.ts",
+    "packages/experimental/tool-worktree/tests/**/*.ts",
+    "packages/session/working-directory/tests/**/*.ts",
+    "packages/core/agent-loop/tests/mock-adapter.ts",
+    "packages/core/agent-loop/src/runtime-context.ts",
+    "packages/session/session-persistence/src/index.ts"
+  ],
+  "references": [
+    { "path": "./packages/experimental/worktree" },
+    { "path": "./packages/experimental/tool-worktree" },
+    { "path": "./packages/session/working-directory" },
+    { "path": "./packages/session/tool-working-directory" },
+    { "path": "./packages/test-support/agent-loop-testkit" },
+    { "path": "./packages/session/session-persistence-jsonl" },
+    { "path": "./packages/session/session-persistence" },
+    { "path": "./packages/fs/fs-sandbox" },
+    { "path": "./packages/fs/tool-fs" },
+    { "path": "./packages/interaction/user-approval" },
+    { "path": "./packages/sandbox/sandbox-local" },
+    { "path": "./packages/core/agent-loop" },
+    { "path": "./packages/subprocess/subprocess-local" },
+    { "path": "./vendor/include" },
+    { "path": "./vendor/loader" }
+  ]
+}

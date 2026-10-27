@@ -47,7 +47,7 @@ kind: "package-reference"
 
 ### 失败与恢复
 
-每次查询使用工作目录服务提供的 Session 当前目录，包括服务配置的默认目录。没有 agent 的调用会在任何查询前以 `LSP_WORKSPACE_REQUIRED` 失败；目录改变只影响后续查询，不改变原始项目权限。当没有提供方处理该文件扩展名时，查询以 `LSP_UNAVAILABLE` 失败；格式错误的提供方载荷仍保持为结构化 `LSP_MALFORMED_RESPONSE` 错误。这些会呈现为模型可读、可路由的错误工具结果。
+每个 live Agent 查询都会先验证工作目录服务提供的 Session 当前目录；所选目录消失时，会恢复到原始项目或配置的默认目录。没有 agent 的调用会在任何查询前以 `LSP_WORKSPACE_REQUIRED` 失败；目录改变只影响后续查询，不改变原始项目权限。当没有提供方处理该文件扩展名时，查询以 `LSP_UNAVAILABLE` 失败；格式错误的提供方载荷仍保持为结构化 `LSP_MALFORMED_RESPONSE` 错误。这些会呈现为模型可读、可路由的错误工具结果。
 
 -----
 

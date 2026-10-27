@@ -47,7 +47,7 @@ The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-a
 
 ### Failures and recovery
 
-Each query uses the working-directory service's current Session directory, including its configured fallback. An agentless call fails with `LSP_WORKSPACE_REQUIRED` before any query; a directory change affects subsequent queries without changing the original project authority. When no provider handles the file's extension, the query fails with `LSP_UNAVAILABLE`; malformed provider payloads remain structured `LSP_MALFORMED_RESPONSE` errors. These surface to the model as error tool results it can read and route on.
+Each live Agent query validates the working-directory service's current Session directory, including recovery to the original project or configured fallback when the selected directory disappeared. An agentless call fails with `LSP_WORKSPACE_REQUIRED` before any query; a directory change affects subsequent queries without changing the original project authority. When no provider handles the file's extension, the query fails with `LSP_UNAVAILABLE`; malformed provider payloads remain structured `LSP_MALFORMED_RESPONSE` errors. These surface to the model as error tool results it can read and route on.
 
 -----
 
@@ -74,7 +74,7 @@ This section explains the design decisions behind the tool and where the code re
 |---|---|
 | [`src/index.ts`](src/index.ts) | Plugin entry: config schema, tool registration, system-prompt section, execution |
 | [`src/render.ts`](src/render.ts) | Pure formatting, coordinate conversion, URI resolution, result caps, UI presentation |
-| [`src/session-cwd.ts`](src/session-cwd.ts) | Workspace root from the session `header.cwd` |
+| [`src/session-cwd.ts`](src/session-cwd.ts) | Validated workspace root from the live Session's effective working directory |
 
 </details>
 

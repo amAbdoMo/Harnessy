@@ -6,7 +6,10 @@ import { lstat, mkdir, readFile, readdir, rename, rmdir, unlink, writeFile } fro
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { JSON_SCHEMA, load } from 'js-yaml'
 
-export const UPSTREAM_FIXTURE_COMMIT = '2de9059b4f6fdbaf5461abc4789fa8d78094e258'
+const upstreamLedger = JSON.parse(await readFile(new URL('./harnessy-upstream-review.json', import.meta.url), 'utf8'))
+const fixtureEntry = upstreamLedger.entries.find(entry => entry.tree === '9203404c8509edbefd40f21f72c3cb86466278e0')
+if (fixtureEntry === undefined) throw new Error('Python fixture checkpoint is absent from the upstream review ledger')
+export const UPSTREAM_FIXTURE_COMMIT = fixtureEntry.sha
 
 const SOURCE_BLOBS = new Map([
   ['snapshots/session/ptc-python-turn/session.v4.jsonl', 'b833f570f375410f176e369a7ff275598f7100604346e1adb8bdac970be7113d'],
@@ -15,6 +18,7 @@ const SOURCE_BLOBS = new Map([
   ['snapshots/session/ptc-python-read-only/snapshot.yml', '8c74bba26bb4776980ef56c6fac3968051b6986a4d5224e16665af041500a29b'],
   ['snapshots/session/ptc-python-read-only/workspace.expected/.empty', 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'],
 ])
+const TURN_COMPOSITION_FILES = ['cordis.yml', 'cordis.snapshot.yml']
 const TURN_MANIFEST_PATH = 'snapshots/session/ptc-python-turn/snapshot.yml'
 const TURN_MANIFEST_SHA256 = '8afa6c45e5269d52e5e7b24eaf441606e339fb7240427966d3e1d2f1b70774c7'
 const GENERATION_NAME = /^session(?:\.\d+)?(?:\.v[1-9]\d*)?\.jsonl$/u
@@ -281,6 +285,8 @@ export async function prepareSnapshotInputs(options) {
     'read-only empty workspace marker must remain zero bytes')
 
   const sidecars = await trackedHeaderSidecars(turnDir)
+  const compositionFiles = Object.fromEntries(await Promise.all(TURN_COMPOSITION_FILES.map(async name =>
+    [name, sha256(await regularFile(resolve(turnDir, name)))])))
   const state = {
     schemaVersion: 1,
     platform,
@@ -292,6 +298,7 @@ export async function prepareSnapshotInputs(options) {
     original: {
       turnManifestBase64: currentManifest.toString('base64'),
       turnManifestSha256: sha256(currentManifest),
+      compositionFiles,
       sidecars: sidecars.map(({ name, bytes }) => ({ name, bytesBase64: bytes.toString('base64'), sha256: sha256(bytes) })),
     },
     injected: {
@@ -330,7 +337,8 @@ export async function prepareSnapshotInputs(options) {
 function allowedScenarioFile(name, scenario) {
   if (name === 'snapshot.yml' || GENERATION_NAME.test(name) || WRITER_NAME.test(name)
     || PROMPT_NAME.test(name) || SCHEMA_NAME.test(name)) return true
-  return scenario === 'ptc-python-read-only' && name === 'workspace.expected/.empty'
+  return (scenario === 'ptc-python-turn' && TURN_COMPOSITION_FILES.includes(name))
+    || (scenario === 'ptc-python-read-only' && name === 'workspace.expected/.empty')
 }
 
 async function captureOwnerFiles(repoRoot, scenario, destination) {
@@ -417,6 +425,13 @@ export async function captureSnapshotOutputs(options) {
     owners[scenario] = { files: captured.records, inventory: captured.fileNames }
     errors.push(...captured.errors)
   }
+  const compositionAfter = {}
+  for (const name of TURN_COMPOSITION_FILES) {
+    const captured = owners['ptc-python-turn'].files.find(file => file.path === name)
+    compositionAfter[name] = captured?.sha256
+    const original = state.original.compositionFiles?.[name]
+    if (typeof original !== 'string' || captured?.sha256 !== original) errors.push(`${name}: original turn composition changed or disappeared`)
+  }
   const frozenAfter = await frozenGenerations(root)
   if (JSON.stringify(frozenAfter) !== JSON.stringify(state.frozenBefore)) errors.push('a pre-existing Python turn Session generation changed')
 
@@ -443,6 +458,7 @@ export async function captureSnapshotOutputs(options) {
         ? owners[path.includes('ptc-python-turn/') ? 'ptc-python-turn' : 'ptc-python-read-only'].files
           .find(file => file.path === 'session.v4.jsonl')?.sha256 : undefined,
     }])),
+    compositionFiles: { before: state.original.compositionFiles, afterSnapshotRuns: compositionAfter },
     frozenGenerations: { before: state.frozenBefore, afterSnapshotRuns: frozenAfter },
     owners,
     errors,
@@ -556,6 +572,13 @@ export async function restoreSnapshotInputs(options) {
     }
   }
 
+  const compositionAfter = {}
+  for (const name of TURN_COMPOSITION_FILES) {
+    try {
+      compositionAfter[name] = sha256(await regularFile(resolve(turnDir, name)))
+      if (compositionAfter[name] !== state.original.compositionFiles?.[name]) errors.push(`${name}: original turn composition changed; left in place`)
+    } catch (error) { errors.push(`${name}: original turn composition unavailable: ${String(error)}`) }
+  }
   let frozenAfter
   try {
     frozenAfter = await frozenGenerations(root)
@@ -572,6 +595,7 @@ export async function restoreSnapshotInputs(options) {
     restored: errors.length === 0,
     turnManifestSha256Before: state.original.turnManifestSha256,
     turnManifestSha256After: manifestAfter,
+    compositionFiles: { before: state.original.compositionFiles, afterCleanup: compositionAfter },
     frozenGenerations: { before: state.frozenBefore, afterCleanup: frozenAfter },
     readOnlyScenarioRemoved: !(await directoryExists(readOnlyDir)),
     errors,
@@ -587,8 +611,13 @@ export async function restoreSnapshotInputs(options) {
   return report
 }
 
-async function verifyCleanup(options) {
-  const { repoRoot, phaseRoot, platform } = options
+/**
+ * Verify cleanup evidence against the remaining owner files.
+ * @param options - Checkout, phase location, platform, and optional fixture baseline.
+ * @returns The verified cleanup receipt.
+ */
+export async function verifyCleanup(options) {
+  const { repoRoot, phaseRoot, platform, turnManifestHash = TURN_MANIFEST_SHA256 } = options
   const root = resolve(repoRoot)
   const phase = pathInside(resolve(root, '.artifacts'), phaseRoot)
   const evidence = resolve(phase, 'evidence')
@@ -596,14 +625,20 @@ async function verifyCleanup(options) {
   assert(receipt.platform === platform && receipt.status === 'restored' && receipt.restored === true,
     'cleanup receipt does not report a complete restore')
   assert(receipt.readOnlyScenarioRemoved === true, 'read-only scenario was not removed')
-  assert(receipt.turnManifestSha256Before === TURN_MANIFEST_SHA256
-    && receipt.turnManifestSha256After === TURN_MANIFEST_SHA256, 'turn snapshot manifest baseline changed')
+  assert(receipt.turnManifestSha256Before === turnManifestHash
+    && receipt.turnManifestSha256After === turnManifestHash, 'turn snapshot manifest baseline changed')
   const turnDir = resolve(root, 'snapshots/session/ptc-python-turn')
   const readOnlyDir = resolve(root, 'snapshots/session/ptc-python-read-only')
   assert(!(await directoryExists(readOnlyDir)), 'temporary read-only scenario directory was recreated after cleanup')
   assert(!(await fileExists(resolve(turnDir, 'session.v4.jsonl'))), 'temporary turn V4 input was recreated after cleanup')
-  assert(sha256(await regularFile(resolve(turnDir, 'snapshot.yml'))) === TURN_MANIFEST_SHA256,
+  assert(sha256(await regularFile(resolve(turnDir, 'snapshot.yml'))) === turnManifestHash,
     'turn snapshot manifest differs from the reviewed baseline after cleanup')
+  for (const name of TURN_COMPOSITION_FILES) {
+    const before = receipt.compositionFiles?.before?.[name]
+    assert(typeof before === 'string' && before === receipt.compositionFiles?.afterCleanup?.[name]
+      && sha256(await regularFile(resolve(turnDir, name))) === before,
+    `${name}: original turn composition differs from the cleanup receipt`)
+  }
   const current = await frozenGenerations(root)
   assert(JSON.stringify(current) === JSON.stringify(receipt.frozenGenerations.before)
     && JSON.stringify(current) === JSON.stringify(receipt.frozenGenerations.afterCleanup),

@@ -17,7 +17,7 @@ import { statSync } from 'node:fs'
 import { isAbsolute, resolve } from 'node:path'
 import z from '@deepseek-ai/schemastery'
 import type { AgentOptions } from '@deepseek-ai/dsh-agent'
-import type { SubagentCapabilities, SubagentProvider, SubagentStartRequest } from '@deepseek-ai/dsh-subagent'
+import type { SubagentCapabilities, SubagentProvider, ResolvedSubagentStartRequest } from '@deepseek-ai/dsh-subagent'
 import { assertPositiveFinite, NO_START_CAPABILITIES, resolveChildCwd, validateConfiguredCwd } from '@deepseek-ai/dsh-subagent'
 import {
   DEFAULT_DISPOSE_EOF_GRACE_MS,
@@ -146,25 +146,29 @@ class SdkSubagentProvider implements SubagentProvider {
     this.agentRouteDefaults = Object.freeze({ provider: config.provider, model: config.model })
   }
 
-  start(request: SubagentStartRequest) {
+  start(request: ResolvedSubagentStartRequest) {
     if (request.signal.aborted) {
       throw new Error('subagent request was aborted before the SDK child started')
     }
     let cwd: string
     try {
-      cwd = resolveChildCwd('subagent-dsh-sdk', this.config.cwd, this.ctx.workingDirectory.get(request.parent.session))
+      cwd = resolveChildCwd('subagent-dsh-sdk', request.cwdExplicit ? undefined : this.config.cwd, request.cwd)
     } catch (error: unknown) {
       const failure = sdkConfigurationFailure(error)
       this.ctx.logger.warn(`subagent-dsh-sdk "${this.name}": child start failed: %o`, error)
       throw failure
     }
     const route = resolveSdkRoute(this.config, request.agentOptions)
+    const originCwd = request.parent.session.header.cwd
+      ?? request.parent.ctx.get('workingDirectory')?.defaultDirectory
+    if (originCwd === undefined) throw new Error('subagent-dsh-sdk requires the parent working-directory service for projectless sessions')
     const spec: SdkRunSpec = {
       ...this.config.dshBin === undefined ? {} : { dshBin: this.config.dshBin },
       profile: this.config.profile,
       patches: this.config.patches,
       dshHome: this.config.dshHome,
       cwd,
+      originCwd,
       ...route,
       env: this.config.env,
       shutdownTimeoutMs: this.config.shutdownTimeoutMs,

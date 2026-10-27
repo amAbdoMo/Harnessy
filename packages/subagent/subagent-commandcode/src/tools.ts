@@ -202,7 +202,7 @@ export function installCommandCodeTools(ctx: Context, api: CommandCodeDelegation
       if (parent === undefined) {
         throw new Error('commandcode_delegate requires a calling agent (exec.agent was undefined)')
       }
-      const cwd = ctx.workingDirectory.get(parent.session)
+      const cwd = await ctx.workingDirectory.ensure(parent, exec.signal)
       const workspace = workspaceOf(exec)
       // Lane policy is resolved here, from the live settings document, and is
       // the only authority this delegation carries.

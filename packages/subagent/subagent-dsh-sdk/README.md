@@ -25,7 +25,9 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-New child processes and protocol sessions use the parent Session’s current directory from `ctx.workingDirectory`, including its configured fallback. A configured `cwd` override, when supported, still takes precedence; existing children keep their startup directory.
+The nested Session retains the parent’s original project directory while its effective working directory is set before the child turn.
+
+New child processes and protocol sessions use the parent Session’s current directory from `ctx.workingDirectory`, including its configured fallback. A configured `cwd` override, when supported, takes precedence over inheritance; an explicit child `cwd` takes precedence over the override; existing children keep their startup directory.
 
 Mount this provider when a delegation should run as a complete Harness runtime in its own process. The common path is explicit: mount the seam, mount this provider, configure `dshBin` when needed, and select the child `profile` and ordered `patches`.
 

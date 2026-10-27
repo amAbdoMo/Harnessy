@@ -121,7 +121,7 @@ export class PtcWorkflowRun implements WorkflowRun {
   private cancelReason: string | undefined
   private disposed: Promise<void> | undefined
   private readonly externalAbort: () => void
-  private readonly workingDirectory: Context['workingDirectory']
+  private readonly cwd: Promise<string>
 
   constructor(
     private readonly ctx: Context,
@@ -136,10 +136,10 @@ export class PtcWorkflowRun implements WorkflowRun {
     private readonly observer: ExecutionObserver,
     private readonly signal?: AbortSignal,
   ) {
-    this.workingDirectory = ctx.workingDirectory
     this.externalAbort = () => { this.cancel('workflow signal aborted') }
     if (signal?.aborted) this.externalAbort()
     else signal?.addEventListener('abort', this.externalAbort, { once: true })
+    this.cwd = ctx.workingDirectory.ensure(parent, this.controller.signal)
     // Consumers attach durable run recording after start() returns.
     this.result = Promise.resolve().then(() => this.drive())
   }
@@ -201,6 +201,7 @@ export class PtcWorkflowRun implements WorkflowRun {
     this.requireActive()
     const callId = ++this.started
     const run = await this.subagents.start(this.provider, {
+      cwd: await this.cwd,
       prompt: [{ type: 'text', text: request.prompt }],
       parent: this.parent,
       signal: this.controller.signal,
@@ -276,7 +277,7 @@ export class PtcWorkflowRun implements WorkflowRun {
   private async drive(): Promise<WorkflowResult> {
     let result: WorkflowResult
     try {
-      const cwd = await this.workingDirectory.ensure(this.parent, this.controller.signal)
+      const cwd = await this.cwd
       this.requireActive()
       const outcome = await this.runtime.run(this.runtime.resolve({
         program: PROGRAM,

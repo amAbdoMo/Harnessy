@@ -134,6 +134,43 @@ async function runCode(
   })
 }
 
+it('logs detached frozen nested metadata without changing the binding value or log-content policy', async () => {
+  const { ctx, runtime } = await setup({ mode: 'ptc' })
+  try {
+    const metadata = { cwd: '/selected', path: '/selected/note.txt' }
+    ctx.tools.register(defineTool({
+      name: 'location', description: 'Read a fixture.', parameters: {},
+      output: {
+        schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }],
+        presentationMeta: () => metadata,
+      }, execute: async () => 'original contents',
+    }))
+    ctx.on('tools/ptc-dispatch-log', async () => [{ type: 'text', text: 'redacted durable preview' }])
+    const { agent } = await realAgent(ctx)
+    const session = agent.session
+    runtime.behavior = async (request) => {
+      const value = await request.bindings[0]!.functions.location!({})
+      expect(value).toBe('original contents')
+      metadata.cwd = '/later'
+      metadata.path = '/later/other.txt'
+      return { logs: [], value }
+    }
+    const result = await runCode(ctx, 'return await tools.location({})', { agent })
+    expect(result.isError).toBe(false)
+    expect(result.content).toEqual([{ type: 'text', text: 'original contents' }])
+    const event = session.snapshotEvents().find(event => event.type === 'tool/ptc-dispatch')
+    expect(event?.data.content).toEqual([{ type: 'text', text: 'redacted durable preview' }])
+    expect(event?.data.meta).toEqual({ cwd: '/selected', path: '/selected/note.txt' })
+    expect(Object.isFrozen(event?.data.meta)).toBe(true)
+    const restored = Session.create(session.id, session.snapshotEvents(), session.header)
+    expect(restored.snapshotEvents().find(event => event.type === 'tool/ptc-dispatch')?.data.meta)
+      .toEqual({ cwd: '/selected', path: '/selected/note.txt' })
+  } finally {
+    await ctx.fiber.dispose()
+  }
+})
+
+
 describe('mode-aware wire contribution', () => {
   it.each([
     { mode: 'ptc', language: 'typescript' },

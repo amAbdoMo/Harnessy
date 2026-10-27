@@ -25,6 +25,8 @@ Use `dsh-subagent` to delegate work to named child agents, collect their results
 <a id="use-this-package"></a>
 ## Use this package
 
+Child startup validates and captures the requested directory before provider preparation. Relative paths resolve against the parent’s current directory; a child keeps its own directory while retaining its original project authority.
+
 This package is the contract every delegation setup shares. You enable it by mounting the service together with one or more provider backends and the model-facing delegation tool; from then on, an agent can delegate work and the service routes each request to the named provider.
 
 ### Enabling delegation

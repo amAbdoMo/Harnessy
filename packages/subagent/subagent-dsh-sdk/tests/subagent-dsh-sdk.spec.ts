@@ -78,6 +78,7 @@ async function createParent(cwd?: string, name = 'parent'): Promise<Agent> {
   const ctx = new Context()
   parentContexts.push(ctx)
   await mountAgentLoopTestDependencies(ctx)
+  provideWorkingDirectoryFixture(ctx)
   const harness = await mountAgentLoopTestHarness(ctx)
   return harness.create(SessionId(name), {}, cwd === undefined ? {} : { cwd })
 }
@@ -710,7 +711,7 @@ describe('dsh-subagent-dsh-sdk provider', () => {
       prompt: [{ type: 'text' as const, text: 'p' }],
       parent,
       signal: controller.signal,
-    })).rejects.toThrow('subagent request was aborted before the SDK child started')
+    })).rejects.toThrow('This operation was aborted')
     await ctx.fiber.dispose()
   })
 
@@ -986,23 +987,33 @@ describe('dsh-subagent-dsh-sdk provider', () => {
       const { realpathSync } = await import('node:fs')
       expect(text(result.output)).toContain(`cwd=${realpathSync(tmp)}`)
       await run.dispose()
+      const explicit = await ctx.subagents.start('dsh-sdk', { ...request(), cwd: process.cwd() })
+      expect(text((await explicit.result).output)).toContain(`cwd=${process.cwd()}`)
+      await explicit.dispose()
       await ctx.fiber.dispose()
     } finally {
       rmSync(tmp, { recursive: true, force: true })
     }
   })
 
-  it('uses the service fallback for a Session without an original project', async () => {
+  it('preserves the service fallback as projectless origin when the child selects another directory', async () => {
     const ctx = await setup({ FAKE_ECHO_CWD: '1' })
+    const directory = mkdtempSync(join(tmpdir(), 'subagent-sdk-projectless-'))
     try {
       const parent = await createParent(undefined, 'parent-without-cwd')
-      const run = await ctx.subagents.start('dsh-sdk', { ...request(), parent })
+      const run = await ctx.subagents.start('dsh-sdk', { ...request(), parent, cwd: directory })
       try {
         const result = await run.result
-        expect(text(result.output)).toContain(`cwd=${process.cwd()}`)
+        const { realpath } = await import('node:fs/promises')
+        const canonical = await realpath(directory)
+        expect(text(result.output)).toContain(`cwd=${canonical}`)
+        expect(createdHarnessOptions.at(-1)).toMatchObject({ processCwd: canonical, cwd: process.cwd() })
         expect(parent.session.header.cwd).toBeUndefined()
       } finally { await run.dispose() }
-    } finally { await ctx.fiber.dispose() }
+    } finally {
+      await ctx.fiber.dispose()
+      rmSync(directory, { recursive: true, force: true })
+    }
   })
 
   it('starts the child from the committed current directory without changing project authority', async () => {
@@ -1014,6 +1025,7 @@ describe('dsh-subagent-dsh-sdk provider', () => {
       const run = await ctx.subagents.start('dsh-sdk', { ...request(), parent })
       try {
         expect(text((await run.result).output)).toContain(`cwd=${directory}`)
+        expect(createdHarnessOptions.at(-1)).toMatchObject({ processCwd: directory, cwd: process.cwd() })
         expect(parent.session.header.cwd).toBe(process.cwd())
       } finally { await run.dispose() }
     } finally {

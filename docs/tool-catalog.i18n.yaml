@@ -9,8 +9,8 @@
   en: 6cc2cd9ced70bb09
   zh: 1c0e6cb4ba2ed637
 /tool-schema-catalog/tool-package-map:
-  en: de2b152dd4bd5df0
-  zh: ae61d0c1c0a25588
+  en: 56422563fbbf2cdc
+  zh: e804898f25868ba7
 /tool-schema-catalog/deepseek-ai-dsh-experimental-cua-macos:
   en: 118f7ee81e675caf
   zh: 118f7ee81e675caf
@@ -312,8 +312,14 @@
   en: dea62d26fb18ff68
   zh: dea62d26fb18ff68
 /tool-schema-catalog/deepseek-ai-dsh-tool-todo/todo-write:
-  en: 8c64fe5f2e58a890
-  zh: e3c780fc842aeb43
+  en: 5cc19600afcd3e98
+  zh: 3740c4a584cde8a5
+/tool-schema-catalog/deepseek-ai-dsh-experimental-tool-worktree:
+  en: d5f5679abe86e316
+  zh: d5f5679abe86e316
+/tool-schema-catalog/deepseek-ai-dsh-experimental-tool-worktree/create-worktree:
+  en: 3cf89e31f011ae9b
+  zh: 76e3d8f28c4d8298
 /tool-schema-catalog/deepseek-ai-dsh-tool-workflow:
   en: bb38a9d29f46563c
   zh: bb38a9d29f46563c

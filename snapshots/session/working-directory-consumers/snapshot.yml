@@ -1,0 +1,11 @@
+version: 1
+scenario: working-directory-consumers
+profile: headless
+composition: claude-code-mods
+recording: authored
+immutableInput: source-recording
+header:
+  class: claude-code-mods
+platform: posix
+workspace:
+  final: true

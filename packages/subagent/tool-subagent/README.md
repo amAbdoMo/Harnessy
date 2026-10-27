@@ -25,6 +25,8 @@ Use this package to give an agent a named tool that delegates work to a configur
 <a id="use-this-package"></a>
 ## Use this package
 
+The optional `cwd` selects the child’s initial directory; relative paths resolve against the parent’s current directory.
+
 Mount one instance per delegation target, each with a distinct `toolName`. The tool exists exactly while its provider does, so sibling load order and provider reloads never strand it.
 
 ### Minimal configuration

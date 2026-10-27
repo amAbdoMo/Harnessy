@@ -7,3 +7,4 @@ platform: posix
 header:
   class: ptc-python
   pin: true
+immutableInput: source-recording

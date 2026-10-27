@@ -4,7 +4,7 @@ import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import type { Agent, AgentOptions } from '@deepseek-ai/dsh-agent'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
-import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
+import { mountAgentLoopTestDependencies, provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
 import SubagentRuntime from '@deepseek-ai/dsh-subagent'
 import { Session, SessionId } from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
@@ -18,7 +18,7 @@ export const testToolSignal = new AbortController().signal
 /** Build the minimal parent Agent owned by the package-local scripted provider. */
 export function fakeAgent(id = 'parent-1'): Agent {
   const sessionId = SessionId(id)
-  return { id: sessionId, options: {}, session: Session.create(sessionId) } as unknown as Agent
+  return { id: sessionId, options: {}, session: Session.create(sessionId), ctx: { get: (name: string) => name === 'workingDirectory' ? { ensure: async () => process.cwd() } : name === 'fs' ? { resolve: async (path: string) => path, stat: async () => ({ type: 'directory' }), processPath: (path: string) => path } : undefined } } as unknown as Agent
 }
 
 /** Mount the real tool and service stack around one scripted subagent provider. */
@@ -50,6 +50,7 @@ export async function setup(toolConfig: SetupConfig, mockConfig: Partial<mock.Co
       allowedModels: TEST_ALLOWED_MODELS,
     })
     await mountAgentLoopTestDependencies(ctx)
+    provideWorkingDirectoryFixture(ctx)
     await ctx.plugin(AgentLoop, { agents: [] })
     await ctx.plugin(SubagentRuntime)
     const provider = await mock.mountScriptedProvider(ctx, { name: 'mock', ...mockConfig })
@@ -72,6 +73,7 @@ export async function setup(toolConfig: SetupConfig, mockConfig: Partial<mock.Co
   await ctx.plugin(ToolRuntime)
   await ctx.plugin(SubagentRuntime)
   await ctx.plugin(SessionProjectionRegistry)
+  provideWorkingDirectoryFixture(ctx)
   const provider = await mock.mountScriptedProvider(ctx, { name: 'mock', ...mockConfig })
   setupProviders.set(ctx, provider)
   await ctx.plugin(tool, config)

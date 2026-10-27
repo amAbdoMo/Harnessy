@@ -25,6 +25,8 @@ Enable OAR subagents on the Plugins page to add the `subagent_oar` tool; shipped
 <a id="use-this-package"></a>
 ## Use this package
 
+The provider uses the directory captured at delegation start; a configured `cwd` override takes precedence over inheritance, while an explicit child directory takes precedence over the override.
+
 ### Compose a profile
 
 Install and authenticate the native Codex and Claude Code CLIs before delegating to them. Their executables must be available to the DSH Host. The provider starts no native session until a delegation is accepted.

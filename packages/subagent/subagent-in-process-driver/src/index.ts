@@ -128,14 +128,12 @@ export async function startInProcessRun(
     : { ...inheritedMeta, cwd: request.childSetup.cwd, agentPreset: request.childSetup.agentPreset }
   const agentOptions = resolveChildAgentOptions(parent, request.agentOptions, childDepth)
 
-  const workingDirectory = parent.ctx.get('workingDirectory')
-  if (workingDirectory === undefined) throw new Error('in-process subagents require the working-directory service')
-  const cwd = request.childSetup === undefined ? workingDirectory.get(parent.session) : request.childSetup.cwd
-
   let structured: StructuredAttachment | undefined
   const setup = async (childCtx: Context, child: Agent): Promise<void> => {
     appendDelegatedPolicyOverrides(child.session, inherited)
-    await workingDirectory.set(child, cwd, request.signal)
+    const workingDirectory = childCtx.get('workingDirectory')
+    if (workingDirectory === undefined) throw new Error('in-process subagents require the working-directory service')
+    await workingDirectory.set(child, request.cwd, request.signal)
     await applyChildComposition(childCtx, parent, {
       agentPreset: request.childSetup?.agentPreset,
       persona: request.persona,

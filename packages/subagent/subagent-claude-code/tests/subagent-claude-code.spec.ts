@@ -86,6 +86,7 @@ async function createParent(cwd?: string, name = 'parent'): Promise<Agent> {
   const ctx = new Context()
   parentContexts.push(ctx)
   await mountAgentLoopTestDependencies(ctx)
+  provideWorkingDirectoryFixture(ctx)
   const harness = await mountAgentLoopTestHarness(ctx)
   return harness.create(SessionId(name), {}, cwd === undefined ? {} : { cwd })
 }
@@ -661,21 +662,14 @@ describe('task admission and package contracts', () => {
       parent: invalidCwdParent,
     })
     await expect(invalidCwd)
-      .rejects.toThrow(expectedFailureDiagnostic('query-start', 'unknown'))
+      .rejects.toThrow('subagent directory is unavailable')
     await expect(invalidCwd).rejects.not.toThrow('SECRET_TOKEN')
-    expect(warn).toHaveBeenCalledWith(
-      'subagent-claude-code "claude-diagnostic": child start failed: %o',
-      expect.any(Error),
-    )
-    expect(errorCause(warn.mock.calls[0]?.[1] as unknown)?.message)
-      .toContain('SECRET_TOKEN')
-
     const invalidCwdAbort = new AbortController()
     invalidCwdAbort.abort(new Error('cancel invalid cwd startup'))
     await expect(ctx.subagents.start('claude-diagnostic', {
       ...request(undefined, invalidCwdAbort.signal),
       parent: invalidCwdParent,
-    })).rejects.toThrow('aborted before SDK startup')
+    })).rejects.toThrow('cancel invalid cwd startup')
     expect(queryMock).not.toHaveBeenCalled()
     warn.mockClear()
 

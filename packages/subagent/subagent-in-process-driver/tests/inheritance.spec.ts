@@ -57,11 +57,12 @@ async function setupWalled(script: Script): Promise<{ ctx: Context; parent: Agen
   return { ctx, parent }
 }
 
-function spawnRequest(parent: Agent) {
+function spawnRequest(ctx: Context, parent: Agent) {
   return {
     label: 'child task',
     prompt: [{ type: 'text' as const, text: 'child task' }],
     parent,
+    cwd: ctx.workingDirectory.get(parent.session),
     signal: new AbortController().signal,
     descriptor: snapshotSubagentDescriptor({
       mode: 'one-shot',
@@ -91,7 +92,7 @@ describe('in-process policy inheritance', () => {
         current: (session: Session) => session === parent.session ? preset : 'custom',
       } as never)
 
-      const run = await startInProcessRun(spawnRequest(parent), {})
+      const run = await startInProcessRun(spawnRequest(ctx, parent), {})
       try {
         await run.result
         const child = run.localAgent as Agent
@@ -120,7 +121,7 @@ describe('in-process policy inheritance', () => {
       current: (session: Session) => session === parent.session ? currentPreset : 'custom',
     } as never)
 
-    const starting = startInProcessRun(spawnRequest(parent), { seed })
+    const starting = startInProcessRun(spawnRequest(ctx, parent), { seed })
     currentPreset = seedPreset
     parent.session.append('permission/preset', { preset: seedPreset })
     const run = await starting
@@ -149,7 +150,7 @@ describe('in-process policy inheritance', () => {
       textResponse('child done'),
     )
 
-    const run = await startInProcessRun(spawnRequest(parent), {})
+    const run = await startInProcessRun(spawnRequest(ctx, parent), {})
     try {
       const result = await run.result
       const child = run.localAgent as Agent
@@ -216,7 +217,7 @@ describe('in-process policy inheritance', () => {
       textResponse('child done'),
     )
 
-    const run = await startInProcessRun(spawnRequest(parent), { seed })
+    const run = await startInProcessRun(spawnRequest(ctx, parent), { seed })
     try {
       await run.result
       const child = run.localAgent as Agent
@@ -244,7 +245,7 @@ describe('in-process policy inheritance', () => {
     const { ctx, parent } = await setupWalled(script)
     setSandboxMode(parent.session, 'read-only')
 
-    const starting = startInProcessRun(spawnRequest(parent), {})
+    const starting = startInProcessRun(spawnRequest(ctx, parent), {})
     setSandboxMode(parent.session, 'danger-full-access')
     const run = await starting
     try {
@@ -259,14 +260,14 @@ describe('in-process policy inheritance', () => {
 
   it('leaves an unswitched sandbox on the deployment default while still pinning approval', async () => {
     const script: Script = []
-    const { parent } = await setupWalled(script)
+    const { ctx, parent } = await setupWalled(script)
     const allowed = join(workspace, 'default-allowed.txt')
     script.push(
       toolCallResponse('write', 'write', { file_path: allowed, content: 'fine' }),
       textResponse('child done'),
     )
 
-    const run = await startInProcessRun(spawnRequest(parent), {})
+    const run = await startInProcessRun(spawnRequest(ctx, parent), {})
     try {
       await run.result
       const child = run.localAgent as Agent
@@ -302,7 +303,7 @@ describe('in-process policy inheritance', () => {
       textResponse('child done'),
     )
 
-    const run = await startInProcessRun(spawnRequest(parent), {})
+    const run = await startInProcessRun(spawnRequest(ctx, parent), {})
     try {
       await run.result
       const child = run.localAgent as Agent

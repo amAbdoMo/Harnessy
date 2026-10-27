@@ -3,5 +3,7 @@ scenario: ptc-turn
 profile: sdk
 composition: ptc
 recording: live
+immutableInput: source-recording
+platform: posix
 header:
   class: ptc

@@ -300,6 +300,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Projects durable execution-directory changes while the immutable Session header retains project and sandbox authority.',
   },
   {
+    key: 'worktrees',
+    pkg: 'experimental-worktree',
+    title: 'Optional Git worktree creation',
+    mode: 'service',
+    consumers: ['experimental-tool-worktree'],
+    note: 'Creates an isolated checkout and changes the calling Session directory under the existing filesystem policy.',
+  },
+  {
     key: 'speechController',
     pkg: 'experimental-api-speech-to-text',
     title: 'Experimental transcription Remote',

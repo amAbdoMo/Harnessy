@@ -14,7 +14,7 @@ on:
           - larger-runner-benchmark
           - consolidated-runner-benchmark
           - harnessy-native-verification
-          - harnessy-python-snapshot-verification
+          - harnessy-integration-snapshot-verification
 
 # New master pushes and manual runs replace obsolete checks in this workflow/ref.
 # Standby drills share cancellation; use completed runs as readiness evidence.
@@ -667,13 +667,13 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
-  harnessy-python-snapshot-verification:
+  harnessy-integration-snapshot-verification:
     if: >-
       github.event_name == 'workflow_dispatch'
       && github.ref == 'refs/heads/staging'
       && github.repository != 'deepseek-ai/deepseek-harness'
-      && inputs.suite == 'harnessy-python-snapshot-verification'
-    name: Python PTC snapshots / ${{ matrix.platform }}
+      && inputs.suite == 'harnessy-integration-snapshot-verification'
+    name: Integration snapshots / ${{ matrix.platform }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     permissions:
@@ -692,8 +692,7 @@ jobs:
             runner: macos-latest
     env:
       DSH_TELEMETRY_DISABLED: '1'
-      DSH_PYTHON_NATIVE_SNAPSHOT_PHASE: '1'
-      UPSTREAM_FIXTURE_COMMIT: 2de9059b4f6fdbaf5461abc4789fa8d78094e258
+      DSH_INTEGRATION_SNAPSHOT_PHASE: '1'
     steps:
       - uses: actions/checkout@v6
         with:
@@ -714,7 +713,7 @@ jobs:
 
       - name: Record exact source and native environment
         run: |
-          mkdir -p .artifacts/python-native-snapshot-phase-ci/${{ matrix.platform }}/evidence
+          mkdir -p .artifacts/integration-snapshot-phase-ci/${{ matrix.platform }}/evidence
           {
             git rev-parse HEAD
             node --version
@@ -723,7 +722,7 @@ jobs:
             uname -a
             node -e 'console.log(JSON.stringify({platform:process.platform,arch:process.arch}))'
             if [[ "$RUNNER_OS" == 'macOS' ]]; then sw_vers; fi
-          } | tee .artifacts/python-native-snapshot-phase-ci/${{ matrix.platform }}/evidence/environment.txt
+          } | tee .artifacts/integration-snapshot-phase-ci/${{ matrix.platform }}/evidence/environment.txt
 
       - name: Install immutable dependencies
         run: pnpm install --frozen-lockfile
@@ -749,65 +748,74 @@ jobs:
       - name: Build checked Host library artifacts
         run: node --import tsx/esm scripts/compile-referenced-projects.ts host-libraries
 
-      - name: Fetch exact upstream snapshot blobs
-        run: git fetch --no-tags --depth=1 https://github.com/deepseek-ai/deepseek-harness.git "$UPSTREAM_FIXTURE_COMMIT"
+      - name: Freeze committed snapshot inputs
+        id: freeze
+        run: node scripts/harnessy-integration-snapshots.mjs freeze
 
-      - name: Prepare ephemeral Python snapshot owners
-        run: node scripts/harnessy-python-native-snapshots.mjs prepare
-
-      - name: Refresh the shared Python header pin
+      - name: Refresh selected headless owners
+        id: headless_refresh
         env:
           DSH_SNAPSHOT: refresh
         run: >-
           node node_modules/vitest/vitest.mjs run
           --config vitest.snapshot.config.ts snapshots/session/headless.snapshot.ts
-          -t 'refreshs ptc-python-turn through dsh' --reporter=default
+          -t 'ptc-python-(turn|read-only)|working-directory(-consumers|-admission)? through dsh' --reporter=default --reporter=json
+          --outputFile.json=.artifacts/integration-snapshot-phase-ci/${{ matrix.platform }}/evidence/headless-refresh.json
 
-      - name: Refresh the Python snapshot owners
-        id: snapshot_refresh
+      - name: Replay selected headless owners
+        id: headless_replay
+        run: >-
+          node node_modules/vitest/vitest.mjs run
+          --config vitest.snapshot.config.ts snapshots/session/headless.snapshot.ts
+          -t 'ptc-python-(turn|read-only)|working-directory(-consumers|-admission)? through dsh' --reporter=default --reporter=json
+          --outputFile.json=.artifacts/integration-snapshot-phase-ci/${{ matrix.platform }}/evidence/headless-replay.json
+
+      - name: Refresh SDK PTC owner
+        id: sdk_refresh
         env:
           DSH_SNAPSHOT: refresh
         run: >-
           node node_modules/vitest/vitest.mjs run
-          --config vitest.snapshot.config.ts snapshots/session/headless.snapshot.ts
-          -t 'ptc-python-(turn|read-only)' --reporter=default --reporter=json
-          --outputFile.json=.artifacts/python-native-snapshot-phase-ci/${{ matrix.platform }}/evidence/snapshot-refresh.json
+          --config vitest.snapshot.config.ts snapshots/sdk/sdk.snapshot.ts
+          -t 'ptc-turn through dsh --profile sdk' --reporter=default --reporter=json
+          --outputFile.json=.artifacts/integration-snapshot-phase-ci/${{ matrix.platform }}/evidence/sdk-refresh.json
 
-      - name: Replay the Python snapshot owners read-only
-        id: snapshot_replay
+      - name: Replay SDK PTC owner
+        id: sdk_replay
         run: >-
           node node_modules/vitest/vitest.mjs run
-          --config vitest.snapshot.config.ts snapshots/session/headless.snapshot.ts
-          -t 'ptc-python-(turn|read-only)' --reporter=default --reporter=json
-          --outputFile.json=.artifacts/python-native-snapshot-phase-ci/${{ matrix.platform }}/evidence/snapshot-replay.json
+          --config vitest.snapshot.config.ts snapshots/sdk/sdk.snapshot.ts
+          -t 'ptc-turn through dsh --profile sdk' --reporter=default --reporter=json
+          --outputFile.json=.artifacts/integration-snapshot-phase-ci/${{ matrix.platform }}/evidence/sdk-replay.json
+
+      - name: Check Python SDK PTC metadata
+        id: python_metadata
+        run: >-
+          python3 -c "import runpy; runpy.run_path('python/sdk/tests/test_ptc_metadata.py')['test_ptc_metadata_matches_recorded_sdk_event_projection']()"
 
       - name: Smoke the built public Python runtime package
         id: built_package_smoke
         run: >-
           node scripts/harnessy-python-built-smoke.mjs
-          --report .artifacts/python-native-snapshot-phase-ci/${{ matrix.platform }}/evidence/built-package-smoke.json
+          --report .artifacts/integration-snapshot-phase-ci/${{ matrix.platform }}/evidence/built-package-smoke.json
 
-      - name: Capture source and writer evidence
+      - name: Capture and verify integration evidence
         if: always()
         env:
-          PYTHON_SNAPSHOT_REFRESH_OUTCOME: ${{ steps.snapshot_refresh.outcome }}
-          PYTHON_SNAPSHOT_REPLAY_OUTCOME: ${{ steps.snapshot_replay.outcome }}
-          PYTHON_BUILT_SMOKE_OUTCOME: ${{ steps.built_package_smoke.outcome }}
-        run: node scripts/harnessy-python-native-snapshots.mjs capture
+          FREEZE_OUTCOME: ${{ steps.freeze.outcome }}
+          HEADLESS_REFRESH_OUTCOME: ${{ steps.headless_refresh.outcome }}
+          HEADLESS_REPLAY_OUTCOME: ${{ steps.headless_replay.outcome }}
+          SDK_REFRESH_OUTCOME: ${{ steps.sdk_refresh.outcome }}
+          SDK_REPLAY_OUTCOME: ${{ steps.sdk_replay.outcome }}
+          PYTHON_METADATA_OUTCOME: ${{ steps.python_metadata.outcome }}
+          BUILT_SMOKE_OUTCOME: ${{ steps.built_package_smoke.outcome }}
+        run: node scripts/harnessy-integration-snapshots.mjs capture
 
-      - name: Restore temporary Python snapshot files
-        if: always()
-        run: node scripts/harnessy-python-native-snapshots.mjs restore
-
-      - name: Verify source cleanup
-        if: always()
-        run: node scripts/harnessy-python-native-snapshots.mjs verify
-
-      - name: Retain Python native snapshot evidence
+      - name: Retain integration snapshot evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: python-native-snapshot-verification-${{ matrix.platform }}-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .artifacts/python-native-snapshot-phase-ci/${{ matrix.platform }}/evidence/
+          name: integration-snapshot-verification-${{ matrix.platform }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .artifacts/integration-snapshot-phase-ci/${{ matrix.platform }}/evidence/
           retention-days: 7
           if-no-files-found: error

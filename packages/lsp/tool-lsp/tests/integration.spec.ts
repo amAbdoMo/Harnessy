@@ -83,7 +83,7 @@ function call(ctx: Context, args: unknown) {
     callId: `int-${++seq}` as never,
     name: 'lsp',
     arguments: args,
-    agent: { session: ctx.sessions.create(SessionId(`lsp-int-${seq}`), { meta: { cwd: ws } }) } as never,
+    agent: { ctx, session: ctx.sessions.create(SessionId(`lsp-int-${seq}`), { meta: { cwd: ws } }) } as never,
   })
 }
 

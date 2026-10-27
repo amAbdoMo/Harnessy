@@ -25,7 +25,7 @@ kind: "package-bundle"
 <a id="use-this-package"></a>
 ## 使用本包
 
-新子进程及其协议会话使用 `ctx.workingDirectory` 提供的父 Session 当前目录，包括服务配置的默认目录。若提供方支持并配置了 `cwd` 覆盖值，该值仍优先；已有子进程保留启动目录。
+新子进程及其协议会话使用 `ctx.workingDirectory` 提供的父 Session 当前目录，包括服务配置的默认目录。若提供方支持并配置了 `cwd` 覆盖值，该值优先于继承目录；显式子代理 `cwd` 优先于覆盖值；已有子进程保留启动目录。
 
 当委派应以父级工作区中的真实 Codex 会话运行时，挂载本提供方。常用路径是显式的：把 Bundle 安装进 Profile，可选地配置提供方行，并通过委派工具行把它暴露给模型。
 

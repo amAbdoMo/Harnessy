@@ -84,6 +84,14 @@ it('uses committed directories for LSP, relative mentions, and skill loading wit
     expect(await execute('skill', { name: 'current-skill' }))
       .toMatchObject({ value: { name: 'current-skill', content: 'Current instructions.' } })
     expect(agent.session.header.cwd).toBe(root)
+
+    await rm(current, { recursive: true })
+    expect(await ctx.fileReferences.list(agent, 'CURRENT', new AbortController().signal)).toEqual([])
+    const recovered = ctx.workingDirectory.get(agent.session)
+    expect(recovered).toBe(ctx.fs.processPath(await ctx.fs.resolve(root)))
+    expect(agent.session.header.cwd).toBe(root)
+    await execute('lsp', { operation: 'hover', file_path: 'CURRENT.ts', line: 1, character: 7 })
+    expect(queries).toEqual([committed, recovered])
   } finally {
     await ctx.fiber.dispose()
     await rm(root, { recursive: true, force: true })
