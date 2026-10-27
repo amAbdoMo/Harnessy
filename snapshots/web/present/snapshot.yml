@@ -3,6 +3,8 @@ scenario: present
 profile: web
 composition: web-ptc
 recording: live
+platform: posix
+immutableInput: source-recording
 header:
   class: web-ptc
 workspace:

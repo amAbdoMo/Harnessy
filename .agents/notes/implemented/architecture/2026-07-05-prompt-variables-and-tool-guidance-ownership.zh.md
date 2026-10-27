@@ -28,7 +28,7 @@ Status: implemented
 
 插件通过 `ctx.systemPrompt.variable(name, provider)` 注册 `{{name}}` 值。组装过程将它们解析到 waterfall 可见的变量映射中。渲染阶段拒绝以下情况：引用未知的自有属性、已注册的提供方返回 `undefined`、格式错误的完整引用、以及仍包含闭合 `}}` 的不平衡引用；孤立的未匹配 `{{` 保留为行文，替换后的值不会被重新扫描。注册阶段拒绝无效或重复的变量名，section 名称也必须唯一。段可设置 `interpolate: false` 来原样保留生成的文档；`tools:sdk` 使用此设置，因为工具描述和 schema 可能会介绍自身的 `{{…}}` 语法。
 
-`dsh-agent-loop` 注册两个内置变量，均为上下文 agent 的纯投影：`model`（= `options.model`）和 `cwd`（= `session.header.cwd`）。示例 persona 写 `powered by the {{model}} model`——模型名称只在 `model:` 配置键中声明一次。`{{cwd}}` 仅在 ACP 示例中演示：每个 ACP 会话携带客户端的 cwd，而配置预创建的 stdio agent 没有 cwd（在那里声称 `{{cwd}}` 的 persona 会导致该轮次失败——这是有意为之）。变量留在 loop 插件上（不同于下面的 section）：它们是本循环驱动的 agent 的运行时事实，替换循环自行提供自己的变量。
+`dsh-agent-loop` 注册两个内置变量，作为其 agent 的投影：`model` 来自 `options.model`，legacy `cwd` 来自 `session.header.cwd`。示例 persona 写 `powered by the {{model}} model`——模型名称只在 `model:` 配置键中声明一次。ACP 示例是唯一演示 `{{cwd}}` 的示例。挂载 `dsh-working-directory` 时，它会在组装期间从 Session 的有效目录刷新 `cwd`，包括 headerless Session 的部署回退目录，且不会替换自定义提示词文本。没有目录提供方时，headerless Session 的 `cwd` 未定义，渲染会失败。变量仍归 loop 插件所有（不同于下面的 section）：它们是该 loop 驱动的 agent 的运行时事实，替换 loop 会自行提供变量。
 
 ### Persona 作为 order-0 section
 
@@ -54,7 +54,6 @@ Status: implemented
 ## 不在范围内
 
 - 更多变量（`date`、platform、git 状态）：注册表使每个变量成为拥有该事实的插件的一行贡献；本 Agent Note 不认领任何一个。
-- 为预创建的 stdio agent 提供配置 `cwd`（可让 stdio persona 使用 `{{cwd}}` 并按真实路径分区持久化）：推迟到会话 cwd 方案重新讨论时。
 
 ## 交付的不变式
 
@@ -68,5 +67,5 @@ Status: implemented
 - 组装后的提示词中每个事实现在恰好有一个归属方，leaf YAML 中手工维护的工具行文已消除：加载或卸载一个工具插件不再需要编辑任何部署的 persona。
 - `{{model}}` 在组装时反映 `AgentOptions.model`。如果一个插件在 `agent/request` waterfall 中切换模型，提示词对该步骤的声明就会过时；如果一个插件在那里提供模型（options.model 未设置——循环文档中记载的回退路径），变量在渲染时无值，包含 `{{model}}` 的 persona 会在 waterfall 运行前失败。两者的补救方式相同，就是归属规则本身：拥有延迟绑定模型事实的插件在 `system-prompt/assemble` waterfall 上提前声明它（`assembly.variables['model'] = …`）——一个归属方，两处声明；一个循环测试端到端固定了 supply 路径。已接受。
 - 当一个已绑定的提供方不存在时（尚未激活、已卸载、HMR（热模块替换）重载中），subagent 工具不存在，该窗口内的模型请求中不会包含它。这是诚实的状态——替代方案是注册一个 description 或执行都不可信的工具。
-- 严格性意味着 persona 可能在渲染时导致轮次失败（例如在无 cwd 的会话上使用 `{{cwd}}`）。失败是受控的——该轮次以 `error` 结束，循环存活——且这是一个我们希望明确暴露的撰写错误。
+- 严格性意味着当没有提供方解析所引用的变量时，persona 可能在渲染时失败。挂载 `dsh-working-directory` 后，即使 Session 没有 header cwd，`{{cwd}}` 也会解析为有效目录。失败是受控的——该轮次以 `error` 结束，循环仍可运行——模板作者也会收到明确错误。
 - 插值文本仍不支持行内转义；字面文本段无需转义。PTC 单元测试覆盖两种模式和运行时语言，录制的 `ptc-turn` 场景在模型可见的提示词中保留工具模板示例。

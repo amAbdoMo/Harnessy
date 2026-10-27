@@ -1,0 +1,4 @@
+# Recorded Web fixtures do not exercise the host-specific Windows ACL skill.
+- insert:
+    - id: web-directory-fixture-isolation
+      name: '../../../packages/test-support/session-snapshot/tests/fixtures/web-directory-isolation.ts'

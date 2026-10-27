@@ -56,7 +56,8 @@ function systemPromptText(session: Session): string | undefined {
   return message?.content.flatMap(block => block.type === 'text' ? [block.text] : []).join('')
 }
 
-describe('web e2e: fresh round trip through the real assembly', () => {
+// The immutable replay invokes Bash; the shipped Windows Web preset exposes pwsh instead.
+describe.skipIf(process.platform === 'win32')('web e2e: fresh round trip through the real assembly', () => {
   let scaffold: WebScaffold
   let browser: Browser
   let page: Page
@@ -69,7 +70,12 @@ describe('web e2e: fresh round trip through the real assembly', () => {
   beforeAll(async () => {
     scaffold = await launchWebScaffold({
       compareReplaySession: true,
-      ...(MODE === 'record' ? {} : { replayFixture: FIXTURE, paceMs: 15 }),
+      extraOverlayPath: [
+        fileURLToPath(new URL('./directory-fixtures.overlay.yml', import.meta.url)),
+        fileURLToPath(new URL('./pin-browse-picker.overlay.yml', import.meta.url)),
+      ],
+      replayFixture: FIXTURE,
+      ...(MODE === 'record' ? {} : { paceMs: 15 }),
     })
     scaffold.ctx.on('session/event', (_session, event: SessionEvent) => { sessionEvents.push(event) })
     browser = await chromium.launch()
@@ -213,7 +219,7 @@ describe('web e2e: fresh round trip through the real assembly', () => {
     }
   }, 200_000)
 
-  it('ends the system prompt with the source checkout, Web surface, and session cwd', async () => {
+  it('keeps source checkout, Web context, and the legacy cwd template in the system prompt', async () => {
     if (settledSessionId === undefined) throw new Error('the drive turn did not publish a session id')
     const agent = scaffold.ctx.agents.get(settledSessionId)
     if (agent === undefined) throw new Error(`the settled Web agent ${settledSessionId} is no longer live`)
@@ -224,6 +230,11 @@ describe('web e2e: fresh round trip through the real assembly', () => {
       'You are an AI agent powered by DeepSeek Harness.',
       'You are a coding agent powered by the deepseek-v4-flash model.',
     ])
+    const cwd = agent.session.header.cwd
+    if (cwd === undefined) throw new Error('the Web session has no working directory')
+    const userText = agent.session.deriveMessages().filter(message => message.role === 'user')
+      .flatMap(message => message.content.flatMap(block => block.type === 'text' ? [block.text] : []))
+    expect(userText.some(text => text.includes(`Current working directory: ${JSON.stringify(cwd)}.`))).toBe(true)
     const suffix = paragraphs.slice(-3).join('\n\n')
       .split(REPO_ROOT).join('{{sourceRoot}}')
       .split(join(scaffold.workspaceCwd, 'workspace')).join('{{cwd}}')

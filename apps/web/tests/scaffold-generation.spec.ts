@@ -1,10 +1,12 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { parseSessionLog, prepareSessionSnapshotFixtureForComparison } from '@deepseek-ai/dsh-llm-replay'
 import {
   assertFixtureInventory,
+  launchWebScaffold,
+  normalizeAria,
   parseSeedFixture,
   recordedSessionFixturePath,
   selectedSessionFixture,
@@ -13,6 +15,7 @@ import {
 const roots: string[] = []
 
 afterEach(async () => {
+  vi.unstubAllEnvs()
   for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true })
 })
 
@@ -44,6 +47,18 @@ describe('Web seed stream timing', () => {
 })
 
 describe('Web snapshot generation filenames', () => {
+  it('refuses record mode for an immutable Web fixture before requiring build artifacts', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-web-immutable-record-'))
+    roots.push(root)
+    const manifestPath = join(root, 'snapshot.yml')
+    await writeFile(manifestPath, 'version: 1\nprofile: web\nimmutableInput: source-recording\n')
+    vi.stubEnv('DSH_SNAPSHOT', 'record')
+    vi.stubEnv('DEEPSEEK_API_KEY', '')
+
+    await expect(launchWebScaffold({ replayFixture: join(root, 'session.v3.jsonl') }))
+      .rejects.toThrow(`${manifestPath}: immutable Web source recordings cannot run in record mode`)
+  })
+
   it('selects the highest parent and child generations without counting retained inputs twice', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-web-fixture-generations-'))
     roots.push(root)
@@ -64,6 +79,21 @@ describe('Web snapshot generation filenames', () => {
       .resolves.toBe(join(root, 'session.1.v1.jsonl'))
     await expect(selectedSessionFixture(join(root, 'replay.override.json')))
       .resolves.toBe(join(root, 'replay.override.json'))
+  })
+
+  it('normalizes JSON-escaped Windows workspace paths without consuming suffixes or unrelated paths', () => {
+    const workspaceCwd = String.raw`C:\Users\runner\AppData\Local\Temp\dsh-web-e2e-ws-123`
+    const suffix = String.raw`\workspace\notes.txt`
+    const escapedWorkspacePath = JSON.stringify(workspaceCwd + suffix).slice(1, -1)
+    const escapedSuffix = JSON.stringify(suffix).slice(1, -1)
+
+    expect(normalizeAria(`- generic: ${escapedWorkspacePath}`, workspaceCwd, false))
+      .toBe(`- generic: {{cwd}}${escapedSuffix}`)
+
+    const unrelated = String.raw`D:\other\project\notes.txt`
+    const escapedUnrelatedPath = JSON.stringify(unrelated).slice(1, -1)
+    expect(normalizeAria(`- generic: ${escapedUnrelatedPath}`, workspaceCwd, false))
+      .toBe(`- generic: ${escapedUnrelatedPath}`)
   })
 
   it('leaves an absent override-only parent fixture unresolved', async () => {

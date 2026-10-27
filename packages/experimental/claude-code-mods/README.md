@@ -61,7 +61,7 @@ Blast Radius's DSH wrapper supplies a Node timer subprocess using the running ex
 
 | Event | Raised from | A hook can |
 |---|---|---|
-| `session.start` | `agent/created` of a root agent, awaited before its first turn; cancelling the creation abandons a waiting hook | observe; register commands and tools |
+| `session.start` | `agent/created` of a root agent, awaited before its first turn; its read-only `cwd` may name a deleted path | observe; register commands and tools |
 | `prompt.submit` | `agent/pre-step` with claimed messages; `e.text` joins the text blocks of the human's own (`user`-sourced) messages, and a rewrite touches only those | rewrite `text`, add `context` blocks after the prompt as typed, or `{ drop }` the prompt |
 | `turn.start` | the first `agent/pre-step` of a turn | observe |
 | `tool.call` | the `tools/execute` waterfall, after the harness permission decision; a call a mod raised with `$.tool.call` reaches only the mods loaded before it, attributed to the caller | observe before and after, `{ deny }`, answer with `{ result }`, or rewrite the result or its `isError` after `next` |
@@ -87,16 +87,16 @@ The band is one instance per session, drawn by the first mod in load order whose
 | `$.command` | `register`, `run`, `list` | `ctx.commands`, scoped to the agent whose event is running |
 | `$.tool` | `register`, `call`, `list` | `ctx.tools`; a registered tool is named `mcp__<plugin>__<tool>`; contexts a tool defers to the next request are injected into the session |
 | `$.prompt` | `submit` | `agent.followup()` as a `user`-sourced message, framed as a message from the mod unless `asUser`; the `prompt.submit` it raises carries `origin: { kind: 'plugin', name }` |
-| `$.session` | `id`, `cwd`, `root`, `model`, `turns`, `messages`, `usage`, `version` | the agent's Session and projections; `cwd` reads the committed execution directory through `ctx.get('workingDirectory')`, including after Agent disposal; `root` stays at the original header directory or process fallback |
+| `$.session` | `id`, `cwd`, `root`, `model`, `turns`, `messages`, `usage`, `version` | the agent's Session and projections; read-only `cwd` reads the committed execution directory through `ctx.get('workingDirectory')` and may name a deleted path, including after Agent disposal; `root` stays at the original header directory or process fallback |
 | `$.state` | `get`, `set` | memory held for the session, addressed by the `{ plugin, key }` a mod names; a read during `ui.render` subscribes the band |
 | `$.store` | `get`, `set`, `delete`, `keys` | the `claude_code_mods` storage domain, one JSON object per plugin, 4 MiB |
 | `$.clock` | `now`, `sleep`, `after`, `every` | timers owned by the session whose event scheduled them; `sleep` rejects when the event is cancelled |
-| `$.fs` | `read`, `write`, `list`, `exists`, `stat` | `ctx.fs`, relative to the validated session execution directory, 4 MiB per file |
-| `$.process` | `run` | `ctx.subprocess`, argv without a shell; defaults to the validated session execution directory, preserving explicit `cwd` |
+| `$.fs` | `read`, `write`, `list`, `exists`, `stat` | `ctx.fs`, relative to the current Session directory after it is validated or recovered, 4 MiB per file |
+| `$.process` | `run` | `ctx.subprocess`, argv without a shell; by default, validates or recovers the current Session directory, preserving explicit `cwd` |
 | `$.http` | `fetch` | the process's `fetch`, bodies up to 4 MiB |
 | `$.env` | `get`, `set` | this process's environment, shared by every session and plugin |
 
-`session.start` reports the committed execution directory. Agent-backed `$.session.cwd`, filesystem calls, and default process directories require `dsh-working-directory`; execution validates the directory with the operation's cancellation signal. Agentless calls retain filesystem/process defaults. Directory selection never changes the original project, settings, workspace, or sandbox authority and never changes the host process directory.
+`session.start` and Agent-backed `$.session.cwd` are read-only projections of the committed directory, so they may report a selected path after it has been deleted. Agent-backed filesystem calls and `$.process.run` without explicit `cwd` require `dsh-working-directory` and validate the selection before acting; a missing selection is recovered to the original project or the deployment fallback. An explicit process `cwd` is preserved. Agentless calls retain filesystem/process defaults. Directory selection never changes the original project, settings, workspace, or sandbox authority and never changes the host process directory.
 
 A call whose service is not composed rejects with the missing service's package name; a namespace or method outside this table rejects with `no implementation for <namespace>.<method>`. A mod runs in this process with its full authority: `$.env` reads and writes the harness environment, `$.http.fetch` reaches any URL, `$.fs` and `$.tool.call` act as the session does.
 

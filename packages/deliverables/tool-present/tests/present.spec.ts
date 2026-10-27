@@ -1,5 +1,5 @@
 /** Explicit deliveries commit only after a successful final tool result. */
-import { mkdtemp, rm, writeFile, symlink } from 'node:fs/promises'
+import { mkdtemp, realpath, rm, writeFile, symlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -7,6 +7,7 @@ import { Context } from '@deepseek-ai/cordis'
 import AgentRegistry, { type Agent } from '@deepseek-ai/dsh-agent'
 import { unsupportedInbox } from '@deepseek-ai/dsh-agent-loop-testkit'
 import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
+import WorkingDirectory from '@deepseek-ai/dsh-working-directory'
 import { createScope, type Scope } from '@deepseek-ai/dsh-scope'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import { SESSION_FORMAT_VERSION, Session, SessionId } from '@deepseek-ai/dsh-session'
@@ -61,6 +62,7 @@ async function setup() {
   await ctx.plugin(AgentRegistry)
   await ctx.plugin(LocalFileSystem, { cwd: root })
   await ctx.plugin(SessionProjectionRegistry)
+  await ctx.plugin(WorkingDirectory, { defaultDirectory: root })
   ctx.sessionProjections.register(turnBoundaryProjectionDefinition)
   const fiber = ctx.plugin(Present, { maxFiles: 2 })
   await fiber
@@ -85,7 +87,7 @@ describe('present', () => {
     const files = (result.value as unknown as { files: PresentedFile[] }).files
     expect(files).toHaveLength(1)
     expect(owner.session.snapshotEvents().find(event => event.type === 'deliverables/presented')?.data.files).toEqual(files)
-    expect(files).toEqual([{ path: '报告.docx', description: 'Report' }])
+    expect(files).toEqual([{ path: await realpath(join(root, '报告.docx')), description: 'Report' }])
     expect(read).not.toHaveBeenCalled()
     expect(ctx.get('attachments')).toBeUndefined()
     await fiber.dispose()
@@ -119,7 +121,7 @@ describe('present', () => {
     expect((await execute([{ path: 'a' }])).isError).toBe(false)
     const deliveries = owner.session.snapshotEvents().filter(event => event.type === 'deliverables/presented')
     expect(deliveries).toHaveLength(1)
-    expect(deliveries[0]?.data.files[0]?.path).toBe('a')
+    expect(deliveries[0]?.data.files[0]?.path).toBe(await realpath(join(root, 'a')))
   })
 
   it('does not publish deliveries after post-execute blocks a successful declaration', async () => {
@@ -136,7 +138,7 @@ describe('present', () => {
   it('rejects missing, non-file, empty, and excessive inputs', async () => {
     const { root, owner, execute } = await setup()
     await writeFile(join(root, 'large'), 'four')
-    await symlink(tmpdir(), join(root, 'outside'))
+    await symlink(tmpdir(), join(root, 'outside'), process.platform === 'win32' ? 'junction' : 'dir')
     for (const files of [[], [{ path: '' }], [{ path: 'missing' }], [{ path: '.' }], [{ path: 'outside' }], [{ path: 'large' }, { path: 'large' }, { path: 'large' }]]) {
       const result = await execute(files)
       expect(result.isError, JSON.stringify(files)).toBe(true)
@@ -175,13 +177,22 @@ it('declares readable files outside the Session directory using absolute and rel
   await writeFile(file, 'external report')
   const files = [{ path: file }, { path: relative(root, file) }]
   expect((await execute(files)).isError).toBe(false)
-  expect(owner.session.snapshotEvents().find(event => event.type === 'deliverables/presented')?.data.files).toEqual(files)
+  expect(owner.session.snapshotEvents().find(event => event.type === 'deliverables/presented')?.data.files)
+    .toEqual([{ path: await realpath(file) }, { path: await realpath(file) }])
 })
 
-it('refuses a final symlink to an ordinary file', async () => {
+it('refuses a final symlink to an ordinary file', async (test) => {
   const { root, execute } = await setup()
   await writeFile(join(root, 'source'), 'source')
-  await symlink(join(root, 'source'), join(root, 'link'))
+  try {
+    await symlink(join(root, 'source'), join(root, 'link'))
+  } catch (error) {
+    if (process.platform === 'win32' && error instanceof Error && 'code' in error && error.code === 'EPERM') {
+      test.skip('File symlink creation requires Windows privileges')
+      return
+    }
+    throw error
+  }
   expect((await execute([{ path: 'link' }])).isError).toBe(true)
 })
 
@@ -190,6 +201,8 @@ it('refuses a file replaced by a directory after inspecting its final component'
   const { ctx, root, execute } = await setup()
   await writeFile(join(root, 'source'), 'source')
   const directory = await ctx.fs.stat(await ctx.fs.resolve(root))
-  vi.spyOn(ctx.fs, 'stat').mockResolvedValueOnce(directory)
+  const target = await ctx.fs.resolve(join(root, 'source'))
+  const stat = ctx.fs.stat.bind(ctx.fs)
+  vi.spyOn(ctx.fs, 'stat').mockImplementation((path, signal) => ctx.fs.processPath(path) === ctx.fs.processPath(target) ? Promise.resolve(directory) : stat(path, signal))
   expect((await execute([{ path: 'source' }])).isError).toBe(true)
 })

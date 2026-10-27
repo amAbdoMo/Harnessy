@@ -46,8 +46,9 @@ describe('recorded-session corpus policy', () => {
 
   it('keeps immutable current source recordings separate from historical migration coverage', () => {
     const source = { key: 'session/source', selectedVersions: [SESSION_FORMAT_VERSION], immutableInput: 'source-recording' } as const
-    expect(assertSnapshotCorpusPolicy([baseline, current, completeV0, ...adjacent, source]))
-      .toEqual({ currentRoles: 9, baselineRoles: 8, retainedRoles: 3, retainedScenarios: 3 })
+    const webSource = { key: 'web/source', selectedVersions: [SESSION_FORMAT_VERSION], immutableInput: 'source-recording' } as const
+    expect(assertSnapshotCorpusPolicy([baseline, current, completeV0, ...adjacent, source, webSource]))
+      .toEqual({ currentRoles: 10, baselineRoles: 8, retainedRoles: 3, retainedScenarios: 3 })
     expect(() => assertSnapshotCorpusPolicy([baseline, current, completeV0, ...adjacent,
       { ...source, selectedVersions: [SESSION_FORMAT_VERSION - 1] },
     ])).toThrow('immutable source recording must use current')

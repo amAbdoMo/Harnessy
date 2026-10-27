@@ -15,6 +15,7 @@ on:
           - consolidated-runner-benchmark
           - harnessy-native-verification
           - harnessy-integration-snapshot-verification
+          - harnessy-web-snapshot-verification
 
 # New master pushes and manual runs replace obsolete checks in this workflow/ref.
 # Standby drills share cancellation; use completed runs as readiness evidence.
@@ -817,5 +818,177 @@ jobs:
         with:
           name: integration-snapshot-verification-${{ matrix.platform }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: .artifacts/integration-snapshot-phase-ci/${{ matrix.platform }}/evidence/
+          retention-days: 7
+          if-no-files-found: error
+
+  harnessy-web-snapshot-verification:
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      && github.ref == 'refs/heads/staging'
+      && github.repository != 'deepseek-ai/deepseek-harness'
+      && inputs.suite == 'harnessy-web-snapshot-verification'
+    name: Web browser snapshots / Linux
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    env:
+      DSH_TELEMETRY_DISABLED: '1'
+      DSH_WEB_SNAPSHOT_PHASE: '1'
+      DEEPSEEK_API_KEY: ''
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.7.0'
+          dest: ${{ runner.temp }}/setup-pnpm-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - uses: actions/setup-python@v6.3.0
+        with:
+          python-version: '3.12'
+
+      - name: Record exact source and Linux environment
+        run: |
+          mkdir -p .artifacts/row25-web-snapshot-verification
+          {
+            git rev-parse HEAD
+            git status --short
+            node --version
+            pnpm --version
+            python3 --version
+            uname -a
+            node -e 'console.log(JSON.stringify({platform:process.platform,arch:process.arch}))'
+            printf 'runner_os=%s\nrunner_arch=%s\nimage_os=%s\nimage_version=%s\n' \
+              "$RUNNER_OS" "$RUNNER_ARCH" "${ImageOS:-unknown}" "${ImageVersion:-unknown}"
+          } | tee .artifacts/row25-web-snapshot-verification/environment.txt
+
+      - name: Install immutable dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify Web evidence selection and output guards
+        id: guard_tests
+        run: node --test scripts/harnessy-web-snapshots.spec.mjs
+
+      - name: Provision Linux native compiler
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -yq --no-install-recommends musl-tools
+
+      - name: Build host native system payload
+        id: native_build
+        run: |
+          node --import tsx/esm native/system/scripts/build.ts
+          node node_modules/typescript/bin/tsc -b native/system/tsconfig.json
+
+      - name: Require Linux Landlock enforcement
+        id: landlock
+        working-directory: native/system
+        env:
+          NALR_REQUIRE_LANDLOCK: '1'
+        run: node test/launcher.test.js
+
+      - name: Build checked Host library artifacts
+        id: host_build
+        run: node --import tsx/esm scripts/compile-referenced-projects.ts host-libraries
+
+      - name: Build checked Client library artifacts
+        id: client_build
+        run: pnpm run build:lib:client
+
+      - name: Build browser application
+        id: web_build
+        run: pnpm run build:web
+
+      - name: Install Playwright Chromium and Linux dependencies
+        id: browser_install
+        run: node apps/web/node_modules/playwright/cli.js install --with-deps chromium
+
+      - name: Record browser version
+        if: always()
+        run: node apps/web/node_modules/playwright/cli.js --version | tee -a .artifacts/row25-web-snapshot-verification/environment.txt
+
+      - name: Freeze tracked source and Session inputs
+        id: freeze
+        run: node scripts/harnessy-web-snapshots.mjs freeze
+
+      - name: Refresh selected Web owners
+        id: refresh
+        env:
+          DSH_SNAPSHOT: refresh
+        run: |
+          node node_modules/vitest/vitest.mjs run --config vitest.web.config.ts \
+            apps/web/tests/changed-files-turn.e2e.ts \
+            apps/web/tests/replay-round-trip.e2e.ts \
+            apps/web/tests/minimal-preset.snapshot.ts \
+            apps/web/tests/present.e2e.ts \
+            apps/web/tests/present-svg.e2e.ts \
+            --pool=forks --maxWorkers=1 --no-file-parallelism \
+            --reporter=default --reporter=json \
+            --outputFile.json=.artifacts/row25-web-snapshot-verification/refresh.json \
+            2>&1 | tee .artifacts/row25-web-snapshot-verification/refresh.log
+
+      - name: Replay selected Web owners
+        id: replay
+        env:
+          DSH_SNAPSHOT: replay
+        run: |
+          node node_modules/vitest/vitest.mjs run --config vitest.web.config.ts \
+            apps/web/tests/changed-files-turn.e2e.ts \
+            apps/web/tests/replay-round-trip.e2e.ts \
+            apps/web/tests/minimal-preset.snapshot.ts \
+            apps/web/tests/present.e2e.ts \
+            apps/web/tests/present-svg.e2e.ts \
+            --pool=forks --maxWorkers=1 --no-file-parallelism \
+            --reporter=default --reporter=json \
+            --outputFile.json=.artifacts/row25-web-snapshot-verification/replay.json \
+            2>&1 | tee .artifacts/row25-web-snapshot-verification/replay.log
+
+      - name: Replay bounded directory feature smokes
+        id: feature_smoke
+        env:
+          DSH_SNAPSHOT: replay
+        run: |
+          node node_modules/vitest/vitest.mjs run --config vitest.web.config.ts \
+            apps/web/tests/produced-file-mentions.e2e.ts \
+            apps/web/tests/sidebar-terminal.e2e.ts \
+            apps/web/tests/worktree-opt-in.e2e.ts \
+            -t 'inline-code mentions|starts in the current directory while earlier terminals|persists the Git Worktrees switch' \
+            --pool=forks --maxWorkers=1 --no-file-parallelism \
+            --reporter=default --reporter=json \
+            --outputFile.json=.artifacts/row25-web-snapshot-verification/feature-smoke.json \
+            2>&1 | tee .artifacts/row25-web-snapshot-verification/feature-smoke.log
+
+      - name: Capture and verify Web snapshot evidence
+        if: always()
+        env:
+          GUARD_TESTS_OUTCOME: ${{ steps.guard_tests.outcome }}
+          NATIVE_BUILD_OUTCOME: ${{ steps.native_build.outcome }}
+          LANDLOCK_OUTCOME: ${{ steps.landlock.outcome }}
+          HOST_BUILD_OUTCOME: ${{ steps.host_build.outcome }}
+          CLIENT_BUILD_OUTCOME: ${{ steps.client_build.outcome }}
+          WEB_BUILD_OUTCOME: ${{ steps.web_build.outcome }}
+          BROWSER_INSTALL_OUTCOME: ${{ steps.browser_install.outcome }}
+          FREEZE_OUTCOME: ${{ steps.freeze.outcome }}
+          REFRESH_OUTCOME: ${{ steps.refresh.outcome }}
+          REPLAY_OUTCOME: ${{ steps.replay.outcome }}
+          FEATURE_SMOKE_OUTCOME: ${{ steps.feature_smoke.outcome }}
+        run: node scripts/harnessy-web-snapshots.mjs capture
+
+      - name: Retain bounded Web snapshot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: harnessy-web-snapshot-verification-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .artifacts/row25-web-snapshot-verification/
           retention-days: 7
           if-no-files-found: error

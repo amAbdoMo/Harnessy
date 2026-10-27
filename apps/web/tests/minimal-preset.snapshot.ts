@@ -33,7 +33,8 @@ function systemPromptText(session: Session): string | undefined {
   return message?.content.flatMap(block => block.type === 'text' ? [block.text] : []).join('')
 }
 
-describe('minimal agent preset', () => {
+// The immutable replay is a Bash recording; the shipped Windows preset exposes pwsh instead.
+describe.skipIf(process.platform === 'win32')('minimal agent preset', () => {
   let scaffold: WebScaffold
   let agentHandle: AgentHandle
   let disposeInjectedPrompt: () => void
@@ -42,7 +43,15 @@ describe('minimal agent preset', () => {
   let tripwire: ReturnType<typeof watchConsole> | undefined
 
   beforeAll(async () => {
-    scaffold = await launchWebScaffold({ replayFixture: FIXTURE, compareReplaySession: true, paceMs: 10 })
+    scaffold = await launchWebScaffold({
+      replayFixture: FIXTURE,
+      compareReplaySession: true,
+      paceMs: 10,
+      extraOverlayPath: [
+        fileURLToPath(new URL('./directory-fixtures.overlay.yml', import.meta.url)),
+        fileURLToPath(new URL('./pin-browse-picker.overlay.yml', import.meta.url)),
+      ],
+    })
     disposeInjectedPrompt = scaffold.ctx.systemPrompt.section({
       name: 'test:injected-prompt',
       order: 999,
@@ -81,8 +90,13 @@ describe('minimal agent preset', () => {
     if (requestHeader === undefined) throw new Error('the minimal agent issued no model request')
     const systemPrompt = systemPromptText(agentHandle.agent.session)
     if (systemPrompt === undefined) throw new Error('the minimal agent issued no system prompt')
-    expect(agentHandle.agent.session.snapshotEvents().some(event => event.type === 'user/message'
-      && event.data.source.kind === 'runtime-context')).toBe(false)
+    const runtimeContexts = agentHandle.agent.session.snapshotEvents().flatMap(event => event.type === 'user/message'
+      && event.data.source.kind === 'runtime-context'
+      ? [event.data.content.flatMap(block => block.type === 'text' ? [block.text] : []).join('')]
+      : [])
+    expect(runtimeContexts).toEqual([
+      `Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\n\nCurrent working directory: ${JSON.stringify(agentHandle.agent.session.header.cwd)}.`,
+    ])
     expect(scaffold.ctx.agentPresets.serviceFor(agentHandle.agent, 'fs')).toBeUndefined()
     expect(scaffold.ctx.agentPresets.serviceFor(agentHandle.agent, 'compaction')).toBeUndefined()
 
@@ -123,6 +137,7 @@ describe('minimal agent preset', () => {
         "prompt": "You are a helpful software engineer assistant.",
         "tools": [
           "bash",
+          "working_directory",
         ],
       }
     `)

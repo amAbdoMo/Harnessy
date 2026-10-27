@@ -1674,6 +1674,35 @@ describe('the run_code dispatch bridge', () => {
     expect((result.content[0] as { text: string }).text).toContain('requires a PTC runtime')
   })
 
+  it('refuses an agent-owned program before dispatch when its directory owner is missing', async () => {
+    const ctx = new Context()
+    try {
+      await ctx.plugin(SystemPrompt)
+      await ctx.plugin(ToolRuntime, { mode: 'ptc' })
+      await ctx.plugin(FakeRuntime)
+      const runtime = ctx.ptcRuntime as FakeRuntime
+      const calls = registerEcho(ctx)
+      const session = Session.create(SessionId('missing-working-directory'))
+      const agent = { session } as Agent
+      runtime.behavior = async (request) => {
+        await request.bindings[0]!.functions.echo!({ value: 'blocked' })
+        return { logs: [] }
+      }
+
+      const result = await runCode(ctx, 'return await tools.echo({ value: "blocked" })', { agent })
+
+      expect(result.isError).toBe(true)
+      expect(result.content).toEqual([{
+        type: 'text', text: 'Error: dsh-tools: run_code with an Agent requires workingDirectory',
+      }])
+      expect(runtime.lastRequest).toBeUndefined()
+      expect(calls).toEqual([])
+      expect(session.snapshotEvents().some(event => event.type === 'tool/ptc-dispatch')).toBe(false)
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('presents the model-authored description as the execute-card title over the program input', async () => {
     const { ctx } = await setup({ mode: 'ptc' })
     const tool = ctx.tools.get(RUN_CODE_NAME)!

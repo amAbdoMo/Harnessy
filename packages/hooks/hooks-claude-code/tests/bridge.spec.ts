@@ -1,4 +1,4 @@
-import { createUserMessage } from '@deepseek-ai/dsh-llm'
+import { createUserMessage, ToolCallId } from '@deepseek-ai/dsh-llm'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -88,6 +88,36 @@ async function waitFor(predicate: () => boolean, timeout = 5000, interval = 10):
     await new Promise(r => setTimeout(r, interval))
   }
 }
+
+describe('unmatched hooks and directory recovery', () => {
+  it.each([
+    {},
+    { PreToolUse: [{ matcher: 'AnotherTool', hooks: [{ type: 'command', command: 'exit 1' }] }] },
+    { PreToolUse: [{ hooks: [] }] },
+  ])('does not validate a missing directory when no hook command will run', async (hooks) => {
+    const dir = writeConfig(hooks)
+    const ctx = await harness(dir, new MockAdapter([]))
+    const ensure = vi.spyOn(ctx.get('workingDirectory')!, 'ensure')
+      .mockRejectedValue(new Error('original directory is missing'))
+    try {
+      ctx.tools.register(defineContentToolFixture({
+        name: 'working_directory', description: 'recover a directory',
+        parameters: { cd: { type: 'string', required: true } },
+        async execute(args) { return [{ type: 'text', text: args.cd }] },
+      }))
+      const agent = await ctx.agentLoop.create(SessionId('recovery'), { provider: 'mock', model: 'mock' })
+      const result = await ctx.tools.execute({
+        name: 'working_directory', callId: ToolCallId('recover'), arguments: { cd: dir },
+        agent, signal: new AbortController().signal,
+      })
+      expect(result.isError).toBe(false)
+      expect(ensure).not.toHaveBeenCalled()
+    } finally {
+      ensure.mockRestore()
+      await ctx.fiber.dispose()
+    }
+  })
+})
 
 describe('hooks-claude-code bridge — UserPromptSubmit', () => {
   it('a UserPromptSubmit hook that exits 2 closes a blocked turn without a step', async () => {

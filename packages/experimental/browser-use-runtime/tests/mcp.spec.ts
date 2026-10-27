@@ -18,6 +18,7 @@ import * as JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-j
 import Agents from '@deepseek-ai/dsh-agent'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
+import { provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
 import Projections from '@deepseek-ai/dsh-session-projection'
 import FsLocal from '@deepseek-ai/dsh-fs-local'
 import WorkingDirectory from '@deepseek-ai/dsh-working-directory'
@@ -63,16 +64,18 @@ class PresentationRuntime extends PtcRuntime {
   run(): Promise<never> { return Promise.reject(new Error('Unexpected PTC execution in a presentation test')) }
 }
 
-async function load(exclusive = false, mode?: string, toolCallTimeoutMs?: number, toolOrder?: string[]) {
+async function load(exclusive = false, mode?: string, toolCallTimeoutMs?: number, toolOrder?: string[], injectWorkingDirectory = true) {
   const root = await mkdtemp(join(tmpdir(), 'dsh-browser-mcp-'))
   roots.push(root)
   const model = new FixtureModel()
+  const browserDependencies = ['browserUse', 'agents', 'tools', 'systemPrompt']
+  if (injectWorkingDirectory) browserDependencies.push('workingDirectory')
   const modules = new Map<string, unknown>([
     ['browserUse', BrowserUse], ['prompt', SystemPrompt], ['tools', Tools], ['llm', Llm],
     ['sessions', Sessions], ['agents', Agents], ['loop', AgentLoop], ['projections', Projections],
     ['fs', FsLocal], ['workingDirectory', WorkingDirectory],
     ['model', { inject: ['llm'], apply(ctx: Context) { ctx.effect(() => ctx.llm.registerAdapter(['fixture'], model)) } }],
-    ['browser', { inject: ['browserUse', 'agents', 'tools', 'systemPrompt'], apply(ctx: Context) {
+    ['browser', { inject: browserDependencies, apply(ctx: Context) {
       mountSessionMcp(ctx, { name: 'browser-fixture', exclusive, command: process.execPath, args: [fixture, root, ...mode === undefined ? [] : [mode]], ...toolCallTimeoutMs === undefined ? {} : { toolCallTimeoutMs, env: {} } })
     } }],
   ])
@@ -148,9 +151,11 @@ it('waits for SystemPrompt and ToolRuntime before reserving the provider', async
   contexts.push(ctx)
   await ctx.plugin(BrowserUse)
   await ctx.plugin(Agents)
+  await ctx.plugin(Projections)
+  provideWorkingDirectoryFixture(ctx)
   const tools = ctx.plugin(Tools)
   const browser = ctx.plugin({
-    inject: ['browserUse', 'agents', 'tools', 'systemPrompt'],
+    inject: ['browserUse', 'agents', 'tools', 'systemPrompt', 'workingDirectory'],
     apply(provider: Context) {
       mountSessionMcp(provider, { name: 'browser-fixture', exclusive: true, command: process.execPath, args: [fixture] })
     },
@@ -165,7 +170,7 @@ it('waits for SystemPrompt and ToolRuntime before reserving the provider', async
 
 describe('Session MCP Loader composition', () => {
   it('rejects startup without the directory service before spawning an MCP process', async () => {
-    const { ctx, root } = await load()
+    const { ctx, root } = await load(false, undefined, undefined, undefined, false)
     await [...ctx.loader.entries()].find(entry => entry.options.id === 'workingDirectory')!.fiber!.dispose()
     await expect(ctx.agents.create({ sessionId: SessionId('missing-directory') }))
       .rejects.toThrow('browser MCP startup requires the working-directory service')
@@ -708,12 +713,45 @@ describe('Session MCP Loader composition', () => {
     await owner.dispose()
   })
 
+  it('retains a live server directory and starts the resumed server in the current Session directory', async () => {
+    const { ctx, root } = await load()
+    await ctx.plugin(JsonlSessionPersistence, { root: join(root, 'sessions') })
+    await mkdir(join(root, 'original'))
+    await mkdir(join(root, 'selected'))
+    const original = await realpath(join(root, 'original'))
+    const selected = await realpath(join(root, 'selected'))
+    const sessionId = SessionId('browser-directory')
+    const first = await ctx.agents.create({ sessionId, meta: { cwd: original } })
+    expect((await execute(ctx, first.agent)).isError).toBe(false)
+    const initial = await events(root)
+    const firstCall = initial.findLast(event => event.event === 'call')
+    expect(firstCall).toBeDefined()
+    expect(firstCall).toMatchObject({ cwd: original })
+    const starts = initial.filter(event => event.event === 'start').length
+
+    await ctx.workingDirectory.set(first.agent, selected)
+    expect(first.agent.session.header.cwd).toBe(original)
+    expect((await execute(ctx, first.agent)).isError).toBe(false)
+    const changed = await events(root)
+    expect(changed.findLast(event => event.event === 'call')).toMatchObject({ cwd: original, pid: firstCall?.pid })
+    expect(changed.filter(event => event.event === 'start')).toHaveLength(starts)
+    await first.dispose()
+
+    const resumed = await ctx.agents.resume({ resumeSessionId: sessionId })
+    expect(resumed.agent.session.header.cwd).toBe(original)
+    expect((await execute(ctx, resumed.agent)).isError).toBe(false)
+    const reopened = await events(root)
+    expect(reopened.findLast(event => event.event === 'call')).toMatchObject({ cwd: selected })
+    expect(reopened.filter(event => event.event === 'start').length).toBeGreaterThan(starts)
+    await resumed.dispose()
+  })
+
   it('initializes only future activations after provider reload', async () => {
     const { ctx, root, browser } = await load()
     await browser.dispose()
     const existing = await ctx.agents.create({ sessionId: SessionId('existing') })
     await ctx.plugin({
-      inject: ['browserUse', 'agents', 'tools', 'systemPrompt'],
+      inject: ['browserUse', 'agents', 'tools', 'systemPrompt', 'workingDirectory'],
       apply(inner: Context) {
         mountSessionMcp(inner, { name: 'browser-fixture', exclusive: false, command: process.execPath, args: [fixture, root] })
       },

@@ -3,6 +3,8 @@ scenario: minimal-preset
 profile: web
 composition: web-minimal
 recording: authored
+platform: posix
+immutableInput: source-recording
 header:
   class: web-minimal
   pin: true

@@ -52,6 +52,7 @@ import {
   scrubSessionSnapshot,
   sessionFixtureFiles,
   sessionFixtureName,
+  writerSnapshotName,
   stabilizeFixtureMessageIds,
   stabilizeRefreshLog,
   writesCurrentSessionFixtures,
@@ -342,11 +343,12 @@ export interface LaunchOptions {
   }
   /**
    * Replay fixture (session.jsonl) served by the inserted dsh-llm-replay row
-   * in replay/refresh modes; ignored in record mode (the real adapter
-   * answers). Omit for scenarios issuing no model calls — a stray stream then
-   * fails loud with NO_ADAPTER (both direct adapters are disabled and no replay row
-   * mounts). With {@link replayProvidersOnly}, the fixture must record no
-   * model calls (its header alone mounts the catalog).
+   * in replay/refresh modes; not mounted in record mode. An immutable Web
+   * owner also uses it to refuse record mode before the live adapter or
+   * scaffold boot starts. Omit for scenarios issuing no model calls — a stray
+   * stream then fails loud with NO_ADAPTER (both direct adapters are disabled
+   * and no replay row mounts). With {@link replayProvidersOnly}, the fixture
+   * must record no model calls (its header alone mounts the catalog).
    */
   replayFixture?: string
   /** Explicit replay routes for scenarios exercising provider-dependent behavior; replay/refresh only. */
@@ -459,13 +461,23 @@ async function cleanupScaffoldWorld(ctx: Context, workspaceCwd: string, persiste
  * @returns the running scaffold.
  */
 export async function launchWebScaffold(options: LaunchOptions = {}): Promise<WebScaffold> {
+  const mode = webSnapshotMode()
+  const requestedFixture = options.replayFixture
+  if (mode === 'record' && requestedFixture !== undefined) {
+    const manifestPath = join(dirname(requestedFixture), 'snapshot.yml')
+    if (existsSync(manifestPath)) {
+      const manifest = parseSnapshotManifest(await readFile(manifestPath, 'utf8'), manifestPath)
+      if (manifest.profile === 'web' && manifest.immutableInput === 'source-recording') {
+        throw new Error(`${manifestPath}: immutable Web source recordings cannot run in record mode`)
+      }
+    }
+  }
   requireDist()
   const {
     auditStartupEntries, composeEntries, createRuntimeResolution, initProfile,
     mountRootInclude, readProfileManifest, readProfilePatches, loadProfileDirectory, loadOverlayPatches, PluginPackages,
     bundlePatchPaths,
   } = appBoot()
-  const mode = webSnapshotMode()
   const replayFixture = options.replayFixture === undefined
     ? undefined
     : await selectedSessionFixture(options.replayFixture, options.replayOverride !== undefined)
@@ -1172,12 +1184,11 @@ async function assertReplaySession(
   webUrl: string,
   harnessHome: string,
 ): Promise<void> {
-  let expected = await readFile(fixturePath, 'utf8')
+  const inputFixture = await readFile(fixturePath, 'utf8')
   const fixtureDir = dirname(fixturePath)
   const manifestPath = join(fixtureDir, 'snapshot.yml')
   const manifest = parseSnapshotManifest(await readFile(manifestPath, 'utf8'), manifestPath)
-  let expectedPath = fixturePath
-  const userPrompts = fixtureUserPrompts(expected)
+  const userPrompts = fixtureUserPrompts(inputFixture)
   const candidates = sessions.filter((session) => {
     if (session.header.parentSession !== undefined) return false
     const actual = session.snapshotEvents().flatMap((event) => {
@@ -1192,12 +1203,25 @@ async function assertReplaySession(
   const sessionCwd = session.header.cwd
   if (sessionCwd === undefined) throw new Error(`${fixturePath}: replayed session has no cwd`)
   const actual = rawSessionLog(session)
-  if (mode === 'refresh' && writesCurrentSessionFixtures(manifest, mode)) {
-    expected = stableSessionFixture(session, expected, sessionCwd, harnessHome)
-    expectedPath = recordedSessionFixturePath(fixturePath, session.header.version)
-    await writeFile(expectedPath, expected)
+  let comparisonExpected = inputFixture
+  let comparisonPath = fixturePath
+  if (manifest.immutableInput === 'source-recording') {
+    comparisonPath = join(fixtureDir, writerSnapshotName(0))
+    if (mode === 'refresh') {
+      const existingWriterOutput = existsSync(comparisonPath)
+        ? await readFile(comparisonPath, 'utf8')
+        : ''
+      comparisonExpected = stableSessionFixture(session, existingWriterOutput, sessionCwd, harnessHome)
+      await writeFile(comparisonPath, comparisonExpected)
+    } else {
+      comparisonExpected = await readFile(comparisonPath, 'utf8')
+    }
+  } else if (mode === 'refresh' && writesCurrentSessionFixtures(manifest, mode)) {
+    comparisonExpected = stableSessionFixture(session, inputFixture, sessionCwd, harnessHome)
+    comparisonPath = recordedSessionFixturePath(fixturePath, session.header.version)
+    await writeFile(comparisonPath, comparisonExpected)
   }
-  const expectedHeader = JSON.parse(expected.split('\n').find(line => line.trim() !== '') ?? '{}') as {
+  const expectedHeader = JSON.parse(comparisonExpected.split('\n').find(line => line.trim() !== '') ?? '{}') as {
     id?: unknown
     cwd?: unknown
   }
@@ -1206,11 +1230,18 @@ async function assertReplaySession(
     sessionIds: typeof expectedHeader.id === 'string' ? [expectedHeader.id] : [],
     cwd: typeof expectedHeader.cwd === 'string' ? expectedHeader.cwd : '\0no-cwd\0',
   }
-  const actualSnapshot = normalizeSessionSnapshots([normalizeWebSessionVolatiles(actual)], actualContext)[0]
+  const nativeWriterOutput = manifest.immutableInput === 'source-recording'
+    ? { nativeWriterOutput: true as const }
+    : undefined
+  const actualSnapshot = normalizeSessionSnapshots(
+    [normalizeWebSessionVolatiles(actual)], actualContext, nativeWriterOutput,
+  )[0]
     ?.split(harnessHome).join('{{harnessHome}}')
-  const expectedSnapshot = normalizeSessionSnapshots([normalizeWebSessionVolatiles(expected)], expectedContext)[0]
+  const expectedSnapshot = normalizeSessionSnapshots(
+    [normalizeWebSessionVolatiles(comparisonExpected)], expectedContext, nativeWriterOutput,
+  )[0]
     ?.split(harnessHome).join('{{harnessHome}}')
-  expect(actualSnapshot, `${fixturePath}: persisted replay`).toBe(expectedSnapshot)
+  expect(actualSnapshot, `${comparisonPath}: persisted replay`).toBe(expectedSnapshot)
 
   if (manifest.header?.pin !== true) return
   const normalizePrompt = (value: string): string => value
@@ -1234,7 +1265,7 @@ async function assertReplaySession(
  * system-prompt text to {{system}} and header tool schemas to {{tools}},
  * tokenize the run-local cwd, redact opaque identities with typed
  * relationship-preserving tokens, and write the fixture.
- * A manifest-retained historical generation makes the write-back a no-op.
+ * A manifest-retained generation or immutable source input makes the write-back a no-op.
  * @param scaffold - the record-mode scaffold.
  * @param sessionId - the driven session.
  * @param fixturePath - the committed session.jsonl target.
@@ -1540,12 +1571,20 @@ export async function readPersistedEvents(scaffold: WebScaffold, id: SessionId):
 const ARIA_AGE =
   /(?:now|\d+min|\d+h|\d+d|\d+mo|\d+y|刚刚|\d+分钟|\d+小时|\d+天|\d+个月|\d+年)(?=")/g
 
-function normalizeAria(snapshot: string, workspaceCwd: string, age: boolean): string {
+/** Replace only run-owned workspace paths and volatile display values in an ARIA snapshot.
+ * @param snapshot - Raw Playwright ARIA snapshot text.
+ * @param workspaceCwd - Exact temporary workspace path owned by this run.
+ * @param age - Whether relative-time labels should use the shared age token.
+ * @returns The normalized snapshot.
+ */
+export function normalizeAria(snapshot: string, workspaceCwd: string, age: boolean): string {
   // The session heading renders the workspace's basename, not the full
   // path, so both spellings must collapse to the token.
-  const base = workspaceCwd.split('/').pop()!
-  return (age ? snapshot.replace(ARIA_AGE, '{{age}}') : snapshot)
-    .split(workspaceCwd).join('{{cwd}}')
+  const base = workspaceCwd.split(/[\\/]/u).at(-1)!
+  const cwdSpellings = new Set([workspaceCwd, JSON.stringify(workspaceCwd).slice(1, -1)])
+  let normalized = age ? snapshot.replace(ARIA_AGE, '{{age}}') : snapshot
+  for (const spelling of cwdSpellings) normalized = normalized.split(spelling).join('{{cwd}}')
+  return normalized
     .split(base).join('{{workspace}}')
     .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '{{uuid}}')
     // The optional space in `\d+m ?\d+s` covers both minute spellings: the
@@ -1697,14 +1736,21 @@ export async function assertFixtureInventory(dir: string, expected: string[]): P
   const entries = (await readdir(dir)).sort()
   const ownsManifest = entries.includes('snapshot.yml')
   const artifacts = entries.filter(name => name !== 'snapshot.yml')
+  const manifestPath = join(dir, 'snapshot.yml')
+  const manifest = ownsManifest
+    ? parseSnapshotManifest(await readFile(manifestPath, 'utf8'), manifestPath)
+    : undefined
   const roleInventory = (names: readonly string[]): string[] => [...new Set(names.map((name) => {
     const fixture = parseSessionFixtureName(name)
     return fixture === undefined ? name : sessionFixtureName(fixture.index, 0)
   }))].sort()
-  expect(roleInventory(artifacts)).toEqual(roleInventory(expected))
+  const expectedArtifacts = manifest?.immutableInput === 'source-recording'
+    && artifacts.includes(writerSnapshotName(0))
+    ? [...expected, writerSnapshotName(0)]
+    : expected
+  expect(roleInventory(artifacts)).toEqual(roleInventory(expectedArtifacts))
   if (ownsManifest) {
-    const manifestPath = join(dir, 'snapshot.yml')
-    const manifest = parseSnapshotManifest(await readFile(manifestPath, 'utf8'), manifestPath)
+    if (manifest === undefined) throw new Error(`${manifestPath}: owning manifest was not parsed`)
     expect(manifest.profile).toBe('web')
     if (manifest.session === undefined) {
       expect(

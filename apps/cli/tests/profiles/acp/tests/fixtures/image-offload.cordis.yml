@@ -42,3 +42,7 @@
 
 - id: attachment-local
   name: '@deepseek-ai/dsh-attachment-local'
+
+- insert:
+    - id: image-offload-skill-isolation
+      name: './image-offload-skill-isolation.ts'

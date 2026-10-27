@@ -1,3 +1,6 @@
+import { mkdtemp, mkdir, realpath, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import { PtcRuntime } from '@deepseek-ai/dsh-ptc-runtime'
 import type { PtcBindingFunction, PtcRunRequest, PtcRunResult, PtcRunSpec } from '@deepseek-ai/dsh-ptc-runtime'
@@ -24,11 +27,18 @@ class ControlledRuntime extends PtcRuntime {
   run(spec: PtcRunSpec): Promise<PtcRunResult> { return this.execute(spec) }
 }
 
-async function setup(execute?: (bindings: HostBindings, spec: PtcRunSpec) => Promise<PtcRunResult>, language = 'typescript') {
+async function setup(
+  execute?: (bindings: HostBindings, spec: PtcRunSpec) => Promise<PtcRunResult>,
+  language = 'typescript',
+  workspaceRoot?: string,
+) {
   const ctx = new Context()
   onTestFinished(async () => { await ctx.fiber.dispose() })
   await mountWorkflowDirectoryFixture(ctx)
-  await ctx.plugin(SandboxPolicy, { mode: 'read-only' })
+  await ctx.plugin(SandboxPolicy, {
+    mode: 'read-only',
+    ...workspaceRoot === undefined ? {} : { workspaceRoot },
+  })
   await ctx.plugin(SubagentRuntime)
   ctx.subagents.registerProvider({
     name: 'stub',
@@ -58,6 +68,49 @@ async function setup(execute?: (bindings: HostBindings, spec: PtcRunSpec) => Pro
 }
 
 describe('workflow host callback validation', () => {
+  it('retains its selected directory for the process and later children when the parent moves', async () => {
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-workflow-held-cwd-')))
+    onTestFinished(async () => { await rm(root, { recursive: true, force: true }) })
+    const selected = join(root, 'selected')
+    const later = join(root, 'later')
+    await mkdir(selected)
+    await mkdir(later)
+
+    const entered = Promise.withResolvers<PtcRunSpec>()
+    const release = Promise.withResolvers<undefined>()
+    let launched: PtcRunSpec | undefined
+    const { ctx, start, parent } = await setup(async (bindings, spec) => {
+      launched = spec
+      entered.resolve(spec)
+      await release.promise
+      await bindings.startChild!({ prompt: 'child' })
+      return completed
+    }, 'typescript', selected)
+    const ensureDirectory = vi.spyOn(ctx.workingDirectory, 'ensure')
+    const childStart = vi.spyOn(ctx.subagents, 'start')
+    const run = start()
+    try {
+      const initialSpec = await entered.promise
+      expect(initialSpec.cwd).toBe(selected)
+      expect(initialSpec.sandboxPolicy?.workspaceRoot).toBe(parent.session.header.cwd)
+      const updatedDirectory = await ctx.workingDirectory.set(parent, later)
+      expect(ctx.workingDirectory.get(parent.session)).toBe(updatedDirectory)
+      expect(updatedDirectory).toBe(later)
+      expect(parent.session.header.cwd).toBe(selected)
+
+      release.resolve(undefined)
+      expect((await run.result).stopReason).toBe('completed')
+      expect(launched?.cwd).toBe(selected)
+      expect(childStart).toHaveBeenCalledWith('stub', expect.objectContaining({ cwd: selected }))
+      expect(ensureDirectory).toHaveBeenCalledOnce()
+    } finally {
+      release.resolve(undefined)
+      await run.dispose()
+      await ctx.fiber.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
   it.each([
     ['startChild', null, 'requires an object'],
     ['startChild', [], 'requires an object'],

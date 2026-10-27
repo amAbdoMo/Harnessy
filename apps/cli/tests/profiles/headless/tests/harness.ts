@@ -4,9 +4,11 @@ import type { Agent } from '@deepseek-ai/dsh-agent'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
 import { LocalBashExecutor } from '@deepseek-ai/dsh-bash-local'
+import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
 import * as BashEnvPlugin from '@deepseek-ai/dsh-shell-env'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
 import * as ToolBash from '@deepseek-ai/dsh-tool-bash'
+import WorkingDirectory from '@deepseek-ai/dsh-working-directory'
 import * as ToolTodo from '@deepseek-ai/dsh-tool-todo'
 import * as LlmDeepSeek from '@deepseek-ai/dsh-llm-deepseek-api-key'
 import TokenMeter from '@deepseek-ai/dsh-token-meter'
@@ -65,9 +67,11 @@ export interface CodingHarnessOptions {
 
 export async function codingHarness(workdir: string, options: CodingHarnessOptions = {}): Promise<Context> {
   const ctx = new Context()
+  await ctx.plugin(LocalFileSystem, { cwd: workdir })
   await mountAgentLoopTestDependencies(ctx, {
     systemPrompt: { personaPrefix: options.personaPrefix ?? '' },
   })
+  await ctx.plugin(WorkingDirectory, { defaultDirectory: workdir })
   await ctx.plugin(AgentLoop, { agents: [] })
   await ctx.plugin(LlmDeepSeek, {
     ...options.modelContextWindow === undefined && options.modelMaxTokens === undefined ? {} : {

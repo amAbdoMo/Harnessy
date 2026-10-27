@@ -3,6 +3,8 @@ scenario: fresh-round-trip
 profile: web
 composition: web-default
 recording: live
+platform: posix
+immutableInput: source-recording
 header:
   class: web-default
   pin: true

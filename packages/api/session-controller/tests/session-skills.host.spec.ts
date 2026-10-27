@@ -91,13 +91,44 @@ describe('SessionSkillCatalog', () => {
     expect(list).toHaveBeenCalledWith({ cwd: '/cold/project', scope: undefined })
   })
 
+  it.each([
+    { cwd: undefined, workingDirectory: '/cold/current', expected: '/cold/current' },
+    { cwd: '/cold/original', workingDirectory: null, expected: '/cold/original' },
+    { cwd: undefined, workingDirectory: null, expected: '/host-default' },
+    { cwd: undefined, workingDirectory: undefined, expected: '/host-default' },
+  ])('resolves cold directory metadata $cwd / $workingDirectory to $expected without filesystem checks', async ({ cwd, workingDirectory, expected }) => {
+    const ctx = await context()
+    try {
+      const sessionId = SessionId('cold-directory-fallback')
+      ctx.provide('sessionQuery', {
+        observeSession: () => Promise.resolve(observation(sessionId, {
+          ...cwd === undefined ? {} : { cwd },
+          ...workingDirectory === undefined ? {} : { workingDirectory },
+        })),
+      } as never)
+      const list = vi.fn(() => Promise.resolve([]))
+      ctx.provide('skills', { list } as never)
+      const ensure = vi.spyOn(ctx.workingDirectory, 'ensure')
+      const resume = vi.spyOn(ctx.agents, 'resume')
+
+      await expect(new SessionSkillCatalog(ctx).list({ sessionId }, new AbortController().signal))
+        .resolves.toEqual({ skills: [] })
+
+      expect(list).toHaveBeenCalledWith({ cwd: expected, scope: undefined })
+      expect(ensure).not.toHaveBeenCalled()
+      expect(resume).not.toHaveBeenCalled()
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('uses a live Agent to address a preset-owned registry', async () => {
     const ctx = await context()
     const sessionId = SessionId('live-skills')
     const session = ctx.sessions.create(sessionId, { meta: { cwd: '/live/project' } })
     const agent = { id: sessionId, session, status: 'idle', ctx } as Agent
     await ctx.agents.register(agent)
-    const ensure = vi.spyOn(ctx.workingDirectory, 'ensure')
+    const ensure = vi.spyOn(ctx.workingDirectory, 'ensure').mockResolvedValue('/live/current')
     ctx.provide('sessionQuery', {
       observeSession: () => Promise.resolve(observation(sessionId, { cwd: '/live/project' })),
     } as never)
@@ -120,9 +151,10 @@ describe('SessionSkillCatalog', () => {
         modelInvocable: false,
       }],
     })
-    expect(scopedList).toHaveBeenCalledWith({ cwd: '/live/project', scope: agent })
+    expect(scopedList).toHaveBeenCalledWith({ cwd: '/live/current', scope: agent })
     expect(acquireScope).not.toHaveBeenCalled()
     expect(ensure).toHaveBeenCalledWith(agent, expect.any(AbortSignal))
+    expect(session.header.cwd).toBe('/live/project')
   })
 
   it('does not list a live catalog after directory validation is cancelled', async () => {

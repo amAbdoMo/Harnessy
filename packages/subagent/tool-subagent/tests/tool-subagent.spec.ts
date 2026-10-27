@@ -89,6 +89,28 @@ describe('dsh-tool-subagent', () => {
     expect(text(result)).toBe('child says hi')
   })
 
+  it('resolves a relative child directory from the parent current directory without changing it', async () => {
+    let childCwd: string | undefined
+    const ctx = await setup({ provider: 'mock' }, {
+      onStart: (request) => { childCwd = request.cwd },
+    })
+    const parent: Agent = { ...fakeAgent(), ctx }
+    const parentCwd = ctx.workingDirectory.get(parent.session)
+    try {
+      const result = await callSubagent(ctx, {
+        description: 'inspect packages',
+        prompt: 'list the packages',
+        cwd: 'packages',
+      }, { agent: parent })
+      expect(result.isError).toBe(false)
+      expect(childCwd).toBe(path.resolve(parentCwd, 'packages'))
+      expect(ctx.workingDirectory.get(parent.session)).toBe(parentCwd)
+      expect(parent.session.snapshotEvents().filter(event => event.type === 'working-directory/change')).toEqual([])
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('omits run_in_background entirely when the instance disables it (schema and capability never disagree)', async () => {
     const ctx = await setup({ provider: 'mock', enableRunInBackground: false })
     const schema = ctx.tools.schemas().find(s => s.name === 'subagent')

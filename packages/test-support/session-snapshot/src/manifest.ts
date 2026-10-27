@@ -122,7 +122,7 @@ export interface SnapshotManifest {
   session?: SnapshotSessionReference
   /** Historical generation retained by an owner instead of tracking the current writer. */
   sessionFormat?: SnapshotSessionFormatManifest
-  /** Preserve a headless or SDK current-format source recording and compare a separate writer output. */
+  /** Preserve an owning headless, SDK, or Web current-format source recording and compare a separate writer output. */
   immutableInput?: 'source-recording'
 }
 
@@ -425,8 +425,9 @@ export function parseSnapshotManifest(source: string, path = 'snapshot.yml'): Sn
       if (root.immutableInput !== 'source-recording') {
         throw new Error('manifest.immutableInput must equal source-recording')
       }
-      if ((root.profile !== 'headless' && root.profile !== 'sdk') || session !== undefined || sessionFormat !== undefined) {
-        throw new Error('manifest.immutableInput requires an owning headless or sdk scenario without sessionFormat')
+      if ((root.profile !== 'headless' && root.profile !== 'sdk' && root.profile !== 'web')
+        || session !== undefined || sessionFormat !== undefined) {
+        throw new Error('manifest.immutableInput requires an owning headless, sdk, or web scenario without sessionFormat')
       }
     }
 

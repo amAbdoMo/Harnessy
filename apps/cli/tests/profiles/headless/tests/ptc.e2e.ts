@@ -17,6 +17,7 @@ import { LocalBashExecutor } from '@deepseek-ai/dsh-bash-local'
 import * as BashEnvPlugin from '@deepseek-ai/dsh-shell-env'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
 import * as ToolBash from '@deepseek-ai/dsh-tool-bash'
+import WorkingDirectory from '@deepseek-ai/dsh-working-directory'
 import * as LlmDeepSeek from '@deepseek-ai/dsh-llm-deepseek-api-key'
 import NodeRuntime from '@deepseek-ai/dsh-ptc-runtime-node'
 import Sandbox from '@deepseek-ai/dsh-sandbox-local'
@@ -61,6 +62,8 @@ async function ptcModeHarness(cwd: string): Promise<Context> {
   await harness.plugin(SystemPrompt, { personaPrefix: PERSONA })
   await harness.plugin(ToolRuntime, { mode: 'ptc' })
   await harness.plugin(AgentRegistry)
+  await harness.plugin(LocalFileSystem, { cwd })
+  await harness.plugin(WorkingDirectory, { defaultDirectory: cwd })
   await harness.plugin(AgentLoop, { agents: [] })
   await harness.plugin(LlmDeepSeek)
   if (harness.get('subprocess') === undefined) await harness.plugin(LocalSubprocessRuntime)
@@ -80,6 +83,7 @@ async function workspacePtcModeHarness(): Promise<Context> {
   await harness.plugin(ToolRuntime, { mode: 'ptc' })
   await harness.plugin(AgentRegistry)
   await harness.plugin(LocalFileSystem, { cwd: '/' })
+  await harness.plugin(WorkingDirectory, { defaultDirectory: '/' })
   await harness.plugin(ToolFs)
   await harness.plugin(AgentInstructions, { maxBytes: 65536 })
   await harness.plugin(AgentLoop, { agents: [] })
@@ -129,17 +133,19 @@ async function mountRuntime(harness: Context): Promise<void> {
 }
 
 /** Keyless real-process harness for direct typed-binding acceptance tests. */
-async function typedPtcModeHarness(): Promise<Context> {
+async function typedPtcModeHarness(cwd = process.cwd()): Promise<Context> {
   const harness = new Context()
   await harness.plugin(SystemPrompt)
   await harness.plugin(ToolRuntime, { mode: 'ptc' })
+  await harness.plugin(LocalFileSystem, { cwd })
   await mountRuntime(harness)
+  await harness.plugin(WorkingDirectory, { defaultDirectory: cwd })
   return harness
 }
 
 /** Keyless real-process harness with the task-owned bash lifecycle. */
 async function backgroundPtcModeHarness(cwd: string): Promise<Context> {
-  const harness = await typedPtcModeHarness()
+  const harness = await typedPtcModeHarness(cwd)
   await harness.plugin(LocalJobRegistry)
   await harness.plugin(ToolJobs, {})
   if (harness.get('subprocess') === undefined) await harness.plugin(LocalSubprocessRuntime)
@@ -328,7 +334,7 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('PTC mode: real model writes a pr
   it('collapses the wire tool list to [run_code], bridges sub-calls, and returns curated output', async () => {
     workdir = await mkdtemp(join(tmpdir(), 'dsh-ptc-e2e-'))
     ctx = await ptcModeHarness(workdir)
-    const agent = await ctx.agentLoop.create(SessionId('e2e-ptc'), { provider: 'deepseek-official', model: 'deepseek-v4-flash' })
+    const agent = await ctx.agentLoop.create(SessionId('e2e-ptc'), { provider: 'deepseek-official', model: 'deepseek-v4-flash' }, { cwd: workdir })
 
     agent.followup(createUserMessage({
       content: [{

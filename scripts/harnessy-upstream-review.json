@@ -24247,7 +24247,8 @@
       ],
       "tree": "9203404c8509edbefd40f21f72c3cb86466278e0",
       "subject": "Merge pull request #5738 from deepseek-harness/worktree/python-ptc-sandbox",
-      "review": null
+      "review": "harnessy-python-ptc-sandbox-20261027",
+      "mergeEvidence": "Inspected both parents and their constituent Python changes. Fresh git merge-tree --write-tree 973a7fb8e4d03635599e786f69ab0d3249111ae5 d7e3746ea14616cf6c8743a80a7c9e790edaf058 reproduces tree 9203404c8509edbefd40f21f72c3cb86466278e0 exactly; this also equals the feature parent tree. git show --remerge-diff has no resolution paths. No additional merge-only behavior is omitted."
     },
     {
       "sha": "d7e3746ea14616cf6c8743a80a7c9e790edaf058",
@@ -24256,7 +24257,7 @@
       ],
       "tree": "9203404c8509edbefd40f21f72c3cb86466278e0",
       "subject": "fix(ptc): preserve Python spawning and CPU soft limits",
-      "review": null
+      "review": "harnessy-python-ptc-sandbox-20261027"
     },
     {
       "sha": "11a0f85b34068b25a16ab45a6f8f38dc86f93d7c",
@@ -24265,7 +24266,7 @@
       ],
       "tree": "dfedec1f720bdf42459df6dfa31cb8108f662d51",
       "subject": "fix(ptc): apply shared sandbox policy to Python execution",
-      "review": null
+      "review": "harnessy-python-ptc-sandbox-20261027"
     },
     {
       "sha": "973a7fb8e4d03635599e786f69ab0d3249111ae5",
@@ -131062,6 +131063,194 @@
         "Current snapshot header/normalization checks and corpus owners passed. Scoped typed lint, all22 quick documentation gates,1946 Markdown link checks, exported package JSDoc and full Host semantic checks passed as recorded by final qualification. Unchanged global generators retain the earlier complete documentation qualification; no unnecessary full Desktop/browser build ran beneath staging. Normal pre-push still performs complete Host/Client checks.",
         "Retained source backend selection a22fc19fff4f6cc517895253b9df481cffe20b56 and newer payload fixture0c22c17b9a6697122d735ae8bcbc85a4118008dc remain unchanged in behavior. The existing node-pty conout worker-disposal patch, exact runtime asset retention, primary-runtime package-manager path, natural-drain reporting and custom data/UI owners are preserved. No installer, source app copy, main-app update, release, tag or master push is inferred.",
         "The successful separate native run40368716674 checked earlier source6a43cee8209601c9c06256925ac023e0ee9527bf: Linux326 Python cases; Mac324 plus two explicit address-space skips; Swift release build and90 tests; Mac/shared ComputerUse420 tests. It does not qualify interactive Mac controls or the still-pending native Python Session fixtures/built-package smoke. The checkpoint remains973a7fb8e4d03635599e786f69ab0d3249111ae5, and the prepared extra native snapshot lane is not an executed check."
+      ]
+    },
+    "harnessy-python-ptc-sandbox-20261027": {
+      "status": "adopted",
+      "summary": "Adapt the Python PTC shared sandbox policy to the local runtime while retaining Unix-only refusal, existing lifecycle and protocol protections, current package ownership, and frozen Session inputs.",
+      "files": [
+        {
+          "path": ".agents/notes/implemented/architecture/2026-07-31-ptc-runtime-python-fd3-protocol.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adapt the active fd-3 and sandboxed PTC rationale to the shared policy, native process ownership and actual Harnessy runtime, preserving its protocol protections and supported platform limitations. The paired current notes were reviewed with the implementation and passed documentation checks; frozen archived notes are untouched."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-07-31-ptc-runtime-python-fd3-protocol.md",
+          "disposition": "adopted",
+          "reason": "Adapt the active fd-3 and sandboxed PTC rationale to the shared policy, native process ownership and actual Harnessy runtime, preserving its protocol protections and supported platform limitations. The paired current notes were reviewed with the implementation and passed documentation checks; frozen archived notes are untouched."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-07-31-ptc-runtime-python-fd3-protocol.zh.md",
+          "disposition": "adopted",
+          "reason": "Adapt the active fd-3 and sandboxed PTC rationale to the shared policy, native process ownership and actual Harnessy runtime, preserving its protocol protections and supported platform limitations. The paired current notes were reviewed with the implementation and passed documentation checks; frozen archived notes are untouched."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-09-11-sandboxed-node-ptc-runtime.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adapt the active fd-3 and sandboxed PTC rationale to the shared policy, native process ownership and actual Harnessy runtime, preserving its protocol protections and supported platform limitations. The paired current notes were reviewed with the implementation and passed documentation checks; frozen archived notes are untouched."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-09-11-sandboxed-node-ptc-runtime.md",
+          "disposition": "adopted",
+          "reason": "Adapt the active fd-3 and sandboxed PTC rationale to the shared policy, native process ownership and actual Harnessy runtime, preserving its protocol protections and supported platform limitations. The paired current notes were reviewed with the implementation and passed documentation checks; frozen archived notes are untouched."
+        },
+        {
+          "path": ".agents/notes/implemented/architecture/2026-09-11-sandboxed-node-ptc-runtime.zh.md",
+          "disposition": "adopted",
+          "reason": "Adapt the active fd-3 and sandboxed PTC rationale to the shared policy, native process ownership and actual Harnessy runtime, preserving its protocol protections and supported platform limitations. The paired current notes were reviewed with the implementation and passed documentation checks; frozen archived notes are untouched."
+        },
+        {
+          "path": "docs/config-catalog.md",
+          "disposition": "adopted",
+          "reason": "Regenerate the paired catalog/graph from current Harnessy runtime and dependency declarations, retaining all custom packages instead of copying upstream generated tables. The owned freshness checks passed in the current documentation verification."
+        },
+        {
+          "path": "docs/config-catalog.zh.md",
+          "disposition": "adopted",
+          "reason": "Regenerate the paired catalog/graph from current Harnessy runtime and dependency declarations, retaining all custom packages instead of copying upstream generated tables. The owned freshness checks passed in the current documentation verification."
+        },
+        {
+          "path": "docs/module-graph.md",
+          "disposition": "adopted",
+          "reason": "Regenerate the paired catalog/graph from current Harnessy runtime and dependency declarations, retaining all custom packages instead of copying upstream generated tables. The owned freshness checks passed in the current documentation verification."
+        },
+        {
+          "path": "docs/module-graph.zh.md",
+          "disposition": "adopted",
+          "reason": "Regenerate the paired catalog/graph from current Harnessy runtime and dependency declarations, retaining all custom packages instead of copying upstream generated tables. The owned freshness checks passed in the current documentation verification."
+        },
+        {
+          "path": "docs/upgrade-guide/v0.2.1-alpha.1/python-ptc-sandbox/guide.i18n.yaml",
+          "disposition": "excluded",
+          "reason": "Keep upstream release-version ownership out of Harnessy. Adapt the Python confinement and platform guidance in the paired current-version docs/upgrade-guide/v0.1.17/python-ptc-sandbox guide delivered by d56ba206141f188abe09efb528fa29f599e56dc3."
+        },
+        {
+          "path": "docs/upgrade-guide/v0.2.1-alpha.1/python-ptc-sandbox/guide.md",
+          "disposition": "excluded",
+          "reason": "Keep upstream release-version ownership out of Harnessy. Adapt the Python confinement and platform guidance in the paired current-version docs/upgrade-guide/v0.1.17/python-ptc-sandbox guide delivered by d56ba206141f188abe09efb528fa29f599e56dc3."
+        },
+        {
+          "path": "docs/upgrade-guide/v0.2.1-alpha.1/python-ptc-sandbox/guide.zh.md",
+          "disposition": "excluded",
+          "reason": "Keep upstream release-version ownership out of Harnessy. Adapt the Python confinement and platform guidance in the paired current-version docs/upgrade-guide/v0.1.17/python-ptc-sandbox guide delivered by d56ba206141f188abe09efb528fa29f599e56dc3."
+        },
+        {
+          "path": "packages/experimental/ptc-runtime-python/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Adapt the upstream Python confinement implementation, protocol, owning tests and paired README to current Harnessy services: fail closed before unsupported execution, preserve fd-3 bindings and credential scrubbing, retain cancellation/deadline/disposal and process cleanup, enforce shared read-only/workspace policy and report CPU termination. Preserve explicit Windows refusal and documented Mac address-space limits. Source review and the actual native enforcement suites plus built-package smokes qualify this behavior."
+        },
+        {
+          "path": "packages/experimental/ptc-runtime-python/README.md",
+          "disposition": "adopted",
+          "reason": "Adapt the upstream Python confinement implementation, protocol, owning tests and paired README to current Harnessy services: fail closed before unsupported execution, preserve fd-3 bindings and credential scrubbing, retain cancellation/deadline/disposal and process cleanup, enforce shared read-only/workspace policy and report CPU termination. Preserve explicit Windows refusal and documented Mac address-space limits. Source review and the actual native enforcement suites plus built-package smokes qualify this behavior."
+        },
+        {
+          "path": "packages/experimental/ptc-runtime-python/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Adapt the upstream Python confinement implementation, protocol, owning tests and paired README to current Harnessy services: fail closed before unsupported execution, preserve fd-3 bindings and credential scrubbing, retain cancellation/deadline/disposal and process cleanup, enforce shared read-only/workspace policy and report CPU termination. Preserve explicit Windows refusal and documented Mac address-space limits. Source review and the actual native enforcement suites plus built-package smokes qualify this behavior."
+        },
+        {
+          "path": "packages/experimental/ptc-runtime-python/package.json",
+          "disposition": "adopted",
+          "reason": "Declare shared sandbox/native subprocess support for the Python runtime in current workspace manifests and compiler ownership, and regenerate workspace links without replacing unrelated dependency resolutions. Frozen dependency installation and actual built public-package sandbox smoke passed."
+        },
+        {
+          "path": "packages/experimental/ptc-runtime-python/py/bootstrap.py",
+          "disposition": "adopted",
+          "reason": "Adapt the upstream Python confinement implementation, protocol, owning tests and paired README to current Harnessy services: fail closed before unsupported execution, preserve fd-3 bindings and credential scrubbing, retain cancellation/deadline/disposal and process cleanup, enforce shared read-only/workspace policy and report CPU termination. Preserve explicit Windows refusal and documented Mac address-space limits. Source review and the actual native enforcement suites plus built-package smokes qualify this behavior."
+        },
+        {
+          "path": "packages/experimental/ptc-runtime-python/py/protocol.py",
+          "disposition": "adopted",
+          "reason": "Adapt the upstream Python confinement implementation, protocol, owning tests and paired README to current Harnessy services: fail closed before unsupported execution, preserve fd-3 bindings and credential scrubbing, retain cancellation/deadline/disposal and process cleanup, enforce shared read-only/workspace policy and report CPU termination. Preserve explicit Windows refusal and documented Mac address-space limits. Source review and the actual native enforcement suites plus built-package smokes qualify this behavior."
+        },
+        {
+          "path": "packages/experimental/ptc-runtime-python/src/index.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the upstream Python confinement implementation, protocol, owning tests and paired README to current Harnessy services: fail closed before unsupported execution, preserve fd-3 bindings and credential scrubbing, retain cancellation/deadline/disposal and process cleanup, enforce shared read-only/workspace policy and report CPU termination. Preserve explicit Windows refusal and documented Mac address-space limits. Source review and the actual native enforcement suites plus built-package smokes qualify this behavior."
+        },
+        {
+          "path": "packages/experimental/ptc-runtime-python/src/launch.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the upstream Python confinement implementation, protocol, owning tests and paired README to current Harnessy services: fail closed before unsupported execution, preserve fd-3 bindings and credential scrubbing, retain cancellation/deadline/disposal and process cleanup, enforce shared read-only/workspace policy and report CPU termination. Preserve explicit Windows refusal and documented Mac address-space limits. Source review and the actual native enforcement suites plus built-package smokes qualify this behavior."
+        },
+        {
+          "path": "packages/experimental/ptc-runtime-python/src/protocol.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the upstream Python confinement implementation, protocol, owning tests and paired README to current Harnessy services: fail closed before unsupported execution, preserve fd-3 bindings and credential scrubbing, retain cancellation/deadline/disposal and process cleanup, enforce shared read-only/workspace policy and report CPU termination. Preserve explicit Windows refusal and documented Mac address-space limits. Source review and the actual native enforcement suites plus built-package smokes qualify this behavior."
+        },
+        {
+          "path": "packages/experimental/ptc-runtime-python/tests/boot-write-failure.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the upstream Python confinement implementation, protocol, owning tests and paired README to current Harnessy services: fail closed before unsupported execution, preserve fd-3 bindings and credential scrubbing, retain cancellation/deadline/disposal and process cleanup, enforce shared read-only/workspace policy and report CPU termination. Preserve explicit Windows refusal and documented Mac address-space limits. Source review and the actual native enforcement suites plus built-package smokes qualify this behavior."
+        },
+        {
+          "path": "packages/experimental/ptc-runtime-python/tests/protocol.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the upstream Python confinement implementation, protocol, owning tests and paired README to current Harnessy services: fail closed before unsupported execution, preserve fd-3 bindings and credential scrubbing, retain cancellation/deadline/disposal and process cleanup, enforce shared read-only/workspace policy and report CPU termination. Preserve explicit Windows refusal and documented Mac address-space limits. Source review and the actual native enforcement suites plus built-package smokes qualify this behavior."
+        },
+        {
+          "path": "packages/experimental/ptc-runtime-python/tests/runtime.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the upstream Python confinement implementation, protocol, owning tests and paired README to current Harnessy services: fail closed before unsupported execution, preserve fd-3 bindings and credential scrubbing, retain cancellation/deadline/disposal and process cleanup, enforce shared read-only/workspace policy and report CPU termination. Preserve explicit Windows refusal and documented Mac address-space limits. Source review and the actual native enforcement suites plus built-package smokes qualify this behavior."
+        },
+        {
+          "path": "packages/experimental/ptc-runtime-python/tests/sandbox.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the upstream Python confinement implementation, protocol, owning tests and paired README to current Harnessy services: fail closed before unsupported execution, preserve fd-3 bindings and credential scrubbing, retain cancellation/deadline/disposal and process cleanup, enforce shared read-only/workspace policy and report CPU termination. Preserve explicit Windows refusal and documented Mac address-space limits. Source review and the actual native enforcement suites plus built-package smokes qualify this behavior."
+        },
+        {
+          "path": "packages/experimental/ptc-runtime-python/tests/setup.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the upstream Python confinement implementation, protocol, owning tests and paired README to current Harnessy services: fail closed before unsupported execution, preserve fd-3 bindings and credential scrubbing, retain cancellation/deadline/disposal and process cleanup, enforce shared read-only/workspace policy and report CPU termination. Preserve explicit Windows refusal and documented Mac address-space limits. Source review and the actual native enforcement suites plus built-package smokes qualify this behavior."
+        },
+        {
+          "path": "packages/experimental/ptc-runtime-python/tests/stray-fragments.spec.ts",
+          "disposition": "adopted",
+          "reason": "Adapt the upstream Python confinement implementation, protocol, owning tests and paired README to current Harnessy services: fail closed before unsupported execution, preserve fd-3 bindings and credential scrubbing, retain cancellation/deadline/disposal and process cleanup, enforce shared read-only/workspace policy and report CPU termination. Preserve explicit Windows refusal and documented Mac address-space limits. Source review and the actual native enforcement suites plus built-package smokes qualify this behavior."
+        },
+        {
+          "path": "packages/experimental/ptc-runtime-python/tsconfig.json",
+          "disposition": "adopted",
+          "reason": "Declare shared sandbox/native subprocess support for the Python runtime in current workspace manifests and compiler ownership, and regenerate workspace links without replacing unrelated dependency resolutions. Frozen dependency installation and actual built public-package sandbox smoke passed."
+        },
+        {
+          "path": "pnpm-lock.yaml",
+          "disposition": "adopted",
+          "reason": "Declare shared sandbox/native subprocess support for the Python runtime in current workspace manifests and compiler ownership, and regenerate workspace links without replacing unrelated dependency resolutions. Frozen dependency installation and actual built public-package sandbox smoke passed."
+        },
+        {
+          "path": "snapshots/session/ptc-python-read-only/session.v4.jsonl",
+          "disposition": "adopted",
+          "reason": "Retain the exact upstream input bytes as an immutable source recording. Both current Git blobs equal upstream checkpoint 2de9059b4f6fdbaf5461abc4789fa8d78094e258. Compare current Harnessy writer output separately; qualified Linux and Mac refresh/replay preserved all committed generations."
+        },
+        {
+          "path": "snapshots/session/ptc-python-read-only/snapshot.yml",
+          "disposition": "adopted",
+          "reason": "Use the preserved Python turn/read-only owner with current Harnessy composition, explicit immutable input ownership, separate writer/header expectations and empty read-only workspace. Both Linux and Mac refresh plus unchanged replay passed at 170f030df58abdff9988b3210f3f941d6b3031c6; no source recording was rewritten."
+        },
+        {
+          "path": "snapshots/session/ptc-python-read-only/workspace.expected/.empty",
+          "disposition": "adopted",
+          "reason": "Use the preserved Python turn/read-only owner with current Harnessy composition, explicit immutable input ownership, separate writer/header expectations and empty read-only workspace. Both Linux and Mac refresh plus unchanged replay passed at 170f030df58abdff9988b3210f3f941d6b3031c6; no source recording was rewritten."
+        },
+        {
+          "path": "snapshots/session/ptc-python-turn/session.v4.jsonl",
+          "disposition": "adopted",
+          "reason": "Retain the exact upstream input bytes as an immutable source recording. Both current Git blobs equal upstream checkpoint 2de9059b4f6fdbaf5461abc4789fa8d78094e258. Compare current Harnessy writer output separately; qualified Linux and Mac refresh/replay preserved all committed generations."
+        },
+        {
+          "path": "snapshots/session/ptc-python-turn/tool-schemas.expected.json",
+          "disposition": "adopted",
+          "reason": "Use the preserved Python turn/read-only owner with current Harnessy composition, explicit immutable input ownership, separate writer/header expectations and empty read-only workspace. Both Linux and Mac refresh plus unchanged replay passed at 170f030df58abdff9988b3210f3f941d6b3031c6; no source recording was rewritten."
+        }
+      ],
+      "evidence": [
+        "Qualified 2026-10-27 for exact upstream commits 11a0f85b34068b25a16ab45a6f8f38dc86f93d7c, d7e3746ea14616cf6c8743a80a7c9e790edaf058 and merge 2de9059b4f6fdbaf5461abc4789fa8d78094e258. Local implementation d56ba206141f188abe09efb528fa29f599e56dc3 and immutable owner integration fa0c376f483c6acfef4de5c62601e2f7245fccdb are published on staging; current qualification source is 170f030df58abdff9988b3210f3f941d6b3031c6. Every constituent first-parent changed path is accounted here; no checkpoint or ancestry is advanced by this review.",
+        "Independent source review examined Python bootstrap, typed/wire protocol, package composition, native launch, policy preparation, cancellation, deadlines, CPU and cleanup owners. Actual approved native run https://github.com/amAbdoMo/Harnessy/actions/runs/40368716674 at 6a43cee8209601c9c06256925ac023e0ee9527bf passed all 326 Linux Python cases and 324 Mac cases, with only two explicit Mac address-space-limit skips and no failures. Required real direct-write/workspace/symlink-denial, child policy and CPU/cleanup cases ran; Linux Landlock enforcement and Mac native payload build passed.",
+        "Current-source approved run https://github.com/amAbdoMo/Harnessy/actions/runs/40493168158 passed both Linux and Mac integration jobs at 170f030df58abdff9988b3210f3f941d6b3031c6. Six headless and one SDK owner passed refresh and unchanged replay; Python SDK metadata projection and five real built-public-Python package checks passed. Both platform phase reports qualified with no errors. Eighteen allowed outputs were compared across platforms and imported, and all 446 committed Session inputs remained unchanged. Imported expectations are delivery changes in this batch; native results are not a main-app update claim.",
+        "The Python package/README/current-version upgrade guide and active note pairs were checked against actual implementation. Current documentation verification passed the relevant configuration catalog, module graph, package, pairing, persistence and upgrade-guide gates. A stale AgentLoop citation in the event matrix was regenerated and its graph freshness and named pairing checks passed separately; do not describe the original 42-pass/one-failure aggregate as green.",
+        "Limits are explicit: native runtime evidence covers Linux x64 and the supplied Mac arm64 runner, not Linux ARM64, Mac Intel or Windows Python confinement. Mac RLIMIT_AS is not enforced; the selected policy does not promise arbitrary-read or network denial, detached setsid escape cleanup, or an interactive Mac application. No installer, installed staging selection or main-app update was performed. Further optional Mac Computer Use work retains its own ledger status."
       ]
     }
   }

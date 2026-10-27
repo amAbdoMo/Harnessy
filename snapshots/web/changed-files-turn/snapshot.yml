@@ -3,6 +3,8 @@ scenario: changed-files-turn
 profile: web
 composition: web-default
 recording: live
+platform: posix
+immutableInput: source-recording
 header:
   class: web-default
 workspace:

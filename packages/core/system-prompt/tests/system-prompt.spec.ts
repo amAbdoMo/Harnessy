@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import SystemPrompt, {
-  AssembleContext, PromptAssembly, renderContextSnapshot, renderPrompt,
+  AssembleContext, PromptAssembly, renderContextSections, renderContextSnapshot, renderPrompt,
 } from '@deepseek-ai/dsh-system-prompt'
 import type { PromptContextOrderName, PromptSectionOrderName } from '@deepseek-ai/dsh-system-prompt'
 
@@ -101,6 +101,32 @@ describe('SystemPrompt', () => {
     }
   })
 
+  it('preserves literal context in both the joined snapshot and attributed sections', async () => {
+    const ctx = new Context()
+    try {
+      await ctx.plugin(SystemPrompt)
+      ctx.systemPrompt.variable('project', () => 'expanded')
+      const literal = '/workspace/{{project}}/{{unregistered}}/{{malformed-name}}'
+      ctx.systemPrompt.context({ name: 'literal', order: 0, text: literal, interpolate: false })
+      ctx.systemPrompt.context({ name: 'template', order: 1, text: '{{project}}', interpolate: true })
+      ctx.systemPrompt.context({ name: 'default', order: 2, text: '{{project}}' })
+      const assembly = await ctx.systemPrompt.assemble()
+      expect(assembly.contexts).toEqual([
+        { name: 'literal', text: literal, interpolate: false },
+        { name: 'template', text: '{{project}}', interpolate: true },
+        { name: 'default', text: '{{project}}' },
+      ])
+      expect(renderContextSections(assembly)).toEqual([
+        { name: 'literal', text: literal },
+        { name: 'template', text: 'expanded' },
+        { name: 'default', text: 'expanded' },
+      ])
+      expect(renderContextSnapshot(assembly))
+        .toBe(`Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\n\n${literal}\n\nexpanded\n\nexpanded`)
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
 
   it('keeps repository section placements unique, integral, and at least ten apart', async () => {
     const ctx = new Context()

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This optional bundle lets a model create and enter a new Git worktree with one call. It is not included in the shipped Harnessy profiles. Native tool calls and PTC programs receive the same typed result, and the existing file policy governs creation.
+This optional bundle lets a model create and enter a new Git worktree with one call. The installation includes its runtime dependencies, while the plugin manager keeps the bundle switched off until selected. Native tool calls and PTC programs receive the same typed result, and the existing file policy governs creation.
 
 ## Table of Contents
 

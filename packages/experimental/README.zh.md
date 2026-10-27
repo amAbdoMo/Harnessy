@@ -9,7 +9,7 @@ kind: "package-group"
 
 ## 概述
 
-实验性原型的约定可能变更，且不提供支持承诺。新包默认发布；私有包还必须列入[私有例外列表](../../scripts/experimental-package-policy.ts)。所有当前包都以 `@deepseek-ai/dsh-experimental-*` 名称发布，包括显式启用的 Agent Teams 组合、Auto review、Cua Driver 提供方、浏览器操作后端、跨 realm Inspector、CPython PTC 后端与浏览器 worker 预览库。组外已发布产品不得依赖实验性包。dsh 安装将 Agent Teams、语音输入与 Auto review 包作为可选 bundle 一起发布，可从 Web 侧边栏“插件”页启用（[决策](../../.agents/notes/implemented/architecture/2026-09-21-experimental-capabilities-as-optional-bundles.zh.md)）；其余包是库或显式组合。
+实验性原型的约定可能变更，且不提供支持承诺。新包默认发布；私有包还必须列入[私有例外列表](../../scripts/experimental-package-policy.ts)。所有当前包都以 `@deepseek-ai/dsh-experimental-*` 名称发布，包括显式启用的 Agent Teams 组合、Auto review、Cua Driver 提供方、浏览器操作后端、跨 realm Inspector、CPython PTC 后端与浏览器 worker 预览库。组外已发布产品不得依赖实验性包。安装提供的可选 bundle 由 [`OPTIONAL_BUNDLES`](../boot/app-boot/src/profile.ts) 清单列出；它们的运行时依赖随 dsh 安装提供，插件管理器会在用户选中前保持 bundle 关闭。
 
 ## 目录
 

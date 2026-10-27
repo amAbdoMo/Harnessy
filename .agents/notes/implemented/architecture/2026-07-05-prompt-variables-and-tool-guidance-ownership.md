@@ -28,7 +28,7 @@ The assembled system prompt had four defects, all of one family: facts the harne
 
 Plugins register `{{name}}` values through `ctx.systemPrompt.variable(name, provider)`. Assembly resolves them into the waterfall-visible variable map. Rendering rejects unknown own-property references, registered providers that return `undefined`, malformed complete references, and unbalanced references that still contain a closing `}}`; a lone unmatched `{{` remains prose, and substituted values are not rescanned. Registration rejects invalid or duplicate variable names, and section names are unique. Sections may set `interpolate: false` to preserve generated documents literally; `tools:sdk` does so because tool descriptions and schemas may document their own `{{…}}` syntax.
 
-`dsh-agent-loop` registers the two built-ins, both pure projections of the context agent: `model` (= `options.model`) and `cwd` (= `session.header.cwd`). The example personas write `powered by the {{model}} model` — the model name is stated once, in the `model:` config key. `{{cwd}}` is demonstrated in the ACP example only: every ACP session carries the client's cwd, while config-pre-created stdio agents have none (a persona claiming `{{cwd}}` there fails the turn — by design). The variables stay on the loop plugin (unlike the sections below): they are runtime facts of the agents THIS loop drives, and a replacement loop supplies its own.
+`dsh-agent-loop` registers the two built-ins as projections of its agent: `model` from `options.model` and the legacy `cwd` from `session.header.cwd`. Example personas write `powered by the {{model}} model` — the model name is stated once, in the `model:` config key. The ACP example is the only one that demonstrates `{{cwd}}`. When `dsh-working-directory` is mounted, it refreshes `cwd` during assembly from the Session's effective directory, including the deployment fallback for a headerless Session, without replacing custom prompt text. Without a directory provider, a headerless Session leaves `cwd` undefined and rendering fails. The variables stay on the loop plugin (unlike the sections below): they are runtime facts of the agents this loop drives, and a replacement loop supplies its own.
 
 ### Persona as the order-0 section
 
@@ -54,7 +54,6 @@ Per-tool semantics and selection guidance live in tool descriptions. Prompt sect
 ## Out of scope
 
 - Further variables (`date`, platform, git state) — the registry makes each a one-line contribution by whichever plugin owns the fact; none is claimed here.
-- A config `cwd` for pre-created stdio agents (would let the stdio persona use `{{cwd}}` and partition persistence by real path) — deferred until the session-cwd story is revisited.
 
 ## Shipped invariants
 
@@ -68,5 +67,5 @@ Per-tool semantics and selection guidance live in tool descriptions. Prompt sect
 - Every fact in the assembled prompt now has exactly one owner, and the hand-maintained tool prose in leaf YAML is gone: loading or dropping a tool plugin no longer means editing any deployment's persona.
 - `{{model}}` reflects `AgentOptions.model` at assembly time. A plugin that switches models in the `agent/request` waterfall makes the prompt's claim stale for that step, and one that SUPPLIES the model there (options.model unset — the loop's documented fallback) leaves the variable valueless at render, failing a `{{model}}` persona before the waterfall runs. Both have the same remedy, and it is the ownership rule itself: the plugin that owns the late-bound model fact states it early on the `system-prompt/assemble` waterfall (`assembly.variables['model'] = …`) — one owner, both statements; a loop test pins the supply path end-to-end. Accepted.
 - While a bound provider is absent (not yet activated, unloaded, mid-HMR-reload), the subagent tool does not exist and a model request in that window simply lacks it. That is the honest state — the alternative was a registered tool whose description or execution could not be trusted.
-- Strictness means a persona can fail a turn at render (e.g. `{{cwd}}` on a cwd-less session). The failure is contained — the turn ends `error`, the loop survives — and it is an authoring error we WANT loud.
+- Strictness means a persona can fail at render when no provider resolves a referenced variable. With `dsh-working-directory` mounted, `{{cwd}}` resolves from the effective directory even on a headerless Session. The failure is contained — the turn ends `error`, the loop survives — and template authors receive a clear error.
 - Inline escapes remain unsupported in interpolated text; literal sections need no escaping. PTC unit tests cover both modes and runtime languages, and the recorded `ptc-turn` scenario preserves tool-template examples in the model-visible prompt.

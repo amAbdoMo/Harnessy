@@ -24,7 +24,7 @@ const PROMPT = 'Use one run_code program to do the following in order. Call pres
   + 'Call present for report.txt and 说明.txt. After present succeeds, deliberately throw the string "AFTER_PRESENT" (not an Error object) from that same run_code program. '
   + 'Do not retry the program or create any other files. Finish by mentioning `report.txt` and `说明.txt` in inline code, and put PRESENT_DONE in a separate paragraph.'
 
-// The recorded Bash scenario and executable opener fixture require a POSIX host outside WSL.
+// The immutable PTC trace calls Bash, and the executable opener fixture requires POSIX outside WSL.
 describe.skipIf(process.platform === 'win32' || release().toLowerCase().includes('microsoft'))('web e2e: explicit file delivery', () => {
   let scaffold: WebScaffold
   let browser: Browser
@@ -55,9 +55,13 @@ fs.appendFileSync(${JSON.stringify(openLog)}, JSON.stringify({ path, action, con
     await mkdir(DIR, { recursive: true })
     scaffold = await launchWebScaffold({
       openInAppEnvironment: createLaunchEnvironmentSnapshot([{ source: 'process', values: { SSH_CONNECTION: '10.0.0.2 55000 10.0.0.9 22' } }]),
-      extraOverlayPath: fileURLToPath(new URL('./present.overlay.yml', import.meta.url)),
+      extraOverlayPath: [
+        fileURLToPath(new URL('./present.overlay.yml', import.meta.url)),
+        fileURLToPath(new URL('./directory-fixtures.overlay.yml', import.meta.url)),
+        fileURLToPath(new URL('./pin-browse-picker.overlay.yml', import.meta.url)),
+      ],
       agentPresets: { default: 'ptc' }, compareReplaySession: true,
-      ...(MODE === 'record' ? {} : { replayFixture: FIXTURE }),
+      replayFixture: FIXTURE,
     })
     // File associations belong to the desktop rather than the recorded Session.
     const controller = scaffold.ctx.get('sessionController')
@@ -105,12 +109,12 @@ fs.appendFileSync(${JSON.stringify(openLog)}, JSON.stringify({ path, action, con
     await page.getByText(/^PRESENT_DONE\.?$/).waitFor({ timeout: 30_000 })
     await assertFinalWorkspaceSnapshot(DIR, cwd)
     expect(events.filter(event => event.type === 'deliverables/presented').flatMap(event => event.data.files.map(file => file.path)))
-      .toEqual(['report.txt', '说明.txt'])
+      .toEqual([join(cwd, 'report.txt'), join(cwd, '说明.txt')])
     for (const event of events) {
       if (event.type === 'deliverables/presented') {
         expect(event.data.files).toEqual([
-          { path: 'report.txt', description: 'delivered report' },
-          { path: '说明.txt', description: 'delivered note' },
+          { path: join(cwd, 'report.txt'), description: 'delivered report' },
+          { path: join(cwd, '说明.txt'), description: 'delivered note' },
         ])
       }
     }
@@ -147,7 +151,7 @@ fs.appendFileSync(${JSON.stringify(openLog)}, JSON.stringify({ path, action, con
       const beforePreview = (await opened()).length
       const column = page.locator('[data-rightbar-col]')
       for (const [name, content] of [['report.txt', 'EDITED_REPORT'], ['说明.txt', 'EDITED_NOTE']] as const) {
-        const mention = page.locator('code').getByRole('button', { name: `Open ${name} in sidebar`, exact: true })
+        const mention = page.locator('code').getByRole('button', { name: `Open ${join(cwd, name)} in sidebar`, exact: true })
         await mention.click()
         const preview = column.locator('[data-document-preview]')
         await expect.poll(() => preview.getAttribute('data-textpreview-url'))
@@ -187,8 +191,8 @@ fs.appendFileSync(${JSON.stringify(openLog)}, JSON.stringify({ path, action, con
       .filter(event => event.type === 'deliverables/presented')
     expect(declarations).toHaveLength(1)
     expect(declarations[0]!.data.files).toEqual([
-      { path: 'report.txt', description: 'delivered report' },
-      { path: '说明.txt', description: 'delivered note' },
+      { path: join(cwd, 'report.txt'), description: 'delivered report' },
+      { path: join(cwd, '说明.txt'), description: 'delivered note' },
     ])
     expect(exported).not.toContain('EDITED_REPORT')
     if (MODE !== 'record') {
