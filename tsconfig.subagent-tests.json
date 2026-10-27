@@ -1,0 +1,57 @@
+{
+  // The Host aggregate references these delegated-agent tests and their fixtures.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "lib/subagent-test/types",
+    "emitDeclarationOnly": true,
+    "rewriteRelativeImportExtensions": false
+  },
+  "include": [
+    "packages/subagent/subagent-in-process-driver/tests/**/*.ts",
+    "packages/subagent/subagent-fork-in-process/tests/**/*.ts",
+    "packages/subagent/subagent-spawn-in-process/tests/**/*.ts",
+    "packages/subagent/subagent-dsh-sdk/tests/**/*.ts",
+    "packages/core/agent-loop/tests/mock-adapter.ts",
+    "packages/test-support/loader-smoke/tests/fixtures/production-profile.ts",
+    "packages/storage/storage-domain/tests/helpers/memory-backend.ts"
+  ],
+  "references": [
+    { "path": "./packages/subagent/subagent-in-process-driver" },
+    { "path": "./packages/subagent/subagent-fork-in-process" },
+    { "path": "./packages/subagent/subagent-spawn-in-process" },
+    { "path": "./packages/subagent/subagent-dsh-sdk" },
+    { "path": "./packages/core/agent-default-model/tsconfig.json" },
+    { "path": "./packages/typert/registry/tsconfig.json" },
+    { "path": "./packages/api/session-controller/tsconfig.host.json" },
+    { "path": "./packages/util/deque/tsconfig.json" },
+    { "path": "./packages/context/file-reference/tsconfig.json" },
+    { "path": "./packages/client/file-upload/tsconfig.host.json" },
+    { "path": "./packages/util/native-command/tsconfig.json" },
+    { "path": "./packages/skill/skill/tsconfig.json" },
+    { "path": "./packages/client/connection/tsconfig.host.json" },
+    { "path": "./packages/credentials/credentials/tsconfig.json" },
+    { "path": "./packages/host/webserver/tsconfig.json" },
+    { "path": "./packages/core/agent-loop/tsconfig.json" },
+    { "path": "./packages/fs/fs-local/tsconfig.json" },
+    { "path": "./packages/fs/fs-sandbox/tsconfig.json" },
+    { "path": "./packages/fs/tool-fs/tsconfig.json" },
+    { "path": "./packages/util/code-language/tsconfig.json" },
+    { "path": "./packages/llm/deepseek-llm-api-extensions/tsconfig.json" },
+    { "path": "./packages/llm/llm-deepseek/tsconfig.json" },
+    { "path": "./packages/llm/llm-deepseek-api-key/tsconfig.json" },
+    { "path": "./packages/identity/anonymous-user-id/tsconfig.json" },
+    { "path": "./packages/schedule/schedule/tsconfig.json" },
+    { "path": "./packages/session/session-persistence-jsonl/tsconfig.json" },
+    { "path": "./native/system/packages/entry/tsconfig.json" },
+    { "path": "./packages/shell/tool-bash/tsconfig.json" },
+    { "path": "./packages/test-support/agent-loop-testkit/tsconfig.json" },
+    { "path": "./packages/schedule/tool-schedule/tsconfig.json" },
+    { "path": "./packages/shell/bash-local/tsconfig.json" },
+    { "path": "./packages/shell/shell-env/tsconfig.json" },
+    { "path": "./packages/subprocess/subprocess-local/tsconfig.json" },
+    { "path": "./packages/subagent/tool-subagent/tsconfig.json" },
+    { "path": "./packages/util/lazy-require/tsconfig.json" },
+    { "path": "./packages/subprocess/win32-process/tsconfig.json" }
+  ]
+}

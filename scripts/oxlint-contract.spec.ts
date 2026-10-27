@@ -56,6 +56,7 @@ describe('Oxlint executable contract', () => {
     const probes = [
       ['host package source', 'packages/fs/fs-observation-policy/src', 'packages/fs/fs-observation-policy/tsconfig.json'],
       ['host package test', 'packages/fs/fs-observation-policy/tests', 'tsconfig.host.json'],
+      ['subagent host test', 'packages/subagent/subagent-in-process-driver/tests', 'tsconfig.subagent-tests.json'],
       ['worktree host test', 'packages/experimental/worktree/tests', 'tsconfig.worktree-tests.json'],
       ['working directory host test', 'packages/session/working-directory/tests', 'tsconfig.worktree-tests.json'],
       ['OAR host test', 'packages/experimental/subagent-oar/tests', 'tsconfig.oar-tests.json'],

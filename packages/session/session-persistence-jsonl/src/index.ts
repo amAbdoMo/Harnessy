@@ -7,6 +7,7 @@
  */
 
 import { Context, type Fiber } from '@deepseek-ai/cordis'
+import '@deepseek-ai/dsh-session-persistence'
 import z from '@deepseek-ai/schemastery'
 import {
   createSessionFormatCatalogWithChildren,

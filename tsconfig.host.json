@@ -210,6 +210,10 @@
   // suffixes are mutually exclusive, so each aggregate excludes the other's
   // and the package test glob above needs no per-file entry.
   "exclude": [
+    "packages/subagent/subagent-in-process-driver/tests/**",
+    "packages/subagent/subagent-fork-in-process/tests/**",
+    "packages/subagent/subagent-spawn-in-process/tests/**",
+    "packages/subagent/subagent-dsh-sdk/tests/**",
     "packages/core/session/tests/plugin-record*.ts",
     "packages/experimental/translator/tests/**",
     "packages/experimental/cua/tests/**",
@@ -234,6 +238,7 @@
     "scripts/client-bundle-purity.spec.ts"
   ],
   "references": [
+    { "path": "./tsconfig.subagent-tests.json" },
     { "path": "./tsconfig.worktree-tests.json" },
     { "path": "./tsconfig.plugin-record-tests.json" },
     { "path": "./tsconfig.translator-tests.json" },

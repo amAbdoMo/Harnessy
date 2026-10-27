@@ -10,9 +10,7 @@
     "packages/experimental/worktree/tests/**/*.ts",
     "packages/experimental/tool-worktree/tests/**/*.ts",
     "packages/session/working-directory/tests/**/*.ts",
-    "packages/core/agent-loop/tests/mock-adapter.ts",
-    "packages/core/agent-loop/src/runtime-context.ts",
-    "packages/session/session-persistence/src/index.ts"
+    "packages/core/agent-loop/tests/mock-adapter.ts"
   ],
   "references": [
     { "path": "./packages/experimental/worktree" },

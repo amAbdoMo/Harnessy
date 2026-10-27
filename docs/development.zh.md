@@ -78,6 +78,8 @@ Host 与 Client 保持两个 aggregate program，是因为两侧在相同键下�
 
 拆分 Host/Client tsconfig 的包有六个：`api/remotes`、`api/gateway`、`api/session-controller`、`api/workspace-controller`、`client/connection` 与 `session-query/session-log-export`。`api/remotes` 的 Host 入口进入 Host Typert 图，而 Client 入口导入生成的 `/remote` 声明；`session-log-export` 则让 Node archive 生产代码不进入浏览器 controller。每个拆分包根 `tsconfig.json` 因此只作为 solution，两个 aggregate 和直接消费方分别引用 `tsconfig.host.json` 或 `tsconfig.client.json`。workspace `constraints` 门禁遍历可达的 Project Reference 图，并按各引用 project 自身的 compiler face 检查：只有单一配置的目标可由任一 face 引用，拆分配置的目标则必须引用匹配的 leaf，不得引用 solution 根或另一侧 leaf；该门禁按「两个 leaf 配置同时存在」自动发现拆分包，所以新拆分的包会自动纳入管辖。[`api-remotes` README](../packages/api/remotes/README.zh.md) 与 [`session-log-export` README](../packages/session-query/session-log-export/README.zh.md)分别说明其拆分。
 
+较大的 Host 测试组可以使用被引用的仅声明输出程序。Host aggregate 必须引用其排除的每个测试组，lint 发现检查也必须识别所属程序。通过生产包自身的项目引用它们，不要把其源码文件列为测试程序的根文件。公开包入口在生成的声明中保留服务与事件声明合并所需的导入。
+
 根构建按生成依赖排序：
 
 ```sh
