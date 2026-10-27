@@ -1578,14 +1578,6 @@
       "snapshots/session/persistent-pwsh-padded-completion"
     ],
     [
-      "snapshots/session/persistent-pwsh-padded-completion",
-      "snapshots/session/persistent-pwsh-tool-turn"
-    ],
-    [
-      "snapshots/session/persistent-pwsh-padded-completion",
-      "snapshots/session/persistent-pwsh-tool-turn"
-    ],
-    [
       "snapshots/session/persistent-pwsh-tool-turn",
       "snapshots/session/persistent-pwsh-tool-turn"
     ],
@@ -6276,6 +6268,8 @@
     "snapshots/session/packed-chunks/writer.expected.jsonl",
     "snapshots/session/parallel-tool-calls/writer.expected.jsonl",
     "snapshots/session/partial-landlock-child-failure/writer.expected.jsonl",
+    "snapshots/session/persistent-pwsh-padded-completion/system-prompt.expected.md",
+    "snapshots/session/persistent-pwsh-padded-completion/tool-schemas.expected.json",
     "snapshots/session/persistent-pwsh-padded-completion/writer.expected.jsonl",
     "snapshots/session/pi-ai-replay-metadata/writer.expected.jsonl",
     "snapshots/session/plugin-manager-mcp/system-prompt.expected.md",

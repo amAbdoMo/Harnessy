@@ -6,6 +6,8 @@ recording: authored
 header:
   class: worktree
   pin: true
+  changes: 2
+  promptChanges: 2
 platform: posix
 workspace:
   setup: git-worktree

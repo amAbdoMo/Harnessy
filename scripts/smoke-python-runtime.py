@@ -1710,7 +1710,7 @@ def smoke_sdk_snapshot(base_url: str, executable: Path, update_snapshots: bool) 
         files = build_snapshot_files(result, logs, child_ids, root)
         compare_snapshot_files(
             files, update_snapshots, ADVANCED_SNAPSHOT_DIRECTORY, ADVANCED_SNAPSHOT_FILENAMES,
-            native_writer_output=True,
+            native_writer_output=True, separate_writer_output=True,
         )
 
 
@@ -1777,7 +1777,7 @@ def smoke_sdk_restart_snapshot(base_url: str, executable: Path, update_snapshots
         )
         compare_snapshot_files(
             files, update_snapshots, RESTART_SNAPSHOT_DIRECTORY, RESTART_SNAPSHOT_FILENAMES,
-            native_writer_output=True,
+            native_writer_output=True, separate_writer_output=True,
         )
 
 
@@ -1869,6 +1869,7 @@ def smoke_sdk_scheduler_recovery(base_url: str, executable: Path, update_snapsho
         }
         compare_snapshot_files(
             files, update_snapshots, RECOVERY_SNAPSHOT_DIRECTORY, RECOVERY_SNAPSHOT_FILENAMES,
+            separate_writer_output=True,
         )
 
 
@@ -2090,6 +2091,9 @@ PERSISTED_SESSION_FILENAME = re.compile(r"^session(?:\.v([1-9]\d*))?\.jsonl(\.zs
 SNAPSHOT_SESSION_FILENAME = re.compile(
     r"^session(?:\.([1-9]\d*))?(?:\.v([1-9]\d*))?\.jsonl$",
 )
+SNAPSHOT_WRITER_SESSION_FILENAME = re.compile(
+    r"^writer(?:\.([1-9]\d*))?\.expected\.jsonl$",
+)
 
 
 def persisted_session_filename_version(path: Path, compressed: bool = False) -> int | None:
@@ -2175,6 +2179,24 @@ def parse_snapshot_session_filename(name: str) -> tuple[int, int] | None:
             raise AssertionError(f"invalid snapshot Session filename: {name}")
         return None
     return int(match.group(1) or 0), int(match.group(2) or 0)
+
+
+def snapshot_writer_session_filename(index: int) -> str:
+    """Render the separate expected output for one parent or child Session role."""
+    if index < 0:
+        raise ValueError("snapshot Session index must be non-negative")
+    ordinal = "" if index == 0 else f".{index}"
+    return f"writer{ordinal}.expected.jsonl"
+
+
+def parse_snapshot_writer_session_filename(name: str) -> int | None:
+    """Parse one parent/ordinal writer-output oracle filename."""
+    match = SNAPSHOT_WRITER_SESSION_FILENAME.fullmatch(name)
+    if match is None:
+        if name.startswith("writer") and name.endswith(".expected.jsonl"):
+            raise AssertionError(f"invalid snapshot writer Session filename: {name}")
+        return None
+    return int(match.group(1) or 0)
 
 
 def selected_snapshot_session_files(directory: Path) -> dict[int, Path]:
@@ -2937,8 +2959,9 @@ def compare_snapshot_files(
     filenames: tuple[str, ...],
     *,
     native_writer_output: bool = False,
+    separate_writer_output: bool = False,
 ) -> None:
-    """Compare artifact roles and content, optionally matching each side's native delivery generation."""
+    """Compare artifact roles and content with optional native-generation matching and separate writer oracles."""
     scenario = directory.name
 
     def role_name(name: str) -> str:
@@ -2947,29 +2970,6 @@ def compare_snapshot_files(
 
     if tuple(map(role_name, files)) != tuple(map(role_name, filenames)):
         raise AssertionError(f"{scenario} snapshot builder produced {tuple(files)}, expected {filenames}")
-    for name, content in files.items():
-        if parse_snapshot_session_filename(name) is not None:
-            assert_current_session_version(session_header_version(content, name), name)
-    if update:
-        directory.mkdir(parents=True, exist_ok=True)
-        for name, content in files.items():
-            (directory / name).write_text(content, encoding="utf-8", newline="\n")
-        print(f"smoke-python-runtime: updated snapshots in {directory}")
-
-    existing = [path for path in directory.iterdir() if path.is_file()] if directory.is_dir() else []
-    expected_non_session = {
-        name for name in filenames if parse_snapshot_session_filename(name) is None
-    }
-    existing_non_session = {
-        path.name for path in existing if parse_snapshot_session_filename(path.name) is None
-    }
-    if existing_non_session != expected_non_session:
-        raise AssertionError(
-            f"{scenario} snapshot files differ: "
-            f"missing={sorted(expected_non_session - existing_non_session)}, "
-            f"unexpected={sorted(existing_non_session - expected_non_session)}"
-        )
-    selected_expected = selected_snapshot_session_files(directory)
     actual_sessions: dict[int, tuple[str, str]] = {}
     for name, content in files.items():
         parsed = parse_snapshot_session_filename(name)
@@ -2982,14 +2982,114 @@ def compare_snapshot_files(
                 f"{name}: filename declares Session format v{filename_version}, "
                 f"header declares v{header_version}",
             )
+        assert_current_session_version(header_version, name)
         if index in actual_sessions:
             raise AssertionError(f"{scenario} snapshot builder produced duplicate Session role {index}")
         actual_sessions[index] = (name, content)
+    if separate_writer_output:
+        expected_non_session = {
+            name for name in filenames if parse_snapshot_session_filename(name) is None
+        }
+        existing_before = [path for path in directory.iterdir() if path.is_file()] if directory.is_dir() else []
+        selected_input = selected_snapshot_session_files(directory)
+        if set(selected_input) != set(actual_sessions):
+            raise AssertionError(
+                f"{scenario} snapshot Session roles differ: "
+                f"expected={sorted(selected_input)}, actual={sorted(actual_sessions)}",
+            )
+        for path in selected_input.values():
+            assert_current_session_version(
+                session_header_version(path.read_text(encoding="utf-8"), path.name),
+                f"{scenario} immutable input {path.name}",
+            )
+        writer_roles_before: dict[int, Path] = {}
+        for path in existing_before:
+            index = parse_snapshot_writer_session_filename(path.name)
+            if index is not None:
+                writer_roles_before[index] = path
+        unexpected_writer_roles = set(writer_roles_before) - set(actual_sessions)
+        if unexpected_writer_roles:
+            raise AssertionError(
+                f"{scenario} writer Session roles differ: missing=[], "
+                f"unexpected={sorted(unexpected_writer_roles)}",
+            )
+        if not update and set(writer_roles_before) != set(actual_sessions):
+            raise AssertionError(
+                f"{scenario} writer Session roles differ: "
+                f"missing={sorted(set(actual_sessions) - set(writer_roles_before))}, "
+                f"unexpected=[]",
+            )
+        for path in writer_roles_before.values():
+            assert_current_session_version(
+                session_header_version(path.read_text(encoding="utf-8"), path.name),
+                f"{scenario} writer output {path.name}",
+            )
+        existing_non_session_before = {
+            path.name for path in existing_before
+            if parse_snapshot_session_filename(path.name) is None
+            and parse_snapshot_writer_session_filename(path.name) is None
+        }
+        unexpected_non_session = existing_non_session_before - expected_non_session
+        if unexpected_non_session:
+            raise AssertionError(
+                f"{scenario} snapshot files differ: missing=[], "
+                f"unexpected={sorted(unexpected_non_session)}",
+            )
+    if update:
+        directory.mkdir(parents=True, exist_ok=True)
+        for name, content in files.items():
+            parsed = parse_snapshot_session_filename(name)
+            output_name = (
+                snapshot_writer_session_filename(parsed[0])
+                if separate_writer_output and parsed is not None
+                else name
+            )
+            (directory / output_name).write_text(content, encoding="utf-8", newline="\n")
+        print(f"smoke-python-runtime: updated snapshots in {directory}")
+
+    existing = [path for path in directory.iterdir() if path.is_file()] if directory.is_dir() else []
+    expected_non_session = {
+        name for name in filenames if parse_snapshot_session_filename(name) is None
+    }
+    existing_non_session = {
+        path.name for path in existing
+        if parse_snapshot_session_filename(path.name) is None
+        and (not separate_writer_output or parse_snapshot_writer_session_filename(path.name) is None)
+    }
+    if existing_non_session != expected_non_session:
+        raise AssertionError(
+            f"{scenario} snapshot files differ: "
+            f"missing={sorted(expected_non_session - existing_non_session)}, "
+            f"unexpected={sorted(existing_non_session - expected_non_session)}"
+        )
+    selected_expected = selected_snapshot_session_files(directory)
     if set(selected_expected) != set(actual_sessions):
         raise AssertionError(
             f"{scenario} snapshot Session roles differ: "
             f"expected={sorted(selected_expected)}, actual={sorted(actual_sessions)}",
         )
+    expected_writer: dict[int, Path] = {}
+    if separate_writer_output:
+        for path in existing:
+            index = parse_snapshot_writer_session_filename(path.name)
+            if index is not None:
+                expected_writer[index] = path
+        if set(expected_writer) != set(actual_sessions):
+            raise AssertionError(
+                f"{scenario} writer Session roles differ: "
+                f"missing={sorted(set(actual_sessions) - set(expected_writer))}, "
+                f"unexpected={sorted(set(expected_writer) - set(actual_sessions))}",
+            )
+        for path in selected_expected.values():
+            assert_current_session_version(
+                session_header_version(path.read_text(encoding="utf-8"), path.name),
+                f"{scenario} immutable input {path.name}",
+            )
+        for path in expected_writer.values():
+            assert_current_session_version(
+                session_header_version(path.read_text(encoding="utf-8"), path.name),
+                f"{scenario} writer output {path.name}",
+            )
     actual_native_version = expected_native_version = None
     if native_writer_output:
         def common_generation(contents: list[tuple[str, str]]) -> int:
@@ -2999,15 +3099,27 @@ def compare_snapshot_files(
             return versions.pop()
 
         actual_native_version = common_generation(list(actual_sessions.values()))
-        expected_native_version = common_generation([
-            (path.name, path.read_text(encoding="utf-8")) for path in selected_expected.values()
-        ])
+        if separate_writer_output:
+            expected_native_version = common_generation([
+                (actual_sessions[index][0], path.read_text(encoding="utf-8"))
+                for index, path in expected_writer.items()
+            ])
+        else:
+            expected_native_version = common_generation([
+                (path.name, path.read_text(encoding="utf-8")) for path in selected_expected.values()
+            ])
     for name, actual in files.items():
         parsed = parse_snapshot_session_filename(name)
-        expected_path = directory / name if parsed is None else selected_expected[parsed[0]]
+        if parsed is None:
+            expected_path = directory / name
+        elif separate_writer_output:
+            expected_path = expected_writer[parsed[0]]
+        else:
+            expected_path = selected_expected[parsed[0]]
         expected_text = expected_path.read_text(encoding="utf-8")
         compared_actual = normalize_snapshot_comparison_text(name, actual, actual_native_version)
-        compared_expected = normalize_snapshot_comparison_text(expected_path.name, expected_text, expected_native_version)
+        expected_name = name if separate_writer_output and parsed is not None else expected_path.name
+        compared_expected = normalize_snapshot_comparison_text(expected_name, expected_text, expected_native_version)
         if compared_actual == compared_expected:
             continue
         diff = "".join(difflib.unified_diff(

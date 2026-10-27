@@ -682,6 +682,187 @@ def test_committed_python_native_goldens_compare_current_output_without_rewritin
     assert {path.name: path.read_bytes() for path in directory.iterdir() if path.is_file()} == before
 
 
+def separate_writer_fixture(
+    directory: Path,
+    roles: tuple[int, ...] = (0, 1, 2),
+) -> tuple[dict[str, str], tuple[str, ...], dict[str, bytes]]:
+    """Create immutable source generations and one current writer output per role."""
+    render = SMOKE["render_jsonl"]
+    session_filename = SMOKE["snapshot_session_filename"]
+    directory.mkdir()
+    filenames = ("result.json", *(session_filename(role, SESSION_FORMAT_VERSION) for role in roles))
+    files = {"result.json": json.dumps({"phase": "current"}, indent=2) + "\n"}
+    for role in roles:
+        session_id = f"session-{role}"
+        source = render([
+            {"type": "session", "version": SESSION_FORMAT_VERSION, "id": session_id},
+            {"type": "turn/start", "data": {"turn": 1}},
+            {"type": "user/message", "data": {"content": "Older context without the current directory."}},
+        ])
+        source_path = directory / session_filename(role, SESSION_FORMAT_VERSION)
+        source_path.write_bytes(source.encode("utf-8"))
+        output = render([
+            {"type": "session", "version": SESSION_FORMAT_VERSION, "id": session_id},
+            {"type": "turn/start", "data": {"turn": 1}},
+            {"type": "user/message", "data": {
+                "content": 'Current working directory: "{{cwd}}".',
+                "source": {"kind": "runtime-context"},
+            }},
+            {"type": "session-log-deepseek/delivery-accepted", "data": {
+                "sessionId": session_id,
+                "throughSeq": 1,
+                "sessionFormatVersion": SESSION_FORMAT_VERSION,
+            }},
+        ])
+        files[session_filename(role, SESSION_FORMAT_VERSION)] = output
+    original_sessions = {
+        path.name: path.read_bytes()
+        for path in directory.iterdir()
+        if SMOKE["parse_snapshot_session_filename"](path.name) is not None
+    }
+    return files, filenames, original_sessions
+
+
+def test_separate_writer_refresh_preserves_inputs_and_replay_compares_records(tmp_path: Path) -> None:
+    directory = tmp_path / "advanced"
+    files, filenames, original_sessions = separate_writer_fixture(directory)
+    compare = SMOKE["compare_snapshot_files"]
+
+    compare(files, True, directory, filenames, native_writer_output=True, separate_writer_output=True)
+
+    assert {path.name: path.read_bytes() for path in directory.iterdir() if path.name.startswith("session")} == original_sessions
+    assert (directory / "result.json").read_text(encoding="utf-8") == files["result.json"]
+    for role in (0, 1, 2):
+        writer_path = directory / SMOKE["snapshot_writer_session_filename"](role)
+        assert writer_path.read_text(encoding="utf-8") == files[SMOKE["snapshot_session_filename"](role, SESSION_FORMAT_VERSION)]
+        written = [json.loads(line) for line in writer_path.read_text(encoding="utf-8").splitlines()]
+        assert [record["data"]["content"] for record in written if record["type"] == "user/message"] == [
+            'Current working directory: "{{cwd}}".',
+        ]
+
+    compare(files, False, directory, filenames, native_writer_output=True, separate_writer_output=True)
+    assert {path.name: path.read_bytes() for path in directory.iterdir() if path.name.startswith("session")} == original_sessions
+
+    changed = dict(files)
+    role_name = SMOKE["snapshot_session_filename"](2, SESSION_FORMAT_VERSION)
+    records = [json.loads(line) for line in changed[role_name].splitlines()]
+    records[1]["data"]["turn"] = 2
+    changed[role_name] = SMOKE["render_jsonl"](records)
+    with pytest.raises(AssertionError, match="executable snapshot mismatch"):
+        compare(changed, False, directory, filenames, native_writer_output=True, separate_writer_output=True)
+
+
+def test_separate_writer_refresh_preserves_child_ordinals_without_parent_role(tmp_path: Path) -> None:
+    directory = tmp_path / "restart"
+    files, filenames, original_sessions = separate_writer_fixture(directory, roles=(1, 2))
+
+    SMOKE["compare_snapshot_files"](
+        files, True, directory, filenames,
+        native_writer_output=True, separate_writer_output=True,
+    )
+
+    assert not (directory / "writer.expected.jsonl").exists()
+    assert (directory / "writer.1.expected.jsonl").is_file()
+    assert (directory / "writer.2.expected.jsonl").is_file()
+    assert {path.name: path.read_bytes() for path in directory.iterdir() if path.name.startswith("session")} == original_sessions
+
+
+@pytest.mark.parametrize(("change", "message"), [
+    ("missing-input", "snapshot Session roles differ"),
+    ("extra-input", "snapshot Session roles differ"),
+    ("old-input", "expected current Session format"),
+    ("extra-writer", "writer Session roles differ"),
+])
+def test_separate_writer_refresh_validates_existing_roles_before_writing(
+    tmp_path: Path,
+    change: str,
+    message: str,
+) -> None:
+    directory = tmp_path / "advanced"
+    files, filenames, _ = separate_writer_fixture(directory)
+    session_filename = SMOKE["snapshot_session_filename"]
+    render = SMOKE["render_jsonl"]
+    if change == "missing-input":
+        (directory / session_filename(2, SESSION_FORMAT_VERSION)).unlink()
+    elif change == "extra-input":
+        (directory / session_filename(3, SESSION_FORMAT_VERSION)).write_text(
+            files[session_filename(2, SESSION_FORMAT_VERSION)], encoding="utf-8",
+        )
+    elif change == "old-input":
+        old_version = SESSION_FORMAT_VERSION - 1
+        old_name = session_filename(2, old_version)
+        old_records = [json.loads(line) for line in files[session_filename(2, SESSION_FORMAT_VERSION)].splitlines()]
+        old_records[0]["version"] = old_version
+        (directory / session_filename(2, SESSION_FORMAT_VERSION)).unlink()
+        (directory / old_name).write_text(render(old_records), encoding="utf-8")
+    else:
+        writer_records = [json.loads(line) for line in files[session_filename(2, SESSION_FORMAT_VERSION)].splitlines()]
+        (directory / SMOKE["snapshot_writer_session_filename"](3)).write_text(
+            render(writer_records), encoding="utf-8",
+        )
+
+    with pytest.raises(AssertionError, match=message):
+        SMOKE["compare_snapshot_files"](
+            files, True, directory, filenames, separate_writer_output=True,
+        )
+    assert not (directory / "result.json").exists()
+    if change == "extra-writer":
+        assert {path.name for path in directory.iterdir() if path.name.startswith("writer")} == {
+            SMOKE["snapshot_writer_session_filename"](3),
+        }
+    else:
+        assert not any(path.name.startswith("writer") for path in directory.iterdir())
+
+
+@pytest.mark.parametrize(("location", "change", "message"), [
+    ("writer", "missing", "writer Session roles differ"),
+    ("writer", "extra", "writer Session roles differ"),
+    ("builder", "missing", "snapshot builder produced"),
+    ("builder", "extra", "snapshot builder produced"),
+])
+def test_separate_writer_comparison_rejects_missing_or_extra_roles(
+    tmp_path: Path,
+    location: str,
+    change: str,
+    message: str,
+) -> None:
+    directory = tmp_path / "advanced"
+    files, filenames, _ = separate_writer_fixture(directory)
+    compare = SMOKE["compare_snapshot_files"]
+    compare(files, True, directory, filenames, separate_writer_output=True)
+
+    if location == "writer":
+        writer = directory / SMOKE["snapshot_writer_session_filename"](1 if change == "missing" else 3)
+        if change == "missing":
+            writer.unlink()
+        else:
+            writer.write_text(files[SMOKE["snapshot_session_filename"](2, SESSION_FORMAT_VERSION)], encoding="utf-8")
+    elif change == "missing":
+        files.pop(SMOKE["snapshot_session_filename"](2, SESSION_FORMAT_VERSION))
+    else:
+        files[SMOKE["snapshot_session_filename"](3, SESSION_FORMAT_VERSION)] = files[
+            SMOKE["snapshot_session_filename"](2, SESSION_FORMAT_VERSION)
+        ]
+
+    with pytest.raises(AssertionError, match=message):
+        compare(files, False, directory, filenames, separate_writer_output=True)
+
+
+def test_separate_writer_comparison_does_not_normalize_away_directory_context(tmp_path: Path) -> None:
+    directory = tmp_path / "scheduler-recovery"
+    files, filenames, _ = separate_writer_fixture(directory, roles=(0,))
+    compare = SMOKE["compare_snapshot_files"]
+    compare(files, True, directory, filenames, separate_writer_output=True)
+
+    name = SMOKE["snapshot_session_filename"](0, SESSION_FORMAT_VERSION)
+    records = [json.loads(line) for line in files[name].splitlines()]
+    records[2]["data"]["content"] = "Older context without the current directory."
+    files[name] = SMOKE["render_jsonl"](records)
+    with pytest.raises(AssertionError, match="executable snapshot mismatch") as error:
+        compare(files, False, directory, filenames, separate_writer_output=True)
+    assert "Current working directory" in str(error.value)
+
+
 @pytest.mark.parametrize("filenames", [
     ("session.1.v2.jsonl", "session.v2.jsonl"),
     ("session.v2.jsonl",),

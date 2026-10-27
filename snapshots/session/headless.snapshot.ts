@@ -601,6 +601,32 @@ function pinOf(scenario: HeadlessScenario): HeadlessScenario {
   return pin
 }
 
+/** Order class pins and other pinned sidecar owners before their consumers. */
+function orderHeaderRefreshes(entries: readonly HeadlessScenario[]): HeadlessScenario[] {
+  const ordered: HeadlessScenario[] = []
+  const completed = new Set<HeadlessScenario>()
+  const visiting = new Set<HeadlessScenario>()
+  const visit = (scenario: HeadlessScenario): void => {
+    if (completed.has(scenario)) return
+    if (visiting.has(scenario)) throw new Error(`${scenario.name}: cyclic header sources`)
+    visiting.add(scenario)
+    const pin = pinOf(scenario)
+    for (const name of [pin.name, pin.manifest.header.systemPromptSource, pin.manifest.header.toolSchemasSource]) {
+      if (name === undefined || name === scenario.name) continue
+      const source = scenarioByName.get(name)
+      if (source === undefined) throw new Error(`${scenario.name}: unknown header source ${name}`)
+      // A non-pinning source can borrow this pin's class while owning a shared sidecar.
+      if (source !== pin && source.manifest.header.pin !== true) continue
+      visit(source)
+    }
+    visiting.delete(scenario)
+    completed.add(scenario)
+    ordered.push(scenario)
+  }
+  for (const scenario of entries) visit(scenario)
+  return ordered
+}
+
 function spillReferenceSource(events: readonly JsonObject[], label: string): JsonObject {
   const messages = events.filter((event) => {
     const source = (event.data as JsonObject | undefined)?.source as JsonObject | undefined
@@ -824,7 +850,9 @@ async function verifyProviderCwdResume(
 
 async function verifyHeaders(scenario: HeadlessScenario, actualLogs: readonly SessionLog[], ctx: NormalizeContext): Promise<void> {
   const pin = pinOf(scenario)
-  const fixture = await readFile(join(pin.dir, await primaryFixtureFile(pin.dir)), 'utf8')
+  const headerFixture = pin.manifest.immutableInput === 'source-recording'
+    ? writerSnapshotName(0) : await primaryFixtureFile(pin.dir)
+  const fixture = await readFile(join(pin.dir, headerFixture), 'utf8')
   const pinned = normalizedHeaders(fixture, fixtureContext(fixture))
   const changes = pin.manifest.header.changes ?? 0
   expect(pinned, `${scenario.name}: pin header count`).toHaveLength(1 + changes)
@@ -1140,13 +1168,20 @@ describe('headless recorded-session snapshots', () => {
       .toThrow('native tool-result messages match migration output')
   })
 
-  const refreshOrder = [...scenarios].sort((left, right) =>
-    Number(right.manifest.header.pin === true) - Number(left.manifest.header.pin === true))
+  const refreshOrder = orderHeaderRefreshes(scenarios)
   const runOrder = mode === 'replay' ? scenarios : refreshOrder
   it('refreshes class pins before scenarios sharing their sidecars', () => {
     const position = new Map(refreshOrder.map((scenario, index) => [scenario, index]))
     for (const scenario of refreshOrder) {
-      expect(position.get(pinOf(scenario)), scenario.name).toBeLessThanOrEqual(position.get(scenario)!)
+      const pin = pinOf(scenario)
+      for (const source of [pin.name, pin.manifest.header.systemPromptSource, pin.manifest.header.toolSchemasSource]) {
+        if (source === undefined) continue
+        const owner = scenarioByName.get(source)
+        expect(owner, `${scenario.name}: header source ${source}`).toBeDefined()
+        if (owner !== pin && owner!.manifest.header.pin !== true) continue
+        expect(position.get(owner!), `${scenario.name}: header source ${source}`)
+          .toBeLessThanOrEqual(position.get(scenario)!)
+      }
     }
   })
   const runs = runOrder.flatMap((scenario): {
