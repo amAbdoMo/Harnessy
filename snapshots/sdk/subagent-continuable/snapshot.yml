@@ -3,6 +3,7 @@ scenario: subagent-continuable
 profile: sdk
 composition: subagent-durability-failure
 recording: authored
+immutableInput: source-recording
 header:
   class: subagent-durability-failure
   childSystemPrompts: [1]

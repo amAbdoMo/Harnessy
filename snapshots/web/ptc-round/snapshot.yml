@@ -3,6 +3,7 @@ scenario: ptc-round
 profile: web
 composition: web-ptc
 recording: live
+immutableInput: source-recording
 header:
   class: web-ptc
   pin: true

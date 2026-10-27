@@ -3,6 +3,7 @@ scenario: multimodal-spill-ends
 profile: headless
 composition: multimodal-spill
 recording: authored
+immutableInput: source-recording
 header:
   class: multimodal-spill
   pin: true

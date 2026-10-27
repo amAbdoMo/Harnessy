@@ -3,6 +3,7 @@ scenario: fs-write-overwrite-bounded
 profile: headless
 composition: fs-diff-bound
 recording: live
+immutableInput: source-recording
 header:
   class: fs-diff-bound
   pin: true

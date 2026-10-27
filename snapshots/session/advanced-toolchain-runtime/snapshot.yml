@@ -3,6 +3,7 @@ scenario: advanced-toolchain-runtime
 profile: headless
 composition: advanced
 recording: authored
+immutableInput: source-recording
 header:
   class: advanced
   pin: true

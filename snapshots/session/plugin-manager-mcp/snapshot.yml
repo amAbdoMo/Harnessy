@@ -3,6 +3,7 @@ scenario: plugin-manager-mcp
 profile: headless
 composition: plugin-manager-mcp
 recording: live
+immutableInput: source-recording
 permission: danger-full-access
 header:
   class: plugin-manager-mcp

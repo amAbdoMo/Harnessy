@@ -3,5 +3,6 @@ scenario: advanced-toolchain
 profile: headless
 composition: advanced
 recording: authored
+immutableInput: source-recording
 header:
   class: advanced

@@ -3,6 +3,7 @@ scenario: mcp-resources-ptc
 profile: headless
 composition: mcp-resources-ptc
 recording: live
+immutableInput: source-recording
 header:
   class: mcp-resources-ptc
   pin: true

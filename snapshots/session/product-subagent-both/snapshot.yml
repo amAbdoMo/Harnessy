@@ -3,6 +3,7 @@ scenario: product-subagent-both
 profile: headless
 composition: product-subagent-both
 recording: authored
+immutableInput: source-recording
 header:
   class: product-subagent-both
   pin: true

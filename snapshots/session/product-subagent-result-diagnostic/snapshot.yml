@@ -3,6 +3,7 @@ scenario: product-subagent-result-diagnostic
 profile: headless
 composition: product-subagent-result-diagnostic
 recording: authored
+immutableInput: source-recording
 header:
   class: product-subagent-result-diagnostic
   pin: true

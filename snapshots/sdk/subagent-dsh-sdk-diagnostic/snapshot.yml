@@ -3,6 +3,7 @@ scenario: subagent-dsh-sdk-diagnostic
 profile: sdk
 composition: sdk-dsh-sdk-diagnostic
 recording: live
+immutableInput: source-recording
 header:
   class: sdk-dsh-sdk-diagnostic
   pin: true

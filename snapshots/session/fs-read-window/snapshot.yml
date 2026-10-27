@@ -3,5 +3,6 @@ scenario: fs-read-window
 profile: headless
 composition: default
 recording: live
+immutableInput: source-recording
 header:
   class: default

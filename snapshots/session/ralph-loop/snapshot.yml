@@ -3,6 +3,7 @@ scenario: ralph-loop
 profile: headless
 composition: ralph
 recording: authored
+immutableInput: source-recording
 header:
   class: ralph
   pin: true

@@ -3,6 +3,7 @@ scenario: subagent-published-run-failure
 profile: headless
 composition: subagent-durability-failure
 recording: authored
+immutableInput: source-recording
 header:
   class: subagent-durability-failure
   pin: true

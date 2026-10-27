@@ -3,6 +3,7 @@ scenario: background-job-admission
 profile: headless
 composition: background-job-admission
 recording: authored
+immutableInput: source-recording
 header:
   class: background-job-admission
   pin: true

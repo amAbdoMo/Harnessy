@@ -3,6 +3,7 @@ scenario: office-skills-no-renderer
 profile: headless
 composition: office-skills-no-renderer
 recording: live
+immutableInput: source-recording
 header:
   class: office-skills-no-renderer
   pin: true

@@ -3,6 +3,7 @@ scenario: lsp-definition
 profile: headless
 composition: lsp
 recording: authored
+immutableInput: source-recording
 header:
   class: lsp
   pin: true

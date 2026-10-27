@@ -3,6 +3,7 @@ scenario: mcp-resources
 profile: headless
 composition: mcp-resources
 recording: live
+immutableInput: source-recording
 header:
   class: mcp-resources
   pin: true

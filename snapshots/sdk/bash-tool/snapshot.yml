@@ -3,6 +3,7 @@ scenario: bash-tool
 profile: sdk
 composition: sdk-default
 recording: live
+immutableInput: source-recording
 header:
   class: sdk-default
   pin: true

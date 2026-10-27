@@ -749,7 +749,14 @@ async function verifyWorktree(log: string, cwd: string): Promise<void> {
   const events = records(log)
   expect(events.filter(event => event.type === 'working-directory/change').map(event => (event.data as JsonObject).cwd))
     .toEqual([checkout, cwd])
-  expect(events.filter(event => event.type === 'system/message')).toHaveLength(1)
+  const systemHeads = parseSessionLog(log).flatMap(event => event.type === 'system/message'
+    ? [event.data.message.content.flatMap(block => block.type === 'text' ? [block.text] : []).join('')]
+    : [])
+  // The headless persona's cwd variable follows each committed directory change.
+  expect(systemHeads).toHaveLength(3)
+  for (const [index, directory] of [cwd, checkout, cwd].entries()) {
+    expect(systemHeads[index]).toContain(`Your working directory is ${directory}.`)
+  }
 }
 
 /** Exercise provider-cwd adoption through the shipped launcher without normalizing away the observation. */

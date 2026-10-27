@@ -3,6 +3,7 @@ scenario: persistent-pwsh-padded-completion
 profile: headless
 composition: persistent-pwsh-padded-completion
 recording: authored
+immutableInput: source-recording
 header:
   class: persistent-pwsh-padded-completion
   pin: true

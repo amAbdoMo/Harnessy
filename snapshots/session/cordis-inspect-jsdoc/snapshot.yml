@@ -3,6 +3,7 @@ scenario: cordis-inspect-jsdoc
 profile: headless
 composition: cordis-inspect-jsdoc
 recording: authored
+immutableInput: source-recording
 header:
   class: cordis-inspect-jsdoc
   pin: true

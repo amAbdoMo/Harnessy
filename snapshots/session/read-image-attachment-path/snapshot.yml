@@ -3,6 +3,7 @@ scenario: read-image-attachment-path
 profile: headless
 composition: image
 recording: authored
+immutableInput: source-recording
 header:
   class: image
 replay:

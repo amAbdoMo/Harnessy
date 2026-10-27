@@ -3,5 +3,6 @@ scenario: subagent-spawn-in-process
 profile: sdk
 composition: sdk-default
 recording: live
+immutableInput: source-recording
 header:
   class: sdk-default

@@ -3,6 +3,7 @@ scenario: product-subagent-codex
 profile: headless
 composition: product-subagent-codex
 recording: authored
+immutableInput: source-recording
 header:
   class: product-subagent-codex
   pin: true

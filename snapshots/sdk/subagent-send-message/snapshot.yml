@@ -3,6 +3,7 @@ scenario: subagent-send-message
 profile: sdk
 composition: subagent-send-message
 recording: authored
+immutableInput: source-recording
 header:
   class: subagent-send-message
   pin: true

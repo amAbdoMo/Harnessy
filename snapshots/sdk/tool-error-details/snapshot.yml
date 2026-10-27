@@ -3,5 +3,6 @@ scenario: tool-error-details
 profile: sdk
 composition: both
 recording: authored
+immutableInput: source-recording
 header:
   class: both

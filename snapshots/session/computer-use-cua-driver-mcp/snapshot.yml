@@ -3,6 +3,7 @@ scenario: computer-use-cua-driver-mcp
 profile: headless
 composition: computer-use-cua-driver-mcp
 recording: authored
+immutableInput: source-recording
 header:
   class: computer-use-cua-driver-mcp
   pin: true

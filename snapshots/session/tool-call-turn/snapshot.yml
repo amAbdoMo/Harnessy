@@ -3,6 +3,7 @@ scenario: tool-call-turn
 profile: headless
 composition: default
 recording: live
+immutableInput: source-recording
 header:
   class: default
   pin: true

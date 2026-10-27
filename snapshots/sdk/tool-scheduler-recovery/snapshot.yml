@@ -3,5 +3,6 @@ scenario: tool-scheduler-recovery
 profile: sdk
 composition: sdk-default
 recording: authored
+immutableInput: source-recording
 header:
   class: sdk-default

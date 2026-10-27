@@ -3,6 +3,7 @@ scenario: workspace-dependencies
 profile: headless
 composition: workspace-dependencies
 recording: authored
+immutableInput: source-recording
 header:
   class: workspace-dependencies
   pin: true

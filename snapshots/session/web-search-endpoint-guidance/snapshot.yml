@@ -3,6 +3,7 @@ scenario: web-search-endpoint-guidance
 profile: headless
 composition: web-search-endpoint-guidance
 recording: live
+immutableInput: source-recording
 header:
   class: web-search-endpoint-guidance
   pin: true

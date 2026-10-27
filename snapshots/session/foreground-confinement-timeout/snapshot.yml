@@ -3,6 +3,7 @@ scenario: foreground-confinement-timeout
 profile: headless
 composition: foreground-confinement-timeout
 recording: authored
+immutableInput: source-recording
 header:
   class: foreground-confinement-timeout
   pin: true

@@ -3,6 +3,7 @@ scenario: subagent-continuable-inheritance
 profile: sdk
 composition: subagent-continuable-inheritance
 recording: authored
+immutableInput: source-recording
 header:
   class: subagent-continuable-inheritance
   pin: true

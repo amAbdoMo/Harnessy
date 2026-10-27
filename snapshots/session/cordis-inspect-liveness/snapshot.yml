@@ -3,6 +3,7 @@ scenario: cordis-inspect-liveness
 profile: headless
 composition: cordis-inspect-liveness
 recording: authored
+immutableInput: source-recording
 header:
   class: advanced
   pin: true

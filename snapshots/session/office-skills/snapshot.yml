@@ -3,6 +3,7 @@ scenario: office-skills
 profile: headless
 composition: office-skills
 recording: authored
+immutableInput: source-recording
 header:
   class: office-skills
   pin: true

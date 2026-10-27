@@ -3,6 +3,7 @@ scenario: team-targets
 profile: headless
 composition: team-targets
 recording: authored
+immutableInput: source-recording
 header:
   class: team-targets
   pin: true

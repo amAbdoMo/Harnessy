@@ -3,6 +3,7 @@ scenario: mcp-empty
 profile: headless
 composition: mcp-empty
 recording: live
+immutableInput: source-recording
 header:
   class: mcp-empty
   pin: true

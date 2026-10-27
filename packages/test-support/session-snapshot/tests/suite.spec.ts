@@ -1,9 +1,10 @@
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterAll, describe, expect, it } from 'vitest'
+import { SESSION_FORMAT_VERSION } from '@deepseek-ai/dsh-session'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   assertPersistedSessionVersion,
   assertSessionFixtureVersion,
@@ -24,6 +25,7 @@ import {
 import {
   assertChildSystemPromptSnapshot,
   assertUniqueSnapshotContents,
+  assertSessionLogCount,
   claimSharedSnapshot,
   fixtureContext,
   formatSystemPromptSnapshot,
@@ -124,11 +126,25 @@ const RECORD_SCENARIOS: Scenario[] = [
   { name: 'rec-skip', hasModelTurn: true, recorded: false, overridden: true },
 ]
 
+const IMMUTABLE_SCENARIO: Scenario = {
+  name: 'immutable-current',
+  hasModelTurn: false,
+  comparesLog: true,
+  recorded: true,
+  immutableInput: 'source-recording',
+  pinsHeader: true,
+  headerClass: 'immutable-current',
+}
+const IMMUTABLE_REFRESH_SCENARIOS = [...REPLAY_SCENARIOS, IMMUTABLE_SCENARIO]
+
 // Record/refresh modes mutate their snapshots dir, so run them on throwaway
 // copies — except record's documented bootstrap knob, which regenerates the
 // committed record fixtures and expected outputs in place.
 const BOOTSTRAP = process.env.ACP_SNAPSHOT_SPEC_BOOTSTRAP === '1'
 const recordDir = BOOTSTRAP ? RECORD_SRC : mkdtempSync(join(tmpdir(), 'acp-snap-record-suite-'))
+if (!BOOTSTRAP) {
+  afterAll(async () => rm(recordDir, { recursive: true, force: true }))
+}
 const retiredChildFixture = readFileSync(join(RECORD_SRC, 'rec-child', 'session.1.v3.jsonl'), 'utf8')
 if (!BOOTSTRAP) {
   cpSync(RECORD_SRC, recordDir, { recursive: true })
@@ -139,13 +155,85 @@ if (!BOOTSTRAP) {
   writeFileSync(join(recordDir, 'rec-child', 'session.2.v3.jsonl'), retiredChildFixture)
 }
 const refreshDir = mkdtempSync(join(tmpdir(), 'acp-snap-refresh-suite-'))
+afterAll(async () => rm(refreshDir, { recursive: true, force: true }))
 cpSync(REPLAY_DIR, refreshDir, { recursive: true })
 staleRefreshFixtures(refreshDir)
-afterAll(async () => {
-  if (!BOOTSTRAP) await rm(recordDir, { recursive: true, force: true })
-  await rm(refreshDir, { recursive: true, force: true })
-})
-
+const immutableReplayDir = mkdtempSync(join(tmpdir(), 'acp-snap-immutable-replay-'))
+afterAll(async () => rm(immutableReplayDir, { recursive: true, force: true }))
+const immutableDir = join(refreshDir, IMMUTABLE_SCENARIO.name)
+mkdirSync(immutableDir)
+const immutablePrompt = 'IMMUTABLE SOURCE PROMPT'
+const immutableTools = [{ name: 'source-tool', description: 'Source tool', parameters: { type: 'object' } }]
+const immutableCurrentFixture = sessionFixtureName(0, SESSION_FORMAT_VERSION)
+const immutableSourceLog = [
+  JSON.stringify({
+    type: 'session', version: SESSION_FORMAT_VERSION, id: '{{session:1}}', createdAt: 401,
+    cwd: '{{cwd}}', isSeeded: false, delegationDepth: 0,
+  }),
+  JSON.stringify({ type: 'turn/start', data: { turn: 1 } }),
+  JSON.stringify({ type: 'step/start', data: { turn: 1, step: 1 } }),
+  JSON.stringify({
+    type: 'system/message',
+    data: {
+      turn: 1,
+      step: 1,
+      message: {
+        id: '{{message:1}}', role: 'system', content: [{ type: 'text', text: '{{system}}' }],
+        source: { kind: 'system-prompt' },
+      },
+    },
+    surfaceOp: 'append',
+  }),
+  JSON.stringify({
+    type: 'request/header',
+    data: { header: { config: { provider: 'fake', model: 'fake' }, tools: '{{tools}}' }, reason: 'initial' },
+  }),
+  '',
+].join('\n')
+writeFileSync(join(immutableDir, 'snapshot.yml'), [
+  'version: 1',
+  'profile: acp',
+  'recording: live',
+  'immutableInput: source-recording',
+  'header:',
+  '  class: immutable-current',
+  '  pin: true',
+  '',
+].join('\n'))
+writeFileSync(join(immutableDir, 'input.json'), JSON.stringify({
+  steps: [{ op: 'initialize' }, { op: 'newSession' }, { op: 'promptExpectError', text: 'immutable source' }],
+}, null, 2) + '\n')
+writeFileSync(join(immutableDir, 'stdout.expected.jsonl'), 'STALE STDOUT\n')
+writeFileSync(join(immutableDir, immutableCurrentFixture), immutableSourceLog)
+writeFileSync(join(immutableDir, 'system-prompt.expected.md'), 'STALE PROMPT\n')
+writeFileSync(join(immutableDir, 'tool-schemas.expected.json'), '{"initial":[],"changes":[]}\n')
+writeFileSync(join(immutableDir, 'behavior.json'), JSON.stringify({
+  prompt: 'error',
+  logs: [{
+    file: `b/main/${immutableCurrentFixture}`,
+    lines: [
+      { type: 'session', version: SESSION_FORMAT_VERSION, id: '{{SID}}', createdAt: 401, cwd: '{{CWD}}', isSeeded: false, delegationDepth: 0 },
+      { type: 'turn/start', data: { turn: 1 } },
+      { type: 'step/start', data: { turn: 1, step: 1 } },
+      {
+        type: 'system/message',
+        data: {
+          turn: 1,
+          step: 1,
+          message: {
+            id: '22222222-2222-4222-8222-222222222222', role: 'system',
+            content: [{ type: 'text', text: immutablePrompt }], source: { kind: 'system-prompt' },
+          },
+        },
+        surfaceOp: 'append',
+      },
+      {
+        type: 'request/header',
+        data: { header: { config: { provider: 'fake', model: 'fake' }, tools: immutableTools }, reason: 'initial' },
+      },
+    ],
+  }],
+}, null, 2) + '\n')
 function staleRefreshFixtures(dir: string): void {
   writeFileSync(join(dir, 'plain-turn', 'stdout.expected.jsonl'), 'stale stdout\n')
   writeFileSync(join(dir, 'pin-turn', 'system-prompt.expected.md'), 'STALE PROMPT\n')
@@ -181,7 +269,19 @@ describe('defineAcpSnapshotSuite: record mode', () => {
 })
 
 describe('defineAcpSnapshotSuite: refresh mode', () => {
-  defineAcpSnapshotSuite({ agent: AGENT, snapshotsDir: refreshDir, scenarios: REPLAY_SCENARIOS, mode: 'refresh' })
+  defineAcpSnapshotSuite({ agent: AGENT, snapshotsDir: refreshDir, scenarios: IMMUTABLE_REFRESH_SCENARIOS, mode: 'refresh' })
+})
+
+describe('defineAcpSnapshotSuite: immutable source replay mode', () => {
+  beforeAll(() => {
+    cpSync(immutableDir, join(immutableReplayDir, IMMUTABLE_SCENARIO.name), { recursive: true })
+  })
+  defineAcpSnapshotSuite({
+    agent: AGENT,
+    snapshotsDir: immutableReplayDir,
+    scenarios: [IMMUTABLE_SCENARIO],
+    mode: 'replay',
+  })
 })
 
 describe('defineAcpSnapshotSuite: refresh write-back', () => {
@@ -220,6 +320,12 @@ describe('defineAcpSnapshotSuite: refresh write-back', () => {
     const childPrompt = readFileSync(join(refreshDir, 'plain-turn', 'system-prompt.1.expected.md'), 'utf8')
     expect(childPrompt).toBe('SYS PROMPT\n\nCHILD GUIDANCE\n')
 
+    expect(readFileSync(join(immutableDir, immutableCurrentFixture), 'utf8')).toBe(immutableSourceLog)
+    expect(readFileSync(join(immutableDir, 'writer.expected.jsonl'), 'utf8')).toBe(immutableSourceLog)
+    expect(readFileSync(join(immutableDir, 'system-prompt.expected.md'), 'utf8')).toBe(`${immutablePrompt}\n`)
+    expect(readFileSync(join(immutableDir, 'tool-schemas.expected.json'), 'utf8'))
+      .toBe(formatToolSchemasSnapshot(immutableTools, []))
+
     const pinSession = readFileSync(join(refreshDir, 'pin-turn', 'session.v3.jsonl'), 'utf8')
     expect(pinSession).toContain('"cwd":"{{cwd}}"')
     expect(readFileSync(join(refreshDir, 'pin-turn', 'session.jsonl'), 'utf8'))
@@ -227,6 +333,24 @@ describe('defineAcpSnapshotSuite: refresh write-back', () => {
     expect(pinSession.match(/"text":"{{system}}"/g)).toHaveLength(2)
     expect(pinSession).toContain('"surfaceOp":{"op":"replace","startSeq":2,"endSeq":2}')
     expect(pinSession).not.toContain('NEW PROMPT LINE')
+  })
+})
+
+describe('assertSessionLogCount', () => {
+  it('accepts one harvested log for every selected Session role', () => {
+    expect(() => {
+      assertSessionLogCount(2, 2, 'replay: child scenario')
+    }).not.toThrow()
+  })
+
+  it.each([
+    [0, 1],
+    [2, 1],
+  ])('rejects %i harvested logs for %i selected Session roles', (actualCount, expectedCount) => {
+    expect(() => {
+      assertSessionLogCount(actualCount, expectedCount, 'replay: child scenario')
+    })
+      .toThrow(`replay: child scenario: expected ${expectedCount} session logs, got ${actualCount}`)
   })
 })
 
@@ -524,6 +648,10 @@ describe('sessionFixtureNames', () => {
     expect(() => sessionFixtureNames(['session.1.jsonl'])).toThrow('missing parent session fixture')
   })
 
+  it('rejects a directory with no selected source fixture', () => {
+    expect(() => sessionFixtureNames([])).toThrow('missing parent session fixture')
+  })
+
   it('rejects gapped child fixtures', () => {
     expect(() => sessionFixtureNames(['session.jsonl', 'session.2.jsonl']))
       .toThrow('expected index 1, found session.2.jsonl')
@@ -664,6 +792,12 @@ describe('scenarioSkipped', () => {
     recorded: true,
     sessionFormat: { version: 0, coverage: ['multi-hop'] },
   }
+  const immutable: Scenario = {
+    name: 'immutable-current',
+    hasModelTurn: true,
+    recorded: true,
+    immutableInput: 'source-recording',
+  }
 
   it('skips authored scenarios only while recording', () => {
     expect(scenarioSkipped(authored, true, 'linux')).toBe(true)
@@ -673,6 +807,11 @@ describe('scenarioSkipped', () => {
   it('skips a retained historical generation while recording but replays and refreshes it', () => {
     expect(scenarioSkipped(retained, true, 'linux')).toBe(true)
     expect(scenarioSkipped(retained, false, 'linux')).toBe(false)
+  })
+
+  it('skips an immutable source recording in record mode', () => {
+    expect(scenarioSkipped(immutable, true, 'linux')).toBe(true)
+    expect(scenarioSkipped(immutable, false, 'linux')).toBe(false)
   })
 
   it('skips posixOnly scenarios on Windows and nowhere else', () => {

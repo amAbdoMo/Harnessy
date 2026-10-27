@@ -3,6 +3,7 @@ scenario: subagent-depth-two-rejection
 profile: headless
 composition: depth-two
 recording: authored
+immutableInput: source-recording
 header:
   class: depth-two
   pin: true

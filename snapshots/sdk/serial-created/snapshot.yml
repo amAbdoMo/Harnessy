@@ -3,6 +3,7 @@ scenario: serial-created
 profile: sdk
 composition: sdk-serial-created
 recording: authored
+immutableInput: source-recording
 environment:
   DSH_PERMISSION_MODE: read-only
 header:

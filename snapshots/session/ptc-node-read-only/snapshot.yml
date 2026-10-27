@@ -3,6 +3,7 @@ scenario: ptc-node-read-only
 profile: headless
 composition: ptc-node-read-only
 recording: authored
+immutableInput: source-recording
 header:
   class: ptc-node-read-only
   pin: true

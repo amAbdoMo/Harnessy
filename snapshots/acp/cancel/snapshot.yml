@@ -3,6 +3,7 @@ scenario: cancel
 profile: acp
 composition: acp-default
 recording: authored
+immutableInput: source-recording
 header:
   class: acp-default
 replay:

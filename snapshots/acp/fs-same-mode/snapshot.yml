@@ -3,6 +3,7 @@ scenario: fs-same-mode
 profile: acp
 composition: acp-default
 recording: authored
+immutableInput: source-recording
 header:
   class: acp-default
 permission: danger-full-access

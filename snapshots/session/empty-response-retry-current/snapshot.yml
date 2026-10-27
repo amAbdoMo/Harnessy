@@ -3,6 +3,7 @@ scenario: empty-response-retry-current
 profile: headless
 composition: retry
 recording: authored
+immutableInput: source-recording
 header:
   class: retry
   pin: true

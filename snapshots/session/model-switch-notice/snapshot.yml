@@ -3,6 +3,7 @@ scenario: model-switch-notice
 profile: headless
 composition: model-switch-notice
 recording: live
+immutableInput: source-recording
 header:
   class: model-switch-notice
   pin: true

@@ -3,6 +3,7 @@ scenario: parallel-tool-calls
 profile: headless
 composition: fs
 recording: authored
+immutableInput: source-recording
 header:
   class: fs
   pin: true

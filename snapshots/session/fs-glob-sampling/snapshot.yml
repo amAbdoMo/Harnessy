@@ -3,6 +3,7 @@ scenario: fs-glob-sampling
 profile: headless
 composition: fs-search
 recording: live
+immutableInput: source-recording
 header:
   class: fs-search
   pin: true

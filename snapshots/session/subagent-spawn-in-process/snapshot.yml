@@ -3,5 +3,6 @@ scenario: subagent-spawn-in-process
 profile: headless
 composition: default
 recording: live
+immutableInput: source-recording
 header:
   class: default

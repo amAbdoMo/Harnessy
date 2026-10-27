@@ -3,5 +3,6 @@ scenario: subagent-fork-in-process
 profile: sdk
 composition: default
 recording: live
+immutableInput: source-recording
 header:
   class: default

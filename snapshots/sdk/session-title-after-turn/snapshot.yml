@@ -3,6 +3,7 @@ scenario: session-title-after-turn
 profile: sdk
 composition: session-title
 recording: authored
+immutableInput: source-recording
 header:
   class: session-title
   pin: true

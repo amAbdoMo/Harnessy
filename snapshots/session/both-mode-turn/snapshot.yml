@@ -3,6 +3,7 @@ scenario: both-mode-turn
 profile: headless
 composition: both
 recording: live
+immutableInput: source-recording
 header:
   class: both
   pin: true

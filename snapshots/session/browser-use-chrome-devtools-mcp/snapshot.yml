@@ -3,6 +3,7 @@ scenario: browser-use-chrome-devtools-mcp
 profile: headless
 composition: browser-use-chrome-devtools-mcp
 recording: authored
+immutableInput: source-recording
 header:
   class: browser-use-chrome-devtools-mcp
   pin: true

@@ -3,6 +3,7 @@ scenario: fs-write-overwrite
 profile: headless
 composition: default
 recording: live
+immutableInput: source-recording
 header:
   class: default
 workspace:

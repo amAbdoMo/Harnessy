@@ -3,6 +3,7 @@ scenario: hook-cc-stop-continue
 profile: headless
 composition: default
 recording: live
+immutableInput: source-recording
 header:
   class: default
 workspace:

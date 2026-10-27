@@ -3,6 +3,7 @@ scenario: read-image-text-route
 profile: headless
 composition: image-text-route
 recording: authored
+immutableInput: source-recording
 header:
   class: image-text-route
   pin: true

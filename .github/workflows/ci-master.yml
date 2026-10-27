@@ -17,6 +17,7 @@ on:
           - harnessy-integration-snapshot-verification
           - harnessy-web-snapshot-verification
           - harnessy-headless-fixture-verification
+          - harnessy-directory-cohort-verification
 
 # New master pushes and manual runs replace obsolete checks in this workflow/ref.
 # Standby drills share cancellation; use completed runs as readiness evidence.
@@ -992,5 +993,131 @@ jobs:
         with:
           name: harnessy-web-snapshot-verification-${{ github.run_id }}-${{ github.run_attempt }}
           path: .artifacts/row25-web-snapshot-verification/
+          retention-days: 7
+          if-no-files-found: error
+
+  harnessy-directory-cohort-verification:
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      && github.ref == 'refs/heads/staging'
+      && github.repository != 'deepseek-ai/deepseek-harness'
+      && inputs.suite == 'harnessy-directory-cohort-verification'
+    name: Directory recording cohort / Linux
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    env:
+      DSH_TELEMETRY_DISABLED: '1'
+      DSH_DIRECTORY_COHORT_PHASE: '1'
+      DEEPSEEK_API_KEY: ''
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.7.0'
+          dest: ${{ runner.temp }}/setup-pnpm-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - uses: actions/setup-python@v6.3.0
+        with:
+          python-version: '3.12'
+
+      - name: Record cohort source and Linux environment
+        run: |
+          mkdir -p .artifacts/directory-cohort-ci
+          {
+            git rev-parse HEAD
+            git status --short
+            node --version
+            pnpm --version
+            python3 --version
+            uname -a
+            printf 'runner_os=%s\nrunner_arch=%s\nimage_os=%s\nimage_version=%s\n' \
+              "$RUNNER_OS" "$RUNNER_ARCH" "${ImageOS:-unknown}" "${ImageVersion:-unknown}"
+          } | tee .artifacts/directory-cohort-ci/environment.txt
+
+      - name: Install immutable dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify cohort selection and frozen-input guards
+        id: guard_tests
+        run: node node_modules/vitest/vitest.mjs run scripts/harnessy-directory-cohort.spec.ts
+
+      - name: Provision Linux native compiler
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -yq --no-install-recommends musl-tools
+
+      - name: Build host native system payload
+        id: native_build
+        run: |
+          node --import tsx/esm native/system/scripts/build.ts
+          node node_modules/typescript/bin/tsc -b native/system/tsconfig.json
+
+      - name: Require Linux Landlock enforcement
+        id: landlock
+        working-directory: native/system
+        env:
+          NALR_REQUIRE_LANDLOCK: '1'
+        run: node test/launcher.test.js
+
+      - name: Build checked Host library artifacts
+        id: host_build
+        run: node --import tsx/esm scripts/compile-referenced-projects.ts host-libraries
+
+      - name: Build checked Client library artifacts
+        id: client_build
+        run: pnpm run build:lib:client
+
+      - name: Build browser application
+        id: web_build
+        run: pnpm run build:web
+
+      - name: Install Playwright Chromium and Linux dependencies
+        id: browser_install
+        run: node apps/web/node_modules/playwright/cli.js install --with-deps chromium
+
+      - name: Record browser version
+        if: always()
+        run: node apps/web/node_modules/playwright/cli.js --version | tee -a .artifacts/directory-cohort-ci/environment.txt
+
+      - name: Freeze every tracked source and Session generation
+        id: freeze
+        run: node scripts/harnessy-directory-cohort.mjs freeze
+
+      - name: Refresh the closed cohort then replay every selected owner
+        id: cohort
+        run: node scripts/harnessy-directory-cohort.mjs run
+
+      - name: Capture cohort verdict and candidate outputs
+        if: always()
+        env:
+          GUARD_TESTS_OUTCOME: ${{ steps.guard_tests.outcome }}
+          NATIVE_BUILD_OUTCOME: ${{ steps.native_build.outcome }}
+          LANDLOCK_OUTCOME: ${{ steps.landlock.outcome }}
+          HOST_BUILD_OUTCOME: ${{ steps.host_build.outcome }}
+          CLIENT_BUILD_OUTCOME: ${{ steps.client_build.outcome }}
+          WEB_BUILD_OUTCOME: ${{ steps.web_build.outcome }}
+          BROWSER_INSTALL_OUTCOME: ${{ steps.browser_install.outcome }}
+          FREEZE_OUTCOME: ${{ steps.freeze.outcome }}
+          COHORT_OUTCOME: ${{ steps.cohort.outcome }}
+        run: node scripts/harnessy-directory-cohort.mjs capture
+
+      - name: Retain bounded cohort evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: harnessy-directory-cohort-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .artifacts/directory-cohort-ci/
           retention-days: 7
           if-no-files-found: error

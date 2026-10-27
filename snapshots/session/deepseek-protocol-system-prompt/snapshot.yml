@@ -3,6 +3,7 @@ scenario: deepseek-protocol-system-prompt
 profile: headless
 composition: deepseek-protocol-system-prompt
 recording: authored
+immutableInput: source-recording
 header:
   class: deepseek-protocol-system-prompt
   pin: true

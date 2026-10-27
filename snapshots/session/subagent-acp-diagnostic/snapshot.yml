@@ -3,6 +3,7 @@ scenario: subagent-acp-diagnostic
 profile: headless
 composition: subagent-acp-diagnostic
 recording: authored
+immutableInput: source-recording
 header:
   class: subagent-acp-diagnostic
   pin: true

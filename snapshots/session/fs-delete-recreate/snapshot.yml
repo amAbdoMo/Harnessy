@@ -3,6 +3,7 @@ scenario: fs-delete-recreate
 profile: headless
 composition: default
 recording: live
+immutableInput: source-recording
 header:
   class: default
 workspace:

@@ -3,5 +3,6 @@ scenario: hook-cc-promptsubmit-block
 profile: headless
 composition: default
 recording: authored
+immutableInput: source-recording
 header:
   class: default

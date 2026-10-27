@@ -3,6 +3,7 @@ scenario: subagent-activation-limit
 profile: sdk
 composition: subagent-activation-limit
 recording: authored
+immutableInput: source-recording
 header:
   class: subagent-activation-limit
   pin: true

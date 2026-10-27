@@ -3,6 +3,7 @@ scenario: claude-code-mods
 profile: headless
 composition: claude-code-mods
 recording: live
+immutableInput: source-recording
 header:
   class: claude-code-mods
   pin: true

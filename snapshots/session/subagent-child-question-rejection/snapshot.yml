@@ -3,6 +3,7 @@ scenario: subagent-child-question-rejection
 profile: headless
 composition: child-question
 recording: authored
+immutableInput: source-recording
 header:
   class: child-question
   pin: true

@@ -3,6 +3,7 @@ scenario: skill-load
 profile: headless
 composition: skill-load
 recording: authored
+immutableInput: source-recording
 header:
   class: skill
   pin: true

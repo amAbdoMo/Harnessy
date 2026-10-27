@@ -3,6 +3,7 @@ scenario: persistent-pwsh-tool-turn
 profile: headless
 composition: persistent-pwsh
 recording: live
+immutableInput: source-recording
 header:
   class: persistent-pwsh
   pin: true

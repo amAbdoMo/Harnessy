@@ -3,6 +3,7 @@ scenario: agent-instructions
 profile: headless
 composition: agent-instructions
 recording: authored
+immutableInput: source-recording
 header:
   class: agent-instructions
   pin: true

@@ -3,6 +3,7 @@ scenario: workflow-confinement
 profile: headless
 composition: workflow-confinement
 recording: authored
+immutableInput: source-recording
 header:
   class: workflow-confinement
   pin: true

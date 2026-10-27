@@ -3,6 +3,7 @@ scenario: compaction-recovery
 profile: headless
 composition: compaction-recovery
 recording: authored
+immutableInput: source-recording
 header:
   class: compaction-recovery
   pin: true

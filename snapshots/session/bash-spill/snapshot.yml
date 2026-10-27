@@ -3,5 +3,6 @@ scenario: bash-spill
 profile: headless
 composition: fs
 recording: authored
+immutableInput: source-recording
 header:
   class: fs

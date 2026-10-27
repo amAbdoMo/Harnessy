@@ -3,6 +3,7 @@ scenario: missing-sandbox-runner
 profile: headless
 composition: partial-landlock
 recording: authored
+immutableInput: source-recording
 header:
   class: sandbox
 platform: posix

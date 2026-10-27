@@ -3,5 +3,6 @@ scenario: subagent-mixed
 profile: sdk
 composition: default
 recording: live
+immutableInput: source-recording
 header:
   class: default

@@ -37,6 +37,7 @@ import {
   sessionFixtureName,
   sessionFixtureNames,
   sessionHeaderVersion,
+  writerSnapshotName,
 } from './session-files.ts'
 import {
   type CwdPathMode,
@@ -103,6 +104,8 @@ export interface Scenario {
   recorded: boolean
   /** Historical generation retained as a read-only migration fixture. */
   sessionFormat?: SnapshotSessionFormatManifest
+  /** Preserve the selected current-format input while refreshing a separate writer output. */
+  immutableInput?: 'source-recording'
   /**
    * Whether replay is driven by a hand-written `replay.override.json` sidecar
    * (a `ReplayOverrideDoc` that replaces or patches the script derived from
@@ -231,9 +234,25 @@ export function scenarioSkipped(
   platform: NodeJS.Platform = process.platform,
   hasPwsh?: boolean,
 ): boolean {
-  if (recording && (!scenario.recorded || scenario.sessionFormat !== undefined)) return true
+  if (recording && (
+    !scenario.recorded || scenario.sessionFormat !== undefined || scenario.immutableInput !== undefined
+  )) return true
   if (scenario.posixOnly === true && platform === 'win32') return true
   return scenario.pwshOnly === true && hasPwsh !== true
+}
+
+/**
+ * Require one harvested log for every selected Session fixture role.
+ *
+ * @param actualCount - Number of logs harvested from the run.
+ * @param expectedCount - Number of selected parent and child fixture roles.
+ * @param label - Scenario or operation used to identify the failure.
+ * @returns Nothing.
+ */
+export function assertSessionLogCount(actualCount: number, expectedCount: number, label: string): void {
+  if (actualCount !== expectedCount) {
+    throw new Error(`${label}: expected ${expectedCount} session logs, got ${actualCount}`)
+  }
 }
 
 /** One stdout expected output selected for a platform run. */
@@ -1311,23 +1330,31 @@ export function defineAcpSnapshotSuite(options: SnapshotSuiteOptions): void {
         const dir = join(snapshotsDir, scenario.name)
         const manifestPath = join(dir, 'snapshot.yml')
         const manifest = parseSnapshotManifest(await readFile(manifestPath, 'utf8'), manifestPath)
-        if (manifest.immutableInput !== undefined) {
-          throw new Error(`${manifestPath}: immutable source recordings require the dedicated headless snapshot runner`)
-        }
         const input = JSON.parse(await readFile(join(dir, 'input.json'), 'utf8')) as InputScript
         const overrideFile = join(dir, 'replay.override.json')
         const workspaceDir = join(dir, 'workspace')
-        // Replay/refresh need the committed inventory up front because those
-        // files drive the model scripts. Record mode creates that inventory
-        // from the harvested live logs, so it must also work for a brand-new
-        // scenario with no Session fixture yet.
-        let fixtureFiles = RECORDING ? [] : await sessionFixtures(dir)
+        // Replay/refresh use the selected inventory as the model script. Ordinary record mode
+        // starts without a fixture; an immutable source owner retains its selected inventory.
+        let fixtureFiles = RECORDING && manifest.immutableInput === undefined ? [] : await sessionFixtures(dir)
+        if (manifest.immutableInput !== undefined) {
+          if (fixtureFiles.length === 0) {
+            throw new Error(`${manifestPath}: immutable source recording requires at least one selected Session fixture`)
+          }
+          for (const file of fixtureFiles) {
+            const version = sessionHeaderVersion(await readFile(join(dir, file), 'utf8'), file)
+            if (version !== SESSION_FORMAT_VERSION) {
+              throw new Error(
+                `${manifestPath}: immutable source recordings require current Session format v${SESSION_FORMAT_VERSION}; ${file} is v${version}`,
+              )
+            }
+          }
+        }
         const childFixtureFiles = fixtureFiles.slice(1)
         const primaryFixtureFile = fixtureFiles[0] ?? sessionFixtureName(0, 0)
-        // A retained historical generation is an immutable replay input: record
-        // and refresh never write or compare a current-writer session for it.
-        const comparesLog = scenario.comparesLog ?? (scenario.hasModelTurn
-          && manifest.sessionFormat === undefined)
+        // Historical inputs have no current-writer comparison; immutable current inputs compare
+        // against their separate writer output while preserving the selected source.
+        const comparesLog = manifest.immutableInput !== undefined
+          || (scenario.comparesLog ?? (scenario.hasModelTurn && manifest.sessionFormat === undefined))
         const result = await runScenario(input, {
           agent,
           mode: childMode,
@@ -1373,17 +1400,20 @@ export function defineAcpSnapshotSuite(options: SnapshotSuiteOptions): void {
           : (log: string): string => log
         const writesSessionFixtures = writesCurrentSessionFixtures(manifest, mode)
           && ((RECORDING && scenario.recorded && scenario.hasModelTurn) || (REFRESHING && comparesLog))
-        if (writesSessionFixtures) {
+        const writesImmutableOutput = REFRESHING && manifest.immutableInput === 'source-recording' && comparesLog
+        if (writesSessionFixtures || writesImmutableOutput) {
           expect(result.sessionLogs.length, `${mode} produced no session log to harvest`).toBeGreaterThan(0)
           if (REFRESHING) {
-            expect(result.sessionLogs.length, `expected ${fixtureFiles.length} session logs (parent + children)`)
-              .toBe(fixtureFiles.length)
+            assertSessionLogCount(result.sessionLogs.length, fixtureFiles.length, `${mode}: ${scenario.name}`)
           }
-          const outputFixtureFiles = result.sessionLogs.map((log, index) => sessionFixtureName(
-            index,
-            sessionHeaderVersion(log.content, `harvested Session ${index}`),
-          ))
+          const outputFixtureFiles = result.sessionLogs.map((log, index) => manifest.immutableInput === 'source-recording'
+            ? writerSnapshotName(index)
+            : sessionFixtureName(index, sessionHeaderVersion(log.content, `harvested Session ${index}`)))
           const existingFixtures = await Promise.all(outputFixtureFiles.map(async (_file, index) => {
+            const path = join(dir, outputFixtureFiles[index] as string)
+            if (manifest.immutableInput === 'source-recording') {
+              return existsSync(path) ? readFile(path, 'utf8') : ''
+            }
             const file = fixtureFiles[index]
             if (file === undefined) return ''
             return readFile(join(dir, file), 'utf8')
@@ -1404,7 +1434,7 @@ export function defineAcpSnapshotSuite(options: SnapshotSuiteOptions): void {
           ))
           await Promise.all(outputFixtures.map((fixture, index) =>
             writeFile(join(dir, outputFixtureFiles[index] as string), fixture)))
-          fixtureFiles = outputFixtureFiles
+          if (writesSessionFixtures) fixtureFiles = outputFixtureFiles
           if (scenario.pinsHeader === true) {
             const primary = result.sessionLogs[0] as HarvestedLog
             const prompts = normalizedSystemPrompts(primary.content, ctx)
@@ -1470,10 +1500,13 @@ export function defineAcpSnapshotSuite(options: SnapshotSuiteOptions): void {
         // A model turn always produces a log worth comparing; an explicitly
         // authored non-model scenario may opt in independently.
         if (comparesLog) {
-          // The harvested logs (primary-first) must match their committed fixtures 1:1.
-          expect(result.sessionLogs.length, 'this scenario must persist one log per session fixture').toBe(fixtureFiles.length)
+          // The harvested logs (primary-first) must match every selected source role 1:1.
+          assertSessionLogCount(result.sessionLogs.length, fixtureFiles.length, `${mode}: ${scenario.name}`)
+          const comparisonFiles = manifest.immutableInput === 'source-recording'
+            ? fixtureFiles.map((_file, index) => writerSnapshotName(index))
+            : fixtureFiles
           const harvested = result.sessionLogs.map(log => log.content)
-          const fixtures = await Promise.all(fixtureFiles.map(file => readFile(join(dir, file), 'utf8')))
+          const fixtures = await Promise.all(comparisonFiles.map(file => readFile(join(dir, file), 'utf8')))
           const fixtureContexts = fixtures.map(fixtureContext)
           const fixtureCtx: NormalizeContext = {
             sessionIds: fixtureContexts.flatMap(context => context.sessionIds),
@@ -1482,7 +1515,7 @@ export function defineAcpSnapshotSuite(options: SnapshotSuiteOptions): void {
           const actualSnapshots = normalizeSessionSnapshots(harvested, ctx, { nativeWriterOutput: true })
           const expectedSnapshots = normalizeSessionSnapshots(fixtures, fixtureCtx, { nativeWriterOutput: true })
           for (const [index, actual] of actualSnapshots.entries()) {
-            expect(actual, `${fixtureFiles[index]} mismatch`).toEqual(expectedSnapshots[index])
+            expect(actual, `${comparisonFiles[index]} mismatch`).toEqual(expectedSnapshots[index])
           }
         }
 

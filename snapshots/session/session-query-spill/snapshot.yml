@@ -3,6 +3,7 @@ scenario: session-query-spill
 profile: headless
 composition: session-query
 recording: authored
+immutableInput: source-recording
 header:
   class: session-query
   pin: true

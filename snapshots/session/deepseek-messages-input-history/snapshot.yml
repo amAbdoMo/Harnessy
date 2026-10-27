@@ -3,6 +3,7 @@ scenario: deepseek-messages-input-history
 profile: headless
 composition: deepseek-messages-input-history
 recording: authored
+immutableInput: source-recording
 header:
   class: deepseek-messages-input-history
   pin: true

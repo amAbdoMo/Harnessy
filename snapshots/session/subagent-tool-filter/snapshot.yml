@@ -3,6 +3,7 @@ scenario: subagent-tool-filter
 profile: headless
 composition: subagent-tool-filter
 recording: authored
+immutableInput: source-recording
 header:
   class: subagent-tool-filter
   pin: true

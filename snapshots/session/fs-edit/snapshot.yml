@@ -3,6 +3,7 @@ scenario: fs-edit
 profile: headless
 composition: default
 recording: live
+immutableInput: source-recording
 header:
   class: default
 workspace:

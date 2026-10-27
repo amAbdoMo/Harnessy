@@ -3,6 +3,7 @@ scenario: escalation-approved
 profile: acp
 composition: acp-default
 recording: live
+immutableInput: source-recording
 header:
   class: acp-default
   pin: true
