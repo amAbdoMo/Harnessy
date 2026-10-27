@@ -1,6 +1,7 @@
 import { describe, expect, expectTypeOf, it, onTestFinished, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { type Agent } from '@deepseek-ai/dsh-agent'
+import { mountAgentLoopTestDependencies, provideWorkingDirectoryFixture, unsupportedInbox } from '@deepseek-ai/dsh-agent-loop-testkit'
 
 import { HarnessError, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import { carrierKeyOf } from '@deepseek-ai/dsh-scope'
@@ -21,8 +22,20 @@ import SubagentRuntime, {
 import { Session, SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 
-function fakeParent(id = 'parent-1'): Agent {
-  return { id: SessionId(id), ctx: { get: (name: string) => name === 'workingDirectory' ? { ensure: async () => process.cwd() } : undefined } } as unknown as Agent
+async function fakeParent(id = 'parent-1'): Promise<Agent> {
+  const ctx = new Context()
+  onTestFinished(() => ctx.fiber.dispose())
+  await mountAgentLoopTestDependencies(ctx)
+  provideWorkingDirectoryFixture(ctx)
+  await ctx.inject(['workingDirectory'], () => {}).await()
+  const session = Session.create(SessionId(id))
+  return {
+    id: session.id, options: {}, session, ctx,
+    inbox: unsupportedInbox(), status: 'idle',
+    send() {}, followup() {}, steer() {}, inject() {}, cancel() {},
+    whenIdle: async () => {},
+    runMaintenance: task => task(new AbortController().signal),
+  }
 }
 
 const ALL_CAPS: SubagentCapabilities = {
@@ -36,10 +49,10 @@ const NO_CAPS: SubagentCapabilities = {
   runtimeRoute: false,
 }
 
-function baseRequest(overrides: Partial<SubagentStartRequest> = {}): SubagentStartRequest {
+async function baseRequest(overrides: Partial<SubagentStartRequest> = {}): Promise<SubagentStartRequest> {
   return {
     prompt: [{ type: 'text', text: 'do a thing' }],
-    parent: fakeParent(),
+    parent: await fakeParent(),
     signal: new AbortController().signal,
     ...overrides,
   }
@@ -110,7 +123,7 @@ describe('SubagentRuntime', () => {
     const dispose = subagents.registerProvider(provider)
     expect(subagents.list()).toEqual(['alpha'])
     expect(subagents.getProvider('alpha')).toBe(provider)
-    const run = await subagents.start('alpha', baseRequest())
+    const run = await subagents.start('alpha', await baseRequest())
     await expect(run.result).resolves.toMatchObject({ stopReason: 'completed' })
     expect(provider.startCount).toBe(1)
 
@@ -132,7 +145,7 @@ describe('SubagentRuntime', () => {
     subagents.registerProvider(new StubProvider('dup'))
     expect(() => { subagents.registerProvider(new StubProvider('dup')) })
       .toThrow(expect.objectContaining({ code: 'DUPLICATE_PROVIDER' }))
-    await expect(subagents.start('missing', baseRequest()))
+    await expect(subagents.start('missing', await baseRequest()))
       .rejects.toMatchObject({ code: 'NO_PROVIDER' })
   })
 
@@ -140,7 +153,7 @@ describe('SubagentRuntime', () => {
     const { subagents } = await service()
     const provider = new StubProvider('one-shot')
     subagents.registerProvider(provider)
-    const request = baseRequest()
+    const request = await baseRequest()
     await subagents.start('one-shot', request)
 
     expect(provider.lastRequest).toEqual({
@@ -164,7 +177,7 @@ describe('SubagentRuntime', () => {
     // Without `ctx.agents` no manager exists, so nothing was ever materialized.
     expect('drainContinuable' in subagents).toBe(false)
     await expect(subagents.drainContinuableDescendants([])).resolves.toBeUndefined()
-    await expect(subagents.drainContinuableChildren(fakeParent(), [SessionId('child')])).resolves.toBeUndefined()
+    await expect(subagents.drainContinuableChildren(await fakeParent(), [SessionId('child')])).resolves.toBeUndefined()
   })
 
   it('treats interrupt as an accepted no-op when no manager was bound', async () => {
@@ -182,11 +195,11 @@ describe('SubagentRuntime', () => {
     await expect(subagents.startContinuable({
       provider: 'unused',
       label: 'unused child',
-      request: baseRequest(),
+      request: await baseRequest(),
       signal: new AbortController().signal,
     })).rejects.toMatchObject({ code: 'CONTINUATION_UNAVAILABLE' })
     await expect(subagents.sendMessage(
-      fakeParent(),
+      await fakeParent(),
       SessionId('child'),
       [{ type: 'text', text: 'hello' }],
       { signal: new AbortController().signal },
@@ -204,7 +217,7 @@ describe('SubagentRuntime', () => {
     const { subagents } = await service()
     const provider = new StubProvider('weak', NO_CAPS)
     subagents.registerProvider(provider)
-    await expect(subagents.start('weak', baseRequest(override)))
+    await expect(subagents.start('weak', await baseRequest(override)))
       .rejects.toMatchObject({ code: 'UNSUPPORTED_CAPABILITY' })
     expect(provider.startCount).toBe(0)
   })
@@ -213,9 +226,9 @@ describe('SubagentRuntime', () => {
     const { subagents } = await service()
     const provider = new StubProvider('strong')
     subagents.registerProvider(provider)
-    await expect(subagents.start('strong', baseRequest({ maxDepth: -1 })))
+    await expect(subagents.start('strong', await baseRequest({ maxDepth: -1 })))
       .rejects.toThrow('non-negative safe integer')
-    await expect(subagents.start('strong', baseRequest({ outputSchema: { type: 'string' } as never })))
+    await expect(subagents.start('strong', await baseRequest({ outputSchema: { type: 'string' } as never })))
       .rejects.toThrow()
     expect(provider.startCount).toBe(0)
     expect(() => { assertSubagentMaxDepth(undefined) }).not.toThrow()
@@ -231,14 +244,14 @@ describe('SubagentRuntime', () => {
       inheritsParentContext: false,
       start: () => ready.promise,
     })
-    const parent = fakeParent('delegator')
+    const parent = await fakeParent('delegator')
     const events: string[] = []
     const keys: unknown[] = []
     const runIds: string[] = []
     ctx.on('subagent/start', function (info) { events.push('start'); keys.push(carrierKeyOf(this)); runIds.push(info.runId) })
     ctx.on('subagent/end', function (info) { events.push('end'); keys.push(carrierKeyOf(this)); runIds.push(info.runId) })
 
-    const starting = subagents.start('deferred', baseRequest({ parent }))
+    const starting = subagents.start('deferred', await baseRequest({ parent }))
     await Promise.resolve()
     expect(events).toEqual([])
     ready.resolve({ id: SessionId('child'), localAgent: undefined, result: result.promise, async dispose() {} })
@@ -258,8 +271,8 @@ describe('SubagentRuntime', () => {
     const runIds: string[] = []
     ctx.on('subagent/start', info => void runIds.push(info.runId))
 
-    const first = await subagents.start('reused', baseRequest())
-    const second = await subagents.start('reused', baseRequest())
+    const first = await subagents.start('reused', await baseRequest())
+    const second = await subagents.start('reused', await baseRequest())
     await Promise.all([first.result, second.result])
 
     expect(runIds).toHaveLength(2)
@@ -277,7 +290,7 @@ describe('SubagentRuntime', () => {
     const lifecycle = vi.fn()
     ctx.on('subagent/start', lifecycle)
     ctx.on('subagent/end', lifecycle)
-    await expect(subagents.start('failed', baseRequest())).rejects.toThrow('setup rolled back')
+    await expect(subagents.start('failed', await baseRequest())).rejects.toThrow('setup rolled back')
     expect(lifecycle).not.toHaveBeenCalled()
   })
 
@@ -286,7 +299,7 @@ describe('SubagentRuntime', () => {
     onTestFinished(() => ctx.fiber.dispose())
     const parentSession = Session.create(SessionId('catalog-parent'))
     const childSession = Session.create(SessionId('catalog-child'))
-    const parent = { ...fakeParent(parentSession.id), session: parentSession } as Agent
+    const parent = { ...await fakeParent(parentSession.id), session: parentSession } satisfies Agent
     const localAgent = { id: childSession.id, session: childSession, options: {} } as Agent
     const result = Promise.withResolvers<SubagentResult>()
     const cleanupFailure = new Error('dispose also failed')
@@ -313,7 +326,7 @@ describe('SubagentRuntime', () => {
       throw catalogFailure
     })
 
-    await expect(subagents.start('catalog-failure', baseRequest({ parent })))
+    await expect(subagents.start('catalog-failure', await baseRequest({ parent })))
       .rejects.toBe(catalogFailure)
     expect(append).toHaveBeenCalledOnce()
     expect(dispose).toHaveBeenCalledOnce()
@@ -329,7 +342,7 @@ describe('SubagentRuntime', () => {
     subagents.registerProvider(completed)
     const ended = vi.fn()
     ctx.on('subagent/end', ended)
-    const run = await subagents.start('completed', baseRequest())
+    const run = await subagents.start('completed', await baseRequest())
     await run.result
     await Promise.resolve()
     expect(ended).toHaveBeenCalledWith(expect.objectContaining({
@@ -342,7 +355,7 @@ describe('SubagentRuntime', () => {
     // matching the continuable epoch event.
     const silent = new StubProvider('silent', NO_CAPS, { output: [], stopReason: 'completed' })
     subagents.registerProvider(silent)
-    const silentRun = await subagents.start('silent', baseRequest())
+    const silentRun = await subagents.start('silent', await baseRequest())
     await silentRun.result
     await Promise.resolve()
     const silentEnd = ended.mock.calls.map(call => call[0] as SubagentRunEndInfo).find(info => info.provider === 'silent')
@@ -358,7 +371,7 @@ describe('SubagentRuntime', () => {
         return { id: SessionId('infra-child'), localAgent: undefined, result: failure.promise, async dispose() {} }
       },
     })
-    const failedRun = await subagents.start('infra', baseRequest())
+    const failedRun = await subagents.start('infra', await baseRequest())
     failure.reject(new Error('transport'))
     await expect(failedRun.result).rejects.toThrow('transport')
     await Promise.resolve()

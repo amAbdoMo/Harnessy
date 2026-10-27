@@ -1813,7 +1813,7 @@
   },
   "packages/subagent/subagent-claude-code/tests/subagent-claude-code.spec.ts": {
     "2cedee48f4fb8ce4bbd10567fdfbee69e8dd11dbc85af9b824de33c2b77abfbf": 1,
-    "4e94c461ab08f535e20f71ebe8bb9a8c911a936c7068f24e259956c06d17c05d": 2,
+    "4e94c461ab08f535e20f71ebe8bb9a8c911a936c7068f24e259956c06d17c05d": 1,
     "cdcbd6cc73a09b6613864cdfb5b14d0cf66dc2484d26916cb32929deca1032de": 3,
     "f85c96616fff1bb1e21886bd2fad64e9e34d89d090ab96ab7804f702278cd23d": 4
   },
@@ -1865,18 +1865,11 @@
   },
   "packages/subagent/subagent/tests/service.spec.ts": {
     "41a1501a36d265ae52c5893b26e9e92eacc1012a379afb2948a31d153bcbac2a": 1,
-    "514d368a1007506da97412cee4b14191025685d1693f2c68442bb466b5054e02": 1,
-    "e770821c1f637aca0a346d5f6e6f0873ca4d7e3b070b557cddf773c160ec599a": 1
+    "514d368a1007506da97412cee4b14191025685d1693f2c68442bb466b5054e02": 1
   },
   "packages/subagent/tool-subagent/src/index.ts": {
     "11233be4a60a9dfb99acc5fbf90c5185c2101516379f3224866557301bbb048c": 1,
     "7fe58280287ff63d40e979e72329f975e11015a95e9a8eec207a5a78748d3c89": 4
-  },
-  "packages/subagent/tool-subagent/tests/harness.ts": {
-    "1a2098d6ff345b66d13f9822385af407ac03acdabeb607c2bd18a75987c410a5": 1
-  },
-  "packages/subagent/tool-subagent/tests/model-selection.spec.ts": {
-    "9a362ded6cf17e795dc9cb0c88a672eb17c03d90ae87987f53dbb3a3f6bcc467": 1
   },
   "packages/subagent/tool-subagent/tests/scripted-provider.spec.ts": {
     "e770821c1f637aca0a346d5f6e6f0873ca4d7e3b070b557cddf773c160ec599a": 1
@@ -1884,8 +1877,7 @@
   "packages/subagent/tool-subagent/tests/tool-subagent.spec.ts": {
     "65e1dff6ee6fedd8c89582d5197e791126c328ff859ce4509a69619afbc4c63f": 1,
     "719322ba287998bcfb906150f393012229c1ec3e4b59bd106469319ba402a09a": 1,
-    "a5bde0aa0b7d2193204df547d0a9b7e9e116afead259c1914dc93486a8af4f0a": 1,
-    "b6277d8ca00f4653c46b62f27a1743fdbb00465b2aaa4687ea0cb4119adee4e3": 1
+    "a5bde0aa0b7d2193204df547d0a9b7e9e116afead259c1914dc93486a8af4f0a": 1
   },
   "packages/subprocess/subprocess-local/tests/linux-scope.spec.ts": {
     "8497f236582c842e59edf49dce625d59d16a828048731d7c2b9625bb1270f32f": 1

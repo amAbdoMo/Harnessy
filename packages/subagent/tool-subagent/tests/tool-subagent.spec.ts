@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -36,7 +36,11 @@ import {
 /** Create a package-test context with the tool's required projection seam. */
 async function projectedContext(): Promise<Context> {
   const ctx = new Context()
+  onTestFinished(() => ctx.fiber.dispose())
   await ctx.plugin(SessionProjectionRegistry)
+  await ctx.plugin(SystemPrompt)
+  provideWorkingDirectoryFixture(ctx)
+  await ctx.inject(['workingDirectory'], () => {}).await()
   return ctx
 }
 
@@ -94,7 +98,7 @@ describe('dsh-tool-subagent', () => {
     const ctx = await setup({ provider: 'mock' }, {
       onStart: (request) => { childCwd = request.cwd },
     })
-    const parent: Agent = { ...fakeAgent(), ctx }
+    const parent = fakeAgent(ctx)
     const parentCwd = ctx.workingDirectory.get(parent.session)
     try {
       const result = await callSubagent(ctx, {
@@ -129,12 +133,12 @@ describe('dsh-tool-subagent', () => {
     const ctx = await setup({ provider: 'mock', enableRunInBackground: false })
     const parentId = SessionId('sess-off')
     const parent = {
-      ...fakeAgent(),
+      ...fakeAgent(ctx),
       id: parentId,
       inject: () => {},
       options: {},
       session: Session.create(parentId),
-    } as unknown as Agent
+    } satisfies Agent
 
     const forced = await callSubagent(ctx, { description: 'd', prompt: 'p', run_in_background: true }, { agent: parent })
     expect(forced.isError).toBe(true)
@@ -219,7 +223,6 @@ describe('dsh-tool-subagent', () => {
     // each bound to a different provider — the tool registry rejects duplicate
     // names, so a configurable name is what makes this work.
     const ctx = await projectedContext()
-    await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(SubagentRuntime)
     await mock.mountScriptedProvider(ctx, { name: 'spawn', reply: 'from spawn' })
@@ -230,8 +233,8 @@ describe('dsh-tool-subagent', () => {
     const names = ctx.tools.schemas().map(s => s.name).filter(n => n.startsWith('subagent')).sort()
     expect(names).toEqual(['subagent', 'subagent_acp'])
 
-    const viaSpawn = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c-spawn'), name: 'subagent', arguments: { description: 'd', prompt: 'p' }, agent: fakeAgent() })
-    const viaAcp = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c-acp'), name: 'subagent_acp', arguments: { description: 'd', prompt: 'p' }, agent: fakeAgent() })
+    const viaSpawn = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c-spawn'), name: 'subagent', arguments: { description: 'd', prompt: 'p' }, agent: fakeAgent(ctx) })
+    const viaAcp = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c-acp'), name: 'subagent_acp', arguments: { description: 'd', prompt: 'p' }, agent: fakeAgent(ctx) })
     expect(text(viaSpawn)).toBe('from spawn')
     expect(text(viaAcp)).toBe('from acp')
   })
@@ -240,7 +243,6 @@ describe('dsh-tool-subagent', () => {
     // SubagentStopReason is merge-extensible; the tool's stopReasonError default
     // arm must treat an unrecognized terminal reason as a failure, not success.
     const ctx = await projectedContext()
-    await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(SubagentRuntime)
     ctx.subagents.registerProvider({
@@ -338,7 +340,6 @@ describe('dsh-tool-subagent', () => {
     // bypasses schemastery — the same pattern acp-agent uses for its defaults.
     let seen: { agentOptions?: unknown } | undefined
     const ctx = await projectedContext()
-    await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(SubagentRuntime)
     ctx.subagents.registerProvider({
@@ -382,7 +383,6 @@ describe('dsh-tool-subagent', () => {
 
   it('registers when the provider appears LATER — no load-order requirement (Loader starts siblings concurrently)', async () => {
     const ctx = await projectedContext()
-    await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(SubagentRuntime)
     // Tool first: no provider yet — the tool must be absent, not broken.
@@ -399,7 +399,6 @@ describe('dsh-tool-subagent', () => {
 
   it('keeps continuable guidance empty while its provider is absent', async () => {
     const ctx = await projectedContext()
-    await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(SubagentRuntime)
     tool.apply(ctx, {
@@ -415,7 +414,6 @@ describe('dsh-tool-subagent', () => {
 
   it('mirrors the provider lifecycle: gone on backend dispose, re-derived wording on re-registration', async () => {
     const ctx = await projectedContext()
-    await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(SubagentRuntime)
     const backend = await mock.mountScriptedProvider(ctx, { name: 'mock' }) // fresh conversation (descriptor: false)
@@ -434,7 +432,6 @@ describe('dsh-tool-subagent', () => {
 
   it('the tool PLUGIN fiber owns its lifecycle listeners: disposal unmounts, and a disposed fiber never zombie-mounts', async () => {
     const ctx = await projectedContext()
-    await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(SubagentRuntime)
 
@@ -479,7 +476,6 @@ describe('dsh-tool-subagent', () => {
 
   it('ignores lifecycle events for OTHER providers', async () => {
     const ctx = await projectedContext()
-    await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(SubagentRuntime)
     await mock.mountScriptedProvider(ctx, { name: 'mock' })
@@ -519,7 +515,6 @@ describe('dsh-tool-subagent', () => {
     // directly on the service, then point the tool at it.
     const disposed = vi.fn()
     const ctx = await projectedContext()
-    await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(SubagentRuntime)
     ctx.subagents.registerProvider({
@@ -551,7 +546,6 @@ describe('dsh-tool-subagent', () => {
   it('disposes the run on the error path too', async () => {
     const disposed = vi.fn()
     const ctx = await projectedContext()
-    await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(SubagentRuntime)
     ctx.subagents.registerProvider({
@@ -584,7 +578,6 @@ describe('dsh-tool-subagent', () => {
   it('preserves independent foreground result and disposal failures', async () => {
     const disposed = vi.fn()
     const ctx = await projectedContext()
-    await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(SubagentRuntime)
     ctx.subagents.registerProvider({
@@ -621,7 +614,6 @@ describe('dsh-tool-subagent', () => {
 
   it('reports a foreground disposal failure after a completed result', async () => {
     const ctx = await projectedContext()
-    await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(SubagentRuntime)
     ctx.subagents.registerProvider({
@@ -658,7 +650,6 @@ describe('dsh-tool-subagent', () => {
     const cancelled = vi.fn()
     const entered = Promise.withResolvers<undefined>()
     const ctx = await projectedContext()
-    await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(SubagentRuntime)
     ctx.subagents.registerProvider({
@@ -706,7 +697,6 @@ describe('dsh-tool-subagent', () => {
   it('skips provider startup for an already-aborted signal', async () => {
     const sawAborted = vi.fn()
     const ctx = await projectedContext()
-    await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(SubagentRuntime)
     ctx.subagents.registerProvider({
@@ -742,7 +732,6 @@ describe('dsh-tool-subagent', () => {
 
   it('tools depend on the service: no `subagent` tool without ctx.subagents', async () => {
     const ctx = await projectedContext()
-    await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     // No SubagentRuntime mounted. The tool injects its required services so its
     // apply never runs; the tool is absent rather than half-registered.
@@ -779,7 +768,6 @@ describe('dsh-tool-subagent', () => {
   it('passes persona/toolFilter/maxDepth config through to the start request', async () => {
     let seen: { persona?: string; toolFilter?: unknown; maxDepth?: number } | undefined
     const ctx = await projectedContext()
-    await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(SubagentRuntime)
     ctx.subagents.registerProvider({
@@ -845,7 +833,6 @@ describe('dsh-tool-subagent', () => {
   it('a partial toolFilter (deny only) does not materialize an empty allow-list (deny-all trap)', async () => {
     let seen: { toolFilter?: { readonly allow?: readonly string[]; readonly deny?: readonly string[] } } | undefined
     const ctx = await projectedContext()
-    await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(SubagentRuntime)
     ctx.subagents.registerProvider({
@@ -884,7 +871,6 @@ describe('dsh-tool-subagent', () => {
     // start request.
     let seen: { agentOptions?: unknown } | undefined
     const ctx = await projectedContext()
-    await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(SubagentRuntime)
     ctx.subagents.registerProvider({
@@ -918,7 +904,6 @@ describe('dsh-tool-subagent', () => {
 
   it('an explicit empty toolFilter fails at plugin load, not at first delegation', async () => {
     const ctx = await projectedContext()
-    await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(SubagentRuntime)
     ctx.subagents.registerProvider({
@@ -1619,7 +1604,6 @@ describe('depth budget configuration', () => {
   async function captureSetup(config: Omit<tool.Config, 'provider'> = {}) {
     const requests: SubagentStartRequest[] = []
     const ctx = await projectedContext()
-    await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(SubagentRuntime)
     ctx.subagents.registerProvider({
@@ -1666,7 +1650,6 @@ describe('depth budget configuration', () => {
 
   it('rejects a numeric maxDepth on a provider without the depthLimit capability at mount', async () => {
     const ctx = await projectedContext()
-    await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(SubagentRuntime)
     ctx.subagents.registerProvider({
@@ -1691,7 +1674,6 @@ describe('depth budget configuration', () => {
   it("'provider-managed' omits the cap so a capability-less provider mounts and starts", async () => {
     const requests: SubagentStartRequest[] = []
     const ctx = await projectedContext()
-    await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(SubagentRuntime)
     ctx.subagents.registerProvider({

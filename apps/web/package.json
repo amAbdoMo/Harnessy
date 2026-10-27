@@ -71,6 +71,7 @@
     "@deepseek-ai/dsh-experimental-plugin-market-bundle": "workspace:*",
     "@deepseek-ai/dsh-experimental-personalized-recommendations": "workspace:*",
     "@deepseek-ai/dsh-experimental-subagent-oar": "workspace:*",
-    "@deepseek-ai/dsh-experimental-cua-bundle": "workspace:*"
+    "@deepseek-ai/dsh-experimental-cua-bundle": "workspace:*",
+    "@deepseek-ai/dsh-experimental-worktree": "workspace:*"
   }
 }

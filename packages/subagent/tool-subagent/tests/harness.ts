@@ -4,7 +4,7 @@ import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import type { Agent, AgentOptions } from '@deepseek-ai/dsh-agent'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
-import { mountAgentLoopTestDependencies, provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
+import { mountAgentLoopTestDependencies, provideWorkingDirectoryFixture, unsupportedInbox } from '@deepseek-ai/dsh-agent-loop-testkit'
 import SubagentRuntime from '@deepseek-ai/dsh-subagent'
 import { Session, SessionId } from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
@@ -16,9 +16,15 @@ import SubagentModelSelectionConfig from '../src/model-selection-settings.ts'
 export const testToolSignal = new AbortController().signal
 
 /** Build the minimal parent Agent owned by the package-local scripted provider. */
-export function fakeAgent(id = 'parent-1'): Agent {
+export function fakeAgent(ctx: Context, id = 'parent-1'): Agent {
   const sessionId = SessionId(id)
-  return { id: sessionId, options: {}, session: Session.create(sessionId), ctx: { get: (name: string) => name === 'workingDirectory' ? { ensure: async () => process.cwd() } : name === 'fs' ? { resolve: async (path: string) => path, stat: async () => ({ type: 'directory' }), processPath: (path: string) => path } : undefined } } as unknown as Agent
+  return {
+    id: sessionId, options: {}, session: Session.create(sessionId), ctx,
+    inbox: unsupportedInbox(), status: 'idle',
+    send() {}, followup() {}, steer() {}, inject() {}, cancel() {},
+    whenIdle: async () => {},
+    runMaintenance: task => task(new AbortController().signal),
+  }
 }
 
 /** Mount the real tool and service stack around one scripted subagent provider. */
@@ -106,7 +112,7 @@ export function callSubagent(
   // Distinguish "no override" (use a default agent) from an explicit
   // `{ agent: undefined }` (test the no-agent path). Under
   // exactOptionalPropertyTypes the key is omitted rather than set to undefined.
-  const agent = 'agent' in over ? over.agent : setupAgents.get(ctx) ?? fakeAgent()
+  const agent = 'agent' in over ? over.agent : setupAgents.get(ctx) ?? fakeAgent(ctx)
   return ctx.tools.execute({
     signal: testToolSignal,
     callId: ToolCallId(`call-${++callCounter}`),

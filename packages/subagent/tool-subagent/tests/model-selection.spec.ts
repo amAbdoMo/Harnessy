@@ -4,9 +4,9 @@ import { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import type { Agent } from '@deepseek-ai/dsh-agent'
+import { provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
 import SubagentRuntime from '@deepseek-ai/dsh-subagent'
 import type { SubagentStartRequest } from '@deepseek-ai/dsh-subagent'
-import { Session, SessionId } from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import { MockAdapter } from '../../../core/agent-loop/tests/mock-adapter.ts'
 import * as mock from './scripted-provider.ts'
@@ -16,7 +16,7 @@ import {
   assertAllowedModelSelection,
   preflightChildLlmRoute,
 } from '../src/model-selection.ts'
-import { callSubagent, modelSelectionSetupAgent, setup, text } from './harness.ts'
+import { callSubagent, fakeAgent, modelSelectionSetupAgent, setup, text } from './harness.ts'
 
 const REASONING = {
   efforts: [
@@ -34,8 +34,7 @@ function parentWithRoute(
     reasoningEffort: ReasoningEffortId('high'),
   },
 ): Agent {
-  const id = SessionId('parent-with-route')
-  return { id, options, session: Session.create(id), ctx } as unknown as Agent
+  return { ...fakeAgent(ctx, 'parent-with-route'), options }
 }
 
 describe('dsh-tool-subagent model selection', () => {
@@ -417,6 +416,8 @@ describe('dsh-tool-subagent model selection', () => {
     const ctx = new Context()
     await ctx.plugin(SessionProjectionRegistry)
     await ctx.plugin(SystemPrompt)
+    provideWorkingDirectoryFixture(ctx)
+    await ctx.inject(['workingDirectory'], () => {}).await()
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(SubagentRuntime)
     await mock.mountScriptedProvider(ctx, { name: 'mock' })
@@ -440,6 +441,8 @@ describe('dsh-tool-subagent model selection', () => {
     const ctx = new Context()
     await ctx.plugin(SessionProjectionRegistry)
     await ctx.plugin(SystemPrompt)
+    provideWorkingDirectoryFixture(ctx)
+    await ctx.inject(['workingDirectory'], () => {}).await()
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(SubagentRuntime)
     await mock.mountScriptedProvider(ctx, { name: 'mock', onStart: () => { starts += 1 } })
