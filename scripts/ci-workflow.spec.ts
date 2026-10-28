@@ -1099,28 +1099,26 @@ describe('CI workflow', () => {
 })
 
 describe('Runtime and LLM e2e Blacksmith routing', () => {
-  it('prepares compiler references before the complete SDK build on cold runners', () => {
+  it('prepares Host references while leaving Client compilation after Host generators in the complete SDK build', () => {
     const build = workflowJob(loadWorkflow('.github/workflows/build-exe-for-python-sdk.yml'), 'build')
     if (!Array.isArray(build.steps)) throw new TypeError('Python runtime build must define steps')
     const steps = build.steps.filter(isRecord)
     const hostPreparation = steps.findIndex(step => step.name === 'Prepare Host compiler references for complete SDK builds')
-    const clientPreparation = steps.findIndex(step => step.name === 'Prepare Client compiler references for complete SDK builds')
     const compilation = steps.findIndex(step => step.name === 'Build single-exe')
     expect(hostPreparation).toBeGreaterThanOrEqual(0)
-    expect(clientPreparation).toBeGreaterThan(hostPreparation)
-    expect(compilation).toBeGreaterThan(clientPreparation)
-    for (const [preparation, face] of [[hostPreparation, 'host'], [clientPreparation, 'client']] as const) {
-      const prepare = steps[preparation]!
-      expect(prepare.run).toBe(`node --import tsx/esm scripts/compile-referenced-projects.ts ${face}`)
-      expect(prepare).not.toHaveProperty('continue-on-error', true)
-      for (const [ci, event, fullBuild] of [
-        [false, 'workflow_dispatch', true],
-        [true, 'workflow_call', true],
-        [true, 'pull_request', false],
-      ] as const) {
-        const context = { inputs: { ci }, github: { event_name: event } }
-        expect(evaluateExpression(String(prepare.if), context)).toBe(fullBuild)
-      }
+    expect(compilation).toBeGreaterThan(hostPreparation)
+    expect(steps.slice(0, compilation).map(step => step.run).join('\n'))
+      .not.toContain('compile-referenced-projects.ts client')
+    const prepare = steps[hostPreparation]!
+    expect(prepare.run).toBe('node --import tsx/esm scripts/compile-referenced-projects.ts host')
+    expect(prepare).not.toHaveProperty('continue-on-error', true)
+    for (const [ci, event, fullBuild] of [
+      [false, 'workflow_dispatch', true],
+      [true, 'workflow_call', true],
+      [true, 'pull_request', false],
+    ] as const) {
+      const context = { inputs: { ci }, github: { event_name: event } }
+      expect(evaluateExpression(String(prepare.if), context)).toBe(fullBuild)
     }
     expect(steps[compilation]?.run).toBe('pnpm exec tsx scripts/build-exe-for-python-sdk.ts --targets=${{ matrix.target }} '
       + "${{ inputs.ci && github.event_name == 'pull_request' && '--artifacts-only' || '' }}")

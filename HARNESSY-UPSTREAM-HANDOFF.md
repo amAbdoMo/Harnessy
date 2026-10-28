@@ -17,6 +17,7 @@ The [review ledger](scripts/harnessy-upstream-review.json) pins the inventory, d
 - [2. Find only new upstream work](#find-new-work)
 - [3. Protect Harnessy's product decisions](#protect-decisions)
 - [4. Classify each relevant change](#classify)
+- [Batch integration workflow](#batch-workflow)
 - [5. Ask only material questions](#questions)
 - [6. Present recommendations](#recommendations)
 - [7. Integrate and verify](#integrate)
@@ -107,6 +108,19 @@ Assign one decision to every reviewed upstream group. Record every group's chang
 Do not classify from commit titles alone. Inspect the changed source, tests, documentation, and current Harnessy consumer. For each recommendation record the user benefit, affected owner, required adaptation, conflict risk, focused verification, and whether an owner decision is needed.
 
 Use these default priorities: correctness and data compatibility first; security and lifecycle second; model/provider capability third; visible usability fourth; refactors and internal cleanup last. A low-priority refactor can still be adopted when it reduces the custom diff and future merge cost without changing behavior.
+
+<a id="batch-workflow"></a>
+## Batch integration workflow
+
+Use a complete upstream feature or dependent PR group as the work unit. Select a final revision containing its fixes, inspect the combined diff against Harnessy, and inventory every constituent commit and merged branch. Read intermediate hunks when the combined diff hides a deletion, reversal, migration, exclusion or merge resolution; do not reimplement each intermediate version. Reuse DSH source and tests directly where compatible, adapting overlaps at Harnessy's existing owners.
+
+Keep one batch table with exact upstream identities, affected paths, adopted/adapted/excluded decisions, supporting local commits, required checks and unresolved failures. Extend existing evidence instead of creating overlapping audit reports. Review independent areas in parallel with file ownership assigned before edits; the coordinating agent owns shared files, integration and final verification.
+
+Choose checks before implementation using [pre-push checks](.agents/skills/dsh-pre-push-checks/SKILL.md). Reuse applicable passing evidence; upstream results support unchanged code but do not establish Harnessy's composition. Run focused behavior and required recorded-output checks for changed behavior, custom-owner checks for overlaps, and package/platform checks when those paths change. Keep the mandatory checkpoint product guard and normal hooks. Run shared checks once after the batch settles; repeat only evidence invalidated by a change or failure.
+
+Before a hosted run, check fixture dependencies, selectors, header ownership and input/output inventories locally. Combine independent diagnostics into the approved job budget and retain every failure. Do not refresh unrelated recordings or turn each failed case into a separate dispatch. When a shared change affects many recordings, select their complete affected set once; preserve committed input generations and require successful qualification before importing outputs.
+
+Record independently completed groups in the ledger even while another group remains pending. A failure blocks its affected group and dependent checkpoint, not unrelated review work. Diagnose whether it concerns product behavior, fixture adaptation or infrastructure; fix its owner without weakening assertions. Advance only a fully reviewed ancestor closure through the [normal integration procedure](#integrate). Report completed features, pending groups, the next checkpoint blocker and Git behind separately. Source delivery does not establish a main-app update.
 
 <a id="questions"></a>
 ## 5. Ask only material questions
