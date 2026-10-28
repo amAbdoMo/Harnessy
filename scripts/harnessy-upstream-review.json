@@ -23192,7 +23192,7 @@
       ],
       "tree": "6de407ade47ebc50722eb70424f514da53a5efe8",
       "subject": "fix(session): await natural migration verifier worker exit",
-      "review": null
+      "review": "harnessy-natural-migration-worker-exit-20261028"
     },
     {
       "sha": "a7798a379db2a79e68685f307dcb1a0b0ebecb42",
@@ -131254,6 +131254,59 @@
         "The Python package/README/current-version upgrade guide and active note pairs were checked against actual implementation. Current documentation verification passed the relevant configuration catalog, module graph, package, pairing, persistence and upgrade-guide gates. A stale AgentLoop citation in the event matrix was regenerated and its graph freshness and named pairing checks passed separately; do not describe the original 42-pass/one-failure aggregate as green.",
         "Limits are explicit: native runtime evidence covers Linux x64 and the supplied Mac arm64 runner, not Linux ARM64, Mac Intel or Windows Python confinement. Mac RLIMIT_AS is not enforced; the selected policy does not promise arbitrary-read or network denial, detached setsid escape cleanup, or an interactive Mac application. No installer, installed staging selection or main-app update was performed. Further optional Mac Computer Use work retains its own ledger status.",
         "The integration checkpoint retains the current Python cleanup, immutable read-only ownership and actual composed tool schema. A normal ort merge encountered overlapping historical wording/input-policy changes; these exact paths were resolved to their already-qualified Harnessy implementation. All selected Python behavior remains implemented; this checkpoint does not update an installed app."
+      ]
+    },
+    "harnessy-natural-migration-worker-exit-20261028": {
+      "status": "adopted",
+      "summary": "Wait for successful migration verification workers to exit naturally before accepting their result and releasing their concurrency slot.",
+      "files": [
+        {
+          "path": "packages/session/session-persistence-jsonl/README.i18n.yaml",
+          "disposition": "adopted",
+          "reason": "Regenerate pairing metadata for the additive lifecycle documentation."
+        },
+        {
+          "path": "packages/session/session-persistence-jsonl/README.md",
+          "disposition": "adopted",
+          "reason": "Document natural zero-exit completion and retained concurrency slot; preserve Harnessy current formatStatus and migration guidance."
+        },
+        {
+          "path": "packages/session/session-persistence-jsonl/README.zh.md",
+          "disposition": "adopted",
+          "reason": "Keep the paired Chinese documentation aligned with the adopted lifecycle behavior and existing Harnessy guidance."
+        },
+        {
+          "path": "packages/session/session-persistence-jsonl/src/migration-verifier.ts",
+          "disposition": "adopted",
+          "reason": "Reuse upstream natural zero-exit success handling; retain cancellation/error termination and joining before releasing the scheduler slot."
+        },
+        {
+          "path": "packages/session/session-persistence-jsonl/tests/built-migration-worker.e2e.ts",
+          "disposition": "adopted",
+          "reason": "Adopt plain-Node natural-exit and no-forced-termination checks while retaining Harnessy namespace-plugin import."
+        },
+        {
+          "path": "packages/session/session-persistence-jsonl/tests/migration-verifier-real.spec.ts",
+          "disposition": "adopted",
+          "reason": "Reuse real plain and Zstandard worker checks for natural shutdown and unchanged input bytes."
+        },
+        {
+          "path": "packages/session/session-persistence-jsonl/tests/migration-verifier.spec.ts",
+          "disposition": "adopted",
+          "reason": "Reuse deterministic delayed-exit, failure, abort and scheduler-permit regressions."
+        },
+        {
+          "path": "scripts/no-unknown-casts.baseline.json",
+          "disposition": "adopted",
+          "reason": "Remove only the obsolete assertion entry replaced by the adopted lifecycle tests."
+        }
+      ],
+      "evidence": [
+        "Implementation: local commit 268209fb60f99e180011e938ff7626a2078de499; exact upstream patch 1103b0277b885476e531e9f50d8caa40c6a2dca6 and all eight changed paths reviewed. Source and source tests match upstream; built import and newer README details remain Harnessy-owned. Independent source review found no blocker.",
+        "Verified 2026-10-28 on Windows, Node 24.14.0: 21 lifecycle and real plain/Zstandard worker tests passed. Four new regressions failed against original source before the port. Evidence: .artifacts/row30-natural-worker-tests.log and row30-natural-worker-negative.log.",
+        "Fresh owner TypeScript compilation and scoped ordinary Host bundle passed; subsequent normal build:lib:host also passed. One plain-Node built-migration-worker.e2e.ts test passed without skips against final Host outputs. Evidence: .artifacts/row30-natural-worker-built-smoke.log.",
+        "Named README pairing, full lint, whitespace and documentation gates passed; interrupted documentation aggregate completed via its missing leaves with prior passing evidence retained. No model/user transcript or persisted Session format changes; lifecycle regression and built smoke own this internal shutdown behavior.",
+        "No ancestry checkpoint, Linux/macOS runtime claim, installed staging-window verification or main-app update is implied. This independently completed commit does not qualify pending row25/row29 or the other row30 commits."
       ]
     }
   }
