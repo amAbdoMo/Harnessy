@@ -132,6 +132,33 @@ async function executePhase(root, evidence, phase, baseline, writable) {
   return { selected, ...files }
 }
 
+/** Finish independent refresh diagnostics, but stop when a failed phase changes protected files.
+ * @param {Array<{id:string}>} phases - Ordered refresh phases; replay is a separate step.
+ * @param {Function} execute - Run and qualify one phase, including its successful file checks.
+ * @param {Function} verifyFiles - Recheck frozen files after any rejected phase.
+ * @param {Function} record - Persist each running, successful, or failed phase outcome.
+ * @returns {Promise<string[]>} Failed phase diagnostics; any entry prevents replay and qualification.
+ */
+export async function runCohortRefreshes(phases, execute, verifyFiles, record) {
+  const errors = []
+  for (const phase of phases) {
+    await record(phase.id, { outcome: 'running' })
+    let result
+    try {
+      result = await execute(phase)
+    } catch (error) {
+      // A test process can fail after mutating an input or unowned output.
+      await verifyFiles()
+      const message = `${phase.id}: ${String(error)}`
+      errors.push(message)
+      await record(phase.id, { outcome: 'failure', error: message })
+      continue
+    }
+    await record(phase.id, { outcome: 'success', ...result })
+  }
+  return errors
+}
+
 async function cohortRun(root, evidence, registry) {
   const baseline = await json(resolve(evidence, 'baseline.json'))
   check(Object.keys(baseline.sessionInputs).length === 631, 'expected all 631 repository Session inputs')
@@ -144,11 +171,16 @@ async function cohortRun(root, evidence, registry) {
     replay.push(registry.webPhases.find(phase => phase.mode === 'replay'))
     for (const phase of [...refresh, ...replay]) state.phases[phase.id] = { outcome: 'pending' }
     for (const phase of registry.receiptPhases) state.phases[phase.id] = { outcome: 'skipped', reason: 'prior receipt unchanged' }
-    for (const phase of refresh) {
-      state.phases[phase.id] = { outcome: 'running' }
-      await save(resolve(evidence, 'run.json'), state)
-      state.phases[phase.id] = { outcome: 'success', ...await executePhase(root, evidence, phase, baseline, registry.writableOutputs) }
-      await save(resolve(evidence, 'run.json'), state)
+    state.errors.push(...await runCohortRefreshes(refresh,
+      phase => executePhase(root, evidence, phase, baseline, registry.writableOutputs),
+      () => checkCohortFiles(root, baseline, registry.writableOutputs),
+      async (id, outcome) => {
+        state.phases[id] = outcome
+        await save(resolve(evidence, 'run.json'), state)
+      }))
+    if (state.errors.length > 0) {
+      for (const phase of replay) state.phases[phase.id] = { outcome: 'skipped', reason: 'refresh qualification failed' }
+      throw new Error('refresh phases failed; replay and cohort qualification refused')
     }
     const refreshed = await checkCohortFiles(root, baseline, registry.writableOutputs)
     // Receipts survive only while their owned shared output bytes are unchanged.

@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path'
 import { runInNewContext } from 'node:vm'
 import { load } from 'js-yaml'
 import { describe, expect, it, onTestFinished } from 'vitest'
-import { checkCohortFiles, checkCohortInventory, checkCohortReport, freezeCohort, type CohortReport } from './harnessy-directory-cohort.mjs'
+import { checkCohortFiles, checkCohortInventory, checkCohortReport, freezeCohort, runCohortRefreshes, type CohortRefreshOutcome, type CohortReport } from './harnessy-directory-cohort.mjs'
 import { removeFixtureSafely } from './test-fixture-cleanup.ts'
 
 const root = resolve(import.meta.dirname, '..')
@@ -106,6 +106,49 @@ describe('directory cohort qualification', () => {
     const baseline = await freezeCohort(repo, join(repo, '.artifacts/evidence'))
     git(repo, 'commit', '--allow-empty', '-qm', 'revision change')
     await expect(checkCohortFiles(repo, baseline, [])).rejects.toThrow('source HEAD changed')
+  })
+
+  it('collects independent refresh failures and retains the successful phase between them', async () => {
+    const repo = fixture()
+    const baseline = await freezeCohort(repo, join(repo, '.artifacts/evidence'))
+    const writer = 'snapshots/session/text-turn/writer.expected.jsonl'
+    const executed: string[] = []
+    const outcomes: Array<{ id: string; state: CohortRefreshOutcome }> = []
+    const verifyFiles = () => checkCohortFiles(repo, baseline, [writer])
+    const errors = await runCohortRefreshes([{ id: 'headless' }, { id: 'sdk' }, { id: 'web' }], async (phase) => {
+      executed.push(phase.id)
+      if (phase.id === 'headless') {
+        writeFileSync(join(repo, writer), 'partial allowed output\n')
+        throw new Error('recording assertion failed')
+      }
+      if (phase.id === 'web') throw new Error('browser assertion failed')
+      return { selected: ['sdk case'], ...await verifyFiles() }
+    }, verifyFiles, async (id, state) => { outcomes.push({ id, state }) })
+    expect(executed).toEqual(['headless', 'sdk', 'web'])
+    expect(errors).toEqual(['headless: Error: recording assertion failed', 'web: Error: browser assertion failed'])
+    expect(outcomes.map(({ id, state }) => `${id}:${state.outcome}`))
+      .toEqual(['headless:running', 'headless:failure', 'sdk:running', 'sdk:success', 'web:running', 'web:failure'])
+    expect(outcomes.find(({ state }) => state.outcome === 'success')?.state)
+      .toMatchObject({ selected: ['sdk case'], outputs: { [writer]: { before: null } } })
+  })
+
+  it.each([
+    'snapshots/session/text-turn/session.v1.jsonl',
+    'source.ts',
+    'unexpected.expected.md',
+  ])('stops after a rejected refresh mutates protected or unowned %s', async (path) => {
+    const repo = fixture()
+    const baseline = await freezeCohort(repo, join(repo, '.artifacts/evidence'))
+    const executed: string[] = []
+    const outcomes: CohortRefreshOutcome[] = []
+    await expect(runCohortRefreshes([{ id: 'headless' }, { id: 'sdk' }], async (phase) => {
+      executed.push(phase.id)
+      writeFileSync(join(repo, path), 'mutation before nonzero test exit\n')
+      throw new Error('test process exited nonzero')
+    }, () => checkCohortFiles(repo, baseline, []), async (_id, state) => { outcomes.push(state) }))
+      .rejects.toThrow(path.includes('session.v1') ? 'protected Session input changed' : 'unexpected source or output change')
+    expect(executed).toEqual(['headless'])
+    expect(outcomes).toEqual([{ outcome: 'running' }])
   })
 
   it('keeps the workflow manual, Linux-only and bounded to one 90-minute job', () => {

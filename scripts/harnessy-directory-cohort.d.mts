@@ -49,3 +49,21 @@ export function freezeCohort(root: string, evidence: string): Promise<CohortBase
  * @returns Observed output and Session digests.
  */
 export function checkCohortFiles(root: string, baseline: CohortBaseline, writable: readonly string[]): Promise<CohortFiles>
+
+/** Progress recorded for one refresh phase. */
+export type CohortRefreshOutcome = { readonly outcome: 'running' }
+  | { readonly outcome: 'failure'; readonly error: string }
+  | ({ readonly outcome: 'success'; readonly selected: string[] } & CohortFiles)
+/** Finish independent refresh diagnostics while rejecting protected mutations immediately.
+ * @param phases - Ordered refresh phases; replay remains a separate step.
+ * @param execute - Run and qualify one phase, including successful file checks.
+ * @param verifyFiles - Recheck frozen files after any rejected phase.
+ * @param record - Persist each phase outcome.
+ * @returns Failed phase diagnostics; a nonempty result forbids replay and qualification.
+ */
+export function runCohortRefreshes<Phase extends { readonly id: string }>(
+  phases: readonly Phase[],
+  execute: (phase: Phase) => Promise<CohortFiles & { selected: string[] }>,
+  verifyFiles: () => Promise<CohortFiles>,
+  record: (id: string, outcome: CohortRefreshOutcome) => Promise<void>,
+): Promise<string[]>

@@ -558,7 +558,7 @@ async function runScenario(scenario: CorpusScenario): Promise<{
 }> {
   const temporaryRoot = await mkdtemp(join(tmpdir(), `sdk-snapshot-${scenario.name}-`))
   // Directory tools canonicalize paths; give this fixture one filesystem spelling on Windows.
-  const cwd = scenario.name === 'directory-change' ? await realpath(temporaryRoot) : temporaryRoot
+  const cwd = await realpath(temporaryRoot)
   const dshHome = join(cwd, '.dsh')
   const sessionsRoot = join(dshHome, 'sessions')
   const replayFixtures = recording ? [] : await hydrateReplayFixtures(scenario, cwd)
@@ -678,6 +678,10 @@ async function runScenario(scenario: CorpusScenario): Promise<{
       subscription.close()
     }
     await harness.close()
+    if (childSessionsRoot !== undefined && !existsSync(childSessionsRoot)) {
+      const toolResults = results.flatMap(result => result.events.filter(event => event.type === 'tool/result'))
+      throw new Error(`${scenario.name}: external SDK child produced no Session directory at ${childSessionsRoot}; parent tool results: ${JSON.stringify(toolResults)}`)
+    }
     const logs = (await Promise.all([
       persistedLogs(sessionsRoot),
       ...(childSessionsRoot === undefined ? [] : [persistedLogs(childSessionsRoot)]),
@@ -775,7 +779,9 @@ async function verifyHeaders(
   dshSdkChildConfig?: Readonly<Record<string, unknown>>,
 ): Promise<void> {
   const pin = headerPin(scenario)
-  const [pinFixturePath] = await fixtureFiles(pin)
+  const [pinInputPath] = await fixtureFiles(pin)
+  const pinFixturePath = pin.manifest.immutableInput === 'source-recording'
+    ? join(pin.dir, writerSnapshotName(0)) : pinInputPath
   const pinFixture = await readFile(pinFixturePath as string, 'utf8')
   const firstLine = pinFixture.split('\n').find(line => line.trim() !== '') ?? '{}'
   const pinHeader = JSON.parse(firstLine) as JsonObject
@@ -870,11 +876,14 @@ describe('TypeScript SDK snapshots over the jsonrpc runtime', () => {
           ? files.map((_, index) => writerSnapshotName(index)).sort() : [])
       }
       const { results, notifications, observedMethods, logs, initialWorkspace, finalWorkspace, cwd } = await runScenario(scenario)
+      if (assertions.dshSdkChild !== undefined) {
+        expect(logs[1]?.header.cwd, 'external SDK child inherits the parent directory').toBe(cwd)
+      }
       const ordered = orderLogs(
         logs,
         recording ? logs.length : files.length,
         assertions.dshSdkChild !== undefined,
-      ).map(log => scenario.name === 'directory-change'
+      ).map(log => scenario.name === 'directory-change' || assertions.dshSdkChild !== undefined
         ? { ...log, content: portableDirectoryLog(log.content, cwd) } : log)
       reconcileCatalogCreationTimes(ordered.map(log => log.content), 'validate')
       const actualContext = contextOf(ordered, cwd)
@@ -1060,6 +1069,7 @@ describe('TypeScript SDK snapshots over the jsonrpc runtime', () => {
           if (existing === undefined) throw new Error(`no fixture for persisted log ${index}`)
           return scrubSessionSnapshot(tokenizeSessionFixtureCwd(
             stabilizeRefreshLog(log.content, existing, replacements, actualContext),
+            actualContext,
           ))
         })
         expectedContents = redactSessionSnapshotIds(stabilizeFixtureMessageIds(reconcileCatalogCreationTimes(refreshed, 'preserve-headers'), expectedContents))
@@ -1101,7 +1111,7 @@ describe('TypeScript SDK snapshots over the jsonrpc runtime', () => {
       if (hasWireGoldens) {
         if (finalResult === undefined) throw new Error(`${scenario.name}: SDK wire golden has no run result`)
         const wireNotifications = normalizeNotifications(notifications, actualContext)
-        const normalizedNotifications = scenario.name === 'directory-change'
+        const normalizedNotifications = scenario.name === 'directory-change' || assertions.dshSdkChild !== undefined
           ? portableDirectoryLog(wireNotifications, cwd) : wireNotifications
         const normalizedResult = normalizeResult(finalResult, actualContext)
         if (recording || refreshing) {

@@ -1099,6 +1099,34 @@ describe('CI workflow', () => {
 })
 
 describe('Runtime and LLM e2e Blacksmith routing', () => {
+  it('prepares compiler references before the complete SDK build on cold runners', () => {
+    const build = workflowJob(loadWorkflow('.github/workflows/build-exe-for-python-sdk.yml'), 'build')
+    if (!Array.isArray(build.steps)) throw new TypeError('Python runtime build must define steps')
+    const steps = build.steps.filter(isRecord)
+    const hostPreparation = steps.findIndex(step => step.name === 'Prepare Host compiler references for complete SDK builds')
+    const clientPreparation = steps.findIndex(step => step.name === 'Prepare Client compiler references for complete SDK builds')
+    const compilation = steps.findIndex(step => step.name === 'Build single-exe')
+    expect(hostPreparation).toBeGreaterThanOrEqual(0)
+    expect(clientPreparation).toBeGreaterThan(hostPreparation)
+    expect(compilation).toBeGreaterThan(clientPreparation)
+    for (const [preparation, face] of [[hostPreparation, 'host'], [clientPreparation, 'client']] as const) {
+      const prepare = steps[preparation]!
+      expect(prepare.run).toBe(`node --import tsx/esm scripts/compile-referenced-projects.ts ${face}`)
+      expect(prepare).not.toHaveProperty('continue-on-error', true)
+      for (const [ci, event, fullBuild] of [
+        [false, 'workflow_dispatch', true],
+        [true, 'workflow_call', true],
+        [true, 'pull_request', false],
+      ] as const) {
+        const context = { inputs: { ci }, github: { event_name: event } }
+        expect(evaluateExpression(String(prepare.if), context)).toBe(fullBuild)
+      }
+    }
+    expect(steps[compilation]?.run).toBe('pnpm exec tsx scripts/build-exe-for-python-sdk.ts --targets=${{ matrix.target }} '
+      + "${{ inputs.ci && github.event_name == 'pull_request' && '--artifacts-only' || '' }}")
+    expect(steps[compilation]).not.toHaveProperty('continue-on-error', true)
+  })
+
   it('routes DeepSeek e2e only through the Linux Blacksmith switch', () => {
     const job = workflowJob(loadWorkflow('.github/workflows/e2e.yml'), 'e2e')
     for (const mode of ['', 'selfhosted', 'unexpected', 'blacksmith']) {
