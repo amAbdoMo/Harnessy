@@ -95,6 +95,8 @@ Windows 默认位置为 `%LOCALAPPDATA%\CustomHarness\Harness`、`%LOCALAPPDATA%
 <a id="agent-behavior-policy"></a>
 ## Agent 行为策略
 
+Harnessy 在各预设中禁用内置 DeepSeek `web_search` 工具，同时保留 `web_fetch`。外部研究使用已启用的角色及其已保存的 Subagents 配置。
+
 该 bundle 通过相对于补丁文件的入口加载自身 `lib/index.js` 中的策略插件，因此 Desktop 无需在 profile 中另行安装 bundle 包即可启用该策略。
 
 Harnessy 将同一策略应用于每个 Agent 入口：全局 prompt 分区覆盖普通进程内 Agent，完整的 Minimal persona 直接包含该策略，Command Code 则将其放在每个外部 CLI 简报开头。除非用户在当前任务中明确请求该图片，否则 Agent 不会创建或合成新图片。任务需要时，Agent 可以检查用户提供的图片、截取验证截图以及编辑用户提供的素材。
@@ -116,6 +118,8 @@ Harnessy 将同一策略应用于每个 Agent 入口：全局 prompt 分区覆�
 Do not create or synthesize images on your own initiative. Generate a new image only when the user explicitly asks for that image in the current task. Inspecting supplied images, capturing verification screenshots, and editing supplied assets are allowed when needed.
 
 If completing the task requires access to an application or website that is unavailable, a permission that is not granted, or MCP access, authentication, or login that is missing or broken, stop after the first failed access check. Report the exact blocker and the user action needed, then wait. Do not keep retrying, bypass the missing access, or continue with alternatives that cannot complete the requested result.
+
+For external documentation research, the parent agent should delegate through the enabled roles in the current Subagents directory and respect their configured backend, model, access and instructions. Use the configured research or search role when available. An agent already assigned that research should perform it with its available tools instead of delegating the same task again. Harnessy does not require a separate DeepSeek Search API key for this workflow. Webpage fetching remains available for known URLs. If no configured role can perform the research, report that specific limitation without claiming the research is verified.
 
 Ordinary repository inspection, available tool use, and already-authorized builds or checks do not require confirmation.
 ```

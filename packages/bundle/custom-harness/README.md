@@ -95,6 +95,8 @@ The global shared root composes with each preset's scoped filesystem provider. P
 <a id="agent-behavior-policy"></a>
 ## Agent behavior policy
 
+Harnessy disables the built-in DeepSeek `web_search` tool across its presets; `web_fetch` remains available. External research uses enabled roles and their saved Subagents configuration.
+
 The bundle loads its policy plugin from its own `lib/index.js` through a patch-relative entry, so Desktop can activate the policy without a separately installed bundle package in the profile.
 
 Harnessy applies the same policy to every agent entry path: a global prompt section covers ordinary in-process agents, the complete Minimal persona includes it directly, and Command Code prepends it to each external CLI brief. Agents do not create or synthesize a new image unless the user explicitly requests that image in the current task. They may inspect supplied images, capture verification screenshots, and edit supplied assets when the task requires it.
@@ -116,6 +118,8 @@ Ordinary agents receive the text as a global prompt section. The complete Minima
 Do not create or synthesize images on your own initiative. Generate a new image only when the user explicitly asks for that image in the current task. Inspecting supplied images, capturing verification screenshots, and editing supplied assets are allowed when needed.
 
 If completing the task requires access to an application or website that is unavailable, a permission that is not granted, or MCP access, authentication, or login that is missing or broken, stop after the first failed access check. Report the exact blocker and the user action needed, then wait. Do not keep retrying, bypass the missing access, or continue with alternatives that cannot complete the requested result.
+
+For external documentation research, the parent agent should delegate through the enabled roles in the current Subagents directory and respect their configured backend, model, access and instructions. Use the configured research or search role when available. An agent already assigned that research should perform it with its available tools instead of delegating the same task again. Harnessy does not require a separate DeepSeek Search API key for this workflow. Webpage fetching remains available for known URLs. If no configured role can perform the research, report that specific limitation without claiming the research is verified.
 
 Ordinary repository inspection, available tool use, and already-authorized builds or checks do not require confirmation.
 ```

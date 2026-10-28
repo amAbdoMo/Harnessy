@@ -18,6 +18,8 @@ export const HARNESSY_OPERATIONAL_POLICY = `Do not create or synthesize images o
 
 If completing the task requires access to an application or website that is unavailable, a permission that is not granted, or MCP access, authentication, or login that is missing or broken, stop after the first failed access check. Report the exact blocker and the user action needed, then wait. Do not keep retrying, bypass the missing access, or continue with alternatives that cannot complete the requested result.
 
+For external documentation research, the parent agent should delegate through the enabled roles in the current Subagents directory and respect their configured backend, model, access and instructions. Use the configured research or search role when available. An agent already assigned that research should perform it with its available tools instead of delegating the same task again. Harnessy does not require a separate DeepSeek Search API key for this workflow. Webpage fetching remains available for known URLs. If no configured role can perform the research, report that specific limitation without claiming the research is verified.
+
 Ordinary repository inspection, available tool use, and already-authorized builds or checks do not require confirmation.`
 
 /**

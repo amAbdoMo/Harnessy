@@ -18,6 +18,7 @@ describe('the Harnessy operational policy', () => {
       expect(policy?.text).toContain('Generate a new image only when the user explicitly asks')
       expect(policy?.text).toContain('stop after the first failed access check')
       expect(policy?.text).toContain('Do not keep retrying')
+      expect(policy?.text).toContain('delegate through the enabled roles in the current Subagents directory')
 
       await fiber.dispose()
       expect((await ctx.systemPrompt.assemble()).sections)
