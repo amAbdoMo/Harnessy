@@ -44,6 +44,25 @@ const runnerPrivatePnpmDestination = /^\$\{\{ runner\.temp \}\}\/setup-pnpm-\$\{
 const nativeWindowsPnpmDestination = '${{ runner.temp }}/setup-pnpm-js-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}'
 
 describe('Custom Harness Windows workflow', () => {
+  it.each([
+    ['desktop-checks', 'Build and type-check Harnessy'],
+    ['release-package', 'Build the production update'],
+  ])('prepares Host references before the full %s build', (job, buildName) => {
+    const definition = workflowJob(loadWorkflow('.github/workflows/custom-harness-windows.yml'), job)
+    if (!Array.isArray(definition.steps)) throw new TypeError('Windows build must define steps')
+    const steps = definition.steps.filter(isRecord)
+    const prepare = steps.findIndex(step => step.name === 'Prepare Host compiler references')
+    const build = steps.findIndex(step => step.name === buildName)
+    expect(prepare).toBeGreaterThanOrEqual(0)
+    expect(build).toBeGreaterThan(prepare)
+    expect(steps[prepare]).toMatchObject({
+      shell: 'pwsh', run: 'node --import tsx/esm scripts/compile-referenced-projects.ts host',
+    })
+    expect(steps[prepare]).not.toHaveProperty('continue-on-error', true)
+    expect(steps.slice(0, build).map(step => step.run).join('\n'))
+      .not.toContain('compile-referenced-projects.ts client')
+  })
+
   it('verifies the Harnessy product before Desktop compilation', () => {
     const checks = workflowJob(loadWorkflow('.github/workflows/custom-harness-windows.yml'), 'desktop-checks')
     if (!Array.isArray(checks.steps)) throw new TypeError('Desktop checks job must define steps')

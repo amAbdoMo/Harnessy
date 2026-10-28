@@ -61,6 +61,10 @@ jobs:
           packages/llm/llm-retry/tests/loader-composition.spec.ts
           packages/llm/llm-retry/tests/persistence.spec.ts
 
+      - name: Prepare Host compiler references
+        shell: pwsh
+        run: node --import tsx/esm scripts/compile-referenced-projects.ts host
+
       - name: Build and type-check Harnessy
         shell: pwsh
         run: pnpm run build:custom-harness
@@ -234,6 +238,10 @@ jobs:
       - name: Qualify the updater
         shell: pwsh
         run: pnpm run release:win:x64:qualify
+
+      - name: Prepare Host compiler references
+        shell: pwsh
+        run: node --import tsx/esm scripts/compile-referenced-projects.ts host
 
       - name: Build the production update
         shell: pwsh
