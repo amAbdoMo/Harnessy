@@ -1684,9 +1684,6 @@
   "packages/session/session-persistence-jsonl/tests/lease.spec.ts": {
     "94e6c4d15a19729cf60005d29c0985aa4e5bd984b92f40c2b5d8e996bb651997": 1
   },
-  "packages/session/session-persistence-jsonl/tests/migration-verifier.spec.ts": {
-    "6bad3f6cf7fc26c871be029dc2a4f12d01ce7a49f314b0d728453e7575af28d1": 1
-  },
   "packages/session/session-persistence-jsonl/tests/native-source-admission.spec.ts": {
     "24b3f41708c436a3b161317d9b04439dff484aa8f5a913ed3c68a299f490e3b9": 1
   },
