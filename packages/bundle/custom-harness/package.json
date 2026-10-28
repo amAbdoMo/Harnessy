@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-custom-harness",
   "description": "The product patch layer for the independent Harnessy browser profile",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-experimental-plugin-recommendations",
   "description": "Official plugin suggestions with explicit user activation and persistent conversation decisions",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "publishConfig": {
     "access": "public"
   },

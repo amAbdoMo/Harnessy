@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-experimental-translator",
   "description": "Cancellation-aware anonymous Google and Bing text translation",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "publishConfig": {
     "access": "public"
   },

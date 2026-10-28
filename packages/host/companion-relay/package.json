@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-companion-relay",
   "description": "Bounded live ciphertext rendezvous over authenticated PC and phone WebSockets",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "publishConfig": { "access": "public" },
   "repository": {
     "type": "git",
