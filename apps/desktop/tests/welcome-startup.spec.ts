@@ -146,6 +146,7 @@ vi.mock('../src/host-process.ts', async importOriginal => ({
     onWebsitePageInfo = vi.fn(() => async () => {})
     onWebsiteRevoked = vi.fn(() => () => {})
     onDevicePreviewRequest = vi.fn(() => () => {})
+    onBrowserPreviewRequest = vi.fn(() => () => {})
     websiteControl = vi.fn(async () => {})
     fetch() {
       return Promise.resolve(Response.json({
