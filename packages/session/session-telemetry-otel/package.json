@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-session-telemetry-otel",
   "description": "Feedback-authorized Session logs over byte-bounded OpenTelemetry HTTP requests",
-  "version": "0.1.18",
+  "version": "0.1.19",
   "publishConfig": {
     "access": "public"
   },
