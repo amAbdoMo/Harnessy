@@ -15,6 +15,7 @@ import { mkdir, mkdtemp, rm, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
+import type { WorkingDirectoryService } from '@deepseek-ai/dsh-working-directory'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime, { TOOL_ABORTED_BEFORE_DISPATCH } from '@deepseek-ai/dsh-tools'
@@ -61,6 +62,11 @@ describe('search tools over the real subprocess service + the packaged rg', () =
     await utimes(join(dir, 'src', 'beta.ts'), new Date(2020, 0, 1), new Date(2020, 0, 1))
 
     ctx = new Context()
+    const get: WorkingDirectoryService['get'] = session => session.header.cwd ?? dir
+    const directory: Pick<WorkingDirectoryService, 'defaultDirectory' | 'get' | 'ensure'> = {
+      defaultDirectory: dir, get, ensure: async agent => get(agent.session),
+    }
+    ctx.provide('workingDirectory', directory)
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(LocalSubprocessRuntime)
@@ -68,7 +74,8 @@ describe('search tools over the real subprocess service + the packaged rg', () =
   })
 
   afterEach(async () => {
-    await rm(dir, { recursive: true, force: true })
+    try { await ctx.fiber.dispose() }
+    finally { await rm(dir, { recursive: true, force: true }) }
   })
 
   describe('glob', () => {
@@ -85,6 +92,38 @@ describe('search tools over the real subprocess service + the packaged rg', () =
 
     it('scopes to a directory search root (path arg)', async () => {
       const result = await call('glob', { pattern: '*.ts', path: 'src' }, agent())
+      expect(text(result).split('\n').sort()).toEqual([join('src', 'alpha.ts'), join('src', 'beta.ts')])
+    })
+
+    it.each(['relative', 'absolute'] as const)('anchors slash-containing patterns at an explicit %s search root', async (form) => {
+      const project = join(dir, 'nested project')
+      const candidate = join(project, 'candidate', 'plugin', 'assets')
+      await mkdir(candidate, { recursive: true })
+      await mkdir(join(project, 'other', 'candidate'), { recursive: true })
+      await mkdir(join(dir, 'candidate'), { recursive: true })
+      await writeFile(join(candidate, 'frontend.js'), 'candidate source\n')
+      await writeFile(join(candidate, '.hidden.js'), 'hidden source\n')
+      await writeFile(join(project, 'other', 'candidate', 'nested.js'), 'not at the root\n')
+      await writeFile(join(dir, 'candidate', 'outside.js'), 'outside the search root\n')
+      const path = form === 'absolute' ? project : 'nested project'
+      const result = await call('glob', { pattern: 'candidate/**/*', path }, agent())
+      expect(result.isError).toBe(false)
+      expect(text(result).split('\n').sort()).toEqual([
+        join('nested project', 'candidate', 'plugin', 'assets', '.hidden.js'),
+        join('nested project', 'candidate', 'plugin', 'assets', 'frontend.js'),
+      ])
+      const recursive = await call('glob', { pattern: '**/candidate/**/*', path }, agent())
+      expect(recursive.isError).toBe(false)
+      expect(text(recursive).split('\n').sort()).toEqual([
+        join('nested project', 'candidate', 'plugin', 'assets', '.hidden.js'),
+        join('nested project', 'candidate', 'plugin', 'assets', 'frontend.js'),
+        join('nested project', 'other', 'candidate', 'nested.js'),
+      ])
+    })
+
+    it('resolves a normalized search root before excluding VCS metadata', async () => {
+      const result = await call('glob', { pattern: '*.ts', path: join('.git', '..', 'src') }, agent())
+      expect(result.isError).toBe(false)
       expect(text(result).split('\n').sort()).toEqual([join('src', 'alpha.ts'), join('src', 'beta.ts')])
     })
 

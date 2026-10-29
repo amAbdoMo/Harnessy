@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-在独立的右侧 Sidebar tab 中浏览 HTTP(S) 页面，包括 loopback 服务。Web 使用 iframe 和应用维护的 history；Desktop 使用 Electron `<webview>`、原生导航 history 和保活页面。Browser 默认使用桌面模式；普通 Desktop tab 还提供手机和平板响应式预览。本包不会向被访问内容注入 Electron 或 Node 能力。
+在独立的右侧 Sidebar tab 中浏览 HTTP(S) 页面，包括 loopback 服务。Web 使用 iframe 和应用维护的 history；Desktop 使用 Electron `<webview>`、原生导航 history 和保活页面。Browser 使用单一页面区域和紧凑的导航、反馈工具栏。本包不会向被访问内容注入 Electron 或 Node 能力。
 
 ## 目录
 
@@ -27,7 +27,7 @@ kind: "package-reference"
 
 Browser 在 Web profile 中默认禁用，在 Desktop 中默认启用。Web 用户可通过 profile patch 启用随附条目。可以从右侧 Sidebar guide 打开 **浏览器**并输入 HTTP(S) URL。Chat 的[链接偏好](../ui-chat/README.zh.md)选择**应用内侧边栏**时，HTTP(S) 链接会在此打开。不带 scheme 的主机名会补全为 HTTPS。公共目标与 loopback 目标使用相同的默认 sandbox。每次 guide 操作或委托到此的消息链接操作都会创建一个新的 Browser tab。
 
-Desktop 的 Browser 在同一标签页内提供**桌面**、**手机**和**平板**模式；没有独立的设备预览标签页或开始页入口。响应式模式复用私有[预览集成](../ui-device-preview/README.zh.md)及其手机/平板控制器，提供固定 CSS 视口、设备外观和图片回退。实时预览使用普通、未关联已保存账号的 Chromium guest，不是移动 OS 模拟器。已保存的网站账号保持桌面模式，不能成为设备观察目标。打开预览不授予检查权限：每次截图或有界布局读取都需要重新同意。关闭标签页不会停止服务器；自有启动程序需使用显式停止操作。
+Desktop 浏览器标签页绑定到所属聊天，并保留 Chromium 登录存储。接管会停止 Agent 操作；恢复 Agent 会将控制权交回所属聊天。工具栏不再提供设备模式切换。Agent 浏览器操作和所有权见 [Desktop 包](../../../apps/desktop/README.zh.md)。
 
 ### 何时选择
 
@@ -46,7 +46,7 @@ Client 插件可以调用 `ctx.sidebarRight.openTab('browser', { params: { url }
 
 命令 `browser.new` 在焦点停靠分栏打开独立浏览器页，替换开始页并保留已有内容页。从聊天区或浮动内容页触发时，使用活动停靠分栏。桌面默认键在 macOS 上为 Cmd+T，在 Windows 上为 Ctrl+T；Windows 和 macOS Web 使用[快捷键服务的平台默认值](../shortcuts/README.zh.md)；Linux Web 默认不绑定此命令。开始页按钮使用蓝色地球图标，并在按钮内显示有效快捷键，不额外弹出重复提示。
 
-工具栏提供后退、前进、刷新、转到和在系统浏览器中打开。普通 Desktop 标签页保留标题及地址检查点；保存账号的标签页保留配置的起始地址。保存的网站提供“自动”“每次询问”和“禁用”。自动为请求中的 Agent 打开账号，无需重复审批；继续选择等待中的工作，暂停保留登录并停止 Agent 输入。保存登录信息会在本地加密凭据，用于常规同源登录；不支持的流程和多因素认证需要用户操作。退出登录清除浏览器认证并选择询问；删除配置在清理后移除配置和受保护登录信息。配置菜单不受面板裁剪并保持在窗口内。
+工具栏提供后退、前进、刷新、转到、在系统浏览器中打开，以及紧凑的标签页控制操作。选择、区域、绘制和擦除会在已捕获页面上打开标注编辑器。捕获会切换为人工控制，并保持该状态直到选择恢复 Agent。添加到对话会将标注 PNG、页面地址与标题、所选元素信息加入当前聊天草稿，不会直接发送消息。普通 Desktop 标签页保留标题及地址检查点；保存账号的标签页保留配置的起始地址。保存的账号和加密登录信息通过工具栏菜单管理。
 
 保存配置表单将不带协议的主机名补全为 HTTPS，并要求使用设置中已连接 MCP 服务器的准确名称。无效字段会在输入框旁显示修改提示并保留草稿；保存的起始地址不能包含凭据、查询参数或片段。Desktop 失败通过允许列表中的标识符选择本地化恢复提示；原始诊断和账号值不会进入配置通知。
 
@@ -74,7 +74,7 @@ Desktop 向私有 [Browser 响应式集成](../ui-device-preview/README.zh.md)�
 
 每个 tab 的 `BrowserController` 负责地址校验、命令和显式恢复。`BrowserFrame` 提供与载体无关的导航状态；`IframeImpl` 使用 `BrowserNavigation`，`ElectronWebViewImpl` 仅为普通 tab 观察 Chromium history。`BrowserPresentation` 负责 DOM 的物理挂载。Session 所有的 `WebsiteRequestSession` 维护有界请求列表与精确 claim；每个已保存账户页面负责自身的准入、撤销和清理等待。销毁会同步停止请求列表观察，并在不等待原生清理完成的情况下撤下控件。它会等待准入和 guest 释放，包括迟到的获取结果；失败的清理仍可等待，并阻止复用。框架绑定的 Browser、profile 和 request hook 提供快照；组件只接收普通 callback，不接收 provider 或 observable 对象。
 
-Desktop Main 管理页面租约、账号存储、访问选项和加密登录保险库。预加载仅暴露限定的用户控制；Agent 传输不接收密码、Cookie 或保险库路径。共享声明通过 `/types` 使用，Host 与 Client 分别编译。Desktop 在会话切换和折叠时保留账号标签页。“每次询问”在隐藏时撤销；明确授权的“自动”在隐藏时保留准入。暂停先撤销，再等待未完成工作，反馈失败不能中断清理。
+Desktop Main 管理 guest lease、标签页所有权、人工控制、账号存储和加密登录保险库。Preload 提供限定范围的人工控制，以及有界的标注捕获和选择。共享声明通过 `/types` 提供；Host 与 Client 分别编译。Desktop 在切换 Session 或折叠时保留账号标签页。标签页所有权跟随聊天，不绑定单次执行代次。旧版保存账号请求准入仍独立用于配对 MCP 工具。
 
 页面刷新快捷键调用工具栏使用的同一重载操作。其 Tooltip 和 ARIA 组合随有效绑定更新。Desktop 通过所属窗口路由已批准 guest 中的有效快捷键；获焦 webview 必须仍持有该 guest 的租约。Web 保留浏览器专用组合。
 
@@ -114,7 +114,7 @@ Desktop Main 管理页面租约、账号存储、访问选项和加密登录保�
 - 普通 tab 只要仍在 Sidebar 布局中，就会跨刷新与插件卸载保留标题/URL 检查点；已保存账户 tab 改为保留 profile id 与配置的起始 URL。关闭 tab 会删除其检查点。重启恢复不恢复页面内存、未保存的表单、Chromium history 或请求授权。
 - 本地文件会被拒绝，并继续由 Document Preview 负责。
 - 普通 Desktop tab 按规范化的工作区 CWD 共享进程内存储分区；未解析的 Workspace 按 Session 隔离。[本地 HTTPS 设备标签页](../../../apps/desktop/README.zh.md#local-https-devices) 改用全新且限定于源地址的分区；证书接受及登录存储不跨标签页共享，存储切换会在原 guest 实际释放后替换它。已保存账户 tab 使用独立持久分区，认证一直保留到成功退出或遗忘。清理会撤销权限，等待每个 guest 释放，即使同批其他释放失败，然后清除 storage、cache、认证和连接。任何清理等待失败都会保留存储并阻止使用该 profile；中断的清理在重启后仍保持阻止状态。持久化不防止同一 OS 用户读取 Cookie。guest 权限、下载与原生 popup 均被拒绝；通过检查的 HTTP(S) popup 请求会打开 Sidebar tab。Host 地址过滤不是通用私网或 DNS-rebinding 防火墙。
-- 独立的 Desktop Host 按保存的访问选项提供限定于请求的浏览器操作，“每次询问”要求逐次批准，并说明优先使用 MCP 后仍需回退的原因。任意 JavaScript 不可用；脚本创建的 worker 可能在用户接管后继续运行，重载不能保证终止它们。DOM 过滤不能保证移除所有认证秘密。未知 MCP 结果继续保留账号锁；自动重启核对不可用。
+- Desktop Agent 浏览器操作使用原生预览工具集和标签页所有权。旧版保存账号工具保留独立的配对 MCP 授权与结果不确定时的锁。标注选择读取顶层文档，不推断跨源 iframe 内容或框架组件源码位置。
 
 <a id="dev-note"></a>
 ### 开发备注

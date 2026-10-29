@@ -2,6 +2,7 @@
 import { ipcRenderer } from 'electron'
 import type {
   DesktopBrowserBridge, DesktopBrowserLeaseId, DesktopWebsiteProfilesBridge, DesktopWebsiteRequestsBridge, DesktopWebsiteHostSnapshot,
+  DesktopWebsiteProfileId,
 } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
 import { DESKTOP_IPC } from './ipc.ts'
 
@@ -69,6 +70,27 @@ export function createDesktopBrowserBridge(): DesktopBrowserBridge {
     }
   })
   return {
+    bind: (lease, sessionId) => ipcRenderer.invoke(DESKTOP_IPC.browserBind, lease, sessionId) as Promise<void>,
+    control: (lease, human) => ipcRenderer.invoke(DESKTOP_IPC.browserControl, lease, human) as Promise<void>,
+    status: lease => ipcRenderer.invoke(DESKTOP_IPC.browserStatus, lease) as ReturnType<NonNullable<DesktopBrowserBridge['status']>>,
+    capture: lease => ipcRenderer.invoke(DESKTOP_IPC.browserCapture, lease) as ReturnType<NonNullable<DesktopBrowserBridge['capture']>>,
+    pick: (lease, point) => ipcRenderer.invoke(DESKTOP_IPC.browserPick, lease, point) as ReturnType<NonNullable<DesktopBrowserBridge['pick']>>,
+    completeOpen: (requestId, lease) => ipcRenderer.invoke(DESKTOP_IPC.browserCompleteOpen, requestId, lease) as Promise<void>,
+    onAgentOpen: (listener) => {
+      const receive = (_event: unknown, input: unknown): void => {
+        if (typeof input !== 'object' || input === null || !('requestId' in input) || typeof input.requestId !== 'string'
+          || !('sessionId' in input) || typeof input.sessionId !== 'string' || !('url' in input) || typeof input.url !== 'string') return
+        if ('profileId' in input && typeof input.profileId !== 'string') return
+        listener({ requestId: input.requestId, sessionId: input.sessionId, url: input.url,
+          ...('profileId' in input && typeof input.profileId === 'string' ? { profileId: input.profileId as DesktopWebsiteProfileId } : {}) })
+      }
+      ipcRenderer.on(DESKTOP_IPC.browserAgentOpen, receive)
+      return () => { ipcRenderer.removeListener(DESKTOP_IPC.browserAgentOpen, receive) }
+    },
+    onControlChanged: (listener) => {
+      ipcRenderer.on(DESKTOP_IPC.browserControlChanged, listener)
+      return () => { ipcRenderer.removeListener(DESKTOP_IPC.browserControlChanged, listener) }
+    },
     requests: {
       onPrepared: (listener) => { preparedListeners.add(listener); return () => { preparedListeners.delete(listener) } },
       list: session => ipcRenderer.invoke(DESKTOP_IPC.websiteRequestsList, session) as ReturnType<DesktopWebsiteRequestsBridge['list']>,

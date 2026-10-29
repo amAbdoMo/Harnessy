@@ -3519,7 +3519,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'sidebar.right.pane.tab.browser.responsive\', () => ctx.slots.register(\n      { name: \'sidebar.right.pane.tab.browser.responsive\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-sidebar-browser/src/client/responsive.ts:35',
+    source: 'packages/client/ui-sidebar-browser/src/client/responsive.ts:36',
   },
   {
     key: 'sidebar.right.pane.tab.title',

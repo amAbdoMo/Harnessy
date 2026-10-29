@@ -18,6 +18,7 @@ import { websiteAuthorityFixture } from '../../desktop/tests/website-authority-f
 async function fixture(
   notice: (request: WebsiteRequestSnapshot) => void | Promise<void> = () => {}, wrapperSignal?: AbortSignal, meta?: JsonValue,
   access: 'automatic' | 'ask' | 'disabled' = 'ask',
+  mcpAuthorization: 'paired-requests' | 'independent' = 'paired-requests',
 ) {
   const ctx = new Context()
   const barriers: PromiseWithResolvers<void>[] = []
@@ -61,7 +62,7 @@ async function fixture(
   const inspected = vi.fn(async () => binding)
   const notify = vi.fn(notice)
   const nativeAdmission = vi.fn(async (_request: WebsiteRequestSnapshot, _signal: AbortSignal) => {})
-  const requests = installWebsiteRequests(ctx, inspected, notify, nativeAdmission)
+  const requests = installWebsiteRequests(ctx, inspected, notify, nativeAdmission, { mcpAuthorization })
   const profile = { id: 'cd1b6493-c881-4967-a544-b0a49f2d847f' as DesktopWebsiteProfileId,
     name: 'Portal', accountLabel: 'operator', url: 'https://portal.example.test/', serverName: 'portal', access, mcpBinding: binding }
   requests.syncProfiles([profile])
@@ -621,7 +622,7 @@ it('denies every MCP dispatch until the complete saved inventory has initialized
   await ctx.plugin(Tools)
   const upstream = vi.fn(async () => ({ content: [{ type: 'text', text: 'ordinary result' }] }))
   const requests = installWebsiteRequests(ctx, async () => ({ identity: 'a'.repeat(64), endpoint: 'https://portal.example.test/' }),
-    () => {}, async () => {})
+    () => {}, async () => {}, { mcpAuthorization: 'paired-requests' })
   ctx.tools.register(createMcpToolDefinition(ctx, { name: 'mcp__ordinary__read', serverName: 'ordinary', rawName: 'read',
     description: 'Read an ordinary server.', inputSchema: { type: 'object' }, call: upstream }))
   const call = () => ctx.tools.execute({ signal: new AbortController().signal, callId: ToolCallId('read'),
@@ -645,6 +646,17 @@ it('denies inactive paired namespaces and commits only a freshly validated exact
   f.requests.revoke(f.request.requestId)
   await f.requests.drain(f.request.requestId)
   expect((await f.call()).isError).toBe(true)
+})
+
+it('leaves MCP calls under their own policy when Desktop uses independent tab previews', async () => {
+  const f = await fixture(() => {}, undefined, undefined, 'ask', 'independent')
+  expect((await f.call()).isError).toBe(false)
+  expect(f.upstream).toHaveBeenCalledOnce()
+  expect(f.nativeAdmission).not.toHaveBeenCalled()
+  expect(f.approvals).not.toHaveBeenCalled()
+  f.ctx.on('mcp/tool-call', () => { throw new Error('Configured MCP policy denied the call') })
+  expect((await f.call()).isError).toBe(true)
+  expect(f.upstream).toHaveBeenCalledOnce()
 })
 
 it('cannot unguard an enrolled namespace through removed or stale empty inventory', async () => {

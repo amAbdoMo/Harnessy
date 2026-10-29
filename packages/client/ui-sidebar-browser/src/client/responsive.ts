@@ -9,6 +9,7 @@ export type BrowserMode = 'desktop' | 'mobile' | 'tablet'
 
 /** Explicit tab-opening inputs; a restored preview identity never authorizes navigation. */
 export interface BrowserTabParams {
+  readonly openRequestId?: string
   readonly url?: string
   readonly profileId?: DesktopWebsiteProfileId
   readonly previewId?: Branded<'DevicePreviewId'>

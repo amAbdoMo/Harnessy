@@ -25,7 +25,7 @@ it('installs the deny guard before configured plugins can call an MCP, then disp
   const upstream = vi.fn(async () => ({ content: [{ type: 'text', text: 'ordinary result' }] }))
   const ctx = await boot('website-test', configPath, [], (owner) => {
     controller = installWebsiteRequests(owner, async () => ({ identity: 'a'.repeat(64), endpoint: 'https://portal.example.test/' }),
-      () => {}, async () => {})
+      () => {}, async () => {}, { mcpAuthorization: 'paired-requests' })
     const modules = new Map<string, unknown>([
       ['@deepseek-ai/dsh-system-prompt', SystemPrompt], ['@deepseek-ai/dsh-tools', Tools],
     ])

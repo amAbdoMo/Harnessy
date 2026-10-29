@@ -23,10 +23,10 @@ import { installWebsiteMcpInspector } from './website-mcp.ts'
 import { installWebsiteRequests } from './website-requests.ts'
 import { installWebsiteControlReceiver, websiteHostSnapshot } from './website-control.ts'
 import { installWebsiteParentChannel } from './website-parent.ts'
-import { installWebsiteRequestTools, installWebsiteTools } from './website-tools.ts'
 import { installDevicePreviewController } from './device-preview-controller.ts'
 import { installDevicePreviewParentChannel } from './device-preview-parent.ts'
 import { installDevicePreviewTools } from './device-preview-tools.ts'
+import { installBrowserPreview } from './browser-preview.ts'
 
 async function main(): Promise<void> {
   const remote = resolveDesktopRemoteConnection(process.env)
@@ -39,6 +39,7 @@ async function main(): Promise<void> {
   let stopping: Promise<void> | undefined
   const companionLife = new AbortController()
   const control: {
+    browserPreview?: ReturnType<typeof installBrowserPreview>
     companion?: ReturnType<typeof installDesktopCompanionControls>
     companionConfig?: CompanionConfig
     updateTasks?: ReturnType<typeof installDesktopUpdateTaskControl>
@@ -46,7 +47,6 @@ async function main(): Promise<void> {
     websiteMcp?: ReturnType<typeof installWebsiteMcpInspector>
     websiteRequests?: ReturnType<typeof installWebsiteRequests>
     websiteParent?: ReturnType<typeof installWebsiteParentChannel>
-    websiteTools?: ReturnType<typeof installWebsiteTools>
     devicePreviewController?: ReturnType<typeof installDevicePreviewController>
     devicePreviewParent?: ReturnType<typeof installDevicePreviewParentChannel>
     devicePreviewTools?: ReturnType<typeof installDevicePreviewTools>
@@ -62,6 +62,7 @@ async function main(): Promise<void> {
     patchFiles: [],
     args: desktopWebArguments(remote),
     prepare(ctx) {
+      control.browserPreview = installBrowserPreview(ctx, send)
       control.companionConfig = resolveDesktopCompanionConfig(process.env)
       installDesktopCompanionOwner(ctx, { home: resolveDshHome(), signal: companionLife.signal })
       control.companion = installDesktopCompanionControls(ctx, control.companionConfig, companionLife, send)
@@ -71,8 +72,7 @@ async function main(): Promise<void> {
         if (!process.connected || process.send === undefined) throw new Error('Website request parent disconnected before revocation')
         return send({ type: 'website-revoked', snapshot: websiteHostSnapshot(request) })
       }, (request, signal) => parent.check(websiteHostSnapshot(request), signal),
-      scope => installWebsiteRequestTools(scope, parent))
-      control.websiteTools = installWebsiteTools(ctx, control.websiteRequests, parent)
+      { mcpAuthorization: 'independent' })
       const previewController = control.devicePreviewController = installDevicePreviewController(ctx, send)
       const previewParent = control.devicePreviewParent = installDevicePreviewParentChannel(ctx, send)
       control.devicePreviewTools = installDevicePreviewTools(ctx, previewController, previewParent)
@@ -107,6 +107,7 @@ async function main(): Promise<void> {
     })()
   }
   process.on('message', (message: unknown) => {
+    if (control.browserPreview?.receive(message) === true) return
     if (control.companion?.receive(message) === true) return
     if (control.devicePreviewController?.receive(message) === true || control.devicePreviewParent?.receive(message) === true) return
     if (typeof message !== 'object' || message === null || !('type' in message)) return
@@ -174,18 +175,18 @@ async function main(): Promise<void> {
     })().catch((error: unknown) => { console.error(error) })
   })
   process.once('disconnect', () => {
+    control.browserPreview?.close()
     control.websiteParent?.close()
     control.devicePreviewParent?.close()
     void stop().catch((error: unknown) => { console.error(error) })
   })
   const { ctx } = await application
   try {
-    if (control.websiteTools === undefined) throw new Error('Desktop website tools were not initialized')
+    if (control.websiteRequests === undefined) throw new Error('Desktop website account services were not initialized')
     await ctx.loader.await()
     if (control.devicePreviewTools === undefined || control.devicePreviewController === undefined) {
       throw new Error('Desktop device preview tools were not initialized')
     }
-    await control.websiteTools.await()
     await control.devicePreviewTools.await()
     await control.devicePreviewController.await()
     if (control.companion === undefined) throw new Error('Desktop companion controls were not initialized')

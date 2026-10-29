@@ -7,6 +7,8 @@ import type { WebsiteRequestPage } from './WebsiteRequestPage.ts'
 
 /** Provider construction inputs; persistence does not enter the live navigation interface. */
 export interface BrowserPageOptions {
+  readonly sessionId?: string | undefined
+  readonly openRequestId?: string | undefined
   readonly initial: BrowserTabState | undefined
   /**
    * Saved website/account this page belongs to, or undefined for an ephemeral

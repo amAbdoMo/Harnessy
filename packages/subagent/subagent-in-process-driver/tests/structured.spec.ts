@@ -253,6 +253,7 @@ describe('in-process structured output', () => {
     const run = await ctx.subagents.start('spawn', structuredRequest(parent))
     const result = await run.result
     expect(result.stopReason).toBe('error')
+    expect(result.diagnostic).toContain('MISSING_STRUCTURED_OUTPUT')
     expect(result.structured).toBeUndefined()
     // Exactly one model request and one caller-supplied user message: no nudge turn exists.
     expect(adapter.requests.length).toBe(1)

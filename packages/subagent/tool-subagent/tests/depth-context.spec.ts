@@ -7,7 +7,7 @@ import { describe, expect, it, onTestFinished } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { assembleContextFor, type Agent } from '@deepseek-ai/dsh-agent'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
-import { mountAgentLoopTestDependencies, type AgentLoopTestDependenciesOptions } from '@deepseek-ai/dsh-agent-loop-testkit'
+import { mountAgentLoopTestDependencies, provideWorkingDirectoryFixture, type AgentLoopTestDependenciesOptions } from '@deepseek-ai/dsh-agent-loop-testkit'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import * as SubagentSpawn from '@deepseek-ai/dsh-subagent-spawn-in-process'
 import { SessionId } from '@deepseek-ai/dsh-session'
@@ -31,6 +31,7 @@ async function fixture(
     }
   })
   await mountAgentLoopTestDependencies(ctx, dependencies)
+  provideWorkingDirectoryFixture(ctx)
   if (persisted) {
     storageRoot = await mkdtemp(join(tmpdir(), 'subagent-depth-'))
     await ctx.plugin(JsonlPersistence, { root: storageRoot, compression: 'none' })

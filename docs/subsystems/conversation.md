@@ -8,6 +8,8 @@ This page defines the data model and the extension path for a business-owned Con
 
 ## Data model and ownership
 
+The scope-addressed `IConversation.attachFiles(files)` method stages browser files through the composer attachment pipeline without sending a message; [the Conversation README](../../packages/client/ui-conversation/README.md) defines admission and draft ownership.
+
 The Session Controller owns the contiguous loaded logical-event window. Each `SessionEventLikeEntry` is either `{ type: 'event', event: SessionEvent }` for one durable event or `{ type: 'transient', event: AssistantLiveChunkEvent }` for one Client-only `assistant/live-chunk` presentation. Both inner events expose `type`, `seq`, `time`, and `data`. `ui-conversation` passes these entries to the assembler without opening a second history stream. One `ConversationNodeAssembler` per Session applies every registered Definition and publishes an independent source for each registered view target.
 
 | Concept | Owner and purpose |

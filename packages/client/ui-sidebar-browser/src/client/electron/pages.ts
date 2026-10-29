@@ -19,7 +19,8 @@ export function createElectronPage(options: BrowserPageOptions, bridge: DesktopB
     mounted: () => { frame.attach() },
     unmounted: () => { frame.detach() },
   })
-  const pageRequests = options.profileId === undefined ? undefined : requests?.createPage(options.profileId)
+  const pageRequests = options.profileId === undefined || options.sessionId !== undefined
+    ? undefined : requests?.createPage(options.profileId)
   const frame = new ElectronWebViewImpl(options, bridge, workspace, presentation, pageRequests)
   return { frame, presentation, ...(pageRequests === undefined ? {} : { requests: pageRequests }) }
 }

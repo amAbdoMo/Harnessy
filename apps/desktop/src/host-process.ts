@@ -236,6 +236,7 @@ export class DesktopHostFatalError extends Error {
 
 /** One Web backend running under the Electron executable in Node mode. */
 export class DesktopHostProcess {
+  private browserPreview: ((message: unknown) => Promise<object | undefined>) | undefined
   private child: ChildProcess | undefined
   private readyResolve!: (ready: DesktopHostReady) => void
   private readyReject!: (error: Error) => void
@@ -271,6 +272,13 @@ export class DesktopHostProcess {
     resolve: (response: DesktopHostControlResponse) => void
     reject: (error: Error) => void
   }>()
+
+  /** @param listener - native browser owner for this exact Host generation. @returns registration disposer. */
+  onBrowserPreviewRequest(listener: (message: unknown) => Promise<object | undefined>): () => void {
+    if (this.browserPreview !== undefined) throw new Error('Browser preview owner is already registered')
+    this.browserPreview = listener
+    return () => { if (this.browserPreview === listener) this.browserPreview = undefined }
+  }
 
   /**
    * @param node - Absolute Electron executable in Node mode.
@@ -345,6 +353,17 @@ export class DesktopHostProcess {
     child.stdout?.pipe(process.stdout)
     child.on('message', (message: unknown) => {
       if (this.child !== child) return
+      if (typeof message === 'object' && message !== null && 'type' in message
+        && (message.type === 'browser-preview' || message.type === 'browser-preview-cancel')) {
+        const listener = this.browserPreview
+        if (listener === undefined || this.stopping) return
+        void listener(message).then((response) => {
+          if (response !== undefined && this.child === child && child.connected && !this.stopping) {
+            child.send(response, (error) => { if (error !== null) this.fail(error) })
+          }
+        }).catch((error: unknown) => { this.fail(error instanceof Error ? error : new Error('Browser native request failed')) })
+        return
+      }
       try {
         if (this.devicePreviews.receive(message, response => new Promise<void>((resolve, reject) => {
           if (this.child !== child || !child.connected || this.stopping) { reject(new Error('Device preview Host retired')); return }

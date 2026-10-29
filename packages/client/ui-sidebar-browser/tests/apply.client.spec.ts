@@ -89,15 +89,38 @@ async function boot(platform: ShortcutPlatform = 'macos', runtime: 'desktop' | '
   ctx.provide('sidebarRight', sidebar as never)
   ctx.provide('shortcuts', { register: (command: ShortcutCommand) => registry.register(command) } as never)
   ctx.provide('sidebarRightTabs', tabs as never)
+  const input = { insertQuote: vi.fn(() => true), focus: vi.fn() }
+  const conversation = { attachFiles: vi.fn(() => true), input: { for: vi.fn(() => input) } }
+  const sessions = { scope: vi.fn(() => ctx) }
+  ctx.provide('conversation', conversation as never)
+  ctx.provide('sessions', sessions as never)
   ctx.provide('workspaces', { list: createSnapshotStore({ phase: 'ready', items: [] }) } as never)
   ctx.provide('slots', slots as never)
   ctx.provide('locale', locale as never)
   const fiber = ctx.plugin({ inject: [...inject], apply })
   await fiber.await()
-  return { tabs, registered, dictionaries, fiber, openTabs, registry, sidebar, target }
+  return { tabs, registered, dictionaries, fiber, openTabs, registry, sidebar, target, conversation, sessions, input }
 }
 
 describe('ui-sidebar-browser apply', () => {
+  it('stages browser feedback in its captured chat and preserves a refused draft', async () => {
+    const profiles = profileStubs()
+    const requests = requestStubs()
+    vi.stubGlobal('dshDesktop', { protocolVersion: 1, browser: { profiles, requests } })
+    const h = await boot()
+    const injectFace = h.registered.find(entry => entry.name === 'sidebar.right.pane.tab')!.inject as
+      (sessionId: string, actions: unknown) => BrowserInjected
+    const face = injectFace('original-chat', { replace: vi.fn(), forget: vi.fn() })
+    const file = new File(['png'], 'feedback.png', { type: 'image/png' })
+    expect(face.addFeedback?.(file, 'Original page context')).toBe(true)
+    expect(h.sessions.scope).toHaveBeenCalledExactlyOnceWith('original-chat')
+    expect(h.conversation.attachFiles).toHaveBeenCalledExactlyOnceWith([file])
+    expect(h.input.insertQuote).toHaveBeenCalledExactlyOnceWith('Original page context')
+    h.conversation.attachFiles.mockReturnValue(false)
+    expect(face.addFeedback?.(file, 'Retry context')).toBe(false)
+    expect(h.input.insertQuote).toHaveBeenCalledOnce()
+  })
+
   it('opens a prepared account in its initiating Session once despite synchronous tab notifications', async () => {
     const profiles = profileStubs()
     const id = 'profile-1' as DesktopWebsiteProfileId

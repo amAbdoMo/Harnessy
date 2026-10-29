@@ -1,6 +1,6 @@
 /** Electron navigation and guest lifetime, independent from DOM placement. */
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
-import type { BrowserViewport, DesktopBrowserBridge, DesktopBrowserLeaseId, DesktopBrowserReservation } from '../../types.ts'
+import type { BrowserAnnotationCapture, BrowserPickedElement, BrowserTabStatus, BrowserViewport, DesktopBrowserBridge, DesktopBrowserLeaseId, DesktopBrowserReservation } from '../../types.ts'
 import type { ElectronWebviewPresentation, WebviewElement } from './ElectronWebviewPresentation.ts'
 import { emptyBrowserFrame, type BrowserFrame, type BrowserFrameState, type BrowserLoadError } from '../browser/BrowserFrame.ts'
 import type { BrowserPageOptions } from '../browser/BrowserPage.ts'
@@ -54,6 +54,48 @@ export class ElectronWebViewImpl implements BrowserFrame {
       this.viewport = { width: viewport.width, height: viewport.height, scale: viewport.scale }
       this.applyViewport()
     }
+  }
+
+  /** Capture the visible page for user-authored feedback. @returns image and current page context. */
+  capture = async (): Promise<BrowserAnnotationCapture> => {
+    await this.control(true)
+    if (this.bridge.capture === undefined) throw new Error('Browser capture is unavailable')
+    return this.bridge.capture(this.currentLease())
+  }
+
+  /** Inspect a human-selected viewport point. @param point - CSS coordinates. @returns bounded element context. */
+  pick = async (point: { readonly x: number; readonly y: number }): Promise<BrowserPickedElement | null> => {
+    if (this.bridge.pick === undefined) throw new Error('Browser selection is unavailable')
+    return this.bridge.pick(this.currentLease(), point)
+  }
+
+  /** Set current tab control. @param human - takeover or agent resume. @returns native acknowledgment. */
+  control = async (human: boolean): Promise<void> => {
+    if (this.bridge.control === undefined) throw new Error('Browser control is unavailable')
+    if (!human) {
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+      this.store.set({ ...this.store.getSnapshot(), humanControl: false })
+    }
+    try { await this.bridge.control(this.currentLease(), human) }
+    finally { await this.refreshControl() }
+  }
+
+  /** Read this tab's native ownership. @returns current status. */
+  status = async (): Promise<BrowserTabStatus> => {
+    if (this.bridge.status === undefined) throw new Error('Browser status is unavailable')
+    return this.bridge.status(this.currentLease())
+  }
+
+  private currentLease(): DesktopBrowserLeaseId {
+    if (this.lease === undefined || !this.ready || this.lifetime.signal.aborted) throw new Error('Browser tab is unavailable')
+    return this.lease
+  }
+
+  private async refreshControl(): Promise<void> {
+    const lease = this.lease
+    if (lease === undefined || !this.ready || this.lifetime.signal.aborted || this.bridge.status === undefined) return
+    const status = await this.bridge.status(lease)
+    if (this.lease === lease) this.store.set({ ...this.store.getSnapshot(), humanControl: status.humanControl })
   }
 
   /** @returns immutable carrier-neutral navigation state. */
@@ -198,12 +240,41 @@ export class ElectronWebViewImpl implements BrowserFrame {
       signal.addEventListener('abort', unsubscribeReacquire, { once: true })
     }
     const binding = { lease: reservation.lease, signal }
+    let bound = false
+    let completing = false
+    const completeOpen = (): void => {
+      const requestId = this.options.openRequestId
+      if (!bound || completing || requestId === undefined || !/^https?:/.test(element.getURL())) return
+      completing = true
+      void this.bridge.control?.(reservation.lease, false)
+        .then(() => this.bridge.completeOpen?.(requestId, reservation.lease)).catch((error: unknown) => {
+          if (!signal.aborted) this.commandFailed(error)
+        })
+    }
+    const unsubscribeControl = this.options.sessionId === undefined ? () => {} : this.bridge.onControlChanged?.(() => {
+      void this.refreshControl().catch((error: unknown) => { if (!signal.aborted) this.commandFailed(error) })
+    })
+    if (unsubscribeControl !== undefined) signal.addEventListener('abort', unsubscribeControl, { once: true })
     element.addEventListener('dom-ready', () => {
-      this.requests?.bind(binding)
-      this.ready = true
-      this.observe(this.store.getSnapshot().address !== 'requested')
-      this.applyViewport()
-      this.loadPending()
+      if (this.options.sessionId === undefined || this.bridge.bind === undefined) {
+        this.requests?.bind(binding)
+        this.ready = true
+        this.observe(this.store.getSnapshot().address !== 'requested')
+        this.applyViewport()
+        this.loadPending()
+        return
+      }
+      if (bound) { completeOpen(); return }
+      bound = true
+      void this.bridge.bind(reservation.lease, this.options.sessionId ?? null).then(() => {
+        if (signal.aborted || this.element !== element) return
+        this.requests?.bind(binding)
+        this.ready = true
+        this.observe(this.store.getSnapshot().address !== 'requested')
+        this.applyViewport()
+        this.loadPending()
+        return this.refreshControl()
+      }).catch((error: unknown) => { if (!signal.aborted) this.commandFailed(error) })
     }, { signal })
     element.addEventListener('did-navigate', () => { this.observe(true) }, { signal })
     element.addEventListener('did-navigate-in-page', (event) => {

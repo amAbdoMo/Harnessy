@@ -4,6 +4,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
+import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
 import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { BrowserResponsiveInjected, BrowserTabParams } from './responsive.ts'
@@ -138,6 +139,13 @@ export function apply(ctx: Context): void {
       pending.clear()
     }
   }, 'ui-sidebar-browser.prepared-tabs')
+  const onAgentOpen = desktop?.onAgentOpen?.bind(desktop)
+  if (onAgentOpen !== undefined) ctx.effect(() => onAgentOpen((request) => {
+    ctx.sidebarRight.openTabIn(request.sessionId as BrowserBodyProps['sessionId'], 'browser', {
+      params: { url: request.url, openRequestId: request.requestId,
+        ...(request.profileId === undefined ? {} : { profileId: request.profileId }) }, revealIfOpened: false,
+    })
+  }), 'ui-sidebar-browser.agent-open')
   ctx.effect(() => ctx.locale.register(namespace, { zh, en }), 'ui-sidebar-browser.copy')
   ctx.effect(() => ctx.sidebarRightTabs.register({ ...browserDefinition(t), keepMounted: desktop !== undefined }), 'ui-sidebar-browser.type')
   const installFrames = (scope: Context): void => {
@@ -191,6 +199,15 @@ export function apply(ctx: Context): void {
             ...createBrowserControllers(actions, factory(sessionId), tabId =>
               openTabs.getSnapshot().some(tab => tab.sessionId === sessionId && tab.tabId === tabId), () => websiteProfiles.getSnapshot()),
             profiles: profileCommands,
+            addFeedback: desktop === undefined ? undefined : (file, text) => {
+              const actx = scope.sessions.scope(sessionId)
+              const conversation = actx?.get('conversation')
+              if (actx === undefined || conversation === undefined || !conversation.attachFiles([file])) return false
+              const input = conversation.input.for(actx)
+              input.insertQuote(text)
+              input.focus()
+              return true
+            },
             hooks: { websiteProfiles, responsiveAvailable },
           }
           controllers.set(sessionId, face)
@@ -200,7 +217,7 @@ export function apply(ctx: Context): void {
     }, BrowserBody)), 'ui-sidebar-browser.body')
   }
   if (desktop === undefined) installFrames(ctx)
-  else ctx.inject(['workspaces'], installFrames)
+  else ctx.inject(['workspaces', 'conversation', 'sessions'], installFrames)
   if (profiles !== undefined) {
     ctx.effect(() => () => profiles.dispose(), 'ui-sidebar-browser.profiles')
     ctx.effect(() => ctx.slots.inject('sidebar.right.pane.tab.browser.profiles', () => ctx.slots.register({

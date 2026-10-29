@@ -20,7 +20,7 @@
  */
 
 import { existsSync } from 'node:fs'
-import { isAbsolute, join, parse, relative, sep } from 'node:path'
+import { isAbsolute, join, parse, relative, resolve, sep } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { HarnessError } from '@deepseek-ai/dsh-llm'
 import { ItemRetainer, TextRetainer } from '@deepseek-ai/dsh-output-retention'
@@ -103,7 +103,7 @@ export interface RipgrepRun {
   stdout: string
   /** True when ripgrep exited 1: a successful search with zero results. */
   noMatches: boolean
-  /** The resolved working directory the command ran in (the display-relativization base). */
+  /** The session working directory used as the display-relativization base. */
   workdir: string
 }
 
@@ -217,6 +217,7 @@ export function resolveRgPath(): Promise<string> {
  * @param rawOutputMaxBytes - cap on the complete raw stdout the tool will parse.
  * @param graceMs - the seam's terminate-escalation grace period.
  * @param stderrMaxBytes - cap on the retained stderr diagnostic tail.
+ * @param searchRoot - optional directory, resolved against the session workdir, in which to execute the search.
  * @returns the complete stdout, the zero-result flag, and the resolved workdir.
  */
 export async function runRipgrep(
@@ -227,6 +228,7 @@ export async function runRipgrep(
   rawOutputMaxBytes: number,
   graceMs: number,
   stderrMaxBytes: number,
+  searchRoot?: string,
 ): Promise<RipgrepRun> {
   if (exec.signal.aborted) {
     throw new SearchError(`${toolName} was aborted before completion (tool timeout or caller cancellation)`, 'SEARCH_ABORTED')
@@ -238,7 +240,7 @@ export async function runRipgrep(
   try {
     handle = ctx.subprocess.spawn({
       argv: [await resolveRgPath(), '--no-config', ...argv],
-      cwd: workdir,
+      cwd: searchRoot === undefined ? workdir : resolve(workdir, searchRoot),
       stdio: {
         stdin: 'ignore',
         stdout: { maxBytes: rawOutputMaxBytes },

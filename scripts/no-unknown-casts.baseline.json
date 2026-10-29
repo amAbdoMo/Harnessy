@@ -1865,9 +1865,6 @@
     "11233be4a60a9dfb99acc5fbf90c5185c2101516379f3224866557301bbb048c": 1,
     "7fe58280287ff63d40e979e72329f975e11015a95e9a8eec207a5a78748d3c89": 4
   },
-  "packages/subagent/tool-subagent/tests/scripted-provider.spec.ts": {
-    "e770821c1f637aca0a346d5f6e6f0873ca4d7e3b070b557cddf773c160ec599a": 1
-  },
   "packages/subagent/tool-subagent/tests/tool-subagent.spec.ts": {
     "65e1dff6ee6fedd8c89582d5197e791126c328ff859ce4509a69619afbc4c63f": 1,
     "719322ba287998bcfb906150f393012229c1ec3e4b59bd106469319ba402a09a": 1,

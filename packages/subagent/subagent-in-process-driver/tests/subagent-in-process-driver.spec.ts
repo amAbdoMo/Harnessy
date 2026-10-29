@@ -1,4 +1,4 @@
-import { ToolCallId, createUserMessage } from '@deepseek-ai/dsh-llm'
+import { LlmError, ToolCallId, createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { ContextFormed } from '@deepseek-ai/dsh-llm'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
@@ -55,6 +55,19 @@ function text(blocks: readonly { type: string; text?: string }[]): string {
 }
 
 describe('startInProcessRun', () => {
+  it.each(['AUTH', 'Bearer private-canary'])('retains safe failure routing for %s before the first response', async (code) => {
+    const { parent } = await setup([() => {
+      throw new LlmError('private-canary provider body', code, { status: 401 })
+    }])
+    const run = await startInProcessRun(request(parent), {})
+    const outcome = await settleRun(run)
+    expect(outcome.status).toBe('failed')
+    expect(outcome.detail).toContain(JSON.stringify({ childSessionId: run.id, phase: 'turn',
+      code: code === 'AUTH' ? 'AUTH' : 'UNKNOWN', status: 401 }))
+    expect(outcome.detail).not.toContain('private-canary')
+    expect(outcome.result).toBeUndefined()
+  })
+
   it('captures the parent execution directory without replacing original project authority or following later changes', async () => {
     const { ctx } = await setup([textResponse('directory inherited')])
     const selected = await realpath(await mkdtemp(join(tmpdir(), 'subagent-directory-')))

@@ -13,7 +13,7 @@ import { installWebsiteBridge } from './sidebar-website.bridge.ts'
 const OVERLAY = fileURLToPath(new URL('./sidebar-browser.overlay.yml', import.meta.url))
 const SEED = fileURLToPath(new URL('../../../snapshots/web/seeded-history/session.v3.jsonl', import.meta.url))
 const EXPECTED = fileURLToPath(new URL('./expected/sidebar-website', import.meta.url))
-const BAR = '[class*="profileBar"]'
+const BAR = '[class*="toolbar"]'
 
 async function captureControls(page: Page, workspace: string, name: string): Promise<void> {
   await compareOrRefreshGolden(join(EXPECTED, `${name}.expected.md`),
@@ -42,25 +42,20 @@ it('removes Website controls and subscriptions before held native cleanup settle
     const right = page.locator('[data-rightbar-col]')
     await right.getByRole('button', { name: 'Saved website profiles', exact: true }).click()
     await page.getByRole('menuitem').filter({ hasText: 'Fixture site' }).click()
-    await right.getByText('Human control', { exact: true }).waitFor()
-    expect(await right.getByRole('button', { name: 'Resume', exact: true }).isEnabled()).toBe(false)
+    await right.getByRole('button', { name: 'Resume agent', exact: true }).waitFor()
+    expect(await right.getByRole('button', { name: 'Resume agent', exact: true }).isEnabled()).toBe(true)
     expect(await page.evaluate(() => window.websiteBridgeProbe.resumed)).toBe(0)
     await captureControls(page, scaffold.workspaceCwd, 'human')
 
-    await right.getByRole('button', { name: 'Choose a request', exact: true }).click()
-    await page.getByRole('menuitem', { name: 'Request website-fixture-request', exact: true }).click()
-    await expect.poll(() => right.getByRole('button', { name: 'Resume', exact: true }).isEnabled()).toBe(true)
-    await right.getByRole('button', { name: 'Resume', exact: true }).click()
-    await right.getByText('Agent control', { exact: true }).waitFor()
-    expect(await page.evaluate(() => window.websiteBridgeProbe.preparedSessions)).toEqual([sessionId])
-    expect(await page.evaluate(() => window.websiteBridgeProbe.sessionIds
-      .every(id => id === window.websiteBridgeProbe.preparedSessions[0]))).toBe(true)
+    await right.getByRole('button', { name: 'Resume agent', exact: true }).click()
+    await right.getByRole('button', { name: 'Take control', exact: true }).first().waitFor()
+    expect(await page.evaluate(() => window.websiteBridgeProbe.preparedSessions)).toEqual([])
     await captureControls(page, scaffold.workspaceCwd, 'agent')
 
     await page.evaluate(() => { window.websiteBridgeProbe.hold() })
-    await right.getByRole('button', { name: 'Take control', exact: true }).click()
-    await right.getByText('Human control', { exact: true }).waitFor()
-    expect(await right.getByRole('button', { name: 'Resume', exact: true }).isEnabled()).toBe(false)
+    await right.getByRole('button', { name: 'Take control', exact: true }).first().click()
+    await right.getByRole('button', { name: 'Resume agent', exact: true }).waitFor()
+    expect(await right.getByRole('button', { name: 'Resume agent', exact: true }).isEnabled()).toBe(false)
     expect(await page.evaluate(() => window.websiteBridgeProbe.revoked)).toBe(1)
     expect(await page.evaluate(() => window.websiteBridgeProbe.drained)).toBe(0)
     await captureControls(page, scaffold.workspaceCwd, 'draining')

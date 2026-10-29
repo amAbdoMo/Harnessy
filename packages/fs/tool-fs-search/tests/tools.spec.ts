@@ -14,7 +14,7 @@ import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import type { WorkingDirectoryService } from '@deepseek-ai/dsh-working-directory'
 import { createScope, type Scope } from '@deepseek-ai/dsh-scope'
-import { join, sep } from 'node:path'
+import { join, resolve, sep } from 'node:path'
 import { createUserMessage, ToolCallId } from '@deepseek-ai/dsh-llm'
 import type { ContextFormed } from '@deepseek-ai/dsh-llm'
 import SystemPrompt, { renderPrompt } from '@deepseek-ai/dsh-system-prompt'
@@ -362,15 +362,14 @@ describe('command construction (plain argv)', () => {
     ])
   })
 
-  it('glob: the search root rides behind -- as a plain element', () => {
+  it('glob: the search root is not included in argv', () => {
     expect(buildGlobCommand({ pattern: '*.md', path: 'docs dir' })).toEqual(['--files', '--glob=*.md', '--sort=modified', '--no-ignore', '--hidden',
       '--glob=!**/.git', '--glob=!**/.git/**',
       '--glob=!**/.svn', '--glob=!**/.svn/**',
       '--glob=!**/.hg', '--glob=!**/.hg/**',
       '--glob=!**/.bzr', '--glob=!**/.bzr/**',
       '--glob=!**/.jj', '--glob=!**/.jj/**',
-      '--glob=!**/.sl', '--glob=!**/.sl/**',
-      '--', 'docs dir'])
+      '--glob=!**/.sl', '--glob=!**/.sl/**'])
   })
 
   it('grep: fixed rg --json argv with the pattern in --regexp= form', () => {
@@ -763,9 +762,9 @@ describe('glob results', () => {
     expect(text(await call(ctx, 'glob', { pattern: '*', path: ' ' }))).toContain('path must be a non-empty string')
   })
 
-  it('threads a valid path through to the spawn as the plain search root element', async () => {
+  it('runs in the search root and returns session-relative paths', async () => {
     const { ctx, subprocess } = await setup()
-    subprocess.handler = () => runResult('sub/a.ts\n')
+    subprocess.handler = () => runResult('a.ts\n')
     const result = await call(ctx, 'glob', { pattern: '*.ts', path: 'sub' })
     expect(result.isError).toBe(false)
     expect(subprocess.spawns[0]?.argv).toEqual([rgPath, '--no-config', '--files', '--glob=*.ts', '--sort=modified', '--no-ignore', '--hidden',
@@ -774,8 +773,9 @@ describe('glob results', () => {
       '--glob=!**/.hg', '--glob=!**/.hg/**',
       '--glob=!**/.bzr', '--glob=!**/.bzr/**',
       '--glob=!**/.jj', '--glob=!**/.jj/**',
-      '--glob=!**/.sl', '--glob=!**/.sl/**',
-      '--', 'sub'])
+      '--glob=!**/.sl', '--glob=!**/.sl/**'])
+    expect(subprocess.spawns[0]?.cwd).toBe(resolve(process.cwd(), 'sub'))
+    expect(text(result)).toBe(join('sub', 'a.ts'))
   })
 
   it('caps at globMaxResults and saves the FULL sorted list through spillStore', async () => {
@@ -830,10 +830,10 @@ describe('glob results', () => {
   it('samples relative to the explicit search root instead of its workdir prefix', async () => {
     const { ctx, subprocess } = await setup({ config: { globMaxResults: 3 } })
     subprocess.handler = () => runResult([
-      'workspace/vendor/a.ts',
-      'workspace/vendor/b.ts',
-      'workspace/source/c.ts',
-      'workspace/guides/d.md',
+      'vendor/a.ts',
+      'vendor/b.ts',
+      'source/c.ts',
+      'guides/d.md',
     ].map(w).join('\n'))
     const result = await call(ctx, 'glob', { pattern: '*', path: w('workspace') }, { agent: agent('/w') })
     expect(text(result)).toContain(['workspace/vendor/a.ts', 'workspace/source/c.ts', 'workspace/guides/d.md'].map(w).join('\n'))

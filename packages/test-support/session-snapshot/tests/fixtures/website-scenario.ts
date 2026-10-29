@@ -38,7 +38,7 @@ export function apply(ctx: Context): void {
     request => send({ type: 'website-revoked', id: request.requestId }),
     (request, signal) => parent.check({ id: request.requestId, profile: request.profileId,
       sessionId: request.sessionId, epoch: request.epoch, status: request.status }, signal),
-    scope => installWebsiteRequestTools(scope, parent))
+    { mcpAuthorization: 'paired-requests', installTool: scope => installWebsiteRequestTools(scope, parent) })
   const control = installWebsiteControlReceiver(() => requests, send)
   const receive = (message: unknown): void => {
     assert.ok(parent.receive(message) || control(message), 'Unexpected Website scenario IPC packet')

@@ -28,6 +28,7 @@ import { DesktopProjectManager } from '../src/project-manager.ts'
 import { resolveDesktopPaths } from '../src/paths.ts'
 import { readClientBuildRecord } from '../../../scripts/client-build-environment.ts'
 import { websiteModelFixture } from './website-model.fixture.ts'
+import { browserPreviewModelFixture } from './browser-preview-model.fixture.ts'
 import { assertCleanWebsiteExit } from './website-shutdown.fixture.ts'
 
 // Reuse the Web acceptance lane's installed Playwright; no browser download is needed.
@@ -44,14 +45,7 @@ const artifacts = [join(desktop, 'lib/main.js'), join(desktop, 'lib/preload-app.
   join(primaryRuntime, 'dependencies/node/bin/node.exe')]
 const missing = artifacts.filter(path => !existsSync(path))
 const runFile = promisify(execFile)
-type ProductWindow = Window & { dshDesktop?: DshDesktopProductApi; __websiteNativeTitleRestore?: () => void }
-type NativeProbe = {
-  count: { title: number; dom: number; image: number }
-  setTitle(title: string): Promise<void>
-  restore(): void
-}
-type ProbedGlobal = typeof globalThis & { __websiteNativeFixture?: NativeProbe }
-
+type ProductWindow = Window & { dshDesktop?: DshDesktopProductApi }
 async function listen(server: Server): Promise<string> {
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject)
@@ -1087,26 +1081,24 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
     }
   }, 300_000)
 
-  it.each(['ask', 'automatic'] as const)('uses a genuine Agent and the same native guest through Pause and Continue with %s access', async (access) => {
+  it.each(['none', 'ask', 'automatic'] as const)('uses stable preview tools through human takeover and resume with %s saved access', { timeout: 240_000, retry: 0 }, async (access) => {
     if (process.platform !== 'win32') throw new Error('Native acceptance requires an interactive Windows desktop')
     expect(readClientBuildRecord(repository).environment.DSH_CLIENT_BUILD_PROFILE).toBe('custom-harness')
-    const root = mkdtempSync(join(tmpdir(), 'dsh-website-agent-'))
+    const root = mkdtempSync(join(tmpdir(), 'dsh-browser-preview-agent-'))
     const env = childEnvironment(root)
     env.DEEPSEEK_API_KEY = 'fixture-key-not-an-external-credential'
-    const model = websiteModelFixture(access)
-    const mcp = mcpFixture()
-    const privateCookie = 'HUMAN_PRIVATE_COOKIE_VALUE'
-    const humanOnly = ['HUMAN_PRIVATE_TITLE', 'HUMAN_PRIVATE_BODY', 'HUMAN_PRIVATE_PATH', 'HUMAN_PRIVATE_QUERY', 'HUMAN_PRIVATE_INPUT', 'fixture-password', privateCookie]
-    const approvedTitle = 'APPROVED_WEBSITE_TITLE'
-    const website = loginFixture(privateCookie)
+    const website = createServer((_request, response) => {
+      response.setHeader('content-type', 'text/html')
+      response.end('<title>Browser preview fixture</title><h1>Native preview page</h1><button id="action">Fixture action</button><input id="field">')
+    })
     let app: ElectronApplication | undefined
-    let restored: (() => Promise<void>) | undefined
-    let view: Page | undefined
+    let model: ReturnType<typeof browserPreviewModelFixture> | undefined
+    const mcp = access === 'none' ? undefined : mcpFixture()
     let failure: unknown
     const cleanupErrors: unknown[] = []
     try {
       const origin = await listen(website)
-      const mcpUrl = `${await listen(mcp.server)}/mcp`
+      model = browserPreviewModelFixture(origin)
       const modelUrl = await listen(model.server)
       await new DesktopProjectManager(resolveDesktopPaths(env.DSH_HOME, env.DSH_DESKTOP_PROFILE_DIR), { dsh: project }).applyRelease()
       writeFileSync(join(env.DSH_DESKTOP_PROFILE_DIR!, 'cordis.patch.yml'),
@@ -1116,205 +1108,95 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
         + '- id: tools\n  config:\n    mode: native\n')
       app = await _electron.launch({ executablePath: electronExecutable,
         args: [desktop, '--lang=en-US', '--enable-logging=stderr'], env, cwd: desktop, timeout: 120_000 })
-      const activeApp = app
       const page = await applicationPage(app)
-      view = page
-      await configureMcp(page, mcpUrl)
       await page.evaluate(() => { (window as Window & { __DSH_LOCALE__?: { onChange(locale: string): void } }).__DSH_LOCALE__!.onChange('en') })
-      const profile = await pairProfile(app, page, origin, mcpUrl, 'Agent fixture account')
-      if (access === 'automatic') {
-        await page.evaluate(async (id) => {
-          const profiles = (window as ProductWindow).dshDesktop!.browser.profiles
-          await profiles.saveLogin(id, { username: 'fixture-user', password: 'fixture-password' })
-          await profiles.setAccess(id, 'automatic')
-        }, profile.id)
-        const protectedLogin = await readFile(join(root, 'cache/DesktopUserData/website-login-vault.json'), 'utf8')
-        expect(protectedLogin).not.toContain('fixture-password')
-        expect(protectedLogin).not.toContain('fixture-user')
-      }
-      await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click()
-      if (access === 'automatic') {
-        await page.getByRole('button', { name: /^Access mode, current:/u }).click()
-        await page.getByRole('menuitem', { name: 'Full access', exact: true }).click()
-        const confirmation = page.getByRole('dialog', { name: 'Enable Full access?' })
-        await confirmation.getByRole('checkbox').check()
-        await confirmation.getByRole('button', { name: 'Enable Full access', exact: true }).click()
-      }
       const composer = page.locator('[data-composer-input][contenteditable="true"]').last()
-      await composer.fill(`${model.marker}: request the saved Agent fixture account, wait for Human Resume, and read only the approved page title and origin.`)
+      await composer.waitFor({ timeout: 120_000 })
+      if (mcp !== undefined && access !== 'none') {
+        const mcpUrl = `${await listen(mcp.server)}/mcp`
+        await configureMcp(page, mcpUrl)
+        const profile = await pairProfile(app, page, origin, mcpUrl, 'Preview fixture account')
+        await page.evaluate(async ({ id, access }) => {
+          await (window as ProductWindow).dshDesktop!.browser.profiles.setAccess(id, access)
+        }, { id: profile.id, access })
+        model.useProfile(profile.id)
+        await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click()
+      }
+      await page.getByRole('button', { name: /^Access mode, current:/u }).click()
+      await page.getByRole('menuitem', { name: 'Full access', exact: true }).click()
+      const confirmation = page.getByRole('dialog', { name: 'Enable Full access?' })
+      await confirmation.getByRole('checkbox').check()
+      await confirmation.getByRole('button', { name: 'Enable Full access', exact: true }).click()
+      await composer.fill(`${model.marker}: open the native browser and exercise its tab with human control handoff.`)
       await composer.press('Enter')
-      await expect.poll(() => { expect(model.errors).toEqual([]); return model.held.has('prepared') }, { timeout: 60_000 }).toBe(true)
-      expect(model.receipt?.profileId).toBe(profile.id)
-      const right = page.locator('[data-rightbar-col]')
-      await right.getByText(access === 'automatic' ? 'Agent control' : 'Human control', { exact: true }).waitFor()
-      const guestTag = '[data-sidebar-browser-frame="webview"]'
-      await page.locator(guestTag).waitFor()
-      const guestId = (): Promise<number> => page.evaluate((selector) => {
-        const guest = document.querySelector<WebviewTag>(selector)
-        if (!guest) throw new Error('Product-created Website guest is unavailable')
-        return guest.getWebContentsId()
-      }, guestTag)
-      await expect.poll(guestId, { timeout: 20_000 }).toBeGreaterThan(0)
-      const nativeId = await guestId()
-      expect(await page.locator(guestTag).getAttribute('partition')).toBe(`persist:dsh-website-${profile.id}`)
-      // A native ID exists before the product's initial website navigation has loaded.
-      await expect.poll(() => state(activeApp, nativeId), { timeout: 15_000 }).toBe(access === 'automatic' ? 'authenticated' : 'anonymous')
-      // Human login and private-page setup run outside Agent execution.
-      if (access === 'ask') await signIn(app, nativeId, privateCookie)
-      await app.evaluate(async ({ webContents }, { id, url, privateData }) => {
-        const guest = webContents.fromId(id)
-        if (!guest) throw new Error('Product-created Website guest was destroyed')
-        await guest.loadURL(url)
-        await guest.executeJavaScript(`
-          document.title = ${JSON.stringify(privateData.title)};
-          document.body.append(Object.assign(document.createElement('p'), { textContent: ${JSON.stringify(privateData.body)} }));
-          document.body.append(Object.assign(document.createElement('input'), { type: 'password', value: ${JSON.stringify(privateData.input)} })); void 0;
-        `)
-      }, { id: nativeId, url: `${origin}/${humanOnly[2]}?secret=${humanOnly[3]}`,
-        privateData: { title: humanOnly[0]!, body: humanOnly[1]!, input: humanOnly[4]! } })
-      // The Human-facing address bar may read its own title; it must not count as an Agent observation.
-      await page.evaluate(() => {
-        const guest = document.querySelector<WebviewTag>('[data-sidebar-browser-frame="webview"]')
-        if (!guest) throw new Error('Product-created Website frame is missing')
-        const descriptor = Object.getOwnPropertyDescriptor(guest, 'getTitle')
-        ;(window as ProductWindow).__websiteNativeTitleRestore = () => {
-          if (descriptor) Object.defineProperty(guest, 'getTitle', descriptor)
-          else Reflect.deleteProperty(guest, 'getTitle')
-          delete (window as ProductWindow).__websiteNativeTitleRestore
-        }
-        guest.getTitle = () => 'Human website page'
-      })
-      await app.evaluate(({ webContents }, id) => {
-        const guest = webContents.fromId(id)
-        if (!guest) throw new Error('Product-created Website guest was destroyed')
-        const count = { title: 0, dom: 0, image: 0 }
-        // eslint-disable-next-line @typescript-eslint/unbound-method -- Exact methods are restored; calls bind their guest.
-        const original = { title: guest.getTitle, javascript: guest.executeJavaScript, image: guest.capturePage }
-        const title = original.title.bind(guest)
-        const javascript = original.javascript.bind(guest)
-        const image = original.image.bind(guest)
-        guest.getTitle = () => { count.title++; return title() }
-        guest.executeJavaScript = (code, gesture) => { count.dom++; return javascript(code, gesture) }
-        guest.capturePage = (rect, options) => { count.image++; return image(rect, options) }
-        Reflect.set(globalThis, '__websiteNativeFixture', {
-          count,
-          setTitle: async (approved: string): Promise<void> => {
-            await javascript(`document.title = ${JSON.stringify(approved)}; void 0`)
-          },
-          restore: () => {
-            guest.getTitle = original.title; guest.executeJavaScript = original.javascript; guest.capturePage = original.image
-            Reflect.deleteProperty(globalThis, '__websiteNativeFixture')
-          },
-        })
-      }, nativeId)
-      restored = async () => {
-        await page.evaluate(() => { (window as ProductWindow).__websiteNativeTitleRestore?.() })
-        await activeApp.evaluate(() => { (globalThis as ProbedGlobal).__websiteNativeFixture?.restore() })
-      }
-      const counts = () => activeApp.evaluate(() => (globalThis as ProbedGlobal).__websiteNativeFixture!.count)
-      const noHumanLeak = (): void => {
-        const text = JSON.stringify(model.requests)
-        expect(humanOnly.some(secret => text.includes(secret)), 'Human-only page data reached the provider').toBe(false)
-      }
-      noHumanLeak()
-      expect(await counts()).toEqual({ title: 0, dom: 0, image: 0 })
-      expect(await right.getByRole('button', { name: 'Choose a request', exact: true }).count()).toBe(0)
-      // The Human chooses which title may be observed; this write is outside Agent measurement.
-      await app.evaluate(async (_electron, title) => {
-        await (globalThis as ProbedGlobal).__websiteNativeFixture!.setTitle(title)
-      }, approvedTitle)
-      if (access === 'ask') await right.getByRole('button', { name: 'Continue', exact: true }).click()
-      await right.getByText('Agent control', { exact: true }).waitFor()
-      expect(await guestId()).toBe(nativeId)
-      model.release('prepared')
-      const consent = page.locator('[data-approval-key]')
-      if (access === 'ask') {
-        await consent.getByRole('button', { name: 'Allow once', exact: true }).waitFor({ timeout: 30_000 })
-        const firstApproval = await consent.getAttribute('data-approval-key')
-        expect(await counts()).toEqual({ title: 0, dom: 0, image: 0 })
-        await consent.getByRole('button', { name: 'Allow once', exact: true }).click()
-        await expect.poll(() => model.held.has('observed') || model.errors.length > 0, { timeout: 30_000 }).toBe(true)
-        noHumanLeak()
-        expect(model.errors, JSON.stringify(model.observationResult)).toEqual([])
-        expect(model.observed).toEqual({ origin, title: approvedTitle, titleTruncated: false })
-        expect(await counts()).toEqual({ title: 1, dom: 0, image: 0 })
-        noHumanLeak()
-        model.release('observed')
-        await consent.getByRole('button', { name: 'Allow once', exact: true }).waitFor({ timeout: 30_000 })
-        expect(await consent.getAttribute('data-approval-key')).not.toBe(firstApproval)
-        await right.getByRole('button', { name: 'Pause', exact: true }).click()
-        await right.getByText('Human control', { exact: true }).waitFor()
-        await expect.poll(() => { expect(model.errors).toEqual([]); return model.held.has('taken-over') }, { timeout: 30_000 }).toBe(true)
-        expect(model.denied).toBe(true)
-        expect(await consent.count()).toBe(0)
-        expect(await counts()).toEqual({ title: 1, dom: 0, image: 0 })
-        expect(await guestId()).toBe(nativeId)
-        noHumanLeak()
-        await right.getByRole('button', { name: 'Continue', exact: true }).click()
-        await right.getByText('Agent control', { exact: true }).waitFor()
-        model.release('taken-over')
-        await consent.getByRole('button', { name: 'Allow once', exact: true }).waitFor({ timeout: 30_000 })
-        expect(await consent.getAttribute('data-approval-key')).not.toBe(firstApproval)
-        await consent.getByRole('button', { name: 'Allow once', exact: true }).click()
-      } else {
-        await expect.poll(() => model.held.has('observed') || model.errors.length > 0, { timeout: 30_000 }).toBe(true)
-        expect(model.errors).toEqual([])
-        expect(model.observed).toEqual({ origin, title: approvedTitle, titleTruncated: false })
-        expect(await consent.count()).toBe(0)
-        expect(await counts()).toEqual({ title: 1, dom: 0, image: 0 })
-        await right.getByRole('button', { name: 'Pause', exact: true }).click()
-        await right.getByText('Human control', { exact: true }).waitFor()
-        const retainedCookies = await app.evaluate(async ({ webContents }, id) =>
-          webContents.fromId(id)!.session.cookies.get({ name: 'fixture_login' }), nativeId)
-        expect(retainedCookies).toEqual([expect.objectContaining({ value: privateCookie, httpOnly: true })])
-        await page.screenshot({ path: join(repository, '.artifacts/saved-websites-native-paused.png') })
-        expect(await counts()).toEqual({ title: 1, dom: 0, image: 0 })
-        await right.getByRole('button', { name: 'Continue', exact: true }).click()
-        await right.getByText('Agent control', { exact: true }).waitFor()
-        model.release('observed')
-      }
-      await page.getByText('WEBSITE_AGENT_COMPLETE', { exact: true }).waitFor({ timeout: 30_000 })
-      expect(await guestId()).toBe(nativeId)
-      expect(await counts()).toEqual({ title: 2, dom: 0, image: 0 })
-      noHumanLeak()
-      await restored()
-      restored = undefined
+      const script = model
+      await expect.poll(() => { expect(script.errors).toEqual([]); return script.held.has('agent-observed') }, { timeout: 60_000 }).toBe(true)
+      const nativeId = await activeBrowserGuest(page)
+      expect(await app.evaluate(({ webContents }, id) => webContents.fromId(id)!.getTitle(), nativeId)).toBe('Agent edited page')
+      const browser = page.locator('[data-rightbar-col]')
+      await browser.getByRole('button', { name: 'Take control', exact: true }).first().click()
+      await browser.getByRole('button', { name: 'Resume agent', exact: true }).waitFor()
+      script.release('agent-observed')
+      await expect.poll(() => { expect(script.errors).toEqual([]); return script.held.has('human-observed') }, { timeout: 30_000 }).toBe(true)
+      expect(script.denied).toBe(true)
+      expect(script.observedDuringHuman).toBe(true)
+      expect(await app.evaluate(({ webContents }, id) => webContents.fromId(id)!.getTitle(), nativeId)).toBe('Agent edited page')
+      await browser.getByRole('button', { name: 'Select', exact: true }).click()
+      const feedbackErrors: string[] = []
+      page.on('console', (message) => { if (message.type() === 'error') feedbackErrors.push(message.text()) })
+      const feedback = page.getByRole('dialog', { name: 'Annotate page', exact: true })
+      await feedback.waitFor()
+      await feedback.getByRole('textbox', { name: 'Describe what to change…', exact: true }).fill('Make this heading clearer')
+      await feedback.getByRole('button', { name: 'Region', exact: true }).click()
+      const canvas = feedback.getByLabel('Page annotation canvas', { exact: true })
+      const bounds = await canvas.boundingBox()
+      if (bounds === null) throw new Error('Annotation canvas is not visible')
+      await page.mouse.move(bounds.x + 10, bounds.y + 10)
+      await page.mouse.down()
+      await page.mouse.move(bounds.x + 100, bounds.y + 60)
+      await page.mouse.up()
+      expect(await canvas.locator('rect').count()).toBe(1)
+      await feedback.getByRole('button', { name: 'Add to chat', exact: true }).click()
+      await expect.poll(async () => {
+        expect(feedbackErrors).toEqual([])
+        expect(await feedback.getByRole('alert').count()).toBe(0)
+        return feedback.isVisible()
+      }).toBe(false)
+      expect(await composer.innerText()).toContain('Make this heading clearer')
+      expect(await composer.innerText()).toContain(origin)
+      await browser.getByRole('button', { name: 'Resume agent', exact: true }).click()
+      await browser.getByRole('button', { name: 'Take control', exact: true }).first().waitFor()
+      script.release('human-observed')
+      await page.getByText('BROWSER_PREVIEW_COMPLETE', { exact: true }).waitFor({ timeout: 30_000 })
+      expect(await activeBrowserGuest(page)).toBe(nativeId)
+      expect(await app.evaluate(({ webContents }, id) => webContents.fromId(id)!.getTitle(), nativeId)).toBe('Resumed browser agent')
+      expect(await page.evaluate(async () => (await (window as ProductWindow).dshDesktop!.browser.profiles.list()).length))
+        .toBe(access === 'none' ? 0 : 1)
+      expect(await page.locator('[data-approval-key]').count()).toBe(0)
+      await page.screenshot({ path: join(repository, '.artifacts/browser-preview-native.png') })
       await stopDesktop(app, env)
       app = undefined
       const logs = await sessionLogs(join(env.DSH_HOME!, 'sessions'))
-      const log = logs.find(text => text.includes(model.marker))
-      expect(log !== undefined, 'Genuine Agent Session was not durably recorded').toBe(true)
-      expect(humanOnly.some(secret => logs.some(text => text.includes(secret))), 'Human-only data entered a durable Session').toBe(false)
-      if (access === 'ask') {
-        expect(log).toContain('approval/decided')
-        expect(log).toContain('allowed-once')
-        expect(log).toContain('native_info_denied')
-      } else expect(log).not.toContain('approval/requested')
-      expect(log).toContain(approvedTitle)
-      expect(log).toContain('WEBSITE_AGENT_COMPLETE')
-    } catch (error) {
-      failure = error
-      throw error
-    } finally {
-      if (app && view && failure !== undefined) {
-        try {
-          await view.keyboard.press('Escape')
-          const stop = view.getByRole('button', { name: 'Stop', exact: true })
-          if (await stop.count()) await stop.click({ timeout: 5_000 })
-        } catch (error) { cleanupErrors.push(error) }
-      }
-      model.dispose()
-      if (restored) { try { await restored() } catch (error) { cleanupErrors.push(error) } }
+      const log = logs.find(text => text.includes(script.marker))
+      expect(log).toContain('preview_open')
+      expect(log).toContain('preview_evaluate')
+      expect(log).toContain('preview_snapshot')
+      expect(log).toContain('BROWSER_PREVIEW_COMPLETE')
+      expect(log).not.toContain('website_prepare')
+    } catch (error) { failure = error; throw error }
+    finally {
+      model?.dispose()
       let settled = app === undefined
-      if (app) {
+      if (app !== undefined) {
         try { await stopDesktop(app, env); settled = true } catch (error) { cleanupErrors.push(error) }
       }
-      for (const server of [model.server, website, mcp.server]) {
+      for (const server of [website, ...(model === undefined ? [] : [model.server]), ...(mcp === undefined ? [] : [mcp.server])]) {
         if (server.listening) { try { await closeServer(server) } catch (error) { cleanupErrors.push(error) } }
       }
       if (settled && failure === undefined) { try { await removeOwned(root) } catch (error) { cleanupErrors.push(error) } }
-      else cleanupErrors.push(new Error(`Native Agent ${settled ? 'scenario failed' : 'shutdown was not accepted'}; retained test root: ${root}`))
-      if (cleanupErrors.length) throw new AggregateError([...(failure === undefined ? [] : [failure]), ...cleanupErrors], 'Native Agent acceptance cleanup failed')
+      else cleanupErrors.push(new Error(`Native preview acceptance retained diagnostics: ${root}`))
+      if (cleanupErrors.length > 0) throw new AggregateError([...(failure === undefined ? [] : [failure]), ...cleanupErrors], 'Native browser preview acceptance failed')
     }
-  }, 300_000)
+  })
+
 })

@@ -38,6 +38,9 @@ export function installWebsiteBridge(): void {
   }
   const profileListeners = new Set<() => void>()
   const requestListeners = new Set<() => void>()
+  const controlListeners = new Set<() => void>()
+  let humanControl = true
+  let boundSession: string | null = null
   const openListeners = new Set<(url: string) => void>()
   const sessionIds: Branded<'SessionId'>[] = []
   const preparedSessions: Branded<'SessionId'>[] = []
@@ -60,6 +63,20 @@ export function installWebsiteBridge(): void {
     partition: persistent ? `persist:dsh-website-${profileId}` : 'dsh-website-fixture-ordinary',
   })
   const browser: DesktopBrowserBridge = {
+    bind: async (_lease, sessionId) => { boundSession = sessionId },
+    status: async lease => ({ tabId: lease, sessionId: boundSession, humanControl, generation: resumed + revoked,
+      url: profile.url, title: 'Fixture page', loading: false }),
+    control: async (_lease, human) => {
+      humanControl = human
+      if (human) {
+        revoked++
+        for (const listener of controlListeners) listener()
+        if (held) await barrier
+        drained++
+      } else resumed++
+      for (const listener of controlListeners) listener()
+    },
+    onControlChanged: listener => subscribe(controlListeners, listener),
     profiles: {
       list: async () => [profile],
       create: async () => { throw new Error('This scenario opens an existing external profile') },
@@ -128,7 +145,7 @@ export function installWebsiteBridge(): void {
     get drained() { return drained },
     get releasesStarted() { return releasesStarted },
     get releasesSettled() { return releasesSettled },
-    get listeners() { return profileListeners.size + requestListeners.size + openListeners.size },
+    get listeners() { return profileListeners.size + requestListeners.size + openListeners.size + controlListeners.size },
     hold() { held = true },
     finish() { held = false; release() },
     notify() {

@@ -1,8 +1,8 @@
 /** Common browser chrome; a presentation adapter attaches the page inside its content container. */
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import {
-  Button, SegmentedControl,
+  Button,
   IconChevronLeftOutlineRegular,
   IconChevronRightOutlineRegular,
   IconLinkOutlineRegular,
@@ -14,13 +14,14 @@ import {
 import type { InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { DesktopWebsiteProfile } from '../../types.ts'
 import type { SidebarRightTabParamsFor } from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
-import type { BrowserMode, BrowserResponsiveInjected } from '../responsive.ts'
-import { parseBrowserAddress } from '../browser/url.ts'
+import type { BrowserResponsiveInjected } from '../responsive.ts'
 import type { BrowserInjected } from '../browser/BrowserController.ts'
 import { emptyBrowserFrame } from '../browser/BrowserFrame.ts'
 import { currentBrowserTarget } from '../browser/BrowserPersistence.ts'
 import type { BrowserStore } from '../browser/store.ts'
 import { BrowserProfileBar } from './BrowserProfileBar.tsx'
+import { BrowserFeedback } from './BrowserFeedback.tsx'
+import { BrowserControl } from './BrowserControl.tsx'
 import type {} from './BrowserProfilePicker.tsx'
 import css from './Browser.module.css'
 
@@ -55,30 +56,19 @@ function useBrowserDraft(url: string | undefined, revision: number): readonly [s
 export function BrowserBody(props: BrowserBodyProps): ReactNode {
   const {
     mount, loadUrl, restore, goBack, goForward, reload, setSandbox, profiles, useBrowserState, useStore, useTabInfo,
-    setVisible, selectRequest, resumeRequest, takeoverRequest, reloadRequests, useWebsiteRequests,
+    setVisible, useWebsiteRequests,
     useWebsiteProfiles, renderSlot, t,
   } = props
-  const { tab, sidebar } = useTabInfo()
-  const responsiveAvailable = props.useResponsiveAvailable(available => available)
-  const [presentation, setPresentation] = useState<{
-    readonly mode: BrowserMode
-    readonly navigation: { readonly url: string; readonly revision: number } | undefined
-  }>({ mode: 'desktop', navigation: undefined })
+  const { tab } = useTabInfo()
   const params = tab.navigation.params as SidebarRightTabParamsFor<'browser'>
-  const mode = responsiveAvailable && params?.profileId === undefined ? presentation.mode : 'desktop'
-  useEffect(() => {
-    if (!responsiveAvailable) setPresentation({ mode: 'desktop', navigation: undefined })
-  }, [responsiveAvailable])
-  useEffect(() => {
-    if (mode !== 'desktop') return
-    return tab.actions.bindCommands({ refresh: () => { reload(tab.id) } })
-  }, [tab.actions, tab.id, reload, mode])
+  useEffect(() => tab.actions.bindCommands({ refresh: () => { reload(tab.id) } }), [tab.actions, tab.id, reload])
   const saved = useStore(state => state.byTab[tab.id])
   const initial = useRef(saved)
   const initialUrl = useRef(params?.previewId === undefined ? params?.url : undefined)
   const profileId = params?.profileId
   const viewportId = useId()
   const [mountEpoch, setMountEpoch] = useState(0)
+  const [takeoverFailed, setTakeoverFailed] = useState(false)
   const state = useBrowserState(tab.id)
   const requests = useWebsiteRequests(tab.id, current => current)
   const profileState = useWebsiteProfiles(current => current)
@@ -96,7 +86,8 @@ export function BrowserBody(props: BrowserBodyProps): ReactNode {
 
   useLayoutEffect(() => {
     const hide = mount({
-      tabId: tab.id, signal: tab.signal, viewportId, applicationOrigin: window.location.origin,
+      tabId: tab.id, sessionId: props.sessionId, openRequestId: params?.openRequestId, signal: tab.signal, viewportId,
+      applicationOrigin: window.location.origin,
       initial: initial.current, initialUrl: initialUrl.current, profileId,
       openTab: openUrl,
     })
@@ -105,14 +96,14 @@ export function BrowserBody(props: BrowserBodyProps): ReactNode {
   }, [mount, tab.id, tab.signal, tab.actions, viewportId, props.actions, profileId])
 
   useLayoutEffect(() => {
-    setVisible(tab.id, tab.visible && mode === 'desktop')
+    setVisible(tab.id, tab.visible)
     return () => { setVisible(tab.id, false) }
-  }, [setVisible, tab.id, tab.visible, mountEpoch, mode])
+  }, [setVisible, tab.id, tab.visible, mountEpoch])
 
   const unknown = frame.address === 'unknown'
   const externalUrl = unknown ? undefined : target?.url
   const sandboxed = frame.sandboxEnabled
-  const humanAccessBlocked = profileId !== undefined
+  const humanAccessBlocked = props.addFeedback === undefined && profileId !== undefined
     && (profiles === undefined || profileState.phase !== 'ready'
       || profileState.profiles.find(profile => profile.id === profileId)?.control !== 'human'
       || requests === undefined || requests.phase !== 'ready' || requests.granted || requests.busy !== undefined || requests.blocked
@@ -120,27 +111,10 @@ export function BrowserBody(props: BrowserBodyProps): ReactNode {
   const failure = state?.addressFailure
   const error = frame.error
   const submit = (event: FormEvent): void => { event.preventDefault(); if (!humanAccessBlocked) loadUrl(tab.id, draft) }
-  const selectMode = (next: BrowserMode): void => {
-    if (next !== 'desktop' && mode === 'desktop' && draft.trim() !== '') {
-      const parsed = parseBrowserAddress(draft, window.location.origin)
-      if (!parsed.ok) { loadUrl(tab.id, draft); return }
-      setPresentation(current => ({
-        mode: next, navigation: { url: parsed.target.url, revision: (current.navigation?.revision ?? 0) + 1 },
-      }))
-    } else setPresentation(current => ({ ...current, mode: next }))
-  }
-  const selectMobile = useCallback(() => { setPresentation(current => ({ ...current, mode: 'mobile' })) }, [])
-  const modeId = `${viewportId}-mode`
 
   return (
     <div className={css.root}>
-      {responsiveAvailable && profileId === undefined && <div className={css.modes}>
-        <SegmentedControl<BrowserMode> id={modeId} value={mode} label={t('mode.label')}
-          options={(['desktop', 'mobile', 'tablet'] as const).map(value => ({ value, label: t(`mode.${value}`) }))}
-          onChange={selectMode} />
-      </div>}
-      <div className={css.desktop} hidden={mode !== 'desktop'} id={`${modeId}-desktop-panel`}
-        role="tabpanel" aria-labelledby={responsiveAvailable && profileId === undefined ? `${modeId}-desktop` : undefined}>
+      <div className={css.desktop}>
         <form className={css.toolbar} onSubmit={submit}>
           <button type="button" className={css.tool} aria-label={t('back')} title={t('back')} disabled={humanAccessBlocked || !frame.canGoBack} onClick={() => { goBack(tab.id) }}><IconChevronLeftOutlineRegular /></button>
           <button type="button" className={css.tool} aria-label={t('forward')} title={t('forward')} disabled={humanAccessBlocked || !frame.canGoForward} onClick={() => { goForward(tab.id) }}><IconChevronRightOutlineRegular /></button>
@@ -178,22 +152,31 @@ export function BrowserBody(props: BrowserBodyProps): ReactNode {
               tab.actions.openTab('browser', { params: { url: profile.url, profileId: profile.id }, revealIfOpened: false })
             },
           })}
+          <BrowserControl humanControl={frame.humanControl} control={human => props.control(tab.id, human)} t={t} />
+          {props.addFeedback !== undefined && target !== undefined && <BrowserFeedback
+            capture={() => props.capture(tab.id)} pick={point => props.pick(tab.id, point)}
+            addFeedback={props.addFeedback} t={t} />}
+          {profileId !== undefined && profiles !== undefined && <details className={css.accountMenu}>
+            <summary aria-label={t('profiles.manage')}>{t('profiles.manage')}</summary>
+            <div className={css.accountPopover}><BrowserProfileBar profileId={profileId} profiles={profiles}
+              useWebsiteProfiles={useWebsiteProfiles}
+              t={t} /></div>
+          </details>}
         </form>
-        {profileId !== undefined && (profiles === undefined
-        // This carrier cannot reach the desktop profile registry; say so instead
-        // of showing controls that would store nothing.
-          ? <p className={css.profileNotice}>{t('profiles.desktopOnly')}</p>
-          : <BrowserProfileBar profileId={profileId} profiles={profiles} useWebsiteProfiles={useWebsiteProfiles}
-            requests={requests} selectRequest={(id) => { selectRequest(tab.id, id) }}
-            resumeRequest={() => resumeRequest(tab.id)} takeoverRequest={() => takeoverRequest(tab.id)}
-            reloadRequests={() => reloadRequests(tab.id)} t={t} />)}
+        {profileId !== undefined && profiles === undefined && <p className={css.profileNotice}>{t('profiles.desktopOnly')}</p>}
         {sandboxed === false && <div className={css.sandboxWarning} role="status">{t('sandbox.warning')}</div>}
         {error !== undefined && <div className={css.failure} role="status">{error.code !== undefined && error.description !== undefined
           ? t('load.failed.detail', { code: String(error.code), description: error.description })
           : t('load.failed')}</div>}
         {failure !== undefined && <div className={css.failure} role="alert">{t(`error.${failure}`)}</div>}
         <div className={css.content} aria-busy={frame.loading}>
-          <div id={viewportId} className={css.viewport} aria-label={t('type.label')} ref={(element) => { element?.toggleAttribute('inert', humanAccessBlocked) }} />
+          <div id={viewportId} className={css.viewport} aria-label={t('type.label')} ref={(element) => { element?.toggleAttribute('inert', humanAccessBlocked || frame.humanControl === false) }} />
+          {frame.humanControl === false && <button type="button" className={css.interactionShield}
+            aria-label={t('control.takeover')} title={t('control.takeover')} onClick={() => {
+              setTakeoverFailed(false)
+              void props.control(tab.id, true).catch(() => { setTakeoverFailed(true) })
+            }} />}
+          {takeoverFailed && <p className={css.failure} role="alert">{t('control.failed')}</p>}
           {restoreTarget !== undefined && <section className={css.restore} aria-label={t('restore.previous')}>
             <p className={css.restoreLabel}>{t('restore.previous')}</p>
             <p className={css.restoreTitle}>{restoreTarget.title}</p>
@@ -210,15 +193,6 @@ export function BrowserBody(props: BrowserBodyProps): ReactNode {
         </div>
         {unknown && <p className={css.limit}>{t('address.unknown')}</p>}
       </div>
-      {responsiveAvailable && profileId === undefined && <div className={css.responsive} hidden={mode === 'desktop'}
-        id={`${modeId}-${mode === 'desktop' ? 'mobile' : mode}-panel`} role="tabpanel"
-        aria-labelledby={`${modeId}-${mode === 'desktop' ? 'mobile' : mode}`}>
-        {renderSlot('sidebar.right.pane.tab.browser.responsive', {
-          tab: { ...tab, visible: tab.visible && mode !== 'desktop' }, fullscreen: sidebar.fullscreen,
-          mode, navigation: presentation.navigation,
-          selectMobile,
-        })}
-      </div>}
     </div>
   )
 }

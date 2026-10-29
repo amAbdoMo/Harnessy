@@ -149,12 +149,12 @@ function readiness(): PromiseWithResolvers<void> {
 }
 
 /**
- * Install one global MCP guard with an effect-owned, quiescent teardown.
+ * Install request ownership with effect-owned teardown and an explicit MCP authorization owner.
  * @param ctx - unscoped Host plugin context with the live Agent registry.
  * @param inspectBinding - inspector preserving current MCP registry/configuration identity.
  * @param notifyRevocation - synchronously enqueue Main's revocation and join delivery; failure retains account locks.
  * @param validateNative - check the current request-specific native grant before dispatch and result publication.
- * @param installTool - register one exact-Agent observation descriptor at commit; revocation removes it synchronously.
+ * @param options - independent MCP policy for tab previews, or legacy request authorization with optional committed tools.
  * @returns exact-owner request controller; no grants survive disposal or a Host restart.
  */
 export function installWebsiteRequests(
@@ -162,7 +162,8 @@ export function installWebsiteRequests(
   inspectBinding: (serverName: string) => Promise<WebsiteMcpBinding>,
   notifyRevocation: (request: WebsiteRequestSnapshot) => void | Promise<void>,
   validateNative: (request: WebsiteRequestSnapshot, signal: AbortSignal) => Promise<void>,
-  installTool?: (scope: WebsiteRequestToolScope) => () => void,
+  options: { readonly mcpAuthorization: 'paired-requests' | 'independent'
+    readonly installTool?: (scope: WebsiteRequestToolScope) => () => void },
 ): WebsiteRequestsController {
   if (scopeOf(ctx) !== undefined) throw new Error('Website requests require an unscoped Host context')
   const requests = new Map<WebsiteRequestId, Request>()
@@ -488,7 +489,7 @@ export function installWebsiteRequests(
         }
         request.status = 'granted'
         try {
-          request.detachTool = installTool?.({ agent: request.agent, session: request.session,
+          request.detachTool = options.installTool?.({ agent: request.agent, session: request.session,
             request: snapshot(request), profile: request.profile,
             run: (execution, operation, consent) => runAuthorized(request, execution, epoch, () => execution.signal, async (signal) => {
               try { return await operation(signal) }
@@ -564,7 +565,7 @@ export function installWebsiteRequests(
       }
       return undefined
     })
-    yield ctx.on('mcp/tool-call', guard)
+    if (options.mcpAuthorization === 'paired-requests') yield ctx.on('mcp/tool-call', guard)
     yield async () => {
       stopped = true
       const outcomes = await Promise.allSettled([...requests.values()].map(disposeRequest))

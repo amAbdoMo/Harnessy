@@ -31,6 +31,8 @@ You reach this package through a provider backend, not a composition: `dsh-subag
 
 One call starts and drives one one-shot child. Fulfillment means the child is already published in `ctx.agents` and the caller owns the returned run; a rejected start has already quiesced the unpublished creation, so no half-created child survives. The run exposes the child's id and live agent, a `result` promise, and a `dispose()` that stops the loop, removes the agent and session, and unwinds scoped registrations.
 
+Failed turns retain a diagnostic with the child session id, phase, routing code, and HTTP status when present. Provider messages and request identifiers are omitted; noncanonical routing codes become `UNKNOWN`. A clean turn without required structured output reports `MISSING_STRUCTURED_OUTPUT`. Background job settlement retains these diagnostics even when no assistant answer exists.
+
 ### The one input
 
 `InProcessRunOptions` is `{ seed?: SessionEvent[] }` — a fork seed of balanced parent events. Spawn omits it; fork supplies the completed-turn prefix and records its length so the result reader never mistakes seeded parent messages for child output.

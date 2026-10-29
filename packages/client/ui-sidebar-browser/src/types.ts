@@ -232,6 +232,22 @@ export type DesktopBrowserHumanCommand = (
 
 /** Origin-scoped operations; no Electron objects or arbitrary IPC cross this interface. */
 export interface DesktopBrowserBridge {
+  /** Bind a mounted tab to its chat; null leaves a manually opened tab unclaimed. */
+  bind?(lease: DesktopBrowserLeaseId, sessionId: string | null): Promise<void>
+  /** Take human control or resume the tab's owning agent, draining prior actions. */
+  control?(lease: DesktopBrowserLeaseId, human: boolean): Promise<void>
+  /** Read native tab ownership and navigation state. */
+  status?(lease: DesktopBrowserLeaseId): Promise<BrowserTabStatus>
+  /** Capture the exact mounted native page for human annotations. */
+  capture?(lease: DesktopBrowserLeaseId): Promise<BrowserAnnotationCapture>
+  /** Pick one element at viewport coordinates for human feedback. */
+  pick?(lease: DesktopBrowserLeaseId, point: { readonly x: number; readonly y: number }): Promise<BrowserPickedElement | null>
+  /** Subscribe to agent requests to mount a new browser tab. */
+  onAgentOpen?(listener: (request: BrowserAgentOpenRequest) => void): () => void
+  /** Complete a pending agent opening only after native attachment and ownership binding. */
+  completeOpen?(requestId: string, lease: DesktopBrowserLeaseId): Promise<void>
+  /** Observe native control changes. */
+  onControlChanged?(listener: () => void): () => void
   readonly profiles: DesktopWebsiteProfilesBridge
   readonly requests: DesktopWebsiteRequestsBridge
   /**
@@ -257,4 +273,42 @@ export interface DesktopBrowserBridge {
    * @returns unsubscribe callback; saved-profile guests do not request replacement.
    */
   onReacquireRequested(lease: DesktopBrowserLeaseId, listener: (url: string, revision: number) => void): () => void
+}
+
+/** Native screenshot supplied to a human annotation surface. */
+export interface BrowserAnnotationCapture {
+  readonly png: string
+  readonly width: number
+  readonly height: number
+  readonly viewportWidth: number
+  readonly viewportHeight: number
+  readonly url: string
+  readonly title: string
+}
+
+/** Bounded element context selected by the human. */
+export interface BrowserPickedElement {
+  readonly selector: string
+  readonly tagName: string
+  readonly text: string
+  readonly rect: { readonly x: number; readonly y: number; readonly width: number; readonly height: number }
+}
+
+/** Non-secret native tab state, with chat ownership independent from human control. */
+export interface BrowserTabStatus {
+  readonly tabId: DesktopBrowserLeaseId
+  readonly sessionId: string | null
+  readonly humanControl: boolean
+  readonly generation: number
+  readonly url: string
+  readonly title: string
+  readonly loading: boolean
+}
+
+/** Private request to mount an agent-opened page in its owning chat. */
+export interface BrowserAgentOpenRequest {
+  readonly requestId: string
+  readonly sessionId: string
+  readonly url: string
+  readonly profileId?: DesktopWebsiteProfileId
 }

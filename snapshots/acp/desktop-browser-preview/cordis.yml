@@ -1,0 +1,33 @@
+- id: tool-bash
+  disabled: true
+- id: tool-pwsh
+  disabled: true
+- id: skill-badge
+  disabled: true
+- id: tool-skill
+  disabled: true
+- id: system-prompt
+  config:
+    personaPrefix: |
+      You are a coding assistant powered by the {{model}} model. Your working directory is {{cwd}}.
+
+      Verify your work by running the code or tests. Keep answers brief and factual.
+
+- id: session-persistence-jsonl
+  config:
+    root: !!js process.env.DSH_SNAPSHOT_SESSIONS_ROOT
+    compression: none
+- id: permission
+  config:
+    presets:
+      browser-preview-test:
+        sandbox: danger-full-access
+        approval: never
+    defaultPreset: browser-preview-test
+- id: acp
+  config:
+    provider: snapshot-browser-preview
+    model: browser-model
+- insert:
+    - id: snapshot-browser-preview-scenario
+      name: ../../../packages/test-support/session-snapshot/tests/fixtures/browser-preview-scenario.ts

@@ -207,6 +207,7 @@ const harness = await vi.hoisted(async () => {
     readonly onWebsiteCheck = vi.fn((_listener: (snapshot: DesktopWebsiteHostSnapshot) => void) => () => undefined)
     readonly onWebsitePageInfo = vi.fn<DesktopHostProcess['onWebsitePageInfo']>(() => async () => {})
     readonly onDevicePreviewRequest = vi.fn<DesktopHostProcess['onDevicePreviewRequest']>(() => () => {})
+    readonly onBrowserPreviewRequest = vi.fn<DesktopHostProcess['onBrowserPreviewRequest']>(() => () => {})
     readonly websiteControl = vi.fn(
       async (_command: DesktopWebsiteHostCommand): Promise<DesktopWebsiteHostSnapshot | undefined> => undefined,
     )
@@ -2449,6 +2450,10 @@ describe('desktop main startup', () => {
     replacement.ready.resolve()
     await vi.waitFor(() => { expect(harness.windows[0]!.urls).toEqual(['dsh-app://app/', 'dsh-app://app/']) })
     await expect(Promise.resolve(invoke(DESKTOP_IPC.boot))).resolves.toEqual({ injections: [], streamBaseUrl: 'http://127.0.0.1:3099' })
+    const retiredBrowserCaller = host.onBrowserPreviewRequest.mock.calls[0]?.[0]
+    if (retiredBrowserCaller === undefined) throw new Error('The original Host did not register browser routing')
+    await expect(retiredBrowserCaller({ type: 'browser-preview', requestId: 'retired-host',
+      sessionId: 'old-chat', operation: { kind: 'status' } })).resolves.toBeUndefined()
     if (mandatory) await answerMandatory('later')
     await expect(retry).resolves.toBe(false)
     expect(replacement.updateTasks.mock.calls).toEqual([['inspect']])

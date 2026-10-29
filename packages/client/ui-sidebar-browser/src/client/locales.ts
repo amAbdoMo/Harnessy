@@ -1,5 +1,22 @@
 /** Locale-owned Browser tab copy. */
 export const zh = {
+  'profiles.manage': '账户',
+  'control.resume': '恢复 Agent',
+  'control.takeover': '接管',
+  'control.failed': '重试切换控制',
+  'annotation.tools': '网页标注',
+  'annotation.select': '选择',
+  'annotation.region': '区域',
+  'annotation.draw': '绘制',
+  'annotation.erase': '擦除',
+  'annotation.undo': '撤销',
+  'annotation.title': '标注网页',
+  'annotation.add': '添加到对话',
+  'annotation.image': '已捕获的网页',
+  'annotation.canvas': '网页标注画布',
+  'annotation.comment': '描述需要更改的内容…',
+  'annotation.failed': '无法添加网页反馈。请重试。',
+
   'mode.label': '浏览模式',
   'mode.desktop': '桌面',
   'mode.mobile': '手机',
@@ -118,6 +135,23 @@ export type SidebarBrowserKey = keyof typeof zh
 
 /** English dictionary with the same keys. */
 export const en = {
+  'profiles.manage': 'Account',
+  'control.resume': 'Resume agent',
+  'control.takeover': 'Take control',
+  'control.failed': 'Retry control change',
+  'annotation.tools': 'Browser feedback',
+  'annotation.select': 'Select',
+  'annotation.region': 'Region',
+  'annotation.draw': 'Draw',
+  'annotation.erase': 'Erase',
+  'annotation.undo': 'Undo',
+  'annotation.title': 'Annotate page',
+  'annotation.add': 'Add to chat',
+  'annotation.image': 'Captured page',
+  'annotation.canvas': 'Page annotation canvas',
+  'annotation.comment': 'Describe what to change…',
+  'annotation.failed': 'Could not add browser feedback. Please try again.',
+
   'mode.label': 'Browser mode',
   'mode.desktop': 'Desktop',
   'mode.mobile': 'Mobile',

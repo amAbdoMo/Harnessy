@@ -386,7 +386,7 @@ export function apply(ctx: Context, config: Config, session?: Session): void {
           // continuable background path is reachable at all.
           ? continuable
             ? ' It runs in the background by default and returns a subagent id you can continue with `send_message`; you are notified when the run settles.'
-            : ' This call waits for the result by default.'
+            : ' This call waits for the result by default. Background calls return a one-shot jobId for job_output/job_kill, not a continuable subagentId; send_message cannot use a jobId.'
           : ' This call waits for the subagent and returns its result.') + choiceDescription,
         parameters: {
           cwd: {
@@ -465,7 +465,7 @@ export function apply(ctx: Context, config: Config, session?: Session): void {
           render: (_args, value) => [{
             type: 'text',
             text: value.kind === 'background'
-              ? `started background subagent job ${value.jobId}`
+              ? `${JSON.stringify(value)}\nOne-shot job: use job_output to collect or job_kill to stop; send_message is unavailable for this handle.`
               : value.kind === 'continuable'
                 ? `started subagent ${value.subagentId}`
                 : outputValueText(value.output),

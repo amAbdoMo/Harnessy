@@ -178,6 +178,19 @@ export class DesktopBrowserGuests {
     return { owner, guest: lease.guest, profile: lease.profile }
   }
 
+  /** @param owner - authenticated application renderer. @param id - exact tab lease.
+   * @returns its live attached guest, including saved-account tabs, without granting agent access.
+   */
+  inspectBrowser(owner: WebContents, id: DesktopBrowserLeaseId): WebContents | undefined {
+    const lease = this.leases.get(id)
+    if (lease === undefined || lease.owner !== owner || !lease.attached || lease.invalidated
+      || lease.release !== undefined || lease.guest === undefined || owner.isDestroyed() || lease.guest.isDestroyed()) return undefined
+    return lease.guest
+  }
+
+  /** @param address - requested agent destination. @returns whether normal guest navigation permits it. */
+  allowsBrowserAddress(address: string): boolean { return this.allowedNavigation(address) }
+
   /**
    * @param owner - authenticated primary renderer, not a website guest.
    * @param id - native lease received over IPC.
@@ -206,14 +219,14 @@ export class DesktopBrowserGuests {
     return executeHumanBrowserCommand({
       navigationHistory: guest.navigationHistory,
       ...(viewport === undefined ? {} : { navigationReady: () => viewport.settled() }),
-      ...(lease.profile !== undefined ? {} : { setViewport: (viewport: BrowserViewport) => {
+      setViewport: (viewport: BrowserViewport) => {
         lease.viewport ??= new BrowserPreviewViewport(guest, () => this.leases.get(key) === lease
           && !lease.invalidated && lease.release === undefined && lease.guest === guest && !owner.isDestroyed(), () => {
           console.error('Desktop browser viewport debugger ownership lost')
           void this.release(owner, key).catch((error: unknown) => { console.error('Desktop browser viewport release failed', error) })
         })
         return lease.viewport.set(viewport)
-      } }),
+      },
       reload: () => { guest.reload() },
       loadURL: (url) => {
         if (this.reacquireForAddress(key, lease, url, 'GET')) return Promise.resolve()

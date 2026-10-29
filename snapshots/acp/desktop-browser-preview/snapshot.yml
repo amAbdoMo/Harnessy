@@ -1,0 +1,10 @@
+version: 1
+scenario: desktop-browser-preview
+profile: acp
+composition: desktop-browser-preview
+recording: authored
+header:
+  class: desktop-browser-preview
+  pin: true
+  changes: 0
+permission: read-only

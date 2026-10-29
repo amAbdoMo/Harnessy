@@ -222,6 +222,14 @@ function drivePublishedRun(
   }
 }
 
+/** Keep correlation and routing facts without copying provider messages or request identifiers. */
+function failureDiagnostic(childId: SessionId, reason: TurnEndReason | undefined): string | undefined {
+  if (reason?.kind !== 'error') return undefined
+  const code = /^[A-Z][A-Z0-9_]{0,63}$/.test(reason.error.code) ? reason.error.code : 'UNKNOWN'
+  return JSON.stringify({ childSessionId: childId, phase: 'turn', code,
+    ...reason.error.status === undefined ? {} : { status: reason.error.status } })
+}
+
 /** Read one settled child's result from events after its activation boundary. */
 function readResult(
   child: Agent,
@@ -239,11 +247,16 @@ function readResult(
   const recorded = toStopReason(lastEnd?.data.reason)
   // A late cancellation or disposal cannot replace a recorded failure.
   const stopReason: SubagentStopReason = cancelled && lastEnd === undefined ? 'aborted' : recorded
+  const diagnostic = failureDiagnostic(child.id, lastEnd?.data.reason)
+  const result = { output, stopReason, ...diagnostic === undefined ? {} : { diagnostic } }
   if (structured !== undefined) {
     if (structured.captured !== undefined) {
-      return { output, structured: structured.captured.value, stopReason }
+      return { ...result, structured: structured.captured.value }
     }
-    if (stopReason === 'completed') return { output, stopReason: cancelled ? 'aborted' : 'error' }
+    if (stopReason === 'completed') return cancelled
+      ? { output, stopReason: 'aborted' }
+      : { output, stopReason: 'error', diagnostic: JSON.stringify({ childSessionId: child.id,
+        phase: 'structured-output', code: 'MISSING_STRUCTURED_OUTPUT' }) }
   }
-  return { output, stopReason }
+  return result
 }

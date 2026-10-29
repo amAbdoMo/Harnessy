@@ -7,6 +7,5 @@ immutableInput: source-recording
 header:
   class: product-subagent-result-diagnostic
   pin: true
-  systemPromptSource: product-subagent-codex
 replay:
   override: true

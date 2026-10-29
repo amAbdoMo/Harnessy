@@ -11,9 +11,15 @@
 /harnessy-desktop/local-https-devices:
   en: 7016f2275f210617
   zh: 7ee969b32349abe7
+/harnessy-desktop/browser-agent-access:
+  en: 2ff52864f737273b
+  zh: a3378c293b9bb628
 /harnessy-desktop/website-account-isolation:
-  en: 75c0179fe508e23f
-  zh: 7aee006adbcff56a
+  en: 36bb8aeb0d52c6c0
+  zh: 67c39ea28d962296
+/harnessy-desktop/website-account-isolation/legacy-paired-website-requests:
+  en: 5f7a468a59d7633f
+  zh: 93ac082877119eb8
 /harnessy-desktop/terminal-command:
   en: f1c71d27c80fc354
   zh: 261ac4c06ab4d700

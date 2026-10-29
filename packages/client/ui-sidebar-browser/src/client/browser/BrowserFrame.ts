@@ -1,7 +1,7 @@
 /** Carrier-neutral page navigation and observable state. */
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BrowserTarget } from './url.ts'
-import type { BrowserViewport } from '../../types.ts'
+import type { BrowserViewport, BrowserAnnotationCapture, BrowserPickedElement, BrowserTabStatus } from '../../types.ts'
 
 /** A loading failure, optionally carrying the underlying browser's diagnostic. */
 export interface BrowserLoadError {
@@ -11,6 +11,7 @@ export interface BrowserLoadError {
 
 /** State consumed by common browser chrome, without DOM or carrier identifiers. */
 export interface BrowserFrameState {
+  readonly humanControl?: boolean
   readonly target: BrowserTarget | undefined
   readonly address: 'empty' | 'requested' | 'observed' | 'unknown'
   readonly loading: boolean
@@ -29,6 +30,10 @@ export interface BrowserSandboxControl {
 
 /** Navigation owns page lifetime; mounting and hiding belong to BrowserPresentation. */
 export interface BrowserFrame extends HostObservable<BrowserFrameState> {
+  readonly capture?: () => Promise<BrowserAnnotationCapture>
+  readonly pick?: (point: { readonly x: number; readonly y: number }) => Promise<BrowserPickedElement | null>
+  readonly control?: (human: boolean) => Promise<void>
+  readonly status?: () => Promise<BrowserTabStatus>
   readonly sandbox?: BrowserSandboxControl
   /**
    * Optional native fixed-layout preview, absent for saved-account pages and unsupported carriers.

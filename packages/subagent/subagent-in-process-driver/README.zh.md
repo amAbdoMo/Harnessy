@@ -31,6 +31,8 @@ kind: "package-library"
 
 一次调用启动并驱动一个一次性子 agent。调用兑现意味着子 agent 已发布到 `ctx.agents`，调用方拥有返回的运行；启动被拒绝时，未发布的创建已经完全停稳，因此不会有创建到一半的子 agent 存活。运行暴露子 agent 的 id 与在线 agent、一个 `result` promise，以及一个 `dispose()`——它会停止循环、移除 agent 与会话，并撤销作用域内的注册。
 
+失败的轮次保留包含子会话 id、阶段、路由错误码以及可用 HTTP 状态的诊断。提供方消息与请求标识符不会被复制；非标准路由错误码显示为 `UNKNOWN`。正常结束但缺少必需结构化输出的轮次报告 `MISSING_STRUCTURED_OUTPUT`。即使没有 assistant 答案，后台任务结算仍保留这些诊断。
+
 ### 唯一输入
 
 `InProcessRunOptions` 的形态为 `{ seed?: SessionEvent[] }`——fork 的已配平父级事件初始内容。spawn 省略该值；fork 提供已完成轮次前缀并记录其长度，使结果读取器不会把作为初始内容的父级消息误认为子 agent 输出。

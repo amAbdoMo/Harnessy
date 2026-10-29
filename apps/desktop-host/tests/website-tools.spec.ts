@@ -73,7 +73,8 @@ async function fixture(services: { attachments?: boolean; llm?: boolean } = {}) 
       await capture(snapshot)
     })
     requests = installWebsiteRequests(owner, async () => PROFILE.mcpBinding,
-      (request) => { revoked.push(request.requestId) }, async () => {}, scope => install(scope))
+      (request) => { revoked.push(request.requestId) }, async () => {},
+      { mcpAuthorization: 'paired-requests', installTool: scope => install(scope) })
     toolsReady = installWebsiteTools(owner, requests, parent)
     const modules = new Map<string, unknown>([
       ['@deepseek-ai/dsh-agent', AgentRegistry], ['@deepseek-ai/dsh-system-prompt', SystemPrompt], ['@deepseek-ai/dsh-tools', Tools],

@@ -10,7 +10,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { sep } from 'node:path'
+import { normalize, resolve, sep } from 'node:path'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { GenericCallView, SearchResultView, ToolResult } from '@deepseek-ai/dsh-tools'
 import type { SpillRef } from '@deepseek-ai/dsh-spill'
@@ -27,12 +27,8 @@ export const GLOB_MAX_RESULTS = 100
 /**
  * Directory names ripgrep must never descend into for a discovery listing: VCS
  * metadata stores. `--no-ignore --hidden` would otherwise surface them in every
- * broad search. Each name is excluded with TWO negated `--glob`s (see
- * {@link buildGlobCommand}): an any-depth directory glob that matches — and
- * prunes — the directory during traversal, and a contents glob that still
- * excludes the internals when the search root itself is at or inside the
- * directory (an explicit `path` of `.git` or `sub/.git`), where the prune glob
- * alone never matches.
+ * broad search. Paired negated globs prune directories and exclude their contents;
+ * an explicitly selected VCS directory is excluded before listing its files.
  */
 export const GLOB_VCS_EXCLUDES: readonly string[] = ['.git', '.svn', '.hg', '.bzr', '.jj', '.sl']
 
@@ -75,10 +71,9 @@ export function parseGlobArgs(args: { pattern: string; path?: string }): GlobInp
 }
 
 /**
- * Build the fixed `rg --files` argv for one `glob` call. Every
- * model-controlled value ({@link GlobInput.pattern}, {@link GlobInput.path})
+ * Build the fixed `rg --files` argv for one `glob` call. The pattern
  * is a plain argv element — no shell layer exists, so no quoting applies; the
- * search root rides behind `--` so a leading-dash path can never be parsed as
+ * search root is the process cwd, so a leading-dash path is never parsed as
  * a flag. `--sort=modified` orders by modification time, `--no-ignore
  * --hidden` searches ignored and hidden files, and
  * {@link GLOB_VCS_EXCLUDES} keeps VCS metadata out.
@@ -93,16 +88,14 @@ export function buildGlobCommand(input: GlobInput): string[] {
     '--sort=modified',
     '--no-ignore',
     '--hidden',
-    // Two negated globs per VCS name: the bare form prunes the directory
-    // during traversal; the /** form still excludes the contents when the
-    // search root is AT or INSIDE the directory (where the bare form,
-    // matched against root-prefixed paths, never fires).
     ...GLOB_VCS_EXCLUDES.flatMap(name => [
       `--glob=!**/${name}`,
       `--glob=!**/${name}/**`,
     ]),
   ]
-  if (input.path !== undefined) parts.push('--', input.path)
+  if (input.path !== undefined && normalize(input.path).split(sep).some(name => GLOB_VCS_EXCLUDES.includes(name))) {
+    parts.push('--glob=!*')
+  }
   return parts
 }
 
@@ -312,7 +305,7 @@ export function applyGlobTool(ctx: Context, caps: GlobToolCaps): void {
       pattern: {
         type: 'string',
         required: true,
-        description: 'Glob pattern to match file paths against (e.g. "**/*.ts", "src/**/*.test.js"). '
+        description: 'Glob pattern relative to the search directory (e.g. "**/*.ts", "src/**/*.test.js"). '
           + 'A pattern with no "/" matches the basename at any depth, so "*" and "*.ts" both search the whole tree; include a separator to anchor the depth.',
       },
       path: { type: 'string', description: 'Directory to search in. Defaults to the session workspace; a relative path resolves against it.' },
@@ -335,14 +328,15 @@ export function applyGlobTool(ctx: Context, caps: GlobToolCaps): void {
     },
     async execute(args, exec) {
       const input = parseGlobArgs(args)
-      const run = await runRipgrep(ctx, exec, 'glob', buildGlobCommand(input), caps.rawOutputMaxBytes, caps.graceMs, caps.stderrMaxBytes)
-      const root = input.path === undefined ? '.' : toWorkdirRelative(input.path, run.workdir)
+      const run = await runRipgrep(ctx, exec, 'glob', buildGlobCommand(input), caps.rawOutputMaxBytes, caps.graceMs, caps.stderrMaxBytes, input.path)
+      const root = input.path === undefined ? '.' : toWorkdirRelative(resolve(run.workdir, input.path), run.workdir)
       if (run.noMatches) return { root, paths: [] }
 
       const all: string[] = []
       for (const line of run.stdout.split('\n')) {
         if (line.length === 0) continue
-        const displayPath = toWorkdirRelative(line, run.workdir)
+        const path = input.path === undefined ? line : resolve(run.workdir, input.path, line)
+        const displayPath = toWorkdirRelative(path, run.workdir)
         all.push(displayPath)
       }
       return { root, paths: all }

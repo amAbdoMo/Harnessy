@@ -46,6 +46,12 @@ export interface IConversation {
    */
   readonly blocks: ComposerBlocks
   /**
+   * Stage files in the caller session's composer for review before sending.
+   * @param files - browser files to attach through the ordinary upload pipeline.
+   * @returns false when the composer cannot accept attachments; rejected drafts are released.
+   */
+  attachFiles(files: readonly File[]): boolean
+  /**
    * Send a prompt into the caller scope's session (queued turn).
    * @param text - prompt text, sent verbatim as one text block.
    * @returns completion; business failures reject (and land in promptError).
@@ -337,6 +343,19 @@ export class ConversationController extends Service implements IConversation {
       this.beginFileUpload(sessionId, attachment)
       return attachment
     })
+  }
+
+  /** Stage files through the caller session's existing draft and upload owners. */
+  attachFiles(files: readonly File[]): boolean {
+    const sessionId = this.scopeId('attachFiles')
+    const sessions = this.requireSessions()
+    const binding = sessions.binding(sessionId)
+    if (binding === undefined) return false
+    const input = this.input.for(this.ctx)
+    const drafts = this.createDrafts(sessionId, files, binding.session.getSnapshot().subagent === null)
+    if (input.addAttachments(drafts.map(draft => draft.id))) return true
+    this.releaseDraftAttachments(drafts)
+    return false
   }
 
   /**

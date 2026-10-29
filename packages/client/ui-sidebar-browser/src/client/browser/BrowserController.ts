@@ -2,7 +2,7 @@
 import { createSnapshotStore, type BoundActions, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { TabId } from '@deepseek-ai/dsh-client-ui-dockkit'
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
-import type { DesktopWebsiteProfileId, DesktopWebsiteRequestId } from '../../types.ts'
+import type { BrowserAnnotationCapture, BrowserPickedElement, BrowserTabStatus, DesktopWebsiteProfileId, DesktopWebsiteRequestId } from '../../types.ts'
 import type { WebsiteRequestPageState } from './WebsiteRequestPage.ts'
 import type { BrowserFrameState } from './BrowserFrame.ts'
 import type { BrowserPage, BrowserPageFactory } from './BrowserPage.ts'
@@ -22,6 +22,8 @@ export interface BrowserControllerState {
 
 /** Construction inputs for one tab occurrence. */
 export interface BrowserControllerOptions {
+  readonly sessionId?: string | undefined
+  readonly openRequestId?: string | undefined
   readonly tabId: TabId
   readonly signal: AbortSignal
   readonly applicationOrigin: string
@@ -56,6 +58,7 @@ export class BrowserController implements HostObservable<BrowserControllerState>
     const checkpoint = this.checkpoint
     this.page = options.createPage({
       initial: checkpoint,
+      sessionId: options.sessionId, openRequestId: options.openRequestId,
       profileId: options.profileId,
       persist: (state) => {
         if (this.disposed || options.profileId !== undefined) return
@@ -88,6 +91,34 @@ export class BrowserController implements HostObservable<BrowserControllerState>
    * @returns this page's request-only source.
    */
   get requests(): BrowserPage['requests'] { return this.page.requests }
+
+  /** Capture this tab for explicit visual feedback.
+   * @returns PNG and page context.
+   */
+  capture(): Promise<BrowserAnnotationCapture> {
+    if (this.disposed || this.page.frame.capture === undefined) return Promise.reject(new Error('Browser capture is unavailable'))
+    return this.page.frame.capture()
+  }
+
+  /** Read the element selected by the human.
+   * @param point - viewport CSS coordinates.
+   * @returns bounded element context.
+   */
+  pick(point: { readonly x: number; readonly y: number }): Promise<BrowserPickedElement | null> {
+    if (this.disposed || this.page.frame.pick === undefined) return Promise.reject(new Error('Browser selection is unavailable'))
+    return this.page.frame.pick(point)
+  }
+
+  /** Change browser control.
+   * @param human - human takeover or agent resume.
+   * @returns native acknowledgment.
+   */
+  control(human: boolean): Promise<void> { return this.page.frame.control?.(human) ?? Promise.resolve() }
+
+  /** Read tab ownership.
+   * @returns current native state, absent on Web.
+   */
+  status(): Promise<BrowserTabStatus | undefined> { return this.page.frame.status?.() ?? Promise.resolve(undefined) }
 
   /** @returns immutable state for the common toolbar. */
   getSnapshot = (): BrowserControllerState => this.store.getSnapshot()
@@ -195,7 +226,7 @@ export class BrowserController implements HostObservable<BrowserControllerState>
   }
 
   private humanAccount(): boolean {
-    if (this.options.profileId === undefined) return true
+    if (this.options.sessionId !== undefined || this.options.profileId === undefined) return true
     const profiles = this.options.websiteProfiles?.()
     return profiles?.phase === 'ready'
       && profiles.profiles.find(profile => profile.id === this.options.profileId)?.control === 'human'
@@ -214,6 +245,8 @@ export class BrowserController implements HostObservable<BrowserControllerState>
 
 /** Values available once a Sidebar body has committed its content container. */
 export interface BrowserMountRequest {
+  readonly sessionId?: string | undefined
+  readonly openRequestId?: string | undefined
   readonly tabId: TabId
   readonly signal: AbortSignal
   readonly viewportId: string
@@ -227,6 +260,14 @@ export interface BrowserMountRequest {
 
 /** Tab-occurrence callbacks and the framework-bound state source of one Session. */
 export interface BrowserTabControllers {
+  /** @param tabId - owning tab. @returns screenshot and page context. */
+  capture(tabId: TabId): Promise<BrowserAnnotationCapture>
+  /** @param tabId - owning tab. @param point - viewport coordinates. @returns selected element. */
+  pick(tabId: TabId, point: { readonly x: number; readonly y: number }): Promise<BrowserPickedElement | null>
+  /** @param tabId - owning tab. @param human - human takeover or agent resume. @returns acknowledgment. */
+  control(tabId: TabId, human: boolean): Promise<void>
+  /** @param tabId - owning tab. @returns native ownership state. */
+  status(tabId: TabId): Promise<BrowserTabStatus | undefined>
   readonly keyedHooks: {
     readonly browserState: (key: string) => HostObservable<BrowserControllerState> | undefined
     readonly websiteRequests: (key: string) => HostObservable<WebsiteRequestPageState> | undefined
@@ -263,6 +304,10 @@ export interface BrowserTabControllers {
 
 /** Plain Slot callbacks and framework-bound state sources, not a desktop protocol. */
 export interface BrowserInjected extends BrowserTabControllers {
+  /** Stage annotated browser feedback in this Session composer.
+   * @param file - annotated PNG. @param text - page and selection context. @returns whether accepted.
+   */
+  readonly addFeedback?: ((file: File, text: string) => boolean) | undefined
   /** Saved-profile operations; undefined in a carrier without the desktop bridge. */
   readonly profiles: WebsiteProfileCommands | undefined
   hooks: { readonly websiteProfiles: HostObservable<WebsiteProfilesState> }
@@ -297,6 +342,10 @@ export function createBrowserControllers(actions: BoundActions<BrowserStore>, cr
   }
   const controller = (id: TabId): BrowserController | undefined => controllers.get(id)?.controller
   return {
+    capture: id => controller(id)?.capture() ?? Promise.reject(new Error('Browser tab is unavailable')),
+    pick: (id, point) => controller(id)?.pick(point) ?? Promise.reject(new Error('Browser tab is unavailable')),
+    control: (id, human) => controller(id)?.control(human) ?? Promise.resolve(),
+    status: id => controller(id)?.status() ?? Promise.resolve(undefined),
     keyedHooks: {
       browserState: key => controller(key as TabId),
       websiteRequests: key => controller(key as TabId)?.requests,

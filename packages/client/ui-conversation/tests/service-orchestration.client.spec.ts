@@ -127,6 +127,32 @@ async function bench(maxConcurrentFileUploads = 2) {
 }
 
 describe('ConversationController', () => {
+  it('stages browser feedback in the addressed composer without sending a message', async () => {
+    const b = await bench()
+    const created = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:browser-feedback')
+    try {
+      Object.assign(b.runtime.sessions.binding('s1')!.session, { uploadImage: async () => ({ ok: true, value: { receiptId: 'browser', image: IMAGE_REF } }) })
+      expect(b.scoped.attachFiles([new File(['image'], 'browser-feedback.png', { type: 'image/png' })])).toBe(true)
+      const drafts = b.root.resolveDraftAttachments(b.shell.snapshot.attachmentIds)
+      expect(drafts).toHaveLength(1)
+      expect(drafts[0]?.kind).toBe('image')
+      expect(drafts[0]?.file.name).toBe('browser-feedback.png')
+      expect(b.prompt).not.toHaveBeenCalled()
+    } finally {
+      await b.runtime.dispose()
+      created.mockRestore()
+    }
+  })
+
+  it('refuses browser feedback when its session binding has been withdrawn', async () => {
+    const b = await bench()
+    try {
+      b.reference.release()
+      expect(b.scoped.attachFiles([new File(['image'], 'feedback.png', { type: 'image/png' })])).toBe(false)
+      expect(b.shell.snapshot.attachmentIds).toEqual([])
+    } finally { await b.runtime.dispose() }
+  })
+
   it('does not revive a withdrawn generation when an old input submits before scoped cleanup', async () => {
     const b = await bench()
     try {

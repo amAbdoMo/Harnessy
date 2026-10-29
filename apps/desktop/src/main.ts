@@ -64,6 +64,9 @@ import { DesktopUpdateDialog, type UpdateDialogOptions } from './update-dialog.t
 import { readApplicationDialogTheme } from './application-dialog-theme.ts'
 import { readDesktopRuntime } from './runtime-tree.ts'
 import { DesktopBrowserGuests } from './browser-guests.ts'
+import { DesktopBrowserPreview } from './browser-preview.ts'
+import type { DesktopBrowserLeaseId } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
+import { captureBrowserAnnotation, pickBrowserElement } from './browser-annotation.ts'
 import { DesktopDevicePreviews } from './device-preview.ts'
 import { parseDevicePreviewAcknowledgement, parseDevicePreviewBinding, parseDevicePreviewId, parseDevicePreviewProjectId, parseDevicePreviewUnbinding } from './device-preview-protocol.ts'
 import { DesktopWebsiteAuthority } from './website-authority.ts'
@@ -594,6 +597,7 @@ async function main(): Promise<void> {
   }, account => websiteAuthority.requests.revokeAccount(account), websiteCredentials)
   let websiteHost: DesktopHostProcess | undefined
   let previewHost: DesktopHostProcess | undefined
+  const browserPreview = new DesktopBrowserPreview(browserGuests, () => mainWindow?.webContents, () => websiteProfiles.list())
   const devicePreviews = new DesktopDevicePreviews({ window: () => mainWindow, currentHost: () => previewHost,
     guest: (owner, lease) => browserGuests.inspectPreview(owner, lease),
     cancelGuest: (owner, lease, guest) => { browserGuests.cancelPreview(owner, lease, guest) },
@@ -732,7 +736,7 @@ async function main(): Promise<void> {
         phoneConnection.retire(host)
         companion.retire(host)
         void websiteAuthority.requests.revokeHost(host).catch((_failure: unknown) => { /* Captured failed transactions stay locked. */ })
-        if (previewHost === host) previewHost = undefined
+        if (previewHost === host) { previewHost = undefined; browserPreview.retireHost() }
         void devicePreviews.retireHost(host).catch((failure: unknown) => { console.error('Device preview Host retirement failed', failure) })
         onFailure(error)
       },
@@ -740,8 +744,11 @@ async function main(): Promise<void> {
       resources, (next) => { platformView.setSession(next) })
     phoneConnection.begin(host)
     websiteHost = host
+    if (previewHost !== undefined) browserPreview.retireHost()
     previewHost = host
     const detachPreviewHost = host.onDevicePreviewRequest(request => devicePreviews.request(host, request))
+    const detachBrowserPreviewHost = host.onBrowserPreviewRequest(request => previewHost === host
+      ? browserPreview.request(request) : Promise.resolve(undefined))
     const detachWebsiteHost = websiteAuthority.attachHost(host)
     return {
       phoneOwner: host,
@@ -799,7 +806,8 @@ async function main(): Promise<void> {
         phoneConnection.retire(host)
         companion.retire(host)
         detachPreviewHost()
-        if (previewHost === host) previewHost = undefined
+        detachBrowserPreviewHost()
+        if (previewHost === host) { browserPreview.retireHost(); previewHost = undefined }
         const previewDraining = devicePreviews.retireHost(host)
         const draining = detachWebsiteHost()
         if (websiteHost === host) websiteHost = undefined
@@ -1075,12 +1083,40 @@ async function main(): Promise<void> {
     assertProductSender(event)
     return browserGuests.acquire(event.sender, workspace, addressHint)
   })
+  ipcMain.handle(DESKTOP_IPC.browserBind, (event, lease: DesktopBrowserLeaseId, sessionId: string | null) => {
+    assertProductSender(event)
+    browserPreview.bind(event.sender, lease, sessionId)
+  })
+  ipcMain.handle(DESKTOP_IPC.browserControl, (event, lease: DesktopBrowserLeaseId, human: boolean) => {
+    assertProductSender(event)
+    return browserPreview.control(event.sender, lease, human)
+  })
+  ipcMain.handle(DESKTOP_IPC.browserStatus, (event, lease: DesktopBrowserLeaseId) => {
+    assertProductSender(event)
+    return browserPreview.status(event.sender, lease)
+  })
+  ipcMain.handle(DESKTOP_IPC.browserCapture, (event, lease: DesktopBrowserLeaseId) => {
+    assertProductSender(event)
+    return captureBrowserAnnotation(browserPreview.guest(event.sender, lease))
+  })
+  ipcMain.handle(DESKTOP_IPC.browserPick, (event, lease: DesktopBrowserLeaseId, point: { x: number; y: number }) => {
+    assertProductSender(event)
+    return pickBrowserElement(browserPreview.guest(event.sender, lease), point)
+  })
+  ipcMain.handle(DESKTOP_IPC.browserCompleteOpen, (event, requestId: string, lease: DesktopBrowserLeaseId) => {
+    assertProductSender(event)
+    browserPreview.completeOpen(event.sender, requestId, lease)
+  })
   ipcMain.handle(DESKTOP_IPC.browserRelease, (event, lease: unknown) => {
     assertProductSender(event)
     return browserGuests.release(event.sender, lease)
   })
-  ipcMain.handle(DESKTOP_IPC.browserCommand, (event, lease: unknown, command: unknown) => {
+  ipcMain.handle(DESKTOP_IPC.browserCommand, async (event, lease: unknown, command: unknown) => {
     assertProductSender(event)
+    if (typeof lease === 'string' && typeof command === 'object' && command !== null && 'kind' in command
+      && command.kind !== 'preview-viewport') {
+      await browserPreview.takeForNavigation(event.sender, lease as DesktopBrowserLeaseId)
+    }
     return browserGuests.command(event.sender, lease, command)
   })
   ipcMain.handle(DESKTOP_IPC.devicePreviewAcknowledge, (event, input: unknown) => {

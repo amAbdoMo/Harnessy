@@ -369,3 +369,138 @@
   color: var(--dsw-alias-state-error-primary);
   font: var(--dsw-font-xxxs-11);
 }
+
+
+.controlButton,
+.annotationTool {
+  flex: 0 0 auto;
+  min-height: 26px;
+  padding: 3px 7px;
+  font: var(--dsw-font-xxxs-11);
+  color: var(--dsw-alias-label-secondary);
+  background: transparent;
+  border: 0;
+  border-radius: var(--dsw-radius-sm);
+  cursor: pointer;
+}
+
+.annotationTool:hover:not(:disabled),
+.annotationTool[aria-pressed="true"],
+.controlButton:hover:not(:disabled) {
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.annotationTool:disabled,
+.controlButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.feedbackTools,
+.annotationToolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.annotationToolbar {
+  margin-bottom: 8px;
+}
+
+.accountMenu {
+  position: relative;
+  flex: 0 0 auto;
+  font: var(--dsw-font-xxxs-11);
+}
+
+.accountMenu summary {
+  padding: 6px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.accountPopover {
+  position: absolute;
+  z-index: 3;
+  top: 100%;
+  right: 0;
+  width: min(340px, 80vw);
+  background: var(--dsw-alias-bg-layer-1);
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: var(--dsw-radius-sm);
+  box-shadow: 0 8px 24px #0003;
+}
+
+.annotationCanvas {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: var(--dsw-alias-bg-base);
+}
+
+.annotationCanvas img,
+.annotationCanvas svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.annotationCanvas svg {
+  touch-action: none;
+  cursor: crosshair;
+  stroke: #3b82f6;
+  stroke-width: 3px;
+}
+
+.annotationCanvas rect {
+  fill: #3b82f614;
+}
+
+.annotationComment {
+  width: 100%;
+  min-height: 64px;
+  box-sizing: border-box;
+  margin-top: 10px;
+  padding: 8px;
+  color: var(--dsw-alias-label-primary);
+  font: var(--dsw-font-xxs-12);
+  background: var(--dsw-alias-bg-base);
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: var(--dsw-radius-sm);
+  resize: vertical;
+}
+
+.feedbackFailure {
+  color: var(--dsw-alias-state-error-primary);
+  font: var(--dsw-font-xxxs-11);
+}
+
+@media (width < 600px) {
+  .toolbar {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 38px;
+  }
+
+  .addressBox {
+    min-width: 100px;
+  }
+}
+
+
+.interactionShield {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.interactionShield:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: -2px;
+}
