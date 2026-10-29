@@ -1,29 +1,30 @@
 // @vitest-environment jsdom
 /** Phone settings contribution driven through the real client Loader and slot renderer. */
-import { readFileSync } from 'node:fs'
 import { act, fireEvent, screen, within } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, onTestFinished, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, onTestFinished, vi } from 'vitest'
 import { ok, type RemoteMock } from '@deepseek-ai/dsh-remote-mock'
 import {
   ClientRoster, createClientTest, webApp, type TestClient,
 } from '@deepseek-ai/dsh-client-test-runtime/src/assembly/index.ts'
+import { loadPluginModules } from '@deepseek-ai/dsh-client-test-runtime/src/assembly/modules.ts'
 import type { NativePhoneConnection } from '../src/client/phone-connection.ts'
 import type { NativeCompanion, NativeCompanionStatus } from '../src/client/companion.ts'
 import { en } from '../src/client/locales.ts'
+import manifest from '../package.json'
 
-const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
-  readonly name: string
-  readonly dsh: { readonly client: { readonly inject: readonly string[] } }
-}
 const BRAND = manifest.name
 const roster = ClientRoster.of([...webApp.rows, {
   name: BRAND, inject: manifest.dsh.client.inject, immediately: false,
-}])
+}]).closure([BRAND, '@deepseek-ai/dsh-client-ui-layout', '@deepseek-ai/dsh-client-ui-settings-general'])
 const it = createClientTest({ roster }, { mount: true })
 const ROOT = 'https://pc.example.ts.net/'
 const ROW = 'custom-harness-phone-connection'
 const TOAST = 'custom-harness-phone-connection-result'
 const COMPANION_ROW = 'custom-harness-companion'
+
+beforeAll(async () => {
+  await loadPluginModules({ roster: roster.without(['@deepseek-ai/dsh-api-remotes']) })
+}, 60_000)
 
 beforeEach(() => {
   vi.spyOn(navigator, 'languages', 'get').mockReturnValue(['en'])
@@ -72,7 +73,8 @@ describe('assembled native companion settings', () => {
     await openGeneral(client)
     const row = screen.getByRole('region', { name: en.companionTitle })
     expect(within(row).getByRole('status').textContent).toBe(text)
-    within(row).getByText(en.companionPairedCount.replace('{count}', String(status.pairedCount)))
+    const pairedCount = within(row).queryByText(en.companionPairedCount.replace('{count}', String(status.pairedCount)))
+    expect(pairedCount !== null).toBe(status.available)
     within(row).getByText(en.companionAuthority)
     within(row).getByText(en.companionPairing)
     within(row).getByText(en.companionKeepAwake)

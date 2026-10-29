@@ -66,7 +66,6 @@ describe('Harnessy product contract', () => {
   it.each([
     ['devicePreviewClient', 'Device Preview must register Browser responsive content'],
     ['browserClient', 'Browser must declare its responsive content slot'],
-    ['browserBody', 'Browser must render its responsive content slot'],
   ] as const)('rejects removed responsive composition in %s despite stale comments', (owner, failure) => {
     const current = readCustomHarnessProductEvidence(root)
     const regressed = current[owner].replaceAll('sidebar.right.pane.tab.browser.responsive', 'removed.responsive')
@@ -75,6 +74,20 @@ describe('Harnessy product contract', () => {
       ...current,
       [owner]: `${regressed}\n// ${current[owner].replaceAll('\n', '\n// ')}\n`,
     })).toContain(failure)
+  })
+
+  it('rejects restoring the retired responsive viewport in the default Browser', () => {
+    const current = readCustomHarnessProductEvidence(root)
+    expect(customHarnessProductViolations({
+      ...current, browserBody: `${current.browserBody}\nrenderSlot('sidebar.right.pane.tab.browser.responsive', {})\n`,
+    })).toContain('Browser must keep legacy responsive controls out of its default viewport')
+  })
+
+  it.each(['BrowserControl', 'BrowserFeedback'])('rejects removing %s despite stale comments', (component) => {
+    const current = readCustomHarnessProductEvidence(root)
+    expect(customHarnessProductViolations({
+      ...current, browserBody: `${current.browserBody.replaceAll(`<${component}`, '<Removed')}\n// <${component} />\n`,
+    })).toContain(`Browser must render ${component}`)
   })
 
   it('ignores inactive standalone Device Preview examples', () => {

@@ -5,7 +5,7 @@ import { expect, it } from 'vitest'
 const css = readFileSync(new URL('../src/client/AppFrame.module.css', import.meta.url), 'utf8')
 
 function rule(selector: string): string {
-  const start = css.indexOf(`${selector} {`)
+  const start = css.indexOf(`\n${selector} {`)
   if (start === -1) throw new Error(`missing mobile layout rule: ${selector}`)
   return css.slice(start, css.indexOf('}', start) + 1)
 }
@@ -31,5 +31,5 @@ it('keeps phone navigation and reconnect controls touch-sized without changing d
   expect(rule('.mobileConnection > button')).toContain('min-height: 44px')
   expect(rule(".mobileSidebar :is(button, input, [role='button'], [role='treeitem'])")).toContain('min-height: 44px')
   expect(rule('.frame')).toContain('height: 100%')
-  expect(rule('.mobileIconButton:focus-visible')).toContain('outline: 2px solid var(--dsw-alias-state-business-primary)')
+  expect(rule('.mobileIconButton:focus-visible')).toContain('var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary))')
 })

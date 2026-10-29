@@ -223,6 +223,18 @@ function isString(expression: ts.Expression | undefined, expected: string): bool
   return expression !== undefined && ts.isStringLiteral(expression) && expression.text === expected
 }
 
+function sourceJsxTags(source: string): ReadonlySet<string> {
+  const tags = new Set<string>()
+  const visit = (node: ts.Node): void => {
+    if ((ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) && ts.isIdentifier(node.tagName)) {
+      tags.add(node.tagName.text)
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(ts.createSourceFile('browser.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX))
+  return tags
+}
+
 function verifyBrowserComposition(evidence: CustomHarnessProductEvidence): string[] {
   const failures: string[] = []
   const responsiveSlot = 'sidebar.right.pane.tab.browser.responsive'
@@ -241,9 +253,13 @@ function verifyBrowserComposition(evidence: CustomHarnessProductEvidence): strin
     && objectProperty(objectProperty(call.arguments[0], 'children'), responsiveSlot) !== undefined)) {
     failures.push('Browser must declare its responsive content slot')
   }
-  if (!sourceCalls(evidence.browserBody).some(call => ts.isIdentifier(call.expression)
+  if (sourceCalls(evidence.browserBody).some(call => ts.isIdentifier(call.expression)
     && call.expression.text === 'renderSlot' && isString(call.arguments[0], responsiveSlot))) {
-    failures.push('Browser must render its responsive content slot')
+    failures.push('Browser must keep legacy responsive controls out of its default viewport')
+  }
+  const browserTags = sourceJsxTags(evidence.browserBody)
+  for (const component of ['BrowserControl', 'BrowserFeedback']) {
+    if (!browserTags.has(component)) failures.push(`Browser must render ${component}`)
   }
   return failures
 }

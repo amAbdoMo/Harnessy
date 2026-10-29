@@ -1,1 +1,9 @@
-
+- button "Back" [disabled]
+- button "Forward" [disabled]
+- button "Reload"
+- textbox "Enter an HTTP(S) address": https://example.test/
+- button "Open in system browser"
+- button "Saved website profiles"
+- button "Take control"
+- button "Annotate page"
+- group

@@ -10,7 +10,7 @@ This page documents slot ownership, component inputs, extension APIs, and the sh
 
 The plugin catalog declares `plugins.add.actions`, a root-scoped list for `MenuItemButton` rows after installation in the Add plugin menu. Its owner supplies `onDismiss()` to close the menu before starting an action. The slot follows the owning Plugins page declaration lifetime.
 
-Browser declares `sidebar.right.pane.tab.browser.responsive` as a session-scoped single slot. Its `BrowserResponsiveOwner` supplies the current tab, fullscreen state, selected mode, optional explicit navigation URL and revision, and a callback to select Mobile mode. Browser renders it only for ordinary tabs; saved-account pages remain outside this integration. The [responsive preview package](../../packages/client/ui-device-preview/README.md) owns the contribution and retained pages.
+Browser retains `sidebar.right.pane.tab.browser.responsive` as a session-scoped single slot for responsive integrations. Its `BrowserResponsiveOwner` supplies the current tab, fullscreen state, selected mode, optional explicit navigation URL and revision, and a callback to select Mobile mode. The default Browser does not render this slot; its native page uses tab control and inline annotation. The [responsive preview package](../../packages/client/ui-device-preview/README.md) owns the retained contribution and pages.
 
 ## Declaration and lifecycle
 

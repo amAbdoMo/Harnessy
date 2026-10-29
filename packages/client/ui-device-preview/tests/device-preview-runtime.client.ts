@@ -14,6 +14,7 @@ import * as layout from '@deepseek-ai/dsh-client-ui-layout/src/client/index.ts'
 import * as uiWorkspace from '@deepseek-ai/dsh-client-ui-workspace/src/client/index.ts'
 import * as resources from '@deepseek-ai/dsh-client-resources/src/client/index.ts'
 import * as sidebarRight from '@deepseek-ai/dsh-client-ui-sidebar-right/src/client/index.ts'
+import * as conversation from '@deepseek-ai/dsh-client-ui-conversation/src/client/index.ts'
 
 const provide: NonNullable<AssemblyPlan['provide']> = {
   '@deepseek-ai/dsh-client-file-upload': fileUpload,
@@ -30,6 +31,7 @@ const provide: NonNullable<AssemblyPlan['provide']> = {
   '@deepseek-ai/dsh-client-ui-workspace': uiWorkspace,
   '@deepseek-ai/dsh-client-resources': resources,
   '@deepseek-ai/dsh-client-ui-sidebar-right': sidebarRight,
+  '@deepseek-ai/dsh-client-ui-conversation': conversation,
 }
 
 /** Real layout, locale, renderer and Sidebar behind the YAML-loaded feature. */

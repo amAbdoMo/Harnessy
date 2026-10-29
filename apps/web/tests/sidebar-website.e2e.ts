@@ -13,11 +13,13 @@ import { installWebsiteBridge } from './sidebar-website.bridge.ts'
 const OVERLAY = fileURLToPath(new URL('./sidebar-browser.overlay.yml', import.meta.url))
 const SEED = fileURLToPath(new URL('../../../snapshots/web/seeded-history/session.v3.jsonl', import.meta.url))
 const EXPECTED = fileURLToPath(new URL('./expected/sidebar-website', import.meta.url))
-const BAR = '[class*="toolbar"]'
+const BAR = '[data-sidebar-browser-toolbar]:visible'
 
 async function captureControls(page: Page, workspace: string, name: string): Promise<void> {
-  await compareOrRefreshGolden(join(EXPECTED, `${name}.expected.md`),
-    await captureStableAria(page, BAR, workspace), webSnapshotMode())
+  expect(await page.locator(BAR).count()).toBe(1)
+  const controls = await captureStableAria(page, BAR, workspace)
+  expect(controls).not.toBe('')
+  await compareOrRefreshGolden(join(EXPECTED, `${name}.expected.md`), controls, webSnapshotMode())
 }
 
 it('removes Website controls and subscriptions before held native cleanup settles', async () => {

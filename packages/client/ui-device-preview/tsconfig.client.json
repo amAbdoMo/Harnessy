@@ -16,6 +16,7 @@
     { "path": "../locale/tsconfig.client.json" },
     { "path": "../shortcuts/tsconfig.client.json" },
     { "path": "../store" },
+    { "path": "../ui-conversation/tsconfig.client.json" },
     { "path": "../ui-dockkit" },
     { "path": "../ui-layout" },
     { "path": "../ui-primitives" },

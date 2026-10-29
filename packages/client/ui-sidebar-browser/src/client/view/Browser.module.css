@@ -63,6 +63,16 @@
   cursor: default;
 }
 
+.tool[aria-pressed="true"] {
+  color: var(--dsw-alias-state-business-primary);
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 12%, transparent);
+}
+
+.tool:focus-visible {
+  outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
+  outline-offset: -2px;
+}
+
 .sandboxOff {
   color: var(--dsw-alias-state-error-primary);
   background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent);
@@ -371,41 +381,64 @@
 }
 
 
-.controlButton,
-.annotationTool {
-  flex: 0 0 auto;
-  min-height: 26px;
-  padding: 3px 7px;
-  font: var(--dsw-font-xxxs-11);
-  color: var(--dsw-alias-label-secondary);
-  background: transparent;
-  border: 0;
-  border-radius: var(--dsw-radius-sm);
-  cursor: pointer;
-}
-
-.annotationTool:hover:not(:disabled),
-.annotationTool[aria-pressed="true"],
-.controlButton:hover:not(:disabled) {
-  color: var(--dsw-alias-label-primary);
-  background: var(--dsw-alias-interactive-bg-hover);
-}
-
-.annotationTool:disabled,
-.controlButton:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.feedbackTools,
 .annotationToolbar {
   display: flex;
   align-items: center;
   gap: 2px;
 }
 
-.annotationToolbar {
-  margin-bottom: 8px;
+.annotationPalette {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  max-width: calc(100% - 24px);
+  padding: 4px;
+  transform: translateX(-50%);
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-layer-1);
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: var(--dsw-radius-sm);
+  box-shadow: 0 4px 16px #0003;
+}
+
+.annotationPalette p {
+  margin: 4px;
+  font: var(--dsw-font-xxs-12);
+}
+
+.annotationDivider {
+  height: 16px;
+  margin: 0 3px;
+  border-left: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.annotationOverlay {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  overflow: hidden;
+  outline: none;
+}
+
+.annotationComposer {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  width: min(440px, calc(100% - 24px));
+  box-sizing: border-box;
+  padding: 8px;
+  transform: translateX(-50%);
+  background: var(--dsw-alias-bg-layer-1);
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: var(--dsw-radius-sm);
+  box-shadow: 0 4px 16px #0003;
+}
+
+.annotationComposer > :last-child {
+  flex-shrink: 0;
 }
 
 .accountMenu {
@@ -415,9 +448,12 @@
 }
 
 .accountMenu summary {
-  padding: 6px;
   cursor: pointer;
   list-style: none;
+}
+
+.accountMenu summary::-webkit-details-marker {
+  display: none;
 }
 
 .accountPopover {
@@ -433,8 +469,8 @@
 }
 
 .annotationCanvas {
-  position: relative;
-  width: 100%;
+  position: absolute;
+  inset: 0;
   overflow: hidden;
   background: var(--dsw-alias-bg-base);
 }
@@ -459,17 +495,18 @@
 }
 
 .annotationComment {
-  width: 100%;
-  min-height: 64px;
+  flex: 1 1 auto;
+  width: 0;
+  min-height: 52px;
+  max-height: 160px;
   box-sizing: border-box;
-  margin-top: 10px;
   padding: 8px;
   color: var(--dsw-alias-label-primary);
   font: var(--dsw-font-xxs-12);
   background: var(--dsw-alias-bg-base);
   border: 0.5px solid var(--dsw-alias-border-l2);
   border-radius: var(--dsw-radius-sm);
-  resize: vertical;
+  resize: none;
 }
 
 .feedbackFailure {
@@ -501,6 +538,6 @@
 }
 
 .interactionShield:focus-visible {
-  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: -2px;
 }

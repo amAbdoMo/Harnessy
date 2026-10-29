@@ -654,9 +654,12 @@ it('leaves MCP calls under their own policy when Desktop uses independent tab pr
   expect(f.upstream).toHaveBeenCalledOnce()
   expect(f.nativeAdmission).not.toHaveBeenCalled()
   expect(f.approvals).not.toHaveBeenCalled()
+  f.requests.syncProfiles([])
+  expect((await f.call()).isError).toBe(false)
+  expect(f.upstream).toHaveBeenCalledTimes(2)
   f.ctx.on('mcp/tool-call', () => { throw new Error('Configured MCP policy denied the call') })
   expect((await f.call()).isError).toBe(true)
-  expect(f.upstream).toHaveBeenCalledOnce()
+  expect(f.upstream).toHaveBeenCalledTimes(2)
 })
 
 it('cannot unguard an enrolled namespace through removed or stale empty inventory', async () => {

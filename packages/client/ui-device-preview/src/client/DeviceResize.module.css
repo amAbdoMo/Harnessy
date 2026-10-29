@@ -60,7 +60,7 @@
 }
 
 .handle:focus-visible {
-  outline: 1px solid var(--dsw-alias-label-primary);
+  outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: -2px;
 }
 
@@ -76,8 +76,7 @@
 .n::after, .s::after { width: 16px; height: 3px; }
 .e::after, .w::after { width: 3px; height: 16px; }
 
-.handle:hover::after,
-.handle:focus-visible::after {
+.handle:hover::after {
   box-shadow: 0 0 0 2px var(--dsw-alias-bg-base);
 }
 

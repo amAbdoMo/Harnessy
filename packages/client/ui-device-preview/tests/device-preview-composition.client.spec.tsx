@@ -18,10 +18,8 @@ import { SESSION_FORMAT_VERSION, type SessionId } from '@deepseek-ai/dsh-session
 import type { SessionFollowFrame, SessionSummary } from '@deepseek-ai/dsh-api-session-controller/types'
 import type { DevicePreviewInjected } from '../src/client/model.ts'
 import type { DevicePreviewStore } from '../src/client/store.ts'
-import type { DevicePreviewId, DevicePreviewOpenRequest, DevicePreviewRequestId } from '../src/types.ts'
 import * as featurePlugin from '../src/client/index.ts'
 import { DevicePreview } from '../src/client/DevicePreview.tsx'
-import { en } from '../src/client/copy.ts'
 import { devicePreviewRuntimePlan } from './device-preview-runtime.client.ts'
 import { InertNativeBrowser, InertPreviewBridge } from './inert-native-browser.client.ts'
 
@@ -136,131 +134,34 @@ function ownEntries(client: TestClient, slot: Parameters<Context['slots']['entri
   return client.ctx.slots.entries(slot).filter(entry => entry.component === DevicePreview || entry.options.id === 'device-preview.stop-notice')
 }
 
-function nativeOpening(): DevicePreviewOpenRequest {
-  return { type: 'device-preview-open', sessionId: SESSION,
-    previewId: '30000000-0000-4000-8000-000000000001' as DevicePreviewId,
-    requestId: '30000000-0000-4000-8000-000000000002' as DevicePreviewRequestId,
-    server: { cwd: '', url: 'https://fresh-app.test/', ownership: 'external', status: 'external' } }
-}
-
 async function openBrowser(h: Awaited<ReturnType<typeof bench>>) {
   await act(async () => { h.client.ctx.sidebarRight.openTab('browser') })
   const desktop = h.native.guests.find(guest => guest.viewports.length === 0)
-  const devices = h.native.guests.filter(guest => guest.viewports.length !== 0)
-  if (desktop === undefined || devices[0] === undefined || devices[1] === undefined) throw new Error('Browser pages are missing')
-  return { desktop, phone: devices[0], tablet: devices[1] }
+  if (desktop === undefined) throw new Error('Browser page is missing')
+  return { desktop }
 }
 
-describe('Responsive Browser through test-only YAML and the real client application', () => {
+describe('Simplified Browser with the legacy responsive contribution loaded', () => {
   usePinnedBrowserLanguages('en')
 
-  it('owns Desktop/Mobile/Tablet in Browser, previews the entered URL, and retains independent pages', async () => {
+  it('uses one native page without device modes or extra responsive guests', async () => {
     const h = await bench()
-    expect(h.view.queryByRole('button', { name: /Device preview/i })).toBeNull()
+    const { desktop } = await openBrowser(h)
     expect(h.client.ctx.sidebarRightTabs.get('device-preview')).toBeUndefined()
     expect(ownEntries(h.client, 'sidebar.right.pane.tab')).toHaveLength(0)
     expect(ownEntries(h.client, 'sidebar.right.pane.tab.title')).toHaveLength(0)
-    const { desktop, phone, tablet } = await openBrowser(h)
-    const modes = within(h.view.getByRole('tablist', { name: browserEn['mode.label'] }))
-    await expect(`${modes.getAllByRole('tab').map(tab => tab.textContent).join('\n')}\n`)
-      .toMatchFileSnapshot('./expected/responsive-modes.en.txt')
-    expect(h.view.getByRole('tab', { name: browserEn['mode.desktop'] }).getAttribute('aria-selected')).toBe('true')
-    expect(h.native.guests.every(guest => guest.history.length === 0)).toBe(true)
+    expect(h.view.queryByRole('tablist', { name: browserEn['mode.label'] })).toBeNull()
+    for (const mode of ['mode.desktop', 'mode.mobile', 'mode.tablet'] as const) {
+      expect(h.view.queryByRole('tab', { name: browserEn[mode] })).toBeNull()
+    }
     await act(async () => { fireEvent.change(h.view.getByRole('textbox', { name: browserEn['address.placeholder'] }), {
       target: { value: 'https://design.test/' },
     }) })
     await act(async () => { fireEvent.click(h.view.getByRole('button', { name: browserEn.go })) })
     expect(desktop.history.map(target => target.url)).toEqual(['https://design.test/'])
-    await act(async () => { fireEvent.click(h.view.getByRole('tab', { name: browserEn['mode.mobile'] })) })
-    expect(phone.history.map(target => target.url)).toEqual(['https://design.test/'])
-    expect(tablet.history).toEqual([])
-    const mobile = within(h.view.getByRole('region', { name: en.phone }))
-    expect(h.view.getAllByRole('textbox', { name: en.url })).toHaveLength(1)
-    expect(mobile.queryByRole('group', { name: en.source })).toBeNull()
-    expect(mobile.queryByRole('button', { name: en.custom })).toBeNull()
-    await expect(`${[
-      ...modes.getAllByRole('tab').map(tab => tab.textContent),
-      h.view.getByRole('textbox', { name: en.url }).getAttribute('aria-label'),
-      ...[en.back, en.forward, en.reload, en.go, en.compare].map(name =>
-        h.view.getByRole('button', { name }).getAttribute('aria-label') ?? h.view.getByRole('button', { name }).textContent),
-      ...[en.device, en.portrait, en.landscape, en.scale, en.settings, en.about].map(name =>
-        h.view.getByRole('button', { name }).getAttribute('aria-label') ?? h.view.getByRole('button', { name }).textContent),
-    ].join('\n')}\n`).toMatchFileSnapshot('./expected/responsive-toolbar.en.txt')
-    await act(async () => {
-      fireEvent.change(h.view.getByRole('textbox', { name: en.url }), { target: { value: 'https://design.test/mobile' } })
-    })
-    await act(async () => { fireEvent.click(h.view.getByRole('button', { name: en.go })) })
-    await act(async () => { fireEvent.click(h.view.getByRole('tab', { name: browserEn['mode.tablet'] })) })
-    expect(tablet.history.map(target => target.url)).toEqual(['https://design.test/'])
-    await act(async () => { fireEvent.click(h.view.getByRole('tab', { name: browserEn['mode.mobile'] })) })
-    expect(phone.history.map(target => target.url)).toEqual(['https://design.test/', 'https://design.test/mobile'])
-    await act(async () => { fireEvent.click(h.view.getByRole('button', { name: en.compare })) })
-    expect(h.view.getAllByRole('textbox', { name: en.url })).toHaveLength(1)
-    expect(tablet.history.map(target => target.url)).toEqual(['https://design.test/'])
-    await act(async () => { fireEvent.click(h.view.getByRole('tab', { name: browserEn['mode.tablet'] })) })
-    await act(async () => {
-      fireEvent.change(h.view.getByRole('textbox', { name: en.url }), { target: { value: 'https://design.test/tablet' } })
-    })
-    await act(async () => { fireEvent.click(h.view.getByRole('button', { name: en.go })) })
-    expect(tablet.history.map(target => target.url)).toEqual(['https://design.test/', 'https://design.test/tablet'])
-    expect(phone.history.map(target => target.url)).toEqual(['https://design.test/', 'https://design.test/mobile'])
-    await act(async () => { fireEvent.click(h.view.getByRole('button', { name: en.single })) })
-    await act(async () => { fireEvent.click(h.view.getByRole('tab', { name: browserEn['mode.mobile'] })) })
-    await act(async () => { fireEvent.click(h.view.getByRole('button', { name: en.compare })) })
-    expect(tablet.history.map(target => target.url)).toEqual(['https://design.test/', 'https://design.test/tablet'])
-    await act(async () => { fireEvent.click(h.view.getByRole('button', { name: en.single })) })
-    await act(async () => { fireEvent.click(mobile.getByRole('button', { name: en.landscape })) })
-    await act(async () => { fireEvent.click(mobile.getByRole('button', { name: en.scale })) })
-    await act(async () => { fireEvent.click(within(document.body).getByRole('menuitem', { name: en.actual })) })
-    expect(phone.viewports.at(-1)).toEqual({ width: 852, height: 393, scale: 1 })
-    await act(async () => { fireEvent.keyDown(mobile.getByRole('button', { name: en['resize.e'] }), { key: 'ArrowRight' }) })
-    expect(phone.viewports.at(-1)).toEqual({ width: 853, height: 393, scale: 1 })
-    await act(async () => { fireEvent.click(mobile.getByRole('button', { name: en.settings })) })
-    await act(async () => { fireEvent.click(mobile.getByRole('button', { name: en.image })) })
-    expect(mobile.getByText(en['image.label'])).toBeTruthy()
-    await act(async () => { fireEvent.click(mobile.getByRole('button', { name: en.live })) })
-    await act(async () => { fireEvent.keyDown(mobile.getByRole('button', { name: en.live }), { key: 'Escape' }) })
-    expect(mobile.queryByRole('group', { name: en.source })).toBeNull()
-    expect(phone.history.map(target => target.url)).toEqual(['https://design.test/', 'https://design.test/mobile'])
-    expect(tablet.history.map(target => target.url)).toEqual(['https://design.test/', 'https://design.test/tablet'])
-    await act(async () => { fireEvent.click(h.view.getByRole('tab', { name: browserEn['mode.desktop'] })) })
-    expect(h.view.getByRole('textbox', { name: browserEn['address.placeholder'] })).toHaveProperty('value', 'https://design.test/')
-    expect(desktop.history).toHaveLength(1)
-    expect(h.native.guests).toHaveLength(3)
-    expect(h.native.guests.every(guest => !guest.disposed && guest.detached === 0)).toBe(true)
-  }, 60_000)
-
-  it('uses only fresh native requests, acknowledges exact visible guests, and revokes visibility in Desktop', async () => {
-    const h = await bench()
-    const request = nativeOpening()
-    await act(async () => { h.bridge.open(request) })
-    expect(h.view.getByRole('tab', { name: browserEn['mode.mobile'] }).getAttribute('aria-selected')).toBe('true')
-    expect(h.view.queryByRole('tab', { name: /Device preview/i })).toBeNull()
-    const devices = h.native.guests.filter(guest => guest.viewports.length !== 0)
-    const desktop = h.native.guests.find(guest => guest.viewports.length === 0)!
-    expect(desktop.history).toEqual([])
-    expect(devices.map(guest => guest.history[0]?.url)).toEqual([request.server.url, request.server.url])
-    await act(async () => {
-      for (const guest of devices) guest.acknowledge('native-lease' as DesktopBrowserLeaseId, guest.viewports.at(-1))
-    })
-    expect(h.bridge.acknowledgements).toEqual([{ previewId: request.previewId, requestId: request.requestId, opened: true }])
-    expect(h.bridge.bindings.filter(binding => binding.visible).at(-1)).toMatchObject({ slot: 'phone', width: 393, height: 852 })
-    expect(h.bridge.bindings.some(binding => binding.slot === 'tablet' && binding.visible)).toBe(false)
-    await act(async () => { fireEvent.click(h.view.getByRole('tab', { name: browserEn['mode.tablet'] })) })
-    expect(h.bridge.bindings.filter(binding => binding.visible).at(-1)?.slot).toBe('tablet')
-    expect(h.bridge.unbindings.some(binding => binding.slot === 'phone')).toBe(true)
-    await act(async () => { fireEvent.click(h.view.getByRole('tab', { name: browserEn['mode.desktop'] })) })
-    expect(h.bridge.bindings.filter(binding => binding.slot === 'tablet').at(-1)?.visible).toBe(false)
-    expect(h.bridge.acknowledgements).toHaveLength(1)
-    expect(h.bridge.stops).toEqual([])
-    await act(async () => { h.client.ctx.sidebarRight.openTab('browser', { params: { url: request.server.url, previewId: 'stale-id' as DevicePreviewId } }) })
-    const restored = h.native.guests.slice(3)
-    expect(restored).toHaveLength(3)
-    expect(restored.every(guest => guest.history.length === 0)).toBe(true)
-    expect(h.view.getByRole('tab', { name: browserEn['mode.desktop'] }).getAttribute('aria-selected')).toBe('true')
-    await act(async () => { fireEvent.click(h.view.getByRole('tab', { name: browserEn['mode.mobile'] })) })
-    expect(restored.every(guest => guest.history.length === 0)).toBe(true)
-    expect(h.bridge.acknowledgements).toHaveLength(1)
+    expect(h.native.guests).toHaveLength(1)
+    expect(desktop.viewports).toEqual([])
+    expect(h.bridge.bindings).toEqual([])
   }, 60_000)
 
   it('keeps saved-account Browser pages in Desktop without responsive controls or viewport operations', async () => {
@@ -278,8 +179,7 @@ describe('Responsive Browser through test-only YAML and the real client applicat
 
   it('removes and re-adds integration exactly once while Browser retains its tab and Desktop page', async () => {
     const h = await bench()
-    const { desktop, phone, tablet } = await openBrowser(h)
-    await act(async () => { fireEvent.click(h.view.getByRole('tab', { name: browserEn['mode.mobile'] })) })
+    const { desktop } = await openBrowser(h)
     const originalFiber = h.feature.fiber
     expect(h.bridge.listeners.size).toBe(1)
     for (const slot of [RESPONSIVE, 'shell.overlay'] as const) expect(ownEntries(h.client, slot)).toHaveLength(1)
@@ -291,7 +191,7 @@ describe('Responsive Browser through test-only YAML and the real client applicat
     expect(h.client.ctx.sidebarRightTabs.get('browser')).toBeDefined()
     expect(h.client.ctx.sidebarRightTabs.get('device-preview')).toBeUndefined()
     expect(desktop.disposed).toBe(false)
-    expect(phone.disposed && tablet.disposed).toBe(true)
+    expect(h.native.guests).toHaveLength(1)
     expect(h.bridge.listeners.size).toBe(0)
     for (const slot of [RESPONSIVE, 'shell.overlay'] as const) expect(ownEntries(h.client, slot)).toHaveLength(0)
     expect(h.view.queryByRole('tab', { name: browserEn['mode.mobile'] })).toBeNull()
@@ -300,8 +200,8 @@ describe('Responsive Browser through test-only YAML and the real client applicat
     expect(h.feature.fiber).not.toBe(originalFiber)
     expect(h.bridge.listeners.size).toBe(1)
     for (const slot of [RESPONSIVE, 'shell.overlay'] as const) expect(ownEntries(h.client, slot)).toHaveLength(1)
-    expect(h.view.getAllByRole('tab', { name: browserEn['mode.mobile'] })).toHaveLength(1)
-    expect(h.view.getByRole('tab', { name: browserEn['mode.desktop'] }).getAttribute('aria-selected')).toBe('true')
+    expect(h.view.queryByRole('tablist', { name: browserEn['mode.label'] })).toBeNull()
+    expect(h.native.guests).toHaveLength(1)
     expect(desktop.disposed).toBe(false)
   }, 60_000)
 

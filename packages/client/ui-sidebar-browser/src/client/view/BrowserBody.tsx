@@ -8,6 +8,7 @@ import {
   IconLinkOutlineRegular,
   IconRefreshOutlineRegular, Tooltip,
   IconRightUpOutlineRegular,
+  IconSettingsOutlineRegular,
   SHIELD_OUTLINE_PATH,
   ICON_REGULAR_STROKE,
 } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -22,6 +23,7 @@ import type { BrowserStore } from '../browser/store.ts'
 import { BrowserProfileBar } from './BrowserProfileBar.tsx'
 import { BrowserFeedback } from './BrowserFeedback.tsx'
 import { BrowserControl } from './BrowserControl.tsx'
+import { BrowserAnnotationIcon } from './BrowserAnnotationIcon.tsx'
 import type {} from './BrowserProfilePicker.tsx'
 import css from './Browser.module.css'
 
@@ -61,7 +63,6 @@ export function BrowserBody(props: BrowserBodyProps): ReactNode {
   } = props
   const { tab } = useTabInfo()
   const params = tab.navigation.params as SidebarRightTabParamsFor<'browser'>
-  useEffect(() => tab.actions.bindCommands({ refresh: () => { reload(tab.id) } }), [tab.actions, tab.id, reload])
   const saved = useStore(state => state.byTab[tab.id])
   const initial = useRef(saved)
   const initialUrl = useRef(params?.previewId === undefined ? params?.url : undefined)
@@ -69,6 +70,15 @@ export function BrowserBody(props: BrowserBodyProps): ReactNode {
   const viewportId = useId()
   const [mountEpoch, setMountEpoch] = useState(0)
   const [takeoverFailed, setTakeoverFailed] = useState(false)
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
+  const annotationTrigger = useRef<HTMLButtonElement>(null)
+  const previousFeedbackOpen = useRef(false)
+  useLayoutEffect(() => {
+    if (previousFeedbackOpen.current && !feedbackOpen) annotationTrigger.current?.focus()
+    previousFeedbackOpen.current = feedbackOpen
+  }, [feedbackOpen])
+  useEffect(() => tab.actions.bindCommands({ refresh: () => { if (!feedbackOpen) reload(tab.id) } }),
+    [tab.actions, tab.id, reload, feedbackOpen])
   const state = useBrowserState(tab.id)
   const requests = useWebsiteRequests(tab.id, current => current)
   const profileState = useWebsiteProfiles(current => current)
@@ -103,11 +113,11 @@ export function BrowserBody(props: BrowserBodyProps): ReactNode {
   const unknown = frame.address === 'unknown'
   const externalUrl = unknown ? undefined : target?.url
   const sandboxed = frame.sandboxEnabled
-  const humanAccessBlocked = props.addFeedback === undefined && profileId !== undefined
+  const humanAccessBlocked = feedbackOpen || (props.addFeedback === undefined && profileId !== undefined
     && (profiles === undefined || profileState.phase !== 'ready'
       || profileState.profiles.find(profile => profile.id === profileId)?.control !== 'human'
       || requests === undefined || requests.phase !== 'ready' || requests.granted || requests.busy !== undefined || requests.blocked
-      || requests.requests.some(request => request.status === 'granted'))
+      || requests.requests.some(request => request.status === 'granted')))
   const failure = state?.addressFailure
   const error = frame.error
   const submit = (event: FormEvent): void => { event.preventDefault(); if (!humanAccessBlocked) loadUrl(tab.id, draft) }
@@ -115,7 +125,8 @@ export function BrowserBody(props: BrowserBodyProps): ReactNode {
   return (
     <div className={css.root}>
       <div className={css.desktop}>
-        <form className={css.toolbar} onSubmit={submit}>
+        <form data-sidebar-browser-toolbar className={css.toolbar} onSubmit={submit}
+          ref={(element) => { element?.toggleAttribute('inert', feedbackOpen) }}>
           <button type="button" className={css.tool} aria-label={t('back')} title={t('back')} disabled={humanAccessBlocked || !frame.canGoBack} onClick={() => { goBack(tab.id) }}><IconChevronLeftOutlineRegular /></button>
           <button type="button" className={css.tool} aria-label={t('forward')} title={t('forward')} disabled={humanAccessBlocked || !frame.canGoForward} onClick={() => { goForward(tab.id) }}><IconChevronRightOutlineRegular /></button>
           <Tooltip label={t('reload')} shortcutKeys={tab.refreshShortcut?.keys} side="bottom" delayMs={500}>
@@ -152,12 +163,12 @@ export function BrowserBody(props: BrowserBodyProps): ReactNode {
               tab.actions.openTab('browser', { params: { url: profile.url, profileId: profile.id }, revealIfOpened: false })
             },
           })}
-          <BrowserControl humanControl={frame.humanControl} control={human => props.control(tab.id, human)} t={t} />
-          {props.addFeedback !== undefined && target !== undefined && <BrowserFeedback
-            capture={() => props.capture(tab.id)} pick={point => props.pick(tab.id, point)}
-            addFeedback={props.addFeedback} t={t} />}
+          <BrowserControl humanControl={frame.humanControl} control={human => props.control(tab.id, human)} disabled={feedbackOpen} t={t} />
+          {props.addFeedback !== undefined && target !== undefined && <button type="button" className={css.tool} ref={annotationTrigger}
+            aria-label={t('annotation.title')} title={t('annotation.title')} aria-pressed={feedbackOpen}
+            onClick={() => { setFeedbackOpen(true) }}><BrowserAnnotationIcon tool="select" /></button>}
           {profileId !== undefined && profiles !== undefined && <details className={css.accountMenu}>
-            <summary aria-label={t('profiles.manage')}>{t('profiles.manage')}</summary>
+            <summary className={css.tool} aria-label={t('profiles.manage')} title={t('profiles.manage')}><IconSettingsOutlineRegular /></summary>
             <div className={css.accountPopover}><BrowserProfileBar profileId={profileId} profiles={profiles}
               useWebsiteProfiles={useWebsiteProfiles}
               t={t} /></div>
@@ -177,6 +188,9 @@ export function BrowserBody(props: BrowserBodyProps): ReactNode {
               void props.control(tab.id, true).catch(() => { setTakeoverFailed(true) })
             }} />}
           {takeoverFailed && <p className={css.failure} role="alert">{t('control.failed')}</p>}
+          {feedbackOpen && props.addFeedback !== undefined && <BrowserFeedback
+            capture={() => props.capture(tab.id)} pick={point => props.pick(tab.id, point)}
+            addFeedback={props.addFeedback} onClose={() => { setFeedbackOpen(false) }} t={t} />}
           {restoreTarget !== undefined && <section className={css.restore} aria-label={t('restore.previous')}>
             <p className={css.restoreLabel}>{t('restore.previous')}</p>
             <p className={css.restoreTitle}>{restoreTarget.title}</p>

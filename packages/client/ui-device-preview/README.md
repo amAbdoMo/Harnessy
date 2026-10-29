@@ -25,7 +25,7 @@ Preview a web-compatible app at phone and tablet sizes inside Browser beside its
 <a id="use-this-package"></a>
 ## Use this package
 
-Open **Browser** from Desktop's right-Sidebar guide. New Browser tabs start in **Desktop** mode; select **Mobile** or **Tablet** inside the tab for responsive previews. Browser is the only preview guide/tab entry; this package supplies its private responsive integration, not a separate Device Preview tab. Phone and tablet pages navigate independently. Custom dimensions accept whole CSS pixels from 240 to 2560; fit changes presentation scale, not responsive breakpoints.
+This package retains the responsive presentation and private Browser slot for integrations that render it. Harnessy's default [Browser](../ui-sidebar-browser/README.md) uses one native page with agent control and inline annotation; it does not render Desktop/Mobile/Tablet controls or responsive guests. In a responsive integration, phone and tablet pages navigate independently. Custom dimensions accept whole CSS pixels from 240 to 2560; fit changes presentation scale, not responsive breakpoints.
 
 The compact toolbar has one address bar for the selected Mobile or Tablet page. **Go** navigates that page; **Compare** also opens an unstarted live second page at the selected page's current URL without resetting an already-open page or an image selection. Device family, orientation and display scale stay visible; **Settings** expands preset/custom dimensions and live/image selection. **About this preview** keeps the rendering limitations available without a permanent warning above the canvas.
 
@@ -33,7 +33,7 @@ Drag a device edge or corner to change its CSS viewport within the custom-size b
 
 ### When to choose it
 
-Choose Browser's responsive modes for PWA and web-compatible app layouts. Select an image for a native-only design; selecting another orientation requires its own image rather than rotating an existing screenshot. Use [Browser's Desktop mode](../ui-sidebar-browser/README.md) for ordinary browsing and saved website accounts; saved accounts never become device-observation targets.
+Use the responsive presentation in integrations for PWA and web-compatible app layouts. Select an image for a native-only design; selecting another orientation requires its own image rather than rotating an existing screenshot. Use [Browser](../ui-sidebar-browser/README.md) for ordinary browsing and saved website accounts; saved accounts never become device-observation targets.
 
 ### Minimal configuration
 

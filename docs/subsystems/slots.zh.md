@@ -10,7 +10,7 @@ Slots 是 Web Client 的类型化 React 组合系统。[`dsh-client-ui-slots`](.
 
 插件目录声明 `plugins.add.actions`，它是 root 作用域的 list，在添加插件菜单的安装项之后提供 `MenuItemButton` 行。owner 提供 `onDismiss()`，用于开始动作前关闭菜单。该 slot 遵循所属插件页面声明的生命周期。
 
-Browser 声明 `sidebar.right.pane.tab.browser.responsive`，它是 session 作用域的 single slot。其 `BrowserResponsiveOwner` 提供当前标签页、全屏状态、所选模式、可选的显式导航 URL 与 revision，以及选择手机模式的回调。Browser 仅为普通标签页渲染此 slot；已保存账号的页面不参与该集成。[响应式预览包](../../packages/client/ui-device-preview/README.zh.md)拥有该贡献及保留的页面。
+Browser 保留 `sidebar.right.pane.tab.browser.responsive`，它是供响应式集成使用的 session 作用域 single slot。其 `BrowserResponsiveOwner` 提供当前标签页、全屏状态、所选模式、可选的显式导航 URL 与 revision，以及选择手机模式的回调。默认 Browser 不渲染此 slot，其原生页面提供标签页控制和页内标注。[响应式预览包](../../packages/client/ui-device-preview/README.zh.md)拥有保留的贡献及页面。
 
 ## 声明与生命周期
 
