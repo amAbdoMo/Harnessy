@@ -39,6 +39,8 @@ export interface WebsiteProfileCommands {
    * @returns the saved profile, or undefined when the request failed and published its notice.
    */
   create(this: void, input: DesktopWebsiteProfileInput): Promise<DesktopWebsiteProfile | undefined>
+  /** @param profile - saved account to retain. @param url - validated landing address. @returns whether saving succeeded. */
+  setUrl(this: void, profile: DesktopWebsiteProfileId, url: string): Promise<boolean>
   /** @param profile - account whose reservations, including aliases, are revoked without clearing sign-in data. */
   takeover(this: void, profile: DesktopWebsiteProfileId): Promise<void>
   /** @param profile - saved account whose access policy is changed. */
@@ -162,6 +164,10 @@ export function createWebsiteProfilesModel(profiles: DesktopWebsiteProfilesBridg
   const commands: WebsiteProfileCommands = {
     create: input => operate(undefined, () => profiles.create(input),
       created => ({ kind: 'created', seq: ++sequence, name: created.name })),
+    setUrl: async (profile, url) => (await operate(profile, async () => {
+      await profiles.setUrl(profile, url)
+      return true
+    }, () => ({ kind: 'updated', seq: ++sequence, name: nameOf(profile) }))) === true,
     takeover: profile => act(profile, () => profiles.setControl(profile, 'human'), 'human'),
     setAccess: (profile, access) => act(profile, () => profiles.setAccess(profile, access), 'updated'),
     saveLogin: (profile, login) => act(profile, () => profiles.saveLogin(profile, login), 'updated'),

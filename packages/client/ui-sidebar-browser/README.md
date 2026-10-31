@@ -50,6 +50,8 @@ The toolbar uses labeled icon buttons for navigation, tab control and annotation
 
 The saved-profile form accepts a bare host name as HTTPS and requires the exact connected MCP server name from Settings. Invalid fields show a correction beside the input and retain the draft; saved landing URLs cannot contain credentials, query parameters or fragments. Desktop failures use localized recovery messages selected by allowlisted identifiers; raw diagnostics and account values never enter profile notices.
 
+Opening an existing saved profile does not require its paired MCP server to remain connected or unchanged; legacy paired-request Resume still verifies that binding. In the account menu, **Edit URL** changes the saved landing address without recreating the profile or clearing its browser storage and encrypted login. Saving opens the new address in the same tab position. A different origin requires native confirmation; site cookies remain subject to their original domain. A cancelled or failed save retains the old address.
+
 -----
 
 <a id="understand-the-implementation"></a>

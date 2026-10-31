@@ -44,6 +44,7 @@ export const DESKTOP_IPC = {
   devicePreviewStop: 'dsh-desktop:device-preview-stop',
   websiteProfilesList: 'dsh-desktop:website-profiles-list',
   websiteProfilesCreate: 'dsh-desktop:website-profiles-create',
+  websiteProfilesUrl: 'dsh-desktop:website-profiles-url',
   websiteProfilesAcquire: 'dsh-desktop:website-profiles-acquire',
   websiteProfilesControl: 'dsh-desktop:website-profiles-control',
   websiteProfilesAccess: 'dsh-desktop:website-profiles-access',

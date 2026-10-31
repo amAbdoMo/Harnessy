@@ -104,6 +104,7 @@ export function createDesktopBrowserBridge(): DesktopBrowserBridge {
     profiles: {
       list: () => ipcRenderer.invoke(DESKTOP_IPC.websiteProfilesList) as ReturnType<DesktopWebsiteProfilesBridge['list']>,
       create: input => ipcRenderer.invoke(DESKTOP_IPC.websiteProfilesCreate, input) as ReturnType<DesktopWebsiteProfilesBridge['create']>,
+      setUrl: (id, url) => ipcRenderer.invoke(DESKTOP_IPC.websiteProfilesUrl, id, url) as Promise<void>,
       acquire: id => ipcRenderer.invoke(DESKTOP_IPC.websiteProfilesAcquire, id) as ReturnType<DesktopWebsiteProfilesBridge['acquire']>,
       setControl: (id, control) => ipcRenderer.invoke(DESKTOP_IPC.websiteProfilesControl, id, control) as Promise<void>,
       setAccess: (id, access) => ipcRenderer.invoke(DESKTOP_IPC.websiteProfilesAccess, id, access) as Promise<void>,

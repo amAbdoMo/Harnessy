@@ -199,12 +199,41 @@ export class DesktopWebsiteProfiles {
     })
   }
 
-  /** @param input - approved identity. @returns current association; missing or clearing profiles reject. */
+  /** Browser storage is independent of MCP connectivity; legacy Resume still verifies the pairing.
+   * @param input - approved identity. @returns current association; missing or clearing profiles reject.
+   */
   async acquire(input: unknown): Promise<DesktopWebsiteProfile> {
     await this.load()
     const id = parseWebsiteProfileId(input)
-    await this.verifyPairing(this.requireProfile(id))
     return this.assertAvailable(id)
+  }
+
+  /** Update the landing address without changing the storage or protected login identity.
+   * @param input - saved profile identity. @param requested - HTTP(S) address without credentials, query or fragment.
+   * @returns after old account work drains and the new address is committed; a different origin requires confirmation.
+   */
+  async setUrl(input: unknown, requested: unknown): Promise<void> {
+    const id = parseWebsiteProfileId(input)
+    await this.load()
+    const profile = this.requireProfile(id)
+    const fields = pairingFields({ ...profile, url: requested })
+    const state = this.requireEditable(id)
+    if (fields.url === profile.url) return
+    this.changingAccess.add(id)
+    state.epoch++
+    state.control = 'human'
+    this.notify()
+    try {
+      if (new URL(fields.url).origin !== new URL(profile.url).origin) await this.pairing.confirm(fields, profile.mcpBinding)
+      await this.drainAccount({ profile: id, url: profile.url, mcpServerName: profile.mcpServerName, mcpBinding: profile.mcpBinding })
+      await this.serial(async () => {
+        await this.save(this.profiles.map(candidate => candidate.id === id
+          ? { ...candidate, url: fields.url, loginConfirmed: false } : candidate))
+      })
+    } finally {
+      this.changingAccess.delete(id)
+      this.notify()
+    }
   }
 
   /**

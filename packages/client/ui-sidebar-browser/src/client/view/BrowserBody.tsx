@@ -170,6 +170,7 @@ export function BrowserBody(props: BrowserBodyProps): ReactNode {
           {profileId !== undefined && profiles !== undefined && <details className={css.accountMenu}>
             <summary className={css.tool} aria-label={t('profiles.manage')} title={t('profiles.manage')}><IconSettingsOutlineRegular /></summary>
             <div className={css.accountPopover}><BrowserProfileBar profileId={profileId} profiles={profiles}
+              onUrlChanged={(url) => { tab.actions.openTab('browser', { params: { url, profileId }, replaceTab: true, revealIfOpened: false }) }}
               useWebsiteProfiles={useWebsiteProfiles}
               t={t} /></div>
           </details>}

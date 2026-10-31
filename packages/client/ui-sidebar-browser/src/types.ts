@@ -173,6 +173,8 @@ export interface DesktopWebsiteProfilesBridge {
   list(this: void): Promise<readonly DesktopWebsiteProfile[]>
   /** @param input - user-confirmed pairing. @returns saved profile in human-control mode. */
   create(this: void, input: DesktopWebsiteProfileInput): Promise<DesktopWebsiteProfile>
+  /** @param profile - saved identity to retain. @param url - new landing address; Main confirms origin changes. */
+  setUrl(this: void, profile: DesktopWebsiteProfileId, url: string): Promise<void>
   /** @param profile - approved profile identity. @returns one persistent guest reservation. */
   acquire(this: void, profile: DesktopWebsiteProfileId): Promise<DesktopBrowserReservation>
   /** @param profile - account being controlled. @param control - user's takeover or explicit resume decision. */

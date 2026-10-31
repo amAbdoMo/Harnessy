@@ -145,7 +145,7 @@ describe('desktop website profiles', () => {
     expect(existsSync(filename)).toBe(false)
   })
 
-  it('refuses acquire and Resume when the saved project or endpoint no longer matches', async () => {
+  it('keeps browser acquisition available while Resume rejects a changed MCP pairing', async () => {
     const filename = await metadataPath()
     let binding = MCP_BINDING
     const profiles = new DesktopWebsiteProfiles(filename, async () => {}, { ...PAIRING, inspect: async () => binding }, async () => {})
@@ -153,11 +153,89 @@ describe('desktop website profiles', () => {
     await profiles.setControl(created.id, 'agent')
     const epoch = profiles.assertAgent(created.id)
     binding = { ...MCP_BINDING, identity: 'b'.repeat(64) }
-    await expect(profiles.acquire(created.id)).rejects.toThrow('Website MCP endpoint or project changed')
+    await expect(profiles.acquire(created.id)).resolves.toMatchObject({ id: created.id })
     await expect(profiles.setControl(created.id, 'agent')).rejects.toThrow('Website MCP endpoint or project changed')
     expect(() => profiles.assertAgent(created.id, epoch)).toThrow(PAUSED)
     expect((await profiles.list())[0]?.control).toBe('human')
   })
+
+  it('opens saved browser storage when its paired MCP server is unavailable', async () => {
+    const filename = await metadataPath()
+    let connected = true
+    const inspect = async () => {
+      if (!connected) throw new Error('Website pairing requires an enabled, connected MCP server')
+      return MCP_BINDING
+    }
+    const profiles = new DesktopWebsiteProfiles(filename, async () => {}, { ...PAIRING, inspect }, async () => {})
+    const created = await profiles.create(PAIRED)
+    connected = false
+    await expect(profiles.acquire(created.id)).resolves.toMatchObject({ id: created.id, url: created.url, control: 'human' })
+    await expect(profiles.setControl(created.id, 'agent')).rejects.toThrow('connected MCP server')
+  })
+
+  it('saves a new landing path without changing the profile or its protected login', async () => {
+    const filename = await metadataPath()
+    const vault = new DesktopWebsiteCredentials(`${filename}.credentials`, {
+      available: async () => true,
+      encrypt: async text => Buffer.from(text), decrypt: async bytes => bytes.toString(),
+    })
+    const clearStorage = vi.fn(async () => {})
+    const confirm = vi.fn(async () => {})
+    const profiles = new DesktopWebsiteProfiles(filename, clearStorage, { ...PAIRING, confirm }, async () => {}, vault)
+    const created = await profiles.create(PAIRED)
+    await profiles.saveLogin(created.id, { username: 'fixture-user', password: 'fixture-password' })
+    const vaultBytes = await readFile(`${filename}.credentials`, 'utf8')
+    confirm.mockClear()
+    await profiles.setUrl(created.id, `${PAIRED.url}/admin`)
+    expect(confirm).not.toHaveBeenCalled()
+    expect(clearStorage).not.toHaveBeenCalled()
+    expect(await readFile(`${filename}.credentials`, 'utf8')).toBe(vaultBytes)
+    const restarted = new DesktopWebsiteProfiles(filename, clearStorage, PAIRING, async () => {}, vault)
+    expect(await restarted.acquire(created.id)).toMatchObject({ id: created.id, url: `${PAIRED.url}/admin`, hasSavedLogin: true })
+  })
+
+  it('retains the previous URL when a different origin is declined', async () => {
+    const filename = await metadataPath()
+    const confirm = vi.fn(async () => {})
+    const profiles = new DesktopWebsiteProfiles(filename, async () => {}, { ...PAIRING, confirm }, async () => {})
+    const created = await profiles.create(PAIRED)
+    confirm.mockRejectedValueOnce(new Error('Website pairing was cancelled'))
+    await expect(profiles.setUrl(created.id, 'https://new.example.test/')).rejects.toThrow('cancelled')
+    expect(await profiles.acquire(created.id)).toMatchObject({ url: created.url })
+    await profiles.setUrl(created.id, 'https://new.example.test/')
+    expect(confirm).toHaveBeenLastCalledWith(expect.objectContaining({ url: 'https://new.example.test/' }), MCP_BINDING)
+    expect(await profiles.acquire(created.id)).toMatchObject({ id: created.id, url: 'https://new.example.test/' })
+  })
+
+  it('fences URL edits until account work drains and retains the previous address after save failure', async () => {
+    const filename = await metadataPath()
+    const entered: PromiseWithResolvers<void> = Promise.withResolvers()
+    const drained: PromiseWithResolvers<void> = Promise.withResolvers()
+    onTestFinished(() => { drained.resolve() })
+    const profiles = new DesktopWebsiteProfiles(filename, async () => {}, PAIRING, async () => {
+      entered.resolve()
+      await drained.promise
+    })
+    const created = await profiles.create(PAIRED)
+    const editing = profiles.setUrl(created.id, `${PAIRED.url}/new`)
+    await entered.promise
+    await expect(profiles.acquire(created.id)).rejects.toThrow('access change is in progress')
+    atomicWriteFailures.push(new Error('Fixture disk failure'))
+    drained.resolve()
+    await expect(editing).rejects.toThrow('Could not save website profile')
+    expect(await profiles.acquire(created.id)).toMatchObject({ url: created.url })
+    expect((await storedProfiles(filename))[0]?.url).toBe(created.url)
+  })
+
+  it.each(['javascript:alert(1)', 'https://user:password@example.test/', 'https://example.test/?token=private'])(
+    'rejects an unsafe landing URL without changing the saved profile: %s', async (url) => {
+      const filename = await metadataPath()
+      const profiles = new DesktopWebsiteProfiles(filename, async () => {}, PAIRING, async () => {})
+      const created = await profiles.create(PAIRED)
+      const before = await readFile(filename, 'utf8')
+      await expect(profiles.setUrl(created.id, url)).rejects.toThrow()
+      expect(await readFile(filename, 'utf8')).toBe(before)
+    })
 
   it('installs paired-namespace protection before saving or publishing a newly approved account', async () => {
     const filename = await metadataPath()

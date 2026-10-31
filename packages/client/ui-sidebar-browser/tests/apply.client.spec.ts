@@ -35,7 +35,7 @@ function profileStubs() {
     create: vi.fn(async (input: DesktopWebsiteProfileInput): Promise<DesktopWebsiteProfile> =>
       ({ ...input, id: 'created-profile' as DesktopWebsiteProfileId, control: 'human', access: 'ask', hasSavedLogin: false })),
     acquire: vi.fn(async () => ({ lease: 'profile-lease' as DesktopBrowserLeaseId, partition: 'persist:dsh-website-created-profile' })),
-    setAccess: async () => {}, saveLogin: async () => {}, removeLogin: async () => {},
+    setUrl: async () => {}, setAccess: async () => {}, saveLogin: async () => {}, removeLogin: async () => {},
     setControl: vi.fn(async () => {}),
     signOut: vi.fn(async () => {}),
     forget: vi.fn(async () => {}),

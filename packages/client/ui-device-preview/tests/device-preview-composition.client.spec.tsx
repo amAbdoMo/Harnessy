@@ -84,7 +84,7 @@ async function bench() {
     command: async () => {}, release: async () => {}, onOpenRequested: () => () => {}, onReacquireRequested: () => () => {},
     profiles: { list: async () => [], create: async input => ({ ...input, id: 'profile' as DesktopWebsiteProfileId, control: 'human', access: 'ask', hasSavedLogin: false }),
       acquire: async () => ({ lease: 'profile-lease' as DesktopBrowserLeaseId, partition: 'profile' }),
-      setAccess: async () => {}, saveLogin: async () => {}, removeLogin: async () => {},
+      setUrl: async () => {}, setAccess: async () => {}, saveLogin: async () => {}, removeLogin: async () => {},
       setControl: async () => {}, signOut: async () => {}, forget: async () => {}, onChanged: () => () => {} },
     requests: {
       onPrepared: () => () => {}, list: async () => [], prepare: async () => { throw new Error('No profile handoff requested') },

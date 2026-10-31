@@ -6,7 +6,7 @@
  * The Agent scenario uses an owned Messages provider, genuine Session/tool execution and live consent.
  */
 import { execFile, spawn, type ChildProcess } from 'node:child_process'
-import { randomBytes, X509Certificate } from 'node:crypto'
+import { randomBytes, randomUUID, X509Certificate } from 'node:crypto'
 import { existsSync, mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
 import { lstat, readFile, readdir, rmdir, unlink } from 'node:fs/promises'
 import { createServer, type Server } from 'node:http'
@@ -1080,6 +1080,87 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
       if (cleanupErrors.length) throw new AggregateError(cleanupErrors, 'Website acceptance or cleanup failed')
     }
   }, 300_000)
+
+  it('opens and edits a saved profile without its paired MCP server', { timeout: 240_000, retry: 0 }, async () => {
+    if (process.platform !== 'win32') throw new Error('Native acceptance requires an interactive Windows desktop')
+    expect(readClientBuildRecord(repository).environment.DSH_CLIENT_BUILD_PROFILE).toBe('custom-harness')
+    const root = mkdtempSync(join(tmpdir(), 'dsh-browser-profile-edit-'))
+    const env = childEnvironment(root)
+    env.DEEPSEEK_API_KEY = 'fixture-key-not-an-external-credential'
+    const model = websiteModelFixture()
+    const cookies: string[] = []
+    const website = createServer((request, response) => {
+      cookies.push(request.headers.cookie ?? '')
+      response.setHeader('content-type', 'text/html')
+      response.setHeader('set-cookie', 'profile-session=kept; Path=/')
+      response.end(`<title>${request.url === '/new' ? 'Updated profile page' : 'Saved profile page'}</title><h1>Profile fixture</h1>`)
+    })
+    let app: ElectronApplication | undefined
+    let failure: unknown
+    const cleanupErrors: unknown[] = []
+    try {
+      const origin = await listen(website)
+      const id = randomUUID()
+      const userData = join(env.CUSTOM_HARNESS_CACHE_DIR!, 'DesktopUserData')
+      mkdirSync(userData, { recursive: true })
+      writeFileSync(join(userData, 'website-profiles.json'), JSON.stringify({ version: 2, profiles: [{
+        id, name: 'Offline profile', accountLabel: '', url: `${origin}/`, mcpServerName: 'missing_server', access: 'ask',
+        loginConfirmed: false, cleanupPending: false, mcpBinding: { identity: 'a'.repeat(64), endpoint: `${origin}/mcp` },
+      }] }))
+      const modelUrl = await listen(model.server)
+      await new DesktopProjectManager(resolveDesktopPaths(env.DSH_HOME, env.DSH_DESKTOP_PROFILE_DIR), { dsh: project }).applyRelease()
+      writeFileSync(join(env.DSH_DESKTOP_PROFILE_DIR!, 'cordis.patch.yml'),
+        '- id: webserver\n  config:\n    host: 127.0.0.1\n    port: 0\n'
+        + `- id: llm-deepseek\n  disabled: false\n  config:\n    baseURL: ${modelUrl}\n    thinking: disabled\n`
+        + '- id: agent-default-model\n  config:\n    provider: deepseek-official\n    model: deepseek-flash\n    reasoningEffort: off\n')
+      app = await _electron.launch({ executablePath: electronExecutable,
+        args: [desktop, '--lang=en-US', '--enable-logging=stderr'], env, cwd: desktop, timeout: 120_000 })
+      const page = await applicationPage(app)
+      await page.evaluate(() => { (window as Window & { __DSH_LOCALE__?: { onChange(locale: string): void } }).__DSH_LOCALE__!.onChange('en') })
+      const composer = page.locator('[data-composer-input][contenteditable="true"]').last()
+      await composer.waitFor({ timeout: 120_000 })
+      await composer.fill('Create the owned native profile session; reply without tools.')
+      await composer.press('Enter')
+      await page.locator('[data-chat-turn]').getByText('Website acceptance', { exact: true }).last().waitFor({ timeout: 60_000 })
+      expect(model.errors).toEqual([])
+      await page.locator('[data-sidebar-right-expand]').click()
+      await page.locator('[data-sidebar-right-guide-entry="browser"]').click()
+      await page.getByRole('button', { name: 'Saved website profiles', exact: true }).click()
+      await page.getByRole('menuitem', { name: /Offline profile/u }).click()
+      const firstGuest = await activeBrowserGuest(page)
+      await expect.poll(async () => app!.evaluate(({ webContents }, guest) => webContents.fromId(guest)?.getTitle(), firstGuest)).toBe('Saved profile page')
+      await page.locator('summary[aria-label="Account"]').click()
+      await page.getByRole('button', { name: 'Edit URL', exact: true }).click()
+      const editor = page.getByRole('group', { name: 'Edit URL', exact: true })
+      await editor.getByLabel('Site address', { exact: true }).fill(`${origin}/new`)
+      await editor.getByRole('button', { name: 'Save', exact: true }).click()
+      await expect.poll(async () => {
+        const guest = await activeBrowserGuest(page)
+        return app!.evaluate(({ webContents }, nativeId) => webContents.fromId(nativeId)?.getTitle(), guest)
+      }).toBe('Updated profile page')
+      expect(cookies).toContain('profile-session=kept')
+      const saved = await page.evaluate(async () => (window as ProductWindow).dshDesktop!.browser.profiles.list())
+      expect(saved).toMatchObject([{ id, url: `${origin}/new` }])
+      await page.locator('summary[aria-label="Account"]').click()
+      await page.getByRole('button', { name: 'Edit URL', exact: true }).click()
+      await page.screenshot({ path: join(repository, '.artifacts/browser-profile-url-native.png') })
+      await stopDesktop(app, env)
+      app = undefined
+    } catch (error) { failure = error; throw error }
+    finally {
+      model.dispose()
+      let settled = app === undefined
+      if (app !== undefined) {
+        try { await stopDesktop(app, env); settled = true } catch (error) { cleanupErrors.push(error) }
+      }
+      for (const server of [website, model.server]) {
+        if (server.listening) { try { await closeServer(server) } catch (error) { cleanupErrors.push(error) } }
+      }
+      if (settled && failure === undefined) { try { await removeOwned(root) } catch (error) { cleanupErrors.push(error) } }
+      else cleanupErrors.push(new Error(`Native profile acceptance retained diagnostics: ${root}`))
+      if (cleanupErrors.length > 0) throw new AggregateError([...(failure === undefined ? [] : [failure]), ...cleanupErrors], 'Native profile acceptance failed')
+    }
+  })
 
   it.each(['none', 'ask', 'automatic'] as const)('uses stable preview tools through human takeover and resume with %s saved access', { timeout: 240_000, retry: 0 }, async (access) => {
     if (process.platform !== 'win32') throw new Error('Native acceptance requires an interactive Windows desktop')

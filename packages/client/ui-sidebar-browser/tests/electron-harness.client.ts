@@ -36,7 +36,7 @@ export function electronFixture(initial?: BrowserTabState, profile?: DesktopWebs
       ({ ...input, id: `created-${String(sequence)}` as DesktopWebsiteProfileId, control: 'human', access: 'ask', hasSavedLogin: false }),
     ),
     acquire: vi.fn(async (_profile: DesktopWebsiteProfileId) => reservation),
-    setAccess: async () => {}, saveLogin: async () => {}, removeLogin: async () => {},
+    setUrl: async () => {}, setAccess: async () => {}, saveLogin: async () => {}, removeLogin: async () => {},
     setControl: vi.fn(async (_profile: DesktopWebsiteProfileId, _control: 'human' | 'agent') => {}),
     signOut: vi.fn(async (_profile: DesktopWebsiteProfileId) => {}),
     forget: vi.fn(async (_profile: DesktopWebsiteProfileId) => {}),

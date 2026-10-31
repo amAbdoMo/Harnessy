@@ -81,7 +81,7 @@ export function installWebsiteBridge(): void {
       list: async () => [profile],
       create: async () => { throw new Error('This scenario opens an existing external profile') },
       acquire: async () => reserve(true),
-      setAccess: async () => {}, saveLogin: async () => {}, removeLogin: async () => {},
+      setUrl: async () => {}, setAccess: async () => {}, saveLogin: async () => {}, removeLogin: async () => {},
       setControl: async () => { throw new Error('Only request-specific admission is supported') },
       signOut: async () => { throw new Error('Sign out is outside this scenario') },
       forget: async () => { throw new Error('Forget is outside this scenario') },

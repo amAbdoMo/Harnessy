@@ -15,12 +15,27 @@ function deferred<T>() {
 
 function bridge(): DesktopWebsiteProfilesBridge {
   return { list: vi.fn(async () => [profile]), create: vi.fn(async () => profile),
-    acquire: vi.fn(), setAccess: async () => {}, saveLogin: async () => {}, removeLogin: async () => {},
+    acquire: vi.fn(), setUrl: vi.fn(async () => {}), setAccess: async () => {}, saveLogin: async () => {}, removeLogin: async () => {},
     setControl: vi.fn(async () => {}), signOut: vi.fn(async () => {}),
     forget: vi.fn(async () => {}), onChanged: vi.fn(() => () => {}) }
 }
 
 describe('website profile operations', () => {
+  it('refreshes a changed landing URL and reports whether it was saved', async () => {
+    const api = bridge()
+    const model = createWebsiteProfilesModel(api)
+    try {
+      await model.commands.reload()
+      const url = 'https://portal.example.test/new'
+      vi.mocked(api.list).mockResolvedValue([{ ...profile, url }])
+      expect(await model.commands.setUrl(id, url)).toBe(true)
+      expect(model.source.getSnapshot()).toMatchObject({ profiles: [{ id, url }], notice: { kind: 'updated' } })
+      vi.mocked(api.setUrl).mockRejectedValueOnce(new Error('private endpoint'))
+      expect(await model.commands.setUrl(id, 'https://portal.example.test/other')).toBe(false)
+      expect(model.source.getSnapshot()).toMatchObject({ profiles: [{ id, url }], notice: { kind: 'failed' } })
+      expect(JSON.stringify(model.source.getSnapshot())).not.toContain('private endpoint')
+    } finally { await model.dispose() }
+  })
   it('retains only a recognized failure reason from an Electron-wrapped diagnostic', async () => {
     const api = bridge()
     vi.mocked(api.create).mockRejectedValueOnce(new Error('Error invoking remote method: Error: [website-profile/mcp-unavailable] private account token'))

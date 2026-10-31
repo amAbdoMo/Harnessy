@@ -1,6 +1,8 @@
 /** Locale-owned Browser tab copy. */
 export const zh = {
   'profiles.manage': '账户',
+  'profiles.url.edit': '编辑网址',
+  'profiles.url.hint': '保留此配置及已保存的登录信息。更换网站后可能需要重新登录。',
   'control.resume': '恢复 Agent',
   'control.takeover': '接管',
   'control.failed': '重试切换控制',
@@ -136,6 +138,8 @@ export type SidebarBrowserKey = keyof typeof zh
 /** English dictionary with the same keys. */
 export const en = {
   'profiles.manage': 'Account',
+  'profiles.url.edit': 'Edit URL',
+  'profiles.url.hint': 'Keeps this profile and its saved login. A different website may require signing in again.',
   'control.resume': 'Resume agent',
   'control.takeover': 'Take control',
   'control.failed': 'Retry control change',

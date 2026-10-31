@@ -7,6 +7,7 @@ import type { PropsHooks } from '@deepseek-ai/dsh-client-ui-slots'
 import type { DesktopWebsiteProfileId } from '../../types.ts'
 import type { BrowserInjected } from '../browser/BrowserController.ts'
 import type { WebsiteProfileCommands } from '../browser/profiles.ts'
+import { resolveWebsiteProfileInput, type WebsiteProfileInputIssue } from '../browser/profile-input.ts'
 import css from './Browser.module.css'
 
 /** Bar inputs: this tab's profile, the profile share, and its actions. */
@@ -15,15 +16,19 @@ export interface BrowserProfileBarProps {
   readonly profiles: WebsiteProfileCommands
   readonly useWebsiteProfiles: PropsHooks<BrowserInjected['hooks']>['useWebsiteProfiles']
   readonly t: TranslateNS<'sidebarBrowser'>
+  readonly onUrlChanged: (url: string) => void
 }
 
 /** Account settings kept in the collapsed toolbar menu; tab ownership controls live beside the address. */
-export function BrowserProfileBar({ profileId, profiles, useWebsiteProfiles, t }: BrowserProfileBarProps): ReactNode {
+export function BrowserProfileBar({ profileId, profiles, useWebsiteProfiles, t, onUrlChanged }: BrowserProfileBarProps): ReactNode {
   const state = useWebsiteProfiles(current => current)
   const [confirming, setConfirming] = useState(false)
   const [editingLogin, setEditingLogin] = useState(false)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [editingUrl, setEditingUrl] = useState(false)
+  const [url, setUrl] = useState('')
+  const [urlIssue, setUrlIssue] = useState<WebsiteProfileInputIssue['reason']>()
   const profile = state.profiles.find(candidate => candidate.id === profileId)
   if (profile === undefined) {
     return <div className={css.profileBar}><p className={css.profileHint}>{t('profiles.missing')}</p></div>
@@ -35,6 +40,14 @@ export function BrowserProfileBar({ profileId, profiles, useWebsiteProfiles, t }
     if (blocked || password.length === 0) return
     void profiles.saveLogin(profile.id, { username, password }).finally(closeLogin)
   }
+  const saveUrl = (): void => {
+    if (blocked || clearing) return
+    const resolved = resolveWebsiteProfileInput({ ...profile, url })
+    if (!resolved.ok) { setUrlIssue(resolved.issue.reason); return }
+    void profiles.setUrl(profile.id, resolved.value.url).then((saved) => {
+      if (saved) { setEditingUrl(false); onUrlChanged(resolved.value.url) }
+    })
+  }
   return (
     <div className={css.profileBar}>
       <div className={css.profileHead}>
@@ -45,12 +58,29 @@ export function BrowserProfileBar({ profileId, profiles, useWebsiteProfiles, t }
       {clearing && <p className={css.profileHint}>{t(profile.control === 'clearing' ? 'profiles.bar.clearing' : 'profiles.bar.cleanupFailed')}</p>}
       <div className={css.profileActions}>
         {!clearing && <Button size="sm" variant="outline" disabled={blocked}
+          onClick={() => { setUrl(profile.url); setUrlIssue(undefined); setEditingUrl(true) }}>{t('profiles.url.edit')}</Button>}
+        {!clearing && <Button size="sm" variant="outline" disabled={blocked}
           onClick={() => { setEditingLogin(true) }}>{t(profile.hasSavedLogin ? 'profiles.login.saved' : 'profiles.login.save')}</Button>}
         {!clearing && <Button size="sm" variant="outline" disabled={blocked}
           title={t('profiles.signOut.title')} onClick={() => { void profiles.signOut(profile.id) }}>{t('profiles.signOut')}</Button>}
         {!clearing && <Button size="sm" variant="outline" disabled={blocked}
           title={t('profiles.forget.title')} onClick={() => { setConfirming(true) }}>{t('profiles.forget')}</Button>}
       </div>
+      {editingUrl && <div className={css.profileForm} role="group" aria-label={t('profiles.url.edit')}>
+        <label className={css.profileField}><span className={css.profileFieldLabel}>{t('profiles.create.url')}</span>
+          <Input value={url} disabled={blocked || clearing} aria-invalid={urlIssue !== undefined}
+            onChange={(event) => { setUrl(event.currentTarget.value); setUrlIssue(undefined) }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') { event.preventDefault(); saveUrl() }
+              if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setEditingUrl(false) }
+            }} /></label>
+        <p className={css.profileFieldHint}>{t('profiles.url.hint')}</p>
+        {urlIssue !== undefined && <p className={css.profileFieldError} role="alert">{t(`profiles.failure.${urlIssue}`)}</p>}
+        <div className={css.profileActions}>
+          <Button size="sm" variant="outline" disabled={blocked} onClick={() => { setEditingUrl(false) }}>{t('cancel')}</Button>
+          <Button size="sm" variant="primary" disabled={blocked || clearing} onClick={saveUrl}>{t('profiles.login.action')}</Button>
+        </div>
+      </div>}
       {editingLogin && <Modal open onClose={() => { if (!blocked) closeLogin() }} closeLabel={t('close')}
         title={t('profiles.login.title')} description={t('profiles.login.description')}
         footer={<>

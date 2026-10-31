@@ -44,7 +44,7 @@ function profileState(state: Partial<WebsiteProfilesState> = {}): SnapshotStore<
 /** @param overrides - per-command behavior. @returns recorded profile commands with defaults. */
 function profileCommands(overrides: Partial<WebsiteProfileCommands> = {}): WebsiteProfileCommands {
   return {
-    setAccess: vi.fn(async () => {}), saveLogin: vi.fn(async () => {}), removeLogin: vi.fn(async () => {}),
+    setUrl: vi.fn(async () => true), setAccess: vi.fn(async () => {}), saveLogin: vi.fn(async () => {}), removeLogin: vi.fn(async () => {}),
     create: vi.fn(async (_input: DesktopWebsiteProfileInput) => undefined),
     takeover: vi.fn(async (_profile: DesktopWebsiteProfileId) => {}),
     signOut: vi.fn(async (_profile: DesktopWebsiteProfileId) => {}),
@@ -374,6 +374,27 @@ function mountProfileTab(profiles: WebsiteProfileCommands, state: Partial<Websit
 }
 
 describe('BrowserBody saved profiles', () => {
+  it('edits the saved URL inline and replaces the tab only after saving succeeds', async () => {
+    const profiles = profileCommands({ setUrl: vi.fn(async () => false) })
+    const mounted = mountProfileTab(profiles, { profiles: [PROFILE] })
+    fireEvent.click(mounted.view.getByRole('button', { name: zh['profiles.url.edit'] }))
+    const editor = mounted.view.getByRole('group', { name: zh['profiles.url.edit'] })
+    const address = within(editor).getByLabelText(zh['profiles.create.url'])
+    fireEvent.change(address, { target: { value: 'https://user:secret@example.test/' } })
+    fireEvent.click(within(editor).getByRole('button', { name: zh['profiles.login.action'] }))
+    expect(within(editor).getByRole('alert').textContent).toBe(zh['profiles.failure.unsafe-url'])
+    expect(profiles.setUrl).not.toHaveBeenCalled()
+    fireEvent.change(address, { target: { value: 'example.test/new' } })
+    fireEvent.click(within(editor).getByRole('button', { name: zh['profiles.login.action'] }))
+    await waitFor(() => { expect(profiles.setUrl).toHaveBeenCalledWith(PROFILE_ID, 'https://example.test/new') })
+    expect(mounted.tabActions.openTab).not.toHaveBeenCalled()
+    expect(mounted.view.queryByRole('dialog')).toBeNull()
+    vi.mocked(profiles.setUrl).mockResolvedValueOnce(true)
+    fireEvent.click(within(editor).getByRole('button', { name: zh['profiles.login.action'] }))
+    await waitFor(() => { expect(mounted.tabActions.openTab).toHaveBeenCalledWith('browser', {
+      params: { url: 'https://example.test/new', profileId: PROFILE_ID }, replaceTab: true, revealIfOpened: false,
+    }) })
+  })
   it('keeps profile settings in the account menu without the old access controls', () => {
     const commands = profileCommands()
     const mounted = mountProfileTab(commands, { profiles: [PROFILE] })

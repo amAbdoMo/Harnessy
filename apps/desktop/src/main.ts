@@ -1159,6 +1159,10 @@ async function main(): Promise<void> {
     websiteProfiles.assertAvailable(profile.id)
     return browserGuests.acquireProfile(event.sender, profile.id, profile.url)
   })
+  ipcMain.handle(DESKTOP_IPC.websiteProfilesUrl, (event, id: unknown, url: unknown) => {
+    assertProductSender(event)
+    return websiteProfiles.setUrl(id, url)
+  })
   ipcMain.handle(DESKTOP_IPC.websiteProfilesControl, (event, id: unknown, control: unknown) => {
     assertProductSender(event)
     if (control !== 'human') throw new Error('Resume requires an acknowledged website request, not profile-wide permission')

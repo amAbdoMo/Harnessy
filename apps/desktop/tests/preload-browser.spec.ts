@@ -55,6 +55,8 @@ it('exposes no arbitrary IPC, native objects, or Agent control through profile-w
   expect(ipc.invoke).toHaveBeenLastCalledWith(DESKTOP_IPC.websiteRequestsTakeover, REQUEST)
   await bridge.profiles.setAccess('profile' as Parameters<typeof bridge.profiles.setAccess>[0], 'automatic')
   expect(ipc.invoke).toHaveBeenLastCalledWith(DESKTOP_IPC.websiteProfilesAccess, 'profile', 'automatic')
+  await bridge.profiles.setUrl('profile' as Parameters<typeof bridge.profiles.setUrl>[0], 'https://portal.example.test/next')
+  expect(ipc.invoke).toHaveBeenLastCalledWith(DESKTOP_IPC.websiteProfilesUrl, 'profile', 'https://portal.example.test/next')
   await bridge.profiles.saveLogin('profile' as Parameters<typeof bridge.profiles.saveLogin>[0], { username: 'fixture', password: 'private-fixture' })
   expect(ipc.invoke).toHaveBeenLastCalledWith(DESKTOP_IPC.websiteProfilesSaveLogin, 'profile', { username: 'fixture', password: 'private-fixture' })
   await bridge.profiles.removeLogin('profile' as Parameters<typeof bridge.profiles.removeLogin>[0])
