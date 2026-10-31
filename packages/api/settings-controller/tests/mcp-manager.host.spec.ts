@@ -105,23 +105,23 @@ describe('the Harnessy MCP manager Remote namespace', () => {
     const document = JSON.parse(await readFile(configurationPath, 'utf8')) as {
       servers: Array<{ name: string; environment: Record<string, string> }>
     }
-    expect(JSON.stringify(document)).not.toContain('private')
-    expect(document.servers[0]?.environment.API_TOKEN).toContain('protected storage')
+    expect(document.servers[0]?.environment.API_TOKEN).toBe('private')
     document.servers[0]!.name = 'Edited tools'
     await writeFile(configurationPath, `${JSON.stringify(document, null, 2)}\n`)
     await expect(controller.describe()).resolves.toMatchObject({
       servers: [{ id: initial.servers[0]!.id, name: 'Edited tools' }],
     })
-    expect(await readFile(configurationPath, 'utf8')).not.toContain('private')
+    expect((JSON.parse(await readFile(configurationPath, 'utf8')) as typeof document).servers[0]?.environment.API_TOKEN).toBe('private')
     document.servers[0]!.environment.API_TOKEN = 'replacement-secret'
     await writeFile(configurationPath, `${JSON.stringify(document, null, 2)}\n`)
     await controller.describe()
     expect(JSON.stringify(await ctx.credentials.readRecord(credentialKey('mcp-manager', 'servers'))))
       .toContain('replacement-secret')
-    expect(await readFile(configurationPath, 'utf8')).not.toContain('replacement-secret')
+    const updated = JSON.parse(await readFile(configurationPath, 'utf8')) as typeof document
+    expect(updated.servers[0]?.environment.API_TOKEN).toBe('replacement-secret')
   })
 
-  it('stores remote authentication only in the protected vault and publishes redacted live state', async () => {
+  it('includes remote authentication in the local document while publishing redacted live state', async () => {
     const { ctx, controller, started, configurationPath } = await boot()
     const saved = await controller.save({
       name: 'WordPress',
@@ -141,9 +141,8 @@ describe('the Harnessy MCP manager Remote namespace', () => {
       transport: 'streamable-http', headers: { Authorization: 'Bearer private-token' },
     })
     expect(JSON.stringify(saved)).not.toContain('private-token')
-    const editable = await readFile(configurationPath, 'utf8')
-    expect(editable).not.toContain('private-token')
-    expect(editable).toContain('protected storage')
+    const editable = JSON.parse(await readFile(configurationPath, 'utf8')) as { servers: Array<{ authorization: string }> }
+    expect(editable.servers[0]?.authorization).toBe('Bearer private-token')
     started[0]?.observer?.({
       status: 'error', tools: [], error: 'request to https://tools.example.com/mcp failed: Bearer private-token',
     })
@@ -152,6 +151,28 @@ describe('the Harnessy MCP manager Remote namespace', () => {
     expect(JSON.stringify(failed)).not.toContain('private-token')
     const record = await ctx.credentials.readRecord(credentialKey('mcp-manager', 'servers'))
     expect(JSON.stringify(record)).toContain('private-token')
+  })
+
+  it('replaces legacy file placeholders with saved values without losing either transport credential', async () => {
+    const { controller, configurationPath } = await boot()
+    await controller.save({ name: 'Local', serverName: 'local', transport: 'stdio', enabled: false,
+      command: 'node', environment: { API_TOKEN: 'fixture-environment-value' } })
+    await controller.save({ name: 'Remote', serverName: 'remote', transport: 'streamable-http', enabled: false,
+      url: 'https://tools.example.test/mcp', authorization: 'Bearer fixture-header-value' })
+    const legacy = JSON.parse(await readFile(configurationPath, 'utf8')) as {
+      servers: [{ environment: Record<string, string> }, { authorization: string }]
+    }
+    legacy.servers[0].environment.API_TOKEN = '<saved in protected storage; replace to update>'
+    legacy.servers[1].authorization = '<saved in protected storage; replace to update>'
+    await writeFile(configurationPath, JSON.stringify(legacy))
+    await controller.openConfigurationFile(new AbortController().signal)
+    const opened = JSON.parse(await readFile(configurationPath, 'utf8')) as typeof legacy
+    expect(opened.servers[0].environment.API_TOKEN).toBe('fixture-environment-value')
+    expect(opened.servers[1].authorization).toBe('Bearer fixture-header-value')
+    expect(JSON.stringify(opened)).not.toContain('saved in protected storage')
+    const state = JSON.stringify(await controller.describe())
+    expect(state).not.toContain('fixture-environment-value')
+    expect(state).not.toContain('fixture-header-value')
   })
 
   it('returns non-secret stdio fields for editing while keeping environment values protected', async () => {

@@ -1,7 +1,7 @@
 /**
- * Harnessy-owned global MCP server manager. Saved transport profiles and
- * authentication remain in protected credential storage; Remote responses
- * expose only connection state, endpoint labels, and registered tool names.
+ * Harnessy-owned global MCP server manager. The protected credential store and
+ * owner-editable local document retain complete connection values; Remote
+ * responses expose only connection state, endpoint labels, and tool names.
  *
  * @module @deepseek-ai/dsh-api-settings-controller/src/mcp-manager
  */
@@ -366,7 +366,7 @@ export class McpManagerController extends TypertRemoteService {
 
   private async writeConfiguration(vault: McpVault): Promise<void> {
     const path = this.requiredConfigurationPath()
-    const text = `${JSON.stringify(redactedConfiguration(vault), null, 2)}\n`
+    const text = `${JSON.stringify(vault, null, 2)}\n`
     await writeFile(path, text, { encoding: 'utf8', mode: 0o600 })
     this.configurationText = text
   }
@@ -546,7 +546,7 @@ function validateVaultServers(values: readonly unknown[], source: string): McpVa
   return { version: 1, servers: values }
 }
 
-/** Keep saved credentials when an edited public document retains their marker. */
+/** Resolve placeholders from older local documents against their saved credentials. */
 function restoreProtectedValues(incoming: McpVault, saved: McpVault): McpVault {
   const previous = new Map(saved.servers.map(server => [server.id, server]))
   const servers = incoming.servers.map((server): StoredServer => {
@@ -568,19 +568,6 @@ function restoreProtectedValues(incoming: McpVault, saved: McpVault): McpVault {
     return { ...server, environment }
   })
   return { version: 1, servers }
-}
-
-/** Write connection details without copying protected values into the editable file. */
-function redactedConfiguration(vault: McpVault): McpVault {
-  return {
-    version: 1,
-    servers: vault.servers.map(server => server.transport === 'streamable-http'
-      ? { ...server, ...server.authorization === undefined ? {} : { authorization: PROTECTED_VALUE } }
-      : {
-        ...server,
-        environment: Object.fromEntries(Object.keys(server.environment).map(key => [key, PROTECTED_VALUE])),
-      }),
-  }
 }
 
 function profileKeyOfVault(vault: McpVault): string {
