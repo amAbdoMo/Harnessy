@@ -44,6 +44,13 @@ const runnerPrivatePnpmDestination = /^\$\{\{ runner\.temp \}\}\/setup-pnpm-\$\{
 const nativeWindowsPnpmDestination = '${{ runner.temp }}/setup-pnpm-js-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}'
 
 describe('Custom Harness Windows workflow', () => {
+  it('requires real Electron startup cookie recovery before approving a Windows build', () => {
+    const steps = releaseSteps(workflowJob(loadWorkflow('.github/workflows/custom-harness-windows.yml'), 'desktop-checks'))
+    const recovery = namedStep(steps, 'Verify startup cookie recovery')
+    expect(recovery.run).toBe('pnpm exec vitest run --config vitest.e2e.config.ts apps/desktop/tests/host-cookies-native.e2e.ts')
+    expect(recovery['continue-on-error']).not.toBe(true)
+  })
+
   it.each([
     ['desktop-checks', 'Build and type-check Harnessy'],
     ['release-package', 'Build the production update'],

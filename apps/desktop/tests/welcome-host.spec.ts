@@ -99,8 +99,8 @@ describe('desktop welcome Web operations', () => {
     expect(host.send.mock.calls.every(([input]) => !input.includes('/productAnalytics/'))).toBe(true)
   })
 
-  it('refuses an unauthenticated Web launch', async () => {
-    const send = vi.fn<Parameters<typeof connectDesktopWelcome>[1]>(async () => new Response(null, { status: 401 }))
-    await expect(connectDesktopWelcome(url, send)).rejects.toThrow('Web authentication failed')
+  it.each([401, 431])('reports HTTP %s when a Web launch is rejected', async (status) => {
+    const send = vi.fn<Parameters<typeof connectDesktopWelcome>[1]>(async () => new Response(null, { status }))
+    await expect(connectDesktopWelcome(url, send)).rejects.toThrow(`Web authentication failed (HTTP ${status})`)
   })
 })

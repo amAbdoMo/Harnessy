@@ -65,6 +65,10 @@ jobs:
         shell: pwsh
         run: node --import tsx/esm scripts/compile-referenced-projects.ts host
 
+      - name: Verify startup cookie recovery
+        shell: pwsh
+        run: pnpm exec vitest run --config vitest.e2e.config.ts apps/desktop/tests/host-cookies-native.e2e.ts
+
       - name: Build and type-check Harnessy
         shell: pwsh
         run: pnpm run build:custom-harness

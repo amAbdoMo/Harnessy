@@ -16,7 +16,7 @@ Platform 内嵌文档使用持久化 WebContentsView 分区，分区名由 Platf
 
 Desktop Host 的 Platform API 请求与更新策略请求用相同的 Platform 客户端请求头标识已安装客户端：平台、客户端版本、语言、以秒为单位的时区偏移，以及有意保持为空的 bundle id。账号操作按调用逐次传入调用界面的身份；账号 provider 管理[仅 API 使用的请求头配置](../../packages/credentials/deepseek-account-platform/README.zh.md#use-this-package)。更新策略额外上报架构、更新通道和内置运行时版本。 原生账号状态解析器接受 `no-response` 登录失败，并在供 UI 使用的安全投影中保留该错误码。
 
-Harnessy 在账号凭据失效或移除后仍保持工作区打开。Provider 配置、凭据替换和账号切换继续由 Harnessy 模型页中的账号管理器负责；仅适用于 DeepSeek 的原生 Welcome 窗口不控制 Harnessy 启动。
+Harnessy 在账号凭据失效或移除后仍保持工作区打开。Provider 配置、凭据替换和账号切换继续由 Harnessy 模型页中的账号管理器负责；仅适用于 DeepSeek 的原生 Welcome 窗口不控制 Harnessy 启动。在原生 Web 认证前，外壳从默认会话移除已失效的端口专属 Host Cookie，避免多次启动后超过本地服务器的请求头大小限制。当前 Host Cookie、无关 Cookie 和独立网站分区均保留；认证失败只报告 HTTP 状态，不包含凭据值。
 
 桌面麦克风访问仅允许主 `dsh-app://app` 页面发起的音频请求。macOS 使用系统麦克风授权、随包用途说明，以及主应用与 Helper 签名中的 `com.apple.security.device.audio-input` 权限。
 

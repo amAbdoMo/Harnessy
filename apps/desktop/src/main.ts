@@ -45,6 +45,7 @@ import { claimDesktopSingleInstance } from './single-instance.ts'
 import { DesktopUpdateCoordinator } from './update-coordinator.ts'
 import { DesktopCommandManager } from './command-management.ts'
 import { serveWebDocument, authenticateWebHost, forwardWebRequest } from './web-document.ts'
+import { pruneDesktopHostCookies } from './host-cookies.ts'
 import { DesktopFatalRecovery } from './fatal-recovery.ts'
 import { pruneCrashReports, RendererConsoleTail, writeCrashReport, type CrashReportSource } from './crash-report.ts'
 import { openWelcomeWindow } from './welcome-window.ts'
@@ -756,6 +757,7 @@ async function main(): Promise<void> {
         const ready = await host.start()
         await websiteAuthority.synchronize(host)
         hostCookie = await authenticateWebHost(ready.url)
+        await pruneDesktopHostCookies(ready.url, hostCookie, session.defaultSession.cookies)
         hostUrl = ready.url
         if (ready.injections === undefined) throw new Error('Desktop Host did not provide boot injections')
         injections = ready.injections

@@ -3,8 +3,8 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write apps/desktop/README.md
 /harnessy-desktop:
-  en: 05cbdb71dab2ed5b
-  zh: 65bcfa66833b4c03
+  en: ede81eda87083778
+  zh: d63745e5f274d524
 /harnessy-desktop/device-preview:
   en: 9d70030a4cdb34aa
   zh: e2b20746c3f5cd9c
