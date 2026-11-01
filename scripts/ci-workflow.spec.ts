@@ -188,8 +188,7 @@ describe('Harnessy production release job', () => {
     expect(dispatch.inputs).toMatchObject({
       release_version: { type: 'string', default: '' },
     })
-    // The whole workflow stays read-only: the release job packages and uploads
-    // artifacts, it never writes to the repository.
+    // Builds remain read-only; only the dependent publisher receives write access.
     expect(workflow.permissions).toEqual({ contents: 'read' })
     expect(workflow.concurrency).toMatchObject({
       group: "${{ github.workflow }}-${{ inputs.release_version != '' && 'release-build' || github.ref }}",
@@ -207,6 +206,38 @@ describe('Harnessy production release job', () => {
       "github.ref == 'refs/heads/staging'",
       "inputs.release_version != ''",
     ]))
+  })
+
+  it('publishes only the qualified staging release with job-scoped write permission', () => {
+    const workflow = loadWorkflow('.github/workflows/custom-harness-windows.yml')
+    const publish = workflowJob(workflow, 'publish-release')
+    const release = workflowJob(workflow, 'release-package')
+    expect(publish.if).toBe(release.if)
+    expect(publish.needs).toEqual(['desktop-checks', 'release-package'])
+    expect(publish.permissions).toEqual({ contents: 'write' })
+    expect(publish['runs-on']).toBe('windows-latest')
+    const steps = releaseSteps(publish)
+    expect(steps[0]).toMatchObject({
+      uses: 'actions/checkout@v6',
+      with: { ref: '${{ github.sha }}', 'fetch-depth': 0, 'persist-credentials': false },
+    })
+    const artifact = steps.find(step => step.uses === 'actions/download-artifact@v4')
+    if (artifact === undefined) throw new TypeError('Publication must consume the qualified artifact')
+    expect(artifact).toMatchObject({ with: {
+      name: 'Harnessy-windows-x64-release-${{ inputs.release_version }}-${{ github.sha }}',
+      path: 'apps/desktop/.desktop-build/targets/win-x64/artifacts',
+    } })
+    const publication = namedStep(steps, 'Publish the verified in-app update')
+    expect(publication.env).toEqual({ GH_TOKEN: '${{ github.token }}' })
+    expect(stepScript(publication)).toContain('gh auth setup-git')
+    expect(stepScript(publication)).toContain('pnpm --dir apps/desktop exec tsx scripts/github-windows-release.ts hosted')
+    expect(steps.indexOf(publication)).toBeGreaterThan(steps.indexOf(artifact))
+    expect(publish.env).toMatchObject({ RELEASE_VERSION: '${{ inputs.release_version }}' })
+    for (const step of steps) {
+      expect(step['continue-on-error']).not.toBe(true)
+      expect(String(step.run)).not.toContain('${{ inputs.release_version }}')
+      if (step !== publication) expect(step.env ?? {}).not.toHaveProperty('GH_TOKEN')
+    }
   })
 
   it.each([

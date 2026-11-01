@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       release_version:
-        description: 'Approved stable in-app release version; empty builds only the local installer'
+        description: 'Stable version to build and publish to Check for Updates; empty builds only the local installer'
         type: string
         required: false
         default: ''
@@ -281,3 +281,47 @@ jobs:
             apps/desktop/.desktop-build/release-ci.log
             apps/desktop/.desktop-build/packaging-runs/**
           if-no-files-found: warn
+
+  publish-release:
+    name: publish in-app update / Windows x64
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'amAbdoMo/Harnessy' && github.ref == 'refs/heads/staging' && inputs.release_version != ''
+    needs: [desktop-checks, release-package]
+    runs-on: windows-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      RELEASE_VERSION: ${{ inputs.release_version }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        shell: pwsh
+        run: pnpm install --frozen-lockfile
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: Harnessy-windows-x64-release-${{ inputs.release_version }}-${{ github.sha }}
+          path: apps/desktop/.desktop-build/targets/win-x64/artifacts
+
+      - name: Publish the verified in-app update
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh auth setup-git
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pnpm --dir apps/desktop exec tsx scripts/github-windows-release.ts hosted
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "Published [Harnessy v$env:RELEASE_VERSION](https://github.com/$env:GITHUB_REPOSITORY/releases/tag/v$env:RELEASE_VERSION). Open Harnessy and use **Check for Updates**. No manual artifact download is needed." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
