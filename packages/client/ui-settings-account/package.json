@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-settings-account",
   "description": "Manage DeepSeek login and open Platform billing pages",
-  "version": "0.1.19",
+  "version": "0.1.20",
   "publishConfig": {
     "access": "public"
   },
