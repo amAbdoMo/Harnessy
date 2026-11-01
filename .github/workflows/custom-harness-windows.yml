@@ -69,6 +69,10 @@ jobs:
         shell: pwsh
         run: pnpm exec vitest run --config vitest.e2e.config.ts apps/desktop/tests/host-cookies-native.e2e.ts
 
+      - name: Verify the Desktop release controls
+        shell: pwsh
+        run: pnpm exec vitest run apps/desktop/tests/release-control.spec.ts
+
       - name: Build and type-check Harnessy
         shell: pwsh
         run: pnpm run build:custom-harness
