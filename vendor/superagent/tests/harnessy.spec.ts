@@ -5,7 +5,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, delimiter } from 'node:path'
 import { promisify } from 'node:util'
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import { Config, machineOf } from '../src/deployment.ts'
 import { Setup } from '../src/app/setup.ts'
 import { SettingsSchema } from '../src/policy.ts'
@@ -17,7 +17,15 @@ import { testDeployment, testMachine } from './fixtures/deployment.ts'
 const exec = promisify(execFile)
 const directories: string[] = []
 const directory = () => { const path = mkdtempSync(join(tmpdir(), 'harnessy-superagent-')); directories.push(path); return path }
-afterEach(() => { for (const path of directories.splice(0)) rmSync(path, { recursive: true, force: true }) })
+afterEach(() => { vi.unstubAllEnvs(); for (const path of directories.splice(0)) rmSync(path, { recursive: true, force: true }) })
+
+it('keeps the default database inside the active Harness home', async () => {
+  const home = directory()
+  vi.stubEnv('DSH_HOME', home)
+  vi.resetModules()
+  const { Config: homeConfig } = await import('../src/deployment.ts')
+  expect(homeConfig({}).stateDir).toBe(join(home, 'SuperAgent'))
+})
 
 it.each([
   { enabled: true, body: '/superagent Fix the header', human: true, addressed: true },

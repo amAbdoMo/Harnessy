@@ -24,6 +24,7 @@
   // cannot see both sides of the cordis Context merges).
   "exclude": [
     "tests/superagent.snapshot.ts",
+    "tests/superagent-startup.e2e.ts",
     "tests/cua-approval.e2e.ts",
     "tests/creation-recommendations.e2e.ts",
     "tests/plugin-recommendations.e2e.ts",

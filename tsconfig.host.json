@@ -44,6 +44,7 @@
     "apps/web/tests/startup-rpc-budget.e2e.ts",
     "apps/web/tests/minimal-preset.snapshot.ts",
     "apps/web/tests/superagent.snapshot.ts",
+    "apps/web/tests/superagent-startup.e2e.ts",
     "apps/web/tests/message-feedback-protocol.snapshot.ts",
     "apps/web/tests/preset-migration.snapshot.ts",
     "apps/web/tests/live-interactions.e2e.ts",

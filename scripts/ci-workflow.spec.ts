@@ -48,7 +48,7 @@ describe('Custom Harness Windows workflow', () => {
     ['Verify startup cookie recovery', 'pnpm exec vitest run --config vitest.e2e.config.ts apps/desktop/tests/host-cookies-native.e2e.ts'],
     ['Verify the Desktop release controls', 'pnpm exec vitest run apps/desktop/tests/release-control.spec.ts'],
     ['Verify Super Agent integration', 'pnpm run test:superagent'],
-    ['Verify the Super Agent panel and worker replay', 'pnpm exec vitest run --config vitest.web.config.ts apps/web/tests/superagent.snapshot.ts'],
+    ['Verify the Super Agent panel and worker replay', 'pnpm exec vitest run --config vitest.web.config.ts apps/web/tests/superagent.snapshot.ts apps/web/tests/superagent-startup.e2e.ts'],
   ])('requires %s before approving a Windows build', (name, command) => {
     const steps = releaseSteps(workflowJob(loadWorkflow('.github/workflows/custom-harness-windows.yml'), 'desktop-checks'))
     const recovery = namedStep(steps, name)

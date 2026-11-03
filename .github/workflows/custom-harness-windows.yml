@@ -89,7 +89,7 @@ jobs:
         shell: pwsh
         env:
           DSH_SNAPSHOT: replay
-        run: pnpm exec vitest run --config vitest.web.config.ts apps/web/tests/superagent.snapshot.ts
+        run: pnpm exec vitest run --config vitest.web.config.ts apps/web/tests/superagent.snapshot.ts apps/web/tests/superagent-startup.e2e.ts
 
       - name: Test live account surfaces
         shell: pwsh
