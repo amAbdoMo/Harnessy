@@ -47,6 +47,8 @@ describe('Custom Harness Windows workflow', () => {
   it.each([
     ['Verify startup cookie recovery', 'pnpm exec vitest run --config vitest.e2e.config.ts apps/desktop/tests/host-cookies-native.e2e.ts'],
     ['Verify the Desktop release controls', 'pnpm exec vitest run apps/desktop/tests/release-control.spec.ts'],
+    ['Verify Super Agent integration', 'pnpm run test:superagent'],
+    ['Verify the Super Agent panel and worker replay', 'pnpm exec vitest run --config vitest.web.config.ts apps/web/tests/superagent.snapshot.ts'],
   ])('requires %s before approving a Windows build', (name, command) => {
     const steps = releaseSteps(workflowJob(loadWorkflow('.github/workflows/custom-harness-windows.yml'), 'desktop-checks'))
     const recovery = namedStep(steps, name)
@@ -90,7 +92,8 @@ describe('Custom Harness Windows workflow', () => {
     const manifest: unknown = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'))
     expect(manifest).toMatchObject({ scripts: {
       'build:custom-harness': 'tsx scripts/build.ts --profile custom-harness',
-      'build:lib': 'pnpm run build:lib:host && pnpm run build:lib:client',
+      'build:lib': 'pnpm run build:lib:host && pnpm run build:lib:client && pnpm run build:superagent',
+      'build:superagent': 'tsc -p vendor/superagent/tsconfig.json && pnpm --filter @deepseek-ai/dsh-superagent exec tsdown --config-loader native',
     } })
     if (!isRecord(manifest) || !isRecord(manifest.scripts)) throw new TypeError('Build scripts must be defined')
     expect(manifest.scripts['build:lib:host']).toContain('tsc -b tsconfig.host.json')

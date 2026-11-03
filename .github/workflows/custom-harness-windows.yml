@@ -77,9 +77,19 @@ jobs:
         shell: pwsh
         run: pnpm run build:custom-harness
 
+      - name: Verify Super Agent integration
+        shell: pwsh
+        run: pnpm run test:superagent
+
       - name: Install account-chooser browser
         shell: pwsh
         run: pnpm --filter @deepseek-ai/dsh-web-frontend exec playwright install chromium
+
+      - name: Verify the Super Agent panel and worker replay
+        shell: pwsh
+        env:
+          DSH_SNAPSHOT: replay
+        run: pnpm exec vitest run --config vitest.web.config.ts apps/web/tests/superagent.snapshot.ts
 
       - name: Test live account surfaces
         shell: pwsh

@@ -151,6 +151,8 @@ Welcome 加载共享 Toast 的配色和阴影变量，挂载在 body 下的通�
 
 ## 安装归属
 
+可选的 [Super Agent bundle](../../vendor/superagent/README.md) 通过 **Plugins** 添加仓库请求、受管理的工作 Session 和侧边栏面板。其工作命令的 Git/PATH 覆盖与普通聊天分离，数据库保留在当前 Harness home 内。使用个人账号时，可配置接收该账号以 `/superagent` 开头的明确评论请求。
+
 Electron 拥有 `$DSH_HOME/profiles/desktop`。其 `dependencies` 包含 pnpm 安装的包；`dsh.profile.bundles` 以 base、Web 和 Harnessy 产品 bundle 开头，后接已启用插件。启动时会为较早的仅上游 Desktop 构建所创建的 profile 恢复该产品自有前缀，同时保留插件条目。签名应用从 `resources/app.asar/dsh` 提供 dsh、私有 Desktop Host 及其生产依赖。打包应用选择 runtime profile 解析，不创建包链接；开发 profile 使用文件系统链接。宿主与插件在同一个 Electron Node 模式进程中执行；Desktop 不启用 `--preserve-symlinks`。CLI 不能启动此 profile。Desktop 安装的命令可在应用完全退出后管理插件；npm 安装的 dsh 不能修改它。
 
 应用 preload 只向 `dsh-app://app` 文档暴露启动就绪、致命启动失败上报、原生目录选择、用于 composer 路径引用的 `__DSH_HOST_PATHS__` 桥接和租约范围内的 Browser 桥接。同一个 preload 通过 `dshDesktop.deviceInfo()` 转发主进程采集的机器描述，按 `name=value` 字段以 `; ` 分隔：`platform`、`os`、`app_arch`（应用二进制实际运行的架构，模拟运行时与硬件架构不同）、`cpu` 和 `memory_gib`（物理内存总量，GiB，保留一位小数）。取值不可用时省略对应字段。该描述不包含主机名、用户名或序列号。产品页面还获得 Desktop 标记、更新展示数据和打开原生确认的操作，不能选择安装产物或授权安装。插件管理使用 Web 应用经过认证的 HTTP API；Electron 在 `dsh-app://shell/` 本地提供更新弹窗文档和资源，不依赖 Host 就绪。Electron 不提供插件管理 IPC 或独立管理页面。任何渲染进程都不会获得文件系统访问、原始 Electron IPC、shell 或任意 pnpm 参数。

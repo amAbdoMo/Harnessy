@@ -25,7 +25,7 @@
     "verify:harnessy-product": "tsx scripts/verify-custom-harness-product.ts && node --test apps/desktop/tests/custom-harness-product.test.js && vitest run scripts/verify-custom-harness-product.spec.ts apps/desktop/tests/development-product-paths.spec.ts apps/desktop/tests/paths.spec.ts apps/desktop/tests/development-project.spec.ts apps/desktop/tests/welcome-startup.spec.ts packages/client/ui-brand-custom-harness/tests/account-launcher.client.spec.tsx packages/client/ui-brand-custom-harness/tests/mcp-session-status.client.spec.tsx packages/client/ui-brand-custom-harness/tests/mcp-servers.client.spec.tsx packages/client/ui-model-selection/tests/model-select.client.spec.tsx packages/client/ui-settings-models/tests/apply.client.spec.ts packages/client/ui-settings-subagents/tests/composition.client.spec.ts packages/subagent/subagent-roster/tests/routing.spec.ts",
     "verify:harnessy-upstream": "tsx scripts/verify-harnessy-upstream.ts",
     "custom-harness": "tsx scripts/run-custom-harness.ts",
-    "build:lib": "pnpm run build:lib:host && pnpm run build:lib:client",
+    "build:lib": "pnpm run build:lib:host && pnpm run build:lib:client && pnpm run build:superagent",
     "build:lib:host": "node --max-old-space-size=4096 ./node_modules/typescript/bin/tsc -b tsconfig.host.json && tsdown --config-loader native --env.DSH_BUILD_FACE host && pnpm --filter @deepseek-ai/dsh-desktop run bundle",
     "build:lib:client": "tsc -b tsconfig.client.json && tsdown --config-loader native --env.DSH_BUILD_FACE client",
     "build:web": "pnpm --filter @deepseek-ai/dsh-web-frontend run build",
@@ -217,7 +217,9 @@
     "start:web": "node --import tsx/esm apps/cli/src/bin.ts web",
     "dev:web": "tsx scripts/dev-web.ts --poll",
     "postinstall": "node scripts/install-lefthook.mjs",
-    "verify:harnessy-upgrade": "vitest run apps/desktop/tests/upgrade-settings-preservation.spec.ts apps/desktop/tests/taskbar-unread.spec.ts apps/desktop/tests/taskbar-badge.spec.ts apps/desktop/tests/taskbar-badge-windows.spec.ts packages/client/ui-brand-custom-harness/tests/native-taskbar.client.spec.ts packages/api/settings-controller/tests/accounts-controller.host.spec.ts packages/api/settings-controller/tests/mcp-manager.host.spec.ts apps/desktop-host/tests/companion-activation.spec.ts apps/desktop-host/tests/companion-deployment.spec.ts apps/desktop/tests/companion-native.spec.ts packages/host/companion-host/tests/session-management.spec.ts packages/client/ui-brand-custom-harness/tests/companion-disclosure-composition.client.spec.tsx --testTimeout 15000"
+    "verify:harnessy-upgrade": "vitest run apps/desktop/tests/upgrade-settings-preservation.spec.ts apps/desktop/tests/taskbar-unread.spec.ts apps/desktop/tests/taskbar-badge.spec.ts apps/desktop/tests/taskbar-badge-windows.spec.ts packages/client/ui-brand-custom-harness/tests/native-taskbar.client.spec.ts packages/api/settings-controller/tests/accounts-controller.host.spec.ts packages/api/settings-controller/tests/mcp-manager.host.spec.ts apps/desktop-host/tests/companion-activation.spec.ts apps/desktop-host/tests/companion-deployment.spec.ts apps/desktop/tests/companion-native.spec.ts packages/host/companion-host/tests/session-management.spec.ts packages/client/ui-brand-custom-harness/tests/companion-disclosure-composition.client.spec.tsx --testTimeout 15000",
+    "build:superagent": "tsc -p vendor/superagent/tsconfig.json && pnpm --filter @deepseek-ai/dsh-superagent exec tsdown --config-loader native",
+    "test:superagent": "tsc -p vendor/superagent/tsconfig.tests.json && cd vendor/superagent && vitest run"
   },
   "devDependencies": {
     "@ai-sdk/openai": "^4.0.91",

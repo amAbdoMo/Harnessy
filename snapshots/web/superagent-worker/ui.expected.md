@@ -1,0 +1,35 @@
+- banner:
+  - heading "Super Agent" [level=1]
+  - search:
+    - searchbox "Search"
+  - button "Glossary"
+  - button "Open main Session"
+- tablist "dsh-superagent pages":
+  - tab "Overview" [selected]
+  - tab "Source"
+  - tab "Trigger"
+  - tab "Eval"
+  - tab "Execution"
+  - tab "Settings"
+- tabpanel "Overview":
+  - heading "Pending Tickets 0" [level=2]
+  - paragraph: No pending Tickets.
+  - heading "System problems 2" [level=2]
+  - list:
+    - listitem:
+      - button "Deployment check failed; dsh-superagent takes no work"
+      - paragraph: The GitHub Source names no repository.
+      - paragraph: Fix it on the GitHub card of the Source settings and save to check again; after a fix outside dsh-superagent, such as signing a CLI in, choose Check again.
+      - button "Check again"
+    - listitem:
+      - 'button "No one may originate work: the lists on every Source are empty, so no request can become a Ticket"'
+      - button "Add senders"
+  - heading "Last 24 hours Details ›" [level=2]:
+    - text: Last 24 hours
+    - button "Details ›"
+  - text: Arrived 0 Filtered 0 Evaluated 0 Accepted or continued
+  - button "0"
+  - heading "Executor Details ›" [level=2]:
+    - text: Executor
+    - button "Details ›"
+  - paragraph: Executor waiting for the deployment check

@@ -28,6 +28,7 @@ const workspaceGlobs = [
   { dir: 'apps', depth: 1 },
 ] as const
 const vendoredPackages = new Set([
+  '@deepseek-ai/dsh-superagent',
   '@deepseek-ai/cordis',
   '@deepseek-ai/cosmokit',
   '@deepseek-ai/schemastery',

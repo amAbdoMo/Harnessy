@@ -1,0 +1,10 @@
+version: 1
+scenario: superagent-worker
+profile: web
+composition: harnessy-superagent-worker
+recording: authored
+platform: pwsh
+immutableInput: source-recording
+header:
+  class: harnessy-superagent-worker
+  pin: true

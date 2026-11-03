@@ -103,7 +103,7 @@ describe('internal artifact build order', () => {
     const expected = [
       ['exec', 'tsdown', '--config-loader', 'native', '--env.DSH_BUILD_FACE', 'host'],
       ['--filter', '@deepseek-ai/dsh-desktop', 'run', 'bundle'],
-      ...hostOnly ? [] : [['exec', 'tsdown', '--config-loader', 'native', '--env.DSH_BUILD_FACE', 'client']],
+      ...hostOnly ? [] : [['exec', 'tsdown', '--config-loader', 'native', '--env.DSH_BUILD_FACE', 'client'], ['run', 'build:superagent']],
     ]
     expect(commands()).toEqual(expected.map(args => ({ args, title: 'Inherited Build Title' })))
   })

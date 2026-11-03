@@ -26,6 +26,7 @@ describe('repository bundle workspaces', () => {
     const root = fixtureRoot()
     const customPackage = 'packages/client/ui-brand-custom-harness'
     writeFixture(root, `${customPackage}/package.json`, JSON.stringify({ name: '@deepseek-ai/dsh-ui-brand-custom-harness' }))
+    writeFixture(root, 'vendor/superagent/package.json', JSON.stringify({ name: '@deepseek-ai/dsh-superagent' }))
     writeFixture(root, 'apps/cli/lib/types/index.js', 'export const stale = true\n')
     writeFixture(root, 'apps/desktop-host/lib/types/index.js', 'export const stale = true\n')
     writeFixture(root, 'vendor/removed/lib/types/index.js', 'export const stale = true\n')

@@ -70,7 +70,7 @@ export function compileReferencedProjects(
 }
 
 /**
- * Emit package libraries in Host, Desktop, then Client dependency order.
+ * Emit Host, Desktop, Client and vendored plugin artifacts in dependency order.
  * @param root - Repository root containing the compiler and bundle configurations.
  * @param hostOnly - Omit the Client compiler and bundler after the Host artifacts are ready.
  * @throws If any compiler or bundler fails.
@@ -82,6 +82,7 @@ export function buildLibraryArtifacts(root: string, hostOnly: boolean): void {
   if (hostOnly) return
   compileReferencedProjects(root, 'client')
   runPnpmCommand(root, ['exec', 'tsdown', '--config-loader', 'native', '--env.DSH_BUILD_FACE', 'client'])
+  runPnpmCommand(root, ['run', 'build:superagent'])
 }
 
 if (import.meta.main) {

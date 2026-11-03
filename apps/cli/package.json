@@ -108,7 +108,8 @@
     "@deepseek-ai/dsh-experimental-personalized-recommendations": "workspace:*",
     "@deepseek-ai/dsh-experimental-subagent-oar": "workspace:*",
     "@deepseek-ai/dsh-experimental-cua-bundle": "workspace:*",
-    "@deepseek-ai/dsh-experimental-tool-worktree": "workspace:*"
+    "@deepseek-ai/dsh-experimental-tool-worktree": "workspace:*",
+    "@deepseek-ai/dsh-superagent": "workspace:*"
   },
   "devDependencies": {
     "@agentclientprotocol/sdk": "1.4.0",

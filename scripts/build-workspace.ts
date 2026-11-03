@@ -12,5 +12,7 @@ import { dirname, sep } from 'node:path'
 export function buildWorkspaceDirectories(root: string, face: 'host' | 'client'): string[] {
   const patterns = ['vendor/*/package.json', 'packages/*/*/package.json', 'apps/cli/package.json']
   if (face === 'host') patterns.push('apps/desktop-host/package.json')
-  return globSync(patterns, { cwd: root }).map(path => dirname(path).split(sep).join('/')).sort()
+  const packages = globSync(patterns, { cwd: root }).map(path => dirname(path).split(sep).join('/'))
+  // This external plugin consumes declarations from both completed compiler faces.
+  return packages.filter(directory => directory !== 'vendor/superagent').sort()
 }

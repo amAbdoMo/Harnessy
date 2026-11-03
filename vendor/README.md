@@ -1,6 +1,6 @@
 # Vendored Packages
 
-This directory contains source-vendored copies of the Cordis framework and its foundation libraries. They are copied into this monorepo instead of being depended on via npm, so that the harness fully owns its framework layer (auditable, patchable, pinned).
+This directory contains source-vendored framework libraries and the optional Super Agent bundle. They are copied into this monorepo instead of being depended on via npm, so their source remains auditable, patchable and pinned.
 
 All vendored packages use the **`@deepseek-ai` scope** (`cordis` → `@deepseek-ai/cordis`, `@cordisjs/plugin-<x>` → `@deepseek-ai/cordis-plugin-<x>`). The manifest table records upstream versions and source commits; each package manifest carries its Harness release version and publication metadata. References to vendored packages use `workspace:~`, so local builds resolve the workspace packages and published ranges permit patch updates within the same minor version. Upstream MIT `LICENSE` files are preserved in each package directory.
 
@@ -12,6 +12,7 @@ Upstream workspace: `cordis-workspace` (local checkout: `~/repos/cordis-workspac
 
 | Directory | npm name | Upstream name | Version | Upstream repo | Commit |
 |---|---|---|---|---|---|
+| `superagent/` | `@deepseek-ai/dsh-superagent` | `dsh-superagent` | 0.1.0 | https://github.com/deepseek-ai/dsh-superagent-prototype | `8c32a9dc5d72c033816c6a8110b37f40cf94fba4` |
 | `cosmokit/` | `@deepseek-ai/cosmokit` | `cosmokit` | 1.8.1 | https://github.com/deepseek-harness/cosmokit | `16f6fc058ade66e8ac5da0033d35a8d0f279f544` |
 | `schemastery/` | `@deepseek-ai/schemastery` | `schemastery` | 3.18.0 | https://github.com/deepseek-harness/schemastery (`packages/core`) | `e67cee00ad725bd1534aee930a979ea3eec6f698` |
 | `cordis/` | `@deepseek-ai/cordis` | `cordis` | 4.0.0-rc.7 | https://github.com/cordiverse/cordis (`packages/core`) | `56b3d4f725681cf4556c1a8695a709cc3b6eed74` |
@@ -29,6 +30,8 @@ Intentionally **not** vendored (verified unused by this set): `reggol`, `@cordis
 ## Local modifications
 
 Keep this log exhaustive — every divergence from upstream must be listed.
+
+Super Agent is an optional MIT-licensed application plugin rather than part of Cordis. It retains upstream source and tests in `superagent/`, with its own compiler and browser bundle; `build:superagent` consumes the completed Host and Client declarations after both library phases. Harnessy's adaptation uses a release-family package name and metadata, preserves declarations while bundling, supplies an installation-owned icon and isolated default state directory, and registers the existing Plugin Manager configuration view under its scoped package name. Managed worker presets use per-command Git/PATH overrides instead of changing the Host environment; their subagents use the same worker preset, ancestor restrictions cover the complete chain, and the router admits PowerShell on Windows. Host CLI commands use the subprocess environment scrubber. Windows adaptation covers absolute paths, executable suffixes, PowerShell command shims, native CLI probes and preparation commands using the existing PowerShell resolver. Personal accounts can opt into new `/superagent` comments, excluding marked automatic replies. Default delivery instructions require normal commits and leave merging to the owner; historical merge thresholds are retained as informational values without authorizing merges. Test fixtures reflect the scoped package, managed presets and platform commands, with native Windows coverage replacing Unix-only deployment fixtures. The upstream Unix service launcher and its deployment-document tests are not part of Harnessy's installation. The [package README](superagent/README.md) owns usage and limitations.
 
 1. **`hmr/src/index.ts`**: removed the `./locales/en-US.yml` / `./locales/zh-CN.yml` imports, the `.i18n({...})` call on the `Config` schema, and the `src/locales/` directory. Rationale: those imports require a runtime YAML loader hook (`@cordisjs/unyaml`) that we do not vendor; the i18n texts only localize config descriptions.
 2. **All `package.json` files**: regenerated for Harness releases with scoped names, release versions, publication metadata, precise bundled-runtime and `lib/types/**/*.d.ts` / `.d.ts.map` file entries, source exports where applicable, and declaration metadata pointing at `lib/types`. References within the vendored set use `workspace:~`. HMR declares `esbuild` as a direct dev dependency for its imported `BuildFailure` type, and Loader requires `node-addon-require-builtin@^0.1.4` to match published app runtimes.
