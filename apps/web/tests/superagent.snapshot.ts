@@ -29,6 +29,7 @@ describe.skipIf(process.platform !== 'win32')('Harnessy Super Agent worker and p
       compareReplaySession: true,
       extraOverlayPath: [
         fileURLToPath(new URL('../../../packages/bundle/custom-harness/cordis.patch.yml', import.meta.url)),
+        fileURLToPath(new URL('./superagent-worker.overlay.yml', import.meta.url)),
         fileURLToPath(new URL('./pin-browse-picker.overlay.yml', import.meta.url)),
       ],
       extraInstallAnchors: [fileURLToPath(new URL('../../../packages/bundle/custom-harness/package.json', import.meta.url))],
