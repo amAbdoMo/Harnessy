@@ -100,6 +100,17 @@ it('offers the available release with its version detail and asks the shell to o
   } finally { f.view.unmount(); f.status.resolve(available) }
 })
 
+it('opens the shell confirmation when a full update download is required', async () => {
+  const f = fixture()
+  try {
+    await f.emit({ phase: 'full-download-required', version: '1.0.1', totalBytes: 16 * 1024 ** 2 })
+    const control = screen.getByRole('button', { name: '需要完整下载' })
+    expect(f.open).not.toHaveBeenCalled()
+    fireEvent.click(control)
+    expect(f.open).toHaveBeenCalledOnce()
+  } finally { f.view.unmount(); f.status.resolve(available) }
+})
+
 it('renders determinate download progress and opens the progress popover', async () => {
   const f = fixture()
   try {

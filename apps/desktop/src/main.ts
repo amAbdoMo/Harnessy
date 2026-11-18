@@ -40,7 +40,7 @@ import { installMicrophonePermissions } from './microphone-permissions.ts'
 import { DesktopBackendController } from './backend-controller.ts'
 import { DESKTOP_IPC, SCHEME, assertDesktopSender, parseDesktopNotificationPayload, type DesktopUpdateState } from './ipc.ts'
 import { readDeviceInfo } from './device-info.ts'
-import { desktopUpdateReadyConfirmation, formatDesktopMessage, resolveDesktopLocale, resolveDesktopStartupLocale } from './locale.ts'
+import { desktopFullDownloadDetail, desktopUpdateReadyConfirmation, formatDesktopMessage, resolveDesktopLocale, resolveDesktopStartupLocale } from './locale.ts'
 import { claimDesktopSingleInstance } from './single-instance.ts'
 import { DesktopUpdateCoordinator } from './update-coordinator.ts'
 import { DesktopCommandManager } from './command-management.ts'
@@ -1338,18 +1338,30 @@ async function main(): Promise<void> {
           }
           return
         }
-        if (state.phase !== 'available' && !(state.phase === 'error' && state.failedOperation === 'download')) return
-        if (manual) {
-          const result = await ordinaryMessageBox({ title: locale.messages.updateCheckTitle,
-            message: formatDesktopMessage(locale.messages.updateAvailable, { version: state.version ?? '' }),
-            detail: locale.messages.updateDetail,
-            buttons: [locale.messages.updateDownload], cancelId: 1 })
-          if (result.response !== 0) return
-        }
-        if (!isMandatory() && state.version !== undefined) {
+        if (state.phase === 'available' || state.phase === 'error' && state.failedOperation === 'download') {
+          if (manual) {
+            const result = await ordinaryMessageBox({ title: locale.messages.updateCheckTitle,
+              message: formatDesktopMessage(locale.messages.updateAvailable, { version: state.version ?? '' }),
+              detail: locale.messages.updateDetail,
+              buttons: [locale.messages.updateDownload], cancelId: 1 })
+            if (result.response !== 0) return
+          }
+          if (isMandatory() || state.version === undefined) return
           controller?.abort()
           failedOperation = 'download'
-          await showUpdateFailure(await downloadUpdate(state.version))
+          state = await downloadUpdate(state.version)
+          await showUpdateFailure(state)
+        }
+        if (state.phase === 'full-download-required' && !isMandatory()) {
+          controller?.abort()
+          await progress
+          failedOperation = 'download'
+          const result = await ordinaryMessageBox({ type: 'info', title: locale.messages.updateCheckTitle,
+            message: locale.messages.updateFullDownloadRequired, detail: desktopFullDownloadDetail(locale, state.totalBytes),
+            buttons: [locale.messages.updateDownloadFull, locale.messages.updateLater], cancelId: 1 })
+          if (result.response === 0 && !isMandatory() && !quitting) {
+            await showUpdateFailure(await updates.downloadFull(state))
+          }
         }
       } finally {
         controller?.abort()
@@ -1856,7 +1868,8 @@ async function main(): Promise<void> {
       allowedPageOrigins: policyConfig.allowedPageOrigins, parent: () => mainWindow,
       policy: () => policy.state, update: () => updates.state,
       refresh: async () => { await Promise.all([checkPolicyManually(), updateSchedule.check(true)]) },
-      download: downloadUpdate, install: version => updates.install(version),
+      download: downloadUpdate, downloadFull: confirmation => updates.downloadFull(confirmation),
+      install: version => updates.install(version),
     })
     void mandatoryPolicy.check('launch').then((state) => {
       if (app.isPackaged && state.error === 'authentication-required' && !isQuitting()) queuePolicyAuthentication()

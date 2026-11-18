@@ -1,6 +1,9 @@
 /** Localized update preparation failures with separately displayed diagnostics. */
 import type { DesktopUpdatePreparationFailureKind } from './ipc.ts'
 
+/** A smaller Windows download could not be completed with the installed installer. */
+export class DesktopFullDownloadRequired extends Error {}
+
 /** Only explicitly safe main-process facts may be exposed as technical details. */
 export class DesktopUpdatePreparationError extends Error {
   /**

@@ -58,6 +58,10 @@ export async function createArtifactUpdateServer(files) {
     if (path !== '/payload-1.0.1-nightly.1.exe') { response.writeHead(404).end(); return }
     const range = request.headers.range
     if (range && fault === 'reject-ranges') { response.writeHead(416).end(); return }
+    if (range && fault === 'ignore-ranges') {
+      response.writeHead(200, { 'Content-Length': artifact.size }).flushHeaders()
+      return
+    }
     const ranges = range?.replace(/^bytes=/u, '').split(',').map(part => part.trim().split('-').map(Number))
     if (ranges?.some(([start, end]) => !Number.isSafeInteger(start) || !Number.isSafeInteger(end)
       || start < 0 || end < start || end >= artifact.size)) { response.writeHead(416).end(); return }

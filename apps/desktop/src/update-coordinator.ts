@@ -1,7 +1,7 @@
 /** User-authorized downloads and separate installation of one version-bound Desktop release. */
 
 import { existsSync } from 'node:fs'
-import { rm, statfs } from 'node:fs/promises'
+import { rm, stat, statfs } from 'node:fs/promises'
 import { join } from 'node:path'
 import { app } from 'electron'
 import electronUpdater, {
@@ -15,12 +15,14 @@ import type { DownloadUpdateOptions } from 'electron-updater/out/AppUpdater'
 import { gt, prerelease, valid } from 'semver'
 import type { DesktopUpdateState } from './ipc.ts'
 import { DesktopUpdateHttpExecutor } from './update-http-executor.ts'
-import { DesktopUpdatePreparationError } from './update-error.ts'
+import { DesktopFullDownloadRequired, DesktopUpdatePreparationError } from './update-error.ts'
 
 const { autoUpdater, NsisUpdater } = electronUpdater
 
 /** Windows updater that pairs the cached installer with the installed release's blockmap. */
 export class DesktopNsisUpdater extends NsisUpdater {
+  override disableWebInstaller = true
+
   protected override async differentialDownloadInstaller(
     fileInfo: ResolvedUpdateFileInfo,
     downloadUpdateOptions: DownloadUpdateOptions,
@@ -29,17 +31,20 @@ export class DesktopNsisUpdater extends NsisUpdater {
     oldInstallerFileName: string,
   ): Promise<boolean> {
     const updateCache = this.downloadedUpdateHelper
-    if (updateCache === null) return true
+    if (updateCache === null) throw new DesktopFullDownloadRequired('No update cache is available')
     try {
+      const base = await stat(join(updateCache.cacheDir, oldInstallerFileName))
+      if (!base.isFile()) throw new DesktopFullDownloadRequired('The previous installer is unavailable')
       await rm(join(updateCache.cacheDir, 'current.blockmap'), { force: true })
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      this.logger?.warn(`desktop update: cannot discard the cached blockmap; using the full download: ${message}`)
-      return true
+      if (error instanceof DesktopFullDownloadRequired) throw error
+      throw new DesktopFullDownloadRequired('The previous installer or blockmap could not be prepared', { cause: error })
     }
-    return super.differentialDownloadInstaller(
+    const fallback = await super.differentialDownloadInstaller(
       fileInfo, downloadUpdateOptions, installerPath, provider, oldInstallerFileName,
     )
+    if (fallback) throw new DesktopFullDownloadRequired('The smaller download could not be completed')
+    return false
   }
 }
 
@@ -159,12 +164,27 @@ export class DesktopUpdateCoordinator {
    * @returns Download readiness or failure, without authorizing installation.
    */
   async download(version: string): Promise<DesktopUpdateState> {
+    return this.prepareDownload(version)
+  }
+
+  /**
+   * @param confirmation - The exact main-owned fallback state shown in a confirmation surface.
+   * @returns The result of the approved full transfer, or the current state if approval became stale.
+   */
+  async downloadFull(confirmation: DesktopUpdateState): Promise<DesktopUpdateState> {
+    if (confirmation.phase !== 'full-download-required' || confirmation.version === undefined) return this.current
+    return this.prepareDownload(confirmation.version, confirmation)
+  }
+
+  private async prepareDownload(version: string, confirmation?: DesktopUpdateState): Promise<DesktopUpdateState> {
     this.assertLive()
+    if (confirmation !== undefined && confirmation !== this.current) return this.current
     if (this.candidate !== undefined && version !== this.candidate) throw new Error('desktop update: download confirmation is stale')
     if (this.downloaded || this.installOperation !== undefined) return this.current
     this.downloadOperation ??= Promise.resolve().then(async () => {
       await this.checkOperation
       this.assertLive()
+      if (confirmation !== undefined ? confirmation !== this.current : this.current.phase === 'full-download-required') return this.current
       if (this.candidate === undefined) throw new Error('desktop update: no checked update is available')
       if (version !== this.candidate) throw new Error('desktop update: download confirmation is stale')
       try {
@@ -175,11 +195,18 @@ export class DesktopUpdateCoordinator {
           }
         }
         this.setState({ phase: 'downloading', version, percent: 0 })
-        await this.updater.downloadUpdate()
+        const previousMode = this.updater.disableDifferentialDownload
+        if (confirmation !== undefined) this.updater.disableDifferentialDownload = true
+        try { await this.updater.downloadUpdate() }
+        finally { this.updater.disableDifferentialDownload = previousMode }
         if (!this.downloaded) throw new Error('desktop update: platform preparation did not report readiness')
         return this.setState({ phase: 'ready', version })
       } catch (error) {
         this.downloaded = false
+        if (error instanceof DesktopFullDownloadRequired) {
+          return this.setState({ phase: 'full-download-required', version,
+            ...(this.candidateBytes === undefined ? {} : { totalBytes: this.candidateBytes }) })
+        }
         return this.setState(this.failure(error, 'download'))
       }
     }).finally(() => { this.downloadOperation = undefined })
@@ -321,6 +348,8 @@ export class DesktopUpdateCoordinator {
       if (valid(version) === null || this.stableOnly && prerelease(version) !== null) {
         throw new Error('desktop update: feed version is not applicable')
       }
+      if (this.current.phase === 'full-download-required' && version === this.candidate && result.isUpdateAvailable
+        && this.updateIdentity(result.updateInfo) === this.candidateIdentity) return this.current
       this.candidate = result.isUpdateAvailable && gt(version, this.currentVersion()) ? version : undefined
       this.candidateIdentity = this.candidate === undefined ? undefined : this.updateIdentity(result.updateInfo)
       this.candidateBytes = this.candidate === undefined ? undefined : result.updateInfo.files[0]?.size

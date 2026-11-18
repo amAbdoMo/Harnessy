@@ -36,19 +36,33 @@ function setup(platform: NodeJS.Platform = 'darwin') {
   let policy: DesktopPolicyState = { blocking: true, checking: false, page: 'https://downloads.example.com/desktop' }
   let update: DesktopUpdateState = { phase: 'ready', version: '1.0.1-nightly.1' }
   const install = vi.fn(async () => update)
+  const downloadFull = vi.fn(async () => update)
   const createOverlay = (): WindowFixture => window
   const parent = createOverlay as () => BrowserWindow
   ui = new DesktopMandatoryUpdateWindow({ overlays: { create: parent }, preload: 'owned', locale: resolveDesktopLocale('zh'),
     allowedPageOrigins: ['https://downloads.example.com'], parent,
-    policy: () => policy, update: () => update, refresh: async () => {}, download: async () => update, install })
+    policy: () => policy, update: () => update, refresh: async () => {}, download: async () => update, downloadFull, install })
   ui.sync()
   const event = { sender: window.webContents, senderFrame: window.webContents.mainFrame }
   const view = () => native.handlers.get(MANDATORY_IPC.status)!(event) as MandatoryUpdateView
   const action = (name: string, version: string = '1.0.1-nightly.1', revision = view().confirmation?.revision) =>
     native.handlers.get(MANDATORY_IPC.action)!(event, name, version, revision)
-  return { view, action, install, policy(next: DesktopPolicyState) { policy = next; ui!.sync() },
+  return { view, action, install, downloadFull, policy(next: DesktopPolicyState) { policy = next; ui!.sync() },
     update(next: DesktopUpdateState) { update = next; ui!.sync() } }
 }
+
+it('requires approval from the current full-download offer', async () => {
+  const f = setup('win32')
+  const offer: DesktopUpdateState = { phase: 'full-download-required', version: '1.0.1-nightly.1', totalBytes: 16 * 1024 ** 2 }
+  f.update(offer)
+  const previous = f.view().fullDownload
+  expect(previous?.detail).toContain('16 MB')
+  f.update({ ...offer, totalBytes: 32 * 1024 ** 2 })
+  expect(() => f.action('download-full', offer.version, previous?.revision)).toThrow(/stale/u)
+  expect(f.downloadFull).not.toHaveBeenCalled()
+  await f.action('download-full', offer.version, f.view().fullDownload?.revision)
+  expect(f.downloadFull).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ totalBytes: 32 * 1024 ** 2 }))
+})
 
 it('releases IPC after the Windows main window has already been destroyed', () => {
   setup('win32')

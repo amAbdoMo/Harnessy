@@ -75,6 +75,23 @@ it.each(['en', 'zh-CN'])('keeps ordinary diagnostics folded, text-only, and keyb
   expect(backdrop.classList.contains('visible')).toBe(false)
 })
 
+it('shows the full package size and requires the separate download action', async () => {
+  const p = page('mandatory-update')
+  const locale = resolveDesktopLocale('en')
+  const initial: MandatoryUpdateView = { locale, deferred: false, policy: { blocking: true, checking: false },
+    update: { phase: 'full-download-required', version: '1.2.3' }, fullDownload: { detail: 'Download size: 46 MB', revision: 4 } }
+  const action = vi.fn(async () => {})
+  const api: MandatoryUpdateApi = { status: async () => initial, action, subscribe: () => () => {} }
+  Object.defineProperty(p.dom.window, 'dshMandatoryUpdate', { value: api })
+  p.run()
+  await expect.poll(() => p.element('title').textContent).toBe('Full download required')
+  expect(p.element('detail').textContent).toBe('Download size: 46 MB')
+  expect(p.element('update').textContent).toBe('Download full update')
+  expect(action).not.toHaveBeenCalled()
+  p.element('update').click()
+  expect(action).toHaveBeenCalledExactlyOnceWith('download-full', '1.2.3', 4)
+})
+
 it('keeps mandatory diagnostics expandable without clearing the block or authorizing installation', async () => {
   const p = page('mandatory-update')
   const locale = resolveDesktopLocale('zh-CN')

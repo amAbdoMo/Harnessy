@@ -121,6 +121,10 @@ export const en = {
   updateCurrent: 'You’re up to date!',
   updateChecking: 'Checking for updates…',
   updateDownload: 'Download update',
+  updateFullDownloadRequired: 'Full download required',
+  updateFullDownloadDetail: 'Harnessy couldn’t download just the changes. The full download starts only when you choose it.',
+  updateFullDownloadSize: 'Download size: {size}',
+  updateDownloadFull: 'Download full update',
   updateDownloadedTitle: 'Harnessy {version} is ready to install',
   updateDownloadedDetail: 'The app will close during the update and reopen automatically when it is complete.',
   updateDownloadedDetailWindows: 'The app will close temporarily during the update and reopen automatically when it is complete.\n\nThe update may take some time. Please wait and do not launch the app again during installation.',
@@ -308,6 +312,10 @@ export const zh = {
   updateCurrent: '已是最新版本',
   updateChecking: '正在检查更新…',
   updateDownload: '下载更新',
+  updateFullDownloadRequired: '需要完整下载',
+  updateFullDownloadDetail: 'Harnessy 无法仅下载变更。完整下载只会在您确认后开始。',
+  updateFullDownloadSize: '下载大小：{size}',
+  updateDownloadFull: '下载完整更新',
   updateDownloadedTitle: 'Harnessy {version} 已准备就绪',
   updateDownloadedDetail: '更新期间应用将暂时关闭，完成后会自动打开。',
   updateDownloadedDetailWindows: '更新期间应用将暂时关闭，完成后会自动打开。\n\n更新可能需要一些时间，请耐心等待，期间请勿重复启动应用。',
@@ -406,6 +414,18 @@ export function formatDesktopMessage(
   values: Readonly<Record<string, string>>,
 ): string {
   return message.replaceAll(/\{([^{}]+)\}/gu, (placeholder, key: string) => values[key] ?? placeholder)
+}
+
+/**
+ * @param locale - Locale for the confirmation and the displayed size.
+ * @param bytes - Full package size from the update feed, if supplied.
+ * @returns Confirmation detail for the full download.
+ */
+export function desktopFullDownloadDetail(locale: DesktopLocale, bytes: number | undefined): string {
+  const { messages } = locale
+  if (bytes === undefined) return messages.updateFullDownloadDetail
+  const size = new Intl.NumberFormat(locale.id, { maximumFractionDigits: 1 }).format(bytes / 1024 / 1024)
+  return `${messages.updateFullDownloadDetail}\n\n${formatDesktopMessage(messages.updateFullDownloadSize, { size: `${size} MB` })}`
 }
 
 /**

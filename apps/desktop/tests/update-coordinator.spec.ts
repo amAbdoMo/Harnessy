@@ -4,7 +4,7 @@ import type { AppUpdater } from 'electron-updater'
 import { DESKTOP_HOST_PROTOCOL_VERSION } from '../src/host-protocol.ts'
 import { parseDesktopRelease } from '../src/release.ts'
 import type { DesktopUpdateState } from '../src/ipc.ts'
-import { DesktopUpdatePreparationError } from '../src/update-error.ts'
+import { DesktopFullDownloadRequired, DesktopUpdatePreparationError } from '../src/update-error.ts'
 import { zh } from '../src/locale.ts'
 
 vi.mock('electron', () => ({ app: { isPackaged: false } }))
@@ -76,6 +76,39 @@ function fixture() {
 }
 
 describe('desktop update coordinator', () => {
+  it('pauses after differential failure and transfers the full update only after exact approval', async () => {
+    const f = fixture()
+    f.updater.disableDifferentialDownload = false
+    f.downloadUpdate.mockRejectedValueOnce(new DesktopFullDownloadRequired('Missing cached installer'))
+    const offer = await f.coordinator.check()
+    expect(offer).toEqual({ phase: 'full-download-required', version: '1.1.0', totalBytes: 100 })
+    expect(await f.coordinator.check(true)).toBe(offer)
+    expect(await f.coordinator.download('1.1.0')).toBe(offer)
+    expect(await f.coordinator.downloadFull({ ...offer })).toBe(offer)
+    expect(f.downloadUpdate).toHaveBeenCalledOnce()
+    f.downloadUpdate.mockImplementationOnce(async () => {
+      expect(f.updater.disableDifferentialDownload).toBe(true)
+      f.events.emit('update-downloaded', { version: '1.1.0' })
+      return ['verified-package']
+    })
+    expect(await f.coordinator.downloadFull(offer)).toEqual({ phase: 'ready', version: '1.1.0' })
+    expect(f.updater.disableDifferentialDownload).toBe(false)
+    expect(f.quitAndInstall).not.toHaveBeenCalled()
+  })
+
+  it('invalidates a pending full download when the feed replaces the offered artifact', async () => {
+    const f = fixture()
+    f.downloadUpdate.mockRejectedValueOnce(new DesktopFullDownloadRequired('Rejected byte range'))
+    const offer = await f.coordinator.check()
+    const files = [{ ...releaseFiles[0]!, sha512: 'replacement', size: 200 }]
+    f.checkForUpdates.mockResolvedValueOnce({ isUpdateAvailable: true, updateInfo: { version: '1.1.0', files } })
+    f.downloadUpdate.mockRejectedValueOnce(new DesktopFullDownloadRequired('Rejected byte range'))
+    const replacement = await f.coordinator.check()
+    expect(replacement).toEqual({ phase: 'full-download-required', version: '1.1.0', totalBytes: 200 })
+    expect(await f.coordinator.downloadFull(offer)).toBe(replacement)
+    expect(f.downloadUpdate).toHaveBeenCalledTimes(2)
+  })
+
   it('keeps safe preparation diagnostics separate and clears them on an explicit retry', async () => {
     const f = fixture()
     await f.coordinator.check()

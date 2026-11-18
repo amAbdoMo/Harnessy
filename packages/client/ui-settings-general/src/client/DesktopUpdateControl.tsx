@@ -173,7 +173,7 @@ export function DesktopUpdateControl({
         onClick={activate}
       >
         <UpdateIcon phase={error ? 'error' : phase} percent={state === undefined ? 0 : updatePercent(state)} />
-        {!error && (phase === 'ready' || waiting) && <span className={css.accent} aria-hidden="true" />}
+        {!error && (phase === 'ready' || phase === 'full-download-required' || waiting) && <span className={css.accent} aria-hidden="true" />}
       </button>
     </Tooltip>
     {popoverOpen && state !== undefined && <UpdatePopover

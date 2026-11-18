@@ -40,6 +40,7 @@ const PHASE_LABELS: Readonly<Record<
 >> = {
   checking: 'desktop.update.checking',
   available: 'desktop.update.available',
+  'full-download-required': 'desktop.update.fullDownloadRequired',
   verifying: 'desktop.update.verifying',
   ready: 'desktop.update.ready',
   waiting: 'desktop.update.waiting',

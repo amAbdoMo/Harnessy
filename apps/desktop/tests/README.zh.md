@@ -69,9 +69,9 @@ Chromium headless shell revision 1228 已安装在忽略目录 `.desktop-build/p
 
 [Windows 验签运行器](../scripts/test-windows-update-signature.mjs) 使用已安装的 electron-builder 元数据生成器和 `NsisUpdater` 验签器，输入为公开发布证书和真实可执行文件。发布者属性匹配时通过；同一有效签名在预期发布者不同时被拒绝，未签名可执行文件也被拒绝。缺少发布者的负对照确认验签被跳过。单元回归覆盖 DN 转义、不完整身份，以及显式或宿主默认 Windows 目标；移除发布者配置会使两条元数据用例失败。此检查不下载、安装或签名产物。
 
-[签名下载运行器](../scripts/test-signed-updates.mjs) 连接真实 Electron HTTP、`NsisUpdater`、Windows Authenticode 和构建后的协调器。四个场景通过：哈希正确但发布者错误时拒绝、哈希正确但未签名时拒绝、传输损坏先于验签被拒绝，以及显式重试后签名文件就绪并单独交接安装。被拒绝的可执行文件缓存为空，自动检查不发送重试请求，已准备的下载保持可用，原始输入的 SHA-512 不变。合成清单和测试应用适配器不证明已安装版本兼容性；不会启动安装器或 Host。
+[签名下载运行器](../scripts/test-signed-updates.mjs) 连接真实 Electron HTTP、`NsisUpdater`、Windows Authenticode 和构建后的协调器。它覆盖拒绝发布者错误或未签名的可执行文件、在验签前拒绝损坏的下载，以及签名文件就绪后单独交接安装。被拒绝的可执行文件缓存为空，已准备的下载保持可用，原始输入的 SHA-512 不变。合成清单和测试应用适配器不证明已安装版本兼容性。
 
-提供旧安装器和两个原始 blockmap 后，同一运行器还会验证单段 Range、多段 Range 重建、缓存中存在未安装版本的 blockmap 时恢复、缺少旧 blockmap 时回退，以及 Range 被拒绝时回退。重建的可执行文件通过 SHA-512 和 Authenticode 检查。请求记录区分差分负载字节与全量下载；全量回退不能满足差分成功断言。这些回环结果不证明 CDN Range 支持或已安装应用的缓存可用。
+提供旧安装器和两个原始 blockmap 后，同一运行器会验证单段和多段 Range 重建、缓存中的 blockmap 过时后的恢复，以及缺少旧 blockmap 或 Range 被拒绝时的全量下载确认。重建的可执行文件通过 SHA-512 和 Authenticode 检查。构建 Desktop TypeScript 文件后，运行 `node apps/desktop/scripts/test-local-updater.mjs --differential-only`，通过合成数据验证实际的 Windows 下载路径。测试确认成功时只请求变更字节，并且在缺少安装包、缺少 blockmap 或服务器忽略 Range 请求时，确认前不会请求完整安装包。回环测试保留已安装应用及其更新缓存。
 
 <a id="verification-open"></a>
 

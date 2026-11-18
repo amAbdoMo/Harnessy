@@ -8,11 +8,32 @@ export class DesktopUpdateHttpExecutor extends ElectronHttpExecutor {
     options: ClientRequestConstructorOptions,
     callback: Parameters<ElectronHttpExecutor['createRequest']>[1],
   ): ClientRequest {
+    const range = Object.entries(options.headers ?? {}).find(([name]) => name.toLowerCase() === 'range')?.[1]
     if (options.headers !== undefined) {
       options.headers = Object.fromEntries(Object.entries(options.headers)
         .filter(([name]) => name.toLowerCase() !== 'x-user-staging-id'))
     }
-    return super.createRequest(options, callback)
+    if (typeof range !== 'string') return super.createRequest(options, callback)
+    const requested = /^bytes=(\d+)-(\d+)$/u.exec(range)
+    const request = super.createRequest(options, (response: IncomingMessage) => {
+      const [contentRange, contentType] = ['content-range', 'content-type'].map((name) => {
+        const value = response.headers[name]
+        return Array.isArray(value) ? value[0] : value
+      })
+      const returned = /^bytes (\d+)-(\d+)\/(\d+)$/u.exec(contentRange ?? '')
+      const partial = requested === null
+        ? contentType?.startsWith('multipart/byteranges') === true
+        : returned !== null && requested[1] === returned[1] && requested[2] === returned[2]
+          && Number(returned[2]) - Number(returned[1]) + 1 < Number(returned[3])
+      if (response.statusCode !== 206 || !partial) {
+        // Abort before passing the body to the range downloader.
+        request.emit('error', new Error('The update server did not return a partial file'))
+        request.abort()
+        return
+      }
+      callback(response)
+    })
+    return request
   }
 
   /**
@@ -31,7 +52,9 @@ export class DesktopUpdateHttpExecutor extends ElectronHttpExecutor {
     super.addErrorAndTimeoutHandlers(request, reject, this.idleTimeoutMs)
     let response: IncomingMessage | undefined
     let timer: ReturnType<typeof setTimeout>
+    let stopped = false
     const stop = (): void => {
+      stopped = true
       clearTimeout(timer)
       request.off('response', onResponse)
       request.off('abort', stop)
@@ -49,6 +72,7 @@ export class DesktopUpdateHttpExecutor extends ElectronHttpExecutor {
       }, this.idleTimeoutMs)
     }
     const onResponse = (incoming: IncomingMessage): void => {
+      if (stopped) return
       response = incoming
       response.on('data', refresh)
       response.once('end', stop)

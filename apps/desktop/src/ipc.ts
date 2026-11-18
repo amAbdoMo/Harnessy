@@ -138,7 +138,7 @@ export function parseDesktopNotificationPayload(value: unknown): DesktopNotifica
 export type DesktopUpdatePreparationFailureKind = 'stop-failed' | 'tasks-changed' | 'tasks-unavailable'
 
 export interface DesktopUpdateState {
-  readonly phase: 'idle' | 'checking' | 'available' | 'downloading' | 'verifying' | 'ready' | 'waiting' | 'installing' | 'error'
+  readonly phase: 'idle' | 'checking' | 'available' | 'full-download-required' | 'downloading' | 'verifying' | 'ready' | 'waiting' | 'installing' | 'error'
   readonly version?: string
   readonly message?: string
   /** Main-owned diagnostics without subprocess output or credentials; hidden until expanded. */

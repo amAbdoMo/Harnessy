@@ -77,6 +77,10 @@ jobs:
         shell: pwsh
         run: pnpm run build:custom-harness
 
+      - name: Verify differential update downloads
+        shell: pwsh
+        run: node apps/desktop/scripts/test-local-updater.mjs --differential-only
+
       - name: Verify Super Agent integration
         shell: pwsh
         # File-backed SQLite commits and subprocess setup can exceed the default test budget on the hosted runner.

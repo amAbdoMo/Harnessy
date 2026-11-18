@@ -19,6 +19,7 @@ import { DesktopUpdatePreparationError } from '../../lib/types/update-error.js'
 import { DesktopUpdateHttpExecutor } from '../../lib/types/update-http-executor.js'
 import { DesktopUpdateOverlays } from '../../lib/types/update-overlay.js'
 import { qualifyUpdateDialogs } from './update-dialogs.mjs'
+import { qualifyDifferentialUpdates } from './differential-updates.mjs'
 
 const root = process.env.DSH_LOCAL_UPDATE_TEST_ROOT
 assert.ok(root, 'The launcher must allocate a private test root')
@@ -35,6 +36,14 @@ const messages = resolveDesktopLocale('zh-CN').messages
 
 async function main() {
   await app.whenReady()
+  if (!process.argv.includes('--ordinary-dialogs-only')) {
+    cases.push(...await qualifyDifferentialUpdates(root))
+    console.log(`local updater differential: ${cases.join(', ')}`)
+  }
+  if (process.argv.includes('--differential-only')) {
+    await writeFile(join(root, 'result.json'), `${JSON.stringify({ cases, installerExecuted: false, screenshot, dialogScreenshots }, null, 2)}\n`)
+    return
+  }
   const server = await createUpdateServer()
   let serial = 0
   const fixtures = []
@@ -254,6 +263,7 @@ async function main() {
         locale: resolveDesktopLocale('zh-CN'), allowedPageOrigins: config.allowedPageOrigins,
         parent: () => parent, policy: () => policy.state, update: () => f.coordinator.state,
         refresh: async () => { await Promise.all([policy.check('manual', true), f.coordinator.check(true)]); modal.sync() },
+        downloadFull: confirmation => f.coordinator.downloadFull(confirmation),
         download: async version => { const pending = f.coordinator.download(version); await Promise.resolve(); modal.sync();
           const state = await pending; modal.sync();
           return state.phase === 'ready' ? f.coordinator.install(version) : state },

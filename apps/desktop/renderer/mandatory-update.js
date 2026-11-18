@@ -10,8 +10,9 @@ function render(view) {
   document.body.classList.toggle('visible', view.policy.blocking)
   if (!view.policy.blocking) return
   const wasConfirming = current?.confirmation !== undefined
+  const wasOfferingFullDownload = current?.fullDownload !== undefined
   current = view
-  const { locale: { id, messages }, policy, update, confirmation, navigation } = view
+  const { locale: { id, messages }, policy, update, confirmation, fullDownload, navigation } = view
   const confirming = confirmation !== undefined
   const failed = update.phase === 'error'
   const ready = update.phase === 'ready' || (failed && update.failedOperation === 'install')
@@ -27,6 +28,10 @@ function render(view) {
   let detail = policy.detail ?? messages.mandatoryDetail
   let primary = '', action = '', status = ''
   if (downloadable) { primary = failed ? messages.updateRetry : messages.updateDownload; action = 'download' }
+  if (fullDownload !== undefined) {
+    title = messages.updateFullDownloadRequired; detail = fullDownload.detail
+    primary = messages.updateDownloadFull; action = 'download-full'
+  }
   if (ready) { primary = view.deferred ? messages.mandatoryContinue : messages.updateRetry; action = 'install' }
   if (view.deferred) { title = messages.mandatoryReady; detail = messages.mandatoryDeferred }
   if (update.phase === 'downloading') status = format(messages.updateDownloading, { percent: String(Math.floor(update.percent ?? 0)) })
@@ -85,8 +90,9 @@ function render(view) {
   element('manual-copy').hidden = navigation?.copy !== 'failed'
   element('address-label').textContent = messages.mandatoryAddress
   element('address').value = navigation?.copy === 'failed' ? policy.page ?? '' : ''
-  // A download button can become an install button while a key remains held.
-  if (confirming && !wasConfirming && document.activeElement?.id === 'update') document.activeElement.blur()
+  // A focused action can change while a key remains held.
+  if ((confirming && !wasConfirming || fullDownload !== undefined && !wasOfferingFullDownload)
+    && document.activeElement?.id === 'update') document.activeElement.blur()
 }
 
 async function act(action) {
@@ -96,7 +102,8 @@ async function act(action) {
   if (!navigation) busy = true
   localError = undefined
   render(current)
-  try { await api.action(action, current.confirmation?.version ?? current.update.version, current.confirmation?.revision) }
+  const revision = action === 'download-full' ? current.fullDownload?.revision : current.confirmation?.revision
+  try { await api.action(action, current.confirmation?.version ?? current.update.version, revision) }
   catch { localError = current.locale.messages.mandatoryActionFailed }
   finally { if (!navigation) busy = false; render(current) }
 }

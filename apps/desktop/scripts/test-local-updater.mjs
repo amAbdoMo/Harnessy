@@ -8,7 +8,9 @@ import electron from 'electron'
 
 if (process.platform !== 'win32') throw new Error('Local NSIS updater qualification requires Windows')
 const arguments_ = process.argv.slice(2)
-if (arguments_.some(argument => argument !== '--ordinary-dialogs-only')) throw new Error('Expected only --ordinary-dialogs-only')
+if (arguments_.length > 1 || arguments_.some(argument => !['--ordinary-dialogs-only', '--differential-only'].includes(argument))) {
+  throw new Error('Expected --ordinary-dialogs-only or --differential-only')
+}
 const root = await mkdtemp(join(tmpdir(), 'dsh-local-updater-'))
 let timedOut = false
 try {

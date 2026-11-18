@@ -55,17 +55,12 @@ async function main() {
     let authorized = false
     const coordinator = new DesktopUpdateCoordinator(state => { states.push(state); return state },
       async () => authorized, updater, () => true, () => '1.0.0')
+    coordinator.setStableOnly(false)
     const f = { coordinator, updater, logs, errors, states, directory, authorize: () => { authorized = true } }
     fixtures.push(f)
     return f
   }
-  async function download(f) {
-    const count = server.requests.length
-    assert.equal((await f.coordinator.check(true)).phase, 'available')
-    assert.equal(server.requests.length - count, 1, 'Checking must not download')
-    assert.equal(server.requests.at(-1).path, '/nightly.yml')
-    return f.coordinator.download('1.0.1-nightly.1')
-  }
+  const download = f => f.coordinator.check(true)
   async function rejected(f, code) {
     const state = await download(f)
     assert.equal(state.phase, 'error')
@@ -75,9 +70,6 @@ async function main() {
     await assert.rejects(f.coordinator.install('1.0.1-nightly.1'), /not ready/u)
     const cache = await readdir(join(f.directory, 'cache'), { recursive: true })
     assert.ok(!cache.some(file => file.endsWith('.exe')), 'Rejected executables must be removed from cache')
-    const count = server.requests.length
-    await f.coordinator.check()
-    assert.equal(server.requests.length, count, 'Automatic checks must not retry rejected downloads')
     assert.equal(installed, 0)
   }
   try {
@@ -130,7 +122,12 @@ async function main() {
         }
         server.select('signed', false, fault)
         const start = server.requests.length
-        assert.equal((await download(f)).phase, 'ready')
+        const prepared = await download(f)
+        if (fault) {
+          assert.equal(prepared.phase, 'full-download-required')
+          assert.ok(server.requests.slice(start).filter(request => request.path.endsWith('.exe')).every(request => request.range))
+          assert.equal((await f.coordinator.downloadFull(prepared)).phase, 'ready')
+        } else assert.equal(prepared.phase, 'ready')
         assert.equal(await artifactDigest(f.updater.installerPath), server.artifacts.signed.sha512)
         assert.ok(f.logs.some(line => line.startsWith('Verifying signature ')))
         assert.equal(installed, 1, 'Download must not invoke another installer handoff')

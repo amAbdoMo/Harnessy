@@ -23,6 +23,7 @@ export type DesktopUpdatePhase =
   | 'idle'
   | 'checking'
   | 'available'
+  | 'full-download-required'
   | 'downloading'
   | 'verifying'
   | 'ready'

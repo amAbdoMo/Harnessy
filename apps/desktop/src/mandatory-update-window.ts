@@ -1,7 +1,7 @@
 /** Shell-owned modal policy UI; only explicit actions authorize downloads or browser navigation. */
 
 import { type BrowserWindow, clipboard, ipcMain, shell, type IpcMainInvokeEvent } from 'electron'
-import type { DesktopLocale } from './locale.ts'
+import { desktopFullDownloadDetail, type DesktopLocale } from './locale.ts'
 import { assertDesktopSender, type DesktopUpdateState } from './ipc.ts'
 import { desktopPolicyPage, type DesktopPolicyState } from './mandatory-update-policy.ts'
 import { MANDATORY_IPC } from './mandatory-update-ipc.ts'
@@ -9,7 +9,7 @@ import type { DesktopUpdateOverlay, DesktopUpdateOverlays } from './update-overl
 import { DesktopUpdateAttention } from './update-attention.ts'
 
 /** A renderer action never carries a URL or authorizes a different version. */
-export type MandatoryUpdateAction = 'refresh' | 'download' | 'install' | 'later' | 'page' | 'copy'
+export type MandatoryUpdateAction = 'refresh' | 'download' | 'download-full' | 'install' | 'later' | 'page' | 'copy'
 
 /** Combined view rendered as text by the shell-owned page. */
 export interface MandatoryUpdateView {
@@ -18,6 +18,7 @@ export interface MandatoryUpdateView {
   readonly update: DesktopUpdateState
   readonly error?: string
   readonly confirmation?: { readonly version: string; readonly active: boolean; readonly revision: number }
+  readonly fullDownload?: { readonly detail: string; readonly revision: number }
   readonly deferred: boolean
   readonly restart?: 'stopping-tasks' | 'preparing'
   readonly navigation?: { readonly page: 'requested' | 'failed'; readonly copy?: 'copied' | 'failed' }
@@ -41,6 +42,7 @@ export interface MandatoryUpdateWindowOptions {
   readonly update: () => DesktopUpdateState
   readonly refresh: () => Promise<void>
   readonly download: (version: string) => Promise<DesktopUpdateState>
+  readonly downloadFull: (confirmation: DesktopUpdateState) => Promise<DesktopUpdateState>
   readonly install: (version: string) => Promise<DesktopUpdateState>
 }
 
@@ -61,6 +63,7 @@ export class DesktopMandatoryUpdateWindow {
   private action: Promise<void> | undefined
   private confirmation: { version: string; active: boolean; revision: number; resolve: (approved: boolean) => void } | undefined
   private confirmationRevision = 0
+  private fullDownloadOffer: { state: DesktopUpdateState; revision: number } | undefined
   private deferred = false
   private restart: MandatoryUpdateView['restart']
   private navigation: MandatoryUpdateView['navigation']
@@ -77,9 +80,14 @@ export class DesktopMandatoryUpdateWindow {
     ipcMain.handle(MANDATORY_IPC.action, (event, action: unknown, version: unknown, confirmationRevision: unknown) => {
       this.assertSender(event)
       if (!this.options.policy().blocking) throw new Error('desktop policy: no mandatory decision is active')
-      if (typeof action !== 'string' || !['refresh', 'download', 'install', 'later', 'page', 'copy'].includes(action)) throw new Error('desktop policy: invalid action')
-      if (['download', 'install', 'later'].includes(action) && typeof version !== 'string') throw new Error('desktop policy: missing confirmed version')
+      if (typeof action !== 'string' || !['refresh', 'download', 'download-full', 'install', 'later', 'page', 'copy'].includes(action)) throw new Error('desktop policy: invalid action')
+      if (['download', 'download-full', 'install', 'later'].includes(action) && typeof version !== 'string') throw new Error('desktop policy: missing confirmed version')
       if (action === 'page' || action === 'copy') return this.navigate(action)
+      const fullDownload = this.fullDownloadOffer
+      if (action === 'download-full' && (fullDownload === undefined || fullDownload.state !== this.options.update()
+        || fullDownload.state.version !== version || fullDownload.revision !== confirmationRevision)) {
+        throw new Error('desktop policy: stale full download confirmation')
+      }
       if (this.confirmation !== undefined && (action === 'install' || action === 'later')) {
         if (version !== this.confirmation.version || confirmationRevision !== this.confirmation.revision) {
           throw new Error('desktop policy: stale installation confirmation')
@@ -101,6 +109,7 @@ export class DesktopMandatoryUpdateWindow {
         switch (action) {
           case 'refresh': await this.options.refresh(); break
           case 'download': await this.options.download(version as string); break
+          case 'download-full': if (fullDownload !== undefined) await this.options.downloadFull(fullDownload.state); break
           case 'install': await this.options.install(version as string); break
         }
       }).catch(() => {
@@ -261,8 +270,14 @@ export class DesktopMandatoryUpdateWindow {
       ? { ...this.options.locale, messages: { ...this.options.locale.messages,
         mandatoryReadyDetail: this.options.locale.messages.updateDownloadedDetailWindows } }
       : this.options.locale
-    return { locale, policy: this.options.policy(), update: this.options.update(),
+    const update = this.options.update()
+    if (update.phase !== 'full-download-required') this.fullDownloadOffer = undefined
+    else if (this.fullDownloadOffer?.state !== update) this.fullDownloadOffer = { state: update, revision: ++this.confirmationRevision }
+    return { locale, policy: this.options.policy(), update,
       deferred: this.deferred,
+      ...(this.fullDownloadOffer === undefined ? {} : { fullDownload: {
+        detail: desktopFullDownloadDetail(locale, update.totalBytes), revision: this.fullDownloadOffer.revision,
+      } }),
       ...(this.confirmation === undefined ? {}
         : { confirmation: { version: this.confirmation.version, active: this.confirmation.active, revision: this.confirmation.revision } }),
       ...(this.restart === undefined ? {} : { restart: this.restart }),
