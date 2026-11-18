@@ -21,7 +21,7 @@ interface Observation {
     Steps: { Status: string; Detail: string }[]
   }
   Paused: Observation['State'] | null
-  Effects: { Bumps: number; Pushes: number; Dispatches: number; Retries: number; Views: number }
+  Effects: { Bumps: number; Pushes: number; Dispatches: number; Retries: number; Views: number; Fetches: number }
 }
 function argumentsFor(root: string, name: string): string[] {
   return ['-NoProfile', '-File', fileURLToPath(new URL('./release-control.fixture.ps1', import.meta.url)), '-Engine',
@@ -50,6 +50,22 @@ it.skipIf(process.platform !== 'win32').each(['publish', 'queued', 'uncertain-di
     expect(State.Steps.every(step => step.Status === 'succeeded')).toBe(true)
     expect(Effects).toMatchObject({ Bumps: 1, Pushes: 1, Dispatches: 1 })
   })
+it.skipIf(process.platform !== 'win32')('recovers a temporary certificate error while fetching staging', async () => {
+  const { State, Effects } = await scenario('preflight-tls')
+  expect(State).toMatchObject({ Phase: 'ready', Version: '0.1.21', CanPublish: true })
+  expect(Effects).toMatchObject({ Fetches: 2, Bumps: 0, Pushes: 0, Dispatches: 0 })
+})
+it.skipIf(process.platform !== 'win32')('preserves version information and requires a fresh staging check after a connection outage', async () => {
+  const { State, Effects, Paused } = await scenario('preflight-offline')
+  expect(Paused).toMatchObject({ Phase: 'paused', Version: '0.1.21', LatestVersion: '0.1.20', CanPublish: false, RunId: 0 })
+  expect(State).toMatchObject({ Phase: 'ready', Version: '0.1.21', CanPublish: true })
+  expect(Effects).toMatchObject({ Fetches: 5, Pushes: 0, Dispatches: 0 })
+})
+it.skipIf(process.platform !== 'win32')('dispatches the verified staging commit without pushing it again', async () => {
+  const { State, Effects } = await scenario('already-staged')
+  expect(State).toMatchObject({ Phase: 'published', Version: '0.1.21', RunId: 42 })
+  expect(Effects).toMatchObject({ Bumps: 0, Pushes: 0, Dispatches: 1 })
+})
 it.skipIf(process.platform !== 'win32').each(['dirty', 'changed-source', 'wrong-origin', 'newer-release'])('stops %s before changing or publishing source', async (name) => {
   const { State, Effects } = await scenario(name)
   expect(State).toMatchObject({ Phase: 'failed', CanPublish: false })

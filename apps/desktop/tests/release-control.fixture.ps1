@@ -5,10 +5,11 @@ $ErrorActionPreference = 'Stop'
 $script:nativeInvoker = (Get-Command Invoke-ReleaseCommand).ScriptBlock
 $null = [IO.Directory]::CreateDirectory((Join-Path $Root 'apps/desktop'))
 foreach ($path in @('package.json', 'apps/desktop/package.json')) {
-  [IO.File]::WriteAllText((Join-Path $Root $path), '{"version":"0.1.20"}')
+  $version = if ($Scenario -eq 'already-staged') { '0.1.21' } else { '0.1.20' }
+  [IO.File]::WriteAllText((Join-Path $Root $path), (@{ version = $version } | ConvertTo-Json -Compress))
 }
 $script:fake = @{ Head = ('a' * 40); Parent = ('a' * 40); Stage = ('a' * 40); PublishedHead = ('c' * 40);
-  Published = '0.1.20'; Dirty = ''; Dispatched = $false; Dispatches = 0; Bumps = 0; Pushes = 0; Retries = 0; Views = 0 }
+  Published = '0.1.20'; Dirty = ''; Dispatched = $false; Dispatches = 0; Bumps = 0; Pushes = 0; Retries = 0; Views = 0; Fetches = 0 }
 $script:fixtureScenario = $Scenario
 function Start-Sleep { param($Seconds) }
 function Read-ReleasePublicFeed {
@@ -26,7 +27,14 @@ function Invoke-ReleaseCommand {
         return 'https://github.com/amAbdoMo/Harnessy.git'
       }
       'status' { return $script:fake.Dirty }
-      'fetch' { return '' }
+      'fetch' {
+        $script:fake.Fetches++
+        if (($script:fixtureScenario -eq 'preflight-tls' -and $script:fake.Fetches -eq 1) -or
+            ($script:fixtureScenario -eq 'preflight-offline' -and $script:fake.Fetches -in 2..4)) {
+          throw 'schannel: SEC_E_UNTRUSTED_ROOT - The certificate chain was issued by an authority that is not trusted.'
+        }
+        return ''
+      }
       'branch' { return 'staging' }
       'merge-base' { return '' }
       'ls-remote' {
@@ -118,11 +126,12 @@ if ($Scenario -eq 'already-released') { $script:fake.Head = $script:fake.Publish
 Invoke-ReleaseWorker $context 'Inspect'
 if ($Scenario -eq 'changed-source') { $script:fake.Head = 'd' * 40 }
 if ($Scenario -eq 'newer-release') { $script:fake.Published = '0.1.21' }
-if ($Scenario -notin @('inspect', 'dirty', 'locked', 'reserved', 'already-released')) { Invoke-ReleaseWorker $context 'Publish' '0.1.21' }
+if ($Scenario -notin @('inspect', 'dirty', 'locked', 'reserved', 'already-released', 'preflight-tls', 'preflight-offline')) { Invoke-ReleaseWorker $context 'Publish' '0.1.21' }
 if ($Scenario -eq 'uncertain-dispatch') { Invoke-ReleaseWorker $context 'Inspect' }
 if ($Scenario -eq 'retry') { Invoke-ReleaseWorker $context 'Retry' }
 $paused = $null
-if ($Scenario -eq 'poll-offline') {
+if ($Scenario -in @('poll-offline', 'preflight-offline')) {
+  if ($Scenario -eq 'preflight-offline') { Invoke-ReleaseWorker $context 'Inspect' }
   $paused = Read-ReleaseState $context
   Invoke-ReleaseWorker $context 'Inspect'
 }

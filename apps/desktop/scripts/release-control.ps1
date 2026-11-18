@@ -87,20 +87,33 @@ function Invoke-ReleaseGh {
   return Invoke-ReleaseCommand $Context (Get-Command gh.exe -ErrorAction Stop).Source $Arguments $Label
 }
 
-# Retry read-only status requests. Dispatch and rerun must each be sent once.
-function Invoke-ReleaseStatusRead {
-  param($Context, [string[]]$Arguments)
+# A remote read can recover without repeating a push, workflow dispatch or rerun.
+function Invoke-ReleaseRead {
+  param([scriptblock]$Read)
   for ($attempt = 1; $attempt -le 3; $attempt++) {
     try {
-      return Invoke-ReleaseGh $Context $Arguments 'Read GitHub release status' | ConvertFrom-Json -AsHashtable -ErrorAction Stop
+      return & $Read
     } catch {
       if ($attempt -eq 3) {
-        $_.Exception.Data['ReleaseStatusUnavailable'] = $true
+        $_.Exception.Data['ReleaseReadUnavailable'] = $true
         throw
       }
       Start-Sleep -Seconds (2 * $attempt)
     }
   }
+}
+
+function Invoke-ReleaseStatusRead {
+  param($Context, [string[]]$Arguments)
+  return Invoke-ReleaseRead {
+    Invoke-ReleaseGh $Context $Arguments 'Read GitHub release status' | ConvertFrom-Json -AsHashtable -ErrorAction Stop
+  }
+}
+
+function Get-ReleaseStagingCommit {
+  param($Context)
+  $remote = Invoke-ReleaseRead { Invoke-ReleaseGit $Context @('ls-remote', 'origin', 'refs/heads/staging') 'Read staging on GitHub' }
+  return ($remote -split '\s+')[0]
 }
 
 function Get-ReleaseVersion {
@@ -119,7 +132,7 @@ function Get-ReleaseSnapshot {
   if ([IO.Path]::GetFullPath($actualRoot) -ne $Context.Root) { throw 'The selected folder is not the staging repository root.' }
   $dirty = Invoke-ReleaseGit $Context @('status', '--porcelain')
   if ($dirty) { throw 'Finish and commit your changes in staging, then click Refresh.' }
-  $latest = Invoke-ReleaseGh $Context @('release', 'view', '--repo', $Context.Repository, '--json', 'tagName') | ConvertFrom-Json -AsHashtable
+  $latest = Invoke-ReleaseStatusRead $Context @('release', 'view', '--repo', $Context.Repository, '--json', 'tagName')
   $published = $latest.tagName -creplace '^v', ''
   $publishedVersion = Get-ReleaseVersion $published
   $manifest = Get-Content -LiteralPath (Join-Path $Context.Root 'package.json') -Raw | ConvertFrom-Json -AsHashtable
@@ -127,14 +140,16 @@ function Get-ReleaseSnapshot {
   $current = Get-ReleaseVersion $manifest.version
   if ($desktop.version -cne $manifest.version) { throw 'The app and repository versions differ. Finish the version change first.' }
   $next = if ($current -gt $publishedVersion) { $current } else { [Version]::new($publishedVersion.Major, $publishedVersion.Minor, $publishedVersion.Build + 1) }
-  $tags = Invoke-ReleaseGit $Context @('ls-remote', 'origin', 'refs/tags/v*')
+  $tags = Invoke-ReleaseRead { Invoke-ReleaseGit $Context @('ls-remote', 'origin', 'refs/tags/v*') 'Read release tags on GitHub' }
   while ($tags -match ('(?m)\srefs/tags/v' + [regex]::Escape($next.ToString(3)) + '(\^\{\})?$')) {
     $next = [Version]::new($next.Major, $next.Minor, $next.Build + 1)
   }
   $pnpm = Join-Path $Context.Root 'node_modules/pnpm/bin/pnpm.mjs'
   Invoke-ReleaseCommand $Context (Get-Command node.exe -ErrorAction Stop).Source @($pnpm, 'run', 'release:dsh', $next.ToString(3), '--dry-run') 'Check the release versions' | Out-Null
-  Invoke-ReleaseGit $Context @('fetch', 'origin', 'refs/heads/master:refs/remotes/origin/master',
-    'refs/heads/staging:refs/remotes/origin/staging', "refs/tags/v${published}:refs/tags/v${published}") 'Read the latest staging source' | Out-Null
+  Invoke-ReleaseRead {
+    Invoke-ReleaseGit $Context @('fetch', 'origin', 'refs/heads/master:refs/remotes/origin/master',
+      'refs/heads/staging:refs/remotes/origin/staging', "refs/tags/v${published}:refs/tags/v${published}") 'Read the latest staging source'
+  } | Out-Null
   $head = Invoke-ReleaseGit $Context @('rev-parse', 'HEAD')
   $stage = Invoke-ReleaseGit $Context @('rev-parse', 'refs/remotes/origin/staging')
   Invoke-ReleaseGit $Context @('merge-base', '--is-ancestor', $stage, $head) 'Check staging history' | Out-Null
@@ -186,7 +201,7 @@ function Complete-Release {
   if ($latest.tagName -cne "v$($State.Version)" -or $latest.isDraft -ne $false -or $latest.isPrerelease -ne $false) {
     throw 'The published update is not the expected latest version. Open GitHub to check it.'
   }
-  $feed = Read-ReleasePublicFeed $Context
+  $feed = Invoke-ReleaseRead { Read-ReleasePublicFeed $Context }
   if ($feed -cnotmatch ('(?m)^version:\s*' + [regex]::Escape($State.Version) + '\s*$')) {
     throw 'The public update feed has not reached this version yet. Click Refresh to check again.'
   }
@@ -268,10 +283,11 @@ function Start-ReleasePublication {
   if (Invoke-ReleaseGit $Context @('status', '--porcelain')) { throw 'Version preparation left unfinished files. Review and commit them before publishing.' }
   $State.SourceCommit = Invoke-ReleaseGit $Context @('rev-parse', 'HEAD')
   $State.Steps[1].Status = 'succeeded'; $State.Steps[1].Detail = "v$Version is ready."
-  Set-ReleaseStep $Context $State 2 'Sending your changes to GitHub...'
-  Invoke-ReleaseGit $Context @('push', 'origin', 'HEAD:staging') 'Send your changes to GitHub' | Out-Null
-  $remote = Invoke-ReleaseGit $Context @('ls-remote', 'origin', 'refs/heads/staging')
-  if (($remote -split '\s+')[0] -cne $State.SourceCommit) { throw 'Staging moved during preparation. Refresh before publishing.' }
+  Set-ReleaseStep $Context $State 2 'Checking your changes on GitHub...'
+  if ($snapshot.StageCommit -cne $State.SourceCommit) {
+    Invoke-ReleaseGit $Context @('push', 'origin', 'HEAD:staging') 'Send your changes to GitHub' | Out-Null
+  }
+  if ((Get-ReleaseStagingCommit $Context) -cne $State.SourceCommit) { throw 'Staging moved during preparation. Refresh before publishing.' }
   $State.BaseRunIds = @(Get-ReleaseRuns $Context | ForEach-Object { $_.databaseId })
   $State.NeedsRunLookup = $true
   Save-ReleaseState $Context $State
@@ -296,8 +312,7 @@ function Invoke-ReleaseWorker {
       if ($Action -eq 'Retry') {
         if (-not $state.CanRetry -or -not $state.RunId) { throw 'There is no failed build to retry. Click Refresh.' }
         if ((Invoke-ReleaseGit $Context @('rev-parse', 'HEAD')) -cne $state.SourceCommit) { throw 'Newer changes are ready. Refresh to prepare a new release.' }
-        $remoteStage = Invoke-ReleaseGit $Context @('ls-remote', 'origin', 'refs/heads/staging')
-        if (($remoteStage -split '\s+')[0] -cne $state.SourceCommit) { $state.CanRetry = $false; throw 'GitHub has newer changes. Refresh and review staging before starting another release.' }
+        if ((Get-ReleaseStagingCommit $Context) -cne $state.SourceCommit) { $state.CanRetry = $false; throw 'GitHub has newer changes. Refresh and review staging before starting another release.' }
         Invoke-ReleaseGh $Context @('run', 'rerun', [string]$state.RunId, '--repo', $Context.Repository, '--failed') 'Retry the failed GitHub steps' | Out-Null
         foreach ($step in $state.Steps[3..5]) { $step.Status = 'pending'; $step.Detail = '' }
         $state.CanRetry = $false
@@ -308,12 +323,13 @@ function Invoke-ReleaseWorker {
       }
       if ($state.RunId -and $state.Phase -in @('running', 'paused', 'failed')) {
         $run = Get-ReleaseRun $Context $state.RunId
-        $remoteStage = Invoke-ReleaseGit $Context @('ls-remote', 'origin', 'refs/heads/staging')
-        if ($run.status -ne 'completed' -or ((Invoke-ReleaseGit $Context @('rev-parse', 'HEAD')) -ceq $state.SourceCommit -and ($remoteStage -split '\s+')[0] -ceq $state.SourceCommit)) {
+        if ($run.status -ne 'completed' -or ((Invoke-ReleaseGit $Context @('rev-parse', 'HEAD')) -ceq $state.SourceCommit -and (Get-ReleaseStagingCommit $Context) -ceq $state.SourceCommit)) {
           Watch-ReleaseRun $Context $state $run; return
         }
       }
-      $state = New-ReleaseState
+      $checking = New-ReleaseState
+      $checking.Version = $state.Version; $checking.LatestVersion = $state.LatestVersion
+      $state = $checking
       $state.Steps[0].Status = 'running'; $state.Steps[0].Detail = 'Checking your committed changes and GitHub connection...'
       Save-ReleaseState $Context $state
       $snapshot = Get-ReleaseSnapshot $Context
@@ -322,9 +338,15 @@ function Invoke-ReleaseWorker {
       $state.Message = if ($state.CanPublish) { 'Ready when you are. GitHub handles the build and publication.' } else { 'Your committed changes are already released.' }
       Save-ReleaseState $Context $state
     } catch {
-      if ($_.Exception.Data['ReleaseStatusUnavailable'] -and ($state.RunId -or $state.NeedsRunLookup)) {
+      if ($_.Exception.Data['ReleaseReadUnavailable']) {
         $state.Phase = 'paused'; $state.CanPublish = $false; $state.CanRetry = $false
         $state.Message = 'GitHub status is temporarily unavailable. Click Refresh to reconnect.'
+        if (-not ($state.RunId -or $state.NeedsRunLookup)) {
+          $state.Message = 'Could not finish checking GitHub. Click Refresh to check again.'
+          foreach ($step in $state.Steps | Where-Object { $_.Status -eq 'running' }) {
+            $step.Status = 'pending'; $step.Detail = $state.Message
+          }
+        }
         Save-ReleaseState $Context $state
         return
       }
