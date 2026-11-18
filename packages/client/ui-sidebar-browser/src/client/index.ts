@@ -221,8 +221,13 @@ export function apply(ctx: Context): void {
   if (desktop === undefined) installFrames(ctx)
   else ctx.inject(['workspaces', 'conversation', 'sessions'], installFrames)
   if (profiles !== undefined) {
+    let describeMcpServers: Context['remote']['mcpManager']['describe'] | undefined
+    ctx.inject(['remote', 'remote.mcpManager'], (scope) => {
+      describeMcpServers = () => scope.remote.mcpManager.describe()
+      scope.effect(() => () => { describeMcpServers = undefined }, 'ui-sidebar-browser.mcp-inventory')
+    })
     const listMcpServers: BrowserProfilePickerInjected['listMcpServers'] = async () => {
-      const response = await ctx.get('remote')?.mcpManager.describe()
+      const response = await describeMcpServers?.()
       if (response?.ok !== true || !response.value.available) throw new Error('MCP registry unavailable')
       return response.value.servers.map(({ name, serverName, enabled, status }) =>
         ({ name, serverName, connected: enabled && status === 'connected' }))

@@ -4,12 +4,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { requestStubs } from './website-request-stubs.client.ts'
 import { ShortcutRegistry } from '@deepseek-ai/dsh-client-shortcuts/src/client/registry.ts'
 import type { ShortcutCommand, ShortcutPlatform } from '@deepseek-ai/dsh-client-shortcuts/client'
-import { Context } from '@deepseek-ai/cordis'
+import { Context, Service } from '@deepseek-ai/cordis'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { SidebarRightTabRegistry } from '@deepseek-ai/dsh-client-ui-sidebar-right/src/client/tab-registry.ts'
 import { BrowserBody } from '../src/client/view/BrowserBody.tsx'
 import { BrowserTitle } from '../src/client/view/BrowserTitle.tsx'
 import { BrowserProfileNotice } from '../src/client/view/BrowserProfileNotice.tsx'
+import type { BrowserProfilePickerInjected } from '../src/client/view/BrowserProfilePicker.tsx'
 import type { BrowserInjected } from '../src/client/browser/BrowserController.ts'
 import { BROWSER_ID, BROWSER_KIND } from '../src/client/definition.tsx'
 import { apply, inject } from '../src/client/index.ts'
@@ -99,10 +100,40 @@ async function boot(platform: ShortcutPlatform = 'macos', runtime: 'desktop' | '
   ctx.provide('locale', locale as never)
   const fiber = ctx.plugin({ inject: [...inject], apply })
   await fiber.await()
-  return { tabs, registered, dictionaries, fiber, openTabs, registry, sidebar, target, conversation, sessions, input }
+  return { ctx, tabs, registered, dictionaries, fiber, openTabs, registry, sidebar, target, conversation, sessions, input }
 }
 
 describe('ui-sidebar-browser apply', () => {
+  it('loads the profile picker from the MCP namespace when it becomes available', async () => {
+    class RemoteFixture extends Service {
+      constructor(ctx: Context) { super(ctx, 'remote') }
+    }
+    vi.stubGlobal('dshDesktop', { protocolVersion: 1, browser: { profiles: profileStubs(), requests: requestStubs() } })
+    const { ctx, registered } = await boot()
+    const injectPicker = registered.find(entry => entry.name === 'sidebar.right.pane.tab.browser.profiles')?.inject as
+      () => BrowserProfilePickerInjected
+    const picker = injectPicker()
+    await expect(picker.listMcpServers()).rejects.toThrow('MCP registry unavailable')
+
+    const describe = vi.fn(async () => ({ ok: true, value: { available: true, servers: [
+      { name: 'Website', serverName: 'website', enabled: true, status: 'connected' },
+      { name: 'Offline', serverName: 'offline', enabled: false, status: 'disconnected' },
+    ] } }))
+    const remote = ctx.plugin((scope) => { new RemoteFixture(scope) })
+    const manager = ctx.plugin((scope) => { scope.provide('remote.mcpManager', { describe }) })
+    await Promise.all([remote.await(), manager.await()])
+    await vi.waitFor(async () => {
+      await expect(picker.listMcpServers()).resolves.toEqual([
+        { name: 'Website', serverName: 'website', connected: true },
+        { name: 'Offline', serverName: 'offline', connected: false },
+      ])
+    })
+    await manager.dispose()
+    await vi.waitFor(async () => {
+      await expect(picker.listMcpServers()).rejects.toThrow('MCP registry unavailable')
+    })
+  })
+
   it('stages browser feedback in its captured chat and preserves a refused draft', async () => {
     const profiles = profileStubs()
     const requests = requestStubs()

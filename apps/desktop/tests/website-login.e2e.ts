@@ -1215,6 +1215,16 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
       const nativeId = await activeBrowserGuest(page)
       expect(await app.evaluate(({ webContents }, id) => webContents.fromId(id)!.getTitle(), nativeId)).toBe('Agent edited page')
       const browser = page.locator('[data-rightbar-col]')
+      if (access === 'automatic') {
+        await browser.getByRole('button', { name: 'Saved website profiles', exact: true }).click()
+        await page.getByRole('menuitem', { name: 'New saved profile…', exact: true }).click()
+        const form = page.getByRole('dialog', { name: 'New saved profile', exact: true })
+        await form.getByRole('combobox', { name: 'MCP server', exact: true }).click()
+        const server = page.getByRole('option', { name: 'Website acceptance MCP (website_fixture)', exact: true })
+        await server.click()
+        expect(await form.getByRole('combobox', { name: 'MCP server', exact: true }).innerText()).toContain('website_fixture')
+        await form.getByRole('button', { name: 'Cancel', exact: true }).click()
+      }
       await browser.getByRole('button', { name: 'Take control', exact: true }).first().click()
       await browser.getByRole('button', { name: 'Resume agent', exact: true }).waitFor()
       script.release('agent-observed')
