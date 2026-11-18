@@ -65,7 +65,7 @@ describe('native Codex discovery', () => {
     vi.stubGlobal('fetch', fetcher)
     const models = await discoverModels({ provider: 'openai-codex', baseURL }, profile)
     expect(fetcher).toHaveBeenCalledOnce()
-    expect(fetcher.mock.calls[0]?.[0]).toBe('https://chatgpt.com/backend-api/codex/models?client_version=0.160.0')
+    expect(fetcher.mock.calls[0]?.[0]).toBe('https://chatgpt.com/backend-api/codex/models?client_version=0.169.0')
     const headers = new Headers(fetcher.mock.calls[0]?.[1]?.headers)
     expect(headers.get('authorization')).toBe(`Bearer ${grant('account-a').access}`)
     expect(headers.get('chatgpt-account-id')).toBe('account-a')
@@ -94,7 +94,7 @@ describe('native Codex discovery', () => {
       return new Response(JSON.stringify(nativeListing))
     })
     await expect(discoverModels({ provider: 'openai-codex' }, profile)).resolves.toHaveLength(1)
-    expect(requests).toEqual(['https://auth.openai.com/oauth/token', 'https://chatgpt.com/backend-api/codex/models?client_version=0.160.0'])
+    expect(requests).toEqual(['https://auth.openai.com/oauth/token', 'https://chatgpt.com/backend-api/codex/models?client_version=0.169.0'])
     expect(auth.stored.get('openai-codex')).toMatchObject({ refresh: 'rotated', accountId: 'refreshed-account' })
   })
 
@@ -257,7 +257,7 @@ describe('real Loader discovery composition', () => {
         },
       ]
     `)
-    expect(urls).toEqual(['https://chatgpt.com/backend-api/codex/models?client_version=0.160.0'])
+    expect(urls).toEqual(['https://chatgpt.com/backend-api/codex/models?client_version=0.169.0'])
     expect(ctx.llm.listProviders()).toEqual([])
     expect(await readFile(patchPath, 'utf8')).toBe(before)
   })

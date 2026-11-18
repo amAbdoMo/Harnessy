@@ -23,8 +23,8 @@ const LISTABLE_PROTOCOLS: ReadonlySet<string> = new Set([
   'openai-codex-responses',
 ])
 
-/** Upstream Codex release whose native catalog protocol this implementation follows. */
-const CODEX_CLIENT_VERSION = '0.160.0' // https://github.com/openai/codex/releases/tag/rust-v0.160.0
+/** Codex client release sent to the native model listing endpoint. */
+const CODEX_CLIENT_VERSION = '0.169.0' // https://github.com/openai/codex/releases/tag/rust-v0.169.0
 
 /** Security bounds over one complete listing, including every pagination request. */
 const MAX_LISTING_PAGES = 10
