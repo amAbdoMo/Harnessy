@@ -5,7 +5,7 @@ import { X509Certificate } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { lstat, mkdir, mkdtemp, readFile, readdir, rmdir, unlink, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { it } from 'vitest'
@@ -14,7 +14,7 @@ const runFile = promisify(execFile)
 const tests = fileURLToPath(new URL('./', import.meta.url))
 const repository = fileURLToPath(new URL('../../../', import.meta.url))
 const require = createRequire(import.meta.url)
-const electron = join(repository, 'node_modules/.pnpm/electron@44.0.0/node_modules/electron/dist/electron.exe')
+const electron = join(dirname(require.resolve('electron')), 'dist', 'electron.exe')
 
 async function certificate(env: NodeJS.ProcessEnv) {
   // CertificateRequest exports bytes without opening an OS certificate store.

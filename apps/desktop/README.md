@@ -44,7 +44,7 @@ The Desktop Host's stable `preview_*` tools operate the visible native browser w
 
 The compact browser toolbar includes Select, Region, Draw and Erase. These tools capture the page and stage an annotated image with page and element context in the current chat draft for review. Saved-account controls remain in a collapsed menu. [The browser upgrade guide](../../docs/upgrade-guide/v0.1.18/browser-tab-control/guide.md) describes the control workflow.
 
-MCP servers retain their own configured permissions. Saving an account does not enroll its MCP namespace in legacy website-request authorization in the default Desktop composition.
+For website work, `preview_status` without a tab ID lists saved profiles and their `mcpServerName`. Agents can use available tools under the matching `mcp__<serverName>__` namespace directly, subject to the server's configured permissions. Browser control and account storage follow the tab's policy.
 
 ## Website account isolation
 

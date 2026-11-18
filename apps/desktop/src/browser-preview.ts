@@ -145,7 +145,7 @@ export class DesktopBrowserPreview {
     if (owner === undefined || owner.isDestroyed()) throw new Error('Browser window is unavailable')
     if (operation.kind === 'status' && operation.tabId === undefined) {
       const profiles = (await this.profiles()).map(profile => ({ profileId: profile.id, name: profile.name,
-        accountLabel: profile.accountLabel, url: profile.url }))
+        accountLabel: profile.accountLabel, url: profile.url, mcpServerName: profile.mcpServerName }))
       signal.throwIfAborted()
       return { tabs: [...this.tabs.values()].filter(tab => tab.control.mayAct(sessionId)).map(tab => this.snapshot(tab)), profiles }
     }

@@ -216,6 +216,14 @@
       }
     },
     {
+      "name": "mcp__wordpress__site_info",
+      "description": "Read the title of the saved WordPress site.",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
       "name": "preview_act",
       "description": "Act in an owned or unclaimed native browser tab with no human in control. click accepts selector or x/y; type replaces a field; hover and select use selector; press sends key; scroll uses deltaX/deltaY with optional x/y. Actions report attempted; inspect afterward to verify their effect.",
       "parameters": {
@@ -399,7 +407,7 @@
     },
     {
       "name": "preview_status",
-      "description": "Report browser tabs belonging to this chat or unclaimed tabs, including URL, title, loading, chat owner, human control and generation. A selected tab can be observed while the human drives it; actions require your own or an unclaimed tab with no human in control.",
+      "description": "Report browser tabs belonging to this chat or unclaimed tabs. Omit tabId to also list saved website profiles and their mcpServerName. For work on a saved website, use the matching profile’s available mcp__<mcpServerName>__ tools directly when they can do the task. Use the browser for work that needs the page. A selected tab can be observed during human control; actions require an owned or unclaimed tab with no human in control.",
       "parameters": {
         "type": "object",
         "properties": {

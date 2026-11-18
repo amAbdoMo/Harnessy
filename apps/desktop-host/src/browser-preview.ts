@@ -73,7 +73,7 @@ export function installBrowserPreview(ctx: Context, send: (message: object) => P
   ctx.effect(() => () => { channel.close() })
   ctx.inject(['tools'], scope => scope.effect(function* () {
     yield ctx.tools.register(defineTool({ name: 'preview_status',
-      description: 'Report browser tabs belonging to this chat or unclaimed tabs, including URL, title, loading, chat owner, human control and generation. A selected tab can be observed while the human drives it; actions require your own or an unclaimed tab with no human in control.',
+      description: 'Report browser tabs belonging to this chat or unclaimed tabs. Omit tabId to also list saved website profiles and their mcpServerName. For work on a saved website, use the matching profile’s available mcp__<mcpServerName>__ tools directly when they can do the task. Use the browser for work that needs the page. A selected tab can be observed during human control; actions require an owned or unclaimed tab with no human in control.',
       parameters: { tabId }, output,
       execute: (args, execution) => channel.invoke(execution, { kind: 'status', ...args }),
       presentCall: () => ({ card: 'generic', title: 'Browser tab status', kind: 'read' }),

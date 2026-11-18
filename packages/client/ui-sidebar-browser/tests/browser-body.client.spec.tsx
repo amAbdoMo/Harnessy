@@ -77,6 +77,7 @@ function mountBrowser(navigation?: { readonly url?: string; readonly profileId?:
     refreshShortcut?: ReturnType<BrowserBodyProps['useTabInfo']>['tab']['refreshShortcut']
     profiles?: WebsiteProfileCommands
     websiteProfiles?: SnapshotStore<WebsiteProfilesState>
+    listMcpServers?: BrowserProfilePickerProps['listMcpServers']
   } = {}) {
   const store = createBrowserStore().create(`browser-body-test-${String(++mountSequence)}`)
   if (options.initial !== undefined) store.actions.replace(TAB, options.initial)
@@ -98,6 +99,10 @@ function mountBrowser(navigation?: { readonly url?: string; readonly profileId?:
     return select === undefined ? snapshot : select(snapshot)
   }
   const profileDraft = createWebsiteProfileDraftStore().create()
+  const listMcpServers = options.listMcpServers ?? (async () => [
+    { name: 'WordPress', serverName: 'website', connected: true },
+    { name: 'Offline server', serverName: 'offline', connected: false },
+  ])
   const tabActions = { bindCommands: vi.fn<ReturnType<BrowserBodyProps['useTabInfo']>['tab']['actions']['bindCommands']>(() => vi.fn()), openResource: vi.fn(), openTab: vi.fn(), close: vi.fn() }
   const props: Pick<BrowserBodyProps, 'sessionId' | 'useResponsiveAvailable' | 'useTabInfo' | 'useStore' | 'actions' | 't' | 'useBrowserState' | 'useWebsiteProfiles' | 'useWebsiteRequests' | 'profiles' | 'renderSlot'>
     & Omit<BrowserInjected, 'keyedHooks' | 'hooks'> = {
@@ -123,7 +128,7 @@ function mountBrowser(navigation?: { readonly url?: string; readonly profileId?:
         }
         return options.profiles === undefined ? null : <BrowserProfilePicker {...{
           ...owner, sessionId: SESSION, profiles: options.profiles, useStore: hookOf(profileDraft), actions: profileDraft.actions,
-          useWebsiteProfiles: props.useWebsiteProfiles, t: props.t,
+          useWebsiteProfiles: props.useWebsiteProfiles, listMcpServers, t: props.t,
         } as BrowserProfilePickerProps} />
       }) as BrowserBodyProps['renderSlot'],
       t: (key, params) => {
@@ -204,6 +209,23 @@ describe('BrowserBody', () => {
     expect(mounted.tabActions.openTab).toHaveBeenCalledExactlyOnceWith('browser', {
       params: { url: 'https://new.example/' }, revealIfOpened: false,
     })
+  })
+
+  it('offers certificate recovery in the tab without proceeding past the failed connection', () => {
+    const target = { kind: 'https' as const, url: 'https://site.example/', title: 'Site' }
+    const state = createSnapshotStore<BrowserFrameState>({ ...emptyBrowserFrame(), target, address: 'requested',
+      error: { code: -202, description: 'ERR_CERT_AUTHORITY_INVALID' } })
+    const reload = vi.fn()
+    const mounted = mountBrowser(undefined, { createPage: () => ({
+      presentation: { mount: () => () => {} },
+      frame: { getSnapshot: state.getSnapshot, subscribe: state.subscribe,
+        loadUrl: vi.fn(), goBack: vi.fn(), goForward: vi.fn(), reload, dispose: async () => {} },
+    }) })
+    const notice = within(mounted.view.getByRole('status'))
+    expect(notice.getByText(zh['load.failed.certificate'])).toBeDefined()
+    expect(notice.getByRole('button', { name: zh.external })).toHaveProperty('disabled', false)
+    fireEvent.click(notice.getByRole('button', { name: zh.retry }))
+    expect(reload).toHaveBeenCalledOnce()
   })
 
   it('routes address input to the controller and renders parser failures', async () => {
@@ -514,7 +536,14 @@ describe('BrowserBody saved profiles', () => {
     fireEvent.keyDown(mounted.view.getByLabelText(zh['profiles.create.url']), { key: 'Enter' })
     expect(create).not.toHaveBeenCalled()
 
-    fireEvent.change(mounted.view.getByLabelText(zh['profiles.create.mcp']), { target: { value: 'website' } })
+    const server = mounted.view.getByRole('combobox', { name: zh['profiles.create.mcp'] })
+    await waitFor(() => { expect(server).toHaveProperty('disabled', false) })
+    fireEvent.click(server)
+    const offline = mounted.view.getByRole('option', { name: /Offline server/u })
+    expect(offline.getAttribute('aria-disabled')).toBe('true')
+    fireEvent.click(offline)
+    expect(create).not.toHaveBeenCalled()
+    fireEvent.click(mounted.view.getByRole('option', { name: 'WordPress (website)' }))
     fireEvent.click(mounted.view.getByRole('button', { name: zh['profiles.create.action'] }))
     await waitFor(() => {
       expect(create).toHaveBeenCalledWith({ name: 'New account', accountLabel: '', url: 'https://new.example/', mcpServerName: 'website', access: 'automatic' })
@@ -532,21 +561,40 @@ describe('BrowserBody saved profiles', () => {
     fireEvent.click(mounted.view.getByRole('menuitem', { name: zh['profiles.new'] }))
     fireEvent.change(mounted.view.getByLabelText(zh['profiles.create.name']), { target: { value: 'Work' } })
     const address = mounted.view.getByLabelText(zh['profiles.create.url'])
-    const server = mounted.view.getByLabelText(zh['profiles.create.mcp'])
+    const server = mounted.view.getByRole('combobox', { name: zh['profiles.create.mcp'] })
+    await waitFor(() => { expect(server).toHaveProperty('disabled', false) })
+    fireEvent.keyDown(server, { key: 'Enter' })
+    fireEvent.keyDown(server, { key: 'ArrowDown' })
+    fireEvent.keyDown(server, { key: 'Enter' })
+    expect(server.textContent).toContain('WordPress (website)')
     fireEvent.change(address, { target: { value: 'https://work.example/?token=private' } })
-    fireEvent.change(server, { target: { value: 'invalid name' } })
     fireEvent.click(mounted.view.getByRole('button', { name: zh['profiles.create.action'] }))
     expect(create).not.toHaveBeenCalled()
     expect(mounted.view.getByRole('alert').textContent).toBe(zh['profiles.failure.unsafe-url'])
     expect(address.getAttribute('aria-invalid')).toBe('true')
     expect(address.getAttribute('aria-describedby')).toBe(mounted.view.getByRole('alert').id)
     fireEvent.change(address, { target: { value: 'work.example' } })
-    expect(mounted.view.getByRole('alert').textContent).toBe(zh['profiles.failure.invalid-mcp-name'])
-    expect(server.getAttribute('aria-invalid')).toBe('true')
-    fireEvent.change(server, { target: { value: 'website' } })
     expect(mounted.view.queryByRole('alert')).toBeNull()
-    fireEvent.keyDown(server, { key: 'Enter' })
+    fireEvent.keyDown(address, { key: 'Enter' })
     await waitFor(() => { expect(create).toHaveBeenCalledWith({ name: 'Work', accountLabel: '', url: 'https://work.example/', mcpServerName: 'website', access: 'automatic' }) })
+  })
+
+  it('retries an unavailable MCP list without clearing the profile draft', async () => {
+    const listMcpServers = vi.fn<BrowserProfilePickerProps['listMcpServers']>()
+      .mockRejectedValueOnce(new Error('Registry unavailable'))
+      .mockResolvedValue([{ name: 'WordPress', serverName: 'website', connected: true }])
+    const mounted = mountBrowser(undefined, { profiles: profileCommands(), listMcpServers })
+    fireEvent.click(mounted.view.getByRole('button', { name: zh['profiles.button'] }))
+    fireEvent.click(mounted.view.getByRole('menuitem', { name: zh['profiles.new'] }))
+    const name = mounted.view.getByLabelText(zh['profiles.create.name'])
+    fireEvent.change(name, { target: { value: 'WordPress account' } })
+    const dialog = within(mounted.view.getByRole('dialog'))
+    const server = dialog.getByRole('combobox', { name: zh['profiles.create.mcp'] })
+    expect(server).toHaveProperty('disabled', true)
+    const retry = await dialog.findByRole('button', { name: zh.retry })
+    fireEvent.click(retry)
+    await waitFor(() => { expect(server).toHaveProperty('disabled', false) })
+    expect(name).toHaveProperty('value', 'WordPress account')
   })
 
   it('keeps the create form open when the desktop app refuses the pairing', async () => {
@@ -556,7 +604,10 @@ describe('BrowserBody saved profiles', () => {
     fireEvent.click(mounted.view.getByRole('menuitem', { name: zh['profiles.new'] }))
     fireEvent.change(mounted.view.getByLabelText(zh['profiles.create.name']), { target: { value: 'Work' } })
     fireEvent.change(mounted.view.getByLabelText(zh['profiles.create.url']), { target: { value: 'https://work.example/' } })
-    fireEvent.change(mounted.view.getByLabelText(zh['profiles.create.mcp']), { target: { value: 'website' } })
+    const server = mounted.view.getByRole('combobox', { name: zh['profiles.create.mcp'] })
+    await waitFor(() => { expect(server).toHaveProperty('disabled', false) })
+    fireEvent.click(server)
+    fireEvent.click(mounted.view.getByRole('option', { name: 'WordPress (website)' }))
     fireEvent.click(mounted.view.getByRole('button', { name: zh['profiles.create.action'] }))
     await waitFor(() => { expect(create).toHaveBeenCalledOnce() })
     expect(mounted.view.getByRole('dialog')).toBeDefined()
@@ -567,7 +618,7 @@ describe('BrowserBody saved profiles', () => {
     fireEvent.click(remounted.getByRole('menuitem', { name: zh['profiles.new'] }))
     expect(remounted.getByLabelText(zh['profiles.create.name'])).toHaveProperty('value', 'Work')
     expect(remounted.getByLabelText(zh['profiles.create.url'])).toHaveProperty('value', 'https://work.example/')
-    expect(remounted.getByLabelText(zh['profiles.create.mcp'])).toHaveProperty('value', 'website')
+    await waitFor(() => { expect(remounted.getByRole('combobox', { name: zh['profiles.create.mcp'] }).textContent).toContain('WordPress (website)') })
     fireEvent.click(remounted.getByRole('button', { name: zh['cancel'] }))
     expect(remounted.queryByRole('dialog')).toBeNull()
     fireEvent.click(remounted.getByRole('button', { name: zh['profiles.button'] }))

@@ -250,6 +250,13 @@
   background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 8%, transparent);
 }
 
+.failureActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
 .sandboxWarning {
   flex: 0 0 auto;
   padding: 6px 12px;

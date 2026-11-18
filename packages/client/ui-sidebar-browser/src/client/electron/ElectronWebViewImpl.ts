@@ -9,6 +9,7 @@ import { browserAddressCheckpoint, currentBrowserTarget } from '../browser/Brows
 import { parseBrowserAddress, type BrowserTarget } from '../browser/url.ts'
 
 interface NavigationEvent extends Event { readonly isMainFrame: boolean }
+interface DocumentNavigationEvent extends NavigationEvent { readonly httpResponseCode: number }
 interface LoadFailureEvent extends NavigationEvent {
   readonly errorCode: number
   readonly errorDescription: string
@@ -277,6 +278,10 @@ export class ElectronWebViewImpl implements BrowserFrame {
       }).catch((error: unknown) => { if (!signal.aborted) this.commandFailed(error) })
     }, { signal })
     element.addEventListener('did-navigate', () => { this.observe(true) }, { signal })
+    element.addEventListener('did-frame-navigate', (event) => {
+      const navigation = event as DocumentNavigationEvent
+      if (navigation.isMainFrame && navigation.httpResponseCode >= 100) this.observe(true, 'document')
+    }, { signal })
     element.addEventListener('did-navigate-in-page', (event) => {
       if ((event as NavigationEvent).isMainFrame) this.observe(true)
     }, { signal })
@@ -350,13 +355,13 @@ export class ElectronWebViewImpl implements BrowserFrame {
     })
   }
 
-  private observe(committed: boolean): void {
+  private observe(committed: boolean, navigation?: 'document'): void {
     if (!this.ready || this.element === undefined || this.lifetime.signal.aborted) return
-    try { this.observeReady(this.element, committed) }
+    try { this.observeReady(this.element, committed, navigation) }
     catch (error) { this.commandFailed(error) }
   }
 
-  private observeReady(element: WebviewElement, committed: boolean): void {
+  private observeReady(element: WebviewElement, committed: boolean, navigation: 'document' | undefined): void {
     const current = this.store.getSnapshot()
     const parsed = committed ? parseBrowserAddress(element.getURL()) : undefined
     if (parsed?.ok && this.firstDocument) {
@@ -371,12 +376,14 @@ export class ElectronWebViewImpl implements BrowserFrame {
       address = 'observed'
       this.presentation.show(target.title)
     }
-    const loading = current.error === undefined && element.isLoading()
+    const error = navigation === 'document' && parsed?.ok ? undefined : current.error
+    const loading = error === undefined && element.isLoading()
     const canGoBack = element.canGoBack()
     const canGoForward = element.canGoForward()
     if (target?.url !== current.target?.url || target?.title !== current.target?.title || address !== current.address
-      || loading !== current.loading || canGoBack !== current.canGoBack || canGoForward !== current.canGoForward) {
-      this.store.set({ ...current, target, address, loading, canGoBack, canGoForward })
+      || loading !== current.loading || canGoBack !== current.canGoBack || canGoForward !== current.canGoForward
+      || error !== current.error) {
+      this.store.set({ ...current, target, address, loading, canGoBack, canGoForward, error })
     }
     if (parsed?.ok && target !== undefined) this.persist(target)
   }

@@ -1,8 +1,8 @@
 /** Saved-profile picker and create form inside the Browser toolbar. */
-import { useId, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
-  Button, IconCheckOutlineRegular, IconUserOutlineRegular, Input, Menu, MenuItemButton, Modal, Tooltip,
+  Button, IconCheckOutlineRegular, IconUserOutlineRegular, Input, Menu, MenuItemButton, Modal, Select, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
@@ -22,6 +22,14 @@ import { websiteProfileFailureText } from './profile-failure-text.ts'
 export interface BrowserProfilePickerInjected {
   readonly profiles: WebsiteProfileCommands
   readonly hooks: BrowserInjected['hooks']
+  /** @returns display names, namespaces, and pairing availability from the current MCP registry. */
+  readonly listMcpServers: () => Promise<readonly WebsiteMcpOption[]>
+}
+
+interface WebsiteMcpOption {
+  readonly name: string
+  readonly serverName: string
+  readonly connected: boolean
 }
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -74,7 +82,7 @@ function profileRow(profile: DesktopWebsiteProfile, current: boolean, t: Browser
 
 /** Saved-profile picker: every saved account, its cleanup states, and the create entry. */
 export function BrowserProfilePicker({
-  profiles, profileId, openProfile, useWebsiteProfiles, useStore, actions, t,
+  profiles, profileId, openProfile, useWebsiteProfiles, useStore, actions, listMcpServers, t,
 }: BrowserProfilePickerProps): ReactNode {
   const state = useWebsiteProfiles(current => current)
   const draft = useStore(current => current)
@@ -147,7 +155,7 @@ export function BrowserProfilePicker({
         </MenuItemButton>
       </Menu>
       {creating && (
-        <BrowserProfileCreate draft={draft} edit={actions.edit} creating={state.creating} onCreate={create}
+        <BrowserProfileCreate draft={draft} edit={actions.edit} creating={state.creating} onCreate={create} listMcpServers={listMcpServers}
           onClose={() => { actions.discard(); setCreating(false) }} t={t} />
       )}
     </>
@@ -155,17 +163,34 @@ export function BrowserProfilePicker({
 }
 
 /** The create form: a saved profile is a user-confirmed pairing, never a discovered one. */
-function BrowserProfileCreate({ draft, edit, creating, onCreate, onClose, t }: {
+function BrowserProfileCreate({ draft, edit, creating, onCreate, onClose, listMcpServers, t }: {
   readonly draft: DesktopWebsiteProfileInput
   readonly edit: BrowserProfilePickerProps['actions']['edit']
   readonly creating: boolean
   readonly onCreate: (input: DesktopWebsiteProfileInput) => void
   readonly onClose: () => void
+  readonly listMcpServers: BrowserProfilePickerInjected['listMcpServers']
   readonly t: BrowserProfilePickerProps['t']
 }): ReactNode {
   const { name, accountLabel, url, mcpServerName, access = 'automatic' } = draft
   const [submitted, setSubmitted] = useState(false)
+  const [servers, setServers] = useState<readonly WebsiteMcpOption[] | 'loading' | 'failed'>('loading')
+  const [attempt, setAttempt] = useState(0)
   const errorId = useId()
+  const mcpId = useId()
+  const mcpHintId = useId()
+  useEffect(() => {
+    let active = true
+    void listMcpServers().then(
+      (entries) => { if (active) setServers(entries) },
+      () => { if (active) setServers('failed') },
+    )
+    return () => { active = false }
+  }, [listMcpServers, attempt])
+  const choices = typeof servers === 'string' ? [] : servers
+  const connected = choices.some(server => server.connected)
+  const canRefresh = servers === 'failed' || (typeof servers !== 'string' && (!connected || choices.some(server => !server.connected)))
+  const selected = choices.some(server => server.serverName === mcpServerName && server.connected)
   const resolved = resolveWebsiteProfileInput({ ...draft, access })
   const issue = submitted && !resolved.ok ? resolved.issue : undefined
   const errorProps = (field: WebsiteProfileInputIssue['field']) => ({
@@ -174,7 +199,7 @@ function BrowserProfileCreate({ draft, edit, creating, onCreate, onClose, t }: {
   })
   const fieldError = (field: WebsiteProfileInputIssue['field']): ReactNode => issue?.field === field
     ? <span id={errorId} role="alert" className={css.profileFieldError}>{websiteProfileFailureText(issue.reason, t)}</span> : null
-  const complete = name.trim() !== '' && url.trim() !== '' && mcpServerName.trim() !== ''
+  const complete = name.trim() !== '' && url.trim() !== '' && selected
   const blocked = creating || !complete
   const submit = (): void => {
     if (blocked) return
@@ -196,7 +221,9 @@ function BrowserProfileCreate({ draft, edit, creating, onCreate, onClose, t }: {
         </>
       )}
     >
-      <div className={css.profileForm} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); submit() } }}>
+      <div className={css.profileForm} onKeyDown={(event) => {
+        if (event.key === 'Enter' && event.target instanceof HTMLInputElement) { event.preventDefault(); submit() }
+      }}>
         <div className={css.profileField}>
           <span className={css.profileFieldLabel}>{t('profiles.access')}</span>
           <BrowserAccessPicker access={access} disabled={creating} onChange={(choice) => { edit('access', choice) }} t={t} />
@@ -218,12 +245,28 @@ function BrowserProfileCreate({ draft, edit, creating, onCreate, onClose, t }: {
           <span className={css.profileFieldHint}>{t('profiles.create.urlHint')}</span>
           {fieldError('url')}
         </label>
-        <label className={css.profileField}>
-          <span className={css.profileFieldLabel}>{t('profiles.create.mcp')}</span>
-          <Input value={mcpServerName} {...errorProps('mcpServerName')} aria-label={t('profiles.create.mcp')} disabled={creating} onChange={(event) => { edit('mcpServerName', event.currentTarget.value) }} />
-          <span className={css.profileFieldHint}>{t('profiles.create.mcpHint')}</span>
+        <div className={css.profileField}>
+          <label htmlFor={mcpId} className={css.profileFieldLabel}>{t('profiles.create.mcp')}</label>
+          <Select id={mcpId} ariaDescribedBy={mcpHintId} value={mcpServerName} disabled={creating || !connected}
+            options={[{ value: '', label: t('profiles.create.mcpPlaceholder'), disabled: true }, ...choices.map(server => ({
+              value: server.serverName,
+              label: t(server.connected ? 'profiles.create.mcpOption' : 'profiles.create.mcpDisconnected',
+                { name: server.name, serverName: server.serverName }),
+              disabled: !server.connected,
+            }))]}
+            onChange={(serverName) => { edit('mcpServerName', serverName) }} />
+          <span id={mcpHintId} className={css.profileFieldHint} role="status">
+            {t(servers === 'loading' ? 'profiles.create.mcpLoading' : servers === 'failed' ? 'profiles.create.mcpFailed'
+              : connected ? 'profiles.create.mcpHint' : 'profiles.create.mcpEmpty')}
+          </span>
+          {canRefresh && (
+            <Button size="sm" variant="outline" disabled={creating} onClick={() => {
+              setServers('loading')
+              setAttempt(value => value + 1)
+            }}>{t('retry')}</Button>
+          )}
           {fieldError('mcpServerName')}
-        </label>
+        </div>
       </div>
     </Modal>
   )

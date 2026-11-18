@@ -51,7 +51,14 @@ it('clears a failed load when the main page retries without a toolbar command', 
 
     element.dispatchEvent(Object.assign(new Event('did-start-navigation'), { isMainFrame: true }))
     expect(frame.getSnapshot()).toMatchObject({ error: undefined, loading: true })
+    element.dispatchEvent(Object.assign(new Event('did-fail-load'), {
+      isMainFrame: true, errorCode: -202, errorDescription: 'ERR_CERT_AUTHORITY_INVALID',
+    }))
+    expect(frame.getSnapshot().error?.code).toBe(-202)
     url = 'https://example.test/recovered'
+    element.dispatchEvent(Object.assign(new Event('did-frame-navigate'), { isMainFrame: true, httpResponseCode: -1 }))
+    expect(frame.getSnapshot().error?.code).toBe(-202)
+    element.dispatchEvent(Object.assign(new Event('did-frame-navigate'), { isMainFrame: true, httpResponseCode: 200 }))
     element.dispatchEvent(new Event('did-navigate'))
     loading = false
     element.dispatchEvent(new Event('did-stop-loading'))

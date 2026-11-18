@@ -44,7 +44,7 @@ Desktop Host 的稳定 `preview_*` 工具无需配对 MCP 服务器即可操作�
 
 紧凑浏览器工具栏包含 Select、Region、Draw 和 Erase。这些工具捕获页面，并将标注图像及页面、元素上下文暂存到当前聊天草稿供检查。保存账号控件保留在折叠菜单中。[浏览器升级指南](../../docs/upgrade-guide/v0.1.18/browser-tab-control/guide.zh.md)介绍控制流程。
 
-MCP 服务器保留各自配置的权限。在 Desktop 默认组合中，保存账号不会将其 MCP 命名空间纳入旧版网站请求授权。
+执行网站任务时，不带标签页 ID 的 `preview_status` 会列出保存的配置及其 `mcpServerName`。Agent 可以直接使用匹配的 `mcp__<serverName>__` 命名空间中可用的工具，并遵循该服务器配置的权限。浏览器控制和账号存储遵循标签页策略。
 
 ## 网站账号隔离
 

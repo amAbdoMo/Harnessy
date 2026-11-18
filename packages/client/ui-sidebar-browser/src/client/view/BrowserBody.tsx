@@ -120,6 +120,8 @@ export function BrowserBody(props: BrowserBodyProps): ReactNode {
       || requests.requests.some(request => request.status === 'granted')))
   const failure = state?.addressFailure
   const error = frame.error
+  const untrustedCertificate = error?.code === -202
+  const openExternal = externalUrl === undefined ? undefined : () => { window.open(externalUrl, '_blank', 'noopener,noreferrer') }
   const submit = (event: FormEvent): void => { event.preventDefault(); if (!humanAccessBlocked) loadUrl(tab.id, draft) }
 
   return (
@@ -146,7 +148,7 @@ export function BrowserBody(props: BrowserBodyProps): ReactNode {
             <button type="submit" className={[css.tool, css.addressGo].join(' ')} aria-label={t('go')} title={t('go')} disabled={humanAccessBlocked}><IconLinkOutlineRegular /></button>
           </div>
           <button type="button" className={css.tool} aria-label={t('external')} title={t('external')} disabled={humanAccessBlocked || externalUrl === undefined}
-            onClick={externalUrl === undefined ? undefined : () => { window.open(externalUrl, '_blank', 'noopener,noreferrer') }}
+            onClick={openExternal}
           ><IconRightUpOutlineRegular size={14} /></button>
           {sandboxed !== undefined && <button
             type="button"
@@ -177,9 +179,19 @@ export function BrowserBody(props: BrowserBodyProps): ReactNode {
         </form>
         {profileId !== undefined && profiles === undefined && <p className={css.profileNotice}>{t('profiles.desktopOnly')}</p>}
         {sandboxed === false && <div className={css.sandboxWarning} role="status">{t('sandbox.warning')}</div>}
-        {error !== undefined && <div className={css.failure} role="status">{error.code !== undefined && error.description !== undefined
-          ? t('load.failed.detail', { code: String(error.code), description: error.description })
-          : t('load.failed')}</div>}
+        {error !== undefined && <div className={css.failure} role="status">
+          {untrustedCertificate ? <>
+            <div>{t('load.failed.certificate')}</div>
+            <div className={css.failureActions}>
+              <Button variant="outline" size="sm" disabled={humanAccessBlocked || target === undefined}
+                onClick={() => { reload(tab.id) }}>{t('retry')}</Button>
+              <Button variant="outline" size="sm" disabled={humanAccessBlocked || openExternal === undefined}
+                onClick={openExternal}>{t('external')}</Button>
+            </div>
+          </> : error.code !== undefined && error.description !== undefined
+            ? t('load.failed.detail', { code: String(error.code), description: error.description })
+            : t('load.failed')}
+        </div>}
         {failure !== undefined && <div className={css.failure} role="alert">{t(`error.${failure}`)}</div>}
         <div className={css.content} aria-busy={frame.loading}>
           <div id={viewportId} className={css.viewport} aria-label={t('type.label')} ref={(element) => { element?.toggleAttribute('inert', humanAccessBlocked || frame.humanControl === false) }} />

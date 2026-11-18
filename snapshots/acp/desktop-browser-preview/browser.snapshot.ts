@@ -20,8 +20,8 @@ assert.ok(['record', 'refresh', 'replay'].includes(mode), 'Unknown snapshot mode
 const recording = mode === 'record'
 const updating = mode !== 'replay'
 
-it('desktop preview observes takeover and resumes on the same tab without saved-site grants', async () => {
-  const prompts = recording ? ['Inspect the browser tab during human takeover, verify actions are refused, then resume and read the same tab.']
+it('desktop preview finds a saved site’s MCP tools and observes browser takeover', async () => {
+  const prompts = recording ? ['Read the saved site through its MCP server. Then observe the browser during human takeover and after the agent resumes.']
     : parseSessionLog(await readFile(fixtureFile, 'utf8'))
       .filter(event => event.type === 'user/message' && event.data.source?.kind === 'user')
       .map(event => {
@@ -45,6 +45,8 @@ it('desktop preview observes takeover and resumes on the same tab without saved-
   expect(result.sessionLogs).toHaveLength(1)
   const log = result.sessionLogs[0]
   assert.ok(log)
+  expect(log.content).toContain('mcp__wordpress__site_info')
+  expect(log.content).toContain('WordPress fixture site')
   expect(log.content).toContain('Observed during takeover')
   expect(log.content).toContain('A human controls this browser tab')
   expect(log.content).not.toContain('approval/asked')
@@ -87,7 +89,9 @@ function browserPreviewDriver(): NonNullable<RunOptions['privateDriver']> & { op
         generation: index < 3 ? 1 : 2, url: 'https://browser.example/', title: 'Browser fixture', loading: false }
       if (index === 0) {
         assert.equal(operation.kind, 'status')
-        await send({ type: 'browser-preview-result', requestId: input.requestId, ok: true, result: { tabs: [status] } })
+        await send({ type: 'browser-preview-result', requestId: input.requestId, ok: true, result: { tabs: [status], profiles: [{
+          profileId: 'fixture-profile', name: 'Saved WordPress', accountLabel: 'Editor', url: status.url, mcpServerName: 'wordpress',
+        }] } })
       } else if (index === 1) {
         assert.equal(operation.kind, 'evaluate')
         await send({ type: 'browser-preview-result', requestId: input.requestId, ok: false,

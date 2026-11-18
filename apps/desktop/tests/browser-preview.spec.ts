@@ -65,12 +65,12 @@ it('completes an agent opening only after the exact owning chat binds the attach
   expect(() =>{  f.preview.bind(f.owner, f.lease, 'two') }).toThrow('ownership cannot be replaced')
 })
 
-it('discovers saved accounts and opens their storage without legacy request admission', async () => {
+it('discovers the MCP namespace for a saved account and opens its browser storage without legacy request admission', async () => {
   const profile: DesktopWebsiteProfile = { id: 'saved-profile' as DesktopWebsiteProfile['id'], name: 'Saved site',
     accountLabel: 'Editor', url: 'https://example.test/', mcpServerName: 'paired-server', control: 'human', access: 'ask', hasSavedLogin: true }
   const f = fixture([profile])
   await expect(f.request('one', { kind: 'status' })).resolves.toMatchObject({ ok: true, result: {
-    profiles: [{ profileId: profile.id, name: profile.name, accountLabel: profile.accountLabel, url: profile.url }],
+    profiles: [{ profileId: profile.id, name: profile.name, accountLabel: profile.accountLabel, url: profile.url, mcpServerName: 'paired-server' }],
   } })
   const requestId = randomUUID()
   const opening = f.request('one', { kind: 'open', url: profile.url, profileId: profile.id }, requestId)

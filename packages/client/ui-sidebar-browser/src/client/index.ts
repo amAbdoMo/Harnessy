@@ -1,5 +1,7 @@
 /** Register the HTTP(S) Browser tab type in the right Sidebar. */
 import type { ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client'
+import type {} from '@deepseek-ai/dsh-api-gateway/client'
+import type {} from '@deepseek-ai/dsh-api-settings-controller/remote'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
@@ -219,10 +221,16 @@ export function apply(ctx: Context): void {
   if (desktop === undefined) installFrames(ctx)
   else ctx.inject(['workspaces', 'conversation', 'sessions'], installFrames)
   if (profiles !== undefined) {
+    const listMcpServers: BrowserProfilePickerInjected['listMcpServers'] = async () => {
+      const response = await ctx.get('remote')?.mcpManager.describe()
+      if (response?.ok !== true || !response.value.available) throw new Error('MCP registry unavailable')
+      return response.value.servers.map(({ name, serverName, enabled, status }) =>
+        ({ name, serverName, connected: enabled && status === 'connected' }))
+    }
     ctx.effect(() => () => profiles.dispose(), 'ui-sidebar-browser.profiles')
     ctx.effect(() => ctx.slots.inject('sidebar.right.pane.tab.browser.profiles', () => ctx.slots.register({
       name: 'sidebar.right.pane.tab.browser.profiles', locale: namespace, store: createWebsiteProfileDraftStore(),
-      inject: (): BrowserProfilePickerInjected => ({ profiles: profiles.commands, hooks: { websiteProfiles } }),
+      inject: (): BrowserProfilePickerInjected => ({ profiles: profiles.commands, hooks: { websiteProfiles }, listMcpServers }),
     }, BrowserProfilePicker)), 'ui-sidebar-browser.profile-picker')
     // The notice outlives the tab body that asked for the action.
     ctx.effect(() => ctx.slots.inject('shell.overlay', () => ctx.slots.register({

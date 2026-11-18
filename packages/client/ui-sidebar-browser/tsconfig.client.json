@@ -12,6 +12,8 @@
   ],
   "references": [
     { "path": "../../../vendor/cordis" },
+    { "path": "../../api/gateway/tsconfig.client.json" },
+    { "path": "../../api/settings-controller" },
     { "path": "../../api/workspace-controller/tsconfig.client.json" },
     { "path": "../../util/brand" },
     { "path": "../../core/session" },

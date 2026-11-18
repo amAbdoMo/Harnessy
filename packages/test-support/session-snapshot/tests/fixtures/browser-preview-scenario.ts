@@ -5,6 +5,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { LlmAdapter, ToolCallId, type GenerateOptions, type StreamChunk } from '@deepseek-ai/dsh-llm'
 import { deriveReplayScript, parseSessionLog, type ReplayEntry } from '@deepseek-ai/dsh-llm-replay'
 import { installBrowserPreview } from '../../../../../apps/desktop-host/src/browser-preview.ts'
+import { defineTool } from '@deepseek-ai/dsh-tools'
 
 export const name = 'snapshot-browser-preview-scenario'
 export const inject = ['agents', 'tools', 'llm']
@@ -25,6 +26,11 @@ export function apply(ctx: Context): void {
   const replay = process.env.DSH_SNAPSHOT === 'replay'
     ? deriveReplayScript(parseSessionLog(readFileSync(required(file), 'utf8'))) : undefined
   ctx.effect(() => ctx.llm.registerAdapter(['snapshot-browser-preview'], new BrowserPreviewModel(replay)))
+  ctx.effect(() => ctx.tools.register(defineTool({
+    name: 'mcp__wordpress__site_info', description: 'Read the title of the saved WordPress site.', parameters: {},
+    output: { schema: { type: 'string' }, render: (_args, title) => [{ type: 'text', text: title }] },
+    execute: () => Promise.resolve('WordPress fixture site'),
+  })))
 }
 
 class BrowserPreviewModel extends LlmAdapter {
@@ -42,12 +48,14 @@ class BrowserPreviewModel extends LlmAdapter {
     }
     const calls = [
       { name: 'preview_status', args: {} },
+      { name: 'mcp__wordpress__site_info', args: {} },
       { name: 'preview_evaluate', args: { tabId: 'fixture-tab', expression: 'document.title' } },
       { name: 'preview_snapshot', args: { tabId: 'fixture-tab' } },
       { name: 'preview_evaluate', args: { tabId: 'fixture-tab', expression: 'document.title' } },
     ]
     const call = calls[index]
     if (call !== undefined) {
+      if (call.name === 'mcp__wordpress__site_info') assert.ok(JSON.stringify(options.messages).includes('mcpServerName'))
       assert.ok(options.tools?.some(tool => tool.name === call.name))
       yield { type: 'tool-call-delta', index: 0, id: ToolCallId(`preview-call-${index}`), name: call.name, argumentsDelta: JSON.stringify(call.args) }
       yield { type: 'finish', reason: { kind: 'tool-calls' } }
