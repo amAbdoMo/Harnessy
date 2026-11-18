@@ -144,8 +144,22 @@ try {
     $complete = @($State.Steps | Where-Object { $_.Status -eq 'succeeded' }).Count
     $controls.Progress.Value = $complete
     $controls.ProgressLabel.Text = "$complete of 6 steps complete"
-    $controls.Heading.Text = switch ($State.Phase) { 'running' { 'Your update is on its way' } 'failed' { 'Your update needs attention' } 'published' { 'Your update is published' } default { 'Your next update' } }
-    $controls.Publish.Content = if ($State.CanRetry) { 'Retry failed steps' } elseif ($State.Phase -eq 'checking') { 'Checking...' } elseif ($State.Phase -eq 'published') { 'Published v' + $State.Version } elseif ($State.Phase -eq 'running') { 'Publishing v' + $State.Version } elseif (-not $State.Version) { 'Not ready to publish' } else { 'Publish v' + $State.Version }
+    $controls.Heading.Text = switch ($State.Phase) {
+      'running' { 'Your update is on its way' }
+      'paused' { 'GitHub status is paused' }
+      'failed' { 'Your update needs attention' }
+      'published' { 'Your update is published' }
+      default { 'Your next update' }
+    }
+    $controls.Publish.Content = if ($State.CanRetry) { 'Retry failed steps' } else {
+      switch ($State.Phase) {
+        'checking' { 'Checking...' }
+        'paused' { 'Waiting for GitHub status' }
+        'published' { 'Published v' + $State.Version }
+        'running' { 'Publishing v' + $State.Version }
+        default { if ($State.Version) { 'Publish v' + $State.Version } else { 'Not ready to publish' } }
+      }
+    }
     $controls.Publish.IsEnabled = -not $Preview -and $null -eq $script:StartingReleaseWorker -and ($State.CanPublish -or $State.CanRetry)
     $controls.Refresh.IsEnabled = -not $Preview -and $null -eq $script:StartingReleaseWorker
     $controls.ElapsedLabel.Text = if ($State.StartedAt -and $State.Phase -eq 'running') { 'Elapsed ' + ([DateTime]::UtcNow - [DateTime]::Parse($State.StartedAt)).ToString('hh\:mm\:ss') } else { '' }

@@ -18,8 +18,9 @@ interface Observation {
     CanRetry: boolean
     Message: string
     RunId: number
-    Steps: { Status: string }[]
+    Steps: { Status: string; Detail: string }[]
   }
+  Paused: Observation['State'] | null
   Effects: { Bumps: number; Pushes: number; Dispatches: number; Retries: number; Views: number }
 }
 function argumentsFor(root: string, name: string): string[] {
@@ -65,6 +66,24 @@ it.skipIf(process.platform !== 'win32')('retries failed GitHub steps without ano
   const { State, Effects } = await scenario('retry')
   expect(State.Phase).toBe('published')
   expect(Effects).toMatchObject({ Bumps: 1, Pushes: 1, Dispatches: 1, Retries: 1 })
+})
+it.skipIf(process.platform !== 'win32')('continues following the same run after a certificate error reading status', async () => {
+  const { State, Effects } = await scenario('poll-tls')
+  expect(State).toMatchObject({ Phase: 'published', RunId: 42 })
+  expect(Effects).toMatchObject({ Views: 2, Dispatches: 1, Retries: 0 })
+})
+it.skipIf(process.platform !== 'win32')('pauses after repeated read errors and reconnects on refresh', async () => {
+  const { State, Effects, Paused } = await scenario('poll-offline')
+  expect(Paused).toMatchObject({ Phase: 'paused', RunId: 42, CanPublish: false, CanRetry: false })
+  expect(Paused?.Steps[3]?.Status).toBe('pending')
+  expect(State).toMatchObject({ Phase: 'published', RunId: 42 })
+  expect(Effects).toMatchObject({ Views: 4, Dispatches: 1, Retries: 0 })
+})
+it.skipIf(process.platform !== 'win32')('names the failing GitHub check and leaves skipped jobs waiting', async () => {
+  const { State } = await scenario('checks-failed')
+  expect(State).toMatchObject({ Phase: 'failed', CanRetry: true })
+  expect(State.Message).toContain('Verify the Super Agent panel and worker replay')
+  expect(State.Steps.slice(3).map(step => step.Status)).toEqual(['failed', 'pending', 'pending'])
 })
 it.skipIf(process.platform !== 'win32')('leaves an existing release worker in control when another window checks progress', { timeout: 30_000 }, async () => {
   const root = await mkdtemp(join(tmpdir(), 'harnessy-release-mutex-'))

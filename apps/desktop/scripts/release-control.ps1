@@ -87,6 +87,22 @@ function Invoke-ReleaseGh {
   return Invoke-ReleaseCommand $Context (Get-Command gh.exe -ErrorAction Stop).Source $Arguments $Label
 }
 
+# Retry read-only status requests. Dispatch and rerun must each be sent once.
+function Invoke-ReleaseStatusRead {
+  param($Context, [string[]]$Arguments)
+  for ($attempt = 1; $attempt -le 3; $attempt++) {
+    try {
+      return Invoke-ReleaseGh $Context $Arguments 'Read GitHub release status' | ConvertFrom-Json -AsHashtable -ErrorAction Stop
+    } catch {
+      if ($attempt -eq 3) {
+        $_.Exception.Data['ReleaseStatusUnavailable'] = $true
+        throw
+      }
+      Start-Sleep -Seconds (2 * $attempt)
+    }
+  }
+}
+
 function Get-ReleaseVersion {
   param([string]$Text)
   if ($Text -cnotmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') { throw 'A stable version such as 0.1.21 is required.' }
@@ -131,9 +147,14 @@ function Get-ReleaseSnapshot {
 
 function Get-ReleaseRuns {
   param($Context)
-  $json = Invoke-ReleaseGh $Context @('run', 'list', '--repo', $Context.Repository, '--workflow', $Context.Workflow,
+  return Invoke-ReleaseStatusRead $Context @('run', 'list', '--repo', $Context.Repository, '--workflow', $Context.Workflow,
     '--branch', 'staging', '--event', 'workflow_dispatch', '--limit', '30', '--json', 'databaseId,headSha,url,status,conclusion')
-  return @($json | ConvertFrom-Json -AsHashtable)
+}
+
+function Get-ReleaseRun {
+  param($Context, [long]$RunId)
+  return Invoke-ReleaseStatusRead $Context @('run', 'view', [string]$RunId, '--repo', $Context.Repository,
+    '--json', 'jobs,status,conclusion,headSha,url')
 }
 
 function Find-ReleaseRun {
@@ -161,7 +182,7 @@ function Read-ReleasePublicFeed {
 
 function Complete-Release {
   param($Context, $State)
-  $latest = Invoke-ReleaseGh $Context @('release', 'view', '--repo', $Context.Repository, '--json', 'tagName,isDraft,isPrerelease,url') | ConvertFrom-Json -AsHashtable
+  $latest = Invoke-ReleaseStatusRead $Context @('release', 'view', '--repo', $Context.Repository, '--json', 'tagName,isDraft,isPrerelease,url')
   if ($latest.tagName -cne "v$($State.Version)" -or $latest.isDraft -ne $false -or $latest.isPrerelease -ne $false) {
     throw 'The published update is not the expected latest version. Open GitHub to check it.'
   }
@@ -176,20 +197,27 @@ function Complete-Release {
 }
 
 function Watch-ReleaseRun {
-  param($Context, $State)
+  param($Context, $State, $Run = $null)
   $names = @('desktop checks / Windows x64', 'qualified in-app update / Windows x64', 'publish in-app update / Windows x64')
+  if ($null -eq $Run) { $Run = Get-ReleaseRun $Context $State.RunId }
   while ($true) {
-    $run = Invoke-ReleaseGh $Context @('run', 'view', [string]$State.RunId, '--repo', $Context.Repository,
-      '--json', 'jobs,status,conclusion,headSha,url') | ConvertFrom-Json -AsHashtable
-    if ($run.headSha -cne $State.SourceCommit) { throw 'The build belongs to different source. Open GitHub to review it.' }
+    if ($Run.headSha -cne $State.SourceCommit) { throw 'The build belongs to different source. Open GitHub to review it.' }
     $State.Phase = 'running'; $State.CanPublish = $false; $State.CanRetry = $false
+    $State.Message = 'Following your update on GitHub...'
     for ($index = 0; $index -lt $names.Count; $index++) {
-      $job = @($run.jobs | Where-Object { $_.name -ceq $names[$index] })
+      $job = @($Run.jobs | Where-Object { $_.name -ceq $names[$index] })
       if ($job.Count -eq 0) { continue }
       $step = $State.Steps[$index + 3]
       if ($job[0].status -eq 'completed') {
-        $step.Status = if ($job[0].conclusion -eq 'success') { 'succeeded' } else { 'failed' }
-        $step.Detail = if ($step.Status -eq 'succeeded') { 'Complete' } else { 'Stopped: ' + $job[0].conclusion }
+        switch ($job[0].conclusion) {
+          'success' { $step.Status = 'succeeded'; $step.Detail = 'Complete' }
+          'skipped' { $step.Status = 'pending'; $step.Detail = 'Skipped by GitHub' }
+          default {
+            $step.Status = 'failed'
+            $failedCheck = $job[0].steps | Where-Object { $_['conclusion'] -in @('failure', 'timed_out') } | Select-Object -First 1
+            $step.Detail = if ($failedCheck) { $failedCheck.name } else { 'Stopped (' + $job[0].conclusion + ')' }
+          }
+        }
       } elseif ($job[0].status -eq 'in_progress') {
         $step.Status = 'running'
         $active = @($job[0].steps | Where-Object { $_.status -eq 'in_progress' })
@@ -198,15 +226,21 @@ function Watch-ReleaseRun {
       } else { $step.Status = 'pending'; $step.Detail = 'Waiting for GitHub...' }
     }
     Save-ReleaseState $Context $State
-    if ($run.status -eq 'completed') {
-      if ($run.conclusion -ne 'success' -or @($State.Steps[3..5] | Where-Object { $_.Status -ne 'succeeded' }).Count) {
+    if ($Run.status -eq 'completed') {
+      if ($Run.conclusion -ne 'success' -or @($State.Steps[3..5] | Where-Object { $_.Status -ne 'succeeded' }).Count) {
+        $State.Phase = 'failed'
         $State.CanRetry = $true
-        throw 'A GitHub step stopped. Open the build for details, then use Retry failed steps.'
+        $failedStep = $State.Steps[3..5] | Where-Object { $_.Status -eq 'failed' } | Select-Object -First 1
+        $reason = if ($failedStep) { "$($failedStep.Label) ($($failedStep.Detail))" } else { 'The GitHub build' }
+        $State.Message = "$reason stopped. Open GitHub for details, then use Retry failed steps."
+        Save-ReleaseState $Context $State
+        return
       }
       Complete-Release $Context $State
       return
     }
     Start-Sleep -Seconds 15
+    $Run = Get-ReleaseRun $Context $State.RunId
   }
 }
 
@@ -272,12 +306,11 @@ function Invoke-ReleaseWorker {
         Watch-ReleaseRun $Context $state
         return
       }
-      if ($state.RunId -and $state.Phase -in @('running', 'failed')) {
-        $run = Invoke-ReleaseGh $Context @('run', 'view', [string]$state.RunId, '--repo', $Context.Repository,
-          '--json', 'jobs,status,conclusion,headSha,url') | ConvertFrom-Json -AsHashtable
+      if ($state.RunId -and $state.Phase -in @('running', 'paused', 'failed')) {
+        $run = Get-ReleaseRun $Context $state.RunId
         $remoteStage = Invoke-ReleaseGit $Context @('ls-remote', 'origin', 'refs/heads/staging')
         if ($run.status -ne 'completed' -or ((Invoke-ReleaseGit $Context @('rev-parse', 'HEAD')) -ceq $state.SourceCommit -and ($remoteStage -split '\s+')[0] -ceq $state.SourceCommit)) {
-          Watch-ReleaseRun $Context $state; return
+          Watch-ReleaseRun $Context $state $run; return
         }
       }
       $state = New-ReleaseState
@@ -289,6 +322,12 @@ function Invoke-ReleaseWorker {
       $state.Message = if ($state.CanPublish) { 'Ready when you are. GitHub handles the build and publication.' } else { 'Your committed changes are already released.' }
       Save-ReleaseState $Context $state
     } catch {
+      if ($_.Exception.Data['ReleaseStatusUnavailable'] -and ($state.RunId -or $state.NeedsRunLookup)) {
+        $state.Phase = 'paused'; $state.CanPublish = $false; $state.CanRetry = $false
+        $state.Message = 'GitHub status is temporarily unavailable. Click Refresh to reconnect.'
+        Save-ReleaseState $Context $state
+        return
+      }
       $state.Phase = 'failed'; $state.CanPublish = $false; $state.Message = $_.Exception.Message
       $active = @($state.Steps | Where-Object { $_.Status -eq 'running' })
       if ($active.Count) { $active[0].Status = 'failed'; $active[0].Detail = $state.Message }

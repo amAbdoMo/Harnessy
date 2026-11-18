@@ -74,13 +74,21 @@ function Invoke-ReleaseCommand {
     }
     if ($Arguments[1] -eq 'view') {
       $script:fake.Views++
-      $failed = $script:fixtureScenario -eq 'retry' -and $script:fake.Retries -eq 0
+      if (($script:fixtureScenario -eq 'poll-tls' -and $script:fake.Views -eq 1) -or
+          ($script:fixtureScenario -eq 'poll-offline' -and $script:fake.Views -le 3)) {
+        throw 'tls: failed to verify certificate: x509: certificate signed by unknown authority'
+      }
+      $checksFailed = $script:fixtureScenario -eq 'checks-failed'
+      $failed = $checksFailed -or ($script:fixtureScenario -eq 'retry' -and $script:fake.Retries -eq 0)
       $inProgress = $script:fixtureScenario -eq 'queued' -and $script:fake.Views -eq 1
       $jobs = @()
       foreach ($name in @('desktop checks / Windows x64','qualified in-app update / Windows x64','publish in-app update / Windows x64')) {
         $status = if ($inProgress) { 'in_progress' } else { 'completed' }
         $conclusion = if ($failed -and $name -ne 'desktop checks / Windows x64') { 'failure' } else { 'success' }
-        $jobs += @{ name = $name; status = $status; conclusion = $conclusion; steps = @(@{ name = 'Build your update'; status = 'in_progress' }) }
+        if ($checksFailed) { $conclusion = if ($name -eq 'desktop checks / Windows x64') { 'failure' } else { 'skipped' } }
+        $jobStep = if ($checksFailed) { @{ name = 'Verify the Super Agent panel and worker replay'; status = 'completed'; conclusion = $conclusion } }
+          else { @{ name = 'Build your update'; status = 'in_progress' } }
+        $jobs += @{ name = $name; status = $status; conclusion = $conclusion; steps = @($jobStep) }
       }
       if (-not $failed -and -not $inProgress) { $script:fake.Published = '0.1.21' }
       $conclusion = if ($failed) { 'failure' } else { 'success' }
@@ -113,4 +121,9 @@ if ($Scenario -eq 'newer-release') { $script:fake.Published = '0.1.21' }
 if ($Scenario -notin @('inspect', 'dirty', 'locked', 'reserved', 'already-released')) { Invoke-ReleaseWorker $context 'Publish' '0.1.21' }
 if ($Scenario -eq 'uncertain-dispatch') { Invoke-ReleaseWorker $context 'Inspect' }
 if ($Scenario -eq 'retry') { Invoke-ReleaseWorker $context 'Retry' }
-@{ State = (Read-ReleaseState $context); Effects = $script:fake } | ConvertTo-Json -Depth 12 -Compress
+$paused = $null
+if ($Scenario -eq 'poll-offline') {
+  $paused = Read-ReleaseState $context
+  Invoke-ReleaseWorker $context 'Inspect'
+}
+@{ State = (Read-ReleaseState $context); Effects = $script:fake; Paused = $paused } | ConvertTo-Json -Depth 12 -Compress
