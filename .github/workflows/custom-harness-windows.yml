@@ -79,7 +79,8 @@ jobs:
 
       - name: Verify Super Agent integration
         shell: pwsh
-        run: pnpm run test:superagent
+        # File-backed SQLite commits and subprocess setup can exceed the default test budget on the hosted runner.
+        run: pnpm run test:superagent --maxWorkers=2 --testTimeout=45000 --hookTimeout=45000
 
       - name: Install account-chooser browser
         shell: pwsh
