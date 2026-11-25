@@ -2,7 +2,7 @@
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BrowserTarget } from './url.ts'
 import type { BrowserViewport, BrowserAnnotationCapture, BrowserPickedElement, BrowserTabStatus } from '../../types.ts'
-import type { BrowserRecordingDocumentId, BrowserRecordingFrame, BrowserRemoteShare } from '../../types.ts'
+import type { BrowserRecordingDocumentId, BrowserRecordingFrame } from '../../types.ts'
 
 /** A loading failure, optionally carrying the underlying browser's diagnostic. */
 export interface BrowserLoadError {
@@ -26,6 +26,7 @@ export interface BrowserFrameState {
   readonly findResult?: BrowserFindResult | 'failed' | undefined
   readonly recordingSupported?: boolean
   readonly remoteShareSupported?: boolean
+  readonly phoneShareSupported?: boolean
   readonly target: BrowserTarget | undefined
   readonly address: 'empty' | 'requested' | 'observed' | 'unknown'
   readonly loading: boolean
@@ -36,8 +37,10 @@ export interface BrowserFrameState {
   readonly sandboxEnabled: boolean | undefined
 }
 
-/** View link plus the operation for ending this exact sharing attempt. */
-export interface BrowserRemoteShareControl extends BrowserRemoteShare {
+/** Optional view link and operations for one active share. */
+export interface BrowserRemoteShareControl {
+  readonly url?: string
+  readonly expiresAt: number
   /** @param listener - called when the viewer stops this share. @returns Unsubscribe callback. */
   onEnded?(listener: () => void): () => void
   /** @returns Acknowledgment that this receipt can no longer be used. */
@@ -64,8 +67,8 @@ export interface BrowserFrame extends HostObservable<BrowserFrameState> {
   readonly hardReload?: () => void
   readonly capture?: () => Promise<BrowserAnnotationCapture>
   readonly captureRecordingFrame?: (url: string, documentId?: BrowserRecordingDocumentId) => Promise<BrowserRecordingFrame>
-  /** @returns An expiring share, or null when the private connection is disabled. */
-  readonly beginRemoteShare?: () => Promise<BrowserRemoteShareControl | null>
+  /** @param audience - native Android app or private Web viewer. @returns The share, or null when pairing or setup is needed. */
+  readonly beginRemoteShare?: (audience: 'phone' | 'web') => Promise<BrowserRemoteShareControl | null>
   readonly pick?: (point: { readonly x: number; readonly y: number }) => Promise<BrowserPickedElement | null>
   readonly control?: (human: boolean) => Promise<void>
   readonly status?: () => Promise<BrowserTabStatus>

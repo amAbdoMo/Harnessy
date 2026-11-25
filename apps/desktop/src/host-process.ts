@@ -355,7 +355,8 @@ export class DesktopHostProcess {
       if (this.child !== child) return
       if (typeof message === 'object' && message !== null && 'type' in message
         && (message.type === 'browser-preview' || message.type === 'browser-preview-cancel'
-          || message.type === 'browser-share-frame' || message.type === 'browser-share-stop')) {
+          || message.type === 'browser-share-frame' || message.type === 'browser-share-stop'
+          || message.type === 'phone-browser-share-watch' || message.type === 'phone-browser-share-stop')) {
         const listener = this.browserPreview
         if (listener === undefined || this.stopping) return
         void listener(message).then((response) => {

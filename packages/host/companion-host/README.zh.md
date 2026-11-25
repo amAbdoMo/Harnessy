@@ -46,6 +46,10 @@ kind: "package-reference"
 
 手机可在电脑运行时显式打开符合条件的已有普通聊天，无需改变 Desktop 导航。`getSessionActivation` 报告该手机单独的电脑权限；只有 `openSession` 会显式激活，而会话列表、历史和进度读取绝不激活冷态 Agent。`sessionActivationV1` 授权默认拒绝，且独立于配对、聊天管理、模型选择和工具详情。Desktop Main 的原生**已配对手机**对话框会在核对指纹后显示**启用打开聊天**。冷态激活使用电脑的常规 Agent 初始化和目标刷新；准入后，即使手机取消等待，API 仍负责完成，因此回复可能为 `unknown`。打开操作不会创建 Session 或任务，也不会发送文本。参见[会话激活与更新顺序](../../../docs/upgrade-guide/v0.1.17/companion-session-activation/guide.zh.md)。
 
+### 原生浏览器查看
+
+Desktop Main 明确启动原生浏览器共享，并通过 `installDesktopCompanionOwner(ctx, { home, signal, browserShare })` 提供可选的 `browserShare` 所有者能力；此回调不会启动共享，也不会增加持久权限或授权字段。只有已配对且完成认证的手机授权记录可以请求 `watchBrowserShare` 或 `stopBrowserShare`。观察请求可以省略 `shareId` 来发现当前共享，或指定准确的小写 UUID；停止请求必须指定该准确 ID，不能启动或替换共享。没有提供方时返回 `idle`；一帧只包含有界的共享 ID 和规范标准 Base64 JPEG（最多 24,576 个字符、解码后最多 18,432 字节）。此能力不提供操作员 RPC、凭据、模型路由或通用通道访问；原生回调完成后，分派器会再次核对授权和通道。参见[应用消息参考](../../util/companion-protocol/APPLICATION.md)。
+
 ### 模型与工具详情
 
 电脑原生界面针对准确手机指纹，分别决定是否启用模型选择与工具详情。模型选择使用电脑已配置的路由，仅适用于已运行且空闲、无排队任务的普通聊天；只影响该聊天的下一次请求，不更改全局默认值。工具详情可从历史及实时活动显示工作区相对文件标签、读取范围、固定写入／编辑结果和搜索计数。文件名可能敏感；撤回权限会停止后续传送，但无法抹去已接收的文本。参见[更新顺序与记录兼容性](../../../docs/upgrade-guide/v0.1.17/companion-model-and-tool-consent/guide.zh.md)。

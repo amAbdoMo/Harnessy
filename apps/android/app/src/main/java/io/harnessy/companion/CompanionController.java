@@ -34,6 +34,8 @@ public final class CompanionController implements CompanionActions {
     public interface Output {
         void companion(Screen screen);
         void pairing(Pairing pairing);
+        /** Delivers browser-share state only while the explicit native viewer is visible. */
+        default void browserShare(BrowserShare share) { }
     }
     private final CompanionPlatform platform;
     private final ControllerLimits limits;
@@ -86,6 +88,13 @@ public final class CompanionController implements CompanionActions {
     private final Map<String, SessionRow> sessions = new LinkedHashMap<>();
     private final Map<String, ApplicationCodec.HistoryRow> history = new LinkedHashMap<>();
     private final Map<String, Read> reads = new LinkedHashMap<>();
+    private boolean browserShareVisible;
+    private String browserShareId;
+    private BrowserShare browserShare = BrowserShare.idle();
+    private BrowserShareRequest browserShareRequest;
+    private Cancellable browserShareDeadline;
+    private boolean browserShareStopFailed;
+    private boolean browserShareEndedNotice;
 
     public CompanionController(CompanionPlatform platform, ControllerLimits limits, String pcLabel) {
         this.platform = Objects.requireNonNull(platform);
@@ -156,6 +165,11 @@ public final class CompanionController implements CompanionActions {
         pairingVisible = false;
         pairingLink = "";
         cleanupEnrollment();
+        browserShareVisible = false;
+        browserShareId = null;
+        browserShareStopFailed = false;
+        browserShareEndedNotice = false;
+        browserShare = BrowserShare.idle();
     }
 
     private void retireAttempt() {
@@ -165,6 +179,16 @@ public final class CompanionController implements CompanionActions {
         reconnect = null;
         if (heartbeat != null) heartbeat.cancel();
         heartbeat = null;
+        BrowserShareRequest pendingBrowserShare = browserShareRequest;
+        browserShareRequest = null;
+        if (browserShareDeadline != null) browserShareDeadline.cancel();
+        browserShareDeadline = null;
+        if (pendingBrowserShare != null && pendingBrowserShare.kind == BrowserShareRequest.Kind.STOP) {
+            browserShareStopFailed = true;
+            browserShare = new BrowserShare(BrowserShare.Status.ERROR, browserShareId, null, true);
+        } else if (browserShareVisible && browserShareId != null) {
+            browserShare = new BrowserShare(BrowserShare.Status.BUSY, browserShareId, null);
+        }
         for (Read read : reads.values()) read.deadline.cancel();
         reads.clear(); activeWatch = null; statusSession = null;
         // Cursors are signed by this PC channel; retained text has no such lifetime.
@@ -182,6 +206,7 @@ public final class CompanionController implements CompanionActions {
             previous.close();
             retired = previous.quiescence();
         }
+        publishBrowserShare();
     }
 
     private boolean current(long owner, long connection) {
@@ -535,6 +560,98 @@ public final class CompanionController implements CompanionActions {
             listSessions(null);
         }
     }
+
+    /** Starts the explicit browser-share destination without issuing a network request. */
+    public void startBrowserShareViewing() {
+        if (!foreground || storageBlocked || repairRequired) return;
+        cancelBrowserShareRequest();
+        browserShareVisible = true;
+        browserShareId = null;
+        browserShareStopFailed = false;
+        browserShareEndedNotice = false;
+        browserShare = BrowserShare.idle();
+        publishBrowserShare();
+    }
+
+    /** Retires the browser-share destination and drops the last received JPEG immediately. */
+    public void stopBrowserShareViewing() {
+        if (!browserShareVisible && browserShareRequest == null && browserShare.jpeg == null) return;
+        cancelBrowserShareRequest();
+        browserShareVisible = false;
+        browserShareId = null;
+        browserShareStopFailed = false;
+        browserShareEndedNotice = false;
+        browserShare = BrowserShare.idle();
+        publishBrowserShare();
+    }
+
+    /** Sends one read-only browser-share poll; the native destination owns its polling cadence. */
+    public void watchBrowserShare() {
+        if (!browserShareVisible || browserShareStopFailed || !foreground || !confirmed || link == null
+            || storageBlocked || repairRequired || browserShareRequest != null) return;
+        String request = Protocol.randomId(16);
+        BrowserShareRequest pending = new BrowserShareRequest(request, BrowserShareRequest.Kind.WATCH, browserShareId,
+            epoch, attempt);
+        if (link.send(ApplicationCodec.watchBrowserShare(request, browserShareId)) != PhoneTransport.Admission.ADMITTED_MAY_WRITE) {
+            browserShare = new BrowserShare(BrowserShare.Status.ERROR, browserShareId, null);
+            publishBrowserShare();
+            return;
+        }
+        browserShareRequest = pending;
+        scheduleBrowserShareDeadline(pending);
+    }
+
+    /** Sends one exact-share stop and never recreates it after an uncertain delivery. */
+    public void stopBrowserShare(String shareId) {
+        if (!browserShareVisible || browserShareStopFailed || !foreground || !confirmed || link == null
+            || storageBlocked || repairRequired || shareId == null || !Objects.equals(browserShareId, shareId)
+            || browserShareRequest != null && browserShareRequest.kind == BrowserShareRequest.Kind.STOP) return;
+        cancelBrowserShareWatch();
+        String request = Protocol.randomId(16);
+        BrowserShareRequest pending = new BrowserShareRequest(request, BrowserShareRequest.Kind.STOP, shareId, epoch, attempt);
+        browserShare = new BrowserShare(BrowserShare.Status.STOPPING, shareId, browserShare.jpeg);
+        if (link.send(ApplicationCodec.stopBrowserShare(request, shareId)) != PhoneTransport.Admission.ADMITTED_MAY_WRITE) {
+            browserShareStopFailed = true;
+            browserShare = new BrowserShare(BrowserShare.Status.ERROR, shareId, null, true);
+            publishBrowserShare();
+            return;
+        }
+        browserShareRequest = pending;
+        scheduleBrowserShareDeadline(pending);
+        publishBrowserShare();
+    }
+
+    private void scheduleBrowserShareDeadline(BrowserShareRequest pending) {
+        browserShareDeadline = platform.later(limits.readMs, () -> {
+            if (browserShareRequest != pending || !current(pending.owner, pending.attempt)) return;
+            browserShareRequest = null;
+            browserShareDeadline = null;
+            if (pending.kind == BrowserShareRequest.Kind.STOP) {
+                browserShareStopFailed = true;
+                browserShare = new BrowserShare(BrowserShare.Status.ERROR, browserShareId, null, true);
+            } else {
+                browserShare = new BrowserShare(BrowserShare.Status.ERROR, browserShareId, null);
+            }
+            publishBrowserShare();
+        });
+    }
+
+    private void cancelBrowserShareRequest() {
+        browserShareRequest = null;
+        if (browserShareDeadline != null) browserShareDeadline.cancel();
+        browserShareDeadline = null;
+    }
+
+    private void cancelBrowserShareWatch() {
+        if (browserShareRequest != null && browserShareRequest.kind == BrowserShareRequest.Kind.WATCH) {
+            cancelBrowserShareRequest();
+        }
+    }
+
+    private void publishBrowserShare() {
+        if (foreground && browserShareVisible && output != null) output.browserShare(browserShare);
+    }
+
     public void loadMoreSessions() {
         if (sessionsCursor != null && !hasRead(ApplicationCodec.Type.SESSIONS)) listSessions(sessionsCursor);
     }
@@ -702,6 +819,11 @@ public final class CompanionController implements CompanionActions {
     private void receive(ApplicationCodec.Result message) {
         if (!confirmed) return;
         if (message.type == ApplicationCodec.Type.PROGRESS) { progress(message); return; }
+        if (message.type == ApplicationCodec.Type.BROWSER_SHARE
+            || browserShareRequest != null && browserShareRequest.request.equals(message.requestId)) {
+            receiveBrowserShare(message);
+            return;
+        }
         if (mutation != null && mutation.request.equals(message.requestId)) { mutationReply(message); return; }
         Read read = reads.get(message.requestId);
         if (read == null) {
@@ -774,6 +896,65 @@ public final class CompanionController implements CompanionActions {
             default: throw new AssertionError(message.type);
         }
         publish();
+    }
+
+    private void receiveBrowserShare(ApplicationCodec.Result message) {
+        BrowserShareRequest pending = browserShareRequest;
+        if (pending == null || !Objects.equals(pending.request, message.requestId)
+            || !current(pending.owner, pending.attempt)) return;
+        browserShareRequest = null;
+        if (browserShareDeadline != null) browserShareDeadline.cancel();
+        browserShareDeadline = null;
+        if (message.type == ApplicationCodec.Type.ERROR) {
+            if (pending.kind == BrowserShareRequest.Kind.STOP) {
+                browserShareStopFailed = true;
+                browserShare = new BrowserShare(BrowserShare.Status.ERROR, browserShareId, null, true);
+            } else browserShare = new BrowserShare(BrowserShare.Status.ERROR, browserShareId, null);
+            publishBrowserShare();
+            return;
+        }
+        if (message.type != ApplicationCodec.Type.BROWSER_SHARE) return;
+        if (pending.kind == BrowserShareRequest.Kind.STOP) {
+            if (!"ended".equals(message.status)) {
+                browserShareStopFailed = true;
+                browserShare = new BrowserShare(BrowserShare.Status.ERROR, browserShareId, null, true);
+            } else if (Objects.equals(browserShareId, pending.shareId)) {
+                browserShareId = null;
+                browserShareEndedNotice = true;
+                browserShare = new BrowserShare(BrowserShare.Status.ENDED, null, null);
+            } else {
+                // A new share replaced the stopped one while its reply was in flight. Never stop it implicitly.
+                browserShareStopFailed = true;
+                browserShare = new BrowserShare(BrowserShare.Status.ERROR, browserShareId, null, true);
+            }
+            publishBrowserShare();
+            return;
+        }
+        switch (message.status) {
+            case "idle":
+                browserShareId = null;
+                if (!browserShareEndedNotice) browserShare = new BrowserShare(BrowserShare.Status.IDLE, null, null);
+                break;
+            case "busy":
+                if (!browserShareEndedNotice) browserShare = new BrowserShare(BrowserShare.Status.BUSY, browserShareId, browserShare.jpeg);
+                break;
+            case "ended":
+                browserShareId = null;
+                browserShareEndedNotice = true;
+                browserShare = new BrowserShare(BrowserShare.Status.ENDED, null, null);
+                break;
+            case "frame":
+                if (browserShareId != null && !browserShareId.equals(message.shareId)) {
+                    // The server selected a new share; replace the old frame and bind Stop to the new UUID.
+                    browserShare = BrowserShare.idle();
+                }
+                browserShareId = message.shareId;
+                browserShareEndedNotice = false;
+                browserShare = new BrowserShare(BrowserShare.Status.FRAME, message.shareId, message.jpeg);
+                break;
+            default: throw new AssertionError(message.status);
+        }
+        publishBrowserShare();
     }
 
     private void acceptSessions(Read read, ApplicationCodec.Result message) {
@@ -1373,6 +1554,17 @@ public final class CompanionController implements CompanionActions {
         Cancellable deadline;
         Read(String id, ApplicationCodec.Type type, String session, String cursor) {
             this.id = id; this.type = type; this.session = session; this.cursor = cursor;
+        }
+    }
+    private static final class BrowserShareRequest {
+        enum Kind { WATCH, STOP }
+        final String request;
+        final Kind kind;
+        final String shareId;
+        final long owner;
+        final long attempt;
+        BrowserShareRequest(String request, Kind kind, String shareId, long owner, long attempt) {
+            this.request = request; this.kind = kind; this.shareId = shareId; this.owner = owner; this.attempt = attempt;
         }
     }
     private static final class Mutation {

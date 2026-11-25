@@ -185,6 +185,8 @@ Ordinary Desktop startup selects the packaged [companion deployment](../desktop-
 
 General settings opens Main-owned pairing and removal dialogs in the isolated shell overlay, using resolved colors from the app's current theme instead of native message boxes. Main copies the expiring invitation, compares the complete phone fingerprint and approves the exact candidate; the product document receives only availability, connection state and paired count. The separate shell document can return only a displayed response index; it receives no pairing links or management commands. Cancellation and stale responses cannot approve a phone. Hosted TLS/proxy configuration, the signed Android app and runtime acceptance are release/operator responsibilities documented in the [native setup guide](../../HARNESSY-ANDROID-COMPANION.md). Source changes require a safe offline rebuild/update before activation; the [activation upgrade guide](../../docs/upgrade-guide/v0.1.15/native-companion-activation/guide.md) describes that one-time transition, not an everyday launch requirement.
 
+Already paired Android phones can watch a browser tab when you start **Page actions → Share with paired Android phones** from a visible tab under local control. In the Harnessy Android app, open **Settings → PC connection → Live browser** and select **Stop sharing** to end the share for everyone. This uses the encrypted companion connection.
+
 <a id="legacy-private-browser-access"></a>
 ### Legacy private browser access
 

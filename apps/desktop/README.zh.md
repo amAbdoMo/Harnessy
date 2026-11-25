@@ -185,6 +185,8 @@ macOS 上自定义菜单保留 Electron 的标准 Window 菜单及应用隐藏�
 
 通用设置在隔离的 shell overlay 中打开 Main 拥有的配对与移除对话框，使用应用当前主题的已解析颜色，替代原生消息框。Main 复制限时邀请、比较手机完整指纹并批准准确候选；产品文档仅接收可用性、连接状态和配对数量。独立 shell 文档只能返回当前显示的响应索引，不接收配对链接或管理命令。取消操作和过期响应无法批准手机。托管 TLS／代理配置、已签名 Android 应用与运行验收属于[原生设置指南](../../HARNESSY-ANDROID-COMPANION.md)规定的发布／运营责任。源码变更需先安全离线重建／更新，再启用；[启用升级指南](../../docs/upgrade-guide/v0.1.15/native-companion-activation/guide.zh.md)说明这次一次性迁移，而非日常启动要求。
 
+在可见且由本机控制的标签页中选择**网页操作 → 与已配对的 Android 手机共享**后，已配对的手机即可观看。打开 Harnessy Android 应用中的**设置 → 电脑连接 → 实时浏览器**，选择**停止共享**即可为所有观看者结束共享。画面通过加密的伴侣连接传输。
+
 <a id="legacy-private-browser-access"></a>
 ### 传统私有浏览器访问
 

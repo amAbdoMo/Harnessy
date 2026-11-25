@@ -149,7 +149,7 @@ function BrowserOrdinaryBody(props: BrowserBodyProps & {
     ? { factor: frame.zoomFactor, set: (factor: number) => props.setZoom(tab.id, factor) } : undefined
   const pageKey = findAvailable && target !== undefined ? `${state?.addressRevision ?? 0}:${target.url}` : undefined
   const recording = useBrowserRecording(frame.recordingSupported === true ? pageKey : undefined)
-  const share = useBrowserShare(frame.remoteShareSupported === true ? pageKey : undefined)
+  const share = useBrowserShare(frame.phoneShareSupported === true || frame.remoteShareSupported === true ? pageKey : undefined)
   const recordingBusy = recording.state?.phase === 'starting' || recording.state?.phase === 'recording' || recording.state?.phase === 'finishing'
   const sharingBusy = share.state?.phase === 'sharing' || share.state?.phase === 'starting'
   const commands: BrowserPageCommand[] = []
@@ -161,8 +161,11 @@ function BrowserOrdinaryBody(props: BrowserBodyProps & {
     commands.push({ id: 'recording', label: t('recording.start'),
       run: () => { recording.start(documentId => props.captureRecordingFrame(tab.id, target.url, documentId)) } })
   }
-  if (findAvailable && frame.remoteShareSupported === true && !sharingBusy && !recordingBusy) {
-    commands.push({ id: 'share', label: t('share.start'), run: () => share.start(() => props.beginRemoteShare(tab.id)) })
+  if (findAvailable && !sharingBusy && !recordingBusy) {
+    if (frame.phoneShareSupported === true) commands.push({ id: 'phone-share', label: t('share.phoneStart'),
+      run: () => share.start(() => props.beginRemoteShare(tab.id, 'phone'), 'phone') })
+    if (frame.remoteShareSupported === true) commands.push({ id: 'share', label: t('share.start'),
+      run: () => share.start(() => props.beginRemoteShare(tab.id, 'web')) })
   }
   const findOpen = findAvailable && findPage !== undefined && findPage === target?.url
   const closeFind = (): void => {

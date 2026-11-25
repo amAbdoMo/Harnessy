@@ -1,8 +1,9 @@
 /** Native browser tab inventory, chat ownership and private Host operation routing. */
-import type { WebContents } from 'electron'
+import type { NativeImage, WebContents } from 'electron'
 import { randomUUID } from 'node:crypto'
 import type { BrowserAgentOpenRequest, BrowserTabStatus, DesktopBrowserLeaseId, DesktopWebsiteProfile } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
-import type { BrowserRecordingDocumentId, BrowserRecordingFrame, BrowserRemoteShare } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
+import type { BrowserPhoneShare, BrowserPhoneShareReceipt, BrowserRecordingDocumentId, BrowserRecordingFrame,
+  BrowserRemoteShare } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
 import { BrowserTabControl } from './browser-tab-control.ts'
 import { setImmediate } from 'node:timers/promises'
 import type { DesktopBrowserGuests } from './browser-guests.ts'
@@ -21,16 +22,31 @@ interface Tab {
 const RECORDING_MAX_WIDTH = 960
 const RECORDING_MAX_HEIGHT = 540
 const RECORDING_MAX_FRAME_BYTES = 512 * 1024
+const PHONE_MAX_FRAME_BYTES = 18_432
 const REMOTE_SHARE_DURATION_MS = 15 * 60_000
 const REMOTE_SHARE_FRAME_INTERVAL_MS = 200
 
-interface Share extends BrowserRemoteShare {
-  readonly id: string
+interface Share {
+  readonly id: BrowserPhoneShareReceipt
+  readonly audience: 'web' | 'phone'
+  readonly receipt: string
+  readonly expiresAt: number
   readonly tab: Tab
   readonly urlAtStart: string
   readonly documentId: BrowserRecordingDocumentId
   readonly permitted: (guest: WebContents) => boolean
   nextFrameAt: number
+}
+
+function jpegWithin(image: NativeImage, maxWidth: number, maxHeight: number, quality: number, maxBytes: number): string | undefined {
+  const { width, height } = image.getSize()
+  if (image.isEmpty() || width <= 0 || height <= 0) return undefined
+  const scale = Math.min(1, maxWidth / width, maxHeight / height)
+  const bounded = scale === 1 ? image : image.resize({
+    width: Math.max(1, Math.floor(width * scale)), height: Math.max(1, Math.floor(height * scale)),
+  })
+  const jpeg = bounded.toJPEG(quality)
+  return jpeg.byteLength > 0 && jpeg.byteLength <= maxBytes ? jpeg.toString('base64') : undefined
 }
 
 function recordingDocumentId(): BrowserRecordingDocumentId { return randomUUID() as BrowserRecordingDocumentId }
@@ -179,6 +195,11 @@ export class DesktopBrowserPreview {
    */
   async captureRecordingFrame(owner: WebContents, lease: DesktopBrowserLeaseId, urlInput: unknown,
     documentInput: unknown, permitted: (guest: WebContents) => boolean): Promise<BrowserRecordingFrame> {
+    return this.captureFrame(owner, lease, urlInput, documentInput, permitted, false)
+  }
+
+  private async captureFrame(owner: WebContents, lease: DesktopBrowserLeaseId, urlInput: unknown, documentInput: unknown,
+    permitted: (guest: WebContents) => boolean, phone: boolean): Promise<BrowserRecordingFrame> {
     text(lease, 'recording tab identity', 128)
     const url = text(urlInput, 'recording URL', 4096)
     const tab = this.tab(owner, lease)
@@ -194,17 +215,11 @@ export class DesktopBrowserPreview {
     try {
       const image = await tab.guest.capturePage()
       requireCurrent()
-      const { width, height } = image.getSize()
-      if (image.isEmpty() || width <= 0 || height <= 0) throw new Error('Browser recording frame is empty')
-      const scale = Math.min(1, RECORDING_MAX_WIDTH / width, RECORDING_MAX_HEIGHT / height)
-      const bounded = scale === 1 ? image : image.resize({
-        width: Math.max(1, Math.floor(width * scale)), height: Math.max(1, Math.floor(height * scale)),
-      })
-      const jpeg = bounded.toJPEG(65)
-      if (jpeg.byteLength === 0 || jpeg.byteLength > RECORDING_MAX_FRAME_BYTES) {
-        throw new Error('Browser recording frame exceeds its byte limit')
-      }
-      return { documentId, jpeg: jpeg.toString('base64') }
+      const jpeg = phone
+        ? jpegWithin(image, 480, 270, 44, PHONE_MAX_FRAME_BYTES) ?? jpegWithin(image, 240, 135, 28, PHONE_MAX_FRAME_BYTES)
+        : jpegWithin(image, RECORDING_MAX_WIDTH, RECORDING_MAX_HEIGHT, 65, RECORDING_MAX_FRAME_BYTES)
+      if (jpeg === undefined) throw new Error('Browser frame is empty or exceeds its byte limit')
+      return { documentId, jpeg }
     } finally { tab.recordingCapturePending = false }
   }
 
@@ -218,33 +233,69 @@ export class DesktopBrowserPreview {
    */
   beginRemoteShare(owner: WebContents, lease: DesktopBrowserLeaseId, root: string,
     permitted: (guest: WebContents) => boolean): BrowserRemoteShare {
+    const share = this.beginShare(owner, lease, permitted, root)
+    return { url: share.receipt, expiresAt: share.expiresAt }
+  }
+
+  /** Start a share visible to authenticated paired phones.
+   * @param owner - authenticated primary renderer.
+   * @param lease - exact native tab.
+   * @param permitted - exact ordinary guest and native window visibility check.
+   * @param isPaired - availability of the current paired companion after any asynchronous check.
+   * @returns Expiring local receipt, or null when no phone is paired.
+   */
+  async beginPhoneShare(owner: WebContents, lease: DesktopBrowserLeaseId, permitted: (guest: WebContents) => boolean,
+    isPaired: () => Promise<boolean>): Promise<BrowserPhoneShare | null> {
+    const tab = this.tab(owner, lease)
+    const documentId = tab.recordingDocument
+    const url = tab.guest.getURL()
+    if (!await isPaired()) return null
+    if (this.tab(owner, lease) !== tab || tab.recordingDocument !== documentId || tab.guest.getURL() !== url) {
+      throw new Error('Browser page changed before sharing')
+    }
+    const { id, expiresAt } = this.beginShare(owner, lease, permitted)
+    return { receipt: id, expiresAt }
+  }
+
+  private beginShare(owner: WebContents, lease: DesktopBrowserLeaseId, permitted: (guest: WebContents) => boolean, root?: string): Share {
     const tab = this.tab(owner, lease)
     const urlAtStart = tab.guest.getURL()
     if (!tab.control.humanMayAct || !permitted(tab.guest) || tab.guest.isLoading() || !this.guests.allowsBrowserAddress(urlAtStart)) {
       throw new Error('Browser tab is unavailable for sharing')
     }
-    if (this.share !== undefined && this.shareIsCurrent(this.share)) throw new Error('A browser tab is already being shared')
-    const id = randomUUID()
-    const url = new URL('/api/browser-share', root)
-    url.searchParams.set('view', id)
+    if (this.share !== undefined) {
+      if (this.shareIsCurrent(this.share)) throw new Error('A browser tab is already being shared')
+      this.finishShare(this.share)
+    }
+    const id = randomUUID() as BrowserPhoneShareReceipt
+    const url = root === undefined ? undefined : new URL('/api/browser-share', root)
+    url?.searchParams.set('view', id)
     const expiresAt = Date.now() + REMOTE_SHARE_DURATION_MS
-    this.share = { id, tab, urlAtStart, documentId: tab.recordingDocument, permitted, url: url.href, expiresAt, nextFrameAt: 0 }
-    return { url: url.href, expiresAt }
+    this.share = { id, audience: url === undefined ? 'phone' : 'web', tab, urlAtStart, documentId: tab.recordingDocument,
+      permitted, receipt: url?.href ?? id, expiresAt, nextFrameAt: 0 }
+    return this.share
   }
 
-  /** @param owner - authenticated primary renderer. @param lease - exact tab. @param url - receipt for this share. */
-  endRemoteShare(owner: WebContents, lease: DesktopBrowserLeaseId, url: unknown): void {
+  /** @param owner - authenticated primary renderer. @param lease - exact tab. @param receipt - identifier for this share. */
+  endRemoteShare(owner: WebContents, lease: DesktopBrowserLeaseId, receipt: unknown): void {
     const share = this.share
-    if (share?.tab.owner === owner && share.tab.lease === lease && share.url === url) this.share = undefined
+    if (share?.tab.owner === owner && share.tab.lease === lease && share.receipt === receipt) this.share = undefined
   }
 
   /** @param owner - hidden or retiring primary window whose live view must end. */
   revokeRemoteShare(owner: WebContents): void {
-    if (this.share?.tab.owner === owner) this.share = undefined
+    if (this.share?.tab.owner === owner) this.finishShare(this.share)
   }
 
   private revokeShare(tab: Tab): void {
-    if (this.share?.tab === tab) this.share = undefined
+    if (this.share?.tab === tab) this.finishShare(this.share)
+  }
+
+  private finishShare(share: Share): void {
+    if (this.share !== share) return
+    this.share = undefined
+    const { owner } = share.tab
+    if (!owner.isDestroyed()) owner.send(DESKTOP_IPC.browserRemoteShareEnded, share.receipt)
   }
 
   private shareIsCurrent(share: Share): boolean {
@@ -254,41 +305,48 @@ export class DesktopBrowserPreview {
       && !tab.guest.isLoading() && tab.guest.getURL() === share.urlAtStart
   }
 
-  private async remoteShareFrame(requestId: string, id: unknown): Promise<object> {
-    const reply = { type: 'browser-share-frame-result', requestId }
+  private async remoteShareFrame(audience: Share['audience'], id: unknown): Promise<object> {
     const share = this.share
-    if (share === undefined || share.id !== id) return { ...reply, status: 'ended' }
-    if (!this.shareIsCurrent(share)) { this.revokeShare(share.tab); return { ...reply, status: 'ended' } }
+    const discovery = audience === 'phone' && id === undefined
+    const absent = { status: discovery ? 'idle' : 'ended' }
+    if (share === undefined || share.audience !== audience || (!discovery && share.id !== id)) return absent
+    if (!this.shareIsCurrent(share)) { this.revokeShare(share.tab); return absent }
     const now = Date.now()
-    if (now < share.nextFrameAt || share.tab.recordingCapturePending === true) return { ...reply, status: 'busy' }
+    if (now < share.nextFrameAt || share.tab.recordingCapturePending === true) return { status: 'busy' }
     share.nextFrameAt = now + REMOTE_SHARE_FRAME_INTERVAL_MS
     const { owner, lease } = share.tab
     try {
-      const frame = await this.captureRecordingFrame(owner, lease, share.urlAtStart, share.documentId, share.permitted)
-      if (this.shareIsCurrent(share)) return { ...reply, status: 'frame', jpeg: frame.jpeg }
+      const frame = await this.captureFrame(owner, lease, share.urlAtStart, share.documentId, share.permitted, audience === 'phone')
+      if (this.shareIsCurrent(share)) return { status: 'frame', shareId: share.id, jpeg: frame.jpeg }
     } catch (_error: unknown) {
-      if (this.shareIsCurrent(share)) return { ...reply, status: 'busy' }
+      if (this.shareIsCurrent(share)) return { status: 'busy' }
     }
-    if (this.share === share) this.share = undefined
-    return { ...reply, status: 'ended' }
+    this.finishShare(share)
+    return absent
   }
 
-  private stopRemoteShare(requestId: string, id: unknown): object {
-    const reply = { type: 'browser-share-stop-result', requestId }
+  private stopRemoteShare(audience: Share['audience'], id: unknown): 'stopped' | 'ended' {
     const share = this.share
-    if (share === undefined || share.id !== id) return { ...reply, status: 'ended' }
-    this.share = undefined
-    const owner = share.tab.owner
-    if (!owner.isDestroyed()) owner.send(DESKTOP_IPC.browserRemoteShareEnded, share.url)
-    return { ...reply, status: 'stopped' }
+    if (share === undefined || share.audience !== audience || share.id !== id) return 'ended'
+    this.finishShare(share)
+    return 'stopped'
   }
 
   /** @param input - validated private Host event. @returns response, or no response for cancellation. */
   async request(input: unknown): Promise<object | undefined> {
     const packet = object(input)
     const requestId = text(packet.requestId, 'request identity', 128)
-    if (packet.type === 'browser-share-frame') return this.remoteShareFrame(requestId, packet.id)
-    if (packet.type === 'browser-share-stop') return this.stopRemoteShare(requestId, packet.id)
+    if (packet.type === 'browser-share-frame') {
+      return { type: 'browser-share-frame-result', requestId, ...await this.remoteShareFrame('web', packet.id) }
+    }
+    if (packet.type === 'browser-share-stop') return { type: 'browser-share-stop-result', requestId, status: this.stopRemoteShare('web', packet.id) }
+    if (packet.type === 'phone-browser-share-watch') {
+      return { type: 'phone-browser-share-result', requestId, ...await this.remoteShareFrame('phone', packet.id) }
+    }
+    if (packet.type === 'phone-browser-share-stop') {
+      this.stopRemoteShare('phone', packet.id)
+      return { type: 'phone-browser-share-result', requestId, status: 'ended' }
+    }
     if (packet.type === 'browser-preview-cancel') { this.calls.get(requestId)?.abort(); return undefined }
     if (packet.type !== 'browser-preview' || this.calls.has(requestId)) throw new Error('Invalid browser preview request')
     const cancellation = new AbortController()
@@ -309,7 +367,7 @@ export class DesktopBrowserPreview {
 
   /** Cancel old Host invocations and pending openings; tab ownership remains attached to its chat. */
   retireHost(): void {
-    this.share = undefined
+    if (this.share !== undefined) this.finishShare(this.share)
     for (const cancellation of this.calls.values()) cancellation.abort()
     for (const opening of this.openings.values()) opening.reject(new Error('Browser Host retired'))
     this.openings.clear()

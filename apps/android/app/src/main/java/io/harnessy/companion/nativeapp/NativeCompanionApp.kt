@@ -56,7 +56,15 @@ fun NativeCompanionApp(viewModel: CompanionViewModel = hiltViewModel()) {
                         setTheme = viewModel::setTheme,
                         pauseConnection = viewModel::pauseConnection,
                         resumeConnection = viewModel::resumeConnection,
+                        openBrowserShare = { navigation.navigate("browserShare") { launchSingleTop = true } },
                     ))
+                }
+                composable("browserShare") {
+                    NativeBrowserShareScreen(state, viewModel,
+                        close = {
+                            viewModel.stopBrowserShareViewing()
+                            navigation.popBackStack()
+                        })
                 }
             }
             state.confirmation?.takeIf { state.companion.foreground }?.let { confirmation ->

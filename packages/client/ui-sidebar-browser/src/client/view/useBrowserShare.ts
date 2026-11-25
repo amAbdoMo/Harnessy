@@ -2,8 +2,8 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import type { BrowserRemoteShareControl } from '../browser/BrowserFrame.ts'
 
-type ShareState = { readonly phase: 'starting' | 'setup' | 'failed' }
-  | { readonly phase: 'sharing'; readonly url: string }
+type ShareState = { readonly phase: 'starting' | 'setup' | 'phoneSetup' | 'failed' }
+  | { readonly phase: 'sharing'; readonly url: string | undefined }
 
 interface Attempt {
   view?: BrowserRemoteShareControl
@@ -18,7 +18,7 @@ interface Attempt {
  */
 export function useBrowserShare(pageKey: string | undefined): {
   readonly state: ShareState | undefined
-  readonly start: (begin: () => Promise<BrowserRemoteShareControl | null>) => Promise<void>
+  readonly start: (begin: () => Promise<BrowserRemoteShareControl | null>, audience?: 'phone' | 'web') => Promise<void>
   readonly stop: () => void
 } {
   const [state, setState] = useState<ShareState>()
@@ -44,7 +44,7 @@ export function useBrowserShare(pageKey: string | undefined): {
     document.addEventListener('visibilitychange', visibilityChanged)
     return () => { document.removeEventListener('visibilitychange', visibilityChanged); abandon() }
   }, [pageKey])
-  const start = async (begin: () => Promise<BrowserRemoteShareControl | null>): Promise<void> => {
+  const start = async (begin: () => Promise<BrowserRemoteShareControl | null>, audience: 'phone' | 'web' = 'web'): Promise<void> => {
     if (pageKey === undefined || active.current !== undefined || document.hidden) return
     const attempt: Attempt = {}
     active.current = attempt
@@ -54,7 +54,7 @@ export function useBrowserShare(pageKey: string | undefined): {
       if (active.current !== attempt) { await view?.stop(); return }
       if (view === null) {
         active.current = undefined
-        setState({ phase: 'setup' })
+        setState({ phase: audience === 'phone' ? 'phoneSetup' : 'setup' })
         return
       }
       attempt.view = view

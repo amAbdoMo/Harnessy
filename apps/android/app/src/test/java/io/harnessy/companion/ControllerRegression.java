@@ -775,6 +775,7 @@ public final class ControllerRegression {
         CompanionController controller;
         Screen screen;
         Pairing pairing;
+        BrowserShare browserShare;
         String subscription;
         long clock = 1000;
         boolean missingKey, failPut, failClear, failSave, failForget;
@@ -856,6 +857,7 @@ public final class ControllerRegression {
         }
         public void companion(Screen screen) { this.screen = screen; }
         public void pairing(Pairing pairing) { this.pairing = pairing; }
+        public void browserShare(BrowserShare share) { this.browserShare = share; }
         public void main(Runnable callback) { main.addLast(callback); }
         public void io(Runnable operation) { io.addLast(operation); }
         public long now() { return clock; }

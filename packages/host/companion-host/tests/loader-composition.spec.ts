@@ -17,12 +17,14 @@ import {
   createPhoneHandshake, createRelayChallenge, exactRecord, exportPublicKey, generateP256KeyPair,
   parseApplicationRequest, parseApplicationResult, parseHttpsOrigin, parseId, parsePairingInvitation, parsePublicKey, verifyRelayChallenge,
 } from '@deepseek-ai/dsh-companion-protocol'
-import type { ApplicationRequest, ApplicationResult, ChannelId, PhoneHandshake, SocketGeneration } from '@deepseek-ai/dsh-companion-protocol'
+import type { ApplicationRequest, ApplicationResult, BrowserShareId, ChannelId, PhoneHandshake, SocketGeneration } from '@deepseek-ai/dsh-companion-protocol'
 import { RECORD_KEY } from '../src/records.ts'
 import type { PrivateRecord } from '../src/records.ts'
 import { composition, config } from './composition.ts'
 import type { Composition } from './composition.ts'
 import { SocketTransport } from './transport.ts'
+import type { BrowserShareHandler, BrowserShareRequest } from '../src/types.ts'
+import { brandString } from '@deepseek-ai/dsh-brand'
 
 vi.mock('ws', async () => {
   const { SocketTransport: WebSocket } = await import('./transport.ts')
@@ -60,8 +62,8 @@ afterEach(async () => {
   }
 })
 
-async function boot(override: import('../src/config.ts').Config = config, home?: string): Promise<Composition> {
-  const fixture = await composition(override, home)
+async function boot(override: import('../src/config.ts').Config = config, home?: string, browserShare?: BrowserShareHandler): Promise<Composition> {
+  const fixture = await composition(override, home, browserShare)
   cleanup.push(() => fixture.close())
   expect(fixture.ctx.get('sessionController')).toBeDefined()
   expect(fixture.ctx.get('sessionQuery')).toBeDefined()
@@ -265,6 +267,32 @@ async function submission(channel: Awaited<ReturnType<typeof confirm>>, phone: A
 }
 
 describe('companion Host source Loader composition', () => {
+  it('dispatches native browser watch and exact stop over a confirmed encrypted phone channel', async () => {
+    const shareId = brandString<BrowserShareId>('e7ceaa5b-761d-4e48-9abc-9fa732df8617')
+    const calls: BrowserShareRequest[] = []
+    const browserShare: BrowserShareHandler = async (operation, signal) => {
+      expect(signal.aborted).toBe(false)
+      calls.push(operation)
+      return operation.kind === 'stop'
+        ? { status: 'ended' }
+        : { status: 'frame', shareId, jpeg: 'anBlZw==' }
+    }
+    const fixture = await boot(config, undefined, browserShare)
+    const approved = await approvedChannel(fixture)
+    const request = (type: 'watchBrowserShare' | 'stopBrowserShare', id?: BrowserShareId) => parseApplicationRequest(
+      JSON.stringify({ v: 1, type, requestId: Buffer.alloc(16, calls.length + 1).toString('base64url'),
+        ...(id === undefined ? {} : { shareId: id }) }), config.budgets.application)
+
+    expect(await applicationExchange(approved, request('watchBrowserShare'))).toEqual({
+      v: 1, type: 'browserShare', requestId: Buffer.alloc(16, 1).toString('base64url'),
+      status: 'frame', shareId, jpeg: 'anBlZw==',
+    })
+    expect(await applicationExchange(approved, request('stopBrowserShare', shareId))).toEqual({
+      v: 1, type: 'browserShare', requestId: Buffer.alloc(16, 2).toString('base64url'), status: 'ended',
+    })
+    expect(calls).toEqual([{ kind: 'watch' }, { kind: 'stop', shareId }])
+  })
+
   it('checks native consent again for encrypted workspace reads and pin writes without changing the pairing', async () => {
     const fixture = await boot()
     const workspace = await fixture.ctx.workspaceRegistry.create(fixture.home, 'Granted empty workspace')

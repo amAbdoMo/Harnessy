@@ -20,11 +20,14 @@ public final class ApplicationCodec {
     public static final int MAX_TITLE_BYTES = 1024;
     public static final int MAX_ROWS = 128;
     public static final int MAX_SESSIONS = 128;
+    /** Browser-share frames use standard Base64 and stay below the encrypted application budget. */
+    public static final int MAX_JPEG_BASE64_CHARS = 24_576;
+    public static final int MAX_JPEG_BYTES = 18_432;
     private static final long MAX_SAFE_INTEGER = 9_007_199_254_740_991L;
     private ApplicationCodec() { }
 
     public enum Type { SESSIONS, HISTORY, WATCHING, PROGRESS, SUBMITTED, CANCELLED, ERROR, MANAGEMENT_WORKSPACES, MANAGED,
-        SESSION_MODELS, MODEL_SELECTED, SESSION_ACTIVATION, SESSION_OPENED }
+        SESSION_MODELS, MODEL_SELECTED, SESSION_ACTIVATION, SESSION_OPENED, BROWSER_SHARE }
 
     public static final class SessionSummary {
         public final String sessionId;
@@ -101,6 +104,10 @@ public final class ApplicationCodec {
         public final String operationId;
         public final String action;
         public final String outcome;
+        /** UUID of the currently observed browser share, present only on a frame result. */
+        public final String shareId;
+        /** Canonical standard-Base64 JPEG, present only on a frame result. */
+        public final String jpeg;
         public final boolean enabled;
         public final List<WorkspaceInfo> workspaces;
         public final SessionSummary session;
@@ -130,6 +137,7 @@ public final class ApplicationCodec {
                 case "modelSelected": type = Type.MODEL_SELECTED; break;
                 case "sessionActivation": type = Type.SESSION_ACTIVATION; break;
                 case "sessionOpened": type = Type.SESSION_OPENED; break;
+                case "browserShare": type = Type.BROWSER_SHARE; break;
                 default: throw invalid();
             }
             requestId = nullable(wire, "requestId"); sessionId = nullable(wire, "sessionId");
@@ -137,6 +145,7 @@ public final class ApplicationCodec {
             cursor = nullable(wire, "cursor"); status = nullable(wire, "status");
             admission = nullable(wire, "admission"); code = nullable(wire, "code");
             operationId = nullable(wire, "operationId"); action = nullable(wire, "action"); outcome = nullable(wire, "outcome");
+            shareId = nullable(wire, "shareId"); jpeg = nullable(wire, "jpeg");
             modelState = nullable(wire, "state"); modelRevision = nullable(wire, "revision");
             enabled = Boolean.TRUE.equals(wire.get("enabled"));
             session = wire.containsKey("session") ? new SessionSummary(Protocol.record(wire.get("session"))) : null;
@@ -203,6 +212,8 @@ public final class ApplicationCodec {
                 Protocol.exactRecord(value, "v", "type", "requestId", "enabled"); bool(value.get("enabled")); break;
             case "sessionOpened":
                 sessionOpened(value); break;
+            case "browserShare":
+                browserShare(value); break;
             case "history":
                 exact(value, new String[] { "v", "type", "requestId", "sessionId", "rows" }, "cursor");
                 sessionId(value.get("sessionId")); rows(value.get("rows")); optionalCursor(value); break;
@@ -278,6 +289,13 @@ public final class ApplicationCodec {
             case "cancelRead":
                 Protocol.exactRecord(value, "v", "type", "requestId", "subscriptionId");
                 Protocol.parseId16(value.get("subscriptionId")); break;
+            case "watchBrowserShare":
+                exact(value, new String[] { "v", "type", "requestId" }, "shareId");
+                if (value.containsKey("shareId")) Protocol.parseUuid(value.get("shareId"));
+                break;
+            case "stopBrowserShare":
+                Protocol.exactRecord(value, "v", "type", "requestId", "shareId");
+                Protocol.parseUuid(value.get("shareId")); break;
             default: throw invalid();
         }
         return value;
@@ -347,6 +365,17 @@ public final class ApplicationCodec {
     public static byte[] cancelRead(String requestId, String subscriptionId) {
         return encodeRequest(Protocol.object("v", 1, "type", "cancelRead", "requestId", requestId, "subscriptionId", subscriptionId));
     }
+    /** Polls the current phone browser share, or discovers one when shareId is absent. */
+    public static byte[] watchBrowserShare(String requestId) {
+        return watchBrowserShare(requestId, null);
+    }
+    public static byte[] watchBrowserShare(String requestId, String shareId) {
+        return encodeRequest(withOptionalShareId(Protocol.object("v", 1, "type", "watchBrowserShare", "requestId", requestId), shareId));
+    }
+    /** Revokes exactly the share currently displayed by the phone. */
+    public static byte[] stopBrowserShare(String requestId, String shareId) {
+        return encodeRequest(Protocol.object("v", 1, "type", "stopBrowserShare", "requestId", requestId, "shareId", shareId));
+    }
     public static byte[] encodeRequest(Object request) {
         String json = StrictJson.stringify(request, MAX_JSON_BYTES);
         parseRequest(json);
@@ -355,6 +384,10 @@ public final class ApplicationCodec {
     private static Object withCursor(Map<String, Object> base, String cursor) {
         if (cursor == null) return base;
         Map<String, Object> value = new LinkedHashMap<>(base); value.put("cursor", cursor); return value;
+    }
+    private static Object withOptionalShareId(Map<String, Object> base, String shareId) {
+        if (shareId == null) return base;
+        Map<String, Object> value = new LinkedHashMap<>(base); value.put("shareId", shareId); return value;
     }
     private static Map<String, Object> decode(byte[] json) {
         Map<String, Object> value = Protocol.record(StrictJson.parse(json, MAX_JSON_BYTES));
@@ -407,6 +440,23 @@ public final class ApplicationCodec {
             if (!ids.add(sessionId(row.get("id")))) throw invalid();
         }
         optionalCursor(value);
+    }
+    private static void browserShare(Map<String, Object> value) {
+        String status = Protocol.string(value.get("status"));
+        switch (status) {
+            case "idle":
+            case "busy":
+            case "ended":
+                Protocol.exactRecord(value, "v", "type", "requestId", "status");
+                return;
+            case "frame":
+                Protocol.exactRecord(value, "v", "type", "requestId", "status", "shareId", "jpeg");
+                Protocol.parseUuid(value.get("shareId"));
+                String jpeg = text(value.get("jpeg"), MAX_JPEG_BASE64_CHARS, true);
+                if (Protocol.decodeBase64(jpeg, MAX_JPEG_BYTES).length == 0) throw invalid();
+                return;
+            default: throw invalid();
+        }
     }
     private static void managed(Map<String, Object> value) {
         mutation(value);

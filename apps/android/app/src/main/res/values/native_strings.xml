@@ -116,4 +116,12 @@
     <string name="native_open_chat_unknown">The chat opening result is unknown. Check this chat’s current PC state before reviewing this warning. Nothing will be reopened automatically.</string>
     <string name="native_open_chat_resolve">I checked this chat’s PC state</string>
     <string name="native_draft_limit">Too many chats have unsent drafts. Clear one draft before starting another. Existing drafts were retained.</string>
+    <string name="native_browser_share_title">Live browser</string>
+    <string name="native_browser_share_waiting">Waiting for a shared browser…</string>
+    <string name="native_browser_share_frame">Shared browser view</string>
+    <string name="native_browser_share_stop">Stop sharing</string>
+    <string name="native_browser_share_stopping">Stopping browser sharing…</string>
+    <string name="native_browser_share_ended">Browser sharing ended.</string>
+    <string name="native_browser_share_unavailable">Couldn’t load the shared browser. Retrying while this screen is open.</string>
+    <string name="native_browser_share_stop_failed">Couldn’t stop sharing. The share may still be active; open this screen again to try explicitly.</string>
 </resources>

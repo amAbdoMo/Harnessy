@@ -22,7 +22,7 @@ beforeEach(() => { ipc.on.mockClear(); ipc.invoke.mockClear() })
 it('exposes no arbitrary IPC, native objects, or Agent control through profile-wide permissions', async () => {
   const bridge = createDesktopBrowserBridge()
   expect(Object.keys(bridge).sort()).toEqual([
-    'acquire', 'beginRemoteShare', 'bind', 'capture', 'captureRecordingFrame', 'command', 'completeOpen', 'control', 'endRemoteShare',
+    'acquire', 'beginPhoneShare', 'beginRemoteShare', 'bind', 'capture', 'captureRecordingFrame', 'command', 'completeOpen', 'control', 'endRemoteShare',
     'onAgentOpen', 'onControlChanged', 'onOpenRequested', 'onReacquireRequested', 'onRemoteShareEnded', 'openDevTools',
     'pick', 'profiles', 'release', 'requests', 'setZoom', 'status',
   ])
@@ -50,6 +50,8 @@ it('exposes no arbitrary IPC, native objects, or Agent control through profile-w
   expect(ipc.invoke).toHaveBeenLastCalledWith(DESKTOP_IPC.browserCaptureRecordingFrame, RECEIPT.lease, 'https://example.test/', undefined)
   await bridge.beginRemoteShare?.(RECEIPT.lease)
   expect(ipc.invoke).toHaveBeenLastCalledWith(DESKTOP_IPC.browserBeginRemoteShare, RECEIPT.lease)
+  await bridge.beginPhoneShare?.(RECEIPT.lease)
+  expect(ipc.invoke).toHaveBeenLastCalledWith(DESKTOP_IPC.browserBeginPhoneShare, RECEIPT.lease)
   await bridge.endRemoteShare?.(RECEIPT.lease, 'https://pc.tailnet.ts.net/api/browser-share?view=one')
   expect(ipc.invoke).toHaveBeenLastCalledWith(DESKTOP_IPC.browserEndRemoteShare, RECEIPT.lease, 'https://pc.tailnet.ts.net/api/browser-share?view=one')
   await bridge.pick?.(RECEIPT.lease, { x: 10, y: 20 })

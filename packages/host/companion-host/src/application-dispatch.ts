@@ -27,6 +27,7 @@ import type { ManagementRequest } from './session-management.ts'
 import { createSessionModels, rejectModelSelection } from './session-models.ts'
 import { executeSessionOpen, rejectSessionOpen } from './session-activation.ts'
 import type { SessionOpenRequest } from './session-activation.ts'
+import type { BrowserShareHandler, BrowserShareResponse } from './types.ts'
 
 /** Explicit per-channel policy supplied by the service that owns authorization and transport. */
 export interface ApplicationDispatcherOptions {
@@ -42,6 +43,8 @@ export interface ApplicationDispatcherOptions {
   readonly toolDetailsAccess: () => boolean
   /** Fresh independent permission to obtain writable ownership of an existing ordinary chat. */
   readonly activationAccess: () => boolean
+  /** Optional Desktop-native provider; it never starts a share and is called only for paired grants. */
+  readonly browserShare?: BrowserShareHandler
   readonly grantId: GrantId
   readonly generation: number
   readonly budget: ApplicationBudget
@@ -281,6 +284,30 @@ export function createApplicationDispatcher(
         budget, signal: read.signal, requireAdmission, errorCode: error => errorCode(error, read),
       }))
     } finally { mutationOperations.delete(request.operationId) }
+  }
+
+  async function browserShare(
+    request: Extract<ApplicationRequest, { type: 'watchBrowserShare' | 'stopBrowserShare' }>, read: ReadScope,
+  ): Promise<ApplicationResult> {
+    requireRead(read)
+    const provider = options.browserShare
+    if (provider === undefined) {
+      return checked({ v: 1, type: 'browserShare', requestId: request.requestId,
+        status: request.type === 'watchBrowserShare' ? 'idle' : 'ended' })
+    }
+    const operation = request.type === 'watchBrowserShare'
+      ? { kind: 'watch' as const, ...(request.shareId === undefined ? {} : { shareId: request.shareId }) }
+      : { kind: 'stop' as const, shareId: request.shareId }
+    const response: BrowserShareResponse = await provider(operation, read.signal)
+    // A revoked grant or retired channel may complete the native request after its frame was captured.
+    // Recheck before retaining or returning that frame; the caller's send path checks again.
+    requireRead(read)
+    if (response.status === 'frame'
+      && (request.type === 'stopBrowserShare'
+        || request.shareId !== undefined && response.shareId !== request.shareId)) {
+      return checked({ v: 1, type: 'browserShare', requestId: request.requestId, status: 'ended' })
+    }
+    return checked({ v: 1, type: 'browserShare', requestId: request.requestId, ...response })
   }
 
   function toolDetailsRead(cwd: string, read: ReadScope): MobileHistoryOptions['toolDetails'] {
@@ -583,6 +610,8 @@ export function createApplicationDispatcher(
       case 'selectSessionModel': return models.select(request, () => { requireRead(read) }, read.signal)
       case 'getSessionActivation': return checked({ v: 1, type: 'sessionActivation', requestId: request.requestId,
         enabled: options.activationAccess() })
+      case 'watchBrowserShare':
+      case 'stopBrowserShare': return browserShare(request, read)
       case 'openSession': return openSession(request, read)
       case 'listManagementWorkspaces': return managementCatalog(request, read)
       case 'createSession':

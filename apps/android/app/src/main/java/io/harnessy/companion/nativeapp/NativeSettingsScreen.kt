@@ -35,6 +35,7 @@ data class NativeSettingsActions(
     val setTheme: (ThemePreference) -> Unit,
     val pauseConnection: () -> Unit,
     val resumeConnection: () -> Unit,
+    val openBrowserShare: () -> Unit = {},
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -90,6 +91,12 @@ fun NativeSettingsScreen(state: NativeUiState, actions: CompanionActions, settin
                             Button(onClick = actions::showPairing, enabled = companion.foreground && metadataReady,
                                 modifier = Modifier.testTag("pair_pc")) {
                                 Text(stringResource(R.string.pair_pc))
+                            }
+                        }
+                        if (pc?.connection == Connection.ONLINE && !companion.connectionPaused) {
+                            TextButton(onClick = settings.openBrowserShare, enabled = companion.foreground,
+                                modifier = Modifier.testTag("open_browser_share")) {
+                                Text(stringResource(R.string.native_browser_share_title))
                             }
                         }
                         companion.screen?.composer?.feedback?.let { ConnectionFeedback(it) }

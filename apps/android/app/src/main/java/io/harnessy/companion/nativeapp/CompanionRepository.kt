@@ -1,6 +1,7 @@
 package io.harnessy.companion.nativeapp
 
 import androidx.annotation.MainThread
+import io.harnessy.companion.BrowserShare
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.harnessy.companion.CompanionController
 import io.harnessy.companion.protocol.ApplicationCodec
@@ -12,6 +13,29 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+
+enum class NativeBrowserShareStatus { IDLE, BUSY, FRAME, ENDED, STOPPING, ERROR }
+
+data class NativeBrowserShareState(
+    val status: NativeBrowserShareStatus = NativeBrowserShareStatus.IDLE,
+    val shareId: String? = null,
+    val jpegBase64: String? = null,
+    val stopFailed: Boolean = false,
+)
+
+private fun BrowserShare.nativeState() = NativeBrowserShareState(
+    status = when (status) {
+        BrowserShare.Status.IDLE -> NativeBrowserShareStatus.IDLE
+        BrowserShare.Status.BUSY -> NativeBrowserShareStatus.BUSY
+        BrowserShare.Status.FRAME -> NativeBrowserShareStatus.FRAME
+        BrowserShare.Status.ENDED -> NativeBrowserShareStatus.ENDED
+        BrowserShare.Status.STOPPING -> NativeBrowserShareStatus.STOPPING
+        BrowserShare.Status.ERROR -> NativeBrowserShareStatus.ERROR
+    },
+    shareId = shareId,
+    jpegBase64 = jpeg,
+    stopFailed = stopFailed,
+)
 
 /** Immutable RAM snapshots; no draft, history, invitation or navigation argument is persisted. */
 data class CompanionState(
@@ -25,6 +49,7 @@ data class CompanionState(
     val pairingRejected: Boolean = false,
     val workspaceExpansion: WorkspaceExpansion = WorkspaceExpansion(),
     val workspacePreferenceFailed: Boolean = false,
+    val browserShare: NativeBrowserShareState = NativeBrowserShareState(),
 )
 
 /** Main-thread controller adapter, owned by one ViewModel. Storage and transport stay Java-owned. */
@@ -47,7 +72,8 @@ class CompanionRepository @Inject constructor(
     /** Retires callbacks before stop; configuration changes must call this too. */
     fun stop() {
         retireController()
-        mutableState.value = state.value.copy(foreground = false, screen = null, pairing = null, pairingRejected = false)
+        mutableState.value = state.value.copy(foreground = false, screen = null, pairing = null, pairingRejected = false,
+            browserShare = NativeBrowserShareState())
     }
 
     private fun startController() {
@@ -68,6 +94,11 @@ class CompanionRepository @Inject constructor(
                 ) else pairing
                 mutableState.value = state.value.copy(pairing = projected)
             }
+
+            override fun browserShare(share: BrowserShare) {
+                if (!active || owner != generation || !state.value.foreground) return
+                mutableState.value = state.value.copy(browserShare = share.nativeState())
+            }
         })
         controller.start()
     }
@@ -83,13 +114,31 @@ class CompanionRepository @Inject constructor(
     fun pauseConnection() {
         if (!state.value.foreground) return
         retireController()
-        mutableState.value = state.value.copy(connectionPaused = true, screen = null, pairing = null, pairingRejected = false)
+        mutableState.value = state.value.copy(connectionPaused = true, screen = null, pairing = null, pairingRejected = false,
+            browserShare = NativeBrowserShareState())
     }
 
     fun resumeConnection() {
         if (!state.value.foreground) return
         mutableState.value = state.value.copy(connectionPaused = false)
         startController()
+    }
+
+    fun startBrowserShareViewing() {
+        if (active && state.value.foreground && !state.value.connectionPaused) controller.startBrowserShareViewing()
+    }
+
+    fun stopBrowserShareViewing() {
+        if (active) controller.stopBrowserShareViewing()
+        mutableState.value = state.value.copy(browserShare = NativeBrowserShareState())
+    }
+
+    fun watchBrowserShare() {
+        if (active && state.value.foreground && !state.value.connectionPaused) controller.watchBrowserShare()
+    }
+
+    fun stopBrowserShare(shareId: String) {
+        if (active && state.value.foreground && !state.value.connectionPaused) controller.stopBrowserShare(shareId)
     }
 
     fun importLink(link: String) {

@@ -1,14 +1,21 @@
-/** Strict text-only mobile JSON parsers; complete encoded messages pay the byte budget. */
+/** Strict mobile JSON parsers; complete encoded messages pay the byte budget. */
 import { brandString } from '@deepseek-ai/dsh-brand'
 import type {
-  ApplicationBudget, ApplicationRequest, ApplicationResult, HistoryRow, HistorySequence, ManagementAction, ManagementResult,
-  MobileModelChoice, MobileModelChoiceId, MobileModelRevision, MobileOperationId, MobileRequestId, MobileSessionId,
-  MobileWorkspaceId, ModelSelectionResult, MutationIdentity, MutationRefusalCode, ReadCursor, SessionModelsResult,
-  SessionOpenedResult, SessionSummary, SubmissionId, SubscriptionId, WorkspaceSummary,
+  ApplicationBudget, ApplicationRequest, ApplicationResult, BrowserShareId, BrowserShareResult, HistoryRow, HistorySequence,
+  ManagementAction, ManagementResult, MobileModelChoice, MobileModelChoiceId, MobileModelRevision, MobileOperationId,
+  MobileRequestId, MobileSessionId, MobileWorkspaceId, ModelSelectionResult, MutationIdentity, MutationRefusalCode, ReadCursor,
+  SessionModelsResult, SessionOpenedResult, SessionSummary, SubmissionId, SubscriptionId, WorkspaceSummary,
 } from './application-types.ts'
 
 /** Fixed protocol plaintext ceiling, including JSON wrappers and UTF-8 metadata. */
 export const MAX_MOBILE_JSON_BYTES = 49_152
+/** Maximum decoded JPEG bytes carried by one native browser-share frame. */
+export const MAX_BROWSER_SHARE_JPEG_BYTES = 18_432
+/** Maximum standard-base64 characters carried by one native browser-share frame. */
+export const MAX_BROWSER_SHARE_JPEG_CHARS = 24_576
+
+const BROWSER_SHARE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+const BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/
 
 function fail(): never { throw new Error('companion: invalid or over-budget application message') }
 function object(value: unknown): Record<string, unknown> {
@@ -51,6 +58,18 @@ function sessionId(value: unknown): MobileSessionId { return brandString<MobileS
 function operationId(value: unknown): MobileOperationId { return brandString<MobileOperationId>(fixed(value, 16)) }
 function modelChoiceId(value: unknown): MobileModelChoiceId { return brandString<MobileModelChoiceId>(fixed(value, 16)) }
 function modelRevision(value: unknown): MobileModelRevision { return brandString<MobileModelRevision>(fixed(value, 16)) }
+function browserShareId(value: unknown): BrowserShareId {
+  const result = text(value, 36, true)
+  if (!BROWSER_SHARE_ID.test(result)) fail()
+  return brandString<BrowserShareId>(result)
+}
+function browserShareJpeg(value: unknown): string {
+  const result = text(value, MAX_BROWSER_SHARE_JPEG_CHARS, true)
+  if (!BASE64.test(result) || Buffer.from(result, 'base64').toString('base64') !== result) fail()
+  const decoded = Buffer.from(result, 'base64')
+  if (decoded.length === 0 || decoded.length > MAX_BROWSER_SHARE_JPEG_BYTES) fail()
+  return result
+}
 function workspaceId(value: unknown): MobileWorkspaceId { return brandString<MobileWorkspaceId>(token(value)) }
 function subscriptionId(value: unknown): SubscriptionId { return brandString<SubscriptionId>(fixed(value, 16)) }
 function cursor(value: unknown): ReadCursor {
@@ -264,6 +283,19 @@ function sessionOpened(value: Record<string, unknown>, budget: ApplicationBudget
   }
 }
 
+function browserShare(value: Record<string, unknown>): BrowserShareResult {
+  const common = { v: 1 as const, type: 'browserShare' as const, requestId: requestId(value.requestId) }
+  if (value.status === 'idle' || value.status === 'busy' || value.status === 'ended') {
+    exact(value, ['v', 'type', 'requestId', 'status'])
+    return { ...common, status: value.status }
+  }
+  if (value.status === 'frame') {
+    exact(value, ['v', 'type', 'requestId', 'status', 'shareId', 'jpeg'])
+    return { ...common, status: value.status, shareId: browserShareId(value.shareId), jpeg: browserShareJpeg(value.jpeg) }
+  }
+  return fail()
+}
+
 /** Validate explicit deployment limits before retaining messages or opening subscriptions.
  * @param input - Untrusted deployment resource budget.
  * @returns Validated budget; throws on missing, extra, or inconsistent limits.
@@ -323,6 +355,15 @@ export function parseApplicationRequest(json: string, budget: ApplicationBudget)
     case 'getSessionActivation':
       exact(value, ['v', 'type', 'requestId'])
       return { ...common, type: value.type }
+    case 'watchBrowserShare':
+      exact(value, ['v', 'type', 'requestId'], ['shareId'])
+      return {
+        ...common, type: value.type,
+        ...(Object.hasOwn(value, 'shareId') ? { shareId: browserShareId(value.shareId) } : {}),
+      }
+    case 'stopBrowserShare':
+      exact(value, ['v', 'type', 'requestId', 'shareId'])
+      return { ...common, type: value.type, shareId: browserShareId(value.shareId) }
     case 'openSession':
       exact(value, ['v', 'type', 'requestId', 'operationId', 'sessionId'])
       return { ...common, type: value.type, ...mutationIdentity(value) }
@@ -381,6 +422,7 @@ export function parseApplicationResult(json: string, budget: ApplicationBudget):
       exact(value, ['v', 'type', 'requestId', 'enabled'])
       if (typeof value.enabled !== 'boolean') fail()
       return { ...common, type: value.type, enabled: value.enabled }
+    case 'browserShare': return browserShare(value)
     case 'sessions': {
       exact(value, ['v', 'type', 'requestId', 'sessions'], ['cursor'])
       if (!Array.isArray(value.sessions) || value.sessions.length > budget.maxSessions) fail()

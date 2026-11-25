@@ -3,12 +3,16 @@ import type { Context } from '@deepseek-ai/cordis'
 import { mkdir, realpath } from 'node:fs/promises'
 import { isAbsolute } from 'node:path'
 import { acquireHomeLock } from './home-lock.ts'
+import type { BrowserShareHandler } from './types.ts'
 
-interface Owner {
+/** Boot-installed Desktop capabilities used by the Host, never supplied by YAML or a renderer. */
+export interface DesktopCompanionOwnerOptions {
   readonly home: string
   readonly signal: AbortSignal
+  /** Optional native provider; the paired phone can observe or stop only a share started by Desktop. */
+  readonly browserShare?: BrowserShareHandler
 }
-const owners = new WeakMap<Context, Owner>()
+const owners = new WeakMap<Context, DesktopCompanionOwnerOptions>()
 
 /**
  * Install once from Desktop Host's runProfile.prepare; the signal retires this Host incarnation.
@@ -16,7 +20,7 @@ const owners = new WeakMap<Context, Owner>()
  * @param owner - Actual local credential home and parent-disconnect/shutdown cancellation.
  * @returns Effect-owned registration disposer; does not start networking or acquire a lock.
  */
-export function installDesktopCompanionOwner(ctx: Context, owner: Owner): () => Promise<void> {
+export function installDesktopCompanionOwner(ctx: Context, owner: DesktopCompanionOwnerOptions): () => Promise<void> {
   if (!isAbsolute(owner.home) || owners.has(ctx.root) || owner.signal.aborted) {
     throw new Error('companion-host: invalid or duplicate Desktop owner')
   }
@@ -31,7 +35,11 @@ export function installDesktopCompanionOwner(ctx: Context, owner: Owner): () => 
  * @param ctx - Context with the boot-installed Desktop capability.
  * @returns Owner signal and awaited release; duplicate owners fail without stale-timer takeover.
  */
-export async function acquireDesktopOwner(ctx: Context): Promise<{ readonly signal: AbortSignal; release(): Promise<void> }> {
+export async function acquireDesktopOwner(ctx: Context): Promise<{
+  readonly signal: AbortSignal
+  readonly browserShare?: BrowserShareHandler
+  release(): Promise<void>
+}> {
   const owner = owners.get(ctx.root)
   if (owner === undefined || owner.signal.aborted) throw new Error('companion-host: Desktop-owned Host required')
   await mkdir(owner.home, { recursive: true, mode: 0o700 })
@@ -39,5 +47,7 @@ export async function acquireDesktopOwner(ctx: Context): Promise<{ readonly sign
   const release = await acquireHomeLock(home)
   try { owner.signal.throwIfAborted() }
   catch (error) { await release(); throw error }
-  return { signal: owner.signal, release }
+  return owner.browserShare === undefined
+    ? { signal: owner.signal, release }
+    : { signal: owner.signal, browserShare: owner.browserShare, release }
 }

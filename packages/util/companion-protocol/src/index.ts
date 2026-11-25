@@ -26,6 +26,7 @@ export { encodePairingInvitation, parsePairingInvitation } from './pairing.ts'
 export type { PairingInvitation } from './pairing.ts'
 export type * from './application-types.ts'
 export {
-  encodeApplicationRequest, encodeApplicationResult, MAX_MOBILE_JSON_BYTES,
+  encodeApplicationRequest, encodeApplicationResult, MAX_BROWSER_SHARE_JPEG_BYTES, MAX_BROWSER_SHARE_JPEG_CHARS,
+  MAX_MOBILE_JSON_BYTES,
   parseApplicationBudget, parseApplicationRequest, parseApplicationResult,
 } from './application.ts'

@@ -27,6 +27,7 @@ import * as StorageJson from '@deepseek-ai/dsh-storage-json'
 import * as StorageDomain from '@deepseek-ai/dsh-storage-domain'
 import CompanionHost, { installDesktopCompanionOwner } from '../src/index.ts'
 import type { Config } from '../src/config.ts'
+import type { BrowserShareHandler } from '../src/types.ts'
 
 /** Explicit deployed limits; no environment or shipped profile is consulted. */
 export const config = {
@@ -57,9 +58,12 @@ export interface Composition {
 /**
  * @param override - Companion deployment configuration.
  * @param sharedHome - Same canonical home for ownership contention.
+ * @param browserShare - Optional Desktop-native provider supplied to the Host owner.
  * @returns A real source Loader tree and its disposer.
  */
-export async function composition(override: Config = config, sharedHome?: string): Promise<Composition> {
+export async function composition(
+  override: Config = config, sharedHome?: string, browserShare?: BrowserShareHandler,
+): Promise<Composition> {
   const directory = await mkdtemp(join(tmpdir(), 'dsh-companion-host-'))
   const home = sharedHome ?? join(directory, 'home')
   const ctx = new Context()
@@ -72,7 +76,7 @@ export async function composition(override: Config = config, sharedHome?: string
     finally { await rm(directory, { recursive: true, force: true }) }
   }
   try {
-    installDesktopCompanionOwner(ctx, { home, signal: owner.signal })
+    installDesktopCompanionOwner(ctx, { home, signal: owner.signal, ...(browserShare === undefined ? {} : { browserShare }) })
     const modules = new Map<string, unknown>([
       ['credentials', Credentials], ['sessions', Sessions], ['agents', Agents], ['query', SessionQuery],
       ['projections', SessionProjections], ['model', AgentDefaultModel], ['llm', Llm],

@@ -20,10 +20,11 @@ import type { RelayConnection, RelayInput } from './connector.ts'
 import { fingerprint, HostRecords, randomId, RECORD_KEY } from './records.ts'
 import type { DeviceRecord } from './records.ts'
 import { createApplicationDispatcher } from './application-dispatch.ts'
-import type { CandidateId, CompanionControlCommand, CompanionStatus, PairedDevice, PrivateInvitation } from './types.ts'
+import type { BrowserShareHandler, CandidateId, CompanionControlCommand, CompanionStatus, PairedDevice, PrivateInvitation } from './types.ts'
 
 export { Config, resolveConfig } from './config.ts'
 export { installDesktopCompanionOwner } from './desktop-owner.ts'
+export type { DesktopCompanionOwnerOptions } from './desktop-owner.ts'
 export type * from './types.ts'
 
 interface Invitation {
@@ -75,6 +76,7 @@ export default class CompanionHost extends Service {
   private readonly channels = new Map<ChannelId, Channel>()
   private readonly retiring = new Set<Promise<void>>()
   private readonly permissionChanges = new Set<{ readonly grantId: GrantId }>()
+  private browserShare: BrowserShareHandler | undefined
   private tail: Promise<void> = Promise.resolve()
   private pendingLocal = 0
   private channelAttempts = 0
@@ -90,6 +92,7 @@ export default class CompanionHost extends Service {
     if (resolved === undefined) return
     await this.ctx.effect(async () => {
       const owner = await acquireDesktopOwner(this.ctx)
+      this.browserShare = owner.browserShare
       const parentAbort = (): void => { this.withdraw() }
       owner.signal.addEventListener('abort', parentAbort, { once: true })
       try {
@@ -134,6 +137,7 @@ export default class CompanionHost extends Service {
         this.withdraw()
         owner.signal.removeEventListener('abort', parentAbort)
         await owner.release()
+        this.browserShare = undefined
         throw error
       }
       return async () => {
@@ -144,6 +148,7 @@ export default class CompanionHost extends Service {
         await Promise.allSettled([...this.retiring])
         await owner.release()
         this.records = undefined
+        this.browserShare = undefined
       }
     }, 'companion-host.identity-connection-and-channels')
   }
@@ -495,6 +500,7 @@ export default class CompanionHost extends Service {
         return this.requireAvailable().snapshot().grants.some(row => row.grantId === grant.grantId
           && row.generation === grant.generation && row.phoneIdentityKey === channel.phoneKey && row.toolDetailsV1 === true)
       },
+      ...(this.browserShare === undefined ? {} : { browserShare: this.browserShare }),
       generation: grant.generation, budget: this.budget().application, maxWatches: this.budget().application.maxSubscriptionsPerGrant,
       maxPendingRequests: this.budget().maxPendingMessages, maxProgressBuffer: this.budget().maxProgressBuffer,
       sendProgress: result => this.sendResult(channel, result),

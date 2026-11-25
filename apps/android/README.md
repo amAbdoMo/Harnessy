@@ -8,7 +8,7 @@ English | [中文](<README.zh.md>)
 
 ## Summary
 
-The native Kotlin/Jetpack Compose application provides pairing, existing-session chat, explicit opening of eligible cold chats, approved text history/progress, and queued follow-ups to a running PC. Material 3 screens use lifecycle-aware ViewModel/StateFlow state, Hilt ownership, Compose navigation and DataStore appearance preferences. The Java protocol/storage core remains behind Kotlin interoperability; separate PC consent enables four chat-management actions. Agents, privileged tools, provider credentials and session storage stay PC-owned. Build, JVM, device, pairing and background-delivery evidence are separate; source alone establishes none of them.
+The native Kotlin/Jetpack Compose application provides pairing, existing-session chat, explicit opening of eligible cold chats, approved text history/progress, queued follow-ups to a running PC, and an explicit view-only live browser share. Material 3 screens use lifecycle-aware ViewModel/StateFlow state, Hilt ownership, Compose navigation and DataStore appearance preferences. The Java protocol/storage core remains behind Kotlin interoperability; separate PC consent enables four chat-management actions. Agents, privileged tools, provider credentials and session storage stay PC-owned. Build, JVM, device, pairing and background-delivery evidence are separate; source alone establishes none of them.
 
 ## Table of Contents
 
@@ -16,6 +16,7 @@ The native Kotlin/Jetpack Compose application provides pairing, existing-session
 - [Workspace navigation](#workspace-navigation)
 - [Model selection](#model-selection)
 - [Session activation](#session-activation)
+- [Live browser share](#live-browser-share)
 - [Pairing and storage](#pairing-and-storage)
 - [Reads and delivery](#reads-and-delivery)
 - [Limits and verification](#limits-and-verification)
@@ -65,6 +66,13 @@ For Android-only UI work with a PC that lacks model support, set `-Pcompanion.pc
 ## Session activation
 
 An eligible existing cold ordinary chat can be opened explicitly on the running PC with [Open chat](<app/src/main/java/io/harnessy/companion/nativeapp/NativeSessionActivation.kt>); no Desktop tab is required. Session listing and history reads never activate a PC Agent. Opening requires the separate per-phone PC permission exposed as **Enable opening chats** in **Paired phones**; pairing, chat-management, model-selection and tool-detail grants do not imply it. The operation resumes an existing chat through normal PC Agent initialization and a targeted Session flush; initialization may migrate or repair history or run SessionStart plugins, even if it fails. It sends no text or new task and leaves other chats and global model defaults unchanged. A missing reply after admission leaves an uncertainty fence; the phone does not retry automatically. See the [session activation upgrade guide](<../../docs/upgrade-guide/v0.1.17/companion-session-activation/guide.md>).
+
+<a id="live-browser-share"></a>
+## Live browser share
+
+The paired phone exposes **Live browser** from Settings → PC connection while the paired PC is online; opening it explicitly discovers a share that the PC has already started. The [native viewer](<app/src/main/java/io/harnessy/companion/nativeapp/NativeBrowserShareScreen.kt>) uses the existing encrypted companion channel, requests bounded JPEG frames only while this screen is visible, and never opens a WebView, Tailscale route or external account.
+
+The viewer binds **Stop sharing** to the exact share UUID received with the current frame. A stop acknowledgement must report `ended`; timeouts, disconnects and lifecycle retirement clear the frame and do not resend the stop mutation. Leaving the screen or the Activity drops the JPEG and polling state. Update the PC before using this screen; old PC builds reject the new exact-field requests and the Android app does not downgrade them.
 
 <a id="pairing-and-storage"></a>
 ## Pairing and storage

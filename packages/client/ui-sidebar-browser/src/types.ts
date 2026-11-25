@@ -252,6 +252,8 @@ export interface DesktopBrowserBridge {
   captureRecordingFrame?(lease: DesktopBrowserLeaseId, url: string, documentId?: BrowserRecordingDocumentId): Promise<BrowserRecordingFrame>
   /** @param lease - exact human-controlled tab. @returns Private view link, or null when Phone Connection is disabled. */
   beginRemoteShare?(lease: DesktopBrowserLeaseId): Promise<BrowserRemoteShare | null>
+  /** @param lease - exact human-controlled tab. @returns Share receipt, or null without a paired Android phone. */
+  beginPhoneShare?(lease: DesktopBrowserLeaseId): Promise<BrowserPhoneShare | null>
   /** @param lease - exact tab. @param url - receipt of the share to end. */
   endRemoteShare?(lease: DesktopBrowserLeaseId, url: string): Promise<void>
   /** @param url - exact share receipt. @param listener - called when its viewer stops the share. @returns Unsubscribe callback. */
@@ -316,6 +318,15 @@ export interface BrowserRemoteShare {
   readonly url: string
   readonly expiresAt: number
 }
+
+/** A live share in the paired Android app, identified only within the Desktop renderer. */
+export interface BrowserPhoneShare {
+  readonly receipt: BrowserPhoneShareReceipt
+  readonly expiresAt: number
+}
+
+/** Exact Desktop receipt for an active browser share with paired phones. */
+export type BrowserPhoneShareReceipt = Branded<'BrowserPhoneShareReceipt'>
 
 /** Bounded element context selected by the human. */
 export interface BrowserPickedElement {

@@ -1121,6 +1121,19 @@ async function main(): Promise<void> {
     return browserPreview.beginRemoteShare(event.sender, lease, connection.remoteRoot, guest =>
       mainWindow?.isVisible() === true && !mainWindow.isMinimized() && browserGuests.inspectRecordingBrowser(event.sender, lease) === guest)
   })
+  ipcMain.handle(DESKTOP_IPC.browserBeginPhoneShare, (event, lease: DesktopBrowserLeaseId) => {
+    assertProductSender(event)
+    const host = previewHost
+    return browserPreview.beginPhoneShare(event.sender, lease, guest =>
+      mainWindow?.isVisible() === true && !mainWindow.isMinimized() && browserGuests.inspectRecordingBrowser(event.sender, lease) === guest,
+    async () => {
+      const status = await companion.describe()
+      assertProductSender(event)
+      if (host === undefined || previewHost !== host || !status.available || status.pairedCount === 0) return false
+      if (!status.connected) throw new Error('Android phone connection is offline')
+      return true
+    })
+  })
   ipcMain.handle(DESKTOP_IPC.browserEndRemoteShare, (event, lease: DesktopBrowserLeaseId, url: unknown) => {
     assertProductSender(event)
     browserPreview.endRemoteShare(event.sender, lease, url)

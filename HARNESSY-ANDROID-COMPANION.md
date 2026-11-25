@@ -58,6 +58,8 @@ After the operator has deployed the relay, built both applications and completed
 
 The phone stores public pairing metadata and its private key remains in AndroidKeyStore. Reopening the foreground app reconnects without pasting the invitation again. Missing keys, corrupt pairing metadata or a changed PC identity require explicit repair/re-pairing; the app must not silently generate a replacement identity for an existing pairing.
 
+To watch a browser tab, select **Take control** in the Desktop browser, then **Page actions → Share with paired Android phones**. On the already paired phone, open **Settings → PC connection → Live browser**. The encrypted companion connection carries a silent preview of the visible tab while the PC keeps control of the page. Select **Stop sharing** on either device to end the share for every viewer. Sharing also ends after 15 minutes or when the Desktop tab, page, visibility or control changes.
+
 -----
 
 <a id="recovery"></a>

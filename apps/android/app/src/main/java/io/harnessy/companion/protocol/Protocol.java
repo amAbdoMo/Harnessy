@@ -502,6 +502,19 @@ public final class Protocol {
     }
 
     public static String encodeBase64Url(byte[] bytes) { return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes); }
+    /** Decodes canonical standard Base64 payloads used for bounded binary application fields. */
+    public static byte[] decodeBase64(Object encoded, int maximum) {
+        String text = string(encoded);
+        if (maximum < 0 || maximum > StrictJson.MAX_BYTES || text.length() > ((maximum + 2) / 3) * 4
+            || !text.matches("[A-Za-z0-9+/]*={0,2}")) throw invalid("Invalid base64 field");
+        byte[] bytes;
+        try { bytes = Base64.getDecoder().decode(text); }
+        catch (IllegalArgumentException malformedBase64) { throw invalid("Invalid base64 field"); }
+        if (bytes.length > maximum || !Base64.getEncoder().encodeToString(bytes).equals(text)) {
+            throw invalid("Noncanonical base64 or length");
+        }
+        return bytes;
+    }
     public static byte[] decodeBase64Url(Object encoded, int length) {
         return decodeBase64Url(encoded, length, length < 0 ? MAX_APPLICATION_BYTES + 1 : length);
     }
@@ -522,6 +535,14 @@ public final class Protocol {
     public static String parseId(Object value) {
         String identifier = string(value);
         if (!identifier.matches("[A-Za-z0-9_-]{1,128}")) throw invalid("Invalid companion identifier");
+        return identifier;
+    }
+    /** Accepts the lowercase UUIDv4 identifiers minted for browser shares. */
+    public static String parseUuid(Object value) {
+        String identifier = string(value);
+        if (!identifier.matches("[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}")) {
+            throw invalid("Invalid UUID");
+        }
         return identifier;
     }
     public static String parseId16(Object value) { decodeBase64Url(value, 16); return string(value); }

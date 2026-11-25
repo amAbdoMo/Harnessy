@@ -58,6 +58,8 @@ export class ElectronWebViewImpl implements BrowserFrame {
       ...(options.profileId === undefined && bridge.captureRecordingFrame !== undefined ? { recordingSupported: true } : {}),
       ...(options.profileId === undefined && bridge.beginRemoteShare !== undefined && bridge.endRemoteShare !== undefined
         ? { remoteShareSupported: true } : {}),
+      ...(options.profileId === undefined && bridge.beginPhoneShare !== undefined && bridge.endRemoteShare !== undefined
+        ? { phoneShareSupported: true } : {}),
       ...(options.profileId === undefined && bridge.openDevTools !== undefined ? { devToolsAvailable: true } : {}),
     })
     if (options.profileId === undefined) this.setViewport = (viewport) => {
@@ -87,17 +89,20 @@ export class ElectronWebViewImpl implements BrowserFrame {
     return this.bridge.captureRecordingFrame(this.currentLease(), url, documentId)
   }
 
-  /** @returns Private view link and its exact stop operation, or null when disabled. */
-  beginRemoteShare = async (): Promise<BrowserRemoteShareControl | null> => {
-    const { beginRemoteShare, endRemoteShare, onRemoteShareEnded } = this.bridge
-    if (beginRemoteShare === undefined || endRemoteShare === undefined || !this.store.getSnapshot().remoteShareSupported) {
+  /** @param audience - paired Android app or private Web viewer. @returns Private share with exact stop operation. */
+  beginRemoteShare = async (audience: 'phone' | 'web'): Promise<BrowserRemoteShareControl | null> => {
+    const { beginRemoteShare, beginPhoneShare, endRemoteShare, onRemoteShareEnded } = this.bridge
+    const begin = audience === 'phone' ? beginPhoneShare : beginRemoteShare
+    if (begin === undefined || endRemoteShare === undefined || this.options.profileId !== undefined) {
       throw new Error('Browser sharing is unavailable')
     }
     const lease = this.currentLease()
-    const share = await beginRemoteShare(lease)
-    return share === null ? null : {
-      ...share, stop: () => endRemoteShare(lease, share.url),
-      ...(onRemoteShareEnded === undefined ? {} : { onEnded: (listener: () => void) => onRemoteShareEnded(share.url, listener) }),
+    const share = await begin(lease)
+    if (share === null) return null
+    const receipt = 'receipt' in share ? share.receipt : share.url
+    return {
+      expiresAt: share.expiresAt, ...('url' in share ? { url: share.url } : {}), stop: () => endRemoteShare(lease, receipt),
+      ...(onRemoteShareEnded === undefined ? {} : { onEnded: (listener: () => void) => onRemoteShareEnded(receipt, listener) }),
     }
   }
 

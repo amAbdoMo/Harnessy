@@ -24,8 +24,12 @@
 | `watchProgress` | `sessionId,cursor?` | `watching` | `sessionId,subscriptionId` |
 | `submitText` | `sessionId,text,submissionId` | `submitted` | `sessionId,submissionId,admission:"inMemoryInbox"` |
 | `cancelRead` | `subscriptionId` | `cancelled` | `subscriptionId` |
+| `watchBrowserShare` | `shareId?` | `browserShare` | `status`；`frame` 还包含 `shareId,jpeg` |
+| `stopBrowserShare` | `shareId` | `browserShare` | `status`；停止请求绝不返回 `frame` |
 
 请求也可返回 `{v:1,type:"error",requestId,code}`，其中 `code` 只能是 `denied`、`notFound`、`limit`、`expired` 或 `unavailable`。实时读取发送 `{v:1,type:"progress",subscriptionId,sessionId,rows,status,cursor?}`，不包含请求 ID。手机接受结果前必须将结果类型、请求 ID、Session ID，以及提交或订阅 ID 与未完成操作关联；仅解析消息不能建立这种关联。
+
+`watchBrowserShare` 是 v1 的新增操作。Desktop 操作者必须先明确启动原生共享；已配对且完成认证的授权记录随后可以请求一帧，并可选地指定准确的小写 UUID 共享 ID，或省略它来发现当前共享。PC 没有提供方时返回 `idle`。`stopBrowserShare` 始终指定准确共享 ID，不能启动或替换共享。结果为 `idle`、`busy`、`ended` 或带共享 ID 与规范标准 Base64 JPEG 的 `frame`。一帧最多 24,576 个 Base64 字符，解码后最多 18,432 字节。此操作不提供操作员 RPC、凭据、模型路由或新的持久授权字段。旧对端会拒绝这些新增操作标签；Android 仅在明确的浏览器共享页面中发起请求。
 
 每条 Session 摘要仅包含 `sessionId,title,status`；`status` 为 `idle`、`queued`、`running` 或 `closed`。每条历史行仅包含 `role,seq,id,text`；`role` 为 `user`、`assistant`、`tool` 或 `notice`。工具行包含经批准的有界文本，不包含工具参数或任意结果投影。每批历史和进度行必须具有严格递增的序号及不重复的 ID。PC 和手机还必须使用 PC 签发的游标保持跨订阅批次的顺序。
 
@@ -45,7 +49,7 @@
 
 JSON 使用格式正确的 Unicode，并按 UTF-8 编码。解析器拒绝不支持的版本、操作、字段、值为 `null` 的可选字段、孤立代理项和错误标识符。纯文本可以包含用户输入的网址文字，但协议没有网址、附件、文件、终端、审批或设置字段。原生 UI 必须按文字渲染，不执行 HTML，也不激活任意链接。
 
-`requestId`、`submissionId` 和 `subscriptionId` 是恰好 16 字节的规范无填充 base64url 编码。生产调用者生成新的随机 ID。Session ID 和历史行 ID 为 1–128 字节的 ASCII 标记，匹配 `[A-Za-z0-9][A-Za-z0-9._:-]*`；PC 拒绝无法表示其 ID 的现有 Session，而不创建别名。`seq` 是恰好八字节的无符号大端序数值，以规范 base64url 编码，不能使用 JSON 数字。`cursor` 是 1–256 字符的规范无填充 base64url 文本；签发它的 PC 验证其作用域与含义。
+`requestId`、`submissionId` 和 `subscriptionId` 是恰好 16 字节的规范无填充 base64url 编码。生产调用者生成新的随机 ID。浏览器共享 ID 是小写 UUIDv4 字符串。Session ID 和历史行 ID 为 1–128 字节的 ASCII 标记，匹配 `[A-Za-z0-9][A-Za-z0-9._:-]*`；PC 拒绝无法表示其 ID 的现有 Session，而不创建别名。`seq` 是恰好八字节的无符号大端序数值，以规范 base64url 编码，不能使用 JSON 数字。`cursor` 是 1–256 字符的规范无填充 base64url 文本；签发它的 PC 验证其作用域与含义。
 
 移动应用 JSON 的固定上限为 49,152 UTF-8 字节，包含所有包装、行、ID、标题和游标。`parseApplicationBudget` 要求下面的全部字段，拒绝未知字段，并返回冻结的部署预算。完整请求与结果编码器在加密前使用相同解析器；超限结果必须分页或拒绝，不得截断为无效 JSON。密码帧及中继封装预算独立计算，并必须容纳 base64 扩展与路由元数据。
 
@@ -71,7 +75,7 @@ PC 连接器必须在每次分派时授权认证授权记录及其当前代次�
 
 ## Manual acceptance
 
-本次有界源码工作没有执行任何应用操作或回归源码。启用前，父任务必须集成 PC 消费者和原生 Android 对端，对 [application-types.ts](src/application-types.ts) 的使用进行类型检查，并运行 [application.spec.ts](tests/application.spec.ts) 的源码回归。验证数量和完整 UTF-8 字节边界、元数据拒绝、请求与结果关联、授权撤销、订阅释放、收件箱拒绝、实时重复 ID，以及确认丢失后的送达未知行为。Android 原生 UI 与 APK 源码属于独立工作，本库不提供 PWA。
+已执行的有界源码回归覆盖浏览器共享请求／结果限制、配对分派、授权撤回以及真实加密 Loader／中继交换。启用前，父任务仍必须集成 PC 消费者和原生 Android 对端，对 [application-types.ts](src/application-types.ts) 的使用进行类型检查，并运行更广泛的 [application.spec.ts](tests/application.spec.ts) 源码回归。验证数量和完整 UTF-8 字节边界、元数据拒绝、请求与结果关联、授权撤销、订阅释放、收件箱拒绝、实时重复 ID，以及确认丢失后的送达未知行为。Android 原生 UI 与 APK 源码属于独立工作，本库不提供 PWA。
 
 ### Dev Note
 

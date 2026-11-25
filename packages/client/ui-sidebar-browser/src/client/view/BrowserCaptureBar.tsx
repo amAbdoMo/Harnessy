@@ -53,10 +53,14 @@ function BrowserShareActions({ url, t, stop }: PropsLocale<'sidebarBrowser'> & {
 export function BrowserShareBar({ share, t }: PropsLocale<'sidebarBrowser'> & {
   readonly share: ReturnType<typeof useBrowserShare>
 }): ReactNode {
-  if (share.state === undefined) return null
+  const { state, stop } = share
+  if (state === undefined) return null
   return <div className={css.captureBar}>
-    {share.state.phase === 'sharing'
-      ? <BrowserShareActions key={share.state.url} url={share.state.url} t={t} stop={share.stop} />
-      : <p className={css.captureStatus} role="status">{t(`share.${share.state.phase}`)}</p>}
+    {state.phase !== 'sharing' && <p className={css.captureStatus} role="status">{t(`share.${state.phase}`)}</p>}
+    {state.phase === 'sharing' && state.url === undefined && <>
+      <p className={css.captureStatus} role="status">{t('share.phoneSharing')}</p>
+      <Button variant="outline" size="sm" onClick={stop}>{t('share.stop')}</Button>
+    </>}
+    {state.phase === 'sharing' && state.url !== undefined && <BrowserShareActions key={state.url} url={state.url} t={t} stop={stop} />}
   </div>
 }

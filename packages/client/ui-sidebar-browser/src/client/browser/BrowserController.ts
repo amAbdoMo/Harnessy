@@ -122,11 +122,12 @@ export class BrowserController implements HostObservable<BrowserControllerState>
   }
 
   /** Start private viewing for the current page.
+   * @param audience - native Android app or private Web viewer.
    * @returns An expiring viewer link, or null when the private connection is disabled.
    */
-  beginRemoteShare(): Promise<BrowserRemoteShareControl | null> {
+  beginRemoteShare(audience: 'phone' | 'web'): Promise<BrowserRemoteShareControl | null> {
     if (this.disposed || this.page.frame.beginRemoteShare === undefined) return Promise.reject(new Error('Browser sharing is unavailable'))
-    return this.page.frame.beginRemoteShare()
+    return this.page.frame.beginRemoteShare(audience)
   }
 
   /** Read the element selected by the human.
@@ -333,8 +334,8 @@ export interface BrowserTabControllers {
   capture(tabId: TabId): Promise<BrowserAnnotationCapture>
   /** @param tabId - owning tab. @param url - current page. @param documentId - authority for later frames. @returns one frame. */
   captureRecordingFrame(tabId: TabId, url: string, documentId?: BrowserRecordingDocumentId): Promise<BrowserRecordingFrame>
-  /** @param tabId - owning tab. @returns An expiring share, or null when the private connection is disabled. */
-  beginRemoteShare(tabId: TabId): Promise<BrowserRemoteShareControl | null>
+  /** @param tabId - owning tab. @param audience - paired phone or web. @returns An expiring share or setup required. */
+  beginRemoteShare(tabId: TabId, audience: 'phone' | 'web'): Promise<BrowserRemoteShareControl | null>
   /** @param tabId - owning tab. @param point - viewport coordinates. @returns selected element. */
   pick(tabId: TabId, point: { readonly x: number; readonly y: number }): Promise<BrowserPickedElement | null>
   /** @param tabId - owning tab. @param human - human takeover or agent resume. @returns acknowledgment. */
@@ -428,7 +429,7 @@ export function createBrowserControllers(actions: BoundActions<BrowserStore>, cr
     capture: id => controller(id)?.capture() ?? Promise.reject(new Error('Browser tab is unavailable')),
     captureRecordingFrame: (id, url, documentId) => controller(id)?.captureRecordingFrame(url, documentId)
       ?? Promise.reject(new Error('Browser recording is unavailable')),
-    beginRemoteShare: id => controller(id)?.beginRemoteShare() ?? Promise.reject(new Error('Browser sharing is unavailable')),
+    beginRemoteShare: (id, audience) => controller(id)?.beginRemoteShare(audience) ?? Promise.reject(new Error('Browser sharing is unavailable')),
     pick: (id, point) => controller(id)?.pick(point) ?? Promise.reject(new Error('Browser tab is unavailable')),
     control: (id, human) => controller(id)?.control(human) ?? Promise.resolve(),
     status: id => controller(id)?.status() ?? Promise.resolve(undefined),

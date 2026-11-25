@@ -24,8 +24,12 @@ Every object has `v:1` and the exact listed fields. A question mark marks an opt
 | `watchProgress` | `sessionId,cursor?` | `watching` | `sessionId,subscriptionId` |
 | `submitText` | `sessionId,text,submissionId` | `submitted` | `sessionId,submissionId,admission:"inMemoryInbox"` |
 | `cancelRead` | `subscriptionId` | `cancelled` | `subscriptionId` |
+| `watchBrowserShare` | `shareId?` | `browserShare` | `status`; a `frame` also has `shareId,jpeg` |
+| `stopBrowserShare` | `shareId` | `browserShare` | `status`; a `frame` is never returned for a stop |
 
 A request can instead return `{v:1,type:"error",requestId,code}` with `code` exactly `denied`, `notFound`, `limit`, `expired`, or `unavailable`. A live read emits `{v:1,type:"progress",subscriptionId,sessionId,rows,status,cursor?}`; it has no request ID. The phone must correlate result type, request ID, Session ID, and submission or subscription ID with its outstanding operation before accepting a result; parsing alone does not provide that correlation.
+
+`watchBrowserShare` is additive to v1. The Desktop operator must explicitly start the native share; a paired authenticated grant may then request one frame, optionally naming the exact lowercase UUID share ID, or omit it to discover the current share. An absent PC provider returns `idle`. `stopBrowserShare` always names the exact share ID and cannot start or replace a share. Results are `idle`, `busy`, `ended`, or a `frame` carrying the share ID and canonical standard-base64 JPEG. A frame is limited to 24,576 base64 characters and 18,432 decoded bytes. This operation exposes no operator RPC, credentials, model route, or persisted grant field. Older peers reject these additive operation tags; the Android client requests them only from its explicit browser-share screen.
 
 Each Session summary has exactly `sessionId,title,status`; `status` is `idle`, `queued`, `running`, or `closed`. Each history row has exactly `role,seq,id,text`; `role` is `user`, `assistant`, `tool`, or `notice`. Tool rows contain approved bounded text, not tool arguments or arbitrary result projections. History and progress rows must have strictly increasing sequences and distinct IDs within each batch. The PC and phone must also preserve ordering across subscription batches using the PC-issued cursor.
 
@@ -45,7 +49,7 @@ Example inbox-admission acknowledgement, not a completion receipt:
 
 JSON is well-formed Unicode encoded as UTF-8. Parsers reject unsupported versions, operations, fields, `null` optionals, lone surrogates, and malformed identifiers. Plain text can contain user-written URL text, but the protocol has no URL, attachment, file, terminal, approval, or settings fields. The native UI must render text literally, not execute HTML or activate arbitrary links.
 
-`requestId`, `submissionId`, and `subscriptionId` are canonical unpadded base64url encodings of exactly 16 bytes. Production callers generate fresh random IDs. Session IDs and history row IDs are ASCII tokens of 1–128 bytes matching `[A-Za-z0-9][A-Za-z0-9._:-]*`; the PC refuses an existing Session whose ID cannot be represented rather than inventing an alias. `seq` is exactly eight unsigned big-endian bytes encoded as canonical base64url, never a JSON number. `cursor` is canonical unpadded base64url text of 1–256 characters; the issuing PC validates its scope and meaning.
+`requestId`, `submissionId`, and `subscriptionId` are canonical unpadded base64url encodings of exactly 16 bytes. Production callers generate fresh random IDs. Browser share IDs are lowercase UUIDv4 strings. Session IDs and history row IDs are ASCII tokens of 1–128 bytes matching `[A-Za-z0-9][A-Za-z0-9._:-]*`; the PC refuses an existing Session whose ID cannot be represented rather than inventing an alias. `seq` is exactly eight unsigned big-endian bytes encoded as canonical base64url, never a JSON number. `cursor` is canonical unpadded base64url text of 1–256 characters; the issuing PC validates its scope and meaning.
 
 The fixed mobile JSON ceiling is 49,152 UTF-8 bytes, including every wrapper, row, ID, title, and cursor. `parseApplicationBudget` requires all fields below, rejects unknown fields, and returns a frozen deployment budget. Complete request and result encoders apply the same parsers before encryption; oversized results must be paginated or rejected, never partially truncated into invalid JSON. The cryptographic frame and relay envelope budgets remain separate and must accommodate base64 expansion and routing metadata.
 
@@ -71,7 +75,7 @@ A successful acknowledgement reports volatile admission only: the PC can later d
 
 ## Manual acceptance
 
-No application operations or regression sources have been executed as part of this bounded source work. Before activation, the parent must integrate the PC consumer and native Android peer, type-check their use of [application-types.ts](src/application-types.ts), and run the source regressions in [application.spec.ts](tests/application.spec.ts). Validate count and total UTF-8 byte edges, rejected metadata, request/result correlation, revoked grants, subscription disposal, inbox rejection, duplicate live IDs, and lost-ack delivery-unknown behavior. Android native UI and APK source are separate work, not a PWA supplied by this library.
+Focused source regressions cover browser-share request/result limits, paired dispatch, authority withdrawal, and the real encrypted Loader/relay exchange. Before activation, the parent must integrate the PC consumer and native Android peer, type-check their use of [application-types.ts](src/application-types.ts), and run the broader source regressions in [application.spec.ts](tests/application.spec.ts). Validate count and total UTF-8 byte edges, rejected metadata, request/result correlation, revoked grants, subscription disposal, inbox rejection, duplicate live IDs, and lost-ack delivery-unknown behavior. Android native UI and APK source are separate work, not a PWA supplied by this library.
 
 ### Dev Note
 

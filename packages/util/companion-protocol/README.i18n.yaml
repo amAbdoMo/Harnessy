@@ -32,9 +32,12 @@
 /dsh-companion-protocol/wire-reference/application-session-activation:
   en: a1bd61a184e44184
   zh: 692f01900b86a264
+/dsh-companion-protocol/wire-reference/native-browser-share-compatibility:
+  en: eb60fbdb41cdccbd
+  zh: 8301eb3d0156a63e
 /dsh-companion-protocol/wire-reference/primitive-encoding:
-  en: 10d7e3dd84f12a1a
-  zh: 17bcf94adc43b194
+  en: 832851cec39d254b
+  zh: ce5b840c66241c3a
 /dsh-companion-protocol/wire-reference/exact-json-fields:
   en: 068c6b705536746c
   zh: f910f139e86c8bd8

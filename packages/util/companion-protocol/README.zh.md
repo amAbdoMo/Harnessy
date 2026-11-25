@@ -62,13 +62,17 @@ PC 必须原子地预留/消耗有效邀请、核对目标 PC/源及过期时间
 
 `getSessionActivation` 报告该手机当前单独的电脑权限；`openSession` 显式请求打开已有聊天。列出会话、读取历史及观察进度都不会激活 Agent。`openSession` 仅携带一个请求 ID、一个操作 ID 和已有 Session ID，不携带文本或创建请求。Host 必须执行独立的手机授权检查，并且只准入符合条件的普通 Session。`sessionOpened` 区分已应用、确定拒绝和结果未知；对于冷态 Session，初始化和目标持久化完成后才返回包含未关闭 Session 摘要的已应用结果。操作 ID 只是一次性关联标识，不是持久重放键：未知结果应通过读取对账，绝不可自动重发。旧电脑会拒绝这些操作标签；请先更新电脑并遵循[会话激活升级指南](../../../docs/upgrade-guide/v0.1.17/companion-session-activation/guide.zh.md)。
 
+### 原生浏览器共享兼容性
+
+`watchBrowserShare` 和 `stopBrowserShare` 是针对明确启动的 Desktop 原生浏览器共享新增的 v1 操作。只有已配对且完成认证的授权记录可以请求它们；省略 `shareId` 用于发现当前共享，而 `stopBrowserShare` 必须指定准确的小写 UUID 共享 ID，且不能启动或替换共享。PC 没有提供方时，观察请求返回 `idle`。一帧只包含准确共享 ID 和规范标准 Base64 JPEG，最多 24,576 个字符，解码后最多 18,432 字节。这些操作不提供操作员 RPC、凭据、模型路由或持久授权字段；旧对端会拒绝新增标签，因此 Android 仅在明确的浏览器共享页面中请求。参见[应用消息参考](APPLICATION.md)。
+
 ### 基础编码
 
 `LP(x)` 为 `uint32BE(byteLength(x)) || x`，不带终止符。`C(domain; fields...)` 为 `LP(UTF8(domain)) || LP(field1) || ...`。普通文本字段使用确切 UTF-8。十进制字段使用无前导零的最短无符号 ASCII 十进制。下文原始字段使用解码后的字节，而非 base64url 文本。嵌套转录作为一个原始字段，包含其所有内部长度前缀。任何认证转录都不包含 JSON 序列化、空白、排序、Unicode 规范化或分隔符拼接。
 
 所有二进制 JSON 字段使用无填充的规范 base64url，字符集为 `A-Z a-z 0-9 _ -`，未使用的尾部位为零，不允许空白。身份与临时公钥必须为恰好 91 字节的规范 DER SPKI，算法为 `id-ecPublicKey`，命名曲线为 `prime256v1`/`secp256r1`，使用未压缩点。固定的 27 字节前缀为 `3059301306072a8648ce3d020106082a8648ce3d03010703420004`。原生密钥导入验证点；重新导出的每个字节必须相同。PEM、私钥、显式参数、其他曲线、压缩点、畸形点和尾随字节均被拒绝。双方身份签名均使用 SHA-256 与 ECDSA，以及规范 ASN.1 DER `(r,s)`；标量必须位于 `[1,n-1]`。同时接受 high-S 和 low-S 签名；不接受 IEEE-P1363。Node 默认 DER 签名对应 Java JCA `SHA256withECDSA`，而不是 `SHA256withECDSAinP1363Format`。
 
-`pcId = base64url(SHA256(C('dsh-companion/pc-id/v1'; rawIdentitySPKI)))`。不透明通道/授权/邀请/套接字标识符匹配 `[A-Za-z0-9_-]{1,128}`，并使用不同的 `dsh-brand` 类型。PC id 还必须解码为恰好 32 字节。`generation` 为 `[1,4294967295]` 内的 JSON 整数；认证的代次字段使用十进制文本。`httpsOrigin` 必须与 `new URL(text).origin` 完全相等，使用 HTTPS，且不含凭据、路径、尾斜杠、查询或片段。规范拼写并不证明源所有权或可达性。
+`pcId = base64url(SHA256(C('dsh-companion/pc-id/v1'; rawIdentitySPKI)))`。不透明通道/授权/邀请/套接字标识符匹配 `[A-Za-z0-9_-]{1,128}`，并使用不同的 `dsh-brand` 类型。PC id 还必须解码为恰好 32 字节。浏览器共享 ID 是小写 UUIDv4 字符串。`generation` 为 `[1,4294967295]` 内的 JSON 整数；认证的代次字段使用十进制文本。`httpsOrigin` 必须与 `new URL(text).origin` 完全相等，使用 HTTPS，且不含凭据、路径、尾斜杠、查询或片段。规范拼写并不证明源所有权或可达性。
 
 ### 确切 JSON 字段
 

@@ -1,9 +1,22 @@
 /** Main-only companion management types; none grants renderer access to secrets. */
 import type { Branded } from '@deepseek-ai/dsh-brand'
-import type { GrantId, InvitationId, PcId } from '@deepseek-ai/dsh-companion-protocol'
+import type { BrowserShareId, GrantId, InvitationId, PcId } from '@deepseek-ai/dsh-companion-protocol'
 
 /** Exact locally displayed candidate identifier, independent of relay routing. */
 export type CandidateId = Branded<'CompanionCandidateId'>
+
+/** One paired-phone browser-share operation; starting a share is a separate explicit Desktop action. */
+export type BrowserShareRequest =
+  | { readonly kind: 'watch'; readonly shareId?: BrowserShareId }
+  | { readonly kind: 'stop'; readonly shareId: BrowserShareId }
+
+/** Bounded response from the Desktop native browser-share owner, before the application envelope is added. */
+export type BrowserShareResponse =
+  | { readonly status: 'idle' | 'busy' | 'ended' }
+  | { readonly status: 'frame'; readonly shareId: BrowserShareId; readonly jpeg: string }
+
+/** Desktop-owned callback for one authenticated paired-phone browser-share operation. */
+export type BrowserShareHandler = (request: BrowserShareRequest, signal: AbortSignal) => Promise<BrowserShareResponse>
 
 /** Public phone labels; an empty display name is intentional until signed metadata exists. */
 export interface PairedDevice {

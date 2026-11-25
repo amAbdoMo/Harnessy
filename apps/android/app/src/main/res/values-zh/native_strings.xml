@@ -114,4 +114,12 @@
     <string name="native_open_chat_unknown">打开聊天的结果未知。请先检查此聊天当前的电脑状态，再处理此警告。不会自动重新打开。</string>
     <string name="native_open_chat_resolve">我已检查此聊天的电脑状态</string>
     <string name="native_draft_limit">有太多聊天含未发送草稿。请先清空一个草稿，再开始另一个。已有草稿均已保留。</string>
+    <string name="native_browser_share_title">实时浏览器</string>
+    <string name="native_browser_share_waiting">正在等待共享浏览器…</string>
+    <string name="native_browser_share_frame">共享的浏览器画面</string>
+    <string name="native_browser_share_stop">停止共享</string>
+    <string name="native_browser_share_stopping">正在停止浏览器共享…</string>
+    <string name="native_browser_share_ended">浏览器共享已结束。</string>
+    <string name="native_browser_share_unavailable">无法加载共享浏览器。页面保持打开时会重试读取。</string>
+    <string name="native_browser_share_stop_failed">无法停止共享。共享可能仍在进行；请重新打开此页面并明确重试。</string>
 </resources>

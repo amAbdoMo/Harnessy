@@ -16,4 +16,5 @@
     <integer name="idle_ms">60000</integer>
     <integer name="lifetime_ms">900000</integer>
     <integer name="tick_ms">1000</integer>
+    <integer name="browser_share_poll_ms">250</integer>
 </resources>

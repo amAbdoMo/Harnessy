@@ -68,6 +68,11 @@ class CompanionViewModel @Inject constructor(
     }
     fun resumeConnection() = update { repository.resumeConnection() }
 
+    fun startBrowserShareViewing() = update { repository.startBrowserShareViewing() }
+    fun stopBrowserShareViewing() = update { repository.stopBrowserShareViewing() }
+    fun watchBrowserShare() = update { repository.watchBrowserShare() }
+    fun stopBrowserShare(shareId: String) = update { repository.stopBrowserShare(shareId) }
+
     fun setTheme(theme: ThemePreference) {
         if (state.value.savingTheme) return
         mutableState.value = state.value.copy(savingTheme = true)

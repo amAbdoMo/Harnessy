@@ -8,7 +8,7 @@ Desktop 使用私有所有者能力和真实部署配置挂载此可选服务。
 
 ## 桌面所有权与原生控制
 
-默认导出为 `CompanionHost`，注册为 `ctx.companionHost`；它不是 Typert Remote 服务，也不注册 HTTP 路由。Desktop Host 的 `runProfile.prepare` 使用实际凭证 home 和父进程断连或 Host 退役时同步中止的信号调用 `installDesktopCompanionOwner(ctx, { home, signal })`。能力附属于该应用的根上下文；YAML 不能提供该能力。无此能力挂载已配置服务会失败。服务在 `<canonical-home>/.companion-host-owner` 持有内核锁，直至静止处置完成：Windows 保持零共享的 `CreateFileW` 句柄；POSIX 保持独占 `flock`，并核验当前 inode。拒绝重复所有者，不按心跳到期夺取所有权、不探测 PID，也不删除过期文件。进程死亡会关闭内核句柄；释放仍保留 POSIX 锁 inode。
+默认导出为 `CompanionHost`，注册为 `ctx.companionHost`；它不是 Typert Remote 服务，也不注册 HTTP 路由。Desktop Host 的 `runProfile.prepare` 使用实际凭证 home、在父进程断连或 Host 退役时同步中止的信号，以及可选的 Desktop 原生 `BrowserShareHandler` 调用 `installDesktopCompanionOwner(ctx, { home, signal, browserShare })`。回调接收 `{ kind: 'watch', shareId? }` 或 `{ kind: 'stop', shareId }` 和所有者信号，并返回 `idle`、`busy`、`ended` 或一帧有界画面；它观察已经由 Desktop Main 启动的共享，从不启动、替换或通用控制共享。能力附属于该应用的根上下文；YAML 不能提供该能力。无此能力挂载已配置服务会失败。服务在 `<canonical-home>/.companion-host-owner` 持有内核锁，直至静止处置完成：Windows 保持零共享的 `CreateFileW` 句柄；POSIX 保持独占 `flock`，并核验当前 inode。拒绝重复所有者，不按心跳到期夺取所有权、不探测 PID，也不删除过期文件。进程死亡会关闭内核句柄；释放仍保留 POSIX 锁 inode。
 
 [Desktop 启用负责人](../../../apps/desktop-host/src/companion-activation.ts)在挂载前验证单独保护的 `companion-host/desktop-consent` 记录 `{ kind: 'grant', payload: { v: 1, httpsOrigin } }`。没有授权时，原生管理返回 `activationRequired`；仅由 Main 拥有的启用对话框发出 `activate`、提交授权并挂载服务。启用不授予手机权限。授权变更或凭据提供方替换会退役伴随生命周期；挂载失败会被处置，不会根据缓存结果重新启用。现有身份和授权记录保持独立。
 
@@ -42,7 +42,7 @@ PC 出站封装是 `{ v: 1, type: 'relay-data', channelId, socketGeneration, pho
 
 双方在应用字节前交换共享加密密钥确认。签名 welcome 绑定完整签名 hello 及 PC 签发的授权 id/代际；Android 连同自身身份密钥存储这些公开值。共享协议当前没有独立的持久签名授权证明消息。此消费者不自行发明：Android 必须支持当前绑定 welcome 的注册格式，或与协议负责人协调明确的共享协议变体。恢复的手机副本绝不能替换 PC 授权行。
 
-应用请求／结果使用共享[应用类型](../../util/companion-protocol/src/application-types.ts)与解析器／编码器，不使用操作员 RPC。封闭操作包含 `listSessions`、`readHistory`、`watchProgress`、`submitText`、`cancelRead`、`getSessionActivation`，以及单独授权的 `openSession`、`listManagementWorkspaces`、`createSession`、`renameSession`、`archiveSession` 和 `setSessionPinned`。独立的模型权限允许 `listSessionModels` 和 `selectSessionModel`；回复只包含不透明选项，不包含提供方路由标识。请求不允许通用 RPC 或电脑路径。单独授权的工具结果文本可以包含工作区相对标签，但不包含原始参数或提供方秘密。不提供删除命令或回执端点。手机提交 ID 在映射至现有 Session 请求 ID 前，以已认证授权及 Session 建立命名空间。完整 UTF-8 请求／结果／协议大小、发送排队字节、通道尝试、候选、授权、订阅与待处理操作均由显式配置限制。
+应用请求／结果使用共享[应用类型](../../util/companion-protocol/src/application-types.ts)与解析器／编码器，不使用操作员 RPC。封闭操作包含 `listSessions`、`readHistory`、`watchProgress`、`submitText`、`cancelRead`、`watchBrowserShare` 和 `stopBrowserShare`，以及 `getSessionActivation` 与单独授权的 `openSession`、`listManagementWorkspaces`、`createSession`、`renameSession`、`archiveSession` 和 `setSessionPinned`。浏览器查看仅对已配对且完成认证的授权记录开放，停止必须使用准确共享 ID；没有 Desktop 提供方时返回 `idle`。一帧是规范标准 Base64 JPEG，最多 24,576 个字符、解码后最多 18,432 字节；等待所有者回调后，分派器会重新核对授权和通道，因此已退役通道不能收到过期画面。独立的模型权限允许 `listSessionModels` 和 `selectSessionModel`；回复只包含不透明选项，不包含提供方路由标识。请求不允许通用 RPC 或电脑路径。单独授权的工具结果文本可以包含工作区相对标签，但不包含原始参数或提供方秘密。不提供删除命令或回执端点。手机提交 ID 在映射至现有 Session 请求 ID 前，以已认证授权及 Session 建立命名空间。完整 UTF-8 请求／结果／协议大小、发送排队字节、通道尝试、候选、授权、订阅与待处理操作均由显式配置限制。
 
 [管理执行](src/session-management.ts)在调用现有电脑负责人前重新检查当前权限。创建使用手机已知的 `mobile-${operationId}` 标识，通过 `SessionController.create({ newSessionId, workspaceId })` 采用电脑默认预设且不添加人工文本；不会创建另一个控制器。`managed` 的 `outcome: 'applied'` 在负责人提交后返回，创建／重命名还须等待目标 Session 刷新。部分生效或刷新失败返回 `unknown`，不表示回滚或持久重放回执。归档拒绝繁忙 Session 且不调用 StopActivity，保留历史并移除电脑全局置顶。置顶／取消置顶写入电脑全局注册表元数据；导航仍是只读投影。
 

@@ -28,6 +28,7 @@ import { installDevicePreviewParentChannel } from './device-preview-parent.ts'
 import { installDevicePreviewTools } from './device-preview-tools.ts'
 import { installBrowserPreview } from './browser-preview.ts'
 import { installBrowserShare } from './browser-share.ts'
+import { createPhoneBrowserShare } from './phone-browser-share.ts'
 
 async function main(): Promise<void> {
   const remote = resolveDesktopRemoteConnection(process.env)
@@ -57,6 +58,7 @@ async function main(): Promise<void> {
     if (!process.connected || process.send === undefined) { reject(new Error('Desktop parent channel is unavailable')); return }
     process.send(message, (error) => { if (error === null) resolve(); else reject(error) })
   })
+  const phoneBrowserShare = createPhoneBrowserShare(companionLife.signal, send)
   const application = runProfile({
     environment: loadLayeredEnv('dsh'),
     profile: 'desktop',
@@ -66,7 +68,7 @@ async function main(): Promise<void> {
     prepare(ctx) {
       control.browserPreview = installBrowserPreview(ctx, send)
       control.companionConfig = resolveDesktopCompanionConfig(process.env)
-      installDesktopCompanionOwner(ctx, { home: resolveDshHome(), signal: companionLife.signal })
+      installDesktopCompanionOwner(ctx, { home: resolveDshHome(), signal: companionLife.signal, browserShare: phoneBrowserShare.request })
       control.companion = installDesktopCompanionControls(ctx, control.companionConfig, companionLife, send)
       control.websiteMcp = installWebsiteMcpInspector(ctx, projectDir)
       const parent = control.websiteParent = installWebsiteParentChannel(ctx, send)
@@ -109,6 +111,7 @@ async function main(): Promise<void> {
     })()
   }
   process.on('message', (message: unknown) => {
+    if (phoneBrowserShare.receive(message)) return
     if (control.browserPreview?.receive(message) === true) return
     if (control.browserShare?.receive(message) === true) return
     if (control.companion?.receive(message) === true) return

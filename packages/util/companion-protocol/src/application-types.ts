@@ -13,6 +13,8 @@ export type MobileOperationId = Branded<'CompanionOperationId'>
 export type MobileModelChoiceId = Branded<'CompanionModelChoiceId'>
 /** PC-minted 16-byte revision of the advertised model catalog, never a provider or model identifier. */
 export type MobileModelRevision = Branded<'CompanionModelRevision'>
+/** PC-minted UUID identifying the one native browser share currently visible to paired phones. */
+export type BrowserShareId = Branded<'BrowserShareId'>
 /** Supported PC chat management operations; deletion is not a wire operation. */
 export type ManagementAction = 'create' | 'rename' | 'archive' | 'pin'
 /** Phone-generated 16-byte identifier scoped to authenticated grant plus Session. */
@@ -59,6 +61,10 @@ export type ApplicationRequest =
   | { readonly v: 1; readonly type: 'listManagementWorkspaces'; readonly requestId: MobileRequestId; readonly limit: number; readonly cursor?: ReadCursor }
   | { readonly v: 1; readonly type: 'listSessionModels'; readonly requestId: MobileRequestId; readonly sessionId: MobileSessionId; readonly limit: number; readonly cursor?: ReadCursor }
   | { readonly v: 1; readonly type: 'getSessionActivation'; readonly requestId: MobileRequestId }
+  /** Observe the explicitly started native Desktop browser share; omission discovers the current share. */
+  | { readonly v: 1; readonly type: 'watchBrowserShare'; readonly requestId: MobileRequestId; readonly shareId?: BrowserShareId }
+  /** Stop only the exact native browser share selected by Desktop. */
+  | { readonly v: 1; readonly type: 'stopBrowserShare'; readonly requestId: MobileRequestId; readonly shareId: BrowserShareId }
   /** Explicit existing-chat activation, never an effect of a read or history selection. */
   | (MutationIdentity & { readonly type: 'openSession' })
   | (MutationIdentity & (
@@ -159,6 +165,16 @@ export type ModelSelectionResult = MutationIdentity & { readonly type: 'modelSel
   | { readonly outcome: 'unknown' }
 )
 
+/** One bounded response to a native browser-share observation or exact stop request. */
+export type BrowserShareResult = {
+  readonly v: 1
+  readonly type: 'browserShare'
+  readonly requestId: MobileRequestId
+} & (
+  | { readonly status: 'idle' | 'busy' | 'ended' }
+  | { readonly status: 'frame'; readonly shareId: BrowserShareId; readonly jpeg: string }
+)
+
 /** Existing-chat activation is applied only after writable ownership and targeted persistence settle. */
 export type SessionOpenedResult = MutationIdentity & { readonly type: 'sessionOpened' } & (
   | {
@@ -186,5 +202,6 @@ export type ApplicationResult =
   | { readonly v: 1; readonly type: 'sessionActivation'; readonly requestId: MobileRequestId; readonly enabled: boolean }
   | SessionOpenedResult
   | SessionModelsResult
+  | BrowserShareResult
   | ModelSelectionResult
   | ManagementResult

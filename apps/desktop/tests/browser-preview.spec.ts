@@ -9,11 +9,12 @@ import { DESKTOP_IPC } from '../src/ipc.ts'
 function fixture(profiles: readonly DesktopWebsiteProfile[] = []) {
   const published = vi.fn()
   const owner = { isDestroyed: () => false, send: published } as Pick<WebContents, 'isDestroyed' | 'send'> as WebContents
+  const jpeg = vi.fn(() => Buffer.from('jpeg'))
   const guest = {
     isDestroyed: () => false, getURL: () => 'https://example.test/', getTitle: () => 'Example', isLoading: () => false,
     loadURL: vi.fn(async () => {}), executeJavaScript: vi.fn(async () => ({ text: 'Visible page', elements: [] })),
     capturePage: vi.fn(async () => ({ getSize: () => ({ width: 800, height: 450 }), toPNG: () => Buffer.from('png'),
-      isEmpty: () => false, toJPEG: () => Buffer.from('jpeg') })),
+      isEmpty: () => false, toJPEG: jpeg, resize: () => ({ toJPEG: jpeg }) })),
     sendInputEvent: vi.fn(),
     on: vi.fn(),
   }
@@ -29,6 +30,41 @@ function fixture(profiles: readonly DesktopWebsiteProfile[] = []) {
   const request = (sessionId: string, operation: object, requestId = randomUUID()) => preview.request({ type: 'browser-preview', requestId, sessionId, operation })
   return { owner, guest, preview, lease, request, inspectBrowser, published, setZoom, openLocalDevTools, closeLocalDevTools }
 }
+
+it('shows and stops an Android share only through the paired-phone carrier', async () => {
+  const f = fixture()
+  f.preview.bind(f.owner, f.lease, 'one')
+  await f.preview.control(f.owner, f.lease, true)
+  const send = (type: string, id?: string) => f.preview.request({ type, requestId: randomUUID(), id })
+  await expect(send('phone-browser-share-watch')).resolves.toMatchObject({ status: 'idle' })
+  await expect(f.preview.beginPhoneShare(f.owner, f.lease, () => true, async () => false)).resolves.toBeNull()
+  const native = await f.preview.beginPhoneShare(f.owner, f.lease, () => true, async () => true)
+  if (native === null) throw new Error('Expected Android share')
+  await expect(send('browser-share-frame', native.receipt)).resolves.toMatchObject({ status: 'ended' })
+  await expect(send('browser-share-stop', native.receipt)).resolves.toMatchObject({ status: 'ended' })
+  await expect(send('phone-browser-share-watch')).resolves.toMatchObject({ status: 'frame', shareId: native.receipt, jpeg: 'anBlZw==' })
+  await expect(send('phone-browser-share-stop', native.receipt)).resolves.toMatchObject({ status: 'ended' })
+  expect(f.published).toHaveBeenCalledWith(DESKTOP_IPC.browserRemoteShareEnded, native.receipt)
+  await expect(send('phone-browser-share-watch', native.receipt)).resolves.toMatchObject({ status: 'ended' })
+  const web = f.preview.beginRemoteShare(f.owner, f.lease, 'https://pc.tailnet.ts.net/', () => true)
+  const webId = new URL(web.url).searchParams.get('view') ?? undefined
+  await expect(send('phone-browser-share-watch')).resolves.toMatchObject({ status: 'idle' })
+  await expect(send('phone-browser-share-stop', webId)).resolves.toMatchObject({ status: 'ended' })
+  await expect(send('browser-share-frame', webId)).resolves.toMatchObject({ status: 'frame' })
+})
+
+it('cannot start a phone share if local control changed during the pairing check', async () => {
+  const f = fixture()
+  f.preview.bind(f.owner, f.lease, 'one')
+  await f.preview.control(f.owner, f.lease, true)
+  const paired = Promise.withResolvers<boolean>()
+  const start = f.preview.beginPhoneShare(f.owner, f.lease, () => true, () => paired.promise)
+  await f.preview.control(f.owner, f.lease, false)
+  await f.preview.control(f.owner, f.lease, true)
+  paired.resolve(true)
+  await expect(start).rejects.toThrow('page changed')
+  await expect(f.preview.request({ type: 'phone-browser-share-watch', requestId: randomUUID() })).resolves.toMatchObject({ status: 'idle' })
+})
 
 it('requires local human control for zoom and DevTools and closes DevTools on resume', async () => {
   const f = fixture()
@@ -66,21 +102,25 @@ it('fences recording and remote frames when control changes or the window is hid
   await expect(frame(recording.documentId)).rejects.toThrow('page changed')
 })
 
-it('stops only the matching share and discards a frame already being captured', async () => {
+it.each(['web', 'phone'] as const)('stops only the matching %s share and discards a frame already being captured', async (audience) => {
   const f = fixture()
   f.preview.bind(f.owner, f.lease, 'one')
   await f.preview.control(f.owner, f.lease, true)
-  const share = f.preview.beginRemoteShare(f.owner, f.lease, 'https://pc.tailnet.ts.net/', () => true)
-  const id = new URL(share.url).searchParams.get('view')
+  const share = audience === 'phone'
+    ? await f.preview.beginPhoneShare(f.owner, f.lease, () => true, async () => true)
+    : f.preview.beginRemoteShare(f.owner, f.lease, 'https://pc.tailnet.ts.net/', () => true)
+  if (share === null) throw new Error('Expected live share')
+  const receipt = 'url' in share ? share.url : share.receipt
+  const id = 'url' in share ? new URL(receipt).searchParams.get('view') : receipt
   const image = await f.guest.capturePage()
   const capture = Promise.withResolvers<typeof image>()
   f.guest.capturePage.mockReturnValueOnce(capture.promise)
-  const frame = f.preview.request({ type: 'browser-share-frame', requestId: randomUUID(), id })
-  const stop = (id: string | null) => f.preview.request({ type: 'browser-share-stop', requestId: randomUUID(), id })
+  const frame = f.preview.request({ type: audience === 'phone' ? 'phone-browser-share-watch' : 'browser-share-frame', requestId: randomUUID(), id })
+  const stop = (id: string | null) => f.preview.request({ type: audience === 'phone' ? 'phone-browser-share-stop' : 'browser-share-stop', requestId: randomUUID(), id })
   await expect(stop(randomUUID())).resolves.toMatchObject({ status: 'ended' })
-  expect(f.published).not.toHaveBeenCalledWith(DESKTOP_IPC.browserRemoteShareEnded, share.url)
-  await expect(stop(id)).resolves.toMatchObject({ status: 'stopped' })
-  expect(f.published).toHaveBeenCalledWith(DESKTOP_IPC.browserRemoteShareEnded, share.url)
+  expect(f.published).not.toHaveBeenCalledWith(DESKTOP_IPC.browserRemoteShareEnded, receipt)
+  await expect(stop(id)).resolves.toMatchObject({ status: audience === 'phone' ? 'ended' : 'stopped' })
+  expect(f.published).toHaveBeenCalledWith(DESKTOP_IPC.browserRemoteShareEnded, receipt)
   capture.resolve(image)
   await expect(frame).resolves.toMatchObject({ status: 'ended' })
   expect(f.preview.status(f.owner, f.lease).humanControl).toBe(true)

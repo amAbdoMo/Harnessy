@@ -8,7 +8,7 @@ description: "原生 Kotlin／Compose Android 聊天、具备生命周期感知�
 
 ## 概述
 
-原生 Kotlin／Jetpack Compose 应用提供配对、已有会话聊天、明确打开符合条件的冷态聊天、获准的文本历史与进度，以及向正在运行的电脑排队追加消息。Material 3 界面使用具备生命周期感知的 ViewModel／StateFlow 状态、Hilt 所有权、Compose 导航和 DataStore 外观偏好。Java 协议／存储核心通过 Kotlin 互操作保留；单独获得 PC 许可后可使用四种聊天管理操作。智能体、特权工具、服务商凭据和会话存储仍由电脑持有。构建、JVM、设备、配对与后台送达证据相互独立；源码本身不能证明其中任何一项。
+原生 Kotlin／Jetpack Compose 应用提供配对、已有会话聊天、明确打开符合条件的冷态聊天、获准的文本历史与进度、向正在运行的电脑排队追加消息，以及明确打开的只读实时浏览器共享。Material 3 界面使用具备生命周期感知的 ViewModel／StateFlow 状态、Hilt 所有权、Compose 导航和 DataStore 外观偏好。Java 协议／存储核心通过 Kotlin 互操作保留；单独获得 PC 许可后可使用四种聊天管理操作。智能体、特权工具、服务商凭据和会话存储仍由电脑持有。构建、JVM、设备、配对与后台送达证据相互独立；源码本身不能证明其中任何一项。
 
 ## 目录
 
@@ -16,6 +16,7 @@ description: "原生 Kotlin／Compose Android 聊天、具备生命周期感知�
 - [Workspace 导航](#workspace-navigation)
 - [模型选择](#model-selection)
 - [会话激活](#session-activation)
+- [实时浏览器共享](#live-browser-share)
 - [配对与存储](#pairing-and-storage)
 - [读取与送达](#reads-and-delivery)
 - [限制与验证](#limits-and-verification)
@@ -65,6 +66,13 @@ Gradle 属性 `companion.pcModelSelection` 默认为 `true`。启用后，[模�
 ## 会话激活
 
 符合条件的已有冷态普通聊天可通过[打开聊天](<app/src/main/java/io/harnessy/companion/nativeapp/NativeSessionActivation.kt>)在电脑运行时显式打开，无需 Desktop 标签页。列出会话或读取历史都不会激活电脑端 Agent。打开操作要求电脑为该手机单独授权，并在**已配对手机**中选择**启用打开聊天**；配对、聊天管理、模型选择及工具详情授权均不包含此权限。此操作通过电脑常规 Agent 初始化恢复已有聊天，并仅刷新目标 Session；初始化可能迁移或修复历史、运行 SessionStart 插件，即使失败也可能留下这些影响。操作不会发送文本或新任务，也不改变其他聊天或全局模型默认值。准入后若回复丢失，会留下不确定性阻止记录；手机不会自动重试。参见[会话激活升级指南](<../../docs/upgrade-guide/v0.1.17/companion-session-activation/guide.zh.md>)。
+
+<a id="live-browser-share"></a>
+## 实时浏览器共享
+
+已配对电脑在线时，手机可在“设置 → 电脑连接”中打开**实时浏览器**；明确打开页面后会查找电脑已经开始的共享。[原生查看界面](<app/src/main/java/io/harnessy/companion/nativeapp/NativeBrowserShareScreen.kt>)仅使用现有加密伴侣通道，并且只在页面可见时请求有界 JPEG 帧；不会打开 WebView、Tailscale 路由或外部账号。
+
+查看界面的**停止共享**绑定到当前帧携带的准确共享 UUID。停止确认必须返回 `ended`；超时、断连和生命周期退役会清除画面且不会重发停止修改。离开页面或 Activity 会丢弃 JPEG 与轮询状态。使用此页面前请先更新电脑；旧电脑版本会拒绝新的精确字段请求，Android 不会降级回退。
 
 <a id="pairing-and-storage"></a>
 ## 配对与存储

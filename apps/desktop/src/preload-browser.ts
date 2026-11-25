@@ -80,6 +80,7 @@ export function createDesktopBrowserBridge(): DesktopBrowserBridge {
       DESKTOP_IPC.browserCaptureRecordingFrame, lease, url, documentId,
     ) as ReturnType<NonNullable<DesktopBrowserBridge['captureRecordingFrame']>>,
     beginRemoteShare: lease => ipcRenderer.invoke(DESKTOP_IPC.browserBeginRemoteShare, lease) as ReturnType<NonNullable<DesktopBrowserBridge['beginRemoteShare']>>,
+    beginPhoneShare: lease => ipcRenderer.invoke(DESKTOP_IPC.browserBeginPhoneShare, lease) as ReturnType<NonNullable<DesktopBrowserBridge['beginPhoneShare']>>,
     endRemoteShare: (lease, url) => ipcRenderer.invoke(DESKTOP_IPC.browserEndRemoteShare, lease, url) as Promise<void>,
     onRemoteShareEnded: (url, listener) => {
       const receive = (_event: unknown, endedUrl: unknown): void => { if (endedUrl === url) listener() }
