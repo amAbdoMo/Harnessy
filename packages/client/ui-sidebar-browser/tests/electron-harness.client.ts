@@ -42,8 +42,13 @@ export function electronFixture(initial?: BrowserTabState, profile?: DesktopWebs
     forget: vi.fn(async (_profile: DesktopWebsiteProfileId) => {}),
     onChanged: vi.fn((_listener: () => void) => () => {}),
   }
+  let humanControl = true
   const bridge = {
     profiles, requests: requestStubs(),
+    control: async (_lease: DesktopBrowserLeaseId, human: boolean) => { humanControl = human },
+    status: async (lease: DesktopBrowserLeaseId) => ({
+      tabId: lease, sessionId: sessionId ?? null, humanControl, generation: 0, url: '', title: '', loading: false,
+    }),
     acquire: vi.fn(async (_workspace: string, _addressHint?: string) => reservation),
     command: vi.fn(async (lease: DesktopBrowserLeaseId, command: DesktopBrowserHumanCommand): Promise<void> => {
       const guest = guests.find(candidate => candidate.element.isConnected && candidate.element.getAttribute('src') === `about:blank#${lease}`)
@@ -53,6 +58,8 @@ export function electronFixture(initial?: BrowserTabState, profile?: DesktopWebs
         case 'back': guest.goBack(); return
         case 'forward': guest.goForward(); return
         case 'reload': guest.reload(); return
+        case 'hard-reload': guest.reload(); return
+        case 'stop-loading': guest.state.loading = false; guest.emit('did-stop-loading'); return
         case 'preview-viewport': return
         default: assertNever(command)
       }
@@ -80,10 +87,13 @@ export function electronFixture(initial?: BrowserTabState, profile?: DesktopWebs
   function prepareGuest(approved: DesktopBrowserReservation) {
     const element = create(approved)
     const state = { url: 'about:blank', title: '', loading: true, back: false, forward: false }
+    let findRequest = 0
     const methods = {
       loadURL: vi.fn(async (_url: string) => {}), getURL: vi.fn(() => state.url), getTitle: vi.fn(() => state.title),
       canGoBack: () => state.back, canGoForward: () => state.forward, clearHistory: vi.fn(),
       goBack: vi.fn(), goForward: vi.fn(), reload: vi.fn(), isLoading: () => state.loading,
+      findInPage: vi.fn((_query: string, _options: { readonly forward: boolean; readonly findNext: boolean }) => ++findRequest),
+      stopFindInPage: vi.fn(),
     }
     Object.assign(element, methods)
     const emit = (type: string, fields: object = {}): void => { element.dispatchEvent(Object.assign(new Event(type), fields)) }

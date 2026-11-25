@@ -6,6 +6,7 @@ import { websiteAuthorityFixture } from './website-authority-fixture.ts'
 
 const commands: readonly DesktopBrowserHumanCommand[] = [
   { kind: 'navigate', url: 'https://portal.example.test/next' }, { kind: 'back' }, { kind: 'forward' }, { kind: 'reload' },
+  { kind: 'stop-loading' }, { kind: 'hard-reload' },
 ]
 
 function fixture() {
@@ -14,6 +15,8 @@ function fixture() {
   const native = Object.assign(f.guest, {
     loadURL: async (_url: string) => { events.push('navigate') },
     reload: () => { events.push('reload') },
+    stop: () => { events.push('stop-loading') },
+    reloadIgnoringCache: () => { events.push('hard-reload') },
     navigationHistory: {
       canGoBack: (): boolean => true, canGoForward: (): boolean => true,
       goBack: () => { events.push('back') }, goForward: () => { events.push('forward') },
@@ -72,6 +75,7 @@ it.each([
   null, [], 'reload', {}, { kind: 'evaluate', code: 'document.body.textContent' }, { kind: 'navigate' },
   { kind: 'navigate', url: 1 }, { kind: 'navigate', url: 'https://other.example.test/' },
   { kind: 'navigate', url: 'https://portal.example.test/next', code: 'unexpected' }, { kind: 'reload', url: 'unexpected' },
+  { kind: 'stop-loading', url: 'unexpected' }, { kind: 'hard-reload', url: 'unexpected' },
   { kind: 'navigate', url: 'https://portal.example.test/' + '🧭'.repeat(1200) },
 ])('rejects malformed, unauthorized or oversized renderer packet %# before native dispatch', async (input) => {
   const f = fixture()

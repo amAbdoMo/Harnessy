@@ -25,7 +25,7 @@ Compose this package through [`dsh-custom-harness`](../../bundle/custom-harness/
 
 After `pnpm run build:custom-harness`, run `pnpm exec vitest run --config vitest.web.config.ts apps/web/tests/accounts-live-usage.expected.e2e.ts` to check pushed usage in the built sidebar and open manager. The Harnessy Windows pull-request job runs this keyless check with the product profile.
 
-The supplied transparent Harnessy mark scales to host-owned icon sizes on an ocean-gradient frame. Its deep navy, teal, and cyan palette flows through existing semantic tokens in both light and dark modes, while standard success, warning, and error meanings remain intact. The About row exposes the build version and project destinations without retaining runtime state.
+The transparent Harnessy mark scales to host-owned icon sizes on an ocean-gradient frame. The light and dark palettes use distinct conversation and sidebar backgrounds with teal accents. The About row displays the build version and project links.
 
 The Shared skills folder row binds the `harnessy-shared-skills` settings namespace, displays its resolved absolute directory, and routes enable, folder-pick, and reset actions through the standard settings and native directory-picker services. It owns presentation only; the filesystem-skill provider owns discovery, watching, precedence, and provider replacement.
 

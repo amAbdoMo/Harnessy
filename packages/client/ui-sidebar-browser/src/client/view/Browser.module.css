@@ -9,7 +9,9 @@
 }
 
 .modes {
+  display: flex;
   flex: 0 0 auto;
+  gap: 4px;
   padding: 5px 6px;
   border-bottom: 0.5px solid var(--dsw-alias-border-l3);
 }
@@ -28,6 +30,7 @@
 }
 
 .toolbar {
+  position: relative;
   display: flex;
   flex: 0 0 auto;
   gap: 4px;
@@ -36,6 +39,17 @@
   height: 38px;
   padding: 5px 6px;
   border-bottom: 0.5px solid var(--dsw-alias-border-l3);
+}
+
+.screenshotNotice {
+  position: absolute;
+  z-index: 2;
+  inset: calc(100% + 4px) 6px auto;
+  padding: 4px 8px;
+  color: var(--dsw-alias-state-error-primary);
+  font: var(--dsw-font-xxs-12);
+  background: var(--dsw-alias-bg-layer-1);
+  border-radius: var(--dsw-radius-sm);
 }
 
 .tool {
@@ -142,6 +156,38 @@
 .address:focus {
   outline: 1px solid var(--dsw-alias-state-business-primary);
   outline-offset: -1px;
+}
+
+.findBar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l3);
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.findInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 28px;
+  padding: 0 8px;
+  color: var(--dsw-alias-label-primary);
+  font: var(--dsw-font-xxs-12);
+  background: var(--dsw-alias-bg-base);
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: var(--dsw-radius-sm);
+}
+
+.findResult {
+  flex: 0 1 auto;
+  overflow: hidden;
+  color: var(--dsw-alias-label-secondary);
+  font: var(--dsw-font-xxxs-11);
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .frame {

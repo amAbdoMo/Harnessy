@@ -7,6 +7,7 @@ import type { WebsiteRequestPageState } from './WebsiteRequestPage.ts'
 import type { BrowserFrameState } from './BrowserFrame.ts'
 import type { BrowserPage, BrowserPageFactory } from './BrowserPage.ts'
 import { currentBrowserTarget, type BrowserTabState } from './BrowserPersistence.ts'
+import { rememberBrowserAddress } from './address-suggestions.ts'
 import type { WebsiteProfileCommands, WebsiteProfilesState } from './profiles.ts'
 import type { BrowserStore } from './store.ts'
 import { parseBrowserAddress, type BrowserAddressFailure, type BrowserTarget } from './url.ts'
@@ -14,6 +15,8 @@ import { parseBrowserAddress, type BrowserAddressFailure, type BrowserTarget } f
 /** Live tab state; navigation comes from its provider and draft validation stays local. */
 export interface BrowserControllerState {
   readonly frame: BrowserFrameState
+  /** Recent committed HTTP(S) targets held only for this live tab occurrence. */
+  readonly recentNavigations: readonly BrowserTarget[]
   /** Saved address offered for explicit restoration before any page has been requested. */
   readonly restoreTarget: BrowserTarget | undefined
   readonly addressFailure: BrowserAddressFailure | undefined
@@ -72,14 +75,20 @@ export class BrowserController implements HostObservable<BrowserControllerState>
         options.openTab(result.target.url)
       },
     })
-    this.store = createSnapshotStore({ frame: this.page.frame.getSnapshot(),
+    this.store = createSnapshotStore({ frame: this.page.frame.getSnapshot(), recentNavigations: [],
       restoreTarget: currentBrowserTarget(this.checkpoint), addressFailure: undefined, addressRevision: 0 })
     this.unsubscribe = this.page.frame.subscribe(() => {
       if (this.disposed) return
       const current = this.store.getSnapshot()
       const frame = this.page.frame.getSnapshot()
       const changed = frame.target?.url !== current.frame.target?.url
-      this.store.set({ frame, restoreTarget: frame.target === undefined ? currentBrowserTarget(this.checkpoint) : undefined,
+      const target = frame.target
+      const committed = this.options.profileId === undefined && frame.error === undefined && frame.address === 'observed'
+        && (current.frame.address !== 'observed' || changed)
+      const recentNavigations = committed && target !== undefined
+        ? rememberBrowserAddress(current.recentNavigations, target) : current.recentNavigations
+      this.store.set({ frame, recentNavigations,
+        restoreTarget: frame.target === undefined ? currentBrowserTarget(this.checkpoint) : undefined,
         addressFailure: changed ? undefined : current.addressFailure,
         addressRevision: current.addressRevision + Number(changed) })
     })
@@ -170,6 +179,27 @@ export class BrowserController implements HostObservable<BrowserControllerState>
   reload(): void {
     if (this.store.getSnapshot().restoreTarget !== undefined) this.restore()
     else this.command(() => { this.page.frame.reload() })
+  }
+
+  /** Cancel loading in a carrier that exposes native stop. */
+  stopLoading(): void {
+    const stop = this.page.frame.stopLoading
+    if (stop !== undefined) this.command(stop)
+  }
+
+  /** Bypass the native HTTP cache when reloading a committed page. */
+  hardReload(): void {
+    const reload = this.page.frame.hardReload
+    if (reload !== undefined) this.command(reload)
+  }
+
+  /**
+   * Search the native page or clear its current matches.
+   * @param query - text to find, or empty to clear.
+   * @param forward - direction when stepping through matches.
+   */
+  findInPage(query: string, forward?: boolean): void {
+    if (!this.disposed) this.page.frame.findInPage?.(query, forward)
   }
 
   /**
@@ -298,6 +328,12 @@ export interface BrowserTabControllers {
   goForward(tabId: TabId): void
   /** Restore a saved address or reload its page. @param tabId - owning tab. */
   reload(tabId: TabId): void
+  /** @param tabId - loading native page to stop. */
+  stopLoading(tabId: TabId): void
+  /** @param tabId - native page to reload while bypassing the cache. */
+  hardReload(tabId: TabId): void
+  /** @param tabId - owning tab. @param query - text to find, or empty to clear. @param forward - stepping direction. */
+  findInPage(tabId: TabId, query: string, forward?: boolean): void
   /** @param tabId - owning tab. @param enabled - provider's optional sandbox control. */
   setSandbox(tabId: TabId, enabled: boolean): void
 }
@@ -404,6 +440,9 @@ export function createBrowserControllers(actions: BoundActions<BrowserStore>, cr
     goBack: (id) => { controller(id)?.goBack() },
     goForward: (id) => { controller(id)?.goForward() },
     reload: (id) => { controller(id)?.reload() },
+    stopLoading: (id) => { controller(id)?.stopLoading() },
+    hardReload: (id) => { controller(id)?.hardReload() },
+    findInPage: (id, query, forward) => { controller(id)?.findInPage(query, forward) },
     setSandbox: (id, enabled) => { controller(id)?.setSandbox(enabled) },
   }
 }

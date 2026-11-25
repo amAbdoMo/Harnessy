@@ -7,3 +7,4 @@
 - button "Take control"
 - button "Annotate page"
 - group
+- button "Page actions"

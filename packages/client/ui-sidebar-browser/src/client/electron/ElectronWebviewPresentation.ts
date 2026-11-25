@@ -15,6 +15,8 @@ export interface WebviewElement extends HTMLElement {
   goForward(): void
   reload(): void
   isLoading(): boolean
+  findInPage?(text: string, options: { readonly forward: boolean; readonly findNext: boolean }): number
+  stopFindInPage?(action: 'clearSelection'): void
 }
 
 /** Physical attachment notifications; hiding a retained Sidebar body emits neither. */

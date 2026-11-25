@@ -25,7 +25,7 @@ Preview a web-compatible app at phone and tablet sizes inside Browser beside its
 <a id="use-this-package"></a>
 ## Use this package
 
-This package retains the responsive presentation and private Browser slot for integrations that render it. Harnessy's default [Browser](../ui-sidebar-browser/README.md) uses one native page with agent control and inline annotation; it does not render Desktop/Mobile/Tablet controls or responsive guests. In a responsive integration, phone and tablet pages navigate independently. Custom dimensions accept whole CSS pixels from 240 to 2560; fit changes presentation scale, not responsive breakpoints.
+Open **Page actions → Open responsive preview** from an ordinary Desktop [Browser](../ui-sidebar-browser/README.md) tab. The separate preview starts at the current address. Phone and tablet pages navigate independently. After an application restart, the tab opens as an ordinary Browser tab. Custom dimensions accept whole CSS pixels from 240 to 2560. Fit changes the display scale while preserving CSS breakpoints.
 
 The compact toolbar has one address bar for the selected Mobile or Tablet page. **Go** navigates that page; **Compare** also opens an unstarted live second page at the selected page's current URL without resetting an already-open page or an image selection. Device family, orientation and display scale stay visible; **Settings** expands preset/custom dimensions and live/image selection. **About this preview** keeps the rendering limitations available without a permanent warning above the canvas.
 

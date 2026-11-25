@@ -3483,11 +3483,11 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     key: 'sidebar.right.pane.tab.browser.responsive',
     kind: 'single',
     scope: 'session',
-    summary: 'Optional responsive rendering retained inside an ordinary Browser occurrence.',
-    doc: 'Optional responsive rendering retained inside an ordinary Browser occurrence.',
+    summary: 'Responsive rendering within an explicitly opened Browser occurrence.',
+    doc: 'Responsive rendering within an explicitly opened Browser occurrence.',
     registerOptions: [],
     ownerProps: [
-      '/** Current Browser occurrence and explicit responsive-navigation gesture. */\nexport interface BrowserResponsiveOwner {\n  readonly tab: SidebarRightTabInfo[\'tab\']\n  readonly fullscreen: boolean\n  readonly mode: BrowserMode\n  readonly navigation: { readonly url: string; readonly revision: number } | undefined\n  /** Select responsive presentation after admitting a fresh native opening. */\n  readonly selectMobile: () => void\n}',
+      '/** Current Browser occurrence and explicit responsive-navigation gesture. */\nexport interface BrowserResponsiveOwner {\n  readonly tab: SidebarRightTabInfo[\'tab\']\n  readonly fullscreen: boolean\n  readonly mode: BrowserMode\n  readonly navigation: { readonly url: string; readonly revision: number } | undefined\n  /** Mark a transient user opening as dispatched so a remount does not reload it. */\n  readonly completeOpening?: () => void\n  /** Select responsive presentation after admitting a fresh native opening. */\n  readonly selectMobile: () => void\n}',
     ],
     ownerPropsReferences: [
       'BrowserMode',
@@ -3519,7 +3519,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'sidebar.right.pane.tab.browser.responsive\', () => ctx.slots.register(\n      { name: \'sidebar.right.pane.tab.browser.responsive\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-sidebar-browser/src/client/responsive.ts:36',
+    source: 'packages/client/ui-sidebar-browser/src/client/responsive.ts:93',
   },
   {
     key: 'sidebar.right.pane.tab.title',

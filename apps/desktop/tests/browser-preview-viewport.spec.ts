@@ -17,7 +17,7 @@ function fixture() {
     isDevToolsOpened: () => devToolsOpened }, () => true, lost)
   const native = {
     navigationHistory: { canGoBack: () => true, canGoForward: () => true, goBack: vi.fn(), goForward: vi.fn() },
-    loadURL: vi.fn(async (_url: string) => {}), reload: vi.fn(),
+    loadURL: vi.fn(async (_url: string) => {}), reload: vi.fn(), stop: vi.fn(), reloadIgnoringCache: vi.fn(),
     setViewport: (viewport: { readonly width: number; readonly height: number; readonly scale: number }) => metrics.set(viewport),
   }
   return { metrics, debuggerApi, native, lost,
@@ -62,7 +62,8 @@ it('rejects unknown command keys and unsupported saved-account adapters before n
   const viewport = { width: 390, height: 844, scale: 1 }
   try {
     await expect(f.run({ kind: 'preview-viewport', viewport, code: 'unexpected' })).rejects.toThrow('command rejected')
-    const profile = { navigationHistory: f.native.navigationHistory, loadURL: f.native.loadURL, reload: f.native.reload }
+    const profile = { navigationHistory: f.native.navigationHistory, loadURL: f.native.loadURL, reload: f.native.reload,
+      stop: f.native.stop, reloadIgnoringCache: f.native.reloadIgnoringCache }
     const admission = vi.fn(() => true)
     await expect(executeHumanBrowserCommand(profile, { kind: 'preview-viewport', viewport }, () => true, admission))
       .rejects.toThrow('native command failed')

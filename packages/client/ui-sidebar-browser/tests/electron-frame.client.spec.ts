@@ -4,6 +4,40 @@ import { requestStubs } from './website-request-stubs.client.ts'
 import { ElectronWebViewImpl } from '../src/client/electron/ElectronWebViewImpl.ts'
 import { ElectronWebviewPresentation, type WebviewElement } from '../src/client/electron/ElectronWebviewPresentation.ts'
 import type { DesktopBrowserBridge, DesktopBrowserHumanCommand, DesktopBrowserLeaseId, DesktopWebsiteProfileId } from '../src/types.ts'
+import { electronFixture } from './electron-harness.client.ts'
+
+it('finds matches in the human-controlled native page and discards previous search results', async () => {
+  const f = electronFixture()
+  try {
+    f.mount()
+    f.frame.loadUrl({ kind: 'https', url: 'https://example.test/', title: 'Example' })
+    const guest = await f.guest()
+    guest.emit('dom-ready')
+    guest.state.url = 'https://example.test/'
+    guest.state.loading = false
+    guest.emit('did-navigate')
+    await f.frame.control?.(true)
+    f.frame.findInPage?.('first')
+    f.frame.findInPage?.('needle')
+    expect(guest.findInPage).toHaveBeenLastCalledWith('needle', { forward: true, findNext: true })
+    guest.emit('found-in-page', { result: { requestId: 1, activeMatchOrdinal: 1, matches: 8 } })
+    expect(f.frame.getSnapshot().findResult).toBeUndefined()
+    guest.emit('found-in-page', { result: { requestId: 2, activeMatchOrdinal: 1, matches: 3 } })
+    expect(f.frame.getSnapshot().findResult).toEqual({ active: 1, matches: 3 })
+
+    f.frame.findInPage?.('needle', false)
+    expect(guest.findInPage).toHaveBeenLastCalledWith('needle', { forward: false, findNext: false })
+    guest.emit('found-in-page', { result: { requestId: 3, activeMatchOrdinal: 3, matches: -1 } })
+    expect(f.frame.getSnapshot().findResult).toEqual({ active: 3, matches: 3 })
+
+    await f.frame.control?.(false)
+    expect(guest.stopFindInPage).toHaveBeenCalledWith('clearSelection')
+    guest.emit('found-in-page', { result: { requestId: 3, activeMatchOrdinal: 2, matches: 3 } })
+    f.frame.findInPage?.('other')
+    expect(f.frame.getSnapshot().findResult).toBeUndefined()
+    expect(guest.findInPage).toHaveBeenCalledTimes(3)
+  } finally { await f.dispose() }
+})
 
 it('clears a failed load when the main page retries without a toolbar command', async () => {
   let url = 'about:blank'

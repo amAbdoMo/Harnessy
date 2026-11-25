@@ -3,6 +3,7 @@
  * Only owned website/MCP/model endpoints are fixtures. Pairing uses Main's real shell confirmation;
  * guest attachment uses the shipped lease/partition handshake, not a fake bridge.
  * Requires an interactive Windows desktop and completed Host/Desktop builds.
+ * DSH_TEST_DESKTOP_PROJECT selects a prepared runtime in place of the development project.
  * The Agent scenario uses an owned Messages provider, genuine Session/tool execution and live consent.
  */
 import { execFile, spawn, type ChildProcess } from 'node:child_process'
@@ -38,7 +39,7 @@ const electronExecutable = desktopRequire('electron') as string
 const pnpmEntry = join(dirname(desktopRequire.resolve('pnpm')), 'bin/pnpm.mjs')
 const desktop = dirname(fileURLToPath(new URL('../package.json', import.meta.url)))
 const repository = fileURLToPath(new URL('../../../', import.meta.url))
-const project = join(desktop, '.desktop-build/development/project')
+const project = process.env.DSH_TEST_DESKTOP_PROJECT ?? join(desktop, '.desktop-build/development/project')
 const primaryRuntime = join(desktop, '.desktop-build/targets/win-x64/runtime/primary-runtime')
 const artifacts = [join(desktop, 'lib/main.js'), join(desktop, 'lib/preload-app.cjs'),
   join(repository, 'apps/desktop-host/lib/index.js'), join(project, 'desktop-runtime.json'),
@@ -1232,6 +1233,16 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
       expect(script.denied).toBe(true)
       expect(script.observedDuringHuman).toBe(true)
       expect(await app.evaluate(({ webContents }, id) => webContents.fromId(id)!.getTitle(), nativeId)).toBe('Agent edited page')
+      if (access === 'none') {
+        await browser.getByRole('button', { name: 'Page actions', exact: true }).click()
+        await page.getByRole('menuitem', { name: 'Find in page', exact: true }).click()
+        const find = browser.getByRole('searchbox', { name: 'Find in page', exact: true })
+        await find.fill('Native preview page')
+        await browser.getByText('1 of 1', { exact: true }).waitFor()
+        await page.screenshot({ path: join(repository, '.artifacts/browser-tools-native.png') })
+        await find.press('Escape')
+        expect(await find.count()).toBe(0)
+      }
       await browser.getByRole('button', { name: 'Annotate page', exact: true }).click()
       const feedbackErrors: string[] = []
       page.on('console', (message) => { if (message.type() === 'error') feedbackErrors.push(message.text()) })
@@ -1272,6 +1283,17 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
         .toBe(access === 'none' ? 0 : 1)
       expect(await page.locator('[data-approval-key]').count()).toBe(0)
       await page.screenshot({ path: join(repository, '.artifacts/browser-preview-native.png') })
+      if (access === 'none') {
+        await browser.getByRole('button', { name: 'Page actions', exact: true }).click()
+        await page.getByRole('menuitem', { name: 'Open responsive preview', exact: true }).click()
+        const phone = browser.getByRole('region', { name: 'Mobile', exact: true })
+        const preview = phone.locator('webview')
+        await preview.waitFor({ state: 'visible' })
+        await expect.poll(() => preview.getAttribute('aria-label')).toBe('Browser preview fixture')
+        const previewId = await preview.evaluate(guest => (guest as WebviewTag).getWebContentsId())
+        expect(previewId).not.toBe(nativeId)
+        expect(await app.evaluate(({ webContents }, id) => webContents.fromId(id)!.getTitle(), nativeId)).toBe('Resumed browser agent')
+      }
       await stopDesktop(app, env)
       app = undefined
       const logs = await sessionLogs(join(env.DSH_HOME!, 'sessions'))

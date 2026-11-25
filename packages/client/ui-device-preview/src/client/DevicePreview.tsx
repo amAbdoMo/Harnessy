@@ -154,7 +154,8 @@ export function DevicePreview(props: DevicePreviewProps): ReactNode {
     navigated.current[selected] = navigation.revision
     actions.setSource(tab.id, selected, 'live')
     props.navigate(tab.id, selected, navigation.url)
-  }, [actions, props.navigation, props.mode, props.navigate, tab.id, selected])
+    props.completeOpening?.()
+  }, [actions, props.navigation, props.mode, props.navigate, props.completeOpening, tab.id, selected])
   useEffect(() => {
     if (props.mode === 'desktop') return
     return tab.actions.bindCommands({ refresh: () => {

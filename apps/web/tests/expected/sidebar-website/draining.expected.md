@@ -7,3 +7,4 @@
 - button "Resume agent" [disabled] [pressed]
 - button "Annotate page"
 - group
+- button "Page actions"

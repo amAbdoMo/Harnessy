@@ -1,4 +1,4 @@
-/** Executes bounded Human navigation and viewport fit in Main, retaining native account reservation checks. */
+/** Executes bounded Human browser commands and viewport fit in Main, retaining native account reservation checks. */
 import type { WebContents } from 'electron'
 import type { BrowserViewport, DesktopBrowserHumanCommand } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
 
@@ -6,6 +6,8 @@ interface HumanBrowserGuest {
   readonly navigationHistory: Pick<WebContents['navigationHistory'], 'canGoBack' | 'goBack' | 'canGoForward' | 'goForward'>
   loadURL: WebContents['loadURL']
   reload: WebContents['reload']
+  stop: WebContents['stop']
+  reloadIgnoringCache: WebContents['reloadIgnoringCache']
   setViewport?: (viewport: BrowserViewport) => Promise<void>
   navigationReady?: () => Promise<void>
 }
@@ -28,7 +30,8 @@ function parseCommand(input: unknown, allowedUrl: (url: string) => boolean): Des
     }
     return { kind, url: input.url }
   }
-  if ((kind !== 'back' && kind !== 'forward' && kind !== 'reload') || Object.keys(input).length !== 1) {
+  if ((kind !== 'back' && kind !== 'forward' && kind !== 'reload' && kind !== 'stop-loading' && kind !== 'hard-reload')
+    || Object.keys(input).length !== 1) {
     throw new Error('Desktop browser command rejected')
   }
   return { kind }
@@ -54,7 +57,7 @@ function assertNever(_command: never): never { throw new Error('Desktop browser 
  * @param input - untrusted renderer command; no Agent operation is accepted.
  * @param allowedUrl - application-host and credential exclusion for HTTP(S) loads.
  * @param humanAllowed - synchronous account reservation check immediately before native execution.
- * @returns after load settlement (including a superseded load), history/reload dispatch or native metrics acknowledgement.
+ * @returns after load settlement (including a superseded load), browser command dispatch or native metrics acknowledgement.
  * Unsupported viewport adapters reject before admission; native failures omit private page diagnostics.
  */
 export async function executeHumanBrowserCommand(guest: HumanBrowserGuest, input: unknown,
@@ -72,6 +75,8 @@ export async function executeHumanBrowserCommand(guest: HumanBrowserGuest, input
       case 'back': if (guest.navigationHistory.canGoBack()) guest.navigationHistory.goBack(); return
       case 'forward': if (guest.navigationHistory.canGoForward()) guest.navigationHistory.goForward(); return
       case 'reload': guest.reload(); return
+      case 'stop-loading': guest.stop(); return
+      case 'hard-reload': guest.reloadIgnoringCache(); return
       case 'preview-viewport':
         if (guest.setViewport === undefined) throw new Error('Desktop browser viewport unavailable')
         await guest.setViewport(command.viewport)

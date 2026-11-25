@@ -9,9 +9,16 @@ export interface BrowserLoadError {
   readonly description: string | undefined
 }
 
+/** Match count and active match for the current native page search. */
+export interface BrowserFindResult {
+  readonly active: number
+  readonly matches: number
+}
+
 /** State consumed by common browser chrome, without DOM or carrier identifiers. */
 export interface BrowserFrameState {
   readonly humanControl?: boolean
+  readonly findResult?: BrowserFindResult | 'failed' | undefined
   readonly target: BrowserTarget | undefined
   readonly address: 'empty' | 'requested' | 'observed' | 'unknown'
   readonly loading: boolean
@@ -30,6 +37,12 @@ export interface BrowserSandboxControl {
 
 /** Navigation owns page lifetime; mounting and hiding belong to BrowserPresentation. */
 export interface BrowserFrame extends HostObservable<BrowserFrameState> {
+  /** @param query - text to find, or empty to clear. @param forward - match direction, absent for a new search. */
+  readonly findInPage?: (query: string, forward?: boolean) => void
+  /** Cancel the currently loading native navigation. */
+  readonly stopLoading?: () => void
+  /** Reload a committed page while bypassing Chromium's HTTP cache. */
+  readonly hardReload?: () => void
   readonly capture?: () => Promise<BrowserAnnotationCapture>
   readonly pick?: (point: { readonly x: number; readonly y: number }) => Promise<BrowserPickedElement | null>
   readonly control?: (human: boolean) => Promise<void>

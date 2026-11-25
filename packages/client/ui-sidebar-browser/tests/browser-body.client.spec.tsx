@@ -8,7 +8,7 @@ import { createBrowserControllers, type BrowserControllerState, type BrowserInje
 import { createBrowserStore } from '../src/client/browser/store.ts'
 import { createWebsiteProfileDraftStore } from '../src/client/browser/profile-draft.ts'
 import { BrowserProfilePicker, type BrowserProfilePickerProps } from '../src/client/view/BrowserProfilePicker.tsx'
-import type { BrowserResponsiveOwner } from '../src/client/responsive.ts'
+import { openResponsiveTabParams, type BrowserResponsiveOwner, type BrowserTabParams } from '../src/client/responsive.ts'
 import type { BrowserBodyProps } from '../src/client/view/BrowserBody.tsx'
 import { BrowserBody } from '../src/client/view/BrowserBody.tsx'
 import { WEB_BROWSER_SANDBOX } from '../src/client/view/IframePresentation.ts'
@@ -69,13 +69,14 @@ const absentState = {
   getSnapshot: (): BrowserControllerState | undefined => undefined,
 }
 
-function mountBrowser(navigation?: { readonly url?: string; readonly profileId?: DesktopWebsiteProfileId },
+function mountBrowser(navigation?: BrowserTabParams,
   options: {
     initial?: BrowserTabState
     responsive?: boolean
     createPage?: BrowserPageFactory
     refreshShortcut?: ReturnType<BrowserBodyProps['useTabInfo']>['tab']['refreshShortcut']
     profiles?: WebsiteProfileCommands
+    addFeedback?: BrowserInjected['addFeedback']
     websiteProfiles?: SnapshotStore<WebsiteProfilesState>
     listMcpServers?: BrowserProfilePickerProps['listMcpServers']
   } = {}) {
@@ -120,6 +121,7 @@ function mountBrowser(navigation?: { readonly url?: string; readonly profileId?:
       useStore: hookOf(store),
       actions: store.actions,
       profiles: options.profiles,
+      addFeedback: options.addFeedback,
       renderSlot: ((name: string, owner: BrowserResponsiveOwner | Pick<BrowserProfilePickerProps, 'profileId' | 'openProfile'>) => {
         if (name === 'sidebar.right.pane.tab.browser.responsive') {
           const responsiveOwner = owner as BrowserResponsiveOwner
@@ -226,6 +228,49 @@ describe('BrowserBody', () => {
     expect(notice.getByRole('button', { name: zh.external })).toHaveProperty('disabled', false)
     fireEvent.click(notice.getByRole('button', { name: zh.retry }))
     expect(reload).toHaveBeenCalledOnce()
+  })
+
+  it('stops native loading and offers page search, uncached reload, and a draft screenshot', async () => {
+    const target = { kind: 'https' as const, url: 'https://example.test/', title: 'Example' }
+    const state = createSnapshotStore<BrowserFrameState>({
+      ...emptyBrowserFrame(), target, address: 'observed', humanControl: true, loading: true,
+    })
+    const stopLoading = vi.fn(() => { state.set({ ...state.getSnapshot(), loading: false }) })
+    const hardReload = vi.fn()
+    const findInPage = vi.fn((query: string) => {
+      state.set({ ...state.getSnapshot(), findResult: query === '' ? undefined : { active: 1, matches: 2 } })
+    })
+    const addFeedback = vi.fn((_file: File, _context: string) => true)
+    const mounted = mountBrowser(undefined, { addFeedback, createPage: () => ({
+      presentation: { mount: () => () => {} },
+      frame: { getSnapshot: state.getSnapshot, subscribe: state.subscribe,
+        loadUrl: vi.fn(), goBack: vi.fn(), goForward: vi.fn(), reload: vi.fn(), stopLoading, hardReload, findInPage,
+        capture: async () => ({ png: 'AQID', url: target.url, title: target.title, width: 1, height: 1, viewportWidth: 1, viewportHeight: 1 }),
+        dispose: async () => {} },
+    }) })
+    const openActions = (): void => { fireEvent.click(mounted.view.getByRole('button', { name: zh['page.actions'] })) }
+    fireEvent.click(mounted.view.getByRole('button', { name: zh['load.stop'] }))
+    expect(stopLoading).toHaveBeenCalledOnce()
+
+    openActions()
+    fireEvent.click(mounted.view.getByRole('menuitem', { name: zh['find.label'] }))
+    const find = mounted.view.getByRole('searchbox', { name: zh['find.label'] })
+    expect(document.activeElement).toBe(find)
+    fireEvent.change(find, { target: { value: 'needle' } })
+    expect(mounted.view.getByRole('status').textContent).toBe('1 / 2')
+    fireEvent.keyDown(find, { key: 'Enter', shiftKey: true })
+    expect(findInPage).toHaveBeenLastCalledWith('needle', false)
+    fireEvent.keyDown(find, { key: 'Escape' })
+    expect(findInPage).toHaveBeenLastCalledWith('', undefined)
+    expect(document.activeElement).toBe(mounted.view.getByRole('button', { name: zh['page.actions'] }))
+
+    openActions()
+    fireEvent.click(mounted.view.getByRole('menuitem', { name: zh['reload.hard'] }))
+    expect(hardReload).toHaveBeenCalledOnce()
+    openActions()
+    fireEvent.click(mounted.view.getByRole('menuitem', { name: zh['screenshot.add'] }))
+    await waitFor(() => { expect(addFeedback).toHaveBeenCalledWith(expect.any(File), target.title + '\n\n' + target.url) })
+    expect(addFeedback.mock.calls[0]?.[0]).toMatchObject({ name: 'browser-screenshot.png', type: 'image/png', size: 3 })
   })
 
   it('routes address input to the controller and renders parser failures', async () => {
@@ -432,6 +477,37 @@ describe('BrowserBody saved profiles', () => {
     expect(mounted.view.queryByRole('tablist')).toBeNull()
     expect(mounted.view.queryByLabelText('Responsive owner')).toBeNull()
     expect(mounted.view.getByRole('textbox', { name: zh['address.placeholder'] })).toBeDefined()
+  })
+
+  it('opens a separate responsive tab only through an explicit ordinary page action', () => {
+    const target = { kind: 'https' as const, url: 'https://example.test/', title: 'Example' }
+    const state = createSnapshotStore<BrowserFrameState>({
+      ...emptyBrowserFrame(), target, address: 'observed', humanControl: true,
+    })
+    const mounted = mountBrowser(undefined, { responsive: true, addFeedback: vi.fn(), createPage: () => ({
+      presentation: { mount: () => () => {} },
+      frame: { getSnapshot: state.getSnapshot, subscribe: state.subscribe,
+        loadUrl: vi.fn(), goBack: vi.fn(), goForward: vi.fn(), reload: vi.fn(), dispose: async () => {} },
+    }) })
+    fireEvent.click(mounted.view.getByRole('button', { name: zh['page.actions'] }))
+    fireEvent.click(mounted.view.getByRole('menuitem', { name: zh['page.responsive'] }))
+    expect(mounted.tabActions.openTab).toHaveBeenCalledExactlyOnceWith('browser', {
+      params: { url: target.url, responsiveOpenId: expect.any(String) }, revealIfOpened: false,
+    })
+    expect(mounted.view.queryByLabelText('Responsive owner')).toBeNull()
+  })
+
+  it('mounts a responsive tab without the ordinary guest and leaves a stale opening idle', () => {
+    const url = 'https://example.test/'
+    const createPage = vi.fn<BrowserPageFactory>()
+    const fresh = mountBrowser(openResponsiveTabParams(url, window.location.origin), { responsive: true, createPage })
+    expect(JSON.parse(fresh.view.getByLabelText('Responsive owner').textContent ?? '')).toMatchObject({ url, mode: 'mobile' })
+    fireEvent.click(fresh.view.getByRole('button', { name: zh['mode.tablet'] }))
+    expect(JSON.parse(fresh.view.getByLabelText('Responsive owner').textContent ?? '')).toMatchObject({ url, mode: 'tablet' })
+    fresh.view.unmount()
+    const stale = mountBrowser({ url, responsiveOpenId: 'stale' }, { responsive: true, createPage })
+    expect(JSON.parse(stale.view.getByLabelText('Responsive owner').textContent ?? '')).not.toHaveProperty('url')
+    expect(createPage).not.toHaveBeenCalled()
   })
 
   it('reports saved profiles as desktop-only instead of faking them in Web', () => {

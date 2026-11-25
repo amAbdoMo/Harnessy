@@ -226,6 +226,8 @@ export type DesktopBrowserHumanCommand = (
   | { readonly kind: 'back' }
   | { readonly kind: 'forward' }
   | { readonly kind: 'reload' }
+  | { readonly kind: 'stop-loading' }
+  | { readonly kind: 'hard-reload' }
   | { readonly kind: 'preview-viewport'; readonly viewport: BrowserViewport }
 ) & {
   /** Nonnegative safe integer; renderer commands always supply it, manual callers may omit it. */

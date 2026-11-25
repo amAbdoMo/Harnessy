@@ -3,7 +3,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  border-radius: var(--dsw-radius-md);
+  border-radius: var(--dsw-radius-sm);
   padding: 0 8px;
   padding-inline-start: calc(8px + var(--dsh-workspace-indent, 0px));
   cursor: pointer;
@@ -97,7 +97,7 @@
 
 /* Compact one-line Workspace row after removing the session-count subtitle. */
 .projectRow {
-  height: 34px;
+  height: 32px;
   align-items: center;
   box-sizing: border-box;
 }
@@ -108,7 +108,7 @@
 
 /* Session cells reserve the 16px status slot only while it contains a marker. */
 .sessionRow {
-  height: 32px;
+  height: 30px;
   gap: 0;
 }
 

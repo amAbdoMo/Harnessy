@@ -194,7 +194,7 @@ export class DesktopBrowserGuests {
   /**
    * @param owner - authenticated primary renderer, not a website guest.
    * @param id - native lease received over IPC.
-   * @param input - bounded Human navigation or ordinary-guest viewport command, including deferred initial loads.
+   * @param input - bounded Human browser or ordinary-guest viewport command, including deferred initial loads.
    * @returns after native load settlement, metrics acknowledgement or command dispatch; ownership is checked in Main.
    */
   command(owner: WebContents, id: unknown, input: unknown): Promise<void> {
@@ -228,6 +228,8 @@ export class DesktopBrowserGuests {
         return lease.viewport.set(viewport)
       },
       reload: () => { guest.reload() },
+      stop: () => { guest.stop() },
+      reloadIgnoringCache: () => { guest.reloadIgnoringCache() },
       loadURL: (url) => {
         if (this.reacquireForAddress(key, lease, url, 'GET')) return Promise.resolve()
         return guest.loadURL(url)

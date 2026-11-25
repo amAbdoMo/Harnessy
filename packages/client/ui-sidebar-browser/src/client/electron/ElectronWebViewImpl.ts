@@ -14,6 +14,9 @@ interface LoadFailureEvent extends NavigationEvent {
   readonly errorCode: number
   readonly errorDescription: string
 }
+interface FindEvent extends Event {
+  readonly result: { readonly requestId: number; readonly activeMatchOrdinal: number; readonly matches: number }
+}
 
 /** Owns native history and translates Electron observations into common frame state. */
 export class ElectronWebViewImpl implements BrowserFrame {
@@ -33,6 +36,7 @@ export class ElectronWebViewImpl implements BrowserFrame {
   private attachment: AbortController | undefined
   private readonly releases = new Set<Promise<void>>()
   private viewport: BrowserViewport | undefined
+  private findRequest: number | undefined
   readonly setViewport?: (viewport: BrowserViewport) => void
 
   /**
@@ -74,11 +78,29 @@ export class ElectronWebViewImpl implements BrowserFrame {
   control = async (human: boolean): Promise<void> => {
     if (this.bridge.control === undefined) throw new Error('Browser control is unavailable')
     if (!human) {
+      this.findInPage('')
       if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
       this.store.set({ ...this.store.getSnapshot(), humanControl: false })
     }
     try { await this.bridge.control(this.currentLease(), human) }
     finally { await this.refreshControl() }
+  }
+
+  /** @param query - text to find or empty to clear. @param forward - match direction, absent for a new search. */
+  findInPage = (query: string, forward?: boolean): void => {
+    const current = this.store.getSnapshot()
+    const element = this.element
+    if (this.options.profileId !== undefined || element === undefined || !this.ready) return
+    if (query !== '' && (current.humanControl !== true || current.address !== 'observed' || current.loading || query.length > 200)) return
+    if (forward === undefined) this.store.set({ ...current, findResult: undefined })
+    const previousRequest = this.findRequest
+    this.findRequest = undefined
+    try {
+      if (query !== '') this.findRequest = element.findInPage?.(query, { forward: forward ?? true, findNext: forward === undefined })
+      else if (previousRequest !== undefined) element.stopFindInPage?.('clearSelection')
+    } catch (_error: unknown) {
+      if (query !== '') this.store.set({ ...this.store.getSnapshot(), findResult: 'failed' })
+    }
   }
 
   /** Read this tab's native ownership. @returns current status. */
@@ -96,7 +118,9 @@ export class ElectronWebViewImpl implements BrowserFrame {
     const lease = this.lease
     if (lease === undefined || !this.ready || this.lifetime.signal.aborted || this.bridge.status === undefined) return
     const status = await this.bridge.status(lease)
-    if (this.lease === lease) this.store.set({ ...this.store.getSnapshot(), humanControl: status.humanControl })
+    if (this.lease !== lease) return
+    if (!status.humanControl && this.findRequest !== undefined) this.findInPage('')
+    this.store.set({ ...this.store.getSnapshot(), humanControl: status.humanControl })
   }
 
   /** @returns immutable carrier-neutral navigation state. */
@@ -154,13 +178,29 @@ export class ElectronWebViewImpl implements BrowserFrame {
   reload(): void {
     const current = this.store.getSnapshot()
     if (this.lifetime.signal.aborted || current.target === undefined) return
-    if (!this.ready || current.error !== undefined) {
+    if (!this.ready || current.error !== undefined || current.address === 'requested') {
       this.revision++
       this.pending = current.target
       this.store.set({ ...current, loading: true, error: undefined })
       if (this.ready) this.loadPending()
       else this.initialize()
     } else this.navigate('reload')
+  }
+
+  /** Cancel an outstanding native load, including an address waiting for guest attachment. */
+  stopLoading = (): void => {
+    const current = this.store.getSnapshot()
+    if (this.lifetime.signal.aborted || !current.loading) return
+    if (this.ready) this.navigate('stop-loading')
+    else {
+      this.pending = undefined
+      this.store.set({ ...current, loading: false })
+    }
+  }
+
+  /** Reload a committed native page without using the HTTP cache. */
+  hardReload = (): void => {
+    if (this.store.getSnapshot().address === 'observed') this.navigate('hard-reload')
   }
 
   /** @returns after initialization and every guest release settle; rejects if any release failed. */
@@ -177,13 +217,13 @@ export class ElectronWebViewImpl implements BrowserFrame {
     return this.disposal
   }
 
-  private navigate(kind: 'back' | 'forward' | 'reload'): void {
+  private navigate(kind: 'back' | 'forward' | 'reload' | 'stop-loading' | 'hard-reload'): void {
     const element = this.element
     const lease = this.lease
     if (this.lifetime.signal.aborted || !this.ready || element === undefined || lease === undefined) return
     const revision = ++this.revision
     this.pending = undefined
-    this.store.set({ ...this.store.getSnapshot(), loading: true, error: undefined })
+    if (kind !== 'stop-loading') this.store.set({ ...this.store.getSnapshot(), loading: true, error: undefined })
     void this.bridge.command(lease, { kind, revision }).catch((error: unknown) => {
       if (this.element === element && !this.lifetime.signal.aborted && this.revision === revision) this.commandFailed(error)
     })
@@ -287,8 +327,19 @@ export class ElectronWebViewImpl implements BrowserFrame {
     }, { signal })
     element.addEventListener('did-start-navigation', (event) => {
       if ((event as NavigationEvent).isMainFrame) {
+        if (this.findRequest !== undefined) this.findInPage('')
         this.store.set({ ...this.store.getSnapshot(), loading: true, error: undefined })
       }
+    }, { signal })
+    element.addEventListener('found-in-page', (event) => {
+      const { requestId, activeMatchOrdinal, matches } = (event as FindEvent).result
+      if (this.findRequest !== requestId) return
+      const current = this.store.getSnapshot()
+      const previous = typeof current.findResult === 'object' ? current.findResult : undefined
+      this.store.set({ ...current, findResult: {
+        active: activeMatchOrdinal < 0 ? previous?.active ?? 0 : activeMatchOrdinal,
+        matches: matches < 0 ? previous?.matches ?? 0 : matches,
+      } })
     }, { signal })
     for (const name of ['did-start-loading', 'did-stop-loading', 'page-title-updated']) {
       element.addEventListener(name, () => {
@@ -411,6 +462,10 @@ export class ElectronWebViewImpl implements BrowserFrame {
   }
 
   private dropGuest(): Promise<void> {
+    this.findRequest = undefined
+    if (this.store.getSnapshot().findResult !== undefined) {
+      this.store.set({ ...this.store.getSnapshot(), findResult: undefined })
+    }
     this.guestLifetime?.abort()
     this.guestLifetime = undefined
     this.presentation.clear()

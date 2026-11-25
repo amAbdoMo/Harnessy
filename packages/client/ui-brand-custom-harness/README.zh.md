@@ -25,7 +25,7 @@ kind: "package-reference"
 
 运行 `pnpm run build:custom-harness` 后，执行 `pnpm exec vitest run --config vitest.web.config.ts apps/web/tests/accounts-live-usage.expected.e2e.ts`，检查构建后的侧边栏与打开的 manager 如何接收用量推送。Harnessy Windows pull-request job 会使用产品 profile 执行这项无需密钥的检查。
 
-提供的透明 Harnessy 标志会在海洋渐变底框上适配宿主控制的图标尺寸。深海军蓝、青色与亮青色配色通过现有语义 token 同时作用于明暗模式，并保留标准的成功、警告与错误语义。About 行显示构建版本和项目入口，不保留运行时状态。
+透明的 Harnessy 标志在海洋渐变底框上适配宿主指定的图标尺寸。明暗配色分别区分对话区和侧栏背景，并使用青色作为强调色。About 行显示构建版本和项目链接。
 
 共享技能文件夹行绑定 `harnessy-shared-skills` 设置命名空间，显示已解析的绝对目录，并通过标准设置与原生目录选择器 service 路由启用、选择文件夹和重置操作。它只拥有展示；文件系统 skill provider 拥有发现、监视、优先级和 provider 替换。
 

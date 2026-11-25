@@ -16,6 +16,7 @@
     { "path": "../../api/settings-controller" },
     { "path": "../../api/workspace-controller/tsconfig.client.json" },
     { "path": "../../util/brand" },
+    { "path": "../../util/crypto" },
     { "path": "../../core/session" },
     { "path": "../../util/values" },
     { "path": "../locale/tsconfig.client.json" },

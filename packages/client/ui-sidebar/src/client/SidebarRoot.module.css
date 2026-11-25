@@ -1,4 +1,4 @@
-/* Sidebar column (figma 133:7629): vertical stack, padding 12/6, sidebar
+/* Sidebar column (figma 133:7629): vertical stack, padding 12/8, sidebar
    fill + 1px right border painted by the layout column. Collapse is a
    slide + crossfade, not a morph: the content holds its frozen expanded
    layout (inline width set by the component) and fades in place (.fading)
@@ -11,7 +11,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 6px var(--dsh-sidebar-inline-padding);
+  padding: 8px var(--dsh-sidebar-inline-padding);
   box-sizing: border-box;
   background: var(--dsw-specific-sidebar-fill);
   color: var(--dsw-alias-label-primary);
@@ -186,7 +186,7 @@
   justify-content: flex-end;
   height: 52px;
   box-sizing: border-box;
-  margin: -6px calc(-1 * var(--dsh-sidebar-inline-padding)) 0;
+  margin: -8px calc(-1 * var(--dsh-sidebar-inline-padding)) 0;
   /* The 2px foot centres the 28px toggle at y 25, level with the collapsed
      seat (ui-layout .leadingSeat, top 11) and the conversation title row, so
      collapse/expand never shifts it vertically. */
@@ -286,10 +286,10 @@
   gap: 6px;
   min-width: 0;
   height: 24px;
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 17px;
+  font-weight: 500;
   line-height: 24px;
-  letter-spacing: 0.04em;
+  letter-spacing: -0.02em;
 }
 
 .fallbackBrandName {
@@ -392,7 +392,7 @@
   white-space: nowrap;
 }
 
-/* New Session: 38px bar, 12px radius (figma 133:7634 geometry, squared-off
+/* New Session: 36px bar, 12px radius (figma 133:7634 geometry, squared-off
    corners); collapsed it renders as the rail's plain icon control. */
 .newSession {
   container-type: inline-size;
@@ -402,11 +402,11 @@
   align-items: center;
   justify-content: center;
   gap: 0;
-  height: 38px;
+  height: 36px;
   padding: 8px 12px;
   margin: 0 2px 12px;
   box-sizing: border-box;
-  border: 0.5px solid var(--dsw-alias-border-l3);
+  border: 0.5px solid var(--dsw-alias-border-l2);
   border-radius: var(--dsw-radius-md);
   background: var(--dsw-alias-button-elevated-fill);
   color: var(--dsw-alias-label-primary);
@@ -484,7 +484,7 @@
   flex: none;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   margin-bottom: 8px;
 }
 
@@ -495,8 +495,8 @@
   align-items: center;
   gap: 8px;
   margin: 0 2px;
-  min-height: 36px;
-  padding: 7px 8px;
+  min-height: 34px;
+  padding: 6px 8px;
   box-sizing: border-box;
   border: none;
   border-radius: var(--dsw-radius-md);
@@ -513,7 +513,7 @@
 }
 
 .panelRow.panelActive {
-  background: var(--dsw-alias-interactive-bg-hover);
+  background: var(--dsw-specific-sidebar-nav-item-active-accent);
   color: var(--dsw-alias-label-primary);
 }
 

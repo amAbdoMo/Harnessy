@@ -9,13 +9,14 @@ import {
   IconRefreshOutlineRegular, Tooltip,
   IconRightUpOutlineRegular,
   IconSettingsOutlineRegular,
+  IconStopFillRegular,
   SHIELD_OUTLINE_PATH,
   ICON_REGULAR_STROKE,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { DesktopWebsiteProfile } from '../../types.ts'
 import type { SidebarRightTabParamsFor } from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
-import type { BrowserResponsiveInjected } from '../responsive.ts'
+import { openResponsiveTabParams, type BrowserResponsiveInjected } from '../responsive.ts'
 import type { BrowserInjected } from '../browser/BrowserController.ts'
 import { emptyBrowserFrame } from '../browser/BrowserFrame.ts'
 import { currentBrowserTarget } from '../browser/BrowserPersistence.ts'
@@ -23,7 +24,11 @@ import type { BrowserStore } from '../browser/store.ts'
 import { BrowserProfileBar } from './BrowserProfileBar.tsx'
 import { BrowserFeedback } from './BrowserFeedback.tsx'
 import { BrowserControl } from './BrowserControl.tsx'
+import { BrowserAddressSuggestions } from './BrowserAddressSuggestions.tsx'
 import { BrowserAnnotationIcon } from './BrowserAnnotationIcon.tsx'
+import { BrowserFindBar } from './BrowserFindBar.tsx'
+import { BrowserPageActions } from './BrowserPageActions.tsx'
+import { BrowserResponsiveBody } from './BrowserResponsiveBody.tsx'
 import type {} from './BrowserProfilePicker.tsx'
 import css from './Browser.module.css'
 
@@ -56,21 +61,35 @@ function useBrowserDraft(url: string | undefined, revision: number): readonly [s
 
 /** Render provider-neutral navigation state and optional controls. */
 export function BrowserBody(props: BrowserBodyProps): ReactNode {
+  const { tab, sidebar } = props.useTabInfo()
+  const responsiveAvailable = props.useResponsiveAvailable(value => value)
+  const params = tab.navigation.params as SidebarRightTabParamsFor<'browser'>
+  if (responsiveAvailable && params?.responsiveOpenId !== undefined && params.profileId === undefined && params.previewId === undefined) {
+    return <BrowserResponsiveBody tab={tab} fullscreen={sidebar.fullscreen} renderSlot={props.renderSlot} t={props.t} />
+  }
+  return <BrowserOrdinaryBody {...props} tab={tab} responsiveAvailable={responsiveAvailable} />
+}
+
+function BrowserOrdinaryBody(props: BrowserBodyProps & {
+  readonly tab: ReturnType<BrowserBodyProps['useTabInfo']>['tab']
+  readonly responsiveAvailable: boolean
+}): ReactNode {
   const {
-    mount, loadUrl, restore, goBack, goForward, reload, setSandbox, profiles, useBrowserState, useStore, useTabInfo,
-    setVisible, useWebsiteRequests,
+    mount, loadUrl, restore, goBack, goForward, reload, setSandbox, profiles, useBrowserState, useStore, tab,
+    setVisible, useWebsiteRequests, findInPage, stopLoading, hardReload,
     useWebsiteProfiles, renderSlot, t,
   } = props
-  const { tab } = useTabInfo()
   const params = tab.navigation.params as SidebarRightTabParamsFor<'browser'>
   const saved = useStore(state => state.byTab[tab.id])
   const initial = useRef(saved)
-  const initialUrl = useRef(params?.previewId === undefined ? params?.url : undefined)
+  const initialUrl = useRef(params?.previewId === undefined && params?.responsiveOpenId === undefined ? params?.url : undefined)
   const profileId = params?.profileId
   const viewportId = useId()
   const [mountEpoch, setMountEpoch] = useState(0)
   const [takeoverFailed, setTakeoverFailed] = useState(false)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
+  const [findPage, setFindPage] = useState<string>()
+  const actionsTrigger = useRef<HTMLButtonElement>(null)
   const annotationTrigger = useRef<HTMLButtonElement>(null)
   const previousFeedbackOpen = useRef(false)
   useLayoutEffect(() => {
@@ -120,7 +139,24 @@ export function BrowserBody(props: BrowserBodyProps): ReactNode {
       || requests.requests.some(request => request.status === 'granted')))
   const failure = state?.addressFailure
   const error = frame.error
+  const findAvailable = tab.visible && profileId === undefined && !humanAccessBlocked && frame.humanControl === true
+    && frame.address === 'observed' && !frame.loading && error === undefined && target !== undefined
+  const findOpen = findAvailable && findPage !== undefined && findPage === target?.url
+  const closeFind = (): void => {
+    setFindPage(undefined)
+    actionsTrigger.current?.focus()
+  }
+  useEffect(() => {
+    if (!findOpen) setFindPage(undefined)
+  }, [findOpen])
   const untrustedCertificate = error?.code === -202
+  const canStop = props.addFeedback !== undefined && frame.loading
+  const refreshLabel = t(canStop ? 'load.stop' : 'reload')
+  const responsivePreview = !props.responsiveAvailable || profileId !== undefined || params?.previewId !== undefined
+    || frame.address !== 'observed' || target === undefined || error !== undefined ? undefined : (): void => {
+      const preview = openResponsiveTabParams(target.url, window.location.origin)
+      if (preview !== undefined) tab.actions.openTab('browser', { params: preview, revealIfOpened: false })
+    }
   const openExternal = externalUrl === undefined ? undefined : () => { window.open(externalUrl, '_blank', 'noopener,noreferrer') }
   const submit = (event: FormEvent): void => { event.preventDefault(); if (!humanAccessBlocked) loadUrl(tab.id, draft) }
 
@@ -131,19 +167,21 @@ export function BrowserBody(props: BrowserBodyProps): ReactNode {
           ref={(element) => { element?.toggleAttribute('inert', feedbackOpen) }}>
           <button type="button" className={css.tool} aria-label={t('back')} title={t('back')} disabled={humanAccessBlocked || !frame.canGoBack} onClick={() => { goBack(tab.id) }}><IconChevronLeftOutlineRegular /></button>
           <button type="button" className={css.tool} aria-label={t('forward')} title={t('forward')} disabled={humanAccessBlocked || !frame.canGoForward} onClick={() => { goForward(tab.id) }}><IconChevronRightOutlineRegular /></button>
-          <Tooltip label={t('reload')} shortcutKeys={tab.refreshShortcut?.keys} side="bottom" delayMs={500}>
-            <button type="button" className={css.tool} aria-label={t('reload')} aria-keyshortcuts={tab.refreshShortcut?.aria} disabled={humanAccessBlocked || target === undefined || mountEpoch === 0} onClick={() => { reload(tab.id) }}><IconRefreshOutlineRegular /></button>
+          <Tooltip label={refreshLabel} shortcutKeys={canStop ? undefined : tab.refreshShortcut?.keys} side="bottom" delayMs={500}>
+            <button type="button" className={css.tool} aria-label={refreshLabel}
+              aria-keyshortcuts={canStop ? undefined : tab.refreshShortcut?.aria}
+              disabled={humanAccessBlocked || target === undefined || mountEpoch === 0}
+              onClick={() => { if (canStop) stopLoading(tab.id); else reload(tab.id) }}>
+              {canStop ? <IconStopFillRegular size={12} /> : <IconRefreshOutlineRegular />}
+            </button>
           </Tooltip>
           <div className={css.addressBox}>
-            <input
-              className={[css.address, unknown ? css.addressUnknown : ''].join(' ')}
-              value={draft}
-              aria-label={t('address.placeholder')}
-              placeholder={t('address.placeholder')}
-              spellCheck={false}
-              disabled={humanAccessBlocked}
-              onChange={(event) => { setDraft(event.currentTarget.value) }}
-            />
+            <BrowserAddressSuggestions value={draft}
+              recent={tab.visible && profileId === undefined ? state?.recentNavigations ?? [] : []}
+              label={t('address.placeholder')} suggestionsLabel={t('address.suggestions')}
+              inputClassName={[css.address, unknown ? css.addressUnknown : ''].filter(Boolean).join(' ')}
+              disabled={humanAccessBlocked} onChange={setDraft}
+              onCommit={(url) => { if (!humanAccessBlocked) { setDraft(url); loadUrl(tab.id, url) } }} />
             {unknown && <span className={css.addressChanged}>{t('address.changed')}</span>}
             <button type="submit" className={[css.tool, css.addressGo].join(' ')} aria-label={t('go')} title={t('go')} disabled={humanAccessBlocked}><IconLinkOutlineRegular /></button>
           </div>
@@ -176,7 +214,14 @@ export function BrowserBody(props: BrowserBodyProps): ReactNode {
               useWebsiteProfiles={useWebsiteProfiles}
               t={t} /></div>
           </details>}
+          {props.addFeedback !== undefined && <BrowserPageActions visible={tab.visible} disabled={humanAccessBlocked}
+            hasPage={frame.address === 'observed' && !frame.loading && error === undefined}
+            find={findAvailable ? () => { setFindPage(target?.url) } : undefined}
+            responsivePreview={responsivePreview}
+            hardReload={() => { hardReload(tab.id) }} capture={() => props.capture(tab.id)}
+            addFeedback={props.addFeedback} trigger={actionsTrigger} t={t} />}
         </form>
+        {findOpen && <BrowserFindBar tabId={tab.id} findInPage={findInPage} result={frame.findResult} onClose={closeFind} t={t} />}
         {profileId !== undefined && profiles === undefined && <p className={css.profileNotice}>{t('profiles.desktopOnly')}</p>}
         {sandboxed === false && <div className={css.sandboxWarning} role="status">{t('sandbox.warning')}</div>}
         {error !== undefined && <div className={css.failure} role="status">
