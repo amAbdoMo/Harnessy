@@ -254,6 +254,8 @@ export interface DesktopBrowserBridge {
   beginRemoteShare?(lease: DesktopBrowserLeaseId): Promise<BrowserRemoteShare | null>
   /** @param lease - exact tab. @param url - receipt of the share to end. */
   endRemoteShare?(lease: DesktopBrowserLeaseId, url: string): Promise<void>
+  /** @param url - exact share receipt. @param listener - called when its viewer stops the share. @returns Unsubscribe callback. */
+  onRemoteShareEnded?(url: string, listener: () => void): () => void
   /** Pick one element at viewport coordinates for human feedback. */
   pick?(lease: DesktopBrowserLeaseId, point: { readonly x: number; readonly y: number }): Promise<BrowserPickedElement | null>
   /** Subscribe to agent requests to mount a new browser tab. */

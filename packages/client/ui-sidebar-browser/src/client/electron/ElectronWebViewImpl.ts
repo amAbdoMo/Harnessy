@@ -89,13 +89,16 @@ export class ElectronWebViewImpl implements BrowserFrame {
 
   /** @returns Private view link and its exact stop operation, or null when disabled. */
   beginRemoteShare = async (): Promise<BrowserRemoteShareControl | null> => {
-    const { beginRemoteShare, endRemoteShare } = this.bridge
+    const { beginRemoteShare, endRemoteShare, onRemoteShareEnded } = this.bridge
     if (beginRemoteShare === undefined || endRemoteShare === undefined || !this.store.getSnapshot().remoteShareSupported) {
       throw new Error('Browser sharing is unavailable')
     }
     const lease = this.currentLease()
     const share = await beginRemoteShare(lease)
-    return share === null ? null : { ...share, stop: () => endRemoteShare(lease, share.url) }
+    return share === null ? null : {
+      ...share, stop: () => endRemoteShare(lease, share.url),
+      ...(onRemoteShareEnded === undefined ? {} : { onEnded: (listener: () => void) => onRemoteShareEnded(share.url, listener) }),
+    }
   }
 
   /** @param factor - native zoom factor. @returns After this guest acknowledges the change. */

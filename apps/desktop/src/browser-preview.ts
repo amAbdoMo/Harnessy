@@ -273,11 +273,22 @@ export class DesktopBrowserPreview {
     return { ...reply, status: 'ended' }
   }
 
+  private stopRemoteShare(requestId: string, id: unknown): object {
+    const reply = { type: 'browser-share-stop-result', requestId }
+    const share = this.share
+    if (share === undefined || share.id !== id) return { ...reply, status: 'ended' }
+    this.share = undefined
+    const owner = share.tab.owner
+    if (!owner.isDestroyed()) owner.send(DESKTOP_IPC.browserRemoteShareEnded, share.url)
+    return { ...reply, status: 'stopped' }
+  }
+
   /** @param input - validated private Host event. @returns response, or no response for cancellation. */
   async request(input: unknown): Promise<object | undefined> {
     const packet = object(input)
     const requestId = text(packet.requestId, 'request identity', 128)
     if (packet.type === 'browser-share-frame') return this.remoteShareFrame(requestId, packet.id)
+    if (packet.type === 'browser-share-stop') return this.stopRemoteShare(requestId, packet.id)
     if (packet.type === 'browser-preview-cancel') { this.calls.get(requestId)?.abort(); return undefined }
     if (packet.type !== 'browser-preview' || this.calls.has(requestId)) throw new Error('Invalid browser preview request')
     const cancellation = new AbortController()

@@ -38,6 +38,8 @@ export interface BrowserFrameState {
 
 /** View link plus the operation for ending this exact sharing attempt. */
 export interface BrowserRemoteShareControl extends BrowserRemoteShare {
+  /** @param listener - called when the viewer stops this share. @returns Unsubscribe callback. */
+  onEnded?(listener: () => void): () => void
   /** @returns Acknowledgment that this receipt can no longer be used. */
   stop(): Promise<void>
 }

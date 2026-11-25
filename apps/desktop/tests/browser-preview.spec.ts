@@ -66,6 +66,26 @@ it('fences recording and remote frames when control changes or the window is hid
   await expect(frame(recording.documentId)).rejects.toThrow('page changed')
 })
 
+it('stops only the matching share and discards a frame already being captured', async () => {
+  const f = fixture()
+  f.preview.bind(f.owner, f.lease, 'one')
+  await f.preview.control(f.owner, f.lease, true)
+  const share = f.preview.beginRemoteShare(f.owner, f.lease, 'https://pc.tailnet.ts.net/', () => true)
+  const id = new URL(share.url).searchParams.get('view')
+  const image = await f.guest.capturePage()
+  const capture = Promise.withResolvers<typeof image>()
+  f.guest.capturePage.mockReturnValueOnce(capture.promise)
+  const frame = f.preview.request({ type: 'browser-share-frame', requestId: randomUUID(), id })
+  const stop = (id: string | null) => f.preview.request({ type: 'browser-share-stop', requestId: randomUUID(), id })
+  await expect(stop(randomUUID())).resolves.toMatchObject({ status: 'ended' })
+  expect(f.published).not.toHaveBeenCalledWith(DESKTOP_IPC.browserRemoteShareEnded, share.url)
+  await expect(stop(id)).resolves.toMatchObject({ status: 'stopped' })
+  expect(f.published).toHaveBeenCalledWith(DESKTOP_IPC.browserRemoteShareEnded, share.url)
+  capture.resolve(image)
+  await expect(frame).resolves.toMatchObject({ status: 'ended' })
+  expect(f.preview.status(f.owner, f.lease).humanControl).toBe(true)
+})
+
 it('lists only its chat and unclaimed tabs, while an explicit observation remains available during human control', async () => {
   const f = fixture()
   f.preview.bind(f.owner, f.lease, 'one')

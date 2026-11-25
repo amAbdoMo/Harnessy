@@ -174,14 +174,19 @@ afterEach(async () => {
 })
 
 describe('BrowserBody', () => {
-  it('applies zoom, opens DevTools, and ends a share when the tab is hidden', async () => {
+  it('applies zoom, opens DevTools, and updates sharing when the viewer stops or the tab is hidden', async () => {
     const target = { kind: 'http', url: 'https://example.test/', title: 'Example' } as const
     const state = createSnapshotStore<BrowserFrameState>({ ...emptyBrowserFrame(), address: 'observed', target,
       humanControl: true, zoomFactor: 1, devToolsAvailable: true, remoteShareSupported: true })
     const setZoom = vi.fn(async (factor: number) => { state.set({ ...state.getSnapshot(), zoomFactor: factor }) })
     const openDevTools = vi.fn(async () => {})
     const stop = vi.fn(async () => {})
-    const beginRemoteShare = vi.fn(async () => ({ url: 'https://pc.tailnet.ts.net/api/browser-share?view=one', expiresAt: Date.now() + 60_000, stop }))
+    let onViewerStop: (() => void) | undefined
+    const detach = vi.fn(() => { onViewerStop = undefined })
+    const beginRemoteShare = vi.fn(async () => ({
+      url: 'https://pc.tailnet.ts.net/api/browser-share?view=one', expiresAt: Date.now() + 60_000, stop,
+      onEnded: (listener: () => void) => { onViewerStop = listener; return detach },
+    }))
     const mounted = mountBrowser(undefined, { addFeedback: () => true, createPage: () => ({
       presentation: { mount: () => () => {} },
       frame: { getSnapshot: state.getSnapshot, subscribe: state.subscribe,
@@ -200,6 +205,15 @@ describe('BrowserBody', () => {
     select(zh['page.devTools'])
     expect(openDevTools).toHaveBeenCalledOnce()
 
+    action()
+    select(zh['share.start'])
+    expect(await mounted.view.findByRole('button', { name: zh['share.stop'] })).toBeDefined()
+    const notify = onViewerStop
+    if (notify === undefined) throw new Error('Viewer stop listener missing')
+    act(notify)
+    expect(mounted.view.queryByRole('button', { name: zh['share.stop'] })).toBeNull()
+    expect(stop).not.toHaveBeenCalled()
+    expect(detach).toHaveBeenCalledOnce()
     action()
     select(zh['share.start'])
     expect(await mounted.view.findByRole('button', { name: zh['share.stop'] })).toBeDefined()

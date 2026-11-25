@@ -5,6 +5,7 @@ import { DESKTOP_IPC } from '../src/ipc.ts'
 
 const ipc = vi.hoisted(() => ({
   on: vi.fn<(channel: string, listener: (event: object, payload?: unknown) => void) => void>(),
+  removeListener: vi.fn(),
   invoke: vi.fn(async () => undefined),
 }))
 vi.mock('electron', () => ({ ipcRenderer: ipc }))
@@ -22,8 +23,8 @@ it('exposes no arbitrary IPC, native objects, or Agent control through profile-w
   const bridge = createDesktopBrowserBridge()
   expect(Object.keys(bridge).sort()).toEqual([
     'acquire', 'beginRemoteShare', 'bind', 'capture', 'captureRecordingFrame', 'command', 'completeOpen', 'control', 'endRemoteShare',
-    'onAgentOpen', 'onControlChanged', 'onOpenRequested', 'onReacquireRequested', 'openDevTools', 'pick', 'profiles', 'release',
-    'requests', 'setZoom', 'status',
+    'onAgentOpen', 'onControlChanged', 'onOpenRequested', 'onReacquireRequested', 'onRemoteShareEnded', 'openDevTools',
+    'pick', 'profiles', 'release', 'requests', 'setZoom', 'status',
   ])
   expect(Object.keys(bridge.requests).sort()).toEqual(['acknowledge', 'list', 'onChanged', 'onPrepared', 'prepare', 'resume', 'takeover', 'visible'])
   await bridge.acquire('cwd:/workspace', 'https://192.168.1.10/')
@@ -74,6 +75,21 @@ it('exposes no arbitrary IPC, native objects, or Agent control through profile-w
   expect(ipc.invoke).toHaveBeenLastCalledWith(DESKTOP_IPC.websiteProfilesSaveLogin, 'profile', { username: 'fixture', password: 'private-fixture' })
   await bridge.profiles.removeLogin('profile' as Parameters<typeof bridge.profiles.removeLogin>[0])
   expect(ipc.invoke).toHaveBeenLastCalledWith(DESKTOP_IPC.websiteProfilesRemoveLogin, 'profile')
+})
+
+it('notifies the desktop only for the subscribed viewer and removes the listener', () => {
+  const bridge = createDesktopBrowserBridge()
+  const url = 'https://pc.tailnet.ts.net/api/browser-share?view=one'
+  const listener = vi.fn()
+  const unsubscribe = bridge.onRemoteShareEnded?.(url, listener)
+  const receive = ipc.on.mock.calls.find(([channel]) => channel === DESKTOP_IPC.browserRemoteShareEnded)?.[1]
+  if (receive === undefined) throw new Error('Share listener missing')
+  receive({}, undefined)
+  receive({}, 'different view')
+  receive({}, url)
+  expect(listener).toHaveBeenCalledOnce()
+  unsubscribe?.()
+  expect(ipc.removeListener).toHaveBeenCalledWith(DESKTOP_IPC.browserRemoteShareEnded, receive)
 })
 
 it('subscribes once per preload bridge and stops disposed request listeners without affecting profile or link listeners', () => {

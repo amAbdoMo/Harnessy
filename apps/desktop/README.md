@@ -40,7 +40,7 @@ Each local-device tab uses a fresh, origin-scoped Electron Session. The exact gu
 
 ## Browser agent access
 
-Local Browser actions use the primary window’s lease and human control. Zoom uses Chromium page scaling. DevTools, video and private live view are available for ordinary tabs. Video and live view capture only that guest’s pixels. Live view sends bounded JPEG frames through the authenticated Phone Connection, limited to one active view on the current Host. The share URL contains an expiring view identifier and the viewer signs in using the existing Phone Connection.
+Local Browser actions use the primary window’s lease and human control. Zoom uses Chromium page scaling. DevTools, video and private live view are available for ordinary tabs. Video and live view capture only that guest’s pixels. Live view sends bounded JPEG frames through the authenticated Phone Connection, limited to one active share on the current Host. The share URL contains an expiring view identifier. An authenticated viewer can revoke that share with a same-origin request.
 
 The Desktop Host's stable `preview_*` tools operate the visible native browser without a paired MCP server. Main binds each tab to its chat and checks that identity for every action. Agents may observe a listed tab during human control; page actions and JavaScript evaluation require an owned or unclaimed tab with no human in control. Take control immediately rejects queued agent actions and waits for running actions to settle. Resume agent releases human control. Chat ownership survives Agent continuation; Host replacement cancels old invocations without transferring them to the new Host.
 

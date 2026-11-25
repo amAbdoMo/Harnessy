@@ -8,6 +8,7 @@ type ShareState = { readonly phase: 'starting' | 'setup' | 'failed' }
 interface Attempt {
   view?: BrowserRemoteShareControl
   expiration?: ReturnType<typeof setTimeout>
+  unsubscribe?: () => void
 }
 
 /**
@@ -26,6 +27,7 @@ export function useBrowserShare(pageKey: string | undefined): {
     const attempt = active.current
     active.current = undefined
     clearTimeout(attempt?.expiration)
+    attempt?.unsubscribe?.()
     return attempt?.view?.stop() ?? Promise.resolve()
   }
   const stop = (): void => {
@@ -57,6 +59,14 @@ export function useBrowserShare(pageKey: string | undefined): {
       }
       attempt.view = view
       attempt.expiration = setTimeout(stop, Math.max(0, view.expiresAt - Date.now()))
+      const unsubscribe = view.onEnded?.(() => {
+        if (active.current !== attempt) return
+        active.current = undefined
+        clearTimeout(attempt.expiration)
+        attempt.unsubscribe?.()
+        setState(undefined)
+      })
+      if (unsubscribe !== undefined) attempt.unsubscribe = unsubscribe
       setState({ phase: 'sharing', url: view.url })
     } catch (_error: unknown) {
       if (active.current !== attempt) return

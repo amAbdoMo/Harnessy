@@ -33,6 +33,7 @@ export const DESKTOP_IPC = {
   browserCaptureRecordingFrame: 'dsh-desktop:browser-capture-recording-frame',
   browserBeginRemoteShare: 'dsh-desktop:browser-begin-remote-share',
   browserEndRemoteShare: 'dsh-desktop:browser-end-remote-share',
+  browserRemoteShareEnded: 'dsh-desktop:browser-remote-share-ended',
   browserPick: 'dsh-desktop:browser-pick',
   browserAgentOpen: 'dsh-desktop:browser-agent-open',
   browserCompleteOpen: 'dsh-desktop:browser-complete-open',
