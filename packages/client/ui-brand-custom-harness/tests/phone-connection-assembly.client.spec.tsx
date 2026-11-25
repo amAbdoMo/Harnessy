@@ -62,7 +62,7 @@ describe('assembled native companion settings', () => {
     { available: false, connected: false, pairedCount: 0, text: en.companionUnavailable },
     { available: true, connected: false, pairedCount: 1, text: en.companionDisconnected },
     { available: true, connected: true, pairedCount: 2, text: en.companionConnected },
-  ])('prefers native status over legacy setup: $text', async ({ text, ...status }, { mock, start }) => {
+  ])('hides private browser setup when unconfigured and shows the native status: $text', async ({ text, ...status }, { mock, start }) => {
     configure(mock)
     const legacy: NativePhoneConnection = {
       describe: vi.fn(async () => ({ enabled: false as const })), copyPairingUrl: vi.fn(async () => {}),
@@ -83,9 +83,26 @@ describe('assembled native companion settings', () => {
     expect(screen.queryByText(en.phoneConnectionPrivateServe)).toBeNull()
     expect(screen.queryByRole('region', { name: en.phoneConnectionTitle })).toBeNull()
     expect(screen.queryByRole('button', { name: en.phoneConnectionCopy })).toBeNull()
-    expect(legacy.describe).not.toHaveBeenCalled()
     expect(legacy.copyPairingUrl).not.toHaveBeenCalled()
-    expect(client.ctx.slots.entries('shell.overlay').some(entry => entry.options.id === TOAST)).toBe(false)
+  })
+
+  it('offers the private browser login alongside native companion status after explicit opt-in', async ({ mock, start }) => {
+    configure(mock)
+    const remoteRoot = 'https://pc.tailnet.ts.net/'
+    const legacy: NativePhoneConnection = {
+      describe: async () => ({ enabled: true, remoteRoot }), copyPairingUrl: vi.fn(async () => {}),
+    }
+    const companion: NativeCompanion = {
+      describe: async () => ({ available: true, connected: true, pairedCount: 1 }), open: async () => {},
+    }
+    vi.stubGlobal('dshDesktop', { companion, phoneConnection: legacy })
+    const client = await start()
+    await openGeneral(client)
+    screen.getByRole('region', { name: en.companionTitle })
+    const browserAccess = await screen.findByRole('region', { name: en.phoneConnectionTitle })
+    within(browserAccess).getByText(remoteRoot)
+    fireEvent.click(within(browserAccess).getByRole('button', { name: en.phoneConnectionCopy }))
+    expect(legacy.copyPairingUrl).toHaveBeenCalledOnce()
   })
 
   it('holds native dialog progress across settings remounts and refreshes only after completion', async ({ mock, start }) => {

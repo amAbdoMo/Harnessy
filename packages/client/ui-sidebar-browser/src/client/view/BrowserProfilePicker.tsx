@@ -15,6 +15,7 @@ import type { WebsiteProfileCommands } from '../browser/profiles.ts'
 import { assertNever } from '@deepseek-ai/dsh-util-values'
 import css from './Browser.module.css'
 import { BrowserAccessPicker } from './BrowserAccessPicker.tsx'
+import { BrowserProfileImport } from './BrowserProfileImport.tsx'
 import { resolveWebsiteProfileInput, type WebsiteProfileInputIssue } from '../browser/profile-input.ts'
 import { websiteProfileFailureText } from './profile-failure-text.ts'
 
@@ -87,7 +88,7 @@ export function BrowserProfilePicker({
   const state = useWebsiteProfiles(current => current)
   const draft = useStore(current => current)
   const [open, setOpen] = useState(false)
-  const [creating, setCreating] = useState(false)
+  const [dialog, setDialog] = useState<'create' | 'import'>()
   // One operation at a time: a second request would race the first one's result.
   const blocked = state.creating || state.busy !== undefined
   const heading: MenuEntry[] = state.profiles.length === 0
@@ -104,7 +105,7 @@ export function BrowserProfilePicker({
       // A refused save keeps the form open for correction; its notice names the reason.
       if (created === undefined) return
       actions.discard()
-      setCreating(false)
+      setDialog(undefined)
       openProfile(created)
     })
   }
@@ -150,13 +151,20 @@ export function BrowserProfilePicker({
             onSelect={() => { void profiles.signOut(profile.id) }}
           >{t('profiles.retryCleanup', { name: profile.name })}</MenuItemButton>
         ))}
-        <MenuItemButton separatorBefore onSelect={() => { setOpen(false); setCreating(true) }}>
+        <MenuItemButton separatorBefore disabled={blocked} onSelect={() => { setOpen(false); setDialog('create') }}>
           {t('profiles.new')}
         </MenuItemButton>
+        <MenuItemButton disabled={blocked} onSelect={() => { setOpen(false); setDialog('import') }}>
+          {t('profiles.import.title')}
+        </MenuItemButton>
       </Menu>
-      {creating && (
+      {dialog === 'import' && <BrowserProfileImport t={t} onClose={() => { setDialog(undefined) }} onChoose={(site) => {
+        actions.importSite(site)
+        setDialog('create')
+      }} />}
+      {dialog === 'create' && (
         <BrowserProfileCreate draft={draft} edit={actions.edit} creating={state.creating} onCreate={create} listMcpServers={listMcpServers}
-          onClose={() => { actions.discard(); setCreating(false) }} t={t} />
+          onClose={() => { actions.discard(); setDialog(undefined) }} t={t} />
       )}
     </>
   )

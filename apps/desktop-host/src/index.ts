@@ -27,6 +27,7 @@ import { installDevicePreviewController } from './device-preview-controller.ts'
 import { installDevicePreviewParentChannel } from './device-preview-parent.ts'
 import { installDevicePreviewTools } from './device-preview-tools.ts'
 import { installBrowserPreview } from './browser-preview.ts'
+import { installBrowserShare } from './browser-share.ts'
 
 async function main(): Promise<void> {
   const remote = resolveDesktopRemoteConnection(process.env)
@@ -40,6 +41,7 @@ async function main(): Promise<void> {
   const companionLife = new AbortController()
   const control: {
     browserPreview?: ReturnType<typeof installBrowserPreview>
+    browserShare?: ReturnType<typeof installBrowserShare>
     companion?: ReturnType<typeof installDesktopCompanionControls>
     companionConfig?: CompanionConfig
     updateTasks?: ReturnType<typeof installDesktopUpdateTaskControl>
@@ -108,6 +110,7 @@ async function main(): Promise<void> {
   }
   process.on('message', (message: unknown) => {
     if (control.browserPreview?.receive(message) === true) return
+    if (control.browserShare?.receive(message) === true) return
     if (control.companion?.receive(message) === true) return
     if (control.devicePreviewController?.receive(message) === true || control.devicePreviewParent?.receive(message) === true) return
     if (typeof message !== 'object' || message === null || !('type' in message)) return
@@ -176,6 +179,7 @@ async function main(): Promise<void> {
   })
   process.once('disconnect', () => {
     control.browserPreview?.close()
+    control.browserShare?.close()
     control.websiteParent?.close()
     control.devicePreviewParent?.close()
     void stop().catch((error: unknown) => { console.error(error) })
@@ -204,7 +208,10 @@ async function main(): Promise<void> {
     if (process.connected) process.send?.({ type: 'platform-session', session })
   })
   if (remote !== undefined) {
-    try { assertDesktopRemoteConnection(ctx, remote) }
+    try {
+      assertDesktopRemoteConnection(ctx, remote)
+      control.browserShare = installBrowserShare(ctx, remote, send)
+    }
     catch (error) { await ctx.fiber.dispose(); throw error }
   }
   if (stopping !== undefined) return

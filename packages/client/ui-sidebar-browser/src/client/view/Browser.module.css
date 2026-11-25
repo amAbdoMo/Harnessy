@@ -158,7 +158,8 @@
   outline-offset: -1px;
 }
 
-.findBar {
+.findBar,
+.captureBar {
   display: flex;
   flex: none;
   align-items: center;
@@ -166,6 +167,17 @@
   padding: 4px 6px;
   border-bottom: 0.5px solid var(--dsw-alias-border-l3);
   background: var(--dsw-alias-bg-layer-1);
+}
+
+.captureBar {
+  flex-wrap: wrap;
+  color: var(--dsw-alias-label-primary);
+  font: var(--dsw-font-xxs-12);
+}
+
+.captureStatus {
+  flex: 1 1 110px;
+  margin: 0;
 }
 
 .findInput {
@@ -424,6 +436,7 @@
 }
 
 .profileFieldHint {
+  overflow-wrap: anywhere;
   color: var(--dsw-alias-label-tertiary);
   font: var(--dsw-font-xxxs-11);
 }

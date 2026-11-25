@@ -1,6 +1,7 @@
 /** Loader composition keeps private HTTPS requests behind the existing Host and authentication fences. */
 
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { get, type IncomingHttpHeaders } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
@@ -9,6 +10,24 @@ import * as Connection from '@deepseek-ai/dsh-client-connection'
 import WebServer from '@deepseek-ai/dsh-host-webserver'
 import { expect, it, onTestFinished } from 'vitest'
 import { assertDesktopRemoteConnection, resolveDesktopRemoteConnection } from '../src/remote-connection.ts'
+import { installBrowserShare } from '../src/browser-share.ts'
+
+function readRoute(port: number, path: string, headers: Readonly<Record<string, string>>): Promise<{
+  status: number | undefined
+  headers: IncomingHttpHeaders
+  body: string
+}> {
+  return new Promise((resolve, reject) => {
+    const request = get({ host: '127.0.0.1', port, path, headers }, (response) => {
+      response.setEncoding('utf8')
+      let body = ''
+      response.on('data', (chunk: string) => { body += chunk })
+      response.once('error', reject)
+      response.once('end', () => { resolve({ status: response.statusCode, headers: response.headers, body }) })
+    })
+    request.once('error', reject)
+  })
+}
 
 it('admits the private authority only after authentication, keeps authority-bound cookies and refuses an occupied fixed port', async () => {
   const root = await mkdtemp(join(tmpdir(), 'dsh-phone-boot-'))
@@ -55,6 +74,28 @@ it('admits the private authority only after authentication, keeps authority-boun
   expect(cookie).not.toBe('')
   expect(ctx.connection.requestRejection({ headers: { ...headers, cookie } })).toBeUndefined()
   expect(ctx.connection.requestRejection({ headers: { host: `127.0.0.1:${String(ctx.webServer.port)}`, cookie } })).toBe(401)
+
+  const viewId = 'e7ceaa5b-761d-4e48-9abc-9fa732df8617'
+  const viewPath = `/api/browser-share?view=${viewId}`
+  let captures = 0
+  let live = true
+  const browserShare = installBrowserShare(ctx, remote, async (message) => {
+    expect(message).toMatchObject({ type: 'browser-share-frame', id: viewId })
+    captures++
+    browserShare.receive({ ...message, type: 'browser-share-frame-result', status: live ? 'frame' : 'ended', jpeg: 'anBlZw==' })
+  })
+  const view = () => readRoute(remote.listenPort, viewPath, { ...headers, cookie })
+  const frame = (requestHeaders: Readonly<Record<string, string>>) => readRoute(remote.listenPort, `${viewPath}&frame=1`, requestHeaders)
+  await expect(frame(headers)).resolves.toMatchObject({ status: 401 })
+  await expect(frame({ ...headers, cookie, 'sec-fetch-site': 'cross-site' })).resolves.toMatchObject({ status: 403 })
+  expect(captures).toBe(0)
+  const viewer = await view()
+  expect(viewer).toMatchObject({ status: 200, headers: { 'cache-control': 'no-store' } })
+  expect(viewer.headers['content-security-policy']).toContain("frame-ancestors 'none'")
+  expect(viewer.body).toContain('Shared browser view')
+  await expect(frame({ ...headers, cookie })).resolves.toMatchObject({ status: 200, headers: { 'content-type': 'image/jpeg' }, body: 'jpeg' })
+  live = false
+  await expect(frame({ ...headers, cookie })).resolves.toMatchObject({ status: 410 })
 
   const competing = new Context()
   onTestFinished(() => competing.fiber.dispose())

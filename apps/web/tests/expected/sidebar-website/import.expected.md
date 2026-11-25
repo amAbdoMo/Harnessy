@@ -1,0 +1,11 @@
+- dialog "Import browser profile":
+  - heading "Import browser profile" [level=2]
+  - button "Close"
+  - paragraph: Choose a bookmarks HTML or website-profile JSON file to import a name and address. Sign in again in the new profile.
+  - text: Browser export file
+  - button "Browser export file"
+  - text: Website
+  - combobox "Website": Fixture bookmark (fixture.example)
+  - text: https://fixture.example/
+  - button "Cancel"
+  - button "Review profile"

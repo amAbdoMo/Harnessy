@@ -1,8 +1,9 @@
 /** Electron navigation and guest lifetime, independent from DOM placement. */
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { BrowserAnnotationCapture, BrowserPickedElement, BrowserTabStatus, BrowserViewport, DesktopBrowserBridge, DesktopBrowserLeaseId, DesktopBrowserReservation } from '../../types.ts'
+import type { BrowserRecordingDocumentId, BrowserRecordingFrame } from '../../types.ts'
 import type { ElectronWebviewPresentation, WebviewElement } from './ElectronWebviewPresentation.ts'
-import { emptyBrowserFrame, type BrowserFrame, type BrowserFrameState, type BrowserLoadError } from '../browser/BrowserFrame.ts'
+import { emptyBrowserFrame, type BrowserFrame, type BrowserFrameState, type BrowserLoadError, type BrowserRemoteShareControl } from '../browser/BrowserFrame.ts'
 import type { BrowserPageOptions } from '../browser/BrowserPage.ts'
 import type { WebsiteRequestPage } from '../browser/WebsiteRequestPage.ts'
 import { browserAddressCheckpoint, currentBrowserTarget } from '../browser/BrowserPersistence.ts'
@@ -53,7 +54,12 @@ export class ElectronWebViewImpl implements BrowserFrame {
     // A saved-profile page has no restorable address: a signed-in address can
     // carry a one-time token, so its navigation is never written.
     this.checkpoint = options.profileId === undefined ? currentBrowserTarget(options.initial) : undefined
-    this.store = createSnapshotStore(emptyBrowserFrame())
+    this.store = createSnapshotStore({ ...emptyBrowserFrame(),
+      ...(options.profileId === undefined && bridge.captureRecordingFrame !== undefined ? { recordingSupported: true } : {}),
+      ...(options.profileId === undefined && bridge.beginRemoteShare !== undefined && bridge.endRemoteShare !== undefined
+        ? { remoteShareSupported: true } : {}),
+      ...(options.profileId === undefined && bridge.openDevTools !== undefined ? { devToolsAvailable: true } : {}),
+    })
     if (options.profileId === undefined) this.setViewport = (viewport) => {
       if (this.lifetime.signal.aborted) return
       this.viewport = { width: viewport.width, height: viewport.height, scale: viewport.scale }
@@ -66,6 +72,44 @@ export class ElectronWebViewImpl implements BrowserFrame {
     await this.control(true)
     if (this.bridge.capture === undefined) throw new Error('Browser capture is unavailable')
     return this.bridge.capture(this.currentLease())
+  }
+
+  /**
+   * Capture a frame without taking ownership of the page.
+   * @param url - address that the user began recording.
+   * @param documentId - current native document identity after the first frame.
+   * @returns a JPEG for that exact document under human control.
+   */
+  captureRecordingFrame = async (url: string, documentId?: BrowserRecordingDocumentId): Promise<BrowserRecordingFrame> => {
+    const current = this.store.getSnapshot()
+    if (this.bridge.captureRecordingFrame === undefined || this.options.profileId !== undefined || current.humanControl !== true
+      || current.address !== 'observed' || current.loading || current.target?.url !== url) throw new Error('Browser recording is unavailable')
+    return this.bridge.captureRecordingFrame(this.currentLease(), url, documentId)
+  }
+
+  /** @returns Private view link and its exact stop operation, or null when disabled. */
+  beginRemoteShare = async (): Promise<BrowserRemoteShareControl | null> => {
+    const { beginRemoteShare, endRemoteShare } = this.bridge
+    if (beginRemoteShare === undefined || endRemoteShare === undefined || !this.store.getSnapshot().remoteShareSupported) {
+      throw new Error('Browser sharing is unavailable')
+    }
+    const lease = this.currentLease()
+    const share = await beginRemoteShare(lease)
+    return share === null ? null : { ...share, stop: () => endRemoteShare(lease, share.url) }
+  }
+
+  /** @param factor - native zoom factor. @returns After this guest acknowledges the change. */
+  setZoom = async (factor: number): Promise<void> => {
+    if (this.bridge.setZoom === undefined) throw new Error('Browser zoom is unavailable')
+    const lease = this.currentLease()
+    const acknowledged = await this.bridge.setZoom(lease, factor)
+    if (this.lease === lease) this.store.set({ ...this.store.getSnapshot(), zoomFactor: acknowledged })
+  }
+
+  /** @returns After native inspector dispatch. */
+  openDevTools = async (): Promise<void> => {
+    if (this.bridge.openDevTools === undefined) throw new Error('Browser DevTools are unavailable')
+    await this.bridge.openDevTools(this.currentLease())
   }
 
   /** Inspect a human-selected viewport point. @param point - CSS coordinates. @returns bounded element context. */
@@ -341,9 +385,9 @@ export class ElectronWebViewImpl implements BrowserFrame {
         matches: matches < 0 ? previous?.matches ?? 0 : matches,
       } })
     }, { signal })
-    for (const name of ['did-start-loading', 'did-stop-loading', 'page-title-updated']) {
+    for (const name of ['did-start-loading', 'did-stop-loading', 'page-title-updated', 'zoom-changed']) {
       element.addEventListener(name, () => {
-        this.observe(name === 'page-title-updated' && this.store.getSnapshot().address === 'observed')
+        this.observe((name === 'page-title-updated' || name === 'zoom-changed') && this.store.getSnapshot().address === 'observed')
       }, { signal })
     }
     element.addEventListener('did-fail-load', (event) => {
@@ -431,10 +475,11 @@ export class ElectronWebViewImpl implements BrowserFrame {
     const loading = error === undefined && element.isLoading()
     const canGoBack = element.canGoBack()
     const canGoForward = element.canGoForward()
+    const zoomFactor = address === 'observed' && this.bridge.setZoom !== undefined ? element.getZoomFactor?.() ?? 1 : undefined
     if (target?.url !== current.target?.url || target?.title !== current.target?.title || address !== current.address
       || loading !== current.loading || canGoBack !== current.canGoBack || canGoForward !== current.canGoForward
-      || error !== current.error) {
-      this.store.set({ ...current, target, address, loading, canGoBack, canGoForward, error })
+      || error !== current.error || zoomFactor !== current.zoomFactor) {
+      this.store.set({ ...current, target, address, loading, canGoBack, canGoForward, error, zoomFactor })
     }
     if (parsed?.ok && target !== undefined) this.persist(target)
   }

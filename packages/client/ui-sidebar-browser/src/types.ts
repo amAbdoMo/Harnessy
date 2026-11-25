@@ -242,8 +242,18 @@ export interface DesktopBrowserBridge {
   control?(lease: DesktopBrowserLeaseId, human: boolean): Promise<void>
   /** Read native tab ownership and navigation state. */
   status?(lease: DesktopBrowserLeaseId): Promise<BrowserTabStatus>
+  /** @param lease - locally controlled page. @param factor - zoom from 0.5 to 3. @returns Chromium's applied factor. */
+  setZoom?(lease: DesktopBrowserLeaseId, factor: number): Promise<number>
+  /** @param lease - locally controlled ordinary page. @returns after native inspector dispatch. */
+  openDevTools?(lease: DesktopBrowserLeaseId): Promise<void>
   /** Capture the exact mounted native page for human annotations. */
   capture?(lease: DesktopBrowserLeaseId): Promise<BrowserAnnotationCapture>
+  /** Capture one bounded JPEG from the human-controlled ordinary page, fenced by its native navigation and control. */
+  captureRecordingFrame?(lease: DesktopBrowserLeaseId, url: string, documentId?: BrowserRecordingDocumentId): Promise<BrowserRecordingFrame>
+  /** @param lease - exact human-controlled tab. @returns Private view link, or null when Phone Connection is disabled. */
+  beginRemoteShare?(lease: DesktopBrowserLeaseId): Promise<BrowserRemoteShare | null>
+  /** @param lease - exact tab. @param url - receipt of the share to end. */
+  endRemoteShare?(lease: DesktopBrowserLeaseId, url: string): Promise<void>
   /** Pick one element at viewport coordinates for human feedback. */
   pick?(lease: DesktopBrowserLeaseId, point: { readonly x: number; readonly y: number }): Promise<BrowserPickedElement | null>
   /** Subscribe to agent requests to mount a new browser tab. */
@@ -288,6 +298,21 @@ export interface BrowserAnnotationCapture {
   readonly viewportHeight: number
   readonly url: string
   readonly title: string
+}
+
+/** One attached recording document and human control generation. */
+export type BrowserRecordingDocumentId = Branded<'BrowserRecordingDocumentId'>
+
+/** Bounded JPEG from the exact human-controlled document. */
+export interface BrowserRecordingFrame {
+  readonly documentId: BrowserRecordingDocumentId
+  readonly jpeg: string
+}
+
+/** An expiring view link that requires the existing private Web sign-in. */
+export interface BrowserRemoteShare {
+  readonly url: string
+  readonly expiresAt: number
 }
 
 /** Bounded element context selected by the human. */

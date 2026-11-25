@@ -2,6 +2,7 @@
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BrowserTarget } from './url.ts'
 import type { BrowserViewport, BrowserAnnotationCapture, BrowserPickedElement, BrowserTabStatus } from '../../types.ts'
+import type { BrowserRecordingDocumentId, BrowserRecordingFrame, BrowserRemoteShare } from '../../types.ts'
 
 /** A loading failure, optionally carrying the underlying browser's diagnostic. */
 export interface BrowserLoadError {
@@ -18,7 +19,13 @@ export interface BrowserFindResult {
 /** State consumed by common browser chrome, without DOM or carrier identifiers. */
 export interface BrowserFrameState {
   readonly humanControl?: boolean
+  /** Native page zoom. Absent on carriers and pages that do not offer zoom. */
+  readonly zoomFactor?: number | undefined
+  /** Whether the native carrier allows an ordinary page to open local developer tools. */
+  readonly devToolsAvailable?: boolean | undefined
   readonly findResult?: BrowserFindResult | 'failed' | undefined
+  readonly recordingSupported?: boolean
+  readonly remoteShareSupported?: boolean
   readonly target: BrowserTarget | undefined
   readonly address: 'empty' | 'requested' | 'observed' | 'unknown'
   readonly loading: boolean
@@ -27,6 +34,12 @@ export interface BrowserFrameState {
   readonly error: BrowserLoadError | undefined
   /** Undefined when this provider does not expose a sandbox control. */
   readonly sandboxEnabled: boolean | undefined
+}
+
+/** View link plus the operation for ending this exact sharing attempt. */
+export interface BrowserRemoteShareControl extends BrowserRemoteShare {
+  /** @returns Acknowledgment that this receipt can no longer be used. */
+  stop(): Promise<void>
 }
 
 /** Optional iframe policy control, not an Electron process-sandbox switch. */
@@ -39,11 +52,18 @@ export interface BrowserSandboxControl {
 export interface BrowserFrame extends HostObservable<BrowserFrameState> {
   /** @param query - text to find, or empty to clear. @param forward - match direction, absent for a new search. */
   readonly findInPage?: (query: string, forward?: boolean) => void
+  /** @param factor - native Chromium zoom from 0.5 to 3. @returns after acknowledgement. */
+  readonly setZoom?: (factor: number) => Promise<void>
+  /** @returns after native inspector dispatch. */
+  readonly openDevTools?: () => Promise<void>
   /** Cancel the currently loading native navigation. */
   readonly stopLoading?: () => void
   /** Reload a committed page while bypassing Chromium's HTTP cache. */
   readonly hardReload?: () => void
   readonly capture?: () => Promise<BrowserAnnotationCapture>
+  readonly captureRecordingFrame?: (url: string, documentId?: BrowserRecordingDocumentId) => Promise<BrowserRecordingFrame>
+  /** @returns An expiring share, or null when the private connection is disabled. */
+  readonly beginRemoteShare?: () => Promise<BrowserRemoteShareControl | null>
   readonly pick?: (point: { readonly x: number; readonly y: number }) => Promise<BrowserPickedElement | null>
   readonly control?: (human: boolean) => Promise<void>
   readonly status?: () => Promise<BrowserTabStatus>

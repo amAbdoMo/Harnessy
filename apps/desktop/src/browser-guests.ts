@@ -17,6 +17,8 @@ interface GuestLease {
   attached: boolean
   invalidated: boolean
   navigationRevision: number
+  devToolsRequested?: boolean
+  devToolsFrontend?: WebContents
   viewport?: BrowserPreviewViewport
   invalidation?: Promise<void>
   release?: Promise<void> | undefined
@@ -188,8 +190,83 @@ export class DesktopBrowserGuests {
     return lease.guest
   }
 
+  /**
+   * Apply Chromium page zoom on an attached tab without changing its viewport mode.
+   * @param owner - authenticated application renderer with Human Takeover.
+   * @param id - exact tab lease.
+   * @param factor - untrusted factor between 0.5 and 3.
+   * @returns the factor acknowledged by Chromium.
+   */
+  setZoom(owner: WebContents, id: DesktopBrowserLeaseId, factor: unknown): number {
+    if (typeof factor !== 'number' || !Number.isFinite(factor) || factor < 0.5 || factor > 3) {
+      throw new Error('Desktop browser zoom is out of range')
+    }
+    const { guest } = this.manualToolGuest(owner, id)
+    guest.setZoomFactor(factor)
+    return guest.getZoomFactor()
+  }
+
+  /**
+   * Open an ordinary tab's local inspector without enabling a remote debugger.
+   * @param owner - authenticated application renderer with Human Takeover.
+   * @param id - exact tab lease.
+   */
+  openLocalDevTools(owner: WebContents, id: DesktopBrowserLeaseId): void {
+    const { guest, lease } = this.manualToolGuest(owner, id)
+    if (lease.profile !== undefined || guest.debugger.isAttached()) throw new Error('Desktop browser DevTools unavailable')
+    if (lease.devToolsRequested || guest.isDevToolsOpened()) {
+      guest.devToolsWebContents?.focus()
+      return
+    }
+    lease.devToolsRequested = true
+    const closed = (): void => { lease.devToolsRequested = false; delete lease.devToolsFrontend }
+    guest.once('devtools-closed', closed)
+    try {
+      // Electron creates the inspector in the guest session before its first request.
+      const existing = new Set(webContents.getAllWebContents().map(contents => contents.id))
+      guest.openDevTools({ mode: 'detach' })
+      const frontend = webContents.getAllWebContents().find(contents => !existing.has(contents.id)
+        && contents.getType() === 'remote' && contents.session === guest.session)
+      if (frontend !== undefined) lease.devToolsFrontend = frontend
+    }
+    catch (error: unknown) {
+      guest.removeListener('devtools-closed', closed)
+      closed()
+      throw error
+    }
+  }
+
+  /**
+   * Dismiss the local inspector before releasing a tab's Human Takeover.
+   * @param owner - authenticated application renderer.
+   * @param id - exact tab lease.
+   */
+  closeLocalDevTools(owner: WebContents, id: DesktopBrowserLeaseId): void {
+    const lease = this.leases.get(id)
+    if (lease?.owner !== owner) return
+    const guest = this.inspectBrowser(owner, id)
+    if (guest !== undefined && (lease.devToolsRequested || guest.isDevToolsOpened())) guest.closeDevTools()
+  }
+
+  private manualToolGuest(owner: WebContents, id: DesktopBrowserLeaseId): { readonly guest: WebContents; readonly lease: GuestLease } {
+    const guest = this.inspectBrowser(owner, id)
+    const lease = this.leases.get(id)
+    if (guest === undefined || lease === undefined || lease.viewport !== undefined || !this.allowedNavigation(guest.getURL())
+      || (lease.profile !== undefined && this.websiteNavigation?.(owner, id) === false)) {
+      throw new Error('Desktop browser page tools unavailable')
+    }
+    return { guest, lease }
+  }
+
   /** @param address - requested agent destination. @returns whether normal guest navigation permits it. */
   allowsBrowserAddress(address: string): boolean { return this.allowedNavigation(address) }
+
+  /** @param owner - authenticated application renderer. @param id - exact lease. @returns a live ordinary guest for recording. */
+  inspectRecordingBrowser(owner: WebContents, id: DesktopBrowserLeaseId): WebContents | undefined {
+    const lease = this.leases.get(id)
+    if (lease === undefined || lease.profile !== undefined || lease.viewport !== undefined) return undefined
+    return this.inspectBrowser(owner, id)
+  }
 
   /**
    * @param owner - authenticated primary renderer, not a website guest.
@@ -219,14 +296,16 @@ export class DesktopBrowserGuests {
     return executeHumanBrowserCommand({
       navigationHistory: guest.navigationHistory,
       ...(viewport === undefined ? {} : { navigationReady: () => viewport.settled() }),
-      setViewport: (viewport: BrowserViewport) => {
-        lease.viewport ??= new BrowserPreviewViewport(guest, () => this.leases.get(key) === lease
-          && !lease.invalidated && lease.release === undefined && lease.guest === guest && !owner.isDestroyed(), () => {
-          console.error('Desktop browser viewport debugger ownership lost')
-          void this.release(owner, key).catch((error: unknown) => { console.error('Desktop browser viewport release failed', error) })
-        })
-        return lease.viewport.set(viewport)
-      },
+      ...(lease.profile !== undefined || lease.devToolsRequested ? {} : {
+        setViewport: (viewport: BrowserViewport) => {
+          lease.viewport ??= new BrowserPreviewViewport(guest, () => this.leases.get(key) === lease
+            && !lease.invalidated && lease.release === undefined && lease.guest === guest && !owner.isDestroyed(), () => {
+            console.error('Desktop browser viewport debugger ownership lost')
+            void this.release(owner, key).catch((error: unknown) => { console.error('Desktop browser viewport release failed', error) })
+          })
+          return lease.viewport.set(viewport)
+        },
+      }),
       reload: () => { guest.reload() },
       stop: () => { guest.stop() },
       reloadIgnoringCache: () => { guest.reloadIgnoringCache() },
@@ -341,7 +420,7 @@ export class DesktopBrowserGuests {
         nodeIntegration: false, nodeIntegrationInWorker: false, nodeIntegrationInSubFrames: false,
         contextIsolation: true, sandbox: true, webSecurity: true, allowRunningInsecureContent: false,
         webviewTag: false, plugins: false, navigateOnDragDrop: false, disableDialogs: true,
-        devTools: !app.isPackaged,
+        devTools: lease.profile === undefined,
       })
       params.httpreferrer = ''
     })
@@ -622,6 +701,10 @@ export class DesktopBrowserGuests {
       let cancel = network
         ? url.username !== '' || url.password !== '' || this.isApplicationHost(url)
         : !['about:', 'data:', 'blob:'].includes(url.protocol)
+      if (url.protocol === 'devtools:' && url.host === 'devtools' && url.pathname.startsWith('/bundled/')) {
+        cancel = ![...this.leases.values()].some(lease => !lease.invalidated && lease.release === undefined
+          && lease.devToolsFrontend?.id === details.webContentsId && lease.devToolsRequested === true)
+      }
       if (isolated !== undefined && (isolated.invalidated || isolated.release !== undefined)) cancel = true
       if (!cancel && network && details.resourceType === 'mainFrame') {
         const match = [...this.leases].find(([, lease]) => lease.guest?.id === details.webContentsId)

@@ -27,8 +27,11 @@ import { BrowserControl } from './BrowserControl.tsx'
 import { BrowserAddressSuggestions } from './BrowserAddressSuggestions.tsx'
 import { BrowserAnnotationIcon } from './BrowserAnnotationIcon.tsx'
 import { BrowserFindBar } from './BrowserFindBar.tsx'
-import { BrowserPageActions } from './BrowserPageActions.tsx'
+import { BrowserPageActions, type BrowserPageCommand } from './BrowserPageActions.tsx'
 import { BrowserResponsiveBody } from './BrowserResponsiveBody.tsx'
+import { BrowserCaptureBar, BrowserShareBar } from './BrowserCaptureBar.tsx'
+import { canRecordBrowser, useBrowserRecording } from './useBrowserRecording.ts'
+import { useBrowserShare } from './useBrowserShare.ts'
 import type {} from './BrowserProfilePicker.tsx'
 import css from './Browser.module.css'
 
@@ -141,6 +144,26 @@ function BrowserOrdinaryBody(props: BrowserBodyProps & {
   const error = frame.error
   const findAvailable = tab.visible && profileId === undefined && !humanAccessBlocked && frame.humanControl === true
     && frame.address === 'observed' && !frame.loading && error === undefined && target !== undefined
+  const zoom = tab.visible && !humanAccessBlocked && frame.humanControl === true && frame.address === 'observed'
+    && !frame.loading && error === undefined && frame.zoomFactor !== undefined
+    ? { factor: frame.zoomFactor, set: (factor: number) => props.setZoom(tab.id, factor) } : undefined
+  const pageKey = findAvailable && target !== undefined ? `${state?.addressRevision ?? 0}:${target.url}` : undefined
+  const recording = useBrowserRecording(frame.recordingSupported === true ? pageKey : undefined)
+  const share = useBrowserShare(frame.remoteShareSupported === true ? pageKey : undefined)
+  const recordingBusy = recording.state?.phase === 'starting' || recording.state?.phase === 'recording' || recording.state?.phase === 'finishing'
+  const sharingBusy = share.state?.phase === 'sharing' || share.state?.phase === 'starting'
+  const commands: BrowserPageCommand[] = []
+  if (findAvailable && frame.devToolsAvailable === true) {
+    commands.push({ id: 'devtools', label: t('page.devTools'), run: () => props.openDevTools(tab.id) })
+  }
+  if (findAvailable && target !== undefined && frame.recordingSupported === true && !recordingBusy && !sharingBusy
+    && recording.state?.phase !== 'ready' && canRecordBrowser()) {
+    commands.push({ id: 'recording', label: t('recording.start'),
+      run: () => { recording.start(documentId => props.captureRecordingFrame(tab.id, target.url, documentId)) } })
+  }
+  if (findAvailable && frame.remoteShareSupported === true && !sharingBusy && !recordingBusy) {
+    commands.push({ id: 'share', label: t('share.start'), run: () => share.start(() => props.beginRemoteShare(tab.id)) })
+  }
   const findOpen = findAvailable && findPage !== undefined && findPage === target?.url
   const closeFind = (): void => {
     setFindPage(undefined)
@@ -219,9 +242,11 @@ function BrowserOrdinaryBody(props: BrowserBodyProps & {
             find={findAvailable ? () => { setFindPage(target?.url) } : undefined}
             responsivePreview={responsivePreview}
             hardReload={() => { hardReload(tab.id) }} capture={() => props.capture(tab.id)}
-            addFeedback={props.addFeedback} trigger={actionsTrigger} t={t} />}
+            addFeedback={props.addFeedback} zoom={zoom} commands={commands} trigger={actionsTrigger} t={t} />}
         </form>
         {findOpen && <BrowserFindBar tabId={tab.id} findInPage={findInPage} result={frame.findResult} onClose={closeFind} t={t} />}
+        {pageKey !== undefined && recording.state !== undefined && <BrowserCaptureBar recording={recording} t={t} />}
+        {pageKey !== undefined && share.state !== undefined && <BrowserShareBar share={share} t={t} />}
         {profileId !== undefined && profiles === undefined && <p className={css.profileNotice}>{t('profiles.desktopOnly')}</p>}
         {sandboxed === false && <div className={css.sandboxWarning} role="status">{t('sandbox.warning')}</div>}
         {error !== undefined && <div className={css.failure} role="status">

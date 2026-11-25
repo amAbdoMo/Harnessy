@@ -3,8 +3,9 @@ import { createSnapshotStore, type BoundActions, type SnapshotStore } from '@dee
 import type { TabId } from '@deepseek-ai/dsh-client-ui-dockkit'
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BrowserAnnotationCapture, BrowserPickedElement, BrowserTabStatus, DesktopWebsiteProfileId, DesktopWebsiteRequestId } from '../../types.ts'
+import type { BrowserRecordingDocumentId, BrowserRecordingFrame } from '../../types.ts'
 import type { WebsiteRequestPageState } from './WebsiteRequestPage.ts'
-import type { BrowserFrameState } from './BrowserFrame.ts'
+import type { BrowserFrameState, BrowserRemoteShareControl } from './BrowserFrame.ts'
 import type { BrowserPage, BrowserPageFactory } from './BrowserPage.ts'
 import { currentBrowserTarget, type BrowserTabState } from './BrowserPersistence.ts'
 import { rememberBrowserAddress } from './address-suggestions.ts'
@@ -109,6 +110,25 @@ export class BrowserController implements HostObservable<BrowserControllerState>
     return this.page.frame.capture()
   }
 
+  /**
+   * Capture a frame of the human-controlled native page.
+   * @param url - the recording's admitted address.
+   * @param documentId - native identity returned by the first frame.
+   * @returns JPEG and current native document identity.
+   */
+  captureRecordingFrame(url: string, documentId?: BrowserRecordingDocumentId): Promise<BrowserRecordingFrame> {
+    if (this.disposed || this.page.frame.captureRecordingFrame === undefined) return Promise.reject(new Error('Browser recording is unavailable'))
+    return this.page.frame.captureRecordingFrame(url, documentId)
+  }
+
+  /** Start private viewing for the current page.
+   * @returns An expiring viewer link, or null when the private connection is disabled.
+   */
+  beginRemoteShare(): Promise<BrowserRemoteShareControl | null> {
+    if (this.disposed || this.page.frame.beginRemoteShare === undefined) return Promise.reject(new Error('Browser sharing is unavailable'))
+    return this.page.frame.beginRemoteShare()
+  }
+
   /** Read the element selected by the human.
    * @param point - viewport CSS coordinates.
    * @returns bounded element context.
@@ -203,6 +223,25 @@ export class BrowserController implements HostObservable<BrowserControllerState>
   }
 
   /**
+   * Change the live page's native zoom.
+   * @param factor - zoom from 0.5 to 3.
+   * @returns after dispatch or rejection by the native browser.
+   */
+  setZoom(factor: number): Promise<void> {
+    if (this.disposed || this.page.frame.setZoom === undefined) return Promise.reject(new Error('Browser zoom unavailable'))
+    return this.page.frame.setZoom(factor)
+  }
+
+  /**
+   * Open the native inspector for this page.
+   * @returns after dispatch or rejection by the native browser.
+   */
+  openDevTools(): Promise<void> {
+    if (this.disposed || this.page.frame.openDevTools === undefined) return Promise.reject(new Error('Browser DevTools unavailable'))
+    return this.page.frame.openDevTools()
+  }
+
+  /**
    * Apply the optional embedding-sandbox control; unsupported providers remain unchanged.
    * @param enabled - whether to enforce the provider's embedding sandbox.
    */
@@ -292,6 +331,10 @@ export interface BrowserMountRequest {
 export interface BrowserTabControllers {
   /** @param tabId - owning tab. @returns screenshot and page context. */
   capture(tabId: TabId): Promise<BrowserAnnotationCapture>
+  /** @param tabId - owning tab. @param url - current page. @param documentId - authority for later frames. @returns one frame. */
+  captureRecordingFrame(tabId: TabId, url: string, documentId?: BrowserRecordingDocumentId): Promise<BrowserRecordingFrame>
+  /** @param tabId - owning tab. @returns An expiring share, or null when the private connection is disabled. */
+  beginRemoteShare(tabId: TabId): Promise<BrowserRemoteShareControl | null>
   /** @param tabId - owning tab. @param point - viewport coordinates. @returns selected element. */
   pick(tabId: TabId, point: { readonly x: number; readonly y: number }): Promise<BrowserPickedElement | null>
   /** @param tabId - owning tab. @param human - human takeover or agent resume. @returns acknowledgment. */
@@ -334,6 +377,10 @@ export interface BrowserTabControllers {
   hardReload(tabId: TabId): void
   /** @param tabId - owning tab. @param query - text to find, or empty to clear. @param forward - stepping direction. */
   findInPage(tabId: TabId, query: string, forward?: boolean): void
+  /** @param tabId - owning tab. @param factor - zoom from 0.5 to 3. @returns after native acknowledgement. */
+  setZoom(tabId: TabId, factor: number): Promise<void>
+  /** @param tabId - owning ordinary tab. @returns after native inspector dispatch. */
+  openDevTools(tabId: TabId): Promise<void>
   /** @param tabId - owning tab. @param enabled - provider's optional sandbox control. */
   setSandbox(tabId: TabId, enabled: boolean): void
 }
@@ -379,6 +426,9 @@ export function createBrowserControllers(actions: BoundActions<BrowserStore>, cr
   const controller = (id: TabId): BrowserController | undefined => controllers.get(id)?.controller
   return {
     capture: id => controller(id)?.capture() ?? Promise.reject(new Error('Browser tab is unavailable')),
+    captureRecordingFrame: (id, url, documentId) => controller(id)?.captureRecordingFrame(url, documentId)
+      ?? Promise.reject(new Error('Browser recording is unavailable')),
+    beginRemoteShare: id => controller(id)?.beginRemoteShare() ?? Promise.reject(new Error('Browser sharing is unavailable')),
     pick: (id, point) => controller(id)?.pick(point) ?? Promise.reject(new Error('Browser tab is unavailable')),
     control: (id, human) => controller(id)?.control(human) ?? Promise.resolve(),
     status: id => controller(id)?.status() ?? Promise.resolve(undefined),
@@ -443,6 +493,8 @@ export function createBrowserControllers(actions: BoundActions<BrowserStore>, cr
     stopLoading: (id) => { controller(id)?.stopLoading() },
     hardReload: (id) => { controller(id)?.hardReload() },
     findInPage: (id, query, forward) => { controller(id)?.findInPage(query, forward) },
+    setZoom: (id, factor) => controller(id)?.setZoom(factor) ?? Promise.reject(new Error('Browser tab unavailable')),
+    openDevTools: id => controller(id)?.openDevTools() ?? Promise.reject(new Error('Browser tab unavailable')),
     setSandbox: (id, enabled) => { controller(id)?.setSandbox(enabled) },
   }
 }

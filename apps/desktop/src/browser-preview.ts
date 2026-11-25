@@ -1,6 +1,8 @@
 /** Native browser tab inventory, chat ownership and private Host operation routing. */
 import type { WebContents } from 'electron'
+import { randomUUID } from 'node:crypto'
 import type { BrowserAgentOpenRequest, BrowserTabStatus, DesktopBrowserLeaseId, DesktopWebsiteProfile } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
+import type { BrowserRecordingDocumentId, BrowserRecordingFrame, BrowserRemoteShare } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
 import { BrowserTabControl } from './browser-tab-control.ts'
 import { setImmediate } from 'node:timers/promises'
 import type { DesktopBrowserGuests } from './browser-guests.ts'
@@ -12,7 +14,26 @@ interface Tab {
   readonly guest: WebContents
   readonly control: BrowserTabControl
   nativeInput: boolean
+  recordingDocument: BrowserRecordingDocumentId
+  recordingCapturePending?: boolean
 }
+
+const RECORDING_MAX_WIDTH = 960
+const RECORDING_MAX_HEIGHT = 540
+const RECORDING_MAX_FRAME_BYTES = 512 * 1024
+const REMOTE_SHARE_DURATION_MS = 15 * 60_000
+const REMOTE_SHARE_FRAME_INTERVAL_MS = 200
+
+interface Share extends BrowserRemoteShare {
+  readonly id: string
+  readonly tab: Tab
+  readonly urlAtStart: string
+  readonly documentId: BrowserRecordingDocumentId
+  readonly permitted: (guest: WebContents) => boolean
+  nextFrameAt: number
+}
+
+function recordingDocumentId(): BrowserRecordingDocumentId { return randomUUID() as BrowserRecordingDocumentId }
 
 interface PendingOpen {
   readonly owner: WebContents
@@ -43,17 +64,19 @@ export class DesktopBrowserPreview {
   private readonly tabs = new Map<DesktopBrowserLeaseId, Tab>()
   private readonly openings = new Map<string, PendingOpen>()
   private readonly calls = new Map<string, AbortController>()
+  private share: Share | undefined
 
   /** @param guests - native lease owner. @param window - current authenticated primary renderer.
    * @param profiles - saved account inventory; returned metadata never includes credentials.
    */
-  constructor(private readonly guests: Pick<DesktopBrowserGuests, 'inspectBrowser' | 'onInvalidated' | 'allowsBrowserAddress' | 'command'>,
-    private readonly window: () => WebContents | undefined,
-    private readonly profiles: () => Promise<readonly DesktopWebsiteProfile[]>) {
+  constructor(private readonly guests: Pick<DesktopBrowserGuests,
+    'inspectBrowser' | 'onInvalidated' | 'allowsBrowserAddress' | 'command' | 'setZoom' | 'openLocalDevTools' | 'closeLocalDevTools'>,
+  private readonly window: () => WebContents | undefined,
+  private readonly profiles: () => Promise<readonly DesktopWebsiteProfile[]>) {
     guests.onInvalidated((_owner, lease) => {
       const tab = this.tabs.get(lease)
       this.tabs.delete(lease)
-      if (tab !== undefined) { this.changed(tab); return tab.control.close() }
+      if (tab !== undefined) { this.revokeShare(tab); this.changed(tab); return tab.control.close() }
     })
   }
 
@@ -67,9 +90,16 @@ export class DesktopBrowserPreview {
       if (existing.owner !== owner || existing.guest !== guest || existing.control.sessionId !== sessionId) throw new Error('Browser tab ownership cannot be replaced')
       return
     }
-    const tab: Tab = { owner, lease, guest, control: new BrowserTabControl(sessionId), nativeInput: false }
+    const tab: Tab = { owner, lease, guest, control: new BrowserTabControl(sessionId), nativeInput: false,
+      recordingDocument: recordingDocumentId() }
+    const changeDocument = (): void => { tab.recordingDocument = recordingDocumentId(); this.revokeShare(tab) }
+    guest.on('did-start-navigation', (event) => { if (event.isMainFrame) changeDocument() })
+    guest.on('did-navigate-in-page', (_event, _url, mainFrame) => {
+      if (mainFrame) changeDocument()
+    })
     guest.on('before-input-event', (event) => { if (!tab.control.humanMayAct && !tab.nativeInput) event.preventDefault() })
     guest.on('before-mouse-event', (event) => { if (!tab.control.humanMayAct && !tab.nativeInput) event.preventDefault() })
+    guest.on('devtools-opened', () => { if (!tab.control.humanMayAct) guest.closeDevTools() })
     this.tabs.set(lease, tab)
     this.changed(tab)
   }
@@ -77,10 +107,38 @@ export class DesktopBrowserPreview {
   /** @param owner - authenticated primary renderer. @param lease - owned native guest. @returns current control state. */
   status(owner: WebContents, lease: DesktopBrowserLeaseId): BrowserTabStatus { return this.snapshot(this.tab(owner, lease)) }
 
+  /**
+   * Apply native page zoom for the local user after Human Takeover.
+   * @param owner - authenticated application renderer.
+   * @param lease - exact tab lease.
+   * @param factor - untrusted zoom factor.
+   * @returns the acknowledged zoom factor.
+   */
+  setZoom(owner: WebContents, lease: DesktopBrowserLeaseId, factor: unknown): number {
+    this.assertLocalHuman(owner, lease)
+    return this.guests.setZoom(owner, lease, factor)
+  }
+
+  /**
+   * Open the exact ordinary guest's local developer tools.
+   * @param owner - authenticated application renderer.
+   * @param lease - exact tab lease.
+   */
+  openDevTools(owner: WebContents, lease: DesktopBrowserLeaseId): void {
+    this.assertLocalHuman(owner, lease)
+    this.guests.openLocalDevTools(owner, lease)
+  }
+
+  private assertLocalHuman(owner: WebContents, lease: DesktopBrowserLeaseId): void {
+    if (!this.tab(owner, lease).control.humanMayAct) throw new Error('Desktop browser requires Human Takeover')
+  }
+
   /** @param owner - authenticated primary renderer. @param lease - exact guest. @param human - requested control. */
   async control(owner: WebContents, lease: DesktopBrowserLeaseId, human: boolean): Promise<void> {
     if (typeof human !== 'boolean') throw new Error('Invalid browser control choice')
     const tab = this.tab(owner, lease)
+    if (!human) { this.guests.closeLocalDevTools(owner, lease); this.revokeShare(tab) }
+    if (tab.control.humanControl !== human) tab.recordingDocument = recordingDocumentId()
     const draining = tab.control.control(human)
     this.changed(tab)
     await draining
@@ -110,10 +168,116 @@ export class DesktopBrowserPreview {
     return guest
   }
 
+  /**
+   * Capture one frame without changing who controls the tab.
+   * @param owner - authenticated primary renderer.
+   * @param lease - exact native tab received over IPC.
+   * @param urlInput - page address captured when the user started recording.
+   * @param documentInput - document identity of the first frame, or undefined before that frame.
+   * @param permitted - Main check for the ordinary guest and visible window.
+   * @returns a bounded JPEG for that document and human control generation.
+   */
+  async captureRecordingFrame(owner: WebContents, lease: DesktopBrowserLeaseId, urlInput: unknown,
+    documentInput: unknown, permitted: (guest: WebContents) => boolean): Promise<BrowserRecordingFrame> {
+    text(lease, 'recording tab identity', 128)
+    const url = text(urlInput, 'recording URL', 4096)
+    const tab = this.tab(owner, lease)
+    const documentId = tab.recordingDocument
+    if (documentInput !== undefined && documentInput !== documentId) throw new Error('Browser recording page changed')
+    const requireCurrent = (): void => {
+      if (this.tab(owner, lease) !== tab || tab.recordingDocument !== documentId || !tab.control.humanMayAct
+        || !permitted(tab.guest) || tab.guest.isLoading() || tab.guest.getURL() !== url) throw new Error('Browser recording page is unavailable')
+    }
+    if (!this.guests.allowsBrowserAddress(url) || tab.recordingCapturePending === true) throw new Error('Browser recording frame is unavailable')
+    requireCurrent()
+    tab.recordingCapturePending = true
+    try {
+      const image = await tab.guest.capturePage()
+      requireCurrent()
+      const { width, height } = image.getSize()
+      if (image.isEmpty() || width <= 0 || height <= 0) throw new Error('Browser recording frame is empty')
+      const scale = Math.min(1, RECORDING_MAX_WIDTH / width, RECORDING_MAX_HEIGHT / height)
+      const bounded = scale === 1 ? image : image.resize({
+        width: Math.max(1, Math.floor(width * scale)), height: Math.max(1, Math.floor(height * scale)),
+      })
+      const jpeg = bounded.toJPEG(65)
+      if (jpeg.byteLength === 0 || jpeg.byteLength > RECORDING_MAX_FRAME_BYTES) {
+        throw new Error('Browser recording frame exceeds its byte limit')
+      }
+      return { documentId, jpeg: jpeg.toString('base64') }
+    } finally { tab.recordingCapturePending = false }
+  }
+
+  /**
+   * Start a view-only share for one ordinary tab and document.
+   * @param owner - authenticated primary renderer.
+   * @param lease - exact native tab.
+   * @param root - private HTTPS root confirmed by the current Host.
+   * @param permitted - exact ordinary guest and native window visibility check.
+   * @returns Expiring viewer link containing no Web sign-in credential.
+   */
+  beginRemoteShare(owner: WebContents, lease: DesktopBrowserLeaseId, root: string,
+    permitted: (guest: WebContents) => boolean): BrowserRemoteShare {
+    const tab = this.tab(owner, lease)
+    const urlAtStart = tab.guest.getURL()
+    if (!tab.control.humanMayAct || !permitted(tab.guest) || tab.guest.isLoading() || !this.guests.allowsBrowserAddress(urlAtStart)) {
+      throw new Error('Browser tab is unavailable for sharing')
+    }
+    if (this.share !== undefined && this.shareIsCurrent(this.share)) throw new Error('A browser tab is already being shared')
+    const id = randomUUID()
+    const url = new URL('/api/browser-share', root)
+    url.searchParams.set('view', id)
+    const expiresAt = Date.now() + REMOTE_SHARE_DURATION_MS
+    this.share = { id, tab, urlAtStart, documentId: tab.recordingDocument, permitted, url: url.href, expiresAt, nextFrameAt: 0 }
+    return { url: url.href, expiresAt }
+  }
+
+  /** @param owner - authenticated primary renderer. @param lease - exact tab. @param url - receipt for this share. */
+  endRemoteShare(owner: WebContents, lease: DesktopBrowserLeaseId, url: unknown): void {
+    const share = this.share
+    if (share?.tab.owner === owner && share.tab.lease === lease && share.url === url) this.share = undefined
+  }
+
+  /** @param owner - hidden or retiring primary window whose live view must end. */
+  revokeRemoteShare(owner: WebContents): void {
+    if (this.share?.tab.owner === owner) this.share = undefined
+  }
+
+  private revokeShare(tab: Tab): void {
+    if (this.share?.tab === tab) this.share = undefined
+  }
+
+  private shareIsCurrent(share: Share): boolean {
+    const tab = share.tab
+    return this.share === share && Date.now() < share.expiresAt && tab.recordingDocument === share.documentId
+      && tab.control.humanMayAct && !tab.guest.isDestroyed() && share.permitted(tab.guest)
+      && !tab.guest.isLoading() && tab.guest.getURL() === share.urlAtStart
+  }
+
+  private async remoteShareFrame(requestId: string, id: unknown): Promise<object> {
+    const reply = { type: 'browser-share-frame-result', requestId }
+    const share = this.share
+    if (share === undefined || share.id !== id) return { ...reply, status: 'ended' }
+    if (!this.shareIsCurrent(share)) { this.revokeShare(share.tab); return { ...reply, status: 'ended' } }
+    const now = Date.now()
+    if (now < share.nextFrameAt || share.tab.recordingCapturePending === true) return { ...reply, status: 'busy' }
+    share.nextFrameAt = now + REMOTE_SHARE_FRAME_INTERVAL_MS
+    const { owner, lease } = share.tab
+    try {
+      const frame = await this.captureRecordingFrame(owner, lease, share.urlAtStart, share.documentId, share.permitted)
+      if (this.shareIsCurrent(share)) return { ...reply, status: 'frame', jpeg: frame.jpeg }
+    } catch (_error: unknown) {
+      if (this.shareIsCurrent(share)) return { ...reply, status: 'busy' }
+    }
+    if (this.share === share) this.share = undefined
+    return { ...reply, status: 'ended' }
+  }
+
   /** @param input - validated private Host event. @returns response, or no response for cancellation. */
   async request(input: unknown): Promise<object | undefined> {
     const packet = object(input)
     const requestId = text(packet.requestId, 'request identity', 128)
+    if (packet.type === 'browser-share-frame') return this.remoteShareFrame(requestId, packet.id)
     if (packet.type === 'browser-preview-cancel') { this.calls.get(requestId)?.abort(); return undefined }
     if (packet.type !== 'browser-preview' || this.calls.has(requestId)) throw new Error('Invalid browser preview request')
     const cancellation = new AbortController()
@@ -134,6 +298,7 @@ export class DesktopBrowserPreview {
 
   /** Cancel old Host invocations and pending openings; tab ownership remains attached to its chat. */
   retireHost(): void {
+    this.share = undefined
     for (const cancellation of this.calls.values()) cancellation.abort()
     for (const opening of this.openings.values()) opening.reject(new Error('Browser Host retired'))
     this.openings.clear()

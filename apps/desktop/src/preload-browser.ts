@@ -73,7 +73,14 @@ export function createDesktopBrowserBridge(): DesktopBrowserBridge {
     bind: (lease, sessionId) => ipcRenderer.invoke(DESKTOP_IPC.browserBind, lease, sessionId) as Promise<void>,
     control: (lease, human) => ipcRenderer.invoke(DESKTOP_IPC.browserControl, lease, human) as Promise<void>,
     status: lease => ipcRenderer.invoke(DESKTOP_IPC.browserStatus, lease) as ReturnType<NonNullable<DesktopBrowserBridge['status']>>,
+    setZoom: (lease, factor) => ipcRenderer.invoke(DESKTOP_IPC.browserSetZoom, lease, factor) as Promise<number>,
+    openDevTools: lease => ipcRenderer.invoke(DESKTOP_IPC.browserOpenDevTools, lease) as Promise<void>,
     capture: lease => ipcRenderer.invoke(DESKTOP_IPC.browserCapture, lease) as ReturnType<NonNullable<DesktopBrowserBridge['capture']>>,
+    captureRecordingFrame: (lease, url, documentId) => ipcRenderer.invoke(
+      DESKTOP_IPC.browserCaptureRecordingFrame, lease, url, documentId,
+    ) as ReturnType<NonNullable<DesktopBrowserBridge['captureRecordingFrame']>>,
+    beginRemoteShare: lease => ipcRenderer.invoke(DESKTOP_IPC.browserBeginRemoteShare, lease) as ReturnType<NonNullable<DesktopBrowserBridge['beginRemoteShare']>>,
+    endRemoteShare: (lease, url) => ipcRenderer.invoke(DESKTOP_IPC.browserEndRemoteShare, lease, url) as Promise<void>,
     pick: (lease, point) => ipcRenderer.invoke(DESKTOP_IPC.browserPick, lease, point) as ReturnType<NonNullable<DesktopBrowserBridge['pick']>>,
     completeOpen: (requestId, lease) => ipcRenderer.invoke(DESKTOP_IPC.browserCompleteOpen, requestId, lease) as Promise<void>,
     onAgentOpen: (listener) => {

@@ -480,11 +480,7 @@ async function stopDesktop(app: ElectronApplication, env: Record<string, string>
       await runFile(join(systemRoot(env), 'System32/taskkill.exe'), ['/PID', String(child.pid), '/T', '/F'], { env, windowsHide: true })
       if (!await exited(child, 15_000)) throw new Error('Forced owned Electron shutdown did not settle', { cause: failure })
     }
-    // Kill only observed owned descendants if Main exited before they did.
-    for (const pid of pids.filter(pid => pid !== child.pid)) {
-      await runFile(powershell(env), ['-NoProfile', '-NonInteractive', '-Command',
-        `$owned = Get-Process -Id ${pid} -ErrorAction Ignore; if ($null -ne $owned) { $owned | Stop-Process -Force -ErrorAction Stop } else { exit 0 }`], { env, timeout: 15_000, windowsHide: true })
-    }
+    // Windows can reuse descendant PIDs after Main exits.
     await processesGone(pids, env)
     throw new Error('Acceptance required forced process cleanup', { cause: failure })
   }
@@ -1242,6 +1238,37 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
         await page.screenshot({ path: join(repository, '.artifacts/browser-tools-native.png') })
         await find.press('Escape')
         expect(await find.count()).toBe(0)
+
+        const actions = browser.getByRole('button', { name: 'Page actions', exact: true })
+        await actions.click()
+        await page.getByRole('menuitem', { name: 'Zoom (100%)', exact: true }).click()
+        await page.getByRole('menuitem', { name: '125%', exact: true }).click()
+        await expect.poll(() => app!.evaluate(({ webContents }, id) => webContents.fromId(id)!.getZoomFactor(), nativeId)).toBe(1.25)
+        await actions.click()
+        await page.getByRole('menuitem', { name: 'Zoom (125%)', exact: true }).click()
+        await page.getByRole('menuitem', { name: '100%', exact: true }).click()
+        await expect.poll(() => app!.evaluate(({ webContents }, id) => webContents.fromId(id)!.getZoomFactor(), nativeId)).toBe(1)
+
+        await actions.click()
+        await page.getByRole('menuitem', { name: 'Open developer tools', exact: true }).click()
+        const devToolsOpen = () => app!.evaluate(({ webContents }, id) => webContents.fromId(id)!.isDevToolsOpened(), nativeId)
+        await expect.poll(devToolsOpen, { timeout: 15_000 }).toBe(true)
+        await app.evaluate(({ webContents }, id) => { webContents.fromId(id)!.closeDevTools() }, nativeId)
+        await expect.poll(devToolsOpen).toBe(false)
+
+        await actions.click()
+        await page.getByRole('menuitem', { name: 'Record page', exact: true }).click()
+        await browser.getByRole('button', { name: 'Stop recording', exact: true }).click()
+        const save = browser.getByRole('button', { name: 'Save WebM', exact: true })
+        await save.waitFor()
+        const savedVideo = join(root, 'browser-recording.webm')
+        await app.evaluate(({ session }, path) => { session.defaultSession.once('will-download', (_event, item) => { item.setSavePath(path) }) }, savedVideo)
+        await save.click()
+        await expect.poll(async () => {
+          const file = await readFile(savedVideo).catch(() => undefined)
+          return file === undefined || file.byteLength < 100 ? '' : file.subarray(0, 4).toString('hex')
+        }).toBe('1a45dfa3')
+        await browser.getByRole('button', { name: 'Discard', exact: true }).click()
       }
       await browser.getByRole('button', { name: 'Annotate page', exact: true }).click()
       const feedbackErrors: string[] = []

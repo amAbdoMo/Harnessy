@@ -174,6 +174,39 @@ afterEach(async () => {
 })
 
 describe('BrowserBody', () => {
+  it('applies zoom, opens DevTools, and ends a share when the tab is hidden', async () => {
+    const target = { kind: 'http', url: 'https://example.test/', title: 'Example' } as const
+    const state = createSnapshotStore<BrowserFrameState>({ ...emptyBrowserFrame(), address: 'observed', target,
+      humanControl: true, zoomFactor: 1, devToolsAvailable: true, remoteShareSupported: true })
+    const setZoom = vi.fn(async (factor: number) => { state.set({ ...state.getSnapshot(), zoomFactor: factor }) })
+    const openDevTools = vi.fn(async () => {})
+    const stop = vi.fn(async () => {})
+    const beginRemoteShare = vi.fn(async () => ({ url: 'https://pc.tailnet.ts.net/api/browser-share?view=one', expiresAt: Date.now() + 60_000, stop }))
+    const mounted = mountBrowser(undefined, { addFeedback: () => true, createPage: () => ({
+      presentation: { mount: () => () => {} },
+      frame: { getSnapshot: state.getSnapshot, subscribe: state.subscribe,
+        loadUrl: vi.fn(), goBack: vi.fn(), goForward: vi.fn(), reload: vi.fn(), setZoom, openDevTools, beginRemoteShare,
+        dispose: async () => {} },
+    }) })
+    const action = (): void => { fireEvent.click(mounted.view.getByRole('button', { name: zh['page.actions'] })) }
+    const select = (label: string): void => { fireEvent.click(mounted.view.getByRole('menuitem', { name: label })) }
+
+    action()
+    select(zh['page.zoom'].replace('{percent}', '100'))
+    select('125%')
+    expect(setZoom).toHaveBeenCalledWith(1.25)
+    action()
+    expect(mounted.view.getByRole('menuitem', { name: zh['page.zoom'].replace('{percent}', '125') })).toBeDefined()
+    select(zh['page.devTools'])
+    expect(openDevTools).toHaveBeenCalledOnce()
+
+    action()
+    select(zh['share.start'])
+    expect(await mounted.view.findByRole('button', { name: zh['share.stop'] })).toBeDefined()
+    mounted.setVisible(false)
+    expect(mounted.view.queryByRole('button', { name: zh['share.stop'] })).toBeNull()
+    expect(stop).toHaveBeenCalledOnce()
+  })
   it('displays the effective browser refresh accelerator', () => {
     const mounted = mountBrowser(undefined, { refreshShortcut: { id: 'page.refresh' as never,
       label: 'Refresh', aliases: [], binding: null, keys: ['Ctrl', 'R'], aria: 'Control+R',
@@ -628,6 +661,35 @@ describe('BrowserBody saved profiles', () => {
     expect(mounted.tabActions.openTab).toHaveBeenCalledExactlyOnceWith('browser', {
       params: { url: 'https://new.example/', profileId: created.id }, revealIfOpened: false,
     })
+  })
+
+  it('reviews imported site details before allowing the normal pairing', async () => {
+    const create = vi.fn(async (_input: DesktopWebsiteProfileInput) => undefined)
+    const mounted = mountBrowser(undefined, { profiles: profileCommands({ create }), websiteProfiles: profileState() })
+    fireEvent.click(mounted.view.getByRole('button', { name: zh['profiles.button'] }))
+    fireEvent.click(mounted.view.getByRole('menuitem', { name: zh['profiles.import.title'] }))
+    const text = JSON.stringify({ version: 1, profiles: [{ name: 'Imported site', url: 'https://work.example/' }] })
+    const file = Object.assign(new File([text], 'profile.json'), { text: async () => text })
+    fireEvent.change(mounted.view.getByLabelText(zh['profiles.import.file']), { target: { files: [file] } })
+    const review = mounted.view.getByRole('button', { name: zh['profiles.import.review'] })
+    await waitFor(() => { expect(review).toHaveProperty('disabled', false) })
+    fireEvent.click(review)
+    expect(mounted.view.getByLabelText(zh['profiles.create.name'])).toHaveProperty('value', 'Imported site')
+    expect(mounted.view.getByLabelText(zh['profiles.create.url'])).toHaveProperty('value', 'https://work.example/')
+    expect(mounted.view.getByRole('button', { name: zh['profiles.create.action'] })).toHaveProperty('disabled', true)
+    expect(create).not.toHaveBeenCalled()
+
+    const server = mounted.view.getByRole('combobox', { name: zh['profiles.create.mcp'] })
+    await waitFor(() => { expect(server).toHaveProperty('disabled', false) })
+    fireEvent.click(server)
+    fireEvent.click(mounted.view.getByRole('option', { name: 'WordPress (website)' }))
+    fireEvent.click(mounted.view.getByRole('button', { name: zh['profiles.create.action'] }))
+    await waitFor(() => {
+      expect(create).toHaveBeenCalledExactlyOnceWith({
+        name: 'Imported site', accountLabel: '', url: 'https://work.example/', mcpServerName: 'website', access: 'disabled',
+      })
+    })
+    expect(mounted.tabActions.openTab).not.toHaveBeenCalled()
   })
 
   it('shows corrections beside invalid fields and submits the retained draft after correction', async () => {

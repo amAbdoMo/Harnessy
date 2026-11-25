@@ -1097,9 +1097,33 @@ async function main(): Promise<void> {
     assertProductSender(event)
     return browserPreview.status(event.sender, lease)
   })
+  ipcMain.handle(DESKTOP_IPC.browserSetZoom, (event, lease: DesktopBrowserLeaseId, factor: unknown) => {
+    assertProductSender(event)
+    return browserPreview.setZoom(event.sender, lease, factor)
+  })
+  ipcMain.handle(DESKTOP_IPC.browserOpenDevTools, (event, lease: DesktopBrowserLeaseId) => {
+    assertProductSender(event)
+    browserPreview.openDevTools(event.sender, lease)
+  })
   ipcMain.handle(DESKTOP_IPC.browserCapture, (event, lease: DesktopBrowserLeaseId) => {
     assertProductSender(event)
     return captureBrowserAnnotation(browserPreview.guest(event.sender, lease))
+  })
+  ipcMain.handle(DESKTOP_IPC.browserCaptureRecordingFrame, (event, lease: DesktopBrowserLeaseId, url: unknown, documentId: unknown) => {
+    assertProductSender(event)
+    return browserPreview.captureRecordingFrame(event.sender, lease, url, documentId, guest =>
+      mainWindow?.isVisible() === true && !mainWindow.isMinimized() && browserGuests.inspectRecordingBrowser(event.sender, lease) === guest)
+  })
+  ipcMain.handle(DESKTOP_IPC.browserBeginRemoteShare, (event, lease: DesktopBrowserLeaseId) => {
+    assertProductSender(event)
+    const connection = phoneConnection.describe()
+    if (!connection.enabled) return null
+    return browserPreview.beginRemoteShare(event.sender, lease, connection.remoteRoot, guest =>
+      mainWindow?.isVisible() === true && !mainWindow.isMinimized() && browserGuests.inspectRecordingBrowser(event.sender, lease) === guest)
+  })
+  ipcMain.handle(DESKTOP_IPC.browserEndRemoteShare, (event, lease: DesktopBrowserLeaseId, url: unknown) => {
+    assertProductSender(event)
+    browserPreview.endRemoteShare(event.sender, lease, url)
   })
   ipcMain.handle(DESKTOP_IPC.browserPick, (event, lease: DesktopBrowserLeaseId, point: { x: number; y: number }) => {
     assertProductSender(event)
@@ -1593,10 +1617,12 @@ async function main(): Promise<void> {
         .catch((_error: unknown) => { /* Native privacy changes retain failed drainage. */ })
     }
     const revokePreviewOwner = (): void => {
+      browserPreview.revokeRemoteShare(window.webContents)
       void devicePreviews.revokeOwner(window.webContents)
         .catch((error: unknown) => { console.error('Device preview visibility revocation could not settle', error) })
     }
     const retirePreviewOwner = (): void => {
+      browserPreview.revokeRemoteShare(window.webContents)
       void devicePreviews.revokeOwner(window.webContents, true)
         .catch((error: unknown) => { console.error('Device preview renderer retirement could not settle', error) })
     }

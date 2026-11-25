@@ -40,6 +40,8 @@ Each local-device tab uses a fresh, origin-scoped Electron Session. The exact gu
 
 ## Browser agent access
 
+Local Browser actions use the primary window’s lease and human control. Zoom uses Chromium page scaling. DevTools, video and private live view are available for ordinary tabs. Video and live view capture only that guest’s pixels. Live view sends bounded JPEG frames through the authenticated Phone Connection, limited to one active view on the current Host. The share URL contains an expiring view identifier and the viewer signs in using the existing Phone Connection.
+
 The Desktop Host's stable `preview_*` tools operate the visible native browser without a paired MCP server. Main binds each tab to its chat and checks that identity for every action. Agents may observe a listed tab during human control; page actions and JavaScript evaluation require an owned or unclaimed tab with no human in control. Take control immediately rejects queued agent actions and waits for running actions to settle. Resume agent releases human control. Chat ownership survives Agent continuation; Host replacement cancels old invocations without transferring them to the new Host.
 
 The compact browser toolbar includes Select, Region, Draw and Erase. These tools capture the page and stage an annotated image with page and element context in the current chat draft for review. Saved-account controls remain in a collapsed menu. [The browser upgrade guide](../../docs/upgrade-guide/v0.1.18/browser-tab-control/guide.md) describes the control workflow.
@@ -188,7 +190,7 @@ General settings opens Main-owned pairing and removal dialogs in the isolated sh
 
 With both `DSH_DESKTOP_REMOTE_URL` and `DSH_DESKTOP_LISTEN_PORT` configured, the same Desktop Host serves its authenticated Web frontend through a user-owned private Tailscale HTTPS proxy. The listener remains on loopback, uses the explicitly selected port, and retains the Desktop renderer's separate loopback login. Without either setting, startup stays local-only. Invalid or incomplete settings fail startup; an occupied selected port does not fall back to another port.
 
-The remote URL is a root HTTPS address on the PC's Tailscale DNS hostname, without credentials, a prefix, query, fragment, or nonstandard HTTPS port. Desktop suppresses the credential-bearing Web startup URL. The legacy PC–phone row is shown only when the native companion bridge is absent and displays the clean private address; its owned top-frame IPC action copies the current Host's browser pairing link in Main without returning it to the renderer. Phone access retains browser-session authentication and Host/Origin checks and grants the existing operator's authority, not a sessions-only role. Desktop does not install, sign in to, or configure Tailscale. This optional browser feature is separate from native companion pairing and revocation.
+The remote URL is an HTTPS root on the PC’s Tailscale DNS hostname on port 443, with no credentials, path prefix, query or fragment. Once enabled, the PC–phone row shows the private address and lets the owner copy the current Host’s browser login in Main. It uses browser-session authentication and Host/Origin checks and grants the existing operator’s authority. Open the login link on your own device before using the separate viewer link. Configure private Tailscale Serve independently of Desktop and native companion pairing.
 
 ### Runtime and plugin activation
 

@@ -15,6 +15,7 @@ export interface WebviewElement extends HTMLElement {
   goForward(): void
   reload(): void
   isLoading(): boolean
+  getZoomFactor?(): number
   findInPage?(text: string, options: { readonly forward: boolean; readonly findNext: boolean }): number
   stopFindInPage?(action: 'clearSelection'): void
 }

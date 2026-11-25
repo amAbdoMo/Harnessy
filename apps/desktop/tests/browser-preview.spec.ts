@@ -12,19 +12,59 @@ function fixture(profiles: readonly DesktopWebsiteProfile[] = []) {
   const guest = {
     isDestroyed: () => false, getURL: () => 'https://example.test/', getTitle: () => 'Example', isLoading: () => false,
     loadURL: vi.fn(async () => {}), executeJavaScript: vi.fn(async () => ({ text: 'Visible page', elements: [] })),
-    capturePage: vi.fn(async () => ({ getSize: () => ({ width: 800, height: 600 }), toPNG: () => Buffer.from('png') })),
+    capturePage: vi.fn(async () => ({ getSize: () => ({ width: 800, height: 450 }), toPNG: () => Buffer.from('png'),
+      isEmpty: () => false, toJPEG: () => Buffer.from('jpeg') })),
     sendInputEvent: vi.fn(),
     on: vi.fn(),
   }
   const lease = 'tab-one' as DesktopBrowserLeaseId
   const inspectBrowser = vi.fn((_owner: WebContents, id: DesktopBrowserLeaseId) => id === lease
     ? guest as Pick<WebContents, 'getURL' | 'getTitle' | 'isLoading'> as WebContents : undefined)
+  const setZoom = vi.fn((_owner: WebContents, _lease: DesktopBrowserLeaseId, factor: unknown) => Number(factor))
+  const openLocalDevTools = vi.fn()
+  const closeLocalDevTools = vi.fn()
   const preview = new DesktopBrowserPreview({ inspectBrowser, onInvalidated: () => () => {},
-    command: async () => {},
+    command: async () => {}, setZoom, openLocalDevTools, closeLocalDevTools,
     allowsBrowserAddress: url => url.startsWith('https://example.test/') }, () => owner, async () => profiles)
   const request = (sessionId: string, operation: object, requestId = randomUUID()) => preview.request({ type: 'browser-preview', requestId, sessionId, operation })
-  return { owner, guest, preview, lease, request, inspectBrowser, published }
+  return { owner, guest, preview, lease, request, inspectBrowser, published, setZoom, openLocalDevTools, closeLocalDevTools }
 }
+
+it('requires local human control for zoom and DevTools and closes DevTools on resume', async () => {
+  const f = fixture()
+  f.preview.bind(f.owner, f.lease, 'one')
+  expect(() => f.preview.setZoom(f.owner, f.lease, 1.25)).toThrow('Human Takeover')
+  expect(() => f.preview.openDevTools(f.owner, f.lease)).toThrow('Human Takeover')
+  await f.preview.control(f.owner, f.lease, true)
+  expect(f.preview.setZoom(f.owner, f.lease, 1.25)).toBe(1.25)
+  f.preview.openDevTools(f.owner, f.lease)
+  expect(f.openLocalDevTools).toHaveBeenCalledWith(f.owner, f.lease)
+  await f.preview.control(f.owner, f.lease, false)
+  expect(f.closeLocalDevTools).toHaveBeenCalledWith(f.owner, f.lease)
+})
+
+it('fences recording and remote frames when control changes or the window is hidden', async () => {
+  const f = fixture()
+  f.preview.bind(f.owner, f.lease, 'one')
+  const frame = (documentId?: string) => f.preview.captureRecordingFrame(f.owner, f.lease, 'https://example.test/', documentId, () => true)
+  await expect(frame()).rejects.toThrow('unavailable')
+  await f.preview.control(f.owner, f.lease, true)
+  const recording = await frame()
+  expect(recording.jpeg).toBe('anBlZw==')
+  const share = f.preview.beginRemoteShare(f.owner, f.lease, 'https://pc.tailnet.ts.net/', () => true)
+  const url = new URL(share.url)
+  const request = () => f.preview.request({ type: 'browser-share-frame', requestId: randomUUID(), id: url.searchParams.get('view') })
+  expect(url).toMatchObject({ origin: 'https://pc.tailnet.ts.net', pathname: '/api/browser-share' })
+  expect([...url.searchParams.keys()]).toEqual(['view'])
+  await expect(request()).resolves.toMatchObject({ status: 'frame', jpeg: recording.jpeg })
+  f.preview.endRemoteShare(f.owner, f.lease, 'different link')
+  expect(() => f.preview.beginRemoteShare(f.owner, f.lease, url.origin, () => true)).toThrow('already being shared')
+  f.preview.revokeRemoteShare(f.owner)
+  await expect(request()).resolves.toMatchObject({ status: 'ended' })
+  await f.preview.control(f.owner, f.lease, false)
+  await f.preview.control(f.owner, f.lease, true)
+  await expect(frame(recording.documentId)).rejects.toThrow('page changed')
+})
 
 it('lists only its chat and unclaimed tabs, while an explicit observation remains available during human control', async () => {
   const f = fixture()

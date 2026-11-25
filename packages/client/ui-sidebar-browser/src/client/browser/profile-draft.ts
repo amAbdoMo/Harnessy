@@ -1,10 +1,12 @@
 /** Session-local pairing form drafts survive Browser remounts without entering persistent storage. */
 import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-store'
 import type { DesktopWebsiteProfileInput } from '../../types.ts'
+import type { ImportedBrowserSite } from './profile-import.ts'
 
 type WebsiteProfileDraft = { -readonly [K in keyof DesktopWebsiteProfileInput]: DesktopWebsiteProfileInput[K] }
 type DraftActions = {
   edit: <K extends keyof WebsiteProfileDraft>(draft: WebsiteProfileDraft, field: K, value: WebsiteProfileDraft[K]) => void
+  importSite: (draft: WebsiteProfileDraft, site: ImportedBrowserSite) => void
   discard: (draft: WebsiteProfileDraft) => void
 }
 
@@ -18,6 +20,13 @@ export function createWebsiteProfileDraftStore(): EngineStoreHandle<WebsiteProfi
     actions: {
       edit: <K extends keyof WebsiteProfileDraft>(draft: WebsiteProfileDraft, field: K, value: WebsiteProfileDraft[K]) => {
         draft[field] = value
+      },
+      importSite: (draft, site) => {
+        draft.name = site.name
+        draft.url = site.url
+        draft.accountLabel = ''
+        draft.mcpServerName = ''
+        draft.access = 'disabled'
       },
       discard: (draft) => { draft.name = ''; draft.accountLabel = ''; draft.url = ''; draft.mcpServerName = ''; draft.access = 'automatic' },
     },

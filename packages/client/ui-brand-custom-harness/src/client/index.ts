@@ -167,7 +167,8 @@ export function apply(ctx: ClientContext): void {
         open: () => companion.open(),
       }),
     }, CompanionRow))
-  } else if (nativePhoneConnection !== undefined) {
+  }
+  if (nativePhoneConnection !== undefined) {
     const phoneConnection = new PhoneConnectionController(nativePhoneConnection)
     ctx.effect(() => {
       void phoneConnection.describe()
@@ -177,6 +178,7 @@ export function apply(ctx: ClientContext): void {
       name: 'settings.general.item', id: 'custom-harness-phone-connection', order: 40, locale: LOCALE_NS,
       inject: (): PhoneConnectionRowInjected => ({
         hooks: { phoneConnection: phoneConnection.state },
+        enabledOnly: nativeCompanion !== undefined,
         describe: () => phoneConnection.describe(),
         copy: () => phoneConnection.copy(),
       }),

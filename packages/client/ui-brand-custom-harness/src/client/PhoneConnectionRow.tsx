@@ -8,6 +8,7 @@ import css from './PhoneConnectionRow.module.css'
 /** Credential-free desktop data and actions projected by the plugin registration. */
 export interface PhoneConnectionRowInjected {
   readonly hooks: { readonly phoneConnection: ObservableSnapshot<PhoneConnectionState> }
+  readonly enabledOnly: boolean
   readonly describe: () => Promise<void>
   readonly copy: () => Promise<void>
 }
@@ -21,8 +22,9 @@ export type PhoneConnectionRowProps = PropsRuntime<'settings.general.item'>
  * @param props - Renderer-bound desktop state, callbacks, and localized product copy.
  * @returns the desktop phone connection row.
  */
-export function PhoneConnectionRow({ usePhoneConnection, describe, copy, t }: PhoneConnectionRowProps) {
+export function PhoneConnectionRow({ usePhoneConnection, enabledOnly, describe, copy, t }: PhoneConnectionRowProps) {
   const state = usePhoneConnection(snapshot => snapshot)
+  if (enabledOnly && state.status !== 'enabled') return null
   return <section className={css.root} aria-label={t('phoneConnectionTitle')}>
     <h3 className={css.title}>{t('phoneConnectionTitle')}</h3>
     <p className={css.summary}>{t('phoneConnectionDescription')}</p>

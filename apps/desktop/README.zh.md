@@ -40,6 +40,8 @@ Harnessy 在账号凭据失效或移除后仍保持工作区打开。Provider �
 
 ## 浏览器 Agent 访问
 
+本地浏览器操作使用主窗口持有的租约和人工控制权。缩放使用 Chromium 页面比例。开发者工具、视频录制和私有实时查看适用于普通标签页。视频和实时查看仅捕获该 guest 的像素。实时查看通过已认证的手机连接发送大小受限的 JPEG 帧，当前 Host 同时仅允许一个活动共享。共享网址包含会过期的查看标识，查看者通过现有手机连接登录。
+
 Desktop Host 的稳定 `preview_*` 工具无需配对 MCP 服务器即可操作可见的原生浏览器。Main 将每个标签页绑定到其聊天，并在每次操作时检查该身份。人工控制期间 Agent 可以观察列出的标签页；页面操作和 JavaScript 执行要求标签页属于当前聊天或尚无归属，且不处于人工控制。Take control 立即拒绝排队中的 Agent 操作，并等待正在运行的操作结束。Resume agent 释放人工控制。聊天归属在 Agent 继续运行后保持不变；Host 替换会取消旧调用，不会将其转交给新 Host。
 
 紧凑浏览器工具栏包含 Select、Region、Draw 和 Erase。这些工具捕获页面，并将标注图像及页面、元素上下文暂存到当前聊天草稿供检查。保存账号控件保留在折叠菜单中。[浏览器升级指南](../../docs/upgrade-guide/v0.1.18/browser-tab-control/guide.zh.md)介绍控制流程。
@@ -188,7 +190,7 @@ macOS 上自定义菜单保留 Electron 的标准 Window 菜单及应用隐藏�
 
 同时配置 `DSH_DESKTOP_REMOTE_URL` 和 `DSH_DESKTOP_LISTEN_PORT` 后，同一个 Desktop Host 可通过用户自行管理的私有 Tailscale HTTPS 代理提供经过认证的 Web 前端。监听器仍绑定 loopback，使用显式指定的端口，并保留 Desktop renderer 独立的 loopback 登录。两个设置均未配置时，启动仍仅供本机访问。无效或不完整的设置会使启动失败；所选端口已被占用时不会回退到另一端口。
 
-远端 URL 必须是 PC 的 Tailscale DNS 主机名上的 HTTPS 根地址，不含凭据、路径前缀、查询、片段或非标准 HTTPS 端口。Desktop 不打印含凭据的 Web 启动 URL。仅当原生 companion bridge 不存在时才显示传统“电脑与手机连接”行，且只显示不含凭据的私有地址；其所属应用顶层 frame 的 IPC 操作在 Main 中复制当前 Host 的浏览器配对链接，不把链接返回给 renderer。手机访问保留浏览器会话认证和 Host/Origin 校验，授予现有操作者的权限，而非仅限会话的角色。Desktop 不负责安装、登录或配置 Tailscale。此可选浏览器功能与原生 companion 配对及撤权相互独立。
+远端 URL 必须使用 PC 的 Tailscale DNS 主机名及 443 端口上的 HTTPS 根地址，不含凭据、路径前缀、查询或片段。启用后，“电脑与手机连接”行显示私有地址，并允许机主在 Main 中复制当前 Host 的浏览器登录链接。此入口要求浏览器会话认证及 Host/Origin 校验，授予现有操作者权限。使用独立的查看链接前，请先在自己的设备上打开登录链接。私有 Tailscale Serve 的配置独立于 Desktop 和原生手机伴侣配对。
 
 ### 运行时与插件激活
 
