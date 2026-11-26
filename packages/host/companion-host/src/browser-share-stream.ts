@@ -11,6 +11,12 @@ interface Stream {
   readonly controller: AbortController
 }
 
+interface BrowserShareStream {
+  start(id: MobileRequestId): void
+  stop(id?: MobileRequestId): void
+  close(): Promise<void>
+}
+
 /**
  * Sample a Desktop-authorized share with one capture and send in flight per channel.
  * @param context - exact channel lifetime, frame provider and bounded sender.
@@ -22,7 +28,7 @@ export function createBrowserShareStream(context: {
   readonly requireCurrent: () => void
   readonly send: (result: ApplicationResult) => Promise<void>
   readonly allowFrame?: (jpeg: string) => boolean
-}) {
+}): BrowserShareStream {
   let current: Stream | undefined
   let worker: Promise<void> | undefined
 

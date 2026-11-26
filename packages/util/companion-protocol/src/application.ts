@@ -87,7 +87,11 @@ function updateOffset(value: unknown): number {
   if (offset % ANDROID_UPDATE_CHUNK_BYTES !== 0) fail()
   return offset
 }
-/** @param input - untrusted local manifest or wire offer. @returns Bounded Android delta metadata. */
+/**
+ * Validate a staged delta offer before reading any patch bytes.
+ * @param input - untrusted local manifest or wire offer.
+ * @returns Bounded metadata for the exact base and signed target APK.
+ */
 export function parseAndroidUpdateOffer(input: unknown): AndroidUpdateOffer {
   const value = object(input)
   exact(value, ['artifactId', 'baseSha256', 'targetSha256', 'versionCode', 'targetBytes', 'patchBytes'])

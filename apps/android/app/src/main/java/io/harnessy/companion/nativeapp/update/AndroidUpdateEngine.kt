@@ -33,6 +33,9 @@ class AndroidUpdateEngine(context: Context, private val source: AndroidUpdateSou
         val installed = updatePackage.installed()
         val installedSha256 = sha256(installed.sourceApk)
         validateOffer(offer, installedSha256, installed.versionCode)
+        if (source.check(installedSha256, installed.versionCode) != offer) {
+            throw AndroidUpdateException("The paired PC no longer offers the selected update")
+        }
         val directory = File(applicationContext.cacheDir, "android-update").apply { mkdirs() }
         val patch = File.createTempFile("patch-", ".hyd", directory)
         val candidate = File.createTempFile("candidate-", ".apk", directory)
