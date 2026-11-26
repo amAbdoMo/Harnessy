@@ -7,7 +7,7 @@ export type CandidateId = Branded<'CompanionCandidateId'>
 
 /** One paired-phone browser-share operation; starting a share is a separate explicit Desktop action. */
 export type BrowserShareRequest =
-  | { readonly kind: 'watch'; readonly shareId?: BrowserShareId }
+  | { readonly kind: 'watch'; readonly shareId?: BrowserShareId; readonly highResolution?: true }
   | { readonly kind: 'stop'; readonly shareId: BrowserShareId }
 
 /** Bounded response from the Desktop native browser-share owner, before the application envelope is added. */

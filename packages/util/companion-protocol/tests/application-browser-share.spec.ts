@@ -20,6 +20,7 @@ describe('native browser-share application messages', () => {
     { v: 1, type: 'watchBrowserShare', requestId },
     { v: 1, type: 'watchBrowserShare', requestId, shareId },
     { v: 1, type: 'subscribeBrowserShare', requestId },
+    { v: 1, type: 'subscribeBrowserShare', requestId, highResolution: true },
     { v: 1, type: 'unsubscribeBrowserShare', requestId, watchId: requestId },
     { v: 1, type: 'stopBrowserShare', requestId, shareId },
   ])('round-trips additive request %j', (request) => {
@@ -43,6 +44,8 @@ describe('native browser-share application messages', () => {
     { v: 1, type: 'stopBrowserShare', requestId },
     { v: 1, type: 'stopBrowserShare', requestId, shareId: `${shareId}x` },
     { v: 1, type: 'subscribeBrowserShare', requestId, shareId },
+    { v: 1, type: 'subscribeBrowserShare', requestId, highResolution: false },
+    { v: 1, type: 'watchBrowserShare', requestId, highResolution: true },
     { v: 1, type: 'unsubscribeBrowserShare', requestId, watchId: 'unvalidated' },
   ])('rejects incomplete or noncanonical request %j', (request) => {
     expect(() => parseApplicationRequest(JSON.stringify(request), budget)).toThrow()

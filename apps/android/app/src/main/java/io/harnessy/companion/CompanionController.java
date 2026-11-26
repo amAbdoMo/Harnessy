@@ -95,7 +95,7 @@ public final class CompanionController implements CompanionActions {
     private BrowserShareRequest browserShareRequest;
     private Cancellable browserShareDeadline;
     private BrowserShareSubscription browserShareSubscription;
-    private boolean browserShareLegacyPolling;
+    private BrowserShareMode browserShareMode = BrowserShareMode.HIGH_RESOLUTION;
     private boolean browserShareStopFailed;
     private boolean browserShareEndedNotice;
     private AndroidUpdateRequest<?> androidUpdateRequest;
@@ -176,7 +176,6 @@ public final class CompanionController implements CompanionActions {
         browserShareVisible = false;
         browserShareId = null;
         browserShareStoppedId = null;
-        browserShareLegacyPolling = false;
         browserShareStopFailed = false;
         browserShareEndedNotice = false;
         browserShare = BrowserShare.idle();
@@ -194,9 +193,7 @@ public final class CompanionController implements CompanionActions {
         if (browserShareDeadline != null) browserShareDeadline.cancel();
         browserShareDeadline = null;
         failAndroidUpdate(new IllegalStateException("Android update connection retired"));
-        BrowserShareSubscription subscription = browserShareSubscription;
         browserShareSubscription = null;
-        if (browserShareVisible && subscription != null && !subscription.acknowledged) browserShareLegacyPolling = true;
         if (pendingBrowserShare != null && pendingBrowserShare.kind == BrowserShareRequest.Kind.STOP) {
             browserShareStopFailed = true;
             browserShare = new BrowserShare(BrowserShare.Status.ERROR, browserShareId, null, true);
@@ -313,16 +310,19 @@ public final class CompanionController implements CompanionActions {
         confirmed = true;
         feedback = fence == null ? Feedback.NONE : Feedback.DELIVERY_UNKNOWN;
         refresh();
-        // Other application capabilities require the matching PC runtime; browser sharing alone can fall back after
-        // one unacknowledged subscription retires its channel.
+        // Browser sharing alone negotiates older read-only requests after an unacknowledged disconnect.
         refreshManagementWorkspaces();
-        if (browserShareVisible && !browserShareLegacyPolling) subscribeBrowserShare();
+        if (browserShareVisible) subscribeBrowserShare();
         scheduleHeartbeat();
         publish();
     }
 
     private void disconnectedAttempt() {
         boolean wasEnrollment = enrolling;
+        BrowserShareSubscription subscription = browserShareSubscription;
+        if (browserShareVisible && subscription != null && !subscription.acknowledged) {
+            browserShareMode = subscription.highResolution ? BrowserShareMode.STANDARD : BrowserShareMode.POLLING;
+        }
         retireAttempt();
         if (wasEnrollment) {
             dropInvitation(); cleanupEnrollment(); enrolling = false; pairingLink = "";
@@ -582,9 +582,9 @@ public final class CompanionController implements CompanionActions {
         if (!foreground || storageBlocked || repairRequired) return;
         cancelBrowserShareRequest();
         browserShareVisible = true;
+        browserShareMode = BrowserShareMode.HIGH_RESOLUTION;
         browserShareId = null;
         browserShareStoppedId = null;
-        browserShareLegacyPolling = false;
         browserShareStopFailed = false;
         browserShareEndedNotice = false;
         browserShare = BrowserShare.idle();
@@ -601,7 +601,6 @@ public final class CompanionController implements CompanionActions {
         browserShareVisible = false;
         browserShareId = null;
         browserShareStoppedId = null;
-        browserShareLegacyPolling = false;
         browserShareStopFailed = false;
         browserShareEndedNotice = false;
         browserShare = BrowserShare.idle();
@@ -613,11 +612,12 @@ public final class CompanionController implements CompanionActions {
 
     /** Starts one channel-lifetime push subscription for the visible viewer. */
     private void subscribeBrowserShare() {
-        if (!browserShareVisible || browserShareLegacyPolling || !foreground || !confirmed || link == null
+        if (!browserShareVisible || browserShareMode == BrowserShareMode.POLLING || !foreground || !confirmed || link == null
             || storageBlocked || repairRequired || browserShareSubscription != null) return;
         String request = Protocol.randomId(16);
-        BrowserShareSubscription pending = new BrowserShareSubscription(request, epoch, attempt);
-        if (link.send(ApplicationCodec.subscribeBrowserShare(request)) != PhoneTransport.Admission.ADMITTED_MAY_WRITE) {
+        boolean highResolution = browserShareMode == BrowserShareMode.HIGH_RESOLUTION;
+        BrowserShareSubscription pending = new BrowserShareSubscription(request, epoch, attempt, highResolution);
+        if (link.send(ApplicationCodec.subscribeBrowserShare(request, highResolution)) != PhoneTransport.Admission.ADMITTED_MAY_WRITE) {
             browserShare = new BrowserShare(BrowserShare.Status.ERROR, browserShareId, null);
             publishBrowserShare();
             return;
@@ -627,7 +627,7 @@ public final class CompanionController implements CompanionActions {
 
     /** Sends one read-only browser-share poll; the native destination owns its polling cadence. */
     public void watchBrowserShare() {
-        if (!browserShareLegacyPolling || !browserShareVisible || browserShareStopFailed || !foreground || !confirmed || link == null
+        if (browserShareMode != BrowserShareMode.POLLING || !browserShareVisible || browserShareStopFailed || !foreground || !confirmed || link == null
             || storageBlocked || repairRequired || browserShareRequest != null) return;
         String request = Protocol.randomId(16);
         BrowserShareRequest pending = new BrowserShareRequest(request, BrowserShareRequest.Kind.WATCH, browserShareId,
@@ -1704,13 +1704,15 @@ public final class CompanionController implements CompanionActions {
             this.request = request; this.kind = kind; this.shareId = shareId; this.owner = owner; this.attempt = attempt;
         }
     }
+    private enum BrowserShareMode { HIGH_RESOLUTION, STANDARD, POLLING }
     private static final class BrowserShareSubscription {
         final String request;
         final long owner;
         final long attempt;
+        final boolean highResolution;
         boolean acknowledged;
-        BrowserShareSubscription(String request, long owner, long attempt) {
-            this.request = request; this.owner = owner; this.attempt = attempt;
+        BrowserShareSubscription(String request, long owner, long attempt, boolean highResolution) {
+            this.request = request; this.owner = owner; this.attempt = attempt; this.highResolution = highResolution;
         }
     }
     private enum AndroidUpdateKind { CHECK, READ }

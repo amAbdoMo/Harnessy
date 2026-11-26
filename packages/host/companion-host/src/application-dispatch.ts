@@ -651,7 +651,7 @@ export function createApplicationDispatcher(
       case 'checkAndroidUpdate':
       case 'readAndroidUpdate': return androidUpdate(request, read)
       case 'subscribeBrowserShare': {
-        browserStream.start(request.requestId)
+        browserStream.start(request.requestId, request.highResolution)
         return checked({ v: 1, type: 'browserShare', requestId: request.requestId, status: 'idle' })
       }
       case 'unsubscribeBrowserShare': {

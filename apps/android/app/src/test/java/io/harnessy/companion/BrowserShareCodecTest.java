@@ -9,6 +9,7 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /** Protocol and controller regressions for the explicit native browser-share viewer. */
 public final class BrowserShareCodecTest {
@@ -28,6 +29,10 @@ public final class BrowserShareCodecTest {
         Map<String, Object> subscribe = ApplicationCodec.parseRequest(ApplicationCodec.subscribeBrowserShare(REQUEST));
         assertEquals("subscribeBrowserShare", subscribe.get("type"));
         assertEquals(3, subscribe.size());
+        assertEquals(subscribe, ApplicationCodec.parseRequest(ApplicationCodec.subscribeBrowserShare(REQUEST, false)));
+        Map<String, Object> highResolution = ApplicationCodec.parseRequest(ApplicationCodec.subscribeBrowserShare(REQUEST, true));
+        assertEquals(Boolean.TRUE, highResolution.get("highResolution"));
+        assertEquals(4, highResolution.size());
         Map<String, Object> unsubscribe = ApplicationCodec.parseRequest(
             ApplicationCodec.unsubscribeBrowserShare(Protocol.encodeBase64Url(new byte[] { 1, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 0, 0 }), REQUEST));
@@ -42,6 +47,18 @@ public final class BrowserShareCodecTest {
             "requestId", REQUEST, "status", "frame", "shareId", FIRST_SHARE, "jpeg", "anBlZw==")));
         assertEquals(FIRST_SHARE, frame.shareId);
         assertEquals("anBlZw==", frame.jpeg);
+    }
+
+    @Test
+    public void highResolutionOptInRejectsEveryValueExceptTrueAndOtherRequestKinds() {
+        for (Object value : new Object[] { false, null, "true", 1 }) {
+            rejectsRequest(Protocol.object("v", 1, "type", "subscribeBrowserShare", "requestId", REQUEST,
+                "highResolution", value));
+        }
+        rejectsRequest(Protocol.object("v", 1, "type", "watchBrowserShare", "requestId", REQUEST,
+            "highResolution", true));
+        rejectsRequest(Protocol.object("v", 1, "type", "stopBrowserShare", "requestId", REQUEST,
+            "shareId", FIRST_SHARE, "highResolution", true));
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -87,11 +104,18 @@ public final class BrowserShareCodecTest {
     }
 
     @Test
-    public void unacknowledgedSubscriptionFallsBackToPollingAfterReconnect() throws Exception {
+    public void unacknowledgedHighResolutionRetriesPlainSubscriptionBeforePollingAndReprobesOnReopen() throws Exception {
         ControllerRegression.Fixture fixture = new ControllerRegression.Fixture();
         fixture.controller.start(); fixture.pump(); fixture.confirm();
         fixture.controller.startBrowserShareViewing();
-        assertTrue(fixture.latest().last("subscribeBrowserShare") != null);
+        assertEquals(Boolean.TRUE, fixture.latest().last("subscribeBrowserShare").get("highResolution"));
+
+        fixture.latest().events.disconnected();
+        fixture.advance(5000);
+        fixture.confirm();
+        assertEquals(3, fixture.latest().last("subscribeBrowserShare").size());
+        fixture.controller.watchBrowserShare();
+        assertNull(fixture.latest().last("watchBrowserShare"));
 
         fixture.latest().events.disconnected();
         fixture.advance(5000);
@@ -99,6 +123,46 @@ public final class BrowserShareCodecTest {
         assertNull(fixture.latest().last("subscribeBrowserShare"));
         fixture.controller.watchBrowserShare();
         assertTrue(fixture.latest().last("watchBrowserShare") != null);
+
+        fixture.controller.stopBrowserShareViewing();
+        fixture.controller.startBrowserShareViewing();
+        assertEquals(Boolean.TRUE, fixture.latest().last("subscribeBrowserShare").get("highResolution"));
+    }
+
+    @Test
+    public void acknowledgedHighResolutionReconnectsWithoutDowngrading() throws Exception {
+        ControllerRegression.Fixture fixture = new ControllerRegression.Fixture();
+        fixture.controller.start(); fixture.pump(); fixture.confirm();
+        fixture.controller.startBrowserShareViewing();
+        Object request = fixture.latest().last("subscribeBrowserShare").get("requestId");
+        fixture.latest().result(browserShare(request, "idle", null, null));
+        fixture.latest().events.disconnected();
+        fixture.advance(5000);
+        fixture.confirm();
+        assertEquals(Boolean.TRUE, fixture.latest().last("subscribeBrowserShare").get("highResolution"));
+        fixture.controller.watchBrowserShare();
+        assertNull(fixture.latest().last("watchBrowserShare"));
+    }
+
+    @Test
+    public void leavingTheActivityBeforeAcknowledgementDoesNotDowngradeThePc() throws Exception {
+        ControllerRegression.Fixture fixture = new ControllerRegression.Fixture();
+        fixture.controller.start(); fixture.pump(); fixture.confirm();
+        fixture.controller.startBrowserShareViewing();
+        fixture.controller.stop();
+        fixture.advance(5000);
+        fixture.controller.start(); fixture.pump(); fixture.confirm();
+        fixture.controller.startBrowserShareViewing();
+        assertEquals(Boolean.TRUE, fixture.latest().last("subscribeBrowserShare").get("highResolution"));
+    }
+
+    private static void rejectsRequest(Map<String, Object> request) {
+        try {
+            ApplicationCodec.parseRequest(json(request).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            fail("Unexpected request accepted: " + request);
+        } catch (IllegalArgumentException invalidRequest) {
+            // Exact-field validation rejects unsupported options before transport admission.
+        }
     }
 
     private static Map<String, Object> browserShare(Object requestId, String status, String shareId, String jpeg) {

@@ -66,7 +66,7 @@ export type ApplicationRequest =
   /** Observe the explicitly started native Desktop browser share; omission discovers the current share. */
   | { readonly v: 1; readonly type: 'watchBrowserShare'; readonly requestId: MobileRequestId; readonly shareId?: BrowserShareId }
   /** Observe native frames until this channel retires or the phone cancels this request ID. */
-  | { readonly v: 1; readonly type: 'subscribeBrowserShare'; readonly requestId: MobileRequestId }
+  | { readonly v: 1; readonly type: 'subscribeBrowserShare'; readonly requestId: MobileRequestId; readonly highResolution?: true }
   /** Retire the exact browser subscriber without stopping the Desktop share. */
   | { readonly v: 1; readonly type: 'unsubscribeBrowserShare'; readonly requestId: MobileRequestId; readonly watchId: MobileRequestId }
   | { readonly v: 1; readonly type: 'checkAndroidUpdate'; readonly requestId: MobileRequestId; readonly installedSha256: string; readonly versionCode: number }

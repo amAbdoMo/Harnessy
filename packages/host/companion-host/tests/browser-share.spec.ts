@@ -6,7 +6,7 @@ import {
 import type { ApplicationResult, BrowserShareId, GrantId } from '@deepseek-ai/dsh-companion-protocol'
 import { expect, it, onTestFinished, describe, vi } from 'vitest'
 import { createApplicationDispatcher } from '../src/application-dispatch.ts'
-import type { AndroidUpdateProvider, BrowserShareHandler } from '../src/types.ts'
+import type { AndroidUpdateProvider, BrowserShareHandler, BrowserShareRequest } from '../src/types.ts'
 import { composition, config } from './composition.ts'
 
 const budget = config.budgets.application
@@ -51,16 +51,21 @@ function browserResult(result: ApplicationResult) {
 }
 
 describe('native browser-share dispatch', () => {
-  it('pushes distinct frames under a single subscription and stops delivery after exact cancellation', async () => {
+  it.each([{}, { highResolution: true }] as const)('pushes distinct frames with subscription options %j until exact cancellation', async (options) => {
     let jpeg = 'anBlZw=='
-    const f = await fixture(async () => ({ status: 'frame', shareId, jpeg }))
-    await expect(f.dispatch('subscribeBrowserShare')).resolves.toMatchObject({ status: 'idle' })
+    const requests: BrowserShareRequest[] = []
+    const f = await fixture(async (request) => {
+      requests.push(request)
+      return { status: 'frame', shareId, jpeg }
+    })
+    await expect(f.dispatch('subscribeBrowserShare', options)).resolves.toMatchObject({ status: 'idle' })
     await vi.waitFor(() => { expect(f.pushed).toEqual([{ v: 1, type: 'browserShare', requestId, status: 'frame', shareId, jpeg }]) })
     jpeg = 'bmV3'
     await vi.waitFor(() => { expect(f.pushed.at(-1)).toMatchObject({ requestId, status: 'frame', jpeg }) })
     await expect(f.dispatch('unsubscribeBrowserShare', { watchId: requestId })).resolves.toMatchObject({ status: 'ended' })
     await f.dispatcher.close()
     expect(f.pushed).toHaveLength(2)
+    expect(requests.slice(0, 2)).toEqual([{ kind: 'watch', ...options }, { kind: 'watch', shareId, ...options }])
   })
 
   it('only serves update chunks after matching the installed hash and a newer version', async () => {

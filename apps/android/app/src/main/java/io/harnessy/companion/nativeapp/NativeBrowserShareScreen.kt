@@ -59,11 +59,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 
-private const val MAX_FRAME_WIDTH = 480
-private const val MAX_FRAME_HEIGHT = 270
+private const val MAX_FRAME_WIDTH = 960
+private const val MAX_FRAME_HEIGHT = 960
 private const val MAX_FRAME_BYTES = 18_432
 
-private fun decodeBrowserShareFrame(encoded: String): ImageBitmap? {
+/** Decodes a bounded JPEG, rejecting oversized dimensions before allocating its pixels. */
+internal fun decodeBrowserShareFrame(encoded: String): ImageBitmap? {
     val bytes = runCatching { Base64.decode(encoded, Base64.NO_WRAP) }.getOrNull() ?: return null
     if (bytes.isEmpty() || bytes.size > MAX_FRAME_BYTES) return null
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -110,8 +111,7 @@ fun NativeBrowserShareScreen(
     }
     LaunchedEffect(pollMs) {
         while (isActive) {
-            // Push is the normal path. The controller admits this poll only after an unacknowledged subscription
-            // retired its channel, preserving compatibility with an older paired Desktop.
+            // Polling is admitted only after both subscription variants disconnect without acknowledgement.
             viewModel.watchBrowserShare()
             delay(pollMs)
         }

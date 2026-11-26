@@ -384,9 +384,12 @@ export function parseApplicationRequest(json: string, budget: ApplicationBudget)
       exact(value, ['v', 'type', 'requestId', 'operationId', 'sessionId', 'title'])
       return { ...common, type: value.type, ...managementTarget(value), title: text(value.title, budget.maxTitleBytes) }
     case 'getSessionActivation':
-    case 'subscribeBrowserShare':
       exact(value, ['v', 'type', 'requestId'])
       return { ...common, type: value.type }
+    case 'subscribeBrowserShare':
+      exact(value, ['v', 'type', 'requestId'], ['highResolution'])
+      if ('highResolution' in value && value.highResolution !== true) fail()
+      return { ...common, type: value.type, ...(value.highResolution === true ? { highResolution: true } : {}) }
     case 'unsubscribeBrowserShare':
       exact(value, ['v', 'type', 'requestId', 'watchId'])
       return { ...common, type: value.type, watchId: requestId(value.watchId) }

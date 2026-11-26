@@ -17,7 +17,8 @@ export function createPhoneBrowserShare(signal: AbortSignal, send: (message: obj
   const pending = new Map<BrowserShareRequest['kind'], { id: string; resolve: (value: BrowserShareResponse) => void }>()
   const close = (): void => { for (const call of pending.values()) call.resolve({ status: 'ended' }) }
   signal.addEventListener('abort', close, { once: true })
-  const request: BrowserShareHandler = async ({ kind, shareId }, caller) => {
+  const request: BrowserShareHandler = async (operation, caller) => {
+    const { kind, shareId } = operation
     signal.throwIfAborted()
     caller.throwIfAborted()
     if (pending.has(kind)) return { status: 'busy' }
@@ -28,7 +29,8 @@ export function createPhoneBrowserShare(signal: AbortSignal, send: (message: obj
     const timeout = setTimeout(cancel, 2500)
     caller.addEventListener('abort', cancel, { once: true })
     try {
-      void send({ type: kind === 'watch' ? 'phone-browser-share-watch' : 'phone-browser-share-stop', requestId: id, id: shareId })
+      void send({ type: kind === 'watch' ? 'phone-browser-share-watch' : 'phone-browser-share-stop', requestId: id, id: shareId,
+        ...(kind === 'watch' && operation.highResolution === true ? { highResolution: true } : {}) })
         .catch(cancel)
       const result = await completion.promise
       signal.throwIfAborted()

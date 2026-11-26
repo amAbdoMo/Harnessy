@@ -9,10 +9,11 @@ const DISCOVERY_PERIOD_MS = 250
 interface Stream {
   readonly id: MobileRequestId
   readonly controller: AbortController
+  readonly highResolution: true | undefined
 }
 
 interface BrowserShareStream {
-  start(id: MobileRequestId): void
+  start(id: MobileRequestId, highResolution: true | undefined): void
   stop(id?: MobileRequestId): void
   close(): Promise<void>
 }
@@ -47,7 +48,8 @@ export function createBrowserShareStream(context: {
       await delay(pause, undefined, { signal, ref: false })
       const started = performance.now()
       context.requireCurrent()
-      const result = await provider({ kind: 'watch', ...(shareId === undefined ? {} : { shareId }) }, signal)
+      const result = await provider({ kind: 'watch', ...(shareId === undefined ? {} : { shareId }),
+        ...(stream.highResolution === true ? { highResolution: true } : {}) }, signal)
       signal.throwIfAborted()
       context.requireCurrent()
       if (result.status === 'frame' && (shareId === undefined || result.shareId === shareId)) {
@@ -85,11 +87,11 @@ export function createBrowserShareStream(context: {
   }
 
   return {
-    start(id: MobileRequestId): void {
+    start(id: MobileRequestId, highResolution: true | undefined): void {
       stop()
       const provider = context.provider
       if (provider === undefined || context.signal.aborted) return
-      current = { id, controller: new AbortController() }
+      current = { id, controller: new AbortController(), highResolution }
       ensureWorker(provider)
     },
     stop,

@@ -9,13 +9,14 @@ import { DESKTOP_IPC } from '../src/ipc.ts'
 function fixture(profiles: readonly DesktopWebsiteProfile[] = []) {
   const published = vi.fn()
   const owner = { isDestroyed: () => false, send: published } as Pick<WebContents, 'isDestroyed' | 'send'> as WebContents
-  const jpeg = vi.fn(() => Buffer.from('jpeg'))
+  const jpeg = vi.fn((_quality: number) => Buffer.from('jpeg'))
+  const resize = vi.fn((_size: { width: number; height: number }) => ({ toJPEG: jpeg }))
   const guest = {
     isDestroyed: () => false, getURL: () => 'https://example.test/', getTitle: () => 'Example',
     isLoading: vi.fn(() => false), isLoadingMainFrame: vi.fn(() => false),
     loadURL: vi.fn(async () => {}), executeJavaScript: vi.fn(async () => ({ text: 'Visible page', elements: [] })),
     capturePage: vi.fn(async () => ({ getSize: () => ({ width: 800, height: 450 }), toPNG: () => Buffer.from('png'),
-      isEmpty: () => false, toJPEG: jpeg, resize: () => ({ toJPEG: jpeg }) })),
+      isEmpty: () => false, toJPEG: jpeg, resize })),
     sendInputEvent: vi.fn(),
     on: vi.fn(),
   }
@@ -29,7 +30,8 @@ function fixture(profiles: readonly DesktopWebsiteProfile[] = []) {
     command: async () => {}, setZoom, openLocalDevTools, closeLocalDevTools,
     allowsBrowserAddress: url => url.startsWith('https://example.test/') }, () => owner, async () => profiles)
   const request = (sessionId: string, operation: object, requestId = randomUUID()) => preview.request({ type: 'browser-preview', requestId, sessionId, operation })
-  return { owner, guest, preview, lease, request, inspectBrowser, published, setZoom, openLocalDevTools, closeLocalDevTools }
+  return { owner, guest, preview, lease, request, inspectBrowser, published, setZoom, openLocalDevTools, closeLocalDevTools,
+    resize, jpeg }
 }
 
 it('shows and stops an Android share only through the paired-phone carrier', async () => {
@@ -65,6 +67,24 @@ it('cannot start a phone share if local control changed during the pairing check
   paired.resolve(true)
   await expect(start).rejects.toThrow('page changed')
   await expect(f.preview.request({ type: 'phone-browser-share-watch', requestId: randomUUID() })).resolves.toMatchObject({ status: 'idle' })
+})
+
+it.each([false, true])('bounds a portrait phone frame when high resolution is %s', async (highResolution) => {
+  const f = fixture()
+  const image = await f.guest.capturePage()
+  f.guest.capturePage.mockResolvedValue({ ...image, getSize: () => ({ width: 900, height: 1200 }) })
+  if (highResolution) f.jpeg.mockReturnValueOnce(Buffer.alloc(18_001)).mockReturnValueOnce(Buffer.alloc(18_000))
+  f.preview.bind(f.owner, f.lease, 'one')
+  await f.preview.control(f.owner, f.lease, true)
+  const share = await f.preview.beginPhoneShare(f.owner, f.lease, () => true, async () => true)
+  if (share === null) throw new Error('Expected Android share')
+  const frame = await f.preview.request({ type: 'phone-browser-share-watch', requestId: randomUUID(),
+    ...(highResolution ? { highResolution: true } : {}) })
+  expect(frame).toMatchObject({ status: 'frame', shareId: share.receipt,
+    jpeg: (highResolution ? Buffer.alloc(18_000) : Buffer.from('jpeg')).toString('base64') })
+  expect(f.resize.mock.calls.map(([size]) => size)).toEqual(highResolution
+    ? [{ width: 720, height: 960 }, { width: 540, height: 720 }]
+    : [{ width: 202, height: 270 }])
 })
 
 it('keeps a phone share during embedded loads and ends it when the main page starts loading', async () => {

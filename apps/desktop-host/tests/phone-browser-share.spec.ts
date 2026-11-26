@@ -9,13 +9,13 @@ describe('Desktop Host browser share channel', () => {
     const host = new AbortController()
     const send = vi.fn<(message: object) => Promise<void>>().mockResolvedValue(undefined)
     const bridge = createPhoneBrowserShare(host.signal, send)
-    const watch = bridge.request({ kind: 'watch', shareId }, host.signal)
+    const watch = bridge.request({ kind: 'watch', shareId, highResolution: true }, host.signal)
     try {
       await expect(bridge.request({ kind: 'watch' }, host.signal)).resolves.toEqual({ status: 'busy' })
       const stop = bridge.request({ kind: 'stop', shareId }, host.signal)
       try {
         expect(send.mock.calls.map(([message]) => message)).toEqual([
-          { type: 'phone-browser-share-watch', requestId: expect.any(String), id: shareId },
+          { type: 'phone-browser-share-watch', requestId: expect.any(String), id: shareId, highResolution: true },
           { type: 'phone-browser-share-stop', requestId: expect.any(String), id: shareId },
         ])
         const [watchMessage, stopMessage] = send.mock.calls.map(([message]) => message)

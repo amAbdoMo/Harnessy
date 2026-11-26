@@ -23,6 +23,8 @@ const RECORDING_MAX_WIDTH = 960
 const RECORDING_MAX_HEIGHT = 540
 const RECORDING_MAX_FRAME_BYTES = 512 * 1024
 const PHONE_MAX_FRAME_BYTES = 12_288
+const PHONE_HIGH_RESOLUTION_MAX_BYTES = 18_000
+const PHONE_HIGH_RESOLUTION_PROFILES = [[960, 54], [720, 48], [600, 48], [480, 46], [360, 42]] as const
 const REMOTE_SHARE_DURATION_MS = 15 * 60_000
 const REMOTE_SHARE_FRAME_INTERVAL_MS = 200
 const PHONE_SHARE_FRAME_INTERVAL_MS = 60
@@ -48,6 +50,17 @@ function jpegWithin(image: NativeImage, maxWidth: number, maxHeight: number, qua
   })
   const jpeg = bounded.toJPEG(quality)
   return jpeg.byteLength > 0 && jpeg.byteLength <= maxBytes ? jpeg.toString('base64') : undefined
+}
+
+function phoneJpeg(image: NativeImage, highResolution: boolean): string | undefined {
+  if (highResolution) {
+    for (const [longEdge, quality] of PHONE_HIGH_RESOLUTION_PROFILES) {
+      const jpeg = jpegWithin(image, longEdge, longEdge, quality, PHONE_HIGH_RESOLUTION_MAX_BYTES)
+      if (jpeg !== undefined) return jpeg
+    }
+  }
+  return jpegWithin(image, 480, 270, 44, PHONE_MAX_FRAME_BYTES) ?? jpegWithin(image, 320, 180, 32, PHONE_MAX_FRAME_BYTES)
+    ?? jpegWithin(image, 240, 135, 28, PHONE_MAX_FRAME_BYTES)
 }
 
 function recordingDocumentId(): BrowserRecordingDocumentId { return randomUUID() as BrowserRecordingDocumentId }
@@ -200,7 +213,7 @@ export class DesktopBrowserPreview {
   }
 
   private async captureFrame(owner: WebContents, lease: DesktopBrowserLeaseId, urlInput: unknown, documentInput: unknown,
-    permitted: (guest: WebContents) => boolean, purpose: 'recording' | Share['audience']): Promise<BrowserRecordingFrame> {
+    permitted: (guest: WebContents) => boolean, purpose: 'recording' | Share['audience'], highResolution = false): Promise<BrowserRecordingFrame> {
     text(lease, 'recording tab identity', 128)
     const url = text(urlInput, 'recording URL', 4096)
     const tab = this.tab(owner, lease)
@@ -220,8 +233,7 @@ export class DesktopBrowserPreview {
       const image = await tab.guest.capturePage()
       requireCurrent()
       const jpeg = purpose === 'phone'
-        ? jpegWithin(image, 480, 270, 44, PHONE_MAX_FRAME_BYTES) ?? jpegWithin(image, 320, 180, 32, PHONE_MAX_FRAME_BYTES)
-          ?? jpegWithin(image, 240, 135, 28, PHONE_MAX_FRAME_BYTES)
+        ? phoneJpeg(image, highResolution)
         : jpegWithin(image, RECORDING_MAX_WIDTH, RECORDING_MAX_HEIGHT, 65, RECORDING_MAX_FRAME_BYTES)
       if (jpeg === undefined) throw new Error('Browser frame is empty or exceeds its byte limit')
       return { documentId, jpeg }
@@ -310,7 +322,7 @@ export class DesktopBrowserPreview {
       && !tab.guest.isLoadingMainFrame() && tab.guest.getURL() === share.urlAtStart
   }
 
-  private async remoteShareFrame(audience: Share['audience'], id: unknown): Promise<object> {
+  private async remoteShareFrame(audience: Share['audience'], id: unknown, highResolution = false): Promise<object> {
     const share = this.share
     const discovery = audience === 'phone' && id === undefined
     const absent = { status: discovery ? 'idle' : 'ended' }
@@ -321,7 +333,7 @@ export class DesktopBrowserPreview {
     share.nextFrameAt = now + (audience === 'phone' ? PHONE_SHARE_FRAME_INTERVAL_MS : REMOTE_SHARE_FRAME_INTERVAL_MS)
     const { owner, lease } = share.tab
     try {
-      const frame = await this.captureFrame(owner, lease, share.urlAtStart, share.documentId, share.permitted, audience)
+      const frame = await this.captureFrame(owner, lease, share.urlAtStart, share.documentId, share.permitted, audience, highResolution)
       if (this.shareIsCurrent(share)) return { status: 'frame', shareId: share.id, jpeg: frame.jpeg }
     } catch (_error: unknown) {
       if (this.shareIsCurrent(share)) return { status: 'busy' }
@@ -346,7 +358,7 @@ export class DesktopBrowserPreview {
     }
     if (packet.type === 'browser-share-stop') return { type: 'browser-share-stop-result', requestId, status: this.stopRemoteShare('web', packet.id) }
     if (packet.type === 'phone-browser-share-watch') {
-      return { type: 'phone-browser-share-result', requestId, ...await this.remoteShareFrame('phone', packet.id) }
+      return { type: 'phone-browser-share-result', requestId, ...await this.remoteShareFrame('phone', packet.id, packet.highResolution === true) }
     }
     if (packet.type === 'phone-browser-share-stop') {
       this.stopRemoteShare('phone', packet.id)

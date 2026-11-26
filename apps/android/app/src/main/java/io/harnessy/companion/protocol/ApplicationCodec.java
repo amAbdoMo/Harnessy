@@ -338,7 +338,8 @@ public final class ApplicationCodec {
                 if (value.containsKey("shareId")) Protocol.parseUuid(value.get("shareId"));
                 break;
             case "subscribeBrowserShare":
-                Protocol.exactRecord(value, "v", "type", "requestId");
+                exact(value, new String[] { "v", "type", "requestId" }, "highResolution");
+                if (value.containsKey("highResolution") && !Boolean.TRUE.equals(value.get("highResolution"))) throw invalid();
                 break;
             case "unsubscribeBrowserShare":
                 Protocol.exactRecord(value, "v", "type", "requestId", "watchId");
@@ -437,6 +438,12 @@ public final class ApplicationCodec {
     /** Subscribes this encrypted channel to browser-share frames; the request identity is the watch identity. */
     public static byte[] subscribeBrowserShare(String requestId) {
         return encodeRequest(Protocol.object("v", 1, "type", "subscribeBrowserShare", "requestId", requestId));
+    }
+    /** Opts into larger JPEG dimensions; false preserves the original request for older PCs. */
+    public static byte[] subscribeBrowserShare(String requestId, boolean highResolution) {
+        if (!highResolution) return subscribeBrowserShare(requestId);
+        return encodeRequest(Protocol.object("v", 1, "type", "subscribeBrowserShare", "requestId", requestId,
+            "highResolution", true));
     }
     /** Best-effort retirement of one browser-share subscription. */
     public static byte[] unsubscribeBrowserShare(String requestId, String watchId) {
