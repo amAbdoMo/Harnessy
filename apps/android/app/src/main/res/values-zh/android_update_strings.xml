@@ -7,6 +7,7 @@
     <string name="android_update_available">版本 %1$d 已就绪 · 下载 %2$s</string>
     <string name="android_update_install">更新</string>
     <string name="android_update_installing">正在下载差量更新…</string>
+    <string name="android_update_finishing">Android 正在安装更新…</string>
     <string name="android_update_awaiting_confirmation">请在 Android 中确认更新。</string>
     <string name="android_update_failed">无法完成更新，请检查电脑连接后重试。</string>
 </resources>

@@ -37,6 +37,8 @@ import io.harnessy.companion.presentation.ModelAccess
 import io.harnessy.companion.presentation.ModelFeedback
 import io.harnessy.companion.presentation.ModelOption
 import io.harnessy.companion.presentation.ModelSelectionPane
+import io.harnessy.companion.nativeapp.update.AndroidUpdateOffer
+import io.harnessy.companion.nativeapp.update.AndroidUpdateSectionState
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -382,9 +384,33 @@ class NativeChatMigrationTest {
                     actions, NativeSettingsActions({}, {}, {}, {}))
             }
         }
-        compose.onNodeWithText(text(R.string.native_pc_online)).assertIsDisplayed()
+        val pcOnline = text(R.string.native_pc_online)
+        compose.onNodeWithTag("settings").performScrollToNode(hasText(pcOnline))
+        compose.onNodeWithText(pcOnline).assertIsDisplayed()
         compose.onNodeWithText(text(R.string.native_chat_read_error)).assertDoesNotExist()
         compose.runOnIdle { assertEquals(emptyList<String>(), actions.events) }
+    }
+
+    @Test
+    fun openingSettingsChecksForAnUpdateAndOneTapStartsIt() {
+        assumeTrue(BuildConfig.ANDROID_UPDATES_ENABLED)
+        val actions = RecordingActions()
+        val offer = AndroidUpdateOffer("1".repeat(64), "2".repeat(64), "3".repeat(64), 10, 4096, 128)
+        val state = mutableStateOf<AndroidUpdateSectionState>(AndroidUpdateSectionState.Idle)
+        compose.setContent {
+            NativeTheme(ThemePreference.SYSTEM) {
+                NativeSettingsScreen(NativeUiState(companion = pairedState(SendState.READY), androidUpdate = state.value), actions,
+                    NativeSettingsActions({}, {}, {}, {}, checkAndroidUpdate = {
+                        actions.events.add("check")
+                        state.value = AndroidUpdateSectionState.Available(offer)
+                    }, installAndroidUpdate = { selected -> actions.events.add("install:${selected.versionCode}") }))
+            }
+        }
+
+        compose.onNodeWithTag("install_android_update").assertIsDisplayed().assertIsEnabled()
+        compose.runOnIdle { assertEquals(listOf("check"), actions.events) }
+        compose.onNodeWithTag("install_android_update").performClick()
+        compose.runOnIdle { assertEquals(listOf("check", "install:10"), actions.events) }
     }
 
     @Test

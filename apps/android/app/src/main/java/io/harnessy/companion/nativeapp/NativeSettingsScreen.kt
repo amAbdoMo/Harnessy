@@ -50,6 +50,10 @@ fun NativeSettingsScreen(state: NativeUiState, actions: CompanionActions, settin
     val companion = state.companion
     val pc = companion.screen?.pc
     val metadataReady = companion.screen?.metadataLoading == false
+    val canCheckForUpdate = BuildConfig.ANDROID_UPDATES_ENABLED && companion.foreground && pc?.connection == Connection.ONLINE
+    LaunchedEffect(pc?.id, canCheckForUpdate) {
+        if (canCheckForUpdate) settings.checkAndroidUpdate()
+    }
     var detailsExpanded by remember { mutableStateOf(false) }
     var capabilitiesExpanded by remember { mutableStateOf(false) }
     Scaffold(topBar = {
@@ -62,6 +66,12 @@ fun NativeSettingsScreen(state: NativeUiState, actions: CompanionActions, settin
         Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding), contentAlignment = Alignment.TopCenter) {
             LazyColumn(Modifier.widthIn(max = 680.dp).fillMaxSize().testTag("settings"),
                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                if (canCheckForUpdate) item {
+                    SettingsSurface {
+                        AndroidUpdateSection(state.androidUpdate,
+                            AndroidUpdateSectionActions(settings.checkAndroidUpdate, settings.installAndroidUpdate))
+                    }
+                }
                 item {
                     SettingsHeading(R.string.native_appearance)
                     SettingsSurface {
@@ -117,12 +127,6 @@ fun NativeSettingsScreen(state: NativeUiState, actions: CompanionActions, settin
                                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
                                 modifier = Modifier.testTag("forget_pairing")) { Text(stringResource(R.string.forget_pairing)) }
                         }
-                    }
-                }
-                if (BuildConfig.ANDROID_UPDATES_ENABLED && pc?.connection == Connection.ONLINE) item {
-                    SettingsSurface {
-                        AndroidUpdateSection(state.androidUpdate,
-                            AndroidUpdateSectionActions(settings.checkAndroidUpdate, settings.installAndroidUpdate))
                     }
                 }
                 item {

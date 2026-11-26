@@ -86,7 +86,8 @@ class CompanionViewModel @Inject constructor(
 
     fun checkAndroidUpdate() {
         val update = state.value.androidUpdate
-        if (update == AndroidUpdateSectionState.Checking || update == AndroidUpdateSectionState.Installing) return
+        if (update == AndroidUpdateSectionState.Checking || update == AndroidUpdateSectionState.Installing ||
+            update == AndroidUpdateSectionState.Finishing || update == AndroidUpdateSectionState.AwaitingConfirmation) return
         setAndroidUpdate(AndroidUpdateSectionState.Checking)
         viewModelScope.launch {
             try {
@@ -109,7 +110,11 @@ class CompanionViewModel @Inject constructor(
                         setAndroidUpdate(AndroidUpdateSectionState.Available(offer))
                         context.startActivity(result.settingsIntent)
                     }
-                    AndroidUpdateInstallResult.ConfirmationRequested -> setAndroidUpdate(AndroidUpdateSectionState.AwaitingConfirmation)
+                    AndroidUpdateInstallResult.Committed -> {
+                        if (state.value.androidUpdate == AndroidUpdateSectionState.Installing) {
+                            setAndroidUpdate(AndroidUpdateSectionState.Finishing)
+                        }
+                    }
                 }
             } catch (failure: CancellationException) { throw failure }
             catch (_: Exception) { setAndroidUpdate(AndroidUpdateSectionState.Failed) }
@@ -118,6 +123,10 @@ class CompanionViewModel @Inject constructor(
 
     private fun setAndroidUpdate(update: AndroidUpdateSectionState) {
         mutableState.value = state.value.copy(androidUpdate = update)
+    }
+
+    fun androidUpdateConfirmationRequired() {
+        setAndroidUpdate(AndroidUpdateSectionState.AwaitingConfirmation)
     }
 
     fun androidUpdateFinished(success: Boolean) {

@@ -41,7 +41,7 @@ internal class AndroidUpdatePackage(private val context: Context) {
         val parameters = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
             setAppPackageName(context.packageName)
             setSize(candidate.length())
-            if (Build.VERSION.SDK_INT >= 31) setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_REQUIRED)
+            if (Build.VERSION.SDK_INT >= 31) setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
         }
         val sessionId = installer.createSession(parameters)
         var committed = false
@@ -61,7 +61,7 @@ internal class AndroidUpdatePackage(private val context: Context) {
                 installer.abandonSession(sessionId)
             }
         }
-        return AndroidUpdateInstallResult.ConfirmationRequested
+        return AndroidUpdateInstallResult.Committed
     }
 
     private fun statusIntent(sessionId: Int): PendingIntent {

@@ -7,6 +7,7 @@
     <string name="android_update_available">Build %1$d is ready · %2$s download</string>
     <string name="android_update_install">Update</string>
     <string name="android_update_installing">Downloading the update…</string>
+    <string name="android_update_finishing">Android is installing the update…</string>
     <string name="android_update_awaiting_confirmation">Confirm the update in Android.</string>
     <string name="android_update_failed">Couldn’t finish the update. Check your PC connection and try again.</string>
 </resources>

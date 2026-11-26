@@ -36,8 +36,11 @@ fun NativeCompanionApp(viewModel: CompanionViewModel = hiltViewModel()) {
             val result = installStatus ?: return@LaunchedEffect
             if (!AndroidInstallStatusInbox.consume(result)) return@LaunchedEffect
             when (result) {
-                is AndroidInstallStatus.Confirm -> try { activity.startActivity(result.intent) }
+                is AndroidInstallStatus.Confirm -> {
+                    viewModel.androidUpdateConfirmationRequired()
+                    try { activity.startActivity(result.intent) }
                     catch (_: android.content.ActivityNotFoundException) { viewModel.androidUpdateFinished(false) }
+                }
                 AndroidInstallStatus.Finished -> viewModel.androidUpdateFinished(true)
                 AndroidInstallStatus.Failed -> viewModel.androidUpdateFinished(false)
             }

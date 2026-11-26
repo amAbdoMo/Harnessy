@@ -20,6 +20,7 @@ sealed interface AndroidUpdateSectionState {
     data object Current : AndroidUpdateSectionState
     data class Available(val offer: AndroidUpdateOffer) : AndroidUpdateSectionState
     data object Installing : AndroidUpdateSectionState
+    data object Finishing : AndroidUpdateSectionState
     data object AwaitingConfirmation : AndroidUpdateSectionState
     data object Failed : AndroidUpdateSectionState
 }
@@ -48,6 +49,7 @@ fun AndroidUpdateSection(state: AndroidUpdateSectionState, actions: AndroidUpdat
                 }
             }
             AndroidUpdateSectionState.Installing -> Text(stringResource(R.string.android_update_installing))
+            AndroidUpdateSectionState.Finishing -> Text(stringResource(R.string.android_update_finishing))
             AndroidUpdateSectionState.AwaitingConfirmation -> Text(stringResource(R.string.android_update_awaiting_confirmation))
             AndroidUpdateSectionState.Failed -> {
                 Text(stringResource(R.string.android_update_failed), color = MaterialTheme.colorScheme.error)

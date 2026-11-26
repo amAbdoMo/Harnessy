@@ -25,7 +25,7 @@ sealed interface AndroidUpdateCheckResult {
 
 sealed interface AndroidUpdateInstallResult {
     data class PermissionRequired(val settingsIntent: Intent) : AndroidUpdateInstallResult
-    data object ConfirmationRequested : AndroidUpdateInstallResult
+    data object Committed : AndroidUpdateInstallResult
 }
 
 class AndroidUpdateException(message: String, cause: Throwable? = null) : Exception(message, cause)

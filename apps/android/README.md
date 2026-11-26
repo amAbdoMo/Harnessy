@@ -78,7 +78,7 @@ The viewer keeps the last decoded frame visible while it decodes a replacement f
 <a id="staging-app-updates"></a>
 ## Staging app updates
 
-With the paired staging PC online, open **Settings → App updates → Check for updates**, then tap **Update**. The PC serves the delta for the installed APK, and Android reconstructs and verifies the newer signed APK locally before asking for approval. Allow Harnessy Dev to install its own update if Android requests it. Updating this way preserves the existing app data and pairing.
+With the paired staging PC online, open **Settings**. **App updates** checks for a delta for the installed APK. Review the download size and tap **Update**. Harnessy reconstructs and verifies the newer signed APK locally. Android 12 and later can complete an eligible self-update directly after that tap. Follow any confirmation Android requires. Updating this way preserves the existing app data and pairing.
 
 Build the newer Debug APK with `-Pcompanion.versionCode=<higher-code>` and retain the exact previously delivered APK. On the Windows staging PC, set `JAVA_HOME` to the Android JDK, then run `pnpm exec tsx apps/desktop/scripts/prepare-android-staging-update.ts --base <older-apk> --target <newer-apk>` from the staging checkout. This serves the delta from the staging PC through the encrypted companion connection. Devices on an older build without an updater need a one-time in-place upgrade to an updater-capable APK.
 

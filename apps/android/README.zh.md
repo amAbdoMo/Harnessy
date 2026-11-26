@@ -78,7 +78,7 @@ Gradle 属性 `companion.pcModelSelection` 默认为 `true`。启用后，[模�
 <a id="staging-app-updates"></a>
 ## 测试版应用更新
 
-已配对的测试版电脑在线时，打开**设置 → 应用更新 → 检查更新**，然后点按**更新**。电脑发送与已安装 APK 匹配的差量数据。Android 在本地重建并验证新版签名 APK，然后请求批准。如 Android 提示，请允许 Harnessy Dev 安装自己的更新。此更新方式保留已有应用数据和配对。
+已配对的测试版电脑在线时，打开**设置**。**应用更新**会检查与已安装 APK 匹配的差量更新。查看下载大小，然后点按**更新**。Harnessy 在本地重建并验证新版签名 APK。Android 12 及以上可以在点按后直接完成符合条件的自更新。如 Android 要求确认，请按提示操作。此更新方式保留已有应用数据和配对。
 
 构建新版 Debug APK 时使用 `-Pcompanion.versionCode=<higher-code>`，并保留已交付的原始 APK。在 Windows 测试版电脑上将 `JAVA_HOME` 指向 Android JDK，然后从测试版检出目录运行 `pnpm exec tsx apps/desktop/scripts/prepare-android-staging-update.ts --base <older-apk> --target <newer-apk>`。差量数据由测试版电脑通过加密伴侣连接提供。没有更新功能的旧版设备需要就地安装一次支持更新的 APK。
 
