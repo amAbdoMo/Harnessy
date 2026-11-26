@@ -1,6 +1,8 @@
 package io.harnessy.companion.nativeapp
 
 import android.graphics.Bitmap
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.InputMode
@@ -28,7 +30,7 @@ import java.io.File
 /** Covers the drawer and composer surface treatment that the reference design introduced. */
 @RunWith(AndroidJUnit4::class)
 class NativeSurfaceTreatmentTest {
-    @get:Rule val compose = createComposeRule()
+    @Rule @JvmField val compose = createComposeRule()
     private lateinit var inputMode: InputModeManager
 
     private val workspace = WorkspaceInfo("workspace-a", "Workspace A (fixture)", 0)
@@ -106,15 +108,49 @@ class NativeSurfaceTreatmentTest {
     @Test
     fun returningToWorkKeepsTheActiveChatAndDraftReachable() {
         val actions = RecordingActions()
-        render(state(foreground = true), actions)
+        render(state(foreground = true), actions, showWorkTabs = true)
 
+        compose.onNodeWithTag("work_bottom_navigation").assertDoesNotExist()
         compose.onNodeWithTag("back_to_work").assertIsDisplayed().performClick()
         compose.onNodeWithTag("work_landing").assertIsDisplayed()
         compose.onNodeWithTag("chat_draft").assertDoesNotExist()
+        val wide = InstrumentationRegistry.getInstrumentation().targetContext.resources.configuration.screenWidthDp >= 600
+        if (!wide) {
+            compose.onNodeWithTag("work_tab").assertIsSelected().assertIsDisplayed()
+            compose.onNodeWithTag("open_settings").assertDoesNotExist()
+        }
         compose.runOnIdle { assertEquals(emptyList<String>(), actions.events) }
         compose.onNodeWithTag("recent_session_current").performClick()
+        compose.onNodeWithTag("work_bottom_navigation").assertDoesNotExist()
         compose.onNodeWithTag("chat_draft").assertTextEquals("Draft (fixture)")
         compose.runOnIdle { assertEquals(listOf("select:current"), actions.events) }
+    }
+
+    @Test
+    fun workTabSelectionKeepsOfflineBrowserUnavailableAndIgnoresReselection() {
+        val destinations = mutableListOf<WorkDestination>()
+        val browserOnline = mutableStateOf(false)
+        val selected = mutableStateOf(WorkDestination.WORK)
+        compose.setContent {
+            NativeTheme(ThemePreference.DARK) {
+                NativeWorkNavigation(selected.value, browserOnline.value) {
+                    destinations.add(it)
+                    selected.value = it
+                }
+            }
+        }
+
+        compose.onNodeWithTag("work_tab").assertIsSelected().performClick()
+        compose.onNodeWithTag("live_browser_tab").assertIsNotEnabled().performTouchInput { click() }
+        compose.runOnIdle {
+            assertEquals(emptyList<WorkDestination>(), destinations)
+            browserOnline.value = true
+        }
+        compose.onNodeWithTag("live_browser_tab").assertIsEnabled().performClick()
+        compose.onNodeWithTag("live_browser_tab").assertIsSelected()
+        compose.onNodeWithTag("settings_tab").performClick()
+        compose.onNodeWithTag("settings_tab").assertIsSelected()
+        compose.runOnIdle { assertEquals(listOf(WorkDestination.BROWSER, WorkDestination.SETTINGS), destinations) }
     }
 
     @Test
@@ -149,7 +185,7 @@ class NativeSurfaceTreatmentTest {
         }
     }
 
-    private fun render(initial: CompanionState, actions: RecordingActions) {
+    private fun render(initial: CompanionState, actions: RecordingActions, showWorkTabs: Boolean = false) {
         val theme = when (InstrumentationRegistry.getArguments().getString("surfaceTheme")) {
             "dark" -> ThemePreference.DARK
             "light" -> ThemePreference.LIGHT
@@ -158,7 +194,10 @@ class NativeSurfaceTreatmentTest {
         compose.setContent {
             inputMode = LocalInputModeManager.current
             NativeTheme(theme) {
-                NativeChatScreen(initial, actions, openSettings = {}, resumeConnection = {})
+                val bottomBar: (@Composable () -> Unit)? = if (showWorkTabs) {
+                    { NativeWorkNavigation(WorkDestination.WORK, browserAvailable = true) {} }
+                } else null
+                NativeChatScreen(initial, actions, openSettings = {}, resumeConnection = {}, workBottomBar = bottomBar)
             }
         }
     }

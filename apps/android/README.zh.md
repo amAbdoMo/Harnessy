@@ -31,7 +31,7 @@ description: "原生 Kotlin／Compose Android 聊天、具备生命周期感知�
 
 手机通过可搜索的抽屉筛选已加载的对话。宽屏布局可在聊天旁显示导航。紧凑标题栏保留搜索和关闭操作。圆角行高亮区分选中、按下、指针悬停和键盘焦点。
 
-[工作首页](<app/src/main/java/io/harnessy/companion/nativeapp/NativeWorkLanding.kt>)列出已加载的电脑对话，并通过与抽屉相同的权限检查和工作区选择器提供**新对话**。**实时浏览器**打开已连接电脑的查看器。从对话返回会进入工作首页，仍可回到当前对话和草稿。[自适应编辑器](<app/src/main/java/io/harnessy/companion/nativeapp/NativeComposer.kt>)仅在选中对话时显示，已关闭的对话保持只读，键盘限制高度时采用紧凑输入框。工作首页仍可检查送达状态。
+[工作首页](<app/src/main/java/io/harnessy/companion/nativeapp/NativeWorkLanding.kt>)列出已加载的电脑对话，并在列表标题旁显示**新对话**。此操作打开与抽屉相同的工作区选择器，并检查相同权限。在手机上，[底部导航](<app/src/main/java/io/harnessy/companion/nativeapp/NativeWorkNavigation.kt>)可在**工作**、**实时浏览器**和**设置**之间切换。从对话返回会进入工作首页，仍可回到当前对话和草稿。[自适应编辑器](<app/src/main/java/io/harnessy/companion/nativeapp/NativeComposer.kt>)仅在选中对话时显示，已关闭的对话保持只读，键盘限制高度时采用紧凑输入框。工作首页仍可检查送达状态。
 
 [设置](<app/src/main/java/io/harnessy/companion/nativeapp/NativeSettingsScreen.kt>)将外观、配对、测试版更新和电脑权限分组。打开导航会清除草稿焦点并收起键盘。抽屉搜索会为键盘预留空间。键盘收起后，系统返回操作会先关闭手机抽屉，再离开对话。
 

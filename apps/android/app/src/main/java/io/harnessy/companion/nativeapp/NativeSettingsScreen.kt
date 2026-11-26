@@ -46,7 +46,12 @@ data class NativeSettingsActions(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NativeSettingsScreen(state: NativeUiState, actions: CompanionActions, settings: NativeSettingsActions) {
+fun NativeSettingsScreen(
+    state: NativeUiState,
+    actions: CompanionActions,
+    settings: NativeSettingsActions,
+    workBottomBar: (@Composable () -> Unit)? = null,
+) {
     val companion = state.companion
     val pc = companion.screen?.pc
     val metadataReady = companion.screen?.metadataLoading == false
@@ -60,10 +65,12 @@ fun NativeSettingsScreen(state: NativeUiState, actions: CompanionActions, settin
         CenterAlignedTopAppBar(title = { NativeCompactHeaderTitle(stringResource(R.string.native_settings)) },
             expandedHeight = 48.dp,
             navigationIcon = {
-                NativeFloatingIconButton(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.native_back),
-                    settings.goBack, testTag = "back_to_chat")
+                if (workBottomBar == null) {
+                    NativeFloatingIconButton(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.native_back),
+                        settings.goBack, testTag = "back_to_chat")
+                }
             }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background))
-    }) { padding ->
+    }, bottomBar = { workBottomBar?.invoke() }) { padding ->
         Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding), contentAlignment = Alignment.TopCenter) {
             LazyColumn(Modifier.widthIn(max = 720.dp).fillMaxSize().testTag("settings"),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
@@ -102,7 +109,7 @@ fun NativeSettingsScreen(state: NativeUiState, actions: CompanionActions, settin
                         } else {
                             SettingsAction(R.string.pair_pc, "pair_pc", companion.foreground && metadataReady, actions::showPairing)
                         }
-                        if (pc?.connection == Connection.ONLINE && !companion.connectionPaused) {
+                        if (workBottomBar == null && pc?.connection == Connection.ONLINE && !companion.connectionPaused) {
                             SettingsAction(R.string.native_browser_share_title, "open_browser_share",
                                 companion.foreground, settings.openBrowserShare)
                         }

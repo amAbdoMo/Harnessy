@@ -42,14 +42,24 @@ internal fun NativeWorkLanding(
     val pane = screen.sessions
     val review = screen.composer.review
     LazyColumn(modifier.testTag("work_landing"),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp,
-            bottom = if (review == null && canCreate && pane.rows.isNotEmpty()) 84.dp else 20.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
         item(key = "work_landing_header") {
-            Column(Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp, bottom = 12.dp),
+            Column(Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp, bottom = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(stringResource(R.string.native_conversations), style = MaterialTheme.typography.headlineMedium,
-                    modifier = Modifier.semantics { heading() })
+                Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.native_conversations), style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.weight(1f).semantics { heading() })
+                    if (review == null && pane.rows.isNotEmpty()) {
+                        Button(onClick = create, enabled = canCreate,
+                            modifier = Modifier.heightIn(min = 48.dp).testTag("work_new_chat"),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
+                            Icon(Icons.Default.Add, null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(stringResource(R.string.native_new_chat))
+                        }
+                    }
+                }
                 screen.pc?.displayName?.takeIf { it.isNotBlank() }?.let { name ->
                     Text(name, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -79,11 +89,11 @@ internal fun NativeWorkLanding(
             }
         }
         if (openBrowser != null) item(key = "work_live_browser") {
-            Surface(Modifier.fillMaxWidth().padding(top = 12.dp), shape = RoundedCornerShape(20.dp),
+            Surface(Modifier.fillMaxWidth().padding(top = 8.dp), shape = RoundedCornerShape(20.dp),
                 color = MaterialTheme.colorScheme.surface) {
                 NativePressableRow(enabled = foreground, onClick = openBrowser, minimumHeight = 56.dp,
                     modifier = Modifier.fillMaxWidth().testTag("work_open_browser"),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp), spacing = 12.dp) {
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp), spacing = 10.dp) {
                     Icon(Icons.Default.PlayArrow, null, Modifier.size(22.dp), MaterialTheme.colorScheme.primary)
                     Text(stringResource(R.string.native_browser_share_title), Modifier.weight(1f),
                         style = MaterialTheme.typography.titleMedium)
@@ -97,7 +107,7 @@ internal fun NativeWorkLanding(
 @Composable
 private fun EmptyWorkCard(online: Boolean, canCreate: Boolean, create: () -> Unit) {
     Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surface) {
-        Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Icon(Icons.AutoMirrored.Outlined.List, null, Modifier.size(24.dp), MaterialTheme.colorScheme.primary)
             Text(stringResource(R.string.native_work_empty), style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.semantics { heading() })
@@ -118,7 +128,7 @@ private fun LazyListScope.recentConversations(pane: SessionPane, foreground: Boo
     item(key = "work_landing_recents") {
         Text(stringResource(R.string.native_recents), style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 4.dp, top = 4.dp, bottom = 4.dp).semantics { heading() })
+            modifier = Modifier.padding(start = 4.dp, top = 2.dp, bottom = 2.dp).semantics { heading() })
     }
     items(pane.rows, key = { it.id }) { row ->
         RecentConversationRow(row, foreground) { select(row.id) }
@@ -130,13 +140,13 @@ private fun RecentConversationRow(row: SessionRow, foreground: Boolean, select: 
     val status = stringResource(sessionText(row.status))
     NativePressableRow(enabled = foreground, onClick = select, minimumHeight = 56.dp,
         modifier = Modifier.fillMaxWidth().testTag("recent_session_${row.id}").semantics { stateDescription = status },
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp), spacing = 12.dp) {
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp), spacing = 10.dp) {
         Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceContainerLow) {
-            Box(Modifier.size(38.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(32.dp), contentAlignment = Alignment.Center) {
                 Icon(Icons.AutoMirrored.Outlined.List, null, Modifier.size(20.dp), MaterialTheme.colorScheme.primary)
             }
         }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(row.title.ifBlank { stringResource(R.string.native_untitled_conversation) },
                 style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {

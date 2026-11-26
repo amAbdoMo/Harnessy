@@ -11,7 +11,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Menu
@@ -51,12 +50,13 @@ fun NativeChatScreen(
     openSettings: () -> Unit,
     resumeConnection: () -> Unit,
     openBrowserShare: (() -> Unit)? = null,
+    workBottomBar: (@Composable () -> Unit)? = null,
 ) {
     val screen = state.screen
     when {
         !state.connectionPaused && state.foreground && (screen == null || screen.metadataLoading) -> LoadingPcScreen(openSettings)
         screen?.pc == null || state.connectionPaused -> LinkPcScreen(state, actions, openSettings, resumeConnection)
-        else -> PairedChatScreen(state, screen, actions, openSettings, openBrowserShare)
+        else -> PairedChatScreen(state, screen, actions, openSettings, openBrowserShare, workBottomBar)
     }
 }
 
@@ -117,6 +117,7 @@ private fun PairedChatScreen(
     actions: NativeChatActions,
     openSettings: () -> Unit,
     openBrowserShare: (() -> Unit)?,
+    workBottomBar: (@Composable () -> Unit)?,
 ) {
     val pc = screen.pc ?: return
     val browserAction = openBrowserShare?.takeIf { pc.connection == Connection.ONLINE }
@@ -137,6 +138,7 @@ private fun PairedChatScreen(
         val session = screen.conversation.session
         var workOverSession by rememberSaveable(pc.id) { mutableStateOf<String?>(null) }
         val showWork = session == null || workOverSession == session.id
+        val showWorkTabs = showWork && !wide && workBottomBar != null
         val showWorkLanding: () -> Unit = {
             focus.clearFocus(force = true)
             keyboard?.hide()
@@ -202,28 +204,23 @@ private fun PairedChatScreen(
                                 NativeFloatingIconButton(Icons.Default.PlayArrow, stringResource(R.string.native_browser_share_title),
                                     browserAction, testTag = "open_browser_share_top", iconSize = 18.dp)
                             }
-                            Spacer(Modifier.width(4.dp))
-                            NativeFloatingIconButton(Icons.Default.Settings, stringResource(R.string.native_settings),
-                                openSettings, testTag = "open_settings", iconSize = 18.dp)
+                            if (showWorkTabs) Spacer(Modifier.width(16.dp)) else {
+                                Spacer(Modifier.width(4.dp))
+                                NativeFloatingIconButton(Icons.Default.Settings, stringResource(R.string.native_settings),
+                                    openSettings, testTag = "open_settings", iconSize = 18.dp)
+                            }
                         },
                         colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
                     )
                 },
-                bottomBar = { if (!showWork) NativeComposer(state, screen, actions, if (wide) null else openSessions) },
-                floatingActionButton = {
-                    if (showWork && screen.composer.review == null && screen.sessions.rows.isNotEmpty() &&
-                        state.foreground && pc.connection == Connection.ONLINE) {
-                        ExtendedFloatingActionButton(onClick = sidebar.create,
-                            icon = { Icon(Icons.Default.Add, null) },
-                            text = { Text(stringResource(R.string.native_new_chat)) },
-                            containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.testTag("work_new_chat"))
-                    }
+                bottomBar = {
+                    if (showWorkTabs) workBottomBar()
+                    else if (!showWork) NativeComposer(state, screen, actions, if (wide) null else openSessions)
                 },
             ) { padding ->
                 Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding), contentAlignment = Alignment.TopCenter) {
                     if (showWork) NativeWorkLanding(screen, state.foreground, actions, sidebar.create, selectSession,
-                        browserAction, Modifier.widthIn(max = 720.dp).fillMaxSize())
+                        browserAction.takeUnless { showWorkTabs }, Modifier.widthIn(max = 720.dp).fillMaxSize())
                     else ConversationPane(screen, actions, Modifier.widthIn(max = 720.dp).fillMaxSize())
                 }
             }

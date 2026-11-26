@@ -99,6 +99,7 @@ fun NativeBrowserShareScreen(
     state: NativeUiState,
     viewModel: CompanionViewModel,
     close: () -> Unit,
+    workBottomBar: (@Composable () -> Unit)? = null,
 ) {
     val share = state.companion.browserShare
     val pollMs = integerResource(R.integer.browser_share_poll_ms).toLong()
@@ -120,10 +121,13 @@ fun NativeBrowserShareScreen(
     Scaffold(
         topBar = {
             Surface(color = MaterialTheme.colorScheme.background) {
-                Row(Modifier.fillMaxWidth().statusBarsPadding().heightIn(min = 48.dp).padding(end = 16.dp),
+                Row(Modifier.fillMaxWidth().statusBarsPadding().heightIn(min = 48.dp)
+                    .padding(start = if (workBottomBar == null) 0.dp else 16.dp, end = 16.dp),
                     verticalAlignment = Alignment.CenterVertically) {
-                    NativeFloatingIconButton(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.native_back),
-                        close, testTag = "close_browser_share")
+                    if (workBottomBar == null) {
+                        NativeFloatingIconButton(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.native_back),
+                            close, testTag = "close_browser_share")
+                    }
                     Text(stringResource(R.string.native_browser_share_title),
                         style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f),
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -132,6 +136,7 @@ fun NativeBrowserShareScreen(
                 }
             }
         },
+        bottomBar = { workBottomBar?.invoke() },
     ) { padding ->
         Column(
             Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).navigationBarsPadding()
