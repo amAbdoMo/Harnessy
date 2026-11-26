@@ -1,5 +1,6 @@
 package io.harnessy.companion.nativeapp
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -9,6 +10,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Menu
@@ -26,6 +29,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -72,7 +76,7 @@ private fun LoadingPcScreen(openSettings: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CompanionTopBar(title: String, openSettings: () -> Unit) {
-    CenterAlignedTopAppBar(title = { NativeCompactHeaderTitle(title) }, actions = {
+    CenterAlignedTopAppBar(title = { NativeCompactHeaderTitle(title) }, expandedHeight = 48.dp, actions = {
         NativeFloatingIconButton(Icons.Default.Settings, stringResource(R.string.native_settings),
             openSettings, testTag = "open_settings", iconSize = 18.dp)
     }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background))
@@ -120,6 +124,7 @@ private fun PairedChatScreen(
         state.workspacePreferenceFailed, actions::setWorkspaceExpansion)
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wide = maxWidth >= 600.dp
+        val roomForConnectionLabel = maxWidth >= 360.dp
         val navigationWidth = if (maxWidth >= 840.dp) 288.dp else 240.dp
         val drawer = rememberDrawerState(DrawerValue.Closed)
         val scope = rememberCoroutineScope()
@@ -129,6 +134,21 @@ private fun PairedChatScreen(
         val navigationFocus = remember { FocusRequester() }
         var managementDialog by remember(state.foregroundGeneration, pc.id) { mutableStateOf<SidebarManagementDialog?>(null) }
         var wideNavigationVisible by rememberSaveable { mutableStateOf(true) }
+        val session = screen.conversation.session
+        var workOverSession by rememberSaveable(pc.id) { mutableStateOf<String?>(null) }
+        val showWork = session == null || workOverSession == session.id
+        val showWorkLanding: () -> Unit = {
+            focus.clearFocus(force = true)
+            keyboard?.hide()
+            workOverSession = session?.id
+            if (!wide) scope.launch { drawer.close() }
+        }
+        val selectSession: (String) -> Unit = { id ->
+            workOverSession = null
+            actions.selectSession(id)
+            if (!wide) scope.launch { drawer.close() }
+        }
+        BackHandler(enabled = !showWork && drawer.isClosed && managementDialog == null) { showWorkLanding() }
         val openSessions: () -> Unit = {
             focus.clearFocus(force = true)
             if (wide) navigationFocus.requestFocus()
@@ -157,18 +177,26 @@ private fun PairedChatScreen(
                     CenterAlignedTopAppBar(
                         title = {
                             NativeCompactHeaderTitle(
-                                if (screen.conversation.session == null) stringResource(R.string.native_work)
-                                else screen.conversation.session.title.ifBlank { stringResource(R.string.native_untitled_conversation) },
+                                if (showWork) stringResource(R.string.native_work)
+                                else session.title.ifBlank { stringResource(R.string.native_untitled_conversation) },
+                                showBrand = showWork,
                             )
                         },
                         navigationIcon = {
-                            if (!wide || !wideNavigationVisible) {
-                                NativeFloatingIconButton(Icons.Default.Menu, stringResource(R.string.native_open_conversations),
-                                    openSessions, testTag = "open_sessions")
+                            Row {
+                                if (!showWork) {
+                                    NativeFloatingIconButton(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.native_work),
+                                        showWorkLanding, testTag = "back_to_work")
+                                }
+                                if (!wide || !wideNavigationVisible) {
+                                    NativeFloatingIconButton(Icons.Default.Menu, stringResource(R.string.native_open_conversations),
+                                        openSessions, testTag = "open_sessions")
+                                }
                             }
                         },
+                        expandedHeight = 48.dp,
                         actions = {
-                            NativeConnectionStatus(pc.connection)
+                            NativeConnectionStatus(pc.connection, showLabel = showWork && roomForConnectionLabel)
                             if (wide && browserAction != null) {
                                 Spacer(Modifier.width(4.dp))
                                 NativeFloatingIconButton(Icons.Default.PlayArrow, stringResource(R.string.native_browser_share_title),
@@ -181,12 +209,22 @@ private fun PairedChatScreen(
                         colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
                     )
                 },
-                bottomBar = { NativeComposer(state, screen, actions, if (wide) null else openSessions) },
+                bottomBar = { if (!showWork) NativeComposer(state, screen, actions, if (wide) null else openSessions) },
+                floatingActionButton = {
+                    if (showWork && screen.composer.review == null && screen.sessions.rows.isNotEmpty() &&
+                        state.foreground && pc.connection == Connection.ONLINE) {
+                        ExtendedFloatingActionButton(onClick = sidebar.create,
+                            icon = { Icon(Icons.Default.Add, null) },
+                            text = { Text(stringResource(R.string.native_new_chat)) },
+                            containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.testTag("work_new_chat"))
+                    }
+                },
             ) { padding ->
                 Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding), contentAlignment = Alignment.TopCenter) {
-                    if (screen.conversation.session == null) NativeWorkLanding(screen, state.foreground, actions,
-                        Modifier.widthIn(max = 760.dp).fillMaxSize())
-                    else ConversationPane(screen, actions, Modifier.widthIn(max = 760.dp).fillMaxSize())
+                    if (showWork) NativeWorkLanding(screen, state.foreground, actions, sidebar.create, selectSession,
+                        browserAction, Modifier.widthIn(max = 720.dp).fillMaxSize())
+                    else ConversationPane(screen, actions, Modifier.widthIn(max = 720.dp).fillMaxSize())
                 }
             }
         }
@@ -201,8 +239,9 @@ private fun PairedChatScreen(
                                 SessionNavigationActions(refreshSidebar, { id ->
                                     navigationFocus.requestFocus()
                                     keyboard?.hide()
-                                    actions.selectSession(id)
-                                }, actions::loadMoreSessions, workspaceExpansion, sidebar, openBrowserFromNavigation),
+                                    selectSession(id)
+                                }, actions::loadMoreSessions, workspaceExpansion, sidebar, openBrowserFromNavigation,
+                                    showWorkLanding, showWork),
                                 Modifier.statusBarsPadding().navigationBarsPadding().imePadding())
                         }
                         VerticalDivider()
@@ -215,10 +254,8 @@ private fun PairedChatScreen(
                 ModalDrawerSheet(drawerState = drawer, modifier = Modifier.fillMaxWidth(0.8f),
                     drawerContainerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
                     NativeSessionNavigation(screen.sessions, state.foreground,
-                        SessionNavigationActions(refreshSidebar, { id ->
-                            actions.selectSession(id)
-                            scope.launch { drawer.close() }
-                        }, actions::loadMoreSessions, workspaceExpansion, sidebar, openBrowserFromNavigation), Modifier.fillMaxWidth().imePadding())
+                        SessionNavigationActions(refreshSidebar, selectSession, actions::loadMoreSessions, workspaceExpansion,
+                            sidebar, openBrowserFromNavigation, showWorkLanding, showWork), Modifier.fillMaxWidth().imePadding())
                 }
             }) { chat() }
         }
@@ -228,16 +265,19 @@ private fun PairedChatScreen(
 
 /** Names the PC link separately from a conversation's read-only or running status. */
 @Composable
-internal fun NativeConnectionStatus(connection: Connection) {
+internal fun NativeConnectionStatus(connection: Connection, showLabel: Boolean = true) {
     val label = when (connection) {
         Connection.ONLINE -> R.string.native_pc_online
         Connection.OFFLINE -> R.string.native_pc_offline
         Connection.CONNECTING -> R.string.native_pc_connecting
     }
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Box(Modifier.size(6.dp).background(if (connection == Connection.ONLINE) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.onSurfaceVariant, CircleShape))
-        Text(stringResource(label), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    val status = stringResource(label)
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Box(Modifier.size(8.dp).background(if (connection == Connection.ONLINE) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.onSurfaceVariant, CircleShape)
+            .then(if (showLabel) Modifier else Modifier.semantics { contentDescription = status }))
+        if (showLabel) Text(status, style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
     }
 }
 
@@ -255,7 +295,7 @@ private fun ConversationPane(screen: Screen, actions: NativeChatActions, modifie
     BoxWithConstraints(modifier) {
         val activityBodyHeight = minOf(400.dp, maxHeight / 2)
         LazyColumn(Modifier.fillMaxSize().testTag("transcript"), state = scroll, reverseLayout = true,
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (screen.composer.feedback != Feedback.NONE && screen.composer.feedback != Feedback.DELIVERY_UNKNOWN) {
                 item(key = "feedback") {
                     Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, shape = RoundedCornerShape(16.dp)) {
@@ -306,7 +346,7 @@ private fun NativeChatMessage(row: TextRow) {
     BoxWithConstraints(Modifier.fillMaxWidth().padding(vertical = 5.dp).testTag("message_${row.id}").semantics { stateDescription = author }) {
         if (row.role == Role.USER) {
             Surface(modifier = Modifier.align(Alignment.CenterEnd).widthIn(max = maxWidth * 0.88f).testTag("user_message"),
-                color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(20.dp), shadowElevation = 1.dp) {
+                color = MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(20.dp)) {
                 NativeMessageBody(row.text, Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
             }
         } else {

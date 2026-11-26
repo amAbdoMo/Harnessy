@@ -102,7 +102,7 @@ class NativeChatMigrationTest {
     }
 
     @Test
-    fun noSelectionKeepsRecentChatsWithoutComposerHelperOrSessionChip() {
+    fun noSelectionShowsRecentChatsAndTheCreateActionWithoutAnEditor() {
         val actions = RecordingActions()
         val session = SessionRow("s1", "Existing conversation", SessionStatus.IDLE)
         val screen = Screen(Pc("paired-pc", "Linked PC", Connection.ONLINE),
@@ -111,13 +111,14 @@ class NativeChatMigrationTest {
         render(CompanionState(screen = screen, foreground = true), actions)
 
         compose.onNodeWithTag("chat_draft").assertDoesNotExist()
-        compose.onNodeWithTag("composer_shell").assertIsDisplayed()
-        compose.onNodeWithTag("send_text").assertIsDisplayed().assertIsNotEnabled()
+        compose.onNodeWithTag("composer_shell").assertDoesNotExist()
+        compose.onNodeWithTag("send_text").assertDoesNotExist()
+        compose.onNodeWithTag("work_new_chat").assertIsDisplayed().assertIsEnabled()
         compose.onNodeWithTag("recent_session_s1").assertIsDisplayed()
         val wide = InstrumentationRegistry.getInstrumentation().targetContext.resources.configuration.screenWidthDp >= 600
         compose.onNodeWithTag("choose_conversation").assertDoesNotExist()
         compose.onNodeWithTag("composer_hint").assertDoesNotExist()
-        compose.onNodeWithTag("choose_model").assertIsDisplayed().assertIsNotEnabled()
+        compose.onNodeWithTag("choose_model").assertDoesNotExist()
         if (!wide) compose.onNodeWithTag("open_sessions").performClick()
         compose.onNodeWithTag("session_search").assertDoesNotExist()
         compose.onNodeWithTag("sidebar_search").assertIsDisplayed()
@@ -218,7 +219,7 @@ class NativeChatMigrationTest {
             Composer("", SendState.NO_SELECTION, Feedback.NONE, null), false)
         compose.setContent {
             NativeTheme(ThemePreference.SYSTEM) {
-                NativeWorkLanding(screen, foreground.value, actions, Modifier.fillMaxSize())
+                NativeWorkLanding(screen, foreground.value, actions, {}, actions::selectSession, null, Modifier.fillMaxSize())
             }
         }
         compose.onNodeWithTag("recent_session_recent").assertIsDisplayed().assertIsNotEnabled()
@@ -243,7 +244,7 @@ class NativeChatMigrationTest {
 
         compose.onNodeWithTag("recent_session_recent").assertDoesNotExist()
         compose.onNodeWithTag("chat_draft").assertDoesNotExist()
-        compose.onNodeWithTag("send_text").assertIsNotEnabled()
+        compose.onNodeWithTag("send_text").assertDoesNotExist()
         compose.onNodeWithTag("review_delivery").performScrollTo().assertIsDisplayed().performClick()
         compose.runOnIdle { assertEquals(listOf("review"), actions.events) }
     }

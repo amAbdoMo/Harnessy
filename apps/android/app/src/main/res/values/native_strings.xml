@@ -7,7 +7,6 @@
     <string name="native_draft_rejected">Use valid text within %1$d UTF-8 bytes. The previous draft has been retained.</string>
     <string name="native_back">Back</string>
     <string name="native_pair">Pair</string>
-    <string name="native_select_explanation">Choose an existing conversation from your PC. Its history and work stay on that PC.</string>
     <string name="native_appearance">Appearance</string>
     <string name="native_chat_management">Chat management</string>
     <string name="native_chat_management_enabled">Enabled by your PC</string>
@@ -62,7 +61,6 @@
         <item quantity="other">%1$d tool calls</item>
     </plurals>
     <string name="native_work">Work</string>
-    <string name="native_continue_pc">Continue from your PC</string>
     <string name="native_view_history">View history</string>
     <string name="native_continue">Continue</string>
     <string name="native_untitled_workspace">Untitled workspace</string>

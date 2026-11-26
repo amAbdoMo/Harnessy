@@ -57,7 +57,7 @@
     <string name="pairing_import">使用此邀请配对</string>
     <string name="pairing_in_progress">正在关联，请先在电脑上比较完整的手机指纹再批准</string>
     <string name="fingerprint_hint">手机公钥 SHA-256 指纹。请与电脑配对对话框比较全部 64 个小写字符：</string>
-    <string name="pairing_limits">请保持电脑唤醒。离开本应用会断开连接并丢弃邀请。无离线队列或推送通知。仅支持已有会话和文本追加，不支持附件、新建会话或远程审批回答</string>
+    <string name="pairing_limits">请保持电脑唤醒。离开本应用会断开连接并丢弃邀请。手机可用的操作由电脑上的权限设置决定。</string>
     <string name="forget_title">忘记此电脑？</string>
     <string name="forget_explanation">删除本手机与 %1$s 的本地配对信息和签名密钥。此操作不会撤销电脑授权或删除已接收的任务。请先检查送达未知的任务，再在电脑上的 Harnessy 中移除此手机以撤销访问权限</string>
     <string name="cancel">取消</string>

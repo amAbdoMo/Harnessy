@@ -55,6 +55,19 @@ class NativeSessionManagementTest {
     }
 
     @Test
+    fun emptyWorkOpensTheSameWorkspacePickerBeforeCreatingAChat() {
+        val actions = RecordingActions()
+        render(state(rows = emptyList(), selected = null), actions)
+
+        compose.onNodeWithTag("work_new_chat").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("manage_create_confirm").assertIsNotEnabled()
+        assertActions(actions)
+        compose.onNodeWithText(workspaceA.title).assertIsDisplayed().performClick()
+        compose.onNodeWithTag("manage_create_confirm").assertIsEnabled().performClick()
+        assertActions(actions, listOf(submission(SessionManagementCommand.Create(workspaceA.id))))
+    }
+
+    @Test
     fun fullWorkspaceCatalogKeepsItsLastWrappedTitleReachableAndRequiresConfirmation() {
         val actions = RecordingActions()
         val workspaces = (0 until 256).map {
@@ -260,12 +273,12 @@ class NativeSessionManagementTest {
     private fun state(
         pcId: String = "fixture-pc",
         rows: List<SessionRow> = listOf(current, other),
-        selected: SessionRow = current,
+        selected: SessionRow? = current,
         draft: String = "",
         management: ManagementPane = ManagementPane(ManagementAccess.ENABLED, listOf(workspaceA, workspaceB), false, false),
     ): CompanionState = CompanionState(
         screen = Screen(Pc(pcId, "Fixture PC", Connection.ONLINE),
-            SessionPane(rows, selected.id, false, management),
+            SessionPane(rows, selected?.id, false, management),
             Conversation(selected, listOf(TextRow("answer", Role.ASSISTANT, "Preserved answer (fixture)")), false),
             Composer(draft, SendState.READY, Feedback.NONE, null), false),
         draft = draft, foreground = true, foregroundGeneration = 41L,

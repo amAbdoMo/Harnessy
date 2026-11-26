@@ -29,11 +29,11 @@ description: "原生 Kotlin／Compose Android 聊天、具备生命周期感知�
 
 [NativeActivity](<app/src/main/java/io/harnessy/companion/nativeapp/NativeActivity.kt>) 承载 [Material 3 导航与界面](<app/src/main/java/io/harnessy/companion/nativeapp/NativeCompanionApp.kt>)，由 [manifest](<app/src/main/AndroidManifest.xml>) 声明。Activity 作用域的 [ViewModel](<app/src/main/java/io/harnessy/companion/nativeapp/CompanionViewModel.kt>) 通过主线程 [repository 适配器](<app/src/main/java/io/harnessy/companion/nativeapp/CompanionRepository.kt>) 暴露不可变 StateFlow 快照。
 
-手机通过可搜索的抽屉筛选已加载的对话；宽屏布局可在聊天旁显示导航。原生侧栏标题将 Harnessy 品牌与调试版启动器名称分开，在分割线上方提供圆形搜索与关闭控件；紧凑侧栏仅显示品牌图标，不显示字标。平直色带区分选中、按下、指针悬停和键盘焦点状态。手机和宽屏均可隐藏并重新打开导航。
+手机通过可搜索的抽屉筛选已加载的对话。宽屏布局可在聊天旁显示导航。紧凑标题栏保留搜索和关闭操作。圆角行高亮区分选中、按下、指针悬停和键盘焦点。
 
-[工作首页](<app/src/main/java/io/harnessy/companion/nativeapp/NativeWorkLanding.kt>)以平直、可纵向滚动的行展示真实且已加载的电脑对话，而不是新任务建议；送达与错误提示优先于最近对话。适配键盘边距的[自适应编辑器](<app/src/main/java/io/harnessy/companion/nativeapp/NativeComposer.kt>)使用适配主题的无边框卡片与仅对当前 Session 生效的模型选择器，省略冗余的就绪／未选择提示，要求选定对话后才能编辑，并将已关闭对话保持为只读。键盘使窗口高度受限时，编辑器使用紧凑行并保留草稿、焦点和顶部控件；键盘收起后恢复完整提示。忘记配对与检查送达状态均要求明确确认。英中资源与中性的浅色／深色主题均保持原生实现，不使用 WebView 或远程 JavaScript。
+[工作首页](<app/src/main/java/io/harnessy/companion/nativeapp/NativeWorkLanding.kt>)列出已加载的电脑对话，并通过与抽屉相同的权限检查和工作区选择器提供**新对话**。**实时浏览器**打开已连接电脑的查看器。从对话返回会进入工作首页，仍可回到当前对话和草稿。[自适应编辑器](<app/src/main/java/io/harnessy/companion/nativeapp/NativeComposer.kt>)仅在选中对话时显示，已关闭的对话保持只读，键盘限制高度时采用紧凑输入框。工作首页仍可检查送达状态。
 
-[设置](<app/src/main/java/io/harnessy/companion/nativeapp/NativeSettingsScreen.kt>)提供紧凑且无障碍的主题选项，展示电脑报告的聊天管理权限，并在权限未获准时提供电脑端设置指引。打开导航会清除草稿焦点并收起其键盘；侧栏搜索会预留键盘空间。导航控件与对话位于同一滚动列表中，标题和搜索框保持固定。键盘收起时，系统返回操作会关闭手机抽屉而不离开聊天。
+[设置](<app/src/main/java/io/harnessy/companion/nativeapp/NativeSettingsScreen.kt>)将外观、配对、测试版更新和电脑权限分组。打开导航会清除草稿焦点并收起键盘。抽屉搜索会为键盘预留空间。键盘收起后，系统返回操作会先关闭手机抽屉，再离开对话。
 
 [对话记录](<app/src/main/java/io/harnessy/companion/nativeapp/NativeTranscriptModel.kt>)将连续的工具名称行折叠为本地[活动展开区域](<app/src/main/java/io/harnessy/companion/nativeapp/NativeToolActivity.kt>)，与助手正文分开。提示始终显示在展开区域之外，包括轮次失败提示；单独的工具名称没有空的展开控件。精确匹配的已知工具名称使用现有电脑端图标类型；未知名称使用通用图标。展开后的名称在有界滚动区域中保持原始顺序和原文；切换展开状态时会将分组滚动到可见区域。向同一分组追加内容时保留查看状态，但切换对话、重建 Activity 或移除该组首个保留行时会重置；查看操作不会调用电脑端工具。这些分组仅表示相邻名称，不会重建电脑端轮次或调用与结果的对应关系；协议不提供工具输入、结果正文、各工具状态或耗时。工具活动目前通过实时进度传入，不包含在历史文本分页中。
 

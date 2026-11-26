@@ -42,6 +42,8 @@ internal data class SessionNavigationActions(
     val workspaceExpansion: WorkspaceExpansionControls,
     val sidebar: SidebarActions? = null,
     val openBrowserShare: (() -> Unit)? = null,
+    val openWork: (() -> Unit)? = null,
+    val workSelected: Boolean = false,
 )
 
 /** Local filtering covers only the bounded, already-loaded list; it never starts a PC operation. */
@@ -60,15 +62,16 @@ internal fun NativeSessionNavigation(pane: SessionPane, foreground: Boolean, act
             } else searching = true
         }, actions.sidebar?.close)
         if (searching) ConversationSearchField(query, { query = it.take(256) }, searchFocus)
-        ActiveWorkNavigationRow()
+        actions.openWork?.let { openWork -> WorkNavigationRow(foreground, actions.workSelected, openWork) }
         actions.openBrowserShare?.let { openBrowserShare ->
             LiveBrowserNavigationRow(foreground, openBrowserShare)
         }
         Box(Modifier.weight(1f)) {
             WorkspaceSessionList(NavigationListState(pane, NavigationFilter(query, openOnly)), foreground, actions) {
                 actions.sidebar?.let { sidebar -> item(key = "navigation:new_chat") {
-                    NativePressableRow(enabled = foreground, onClick = sidebar.create,
-                        modifier = Modifier.fillMaxWidth().testTag("new_chat")) {
+                    NativePressableRow(enabled = foreground, onClick = sidebar.create, minimumHeight = 56.dp,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp).testTag("new_chat"),
+                        contentPadding = PaddingValues(horizontal = 12.dp)) {
                         Icon(Icons.Default.Edit, null, Modifier.size(20.dp), MaterialTheme.colorScheme.onSurface)
                         Text(stringResource(R.string.native_new_chat), style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurface)
@@ -91,27 +94,19 @@ internal fun NativeSessionNavigation(pane: SessionPane, foreground: Boolean, act
     }
 }
 
-/** Shows the selected workspace route before the PC-owned chat list begins. */
 @Composable
-private fun ActiveWorkNavigationRow() {
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        shape = RoundedCornerShape(14.dp),
+private fun WorkNavigationRow(foreground: Boolean, selected: Boolean, openWork: () -> Unit) {
+    NativePressableRow(
+        enabled = foreground,
+        selected = selected,
+        onClick = openWork,
+        minimumHeight = 56.dp,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp).testTag("active_route_work"),
+        contentPadding = PaddingValues(horizontal = 12.dp),
+        spacing = 12.dp,
     ) {
-        Row(
-            Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(horizontal = 12.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Icon(Icons.Default.Home, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                Text(stringResource(R.string.native_work), style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface)
-                Text(stringResource(R.string.native_conversations), style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
+        Icon(Icons.Default.Home, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+        Text(stringResource(R.string.native_work), style = MaterialTheme.typography.titleMedium)
     }
 }
 
@@ -125,6 +120,7 @@ private fun LiveBrowserNavigationRow(foreground: Boolean, openBrowserShare: () -
             .testTag("open_browser_share"),
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
         spacing = 12.dp,
+        minimumHeight = 56.dp,
     ) {
         Icon(Icons.Default.PlayArrow, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {

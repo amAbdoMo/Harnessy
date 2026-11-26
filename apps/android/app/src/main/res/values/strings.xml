@@ -57,7 +57,7 @@
     <string name="pairing_import">Pair with this invitation</string>
     <string name="pairing_in_progress">Linking. Compare the full phone fingerprint on your PC before approving.</string>
     <string name="fingerprint_hint">Phone public-key SHA-256 fingerprint. Compare all 64 lowercase characters with the PC’s pairing dialog:</string>
-    <string name="pairing_limits">Keep the PC awake. Leaving this app disconnects the phone and discards invitations. No offline queue or push notifications. Only existing sessions and text follow-ups are supported; attachments, new sessions, and remote approval answers are unavailable.</string>
+    <string name="pairing_limits">Keep the PC awake. Leaving this app disconnects the phone and discards the invitation. Your PC controls which actions you can use on this phone.</string>
     <string name="forget_title">Forget this PC?</string>
     <string name="forget_explanation">Remove this phone’s local pairing and signing key for %1$s. This does not revoke the PC grant or erase work already admitted. Check uncertain deliveries first. Remove the phone in Harnessy on your PC to revoke access.</string>
     <string name="cancel">Cancel</string>

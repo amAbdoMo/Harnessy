@@ -58,14 +58,15 @@ fun NativeSettingsScreen(state: NativeUiState, actions: CompanionActions, settin
     var capabilitiesExpanded by remember { mutableStateOf(false) }
     Scaffold(topBar = {
         CenterAlignedTopAppBar(title = { NativeCompactHeaderTitle(stringResource(R.string.native_settings)) },
+            expandedHeight = 48.dp,
             navigationIcon = {
                 NativeFloatingIconButton(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.native_back),
                     settings.goBack, testTag = "back_to_chat")
             }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background))
     }) { padding ->
         Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding), contentAlignment = Alignment.TopCenter) {
-            LazyColumn(Modifier.widthIn(max = 680.dp).fillMaxSize().testTag("settings"),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+            LazyColumn(Modifier.widthIn(max = 720.dp).fillMaxSize().testTag("settings"),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
                 if (canCheckForUpdate) item {
                     SettingsSurface {
                         AndroidUpdateSection(state.androidUpdate,
@@ -90,30 +91,20 @@ fun NativeSettingsScreen(state: NativeUiState, actions: CompanionActions, settin
                         else if (!metadataReady) Text(stringResource(R.string.native_loading_pc), style = MaterialTheme.typography.bodyMedium)
                         else if (pc != null) NativeConnectionStatus(pc.connection)
                         else Text(stringResource(R.string.no_linked_pc), style = MaterialTheme.typography.bodyMedium)
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         if (companion.connectionPaused) {
-                            Button(onClick = settings.resumeConnection, enabled = companion.foreground, modifier = Modifier.testTag("resume_connection")) {
-                                Text(stringResource(R.string.native_resume))
-                            }
+                            SettingsAction(R.string.native_resume, "resume_connection", companion.foreground, settings.resumeConnection)
                         } else if (pc != null) {
-                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                OutlinedButton(onClick = settings.pauseConnection, enabled = companion.foreground,
-                                    modifier = Modifier.testTag("pause_connection")) { Text(stringResource(R.string.native_pause)) }
-                                TextButton(onClick = actions::refresh, enabled = companion.foreground && pc.connection == Connection.ONLINE,
-                                    modifier = Modifier.testTag("settings_refresh")) { Text(stringResource(R.string.refresh)) }
-                                TextButton(onClick = actions::showPairing, enabled = companion.foreground && metadataReady,
-                                    modifier = Modifier.testTag("pair_pc")) { Text(stringResource(R.string.pair_pc)) }
-                            }
+                            SettingsAction(R.string.native_pause, "pause_connection", companion.foreground, settings.pauseConnection)
+                            SettingsAction(R.string.refresh, "settings_refresh",
+                                companion.foreground && pc.connection == Connection.ONLINE, actions::refresh)
+                            SettingsAction(R.string.pair_pc, "pair_pc", companion.foreground && metadataReady, actions::showPairing)
                         } else {
-                            Button(onClick = actions::showPairing, enabled = companion.foreground && metadataReady,
-                                modifier = Modifier.testTag("pair_pc")) {
-                                Text(stringResource(R.string.pair_pc))
-                            }
+                            SettingsAction(R.string.pair_pc, "pair_pc", companion.foreground && metadataReady, actions::showPairing)
                         }
                         if (pc?.connection == Connection.ONLINE && !companion.connectionPaused) {
-                            TextButton(onClick = settings.openBrowserShare, enabled = companion.foreground,
-                                modifier = Modifier.testTag("open_browser_share")) {
-                                Text(stringResource(R.string.native_browser_share_title))
-                            }
+                            SettingsAction(R.string.native_browser_share_title, "open_browser_share",
+                                companion.foreground, settings.openBrowserShare)
                         }
                         companion.screen?.composer?.feedback?.let { ConnectionFeedback(it) }
                         companion.screen?.composer?.review?.let { DeliveryReviewCard(it, actions::resolveUnknown) }
@@ -125,7 +116,9 @@ fun NativeSettingsScreen(state: NativeUiState, actions: CompanionActions, settin
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                             if (pc != null) TextButton(onClick = { actions.forgetPairing(pc.id) }, enabled = companion.foreground,
                                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                                modifier = Modifier.testTag("forget_pairing")) { Text(stringResource(R.string.forget_pairing)) }
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("forget_pairing")) {
+                                Text(stringResource(R.string.forget_pairing))
+                            }
                         }
                     }
                 }
@@ -163,8 +156,8 @@ private fun ThemeOptions(state: NativeUiState, setTheme: (ThemePreference) -> Un
                 ThemePreference.DARK -> R.string.native_theme_dark
             }
             val selected = state.theme == theme
-            Column(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(14.dp))
-                .background(if (selected) MaterialTheme.colorScheme.surfaceContainer else Color.Transparent)
+            Column(Modifier.weight(1f).fillMaxHeight().heightIn(min = 80.dp).clip(RoundedCornerShape(20.dp))
+                .background(if (selected) MaterialTheme.colorScheme.surfaceContainerHighest else Color.Transparent)
                 .selectable(selected = selected, enabled = !state.savingTheme, role = Role.RadioButton,
                     onClick = { setTheme(theme) }).testTag("theme_${theme.name.lowercase()}")
                 .padding(horizontal = 4.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -207,23 +200,35 @@ private fun ConnectionFeedback(feedback: Feedback) {
 private fun SettingsHeading(resource: Int) {
     Text(stringResource(resource), style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(start = 4.dp, bottom = 8.dp).semantics { heading() })
+        modifier = Modifier.padding(start = 20.dp, bottom = 8.dp).semantics { heading() })
 }
 
 @Composable
 private fun SettingsSurface(content: @Composable ColumnScope.() -> Unit) {
-    Surface(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(20.dp), shadowElevation = 1.dp) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
+    Surface(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(28.dp)) {
+        Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
     }
 }
 
 @Composable
 private fun SettingsDisclosure(title: Int, expanded: Boolean, tag: String, toggle: () -> Unit) {
     val expansion = stringResource(if (expanded) R.string.native_expanded else R.string.native_collapsed)
-    TextButton(onClick = toggle, modifier = Modifier.fillMaxWidth().testTag(tag).semantics { stateDescription = expansion },
-        contentPadding = PaddingValues(horizontal = 0.dp)) {
+    NativePressableRow(enabled = true, onClick = toggle,
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+            .testTag(tag).semantics { stateDescription = expansion },
+        contentPadding = PaddingValues(vertical = 8.dp), minimumHeight = 56.dp) {
         Text(stringResource(title), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
         Icon(if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, null)
+    }
+}
+
+@Composable
+private fun SettingsAction(title: Int, tag: String, enabled: Boolean, onClick: () -> Unit) {
+    NativePressableRow(enabled = enabled, onClick = onClick,
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).testTag(tag),
+        contentPadding = PaddingValues(vertical = 8.dp), minimumHeight = 56.dp) {
+        Text(stringResource(title), style = MaterialTheme.typography.bodyMedium,
+            color = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f))
     }
 }
 

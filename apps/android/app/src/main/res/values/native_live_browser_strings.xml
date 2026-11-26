@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="native_live_browser_view_only">View only</string>
+    <string name="native_live_browser_live">Live from your PC</string>
+    <string name="native_live_browser_connecting">Waiting for your PC</string>
+    <string name="native_live_browser_reconnecting">Reconnecting</string>
+    <string name="native_live_browser_stop_failed">Sharing may still be active</string>
+    <string name="native_live_browser_ended">Sharing ended</string>
+    <string name="native_live_browser_start_on_pc">Start sharing a browser in Harnessy on your PC. Its view will appear here.</string>
+</resources>

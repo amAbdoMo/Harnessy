@@ -9,6 +9,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -18,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
@@ -25,7 +27,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-/** The raised circular control retains a 48 dp touch target in either theme. */
+/** Header controls use the same touch target and native indication in either theme. */
 @Composable
 internal fun NativeFloatingIconButton(
     icon: ImageVector,
@@ -36,7 +38,7 @@ internal fun NativeFloatingIconButton(
     enabled: Boolean = true,
     iconSize: Dp = 20.dp,
 ) {
-    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp,
+    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.background,
         modifier = modifier.size(48.dp)) {
         IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxSize().testTag(testTag)) {
             Icon(icon, contentDescription, Modifier.size(iconSize))
@@ -53,6 +55,7 @@ internal fun NativePressableRow(
     selected: Boolean? = null,
     contentPadding: PaddingValues = PaddingValues(horizontal = 20.dp),
     spacing: Dp = 14.dp,
+    minimumHeight: Dp = 48.dp,
     content: @Composable RowScope.() -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -71,8 +74,8 @@ internal fun NativePressableRow(
         Modifier.selectable(selected = selected, enabled = enabled, role = Role.Button, onClick = onClick,
             interactionSource = interaction, indication = null)
     }
-    Box(modifier.then(action).background(band)) {
-        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(contentPadding),
+    Box(modifier.clip(RoundedCornerShape(16.dp)).then(action).background(band)) {
+        Row(Modifier.fillMaxWidth().heightIn(min = minimumHeight).padding(contentPadding),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing),
             content = content)
     }

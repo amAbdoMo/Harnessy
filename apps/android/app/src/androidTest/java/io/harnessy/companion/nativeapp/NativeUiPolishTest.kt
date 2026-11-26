@@ -129,7 +129,7 @@ class NativeUiPolishTest {
         compose.onNodeWithTag("recent_session_recent-idle").assertIsDisplayed().performClick()
         compose.runOnIdle { assertEquals(listOf("select:recent-idle"), actions.events) }
         compose.onNodeWithTag("chat_draft").assertDoesNotExist()
-        compose.onNodeWithTag("send_text").assertIsDisplayed().assertIsNotEnabled()
+        compose.onNodeWithTag("send_text").assertDoesNotExist()
         capture("landing", compose.onRoot())
     }
 

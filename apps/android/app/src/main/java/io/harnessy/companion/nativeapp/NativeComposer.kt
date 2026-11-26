@@ -1,5 +1,8 @@
 package io.harnessy.companion.nativeapp
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -9,6 +12,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
@@ -33,8 +38,8 @@ internal fun NativeComposer(state: CompanionState, screen: Screen, actions: Nati
         BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             val imeHeight = with(LocalDensity.current) { WindowInsets.ime.getBottom(this).toDp() }
             val shortKeyboardWindow = imeHeight > 0.dp && maxHeight - imeHeight < 320.dp
-            Column(Modifier.widthIn(max = 760.dp).fillMaxWidth().navigationBarsPadding().imePadding()
-                .padding(horizontal = 16.dp, vertical = if (shortKeyboardWindow) 4.dp else 8.dp),
+            Column(Modifier.widthIn(max = 720.dp).fillMaxWidth().navigationBarsPadding().imePadding()
+                .padding(horizontal = 12.dp, vertical = if (shortKeyboardWindow) 4.dp else 8.dp),
                 verticalArrangement = Arrangement.spacedBy(if (shortKeyboardWindow) 4.dp else 10.dp)) {
                 if (screen.conversation.session?.status == SessionStatus.CLOSED &&
                     screen.composer.state != SendState.DELIVERY_UNKNOWN) NativeSessionActivation(state, screen, actions, openSessions)
@@ -51,36 +56,37 @@ internal fun NativeComposer(state: CompanionState, screen: Screen, actions: Nati
 
 @Composable
 private fun DraftComposer(state: CompanionState, screen: Screen, actions: NativeChatActions) {
-    Surface(modifier = Modifier.fillMaxWidth().testTag("composer_shell"), shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp, shadowElevation = 2.dp) {
+    val editorInteraction = remember { MutableInteractionSource() }
+    val focused by editorInteraction.collectIsFocusedAsState()
+    val border = if (focused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+    Surface(modifier = Modifier.fillMaxWidth().testTag("composer_shell"), shape = RoundedCornerShape(27.dp),
+        color = MaterialTheme.colorScheme.surface, border = BorderStroke(1.dp, border)) {
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val compact = maxHeight < 320.dp * LocalDensity.current.fontScale.coerceAtLeast(1f)
             Column {
-                val inputModifier = Modifier.fillMaxWidth().heightIn(min = if (compact) 52.dp else 44.dp)
-                    .padding(start = 16.dp, end = if (compact) 68.dp else 16.dp,
-                        top = if (compact) 2.dp else 12.dp, bottom = if (compact) 2.dp else 12.dp)
-                if (screen.conversation.session == null) {
-                    Box(inputModifier, contentAlignment = Alignment.CenterStart) {
-                        Text(stringResource(R.string.native_message_placeholder), style = MaterialTheme.typography.bodyLarge,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                } else DraftInput(state, actions, if (compact) 1 else 5, inputModifier)
+                val inputModifier = Modifier.fillMaxWidth().heightIn(min = if (compact) 54.dp else 50.dp)
+                    .padding(start = 16.dp, end = if (compact) 62.dp else 16.dp,
+                        top = if (compact) 3.dp else 10.dp, bottom = if (compact) 3.dp else 6.dp)
+                DraftInput(state, actions, if (compact) 1 else 4, inputModifier, editorInteraction)
                 if (!compact) {
-                    Box(Modifier.fillMaxWidth().heightIn(min = 60.dp).padding(start = 12.dp, end = 68.dp, bottom = 12.dp),
+                    Box(Modifier.fillMaxWidth().heightIn(min = 54.dp).padding(start = 8.dp, end = 62.dp, bottom = 6.dp),
                         contentAlignment = Alignment.CenterStart) {
                         NativeModelSelector(state, screen, actions, Modifier.widthIn(max = 280.dp))
                     }
                 }
             }
             SendFollowupButton(state, screen, actions,
-                Modifier.align(Alignment.BottomEnd).padding(if (compact) 2.dp else 12.dp))
+                Modifier.align(Alignment.BottomEnd).padding(if (compact) 3.dp else 6.dp))
         }
     }
 }
 
 /** One editor remains composed while its available width and line count change. */
 @Composable
-private fun DraftInput(state: CompanionState, actions: NativeChatActions, maxLines: Int, modifier: Modifier) {
+private fun DraftInput(
+    state: CompanionState, actions: NativeChatActions, maxLines: Int, modifier: Modifier,
+    interactionSource: MutableInteractionSource,
+) {
     val screen = state.screen
     val review = screen?.composer?.review
     val archiving = review?.kind == OperationKind.ARCHIVE_SESSION && review.pcId == screen.pc?.id &&
@@ -89,6 +95,7 @@ private fun DraftInput(state: CompanionState, actions: NativeChatActions, maxLin
         modifier = modifier.testTag("chat_draft"),
         textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary), enabled = state.foreground && !archiving, minLines = 1, maxLines = maxLines,
+        interactionSource = interactionSource,
         keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
         decorationBox = { input ->
             Box(contentAlignment = Alignment.CenterStart) {

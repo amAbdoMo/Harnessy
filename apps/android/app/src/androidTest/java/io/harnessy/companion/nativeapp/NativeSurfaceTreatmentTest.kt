@@ -80,9 +80,10 @@ class NativeSurfaceTreatmentTest {
         render(state(foreground = true), actions)
         openNavigation()
         val row = compose.onNodeWithTag("session_other")
-        val idleColor = row.captureToImage().asAndroidBitmap().getPixel(2, 2)
+        fun rowColor() = row.captureToImage().asAndroidBitmap().let { it.getPixel(it.width / 2, 8) }
+        val idleColor = rowColor()
         row.performMouseInput { enter(center) }
-        val hoverColor = row.captureToImage().asAndroidBitmap().getPixel(2, 2)
+        val hoverColor = rowColor()
         assertNotEquals("Hover must visibly distinguish the row", idleColor, hoverColor)
         capture("hover", compose.onRoot())
         row.performMouseInput { exit() }
@@ -91,7 +92,7 @@ class NativeSurfaceTreatmentTest {
             compose.runOnIdle { assertTrue(inputMode.requestInputMode(InputMode.Keyboard)) }
             row.performSemanticsAction(SemanticsActions.RequestFocus) { it() }
             row.assertIsFocused()
-            val focusColor = row.captureToImage().asAndroidBitmap().getPixel(2, 2)
+            val focusColor = rowColor()
             assertNotEquals("Keyboard focus must remain visible without a ripple", idleColor, focusColor)
             capture("focus", compose.onRoot())
             compose.runOnIdle { assertEquals(emptyList<String>(), actions.events) }
@@ -100,6 +101,20 @@ class NativeSurfaceTreatmentTest {
         } finally {
             compose.runOnIdle { inputMode.requestInputMode(originalMode) }
         }
+    }
+
+    @Test
+    fun returningToWorkKeepsTheActiveChatAndDraftReachable() {
+        val actions = RecordingActions()
+        render(state(foreground = true), actions)
+
+        compose.onNodeWithTag("back_to_work").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("work_landing").assertIsDisplayed()
+        compose.onNodeWithTag("chat_draft").assertDoesNotExist()
+        compose.runOnIdle { assertEquals(emptyList<String>(), actions.events) }
+        compose.onNodeWithTag("recent_session_current").performClick()
+        compose.onNodeWithTag("chat_draft").assertTextEquals("Draft (fixture)")
+        compose.runOnIdle { assertEquals(listOf("select:current"), actions.events) }
     }
 
     @Test

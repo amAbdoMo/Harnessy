@@ -51,12 +51,13 @@ fun NativeTheme(preference: ThemePreference, content: @Composable () -> Unit) {
     val typography = remember {
         val defaults = Typography()
         defaults.copy(
-            titleLarge = defaults.titleLarge.copy(fontSize = 20.sp, lineHeight = 26.sp, fontWeight = FontWeight.Medium),
+            titleLarge = defaults.titleLarge.copy(fontSize = 21.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold),
             titleMedium = defaults.titleMedium.copy(fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.Medium),
             bodyLarge = defaults.bodyLarge.copy(fontSize = 16.sp, lineHeight = 23.sp),
-            bodyMedium = defaults.bodyMedium.copy(fontSize = 14.sp, lineHeight = 21.sp),
-            labelLarge = defaults.labelLarge.copy(fontSize = 12.sp, lineHeight = 16.sp),
-            labelSmall = defaults.labelSmall.copy(fontSize = 10.sp, lineHeight = 14.sp),
+            bodyMedium = defaults.bodyMedium.copy(fontSize = 14.sp, lineHeight = 20.sp),
+            bodySmall = defaults.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
+            labelLarge = defaults.labelLarge.copy(fontSize = 13.sp, lineHeight = 17.sp),
+            labelSmall = defaults.labelSmall.copy(fontSize = 12.sp, lineHeight = 16.sp),
         )
     }
     MaterialTheme(colorScheme = colors, typography = typography, content = content)

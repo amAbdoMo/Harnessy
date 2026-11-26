@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="native_live_browser_view_only">仅供查看</string>
+    <string name="native_live_browser_live">来自电脑的实时画面</string>
+    <string name="native_live_browser_connecting">等待电脑共享</string>
+    <string name="native_live_browser_reconnecting">正在重新连接</string>
+    <string name="native_live_browser_stop_failed">共享可能仍在进行</string>
+    <string name="native_live_browser_ended">共享已结束</string>
+    <string name="native_live_browser_start_on_pc">在电脑上的 Harnessy 中开始共享浏览器，画面就会显示在这里。</string>
+</resources>

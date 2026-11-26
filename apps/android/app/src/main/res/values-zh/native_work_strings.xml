@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="native_work_empty">暂无对话</string>
+    <string name="native_work_empty_online">与已连接电脑上的智能体开启对话。</string>
+    <string name="native_work_empty_offline">电脑重新连接后，对话会显示在这里。</string>
+</resources>

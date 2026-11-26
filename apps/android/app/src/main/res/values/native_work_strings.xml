@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="native_work_empty">No chats yet</string>
+    <string name="native_work_empty_online">Start a chat with the agents on your linked PC.</string>
+    <string name="native_work_empty_offline">Your chats will appear here when the PC reconnects.</string>
+</resources>

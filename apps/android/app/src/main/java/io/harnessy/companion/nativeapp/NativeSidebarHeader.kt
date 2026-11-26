@@ -25,28 +25,28 @@ import io.harnessy.companion.R
 internal fun NativeSidebarHeader(foreground: Boolean, search: () -> Unit, close: (() -> Unit)?) {
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val shortWindow = maxHeight < 240.dp
-        val showWordmark = maxWidth >= 320.dp && !shortWindow
+        val showWordmark = maxWidth >= 280.dp && !shortWindow
         val brand = stringResource(R.string.native_brand_name)
         Column(Modifier.fillMaxWidth()) {
-            Row(Modifier.fillMaxWidth().heightIn(min = if (shortWindow) 48.dp else 64.dp).padding(start = 20.dp, end = 12.dp),
+            Row(Modifier.fillMaxWidth().heightIn(min = if (shortWindow) 48.dp else 56.dp).padding(start = 16.dp, end = 8.dp),
                 verticalAlignment = Alignment.CenterVertically) {
                 Image(painterResource(R.drawable.harnessy_brand), if (showWordmark) null else brand, Modifier.size(28.dp))
                 if (showWordmark) {
                     Spacer(Modifier.width(10.dp))
                     Text(brand, style = MaterialTheme.typography.titleLarge.copy(
-                        fontSize = 24.sp, lineHeight = 30.sp, fontWeight = FontWeight.Bold),
+                        fontSize = 21.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold),
                         modifier = Modifier.weight(1f).testTag("sidebar_wordmark"), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 } else Spacer(Modifier.weight(1f))
                 Spacer(Modifier.width(12.dp))
                 NativeFloatingIconButton(Icons.Default.Search, stringResource(R.string.native_search_conversations),
                     search, testTag = "sidebar_search", enabled = foreground)
                 if (close != null) {
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(4.dp))
                     NativeFloatingIconButton(Icons.Default.Close, stringResource(R.string.native_close_navigation),
                         close, testTag = "close_sessions", enabled = foreground)
                 }
             }
-            HorizontalDivider(Modifier.padding(start = 20.dp, end = 20.dp), color = MaterialTheme.colorScheme.outlineVariant)
+            HorizontalDivider(Modifier.padding(horizontal = 12.dp), color = MaterialTheme.colorScheme.outlineVariant)
         }
     }
 }

@@ -7,7 +7,6 @@
     <string name="native_draft_rejected">请输入有效文本，且不超过 %1$d 个 UTF-8 字节。之前的草稿已保留。</string>
     <string name="native_back">返回</string>
     <string name="native_pair">配对</string>
-    <string name="native_select_explanation">选择电脑上的现有对话，历史记录与工作仍保留在该电脑上。</string>
     <string name="native_appearance">外观</string>
     <string name="native_chat_management">聊天管理</string>
     <string name="native_chat_management_enabled">电脑已授权</string>
@@ -61,7 +60,6 @@
         <item quantity="other">%1$d 次工具调用</item>
     </plurals>
     <string name="native_work">工作</string>
-    <string name="native_continue_pc">继续电脑上的工作</string>
     <string name="native_view_history">查看历史</string>
     <string name="native_continue">继续</string>
     <string name="native_untitled_workspace">未命名工作区</string>

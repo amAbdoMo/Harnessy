@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="harnessy_base">#161616</color>
-    <color name="harnessy_surface">#202020</color>
-    <color name="harnessy_layer">#2A2A2A</color>
-    <color name="harnessy_selected">#343434</color>
-    <color name="harnessy_accent">#FAFAFA</color>
-    <color name="harnessy_primary">#F3F3F3</color>
-    <color name="harnessy_secondary">#A9A9A9</color>
-    <color name="harnessy_border">#393939</color>
+    <color name="harnessy_base">#101719</color>
+    <color name="harnessy_surface">#192426</color>
+    <color name="harnessy_layer">#233235</color>
+    <color name="harnessy_selected">#2D4144</color>
+    <color name="harnessy_accent">#79DBCE</color>
+    <color name="harnessy_primary">#EFF7F6</color>
+    <color name="harnessy_secondary">#A9BEC0</color>
+    <color name="harnessy_border">#344649</color>
     <color name="harnessy_warning">#EFC873</color>
     <color name="harnessy_warning_bg">#362F20</color>
 </resources>

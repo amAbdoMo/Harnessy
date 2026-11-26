@@ -32,9 +32,9 @@ internal data class WorkspaceHeaderState(val expanded: Boolean, val foreground: 
 internal fun WorkspaceNavigationHeader(workspace: WorkspaceInfo, state: WorkspaceHeaderState, toggle: () -> Unit) {
     val expansion = stringResource(if (state.expanded) R.string.native_expanded else R.string.native_collapsed)
     NativePressableRow(enabled = state.foreground, onClick = toggle,
-        modifier = Modifier.fillMaxWidth().testTag("workspace_${workspace.id}")
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp).testTag("workspace_${workspace.id}")
             .semantics { heading(); stateDescription = expansion },
-        contentPadding = PaddingValues(start = 20.dp, end = 12.dp), spacing = 10.dp) {
+        contentPadding = PaddingValues(horizontal = 12.dp), spacing = 10.dp) {
         Icon(painterResource(R.drawable.native_workspace_folder), null, Modifier.size(18.dp), MaterialTheme.colorScheme.onSurfaceVariant)
         Text(workspace.title.ifBlank { stringResource(R.string.native_untitled_workspace) },
             style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f),
@@ -47,9 +47,10 @@ internal fun WorkspaceNavigationHeader(workspace: WorkspaceInfo, state: Workspac
 @Composable
 internal fun WorkspaceSessionRow(row: SessionRow, state: NavigationRowState, select: () -> Unit, menu: SessionRowMenu? = null) {
     val status = stringResource(sessionText(row.status))
-    NativePressableRow(selected = state.selected, enabled = state.foreground, onClick = select,
-        modifier = Modifier.fillMaxWidth().testTag("session_${row.id}").semantics { stateDescription = status },
-        contentPadding = PaddingValues(start = if (state.indented) 34.dp else 20.dp, end = 12.dp), spacing = 6.dp) {
+    NativePressableRow(selected = state.selected, enabled = state.foreground, onClick = select, minimumHeight = 56.dp,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 1.dp)
+            .testTag("session_${row.id}").semantics { stateDescription = status },
+        contentPadding = PaddingValues(start = if (state.indented) 26.dp else 12.dp, end = 4.dp), spacing = 6.dp) {
         Text(row.title.ifBlank { stringResource(R.string.native_untitled_conversation) },
             style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
         row.navigation?.let { navigation ->

@@ -21,27 +21,20 @@ import io.harnessy.companion.R
 
 /** Compact route identity for chat, pairing and Settings without adding a second app bar. */
 @Composable
-internal fun NativeCompactHeaderTitle(title: String, modifier: Modifier = Modifier) {
+internal fun NativeCompactHeaderTitle(title: String, modifier: Modifier = Modifier, showBrand: Boolean = true) {
     Row(
         modifier,
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Image(
-            painter = painterResource(R.drawable.harnessy_brand),
-            contentDescription = stringResource(R.string.native_brand_name),
-            modifier = Modifier.size(20.dp),
-        )
-        Text(
-            stringResource(R.string.native_brand_name),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-            maxLines = 1,
-        )
-        Box(
-            Modifier.width(1.dp).height(18.dp)
-                .background(MaterialTheme.colorScheme.outlineVariant)
-        )
+        if (showBrand) {
+            Image(
+                painter = painterResource(R.drawable.harnessy_brand),
+                contentDescription = stringResource(R.string.native_brand_name),
+                modifier = Modifier.size(22.dp),
+            )
+            Box(Modifier.width(1.dp).height(18.dp).background(MaterialTheme.colorScheme.outlineVariant))
+        }
         Text(
             title,
             style = MaterialTheme.typography.titleMedium,
