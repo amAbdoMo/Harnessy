@@ -186,6 +186,11 @@ export const en = {
   websitePairingDetail: 'MCP server: {server}\nConfigured endpoint: {endpoint}\nWebsite: {website}\nAccount label: {account}\n\nSign in yourself. The agent cannot observe login until you explicitly resume.',
   websitePairingUnnamedAccount: 'No label',
   websitePairingConfirm: 'Confirm pairing',
+  websiteFirefoxSelect: 'Choose cookies.sqlite from your Firefox profile',
+  websiteFirefoxTitle: 'Import Firefox sign-in',
+  websiteFirefoxMessage: 'Copy Firefox sign-in cookies for {website}?',
+  websiteFirefoxDetail: 'Harnessy saves a separate copy in the new profile. Agent access starts disabled. Import only from a Firefox profile you own.',
+  websiteFirefoxImport: 'Import sign-in',
 } as const
 
 /** Desktop message keys and values. */
@@ -377,6 +382,11 @@ export const zh = {
   websitePairingDetail: 'MCP 服务器：{server}\n已配置的端点：{endpoint}\n网站：{website}\n账号标签：{account}\n\n请自行登录。在您明确恢复控制之前，智能体无法观察登录页面。',
   websitePairingUnnamedAccount: '无标签',
   websitePairingConfirm: '确认关联',
+  websiteFirefoxSelect: '选择 Firefox 配置中的 cookies.sqlite',
+  websiteFirefoxTitle: '导入 Firefox 登录会话',
+  websiteFirefoxMessage: '是否复制 {website} 的 Firefox 登录 Cookie？',
+  websiteFirefoxDetail: 'Harnessy 会将副本保存在新配置中。智能体访问默认关闭。请仅从您自己的 Firefox 配置导入。',
+  websiteFirefoxImport: '导入登录会话',
 } as const satisfies DesktopMessages
 
 /** Locale payload exposed to the Desktop-owned renderer. */

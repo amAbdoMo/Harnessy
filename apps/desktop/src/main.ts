@@ -72,6 +72,7 @@ import { DesktopDevicePreviews } from './device-preview.ts'
 import { parseDevicePreviewAcknowledgement, parseDevicePreviewBinding, parseDevicePreviewId, parseDevicePreviewProjectId, parseDevicePreviewUnbinding } from './device-preview-protocol.ts'
 import { DesktopWebsiteAuthority } from './website-authority.ts'
 import { parseWebsiteProfileId } from './website-profiles.ts'
+import { canImportFirefoxWebsiteCookies, readFirefoxWebsiteCookies } from './firefox-website-cookies.ts'
 import { WebsiteProfileError } from './website-profile-errors.ts'
 import { DesktopWebsiteCredentials, electronWebsiteCredentialProtector } from './website-credentials.ts'
 import { DesktopWebsiteLogin, electronWebsiteLoginForm } from './website-login.ts'
@@ -1187,9 +1188,33 @@ async function main(): Promise<void> {
     assertProductSender(event)
     return websiteAuthority.projectProfiles(await websiteProfiles.list())
   })
-  ipcMain.handle(DESKTOP_IPC.websiteProfilesCreate, async (event, input: unknown) => {
+  ipcMain.handle(DESKTOP_IPC.websiteProfilesCreate, async (event, input: unknown, importFirefoxSession?: unknown) => {
     assertProductSender(event)
-    return websiteProfiles.create(input)
+    if (importFirefoxSession === undefined || importFirefoxSession === false) return websiteProfiles.create(input)
+    const owner = mainWindow
+    if (importFirefoxSession !== true || process.platform !== 'win32' || owner === undefined) {
+      throw new WebsiteProfileError('session-import-failed', 'Firefox import is unavailable')
+    }
+    return websiteProfiles.create(input, async (id, site) => {
+      if (!canImportFirefoxWebsiteCookies(site)) {
+        throw new WebsiteProfileError('session-import-site', 'Firefox import requires a secure website')
+      }
+      if (owner.isDestroyed() || owner !== mainWindow) throw new WebsiteProfileError('cancelled', 'Import window closed')
+      const picker = await dialog.showOpenDialog(owner, { title: locale.messages.websiteFirefoxSelect,
+        defaultPath: join(app.getPath('appData'), 'Mozilla', 'Firefox', 'Profiles'),
+        properties: ['openFile'], filters: [{ name: 'SQLite', extensions: ['sqlite'] }] })
+      const filename = picker.filePaths[0]
+      if (picker.canceled || filename === undefined) throw new WebsiteProfileError('cancelled', 'Firefox selection cancelled')
+      if (owner.isDestroyed() || owner !== mainWindow) throw new WebsiteProfileError('cancelled', 'Import window closed')
+      const consent = await ordinaryMessageBox({ type: 'question', title: locale.messages.websiteFirefoxTitle,
+        message: formatDesktopMessage(locale.messages.websiteFirefoxMessage, { website: site.origin }),
+        detail: locale.messages.websiteFirefoxDetail,
+        buttons: [locale.messages.websiteFirefoxImport, locale.messages.cancel], defaultId: 1, cancelId: 1 })
+      if (consent.response !== 0 || owner.isDestroyed() || owner !== mainWindow) {
+        throw new WebsiteProfileError('cancelled', 'Firefox import cancelled')
+      }
+      return browserGuests.seedProfileCookies(id, await readFirefoxWebsiteCookies(filename, site))
+    })
   })
   ipcMain.handle(DESKTOP_IPC.websiteProfilesAcquire, async (event, id: unknown) => {
     assertProductSender(event)

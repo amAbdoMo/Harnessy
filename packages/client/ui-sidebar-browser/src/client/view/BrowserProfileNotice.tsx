@@ -26,6 +26,7 @@ export type BrowserProfileNoticeProps = PropsRuntime<'shell.overlay'>
 function noticeText(notice: WebsiteProfileNotice, t: BrowserProfileNoticeProps['t']): string {
   switch (notice.kind) {
     case 'created': return t('profiles.notice.created', { name: notice.name })
+    case 'imported': return t('profiles.notice.imported', { name: notice.name })
     case 'resumed': return t('profiles.notice.resumed', { name: notice.name })
     case 'human': return t('profiles.notice.human', { name: notice.name })
     case 'signedOut': return t('profiles.notice.signedOut', { name: notice.name })

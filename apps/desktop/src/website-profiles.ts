@@ -180,9 +180,17 @@ export class DesktopWebsiteProfiles {
     return { ...this.requireProfile(id).mcpBinding }
   }
 
-  /** @param input - untrusted user pairing. @returns profile after its first atomic save, in human mode. */
-  create(input: unknown): Promise<DesktopWebsiteProfile> {
-    const fields = pairingFields(record(input, INPUT_KEYS))
+  /**
+   * @param input - untrusted user pairing.
+   * @param seedSession - native-only first-use import. Returns cleanup for an unpublished partition.
+   * @returns profile after its first atomic save, in human mode.
+   */
+  create(
+    input: unknown,
+    seedSession?: (id: DesktopWebsiteProfileId, site: URL) => Promise<() => Promise<void>>,
+  ): Promise<DesktopWebsiteProfile> {
+    const resolved = pairingFields(record(input, INPUT_KEYS))
+    const fields: ProfileFields = seedSession === undefined ? resolved : { ...resolved, access: 'disabled' }
     return this.serial(async () => {
       await this.load()
       if (this.profiles.length >= MAX_PROFILES) throw new WebsiteProfileError('profile-limit', 'Website profile limit reached')
@@ -190,9 +198,15 @@ export class DesktopWebsiteProfiles {
       await this.pairing.confirm(fields, mcpBinding)
       const profile: StoredProfile = { ...fields, id: randomUUID() as DesktopWebsiteProfileId,
         loginConfirmed: false, cleanupPending: false, mcpBinding }
-      await this.verifyPairing(profile)
-      await this.pairing.enroll([...this.profiles, profile].map(pairing => this.hostProfile(pairing)))
-      await this.save([...this.profiles, profile])
+      const cleanup = await seedSession?.(profile.id, new URL(profile.url))
+      try {
+        await this.verifyPairing(profile)
+        await this.pairing.enroll([...this.profiles, profile].map(pairing => this.hostProfile(pairing)))
+        await this.save([...this.profiles, profile])
+      } catch (error) {
+        await cleanup?.()
+        throw error
+      }
       this.controls.set(profile.id, { control: 'human', epoch: 0 })
       this.notify()
       return this.view(profile)

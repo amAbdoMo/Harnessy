@@ -2,7 +2,7 @@
 import { useEffect, useId, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
-  Button, IconCheckOutlineRegular, IconUserOutlineRegular, Input, Menu, MenuItemButton, Modal, Select, Tooltip,
+  Button, Checkbox, IconCheckOutlineRegular, IconUserOutlineRegular, Input, Menu, MenuItemButton, Modal, Select, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
@@ -100,8 +100,8 @@ export function BrowserProfilePicker({
     }]
     : [{ type: 'label', id: 'saved', text: t('profiles.saved') }]
 
-  const create = (input: DesktopWebsiteProfileInput): void => {
-    void profiles.create(input).then((created) => {
+  const create = (input: DesktopWebsiteProfileInput, importFirefoxSession: boolean): void => {
+    void (importFirefoxSession ? profiles.create(input, true) : profiles.create(input)).then((created) => {
       // A refused save keeps the form open for correction; its notice names the reason.
       if (created === undefined) return
       actions.discard()
@@ -164,6 +164,7 @@ export function BrowserProfilePicker({
       }} />}
       {dialog === 'create' && (
         <BrowserProfileCreate draft={draft} edit={actions.edit} creating={state.creating} onCreate={create} listMcpServers={listMcpServers}
+          canImportFirefoxSession={profiles.canImportFirefoxSession === true}
           onClose={() => { actions.discard(); setDialog(undefined) }} t={t} />
       )}
     </>
@@ -171,16 +172,19 @@ export function BrowserProfilePicker({
 }
 
 /** The create form: a saved profile is a user-confirmed pairing, never a discovered one. */
-function BrowserProfileCreate({ draft, edit, creating, onCreate, onClose, listMcpServers, t }: {
+function BrowserProfileCreate({ draft, edit, creating, onCreate, onClose, listMcpServers, canImportFirefoxSession, t }: {
   readonly draft: DesktopWebsiteProfileInput
   readonly edit: BrowserProfilePickerProps['actions']['edit']
   readonly creating: boolean
-  readonly onCreate: (input: DesktopWebsiteProfileInput) => void
+  readonly onCreate: (input: DesktopWebsiteProfileInput, importFirefoxSession: boolean) => void
   readonly onClose: () => void
   readonly listMcpServers: BrowserProfilePickerInjected['listMcpServers']
+  readonly canImportFirefoxSession: boolean
   readonly t: BrowserProfilePickerProps['t']
 }): ReactNode {
-  const { name, accountLabel, url, mcpServerName, access = 'automatic' } = draft
+  const { name, accountLabel, url, mcpServerName } = draft
+  const [importFirefoxSession, setImportFirefoxSession] = useState(false)
+  const access = importFirefoxSession ? 'disabled' : draft.access ?? 'automatic'
   const [submitted, setSubmitted] = useState(false)
   const [servers, setServers] = useState<readonly WebsiteMcpOption[] | 'loading' | 'failed'>('loading')
   const [attempt, setAttempt] = useState(0)
@@ -213,7 +217,7 @@ function BrowserProfileCreate({ draft, edit, creating, onCreate, onClose, listMc
     if (blocked) return
     setSubmitted(true)
     if (!resolved.ok) return
-    onCreate(resolved.value)
+    onCreate(resolved.value, importFirefoxSession)
   }
   return (
     <Modal
@@ -234,7 +238,7 @@ function BrowserProfileCreate({ draft, edit, creating, onCreate, onClose, listMc
       }}>
         <div className={css.profileField}>
           <span className={css.profileFieldLabel}>{t('profiles.access')}</span>
-          <BrowserAccessPicker access={access} disabled={creating} onChange={(choice) => { edit('access', choice) }} t={t} />
+          <BrowserAccessPicker access={access} disabled={creating || importFirefoxSession} onChange={(choice) => { edit('access', choice) }} t={t} />
           <span className={css.profileFieldHint}>{t('profiles.access.hint')}</span>
         </div>
         <label className={css.profileField}>
@@ -253,6 +257,11 @@ function BrowserProfileCreate({ draft, edit, creating, onCreate, onClose, listMc
           <span className={css.profileFieldHint}>{t('profiles.create.urlHint')}</span>
           {fieldError('url')}
         </label>
+        {canImportFirefoxSession && <div className={css.profileField}>
+          <Checkbox checked={importFirefoxSession} disabled={creating} onChange={setImportFirefoxSession}
+            label={t('profiles.create.firefox')} />
+          {importFirefoxSession && <span className={css.profileFieldHint}>{t('profiles.create.firefoxHint')}</span>}
+        </div>}
         <div className={css.profileField}>
           <label htmlFor={mcpId} className={css.profileFieldLabel}>{t('profiles.create.mcp')}</label>
           <Select id={mcpId} ariaDescribedBy={mcpHintId} value={mcpServerName} disabled={creating || !connected}

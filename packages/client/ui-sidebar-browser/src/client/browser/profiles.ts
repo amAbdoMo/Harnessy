@@ -10,6 +10,7 @@ import { websiteProfileFailureReason } from './profile-failure.ts'
 /** A settled saved-profile action the Browser chrome announces. */
 export type WebsiteProfileNotice =
   | { readonly kind: 'created'; readonly seq: number; readonly name: string }
+  | { readonly kind: 'imported'; readonly seq: number; readonly name: string }
   | { readonly kind: 'resumed'; readonly seq: number; readonly name: string }
   | { readonly kind: 'human'; readonly seq: number; readonly name: string }
   | { readonly kind: 'signedOut'; readonly seq: number; readonly name: string }
@@ -33,12 +34,15 @@ export interface WebsiteProfilesState {
 
 /** Saved-profile operations; Resume belongs to the selected request, while account Takeover also revokes aliases. */
 export interface WebsiteProfileCommands {
+  /** Whether the carrier offers native Firefox sign-in import. */
+  readonly canImportFirefoxSession?: true
   /**
    * Save a user-confirmed pairing; the account starts under human control.
    * @param input - name, account label, site address, and MCP server name.
+   * @param importFirefoxSession - open the native Firefox session import.
    * @returns the saved profile, or undefined when the request failed and published its notice.
    */
-  create(this: void, input: DesktopWebsiteProfileInput): Promise<DesktopWebsiteProfile | undefined>
+  create(this: void, input: DesktopWebsiteProfileInput, importFirefoxSession?: boolean): Promise<DesktopWebsiteProfile | undefined>
   /** @param profile - saved account to retain. @param url - validated landing address. @returns whether saving succeeded. */
   setUrl(this: void, profile: DesktopWebsiteProfileId, url: string): Promise<boolean>
   /** @param profile - account whose reservations, including aliases, are revoked without clearing sign-in data. */
@@ -162,8 +166,10 @@ export function createWebsiteProfilesModel(profiles: DesktopWebsiteProfilesBridg
   }
 
   const commands: WebsiteProfileCommands = {
-    create: input => operate(undefined, () => profiles.create(input),
-      created => ({ kind: 'created', seq: ++sequence, name: created.name })),
+    ...(profiles.canImportFirefoxSession ? { canImportFirefoxSession: true } : {}),
+    create: (input, importFirefoxSession) => operate(undefined,
+      () => importFirefoxSession ? profiles.create(input, true) : profiles.create(input),
+      created => ({ kind: importFirefoxSession ? 'imported' : 'created', seq: ++sequence, name: created.name })),
     setUrl: async (profile, url) => (await operate(profile, async () => {
       await profiles.setUrl(profile, url)
       return true

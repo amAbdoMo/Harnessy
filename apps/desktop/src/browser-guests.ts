@@ -1,13 +1,18 @@
 /** Main-process ownership and fixed isolation policy for Sidebar webview guests. */
 import { randomUUID } from 'node:crypto'
 import { setImmediate } from 'node:timers/promises'
-import { app, session, webContents, type BrowserWindow, type Event as ElectronEvent, type Session, type WebContents } from 'electron'
+import { app, session, webContents, type BrowserWindow, type CookiesSetDetails, type Event as ElectronEvent, type Session, type WebContents } from 'electron'
 import type { BrowserViewport, DesktopBrowserLeaseId, DesktopBrowserOpenRequest, DesktopBrowserReacquireRequest, DesktopBrowserReservation, DesktopWebsiteProfileId } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
 import { DESKTOP_IPC } from './ipc.ts'
 import { bindBrowserCertificateErrors, localBrowserDeviceOrigin, type ConfirmBrowserCertificate } from './browser-certificates.ts'
 import { executeHumanBrowserCommand } from './browser-human-command.ts'
 import { BrowserPreviewViewport } from './browser-preview-viewport.ts'
 import { DesktopWebsiteProfiles, type DesktopWebsiteAccount, type DesktopWebsitePairing } from './website-profiles.ts'
+import { WebsiteProfileError } from './website-profile-errors.ts'
+
+function websitePartition(id: DesktopWebsiteProfileId): string {
+  return `persist:dsh-website-${id}`
+}
 
 interface GuestLease {
   readonly owner: WebContents
@@ -81,13 +86,35 @@ export class DesktopBrowserGuests {
       const failures = results.filter(result => result.status === 'rejected').map((result): unknown => result.reason)
       if (failures.length === 1) throw failures[0]
       if (failures.length !== 0) throw new AggregateError(failures, 'Desktop website guests failed to drain')
-      const storage = session.fromPartition(`persist:dsh-website-${id}`)
+      const storage = session.fromPartition(websitePartition(id))
       await this.drainNativeGuests([...this.nativeGuests].filter(native => native.session === storage))
       await storage.clearStorageData()
       await storage.clearCache()
       await storage.clearAuthCache()
       await storage.closeAllConnections()
     }, pairing, drainAccount, credentials)
+  }
+
+  /**
+   * @param id - fresh, unpublished profile ID whose persistent partition has no guests.
+   * @param cookies - Main-validated settings for the approved profile site.
+   * @returns cleanup used if the profile cannot be saved.
+   */
+  async seedProfileCookies(id: DesktopWebsiteProfileId, cookies: readonly CookiesSetDetails[]): Promise<() => Promise<void>> {
+    const storage = session.fromPartition(websitePartition(id))
+    const clear = async (): Promise<void> => {
+      await storage.clearStorageData({ storages: ['cookies'] })
+      await storage.cookies.flushStore()
+    }
+    try {
+      for (const cookie of cookies) await storage.cookies.set(cookie)
+      await storage.cookies.flushStore()
+    } catch (_error: unknown) {
+      // Avoid serializing rejected CookieSetDetails or filesystem data.
+      await clear()
+      throw new WebsiteProfileError('session-import-failed', 'Firefox cookies could not be installed')
+    }
+    return clear
   }
 
   /**
@@ -99,7 +126,7 @@ export class DesktopBrowserGuests {
     if (!this.allowedNavigation(address)) throw new Error('desktop browser: profile address rejected')
     const certificateOrigin = localBrowserDeviceOrigin(address)
     if (certificateOrigin !== undefined) return this.acquireLocalDevice(owner, certificateOrigin, profile)
-    const partition = `persist:dsh-website-${profile}`
+    const partition = websitePartition(profile)
     if (!this.profilePartitions.has(profile)) {
       this.configureSession(session.fromPartition(partition))
       this.profilePartitions.add(profile)

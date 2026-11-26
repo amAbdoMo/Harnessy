@@ -135,6 +135,20 @@ describe('desktop website profiles', () => {
     expect(existsSync(filename)).toBe(false)
   })
 
+  it('clears imported cookies if publishing the new profile fails', async () => {
+    const filename = await metadataPath()
+    const cleanup = vi.fn(async () => {})
+    const seed = vi.fn(async () => cleanup)
+    const enroll = vi.fn(async () => { throw new Error('Host enrollment failed') })
+    const profiles = new DesktopWebsiteProfiles(filename, async () => {}, { ...PAIRING, enroll }, async () => {})
+    await expect(profiles.create({ ...PAIRED, access: 'automatic' }, seed)).rejects.toThrow('Host enrollment failed')
+    expect(seed).toHaveBeenCalledOnce()
+    expect(enroll.mock.calls).toHaveLength(1)
+    expect(cleanup).toHaveBeenCalledOnce()
+    expect(await profiles.list()).toEqual([])
+    expect(existsSync(filename)).toBe(false)
+  })
+
   it('refuses a configuration change during confirmation and never commits the stale pairing', async () => {
     const filename = await metadataPath()
     const inspect = vi.fn().mockResolvedValueOnce(MCP_BINDING)
