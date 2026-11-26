@@ -10,8 +10,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -19,11 +21,28 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import io.harnessy.companion.R
 import io.harnessy.companion.CompanionPlatform.OperationKind
+import io.harnessy.companion.BuildConfig
+import io.harnessy.companion.nativeapp.update.AndroidInstallStatus
+import io.harnessy.companion.nativeapp.update.AndroidInstallStatusInbox
 
 /** The ViewModel is Activity-scoped, outside the NavHost; destinations never own sockets or drafts. */
 @Composable
 fun NativeCompanionApp(viewModel: CompanionViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    if (BuildConfig.ANDROID_UPDATES_ENABLED) {
+        val installStatus by AndroidInstallStatusInbox.status.collectAsStateWithLifecycle(minActiveState = Lifecycle.State.RESUMED)
+        val activity = LocalContext.current
+        LaunchedEffect(installStatus) {
+            val result = installStatus ?: return@LaunchedEffect
+            if (!AndroidInstallStatusInbox.consume(result)) return@LaunchedEffect
+            when (result) {
+                is AndroidInstallStatus.Confirm -> try { activity.startActivity(result.intent) }
+                    catch (_: android.content.ActivityNotFoundException) { viewModel.androidUpdateFinished(false) }
+                AndroidInstallStatus.Finished -> viewModel.androidUpdateFinished(true)
+                AndroidInstallStatus.Failed -> viewModel.androidUpdateFinished(false)
+            }
+        }
+    }
     val navigation = rememberNavController()
     val entry by navigation.currentBackStackEntryAsState()
     val route = entry?.destination?.route
@@ -44,7 +63,8 @@ fun NativeCompanionApp(viewModel: CompanionViewModel = hiltViewModel()) {
                     NativeChatScreen(state.companion.copy(workspaceExpansion = state.workspaceExpansion,
                         workspacePreferenceFailed = state.workspacePreferenceFailed), viewModel,
                         openSettings = { navigation.navigate("settings") { launchSingleTop = true } },
-                        resumeConnection = viewModel::resumeConnection)
+                        resumeConnection = viewModel::resumeConnection,
+                        openBrowserShare = { navigation.navigate("browserShare") { launchSingleTop = true } })
                 }
                 composable("pairing") {
                     BackHandler(enabled = pairingVisible) { viewModel.cancelPairing() }
@@ -57,6 +77,8 @@ fun NativeCompanionApp(viewModel: CompanionViewModel = hiltViewModel()) {
                         pauseConnection = viewModel::pauseConnection,
                         resumeConnection = viewModel::resumeConnection,
                         openBrowserShare = { navigation.navigate("browserShare") { launchSingleTop = true } },
+                        checkAndroidUpdate = viewModel::checkAndroidUpdate,
+                        installAndroidUpdate = viewModel::installAndroidUpdate,
                     ))
                 }
                 composable("browserShare") {

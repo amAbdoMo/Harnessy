@@ -342,6 +342,18 @@ class NativeChatMigrationTest {
     }
 
     @Test
+    fun liveBrowserIsAFirstClassWorkspaceAction() {
+        val actions = RecordingActions()
+        renderNavigation(SessionPane(emptyList(), null, false), actions) {
+            actions.events.add("browser")
+        }
+
+        compose.onNodeWithTag("open_browser_share").assertIsDisplayed().assertIsEnabled().performClick()
+        compose.onNodeWithText(text(R.string.native_browser_share_title)).assertIsDisplayed()
+        compose.runOnIdle { assertEquals(listOf("browser"), actions.events) }
+    }
+
+    @Test
     fun foregroundRetirementBlocksSessionSelectionAndRefresh() {
         val actions = RecordingActions()
         val foreground = mutableStateOf(true)
@@ -433,12 +445,12 @@ class NativeChatMigrationTest {
         compose.onNodeWithTag("settings").performScrollToNode(hasTestTag(tag))
     }
 
-    private fun renderNavigation(pane: SessionPane, actions: RecordingActions) {
+    private fun renderNavigation(pane: SessionPane, actions: RecordingActions, openBrowserShare: (() -> Unit)? = null) {
         compose.setContent {
             NativeTheme(ThemePreference.SYSTEM) {
                 NativeSessionNavigation(pane, true,
                     SessionNavigationActions(actions::refresh, actions::selectSession, actions::loadMoreSessions,
-                        workspaceExpansionFixture()))
+                        workspaceExpansionFixture(), openBrowserShare = openBrowserShare))
             }
         }
     }

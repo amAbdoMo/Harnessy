@@ -17,6 +17,7 @@ The native Kotlin/Jetpack Compose application provides pairing, existing-session
 - [Model selection](#model-selection)
 - [Session activation](#session-activation)
 - [Live browser share](#live-browser-share)
+- [Staging app updates](#staging-app-updates)
 - [Pairing and storage](#pairing-and-storage)
 - [Reads and delivery](#reads-and-delivery)
 - [Limits and verification](#limits-and-verification)
@@ -70,9 +71,16 @@ An eligible existing cold ordinary chat can be opened explicitly on the running 
 <a id="live-browser-share"></a>
 ## Live browser share
 
-The paired phone exposes **Live browser** from Settings → PC connection while the paired PC is online; opening it explicitly discovers a share that the PC has already started. The [native viewer](<app/src/main/java/io/harnessy/companion/nativeapp/NativeBrowserShareScreen.kt>) uses the existing encrypted companion channel, requests bounded JPEG frames only while this screen is visible, and never opens a WebView, Tailscale route or external account.
+Open **Live browser** from the workspace navigation or **Settings → PC connection** while the paired PC is online. The [native viewer](<app/src/main/java/io/harnessy/companion/nativeapp/NativeBrowserShareScreen.kt>) subscribes to JPEG frames for the explicitly shared Desktop tab over the existing encrypted channel. The PC targets up to 15 frames per second and drops duplicate or rate-limited frames. The viewer releases its subscription when it closes. Compatible older PCs provide individual frame requests.
 
 The viewer keeps the last decoded frame visible while it decodes a replacement for the same share. The viewer binds **Stop sharing** to the exact share UUID received with the current frame. A stop acknowledgement must report `ended`; timeouts, disconnects and lifecycle retirement clear the frame and do not resend the stop mutation. Leaving the screen or the Activity drops the JPEG and polling state. Update the PC before using this screen; old PC builds reject the new exact-field requests and the Android app does not downgrade them.
+
+<a id="staging-app-updates"></a>
+## Staging app updates
+
+With the paired staging PC online, open **Settings → App updates → Check for updates**, then tap **Update**. The PC serves the delta for the installed APK, and Android reconstructs and verifies the newer signed APK locally before asking for approval. Allow Harnessy Dev to install its own update if Android requests it. Updating this way preserves the existing app data and pairing.
+
+Build the newer Debug APK with `-Pcompanion.versionCode=<higher-code>` and retain the exact previously delivered APK. On the Windows staging PC, set `JAVA_HOME` to the Android JDK, then run `pnpm exec tsx apps/desktop/scripts/prepare-android-staging-update.ts --base <older-apk> --target <newer-apk>` from the staging checkout. This serves the delta from the staging PC through the encrypted companion connection. Devices on an older build without an updater need a one-time in-place upgrade to an updater-capable APK.
 
 <a id="pairing-and-storage"></a>
 ## Pairing and storage

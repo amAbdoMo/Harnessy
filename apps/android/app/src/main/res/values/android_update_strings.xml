@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="android_update_title">App updates</string>
+    <string name="android_update_check">Check for updates</string>
+    <string name="android_update_checking">Checking the paired PC…</string>
+    <string name="android_update_current">No update is available for this build.</string>
+    <string name="android_update_available">Build %1$d is ready · %2$s download</string>
+    <string name="android_update_install">Update</string>
+    <string name="android_update_installing">Downloading the update…</string>
+    <string name="android_update_awaiting_confirmation">Confirm the update in Android.</string>
+    <string name="android_update_failed">Couldn’t finish the update. Check your PC connection and try again.</string>
+</resources>

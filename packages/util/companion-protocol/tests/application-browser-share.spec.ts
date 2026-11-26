@@ -19,6 +19,8 @@ describe('native browser-share application messages', () => {
   it.each([
     { v: 1, type: 'watchBrowserShare', requestId },
     { v: 1, type: 'watchBrowserShare', requestId, shareId },
+    { v: 1, type: 'subscribeBrowserShare', requestId },
+    { v: 1, type: 'unsubscribeBrowserShare', requestId, watchId: requestId },
     { v: 1, type: 'stopBrowserShare', requestId, shareId },
   ])('round-trips additive request %j', (request) => {
     const json = JSON.stringify(request)
@@ -40,6 +42,8 @@ describe('native browser-share application messages', () => {
     { v: 1, type: 'watchBrowserShare', requestId, shareId: 'e7ceaa5b-761d-5e48-9abc-9fa732df8617' },
     { v: 1, type: 'stopBrowserShare', requestId },
     { v: 1, type: 'stopBrowserShare', requestId, shareId: `${shareId}x` },
+    { v: 1, type: 'subscribeBrowserShare', requestId, shareId },
+    { v: 1, type: 'unsubscribeBrowserShare', requestId, watchId: 'unvalidated' },
   ])('rejects incomplete or noncanonical request %j', (request) => {
     expect(() => parseApplicationRequest(JSON.stringify(request), budget)).toThrow()
   })

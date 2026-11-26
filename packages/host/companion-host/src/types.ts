@@ -1,6 +1,6 @@
 /** Main-only companion management types; none grants renderer access to secrets. */
 import type { Branded } from '@deepseek-ai/dsh-brand'
-import type { BrowserShareId, GrantId, InvitationId, PcId } from '@deepseek-ai/dsh-companion-protocol'
+import type { AndroidUpdateOffer, BrowserShareId, GrantId, InvitationId, PcId } from '@deepseek-ai/dsh-companion-protocol'
 
 /** Exact locally displayed candidate identifier, independent of relay routing. */
 export type CandidateId = Branded<'CompanionCandidateId'>
@@ -17,6 +17,15 @@ export type BrowserShareResponse =
 
 /** Desktop-owned callback for one authenticated paired-phone browser-share operation. */
 export type BrowserShareHandler = (request: BrowserShareRequest, signal: AbortSignal) => Promise<BrowserShareResponse>
+
+/** Read a locally prepared Android delta for the authenticated phone and exact installed APK. */
+export interface AndroidUpdateProvider {
+  /** @param baseSha256 - installed APK hash. @param signal - phone request lifetime. @returns Matching local manifest if present. */
+  offer(baseSha256: string, signal: AbortSignal): Promise<AndroidUpdateOffer | null>
+  /** @param offer - previously authorized manifest. @param offset - exact chunk offset. @param signal - phone request lifetime.
+   * @returns One bounded standard-base64 delta chunk. */
+  chunk(offer: AndroidUpdateOffer, offset: number, signal: AbortSignal): Promise<string>
+}
 
 /** Public phone labels; an empty display name is intentional until signed metadata exists. */
 export interface PairedDevice {

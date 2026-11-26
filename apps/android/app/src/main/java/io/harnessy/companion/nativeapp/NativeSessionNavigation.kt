@@ -4,17 +4,21 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalFocusManager
@@ -37,6 +41,7 @@ internal data class SessionNavigationActions(
     val loadMore: () -> Unit,
     val workspaceExpansion: WorkspaceExpansionControls,
     val sidebar: SidebarActions? = null,
+    val openBrowserShare: (() -> Unit)? = null,
 )
 
 /** Local filtering covers only the bounded, already-loaded list; it never starts a PC operation. */
@@ -55,6 +60,10 @@ internal fun NativeSessionNavigation(pane: SessionPane, foreground: Boolean, act
             } else searching = true
         }, actions.sidebar?.close)
         if (searching) ConversationSearchField(query, { query = it.take(256) }, searchFocus)
+        ActiveWorkNavigationRow()
+        actions.openBrowserShare?.let { openBrowserShare ->
+            LiveBrowserNavigationRow(foreground, openBrowserShare)
+        }
         Box(Modifier.weight(1f)) {
             WorkspaceSessionList(NavigationListState(pane, NavigationFilter(query, openOnly)), foreground, actions) {
                 actions.sidebar?.let { sidebar -> item(key = "navigation:new_chat") {
@@ -78,6 +87,51 @@ internal fun NativeSessionNavigation(pane: SessionPane, foreground: Boolean, act
                         color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
                 }
             }
+        }
+    }
+}
+
+/** Shows the selected workspace route before the PC-owned chat list begins. */
+@Composable
+private fun ActiveWorkNavigationRow() {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = RoundedCornerShape(14.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp).testTag("active_route_work"),
+    ) {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Icon(Icons.Default.Home, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(stringResource(R.string.native_work), style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface)
+                Text(stringResource(R.string.native_conversations), style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+/** Keeps the shared browser beside the chat workspace actions instead of hiding it in Settings. */
+@Composable
+private fun LiveBrowserNavigationRow(foreground: Boolean, openBrowserShare: () -> Unit) {
+    NativePressableRow(
+        enabled = foreground,
+        onClick = openBrowserShare,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp).clip(RoundedCornerShape(14.dp))
+            .testTag("open_browser_share"),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+        spacing = 12.dp,
+    ) {
+        Icon(Icons.Default.PlayArrow, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Text(stringResource(R.string.native_browser_share_title), style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface)
+            Text(stringResource(R.string.native_browser_share_subtitle), style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }

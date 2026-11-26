@@ -13,6 +13,11 @@ val pcModelSelection = when (val value = providers.gradleProperty("companion.pcM
     else -> error("companion.pcModelSelection must be true or false, not '$value'")
 }
 
+val stagingVersionCode = providers.gradleProperty("companion.versionCode").orElse("3").map { value ->
+    value.toIntOrNull()?.takeIf { it >= 3 }
+        ?: error("companion.versionCode must be an integer of at least 3, not '$value'")
+}
+
 android {
     namespace = "io.harnessy.companion"
     compileSdk = 37
@@ -41,10 +46,18 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            buildConfigField("boolean", "ANDROID_UPDATES_ENABLED", "true")
         }
         release {
             isMinifyEnabled = false
+            buildConfigField("boolean", "ANDROID_UPDATES_ENABLED", "false")
         }
+    }
+}
+
+androidComponents {
+    onVariants(selector().withBuildType("debug")) { variant ->
+        variant.outputs.forEach { output -> output.versionCode.set(stagingVersionCode) }
     }
 }
 

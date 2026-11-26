@@ -3,7 +3,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { mkdir, realpath } from 'node:fs/promises'
 import { isAbsolute } from 'node:path'
 import { acquireHomeLock } from './home-lock.ts'
-import type { BrowserShareHandler } from './types.ts'
+import type { AndroidUpdateProvider, BrowserShareHandler } from './types.ts'
 
 /** Boot-installed Desktop capabilities used by the Host, never supplied by YAML or a renderer. */
 export interface DesktopCompanionOwnerOptions {
@@ -11,6 +11,8 @@ export interface DesktopCompanionOwnerOptions {
   readonly signal: AbortSignal
   /** Optional native provider; the paired phone can observe or stop only a share started by Desktop. */
   readonly browserShare?: BrowserShareHandler
+  /** Optional local Android delta source for paired devices. */
+  readonly androidUpdates?: AndroidUpdateProvider
 }
 const owners = new WeakMap<Context, DesktopCompanionOwnerOptions>()
 
@@ -38,6 +40,7 @@ export function installDesktopCompanionOwner(ctx: Context, owner: DesktopCompani
 export async function acquireDesktopOwner(ctx: Context): Promise<{
   readonly signal: AbortSignal
   readonly browserShare?: BrowserShareHandler
+  readonly androidUpdates?: AndroidUpdateProvider
   release(): Promise<void>
 }> {
   const owner = owners.get(ctx.root)
@@ -47,7 +50,7 @@ export async function acquireDesktopOwner(ctx: Context): Promise<{
   const release = await acquireHomeLock(home)
   try { owner.signal.throwIfAborted() }
   catch (error) { await release(); throw error }
-  return owner.browserShare === undefined
-    ? { signal: owner.signal, release }
-    : { signal: owner.signal, browserShare: owner.browserShare, release }
+  return { signal: owner.signal, release,
+    ...(owner.browserShare === undefined ? {} : { browserShare: owner.browserShare }),
+    ...(owner.androidUpdates === undefined ? {} : { androidUpdates: owner.androidUpdates }) }
 }

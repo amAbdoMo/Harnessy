@@ -117,6 +117,7 @@
     <string name="native_open_chat_resolve">I checked this chat’s PC state</string>
     <string name="native_draft_limit">Too many chats have unsent drafts. Clear one draft before starting another. Existing drafts were retained.</string>
     <string name="native_browser_share_title">Live browser</string>
+    <string name="native_browser_share_subtitle">View the browser currently shared by your PC</string>
     <string name="native_browser_share_waiting">Waiting for a shared browser…</string>
     <string name="native_browser_share_frame">Shared browser view</string>
     <string name="native_browser_share_stop">Stop sharing</string>

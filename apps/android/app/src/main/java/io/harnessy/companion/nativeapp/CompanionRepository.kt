@@ -9,10 +9,17 @@ import io.harnessy.companion.protocol.Invitation
 import io.harnessy.companion.protocol.StrictJson
 import io.harnessy.companion.presentation.DisplayModels
 import io.harnessy.companion.presentation.ModelAccess
+import io.harnessy.companion.nativeapp.update.AndroidUpdateOffer
+import io.harnessy.companion.nativeapp.update.AndroidUpdateSource
 import javax.inject.Inject
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 
 enum class NativeBrowserShareStatus { IDLE, BUSY, FRAME, ENDED, STOPPING, ERROR }
 
@@ -57,7 +64,7 @@ data class CompanionState(
 @ViewModelScoped
 class CompanionRepository @Inject constructor(
     private val controller: CompanionController,
-) : NativeControllerActions {
+) : NativeControllerActions, AndroidUpdateSource {
     private val mutableState = MutableStateFlow(CompanionState())
     val state: StateFlow<CompanionState> = mutableState.asStateFlow()
     private var generation = 0L
@@ -139,6 +146,28 @@ class CompanionRepository @Inject constructor(
 
     fun stopBrowserShare(shareId: String) {
         if (active && state.value.foreground && !state.value.connectionPaused) controller.stopBrowserShare(shareId)
+    }
+
+    override suspend fun check(installedSha256: String, installedVersionCode: Long): AndroidUpdateOffer? =
+        awaitUpdateReply<ApplicationCodec.AndroidUpdateOffer?> { callback ->
+            controller.checkAndroidUpdate(installedSha256, installedVersionCode, callback)
+        }?.let { offer ->
+            AndroidUpdateOffer(offer.artifactId, offer.baseSha256, offer.targetSha256, offer.versionCode,
+                offer.targetBytes, offer.patchBytes)
+        }
+
+    override suspend fun read(artifactId: String, offset: Int): ByteArray =
+        awaitUpdateReply { callback -> controller.readAndroidUpdate(artifactId, offset.toLong(), callback) }
+
+    private suspend fun <T> awaitUpdateReply(
+        request: (CompanionController.AndroidUpdateCallback<T>) -> io.harnessy.companion.CompanionPlatform.Cancellable,
+    ): T = withContext(Dispatchers.Main.immediate) {
+        suspendCancellableCoroutine { completion ->
+            val cancel = request { value, failure ->
+                if (failure == null) completion.resume(value) else completion.resumeWithException(failure)
+            }
+            completion.invokeOnCancellation { Dispatchers.Main.dispatch(completion.context, Runnable { cancel.cancel() }) }
+        }
     }
 
     fun importLink(link: String) {

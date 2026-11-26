@@ -25,6 +25,13 @@ public final class BrowserShareCodecTest {
         assertEquals(FIRST_SHARE, exact.get("shareId"));
         Map<String, Object> stop = ApplicationCodec.parseRequest(ApplicationCodec.stopBrowserShare(REQUEST, FIRST_SHARE));
         assertEquals(FIRST_SHARE, stop.get("shareId"));
+        Map<String, Object> subscribe = ApplicationCodec.parseRequest(ApplicationCodec.subscribeBrowserShare(REQUEST));
+        assertEquals("subscribeBrowserShare", subscribe.get("type"));
+        assertEquals(3, subscribe.size());
+        Map<String, Object> unsubscribe = ApplicationCodec.parseRequest(
+            ApplicationCodec.unsubscribeBrowserShare(Protocol.encodeBase64Url(new byte[] { 1, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0 }), REQUEST));
+        assertEquals(REQUEST, unsubscribe.get("watchId"));
 
         ApplicationCodec.Result idle = ApplicationCodec.result(json(Protocol.object("v", 1, "type", "browserShare",
             "requestId", REQUEST, "status", "idle")));
@@ -51,13 +58,10 @@ public final class BrowserShareCodecTest {
         fixture.controller.start(); fixture.pump(); fixture.confirm();
         fixture.controller.startBrowserShareViewing();
 
-        fixture.controller.watchBrowserShare();
-        Map<String, Object> firstWatch = fixture.latest().last("watchBrowserShare");
-        fixture.latest().result(browserShare(firstWatch.get("requestId"), "frame", FIRST_SHARE, "anBlZw=="));
-        fixture.controller.watchBrowserShare();
-        Map<String, Object> secondWatch = fixture.latest().last("watchBrowserShare");
-        assertEquals(FIRST_SHARE, secondWatch.get("shareId"));
-        fixture.latest().result(browserShare(secondWatch.get("requestId"), "frame", SECOND_SHARE, "anBlZw=="));
+        Map<String, Object> subscription = fixture.latest().last("subscribeBrowserShare");
+        fixture.latest().result(browserShare(subscription.get("requestId"), "idle", null, null));
+        fixture.latest().result(browserShare(subscription.get("requestId"), "frame", FIRST_SHARE, "anBlZw=="));
+        fixture.latest().result(browserShare(subscription.get("requestId"), "frame", SECOND_SHARE, "anBlZw=="));
 
         int beforeWrongStop = fixture.latest().requests.size();
         fixture.controller.stopBrowserShare(FIRST_SHARE);
@@ -65,19 +69,36 @@ public final class BrowserShareCodecTest {
         fixture.controller.stopBrowserShare(SECOND_SHARE);
         Map<String, Object> stop = fixture.latest().last("stopBrowserShare");
         assertEquals(SECOND_SHARE, stop.get("shareId"));
+        fixture.latest().result(browserShare(subscription.get("requestId"), "frame", SECOND_SHARE, "bGF0ZQ=="));
+        assertEquals(BrowserShare.Status.STOPPING, fixture.browserShare.status);
         fixture.latest().result(browserShare(stop.get("requestId"), "ended", null, null));
         assertEquals(BrowserShare.Status.ENDED, fixture.browserShare.status);
 
-        fixture.controller.watchBrowserShare();
-        Map<String, Object> discovery = fixture.latest().last("watchBrowserShare");
-        fixture.latest().result(browserShare(discovery.get("requestId"), "idle", null, null));
+        fixture.latest().result(browserShare(subscription.get("requestId"), "frame", SECOND_SHARE, "bGF0ZQ=="));
         assertEquals(BrowserShare.Status.ENDED, fixture.browserShare.status);
 
         fixture.controller.stopBrowserShareViewing();
+        Map<String, Object> unsubscribe = fixture.latest().last("unsubscribeBrowserShare");
+        assertEquals(subscription.get("requestId"), unsubscribe.get("watchId"));
         int afterClose = fixture.latest().requests.size();
         fixture.latest().result(browserShare(stop.get("requestId"), "ended", null, null));
         assertEquals(afterClose, fixture.latest().requests.size());
         assertTrue(fixture.screen.pc.connection == io.harnessy.companion.presentation.DisplayModels.Connection.ONLINE);
+    }
+
+    @Test
+    public void unacknowledgedSubscriptionFallsBackToPollingAfterReconnect() throws Exception {
+        ControllerRegression.Fixture fixture = new ControllerRegression.Fixture();
+        fixture.controller.start(); fixture.pump(); fixture.confirm();
+        fixture.controller.startBrowserShareViewing();
+        assertTrue(fixture.latest().last("subscribeBrowserShare") != null);
+
+        fixture.latest().events.disconnected();
+        fixture.advance(5000);
+        fixture.confirm();
+        assertNull(fixture.latest().last("subscribeBrowserShare"));
+        fixture.controller.watchBrowserShare();
+        assertTrue(fixture.latest().last("watchBrowserShare") != null);
     }
 
     private static Map<String, Object> browserShare(Object requestId, String status, String shareId, String jpeg) {

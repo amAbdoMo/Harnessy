@@ -25,11 +25,19 @@ Every object has `v:1` and the exact listed fields. A question mark marks an opt
 | `submitText` | `sessionId,text,submissionId` | `submitted` | `sessionId,submissionId,admission:"inMemoryInbox"` |
 | `cancelRead` | `subscriptionId` | `cancelled` | `subscriptionId` |
 | `watchBrowserShare` | `shareId?` | `browserShare` | `status`; a `frame` also has `shareId,jpeg` |
+| `subscribeBrowserShare` | — | `browserShare` | Initial `idle`, then correlated `frame` or `ended` messages |
+| `unsubscribeBrowserShare` | `watchId` | `browserShare` | `ended` acknowledges release of the matching subscription |
 | `stopBrowserShare` | `shareId` | `browserShare` | `status`; a `frame` is never returned for a stop |
+| `checkAndroidUpdate` | `installedSha256,versionCode` | `androidUpdate` | `offer` or `null` |
+| `readAndroidUpdate` | `artifactId,offset` | `androidUpdateChunk` | `artifactId,offset,data` |
 
 A request can instead return `{v:1,type:"error",requestId,code}` with `code` exactly `denied`, `notFound`, `limit`, `expired`, or `unavailable`. A live read emits `{v:1,type:"progress",subscriptionId,sessionId,rows,status,cursor?}`; it has no request ID. The phone must correlate result type, request ID, Session ID, and submission or subscription ID with its outstanding operation before accepting a result; parsing alone does not provide that correlation.
 
 `watchBrowserShare` is additive to v1. The Desktop operator must explicitly start the native share; a paired authenticated grant may then request one frame, optionally naming the exact lowercase UUID share ID, or omit it to discover the current share. An absent PC provider returns `idle`. `stopBrowserShare` always names the exact share ID and cannot start or replace a share. Results are `idle`, `busy`, `ended`, or a `frame` carrying the share ID and canonical standard-base64 JPEG. A frame is limited to 24,576 base64 characters and 18,432 decoded bytes. This operation exposes no operator RPC, credentials, model route, or persisted grant field. Older peers reject these additive operation tags; the Android client requests them only from its explicit browser-share screen.
+
+One subscription per channel uses its subscribe request ID as `watchId`. Frame pushes carry that request ID. An `ended` push clears the current share while the subscription stays open to discover a new one. Unsubscription retires only the matching subscriber. Channel retirement cancels all delivery. The Host skips duplicate frames and bounds the rate across phone channels.
+
+Android staging offers contain `artifactId`, `baseSha256`, `targetSha256`, `versionCode`, `targetBytes` and `patchBytes`. Each hash is lowercase SHA-256, with the patch hash serving as `artifactId`. `versionCode` falls between 1 and 2,100,000,000, the signed target is at most 64 MiB, and the patch must be smaller than the target. Reads require a previously offered artifact on the same channel and an offset aligned to 12,288 bytes. Data is canonical standard base64, representing at most 12,288 bytes.
 
 Each Session summary has exactly `sessionId,title,status`; `status` is `idle`, `queued`, `running`, or `closed`. Each history row has exactly `role,seq,id,text`; `role` is `user`, `assistant`, `tool`, or `notice`. Tool rows contain approved bounded text, not tool arguments or arbitrary result projections. History and progress rows must have strictly increasing sequences and distinct IDs within each batch. The PC and phone must also preserve ordering across subscription batches using the PC-issued cursor.
 

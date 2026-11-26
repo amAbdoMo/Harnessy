@@ -23,11 +23,32 @@ public final class ApplicationCodec {
     /** Browser-share frames use standard Base64 and stay below the encrypted application budget. */
     public static final int MAX_JPEG_BASE64_CHARS = 24_576;
     public static final int MAX_JPEG_BYTES = 18_432;
+    public static final int ANDROID_UPDATE_CHUNK_BYTES = 12_288;
+    public static final long MAX_ANDROID_UPDATE_BYTES = 64L * 1024 * 1024;
+    public static final long MAX_ANDROID_VERSION_CODE = 2_100_000_000L;
     private static final long MAX_SAFE_INTEGER = 9_007_199_254_740_991L;
     private ApplicationCodec() { }
 
     public enum Type { SESSIONS, HISTORY, WATCHING, PROGRESS, SUBMITTED, CANCELLED, ERROR, MANAGEMENT_WORKSPACES, MANAGED,
-        SESSION_MODELS, MODEL_SELECTED, SESSION_ACTIVATION, SESSION_OPENED, BROWSER_SHARE }
+        SESSION_MODELS, MODEL_SELECTED, SESSION_ACTIVATION, SESSION_OPENED, BROWSER_SHARE, ANDROID_UPDATE, ANDROID_UPDATE_CHUNK }
+
+    /** Immutable metadata for an explicitly requested Android update. */
+    public static final class AndroidUpdateOffer {
+        public final String artifactId;
+        public final String baseSha256;
+        public final String targetSha256;
+        public final long versionCode;
+        public final long targetBytes;
+        public final long patchBytes;
+        private AndroidUpdateOffer(Map<String, Object> wire) {
+            artifactId = sha256(wire.get("artifactId"));
+            baseSha256 = sha256(wire.get("baseSha256"));
+            targetSha256 = sha256(wire.get("targetSha256"));
+            versionCode = integer(wire.get("versionCode"), 1, MAX_ANDROID_VERSION_CODE);
+            targetBytes = integer(wire.get("targetBytes"), 1, MAX_ANDROID_UPDATE_BYTES);
+            patchBytes = integer(wire.get("patchBytes"), 8, targetBytes - 1);
+        }
+    }
 
     public static final class SessionSummary {
         public final String sessionId;
@@ -120,10 +141,17 @@ public final class ApplicationCodec {
         public final List<ModelChoice> modelChoices;
         public final ModelChoice currentModel;
         public final ModelChoice selectedModel;
+        /** Null means the installed Android build is current. */
+        public final AndroidUpdateOffer androidUpdateOffer;
+        /** Exact artifact identity and offset for one update chunk. */
+        public final String androidUpdateArtifactId;
+        public final long androidUpdateOffset;
+        /** One bounded decoded patch chunk; callers erase discarded or consumed bytes. */
+        public final byte[] androidUpdateData;
         public final Map<String, Object> wire;
         private Result(Map<String, Object> wire) {
-            this.wire = wire;
-            switch (Protocol.string(wire.get("type"))) {
+            String wireType = Protocol.string(wire.get("type"));
+            switch (wireType) {
                 case "sessions": type = Type.SESSIONS; break;
                 case "history": type = Type.HISTORY; break;
                 case "watching": type = Type.WATCHING; break;
@@ -138,6 +166,8 @@ public final class ApplicationCodec {
                 case "sessionActivation": type = Type.SESSION_ACTIVATION; break;
                 case "sessionOpened": type = Type.SESSION_OPENED; break;
                 case "browserShare": type = Type.BROWSER_SHARE; break;
+                case "androidUpdate": type = Type.ANDROID_UPDATE; break;
+                case "androidUpdateChunk": type = Type.ANDROID_UPDATE_CHUNK; break;
                 default: throw invalid();
             }
             requestId = nullable(wire, "requestId"); sessionId = nullable(wire, "sessionId");
@@ -171,6 +201,16 @@ public final class ApplicationCodec {
             modelChoices = Collections.unmodifiableList(choices);
             currentModel = wire.get("current") == null ? null : new ModelChoice(Protocol.record(wire.get("current")));
             selectedModel = wire.get("selected") == null ? null : new ModelChoice(Protocol.record(wire.get("selected")));
+            androidUpdateOffer = wire.containsKey("offer") && wire.get("offer") != null
+                ? new AndroidUpdateOffer(Protocol.record(wire.get("offer"))) : null;
+            androidUpdateArtifactId = nullable(wire, "artifactId");
+            androidUpdateOffset = wire.containsKey("offset") ? integer(wire.get("offset"), 0, MAX_ANDROID_UPDATE_BYTES - 1) : -1;
+            androidUpdateData = wire.containsKey("data") ? Protocol.decodeBase64(wire.get("data"), ANDROID_UPDATE_CHUNK_BYTES) : null;
+            if (type == Type.ANDROID_UPDATE_CHUNK) {
+                Map<String, Object> metadata = new LinkedHashMap<>(wire);
+                metadata.remove("data");
+                this.wire = Collections.unmodifiableMap(metadata);
+            } else this.wire = wire;
         }
     }
 
@@ -214,6 +254,10 @@ public final class ApplicationCodec {
                 sessionOpened(value); break;
             case "browserShare":
                 browserShare(value); break;
+            case "androidUpdate":
+                androidUpdate(value); break;
+            case "androidUpdateChunk":
+                androidUpdateChunk(value); break;
             case "history":
                 exact(value, new String[] { "v", "type", "requestId", "sessionId", "rows" }, "cursor");
                 sessionId(value.get("sessionId")); rows(value.get("rows")); optionalCursor(value); break;
@@ -293,6 +337,24 @@ public final class ApplicationCodec {
                 exact(value, new String[] { "v", "type", "requestId" }, "shareId");
                 if (value.containsKey("shareId")) Protocol.parseUuid(value.get("shareId"));
                 break;
+            case "subscribeBrowserShare":
+                Protocol.exactRecord(value, "v", "type", "requestId");
+                break;
+            case "unsubscribeBrowserShare":
+                Protocol.exactRecord(value, "v", "type", "requestId", "watchId");
+                Protocol.parseId16(value.get("watchId"));
+                break;
+            case "checkAndroidUpdate":
+                Protocol.exactRecord(value, "v", "type", "requestId", "installedSha256", "versionCode");
+                sha256(value.get("installedSha256"));
+                integer(value.get("versionCode"), 1, MAX_ANDROID_VERSION_CODE);
+                break;
+            case "readAndroidUpdate":
+                Protocol.exactRecord(value, "v", "type", "requestId", "artifactId", "offset");
+                sha256(value.get("artifactId"));
+                long offset = integer(value.get("offset"), 0, MAX_ANDROID_UPDATE_BYTES - 1);
+                if (offset % ANDROID_UPDATE_CHUNK_BYTES != 0) throw invalid();
+                break;
             case "stopBrowserShare":
                 Protocol.exactRecord(value, "v", "type", "requestId", "shareId");
                 Protocol.parseUuid(value.get("shareId")); break;
@@ -371,6 +433,24 @@ public final class ApplicationCodec {
     }
     public static byte[] watchBrowserShare(String requestId, String shareId) {
         return encodeRequest(withOptionalShareId(Protocol.object("v", 1, "type", "watchBrowserShare", "requestId", requestId), shareId));
+    }
+    /** Subscribes this encrypted channel to browser-share frames; the request identity is the watch identity. */
+    public static byte[] subscribeBrowserShare(String requestId) {
+        return encodeRequest(Protocol.object("v", 1, "type", "subscribeBrowserShare", "requestId", requestId));
+    }
+    /** Best-effort retirement of one browser-share subscription. */
+    public static byte[] unsubscribeBrowserShare(String requestId, String watchId) {
+        return encodeRequest(Protocol.object("v", 1, "type", "unsubscribeBrowserShare", "requestId", requestId, "watchId", watchId));
+    }
+    /** Checks for one update matching the explicitly supplied installed APK identity. */
+    public static byte[] checkAndroidUpdate(String requestId, String installedSha256, long versionCode) {
+        return encodeRequest(Protocol.object("v", 1, "type", "checkAndroidUpdate", "requestId", requestId,
+            "installedSha256", installedSha256, "versionCode", versionCode));
+    }
+    /** Reads one bounded aligned patch range from a previously offered artifact. */
+    public static byte[] readAndroidUpdate(String requestId, String artifactId, long offset) {
+        return encodeRequest(Protocol.object("v", 1, "type", "readAndroidUpdate", "requestId", requestId,
+            "artifactId", artifactId, "offset", offset));
     }
     /** Revokes exactly the share currently displayed by the phone. */
     public static byte[] stopBrowserShare(String requestId, String shareId) {
@@ -457,6 +537,30 @@ public final class ApplicationCodec {
                 return;
             default: throw invalid();
         }
+    }
+    private static void androidUpdate(Map<String, Object> value) {
+        Protocol.exactRecord(value, "v", "type", "requestId", "offer");
+        if (value.get("offer") == null) return;
+        Map<String, Object> offer = Protocol.exactRecord(value.get("offer"), "artifactId", "baseSha256", "targetSha256",
+            "versionCode", "targetBytes", "patchBytes");
+        new AndroidUpdateOffer(offer);
+    }
+    private static void androidUpdateChunk(Map<String, Object> value) {
+        Protocol.exactRecord(value, "v", "type", "requestId", "artifactId", "offset", "data");
+        sha256(value.get("artifactId"));
+        long offset = integer(value.get("offset"), 0, MAX_ANDROID_UPDATE_BYTES - 1);
+        if (offset % ANDROID_UPDATE_CHUNK_BYTES != 0) throw invalid();
+        byte[] data = Protocol.decodeBase64(value.get("data"), ANDROID_UPDATE_CHUNK_BYTES);
+        if (data.length == 0) throw invalid();
+        java.util.Arrays.fill(data, (byte) 0);
+    }
+    private static String sha256(Object value) {
+        String digest = Protocol.string(value);
+        if (!digest.matches("[0-9a-f]{64}")) throw invalid();
+        return digest;
+    }
+    private static long integer(Object value, long minimum, long maximum) {
+        return Protocol.integer(value, minimum, maximum);
     }
     private static void managed(Map<String, Object> value) {
         mutation(value);

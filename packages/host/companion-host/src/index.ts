@@ -20,12 +20,14 @@ import type { RelayConnection, RelayInput } from './connector.ts'
 import { fingerprint, HostRecords, randomId, RECORD_KEY } from './records.ts'
 import type { DeviceRecord } from './records.ts'
 import { createApplicationDispatcher } from './application-dispatch.ts'
-import type { BrowserShareHandler, CandidateId, CompanionControlCommand, CompanionStatus, PairedDevice, PrivateInvitation } from './types.ts'
+import type { AndroidUpdateProvider, BrowserShareHandler, CandidateId, CompanionControlCommand, CompanionStatus,
+  PairedDevice, PrivateInvitation } from './types.ts'
 
 export { Config, resolveConfig } from './config.ts'
 export { installDesktopCompanionOwner } from './desktop-owner.ts'
 export type { DesktopCompanionOwnerOptions } from './desktop-owner.ts'
 export type * from './types.ts'
+export { createAndroidUpdateProvider } from './android-updates.ts'
 
 interface Invitation {
   readonly id: InvitationId
@@ -77,6 +79,9 @@ export default class CompanionHost extends Service {
   private readonly retiring = new Set<Promise<void>>()
   private readonly permissionChanges = new Set<{ readonly grantId: GrantId }>()
   private browserShare: BrowserShareHandler | undefined
+  private androidUpdates: AndroidUpdateProvider | undefined
+  private browserFrameAllowance = 0
+  private browserFrameRefillAt = 0
   private tail: Promise<void> = Promise.resolve()
   private pendingLocal = 0
   private channelAttempts = 0
@@ -93,6 +98,7 @@ export default class CompanionHost extends Service {
     await this.ctx.effect(async () => {
       const owner = await acquireDesktopOwner(this.ctx)
       this.browserShare = owner.browserShare
+      this.androidUpdates = owner.androidUpdates
       const parentAbort = (): void => { this.withdraw() }
       owner.signal.addEventListener('abort', parentAbort, { once: true })
       try {
@@ -138,6 +144,7 @@ export default class CompanionHost extends Service {
         owner.signal.removeEventListener('abort', parentAbort)
         await owner.release()
         this.browserShare = undefined
+        this.androidUpdates = undefined
         throw error
       }
       return async () => {
@@ -149,6 +156,7 @@ export default class CompanionHost extends Service {
         await owner.release()
         this.records = undefined
         this.browserShare = undefined
+        this.androidUpdates = undefined
       }
     }, 'companion-host.identity-connection-and-channels')
   }
@@ -501,6 +509,8 @@ export default class CompanionHost extends Service {
           && row.generation === grant.generation && row.phoneIdentityKey === channel.phoneKey && row.toolDetailsV1 === true)
       },
       ...(this.browserShare === undefined ? {} : { browserShare: this.browserShare }),
+      allowBrowserFrame: jpeg => this.reserveBrowserFrame(jpeg),
+      ...(this.androidUpdates === undefined ? {} : { androidUpdates: this.androidUpdates }),
       generation: grant.generation, budget: this.budget().application, maxWatches: this.budget().application.maxSubscriptionsPerGrant,
       maxPendingRequests: this.budget().maxPendingMessages, maxProgressBuffer: this.budget().maxProgressBuffer,
       sendProgress: result => this.sendResult(channel, result),
@@ -518,6 +528,18 @@ export default class CompanionHost extends Service {
       || [...this.permissionChanges].some(change => change.grantId === grant.grantId)
       || !records.snapshot().grants.some(row => row.grantId === grant.grantId && row.generation === grant.generation
         && row.phoneIdentityKey === channel.phoneKey)) throw new Error('companion-host: grant generation withdrawn')
+  }
+
+  private reserveBrowserFrame(jpeg: string): boolean {
+    const rate = this.budget().bytesPerSecond * 0.64
+    const burst = rate / 8
+    const now = performance.now()
+    const available = Math.min(burst, this.browserFrameAllowance + (now - this.browserFrameRefillAt) * rate / 1000)
+    // The JPEG is already base64. Encryption adds a second base64 envelope plus routing metadata.
+    const bytes = Math.ceil(jpeg.length * 4 / 3) + 512
+    this.browserFrameRefillAt = now
+    this.browserFrameAllowance = available >= bytes ? available - bytes : available
+    return available >= bytes
   }
 
   private async receive(channel: Channel, wire: unknown): Promise<void> {

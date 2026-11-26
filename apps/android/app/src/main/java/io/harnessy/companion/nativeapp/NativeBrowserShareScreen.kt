@@ -99,6 +99,8 @@ fun NativeBrowserShareScreen(
     }
     LaunchedEffect(pollMs) {
         while (isActive) {
+            // Push is the normal path. The controller admits this poll only after an unacknowledged subscription
+            // retired its channel, preserving compatibility with an older paired Desktop.
             viewModel.watchBrowserShare()
             delay(pollMs)
         }

@@ -22,9 +22,10 @@ interface Tab {
 const RECORDING_MAX_WIDTH = 960
 const RECORDING_MAX_HEIGHT = 540
 const RECORDING_MAX_FRAME_BYTES = 512 * 1024
-const PHONE_MAX_FRAME_BYTES = 18_432
+const PHONE_MAX_FRAME_BYTES = 12_288
 const REMOTE_SHARE_DURATION_MS = 15 * 60_000
 const REMOTE_SHARE_FRAME_INTERVAL_MS = 200
+const PHONE_SHARE_FRAME_INTERVAL_MS = 60
 
 interface Share {
   readonly id: BrowserPhoneShareReceipt
@@ -219,7 +220,8 @@ export class DesktopBrowserPreview {
       const image = await tab.guest.capturePage()
       requireCurrent()
       const jpeg = purpose === 'phone'
-        ? jpegWithin(image, 480, 270, 44, PHONE_MAX_FRAME_BYTES) ?? jpegWithin(image, 240, 135, 28, PHONE_MAX_FRAME_BYTES)
+        ? jpegWithin(image, 480, 270, 44, PHONE_MAX_FRAME_BYTES) ?? jpegWithin(image, 320, 180, 32, PHONE_MAX_FRAME_BYTES)
+          ?? jpegWithin(image, 240, 135, 28, PHONE_MAX_FRAME_BYTES)
         : jpegWithin(image, RECORDING_MAX_WIDTH, RECORDING_MAX_HEIGHT, 65, RECORDING_MAX_FRAME_BYTES)
       if (jpeg === undefined) throw new Error('Browser frame is empty or exceeds its byte limit')
       return { documentId, jpeg }
@@ -316,7 +318,7 @@ export class DesktopBrowserPreview {
     if (!this.shareIsCurrent(share)) { this.revokeShare(share.tab); return absent }
     const now = Date.now()
     if (now < share.nextFrameAt || share.tab.recordingCapturePending === true) return { status: 'busy' }
-    share.nextFrameAt = now + REMOTE_SHARE_FRAME_INTERVAL_MS
+    share.nextFrameAt = now + (audience === 'phone' ? PHONE_SHARE_FRAME_INTERVAL_MS : REMOTE_SHARE_FRAME_INTERVAL_MS)
     const { owner, lease } = share.tab
     try {
       const frame = await this.captureFrame(owner, lease, share.urlAtStart, share.documentId, share.permitted, audience)

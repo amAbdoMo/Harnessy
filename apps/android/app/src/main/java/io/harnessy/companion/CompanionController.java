@@ -90,11 +90,19 @@ public final class CompanionController implements CompanionActions {
     private final Map<String, Read> reads = new LinkedHashMap<>();
     private boolean browserShareVisible;
     private String browserShareId;
+    private String browserShareStoppedId;
     private BrowserShare browserShare = BrowserShare.idle();
     private BrowserShareRequest browserShareRequest;
     private Cancellable browserShareDeadline;
+    private BrowserShareSubscription browserShareSubscription;
+    private boolean browserShareLegacyPolling;
     private boolean browserShareStopFailed;
     private boolean browserShareEndedNotice;
+    private AndroidUpdateRequest<?> androidUpdateRequest;
+
+    /** One exact result for an explicit Android updater operation. Chunk byte ownership transfers to the callback. */
+    @FunctionalInterface
+    public interface AndroidUpdateCallback<T> { void complete(T value, Exception failure); }
 
     public CompanionController(CompanionPlatform platform, ControllerLimits limits, String pcLabel) {
         this.platform = Objects.requireNonNull(platform);
@@ -167,6 +175,8 @@ public final class CompanionController implements CompanionActions {
         cleanupEnrollment();
         browserShareVisible = false;
         browserShareId = null;
+        browserShareStoppedId = null;
+        browserShareLegacyPolling = false;
         browserShareStopFailed = false;
         browserShareEndedNotice = false;
         browserShare = BrowserShare.idle();
@@ -183,6 +193,10 @@ public final class CompanionController implements CompanionActions {
         browserShareRequest = null;
         if (browserShareDeadline != null) browserShareDeadline.cancel();
         browserShareDeadline = null;
+        failAndroidUpdate(new IllegalStateException("Android update connection retired"));
+        BrowserShareSubscription subscription = browserShareSubscription;
+        browserShareSubscription = null;
+        if (browserShareVisible && subscription != null && !subscription.acknowledged) browserShareLegacyPolling = true;
         if (pendingBrowserShare != null && pendingBrowserShare.kind == BrowserShareRequest.Kind.STOP) {
             browserShareStopFailed = true;
             browserShare = new BrowserShare(BrowserShare.Status.ERROR, browserShareId, null, true);
@@ -299,8 +313,10 @@ public final class CompanionController implements CompanionActions {
         confirmed = true;
         feedback = fence == null ? Feedback.NONE : Feedback.DELIVERY_UNKNOWN;
         refresh();
-        // Deployment requires the matching PC runtime first; there is no legacy capability probe or fallback.
+        // Other application capabilities require the matching PC runtime; browser sharing alone can fall back after
+        // one unacknowledged subscription retires its channel.
         refreshManagementWorkspaces();
+        if (browserShareVisible && !browserShareLegacyPolling) subscribeBrowserShare();
         scheduleHeartbeat();
         publish();
     }
@@ -567,27 +583,51 @@ public final class CompanionController implements CompanionActions {
         cancelBrowserShareRequest();
         browserShareVisible = true;
         browserShareId = null;
+        browserShareStoppedId = null;
+        browserShareLegacyPolling = false;
         browserShareStopFailed = false;
         browserShareEndedNotice = false;
         browserShare = BrowserShare.idle();
         publishBrowserShare();
+        if (confirmed) subscribeBrowserShare();
     }
 
     /** Retires the browser-share destination and drops the last received JPEG immediately. */
     public void stopBrowserShareViewing() {
         if (!browserShareVisible && browserShareRequest == null && browserShare.jpeg == null) return;
+        String watchId = browserShareSubscription == null ? null : browserShareSubscription.request;
         cancelBrowserShareRequest();
+        browserShareSubscription = null;
         browserShareVisible = false;
         browserShareId = null;
+        browserShareStoppedId = null;
+        browserShareLegacyPolling = false;
         browserShareStopFailed = false;
         browserShareEndedNotice = false;
         browserShare = BrowserShare.idle();
         publishBrowserShare();
+        if (watchId != null && confirmed && link != null) {
+            link.send(ApplicationCodec.unsubscribeBrowserShare(Protocol.randomId(16), watchId));
+        }
+    }
+
+    /** Starts one channel-lifetime push subscription for the visible viewer. */
+    private void subscribeBrowserShare() {
+        if (!browserShareVisible || browserShareLegacyPolling || !foreground || !confirmed || link == null
+            || storageBlocked || repairRequired || browserShareSubscription != null) return;
+        String request = Protocol.randomId(16);
+        BrowserShareSubscription pending = new BrowserShareSubscription(request, epoch, attempt);
+        if (link.send(ApplicationCodec.subscribeBrowserShare(request)) != PhoneTransport.Admission.ADMITTED_MAY_WRITE) {
+            browserShare = new BrowserShare(BrowserShare.Status.ERROR, browserShareId, null);
+            publishBrowserShare();
+            return;
+        }
+        browserShareSubscription = pending;
     }
 
     /** Sends one read-only browser-share poll; the native destination owns its polling cadence. */
     public void watchBrowserShare() {
-        if (!browserShareVisible || browserShareStopFailed || !foreground || !confirmed || link == null
+        if (!browserShareLegacyPolling || !browserShareVisible || browserShareStopFailed || !foreground || !confirmed || link == null
             || storageBlocked || repairRequired || browserShareRequest != null) return;
         String request = Protocol.randomId(16);
         BrowserShareRequest pending = new BrowserShareRequest(request, BrowserShareRequest.Kind.WATCH, browserShareId,
@@ -650,6 +690,54 @@ public final class CompanionController implements CompanionActions {
 
     private void publishBrowserShare() {
         if (foreground && browserShareVisible && output != null) output.browserShare(browserShare);
+    }
+
+    /** Checks for an update only on the currently confirmed PC connection. */
+    public Cancellable checkAndroidUpdate(String installedSha256, long versionCode,
+        AndroidUpdateCallback<ApplicationCodec.AndroidUpdateOffer> callback) {
+        Objects.requireNonNull(callback);
+        String request = Protocol.randomId(16);
+        return startAndroidUpdate(new AndroidUpdateRequest<>(request, AndroidUpdateKind.CHECK, installedSha256,
+            versionCode, null, -1, epoch, attempt, callback),
+            ApplicationCodec.checkAndroidUpdate(request, installedSha256, versionCode));
+    }
+
+    /** Reads one aligned update patch chunk only on the currently confirmed PC connection. */
+    public Cancellable readAndroidUpdate(String artifactId, long offset, AndroidUpdateCallback<byte[]> callback) {
+        Objects.requireNonNull(callback);
+        String request = Protocol.randomId(16);
+        return startAndroidUpdate(new AndroidUpdateRequest<>(request, AndroidUpdateKind.READ, null,
+            -1, artifactId, offset, epoch, attempt, callback), ApplicationCodec.readAndroidUpdate(request, artifactId, offset));
+    }
+
+    private <T> Cancellable startAndroidUpdate(AndroidUpdateRequest<T> pending, byte[] application) {
+        if (!foreground || !confirmed || link == null || storageBlocked || repairRequired || androidUpdateRequest != null
+            || link.send(application) != PhoneTransport.Admission.ADMITTED_MAY_WRITE) {
+            pending.callback.complete(null, new IllegalStateException("Android update request unavailable"));
+            return () -> { };
+        }
+        androidUpdateRequest = pending;
+        pending.deadline = platform.later(limits.readMs, () -> {
+            if (androidUpdateRequest != pending || !current(pending.owner, pending.attempt)) return;
+            androidUpdateRequest = null;
+            pending.deadline = null;
+            pending.callback.complete(null, new IllegalStateException("Android update request timed out"));
+        });
+        return () -> cancelAndroidUpdate(pending);
+    }
+
+    private void cancelAndroidUpdate(AndroidUpdateRequest<?> pending) {
+        if (androidUpdateRequest != pending) return;
+        androidUpdateRequest = null;
+        if (pending.deadline != null) pending.deadline.cancel();
+        pending.deadline = null;
+    }
+
+    private void failAndroidUpdate(Exception failure) {
+        AndroidUpdateRequest<?> pending = androidUpdateRequest;
+        if (pending == null) return;
+        cancelAndroidUpdate(pending);
+        pending.callback.complete(null, failure);
     }
 
     public void loadMoreSessions() {
@@ -818,9 +906,15 @@ public final class CompanionController implements CompanionActions {
 
     private void receive(ApplicationCodec.Result message) {
         if (!confirmed) return;
+        if (message.type == ApplicationCodec.Type.ANDROID_UPDATE || message.type == ApplicationCodec.Type.ANDROID_UPDATE_CHUNK
+            || androidUpdateRequest != null && Objects.equals(androidUpdateRequest.request, message.requestId)) {
+            receiveAndroidUpdate(message);
+            return;
+        }
         if (message.type == ApplicationCodec.Type.PROGRESS) { progress(message); return; }
         if (message.type == ApplicationCodec.Type.BROWSER_SHARE
-            || browserShareRequest != null && browserShareRequest.request.equals(message.requestId)) {
+            || browserShareRequest != null && browserShareRequest.request.equals(message.requestId)
+            || browserShareSubscription != null && browserShareSubscription.request.equals(message.requestId)) {
             receiveBrowserShare(message);
             return;
         }
@@ -898,7 +992,42 @@ public final class CompanionController implements CompanionActions {
         publish();
     }
 
+    @SuppressWarnings("unchecked")
+    private void receiveAndroidUpdate(ApplicationCodec.Result message) {
+        AndroidUpdateRequest<?> pending = androidUpdateRequest;
+        if (pending == null || !Objects.equals(pending.request, message.requestId)
+            || !current(pending.owner, pending.attempt)) {
+            if (message.androidUpdateData != null) Arrays.fill(message.androidUpdateData, (byte) 0);
+            return;
+        }
+        cancelAndroidUpdate(pending);
+        if (message.type == ApplicationCodec.Type.ERROR) {
+            pending.callback.complete(null, new IllegalStateException("Android update request rejected"));
+            return;
+        }
+        if (pending.kind == AndroidUpdateKind.CHECK && message.type == ApplicationCodec.Type.ANDROID_UPDATE) {
+            ((AndroidUpdateCallback<ApplicationCodec.AndroidUpdateOffer>) pending.callback).complete(message.androidUpdateOffer, null);
+            return;
+        }
+        if (pending.kind == AndroidUpdateKind.READ && message.type == ApplicationCodec.Type.ANDROID_UPDATE_CHUNK
+            && Objects.equals(pending.artifactId, message.androidUpdateArtifactId)
+            && pending.offset == message.androidUpdateOffset) {
+            ((AndroidUpdateCallback<byte[]>) pending.callback).complete(message.androidUpdateData, null);
+            return;
+        }
+        if (message.androidUpdateData != null) Arrays.fill(message.androidUpdateData, (byte) 0);
+        pending.callback.complete(null, new IllegalStateException("Android update response mismatch"));
+    }
+
     private void receiveBrowserShare(ApplicationCodec.Result message) {
+        BrowserShareSubscription subscription = browserShareSubscription;
+        if (subscription != null && Objects.equals(subscription.request, message.requestId)
+            && current(subscription.owner, subscription.attempt)) {
+            if (message.type != ApplicationCodec.Type.BROWSER_SHARE) return;
+            subscription.acknowledged = true;
+            acceptBrowserShare(message, true);
+            return;
+        }
         BrowserShareRequest pending = browserShareRequest;
         if (pending == null || !Objects.equals(pending.request, message.requestId)
             || !current(pending.owner, pending.attempt)) return;
@@ -919,6 +1048,7 @@ public final class CompanionController implements CompanionActions {
                 browserShareStopFailed = true;
                 browserShare = new BrowserShare(BrowserShare.Status.ERROR, browserShareId, null, true);
             } else if (Objects.equals(browserShareId, pending.shareId)) {
+                browserShareStoppedId = pending.shareId;
                 browserShareId = null;
                 browserShareEndedNotice = true;
                 browserShare = new BrowserShare(BrowserShare.Status.ENDED, null, null);
@@ -930,6 +1060,11 @@ public final class CompanionController implements CompanionActions {
             publishBrowserShare();
             return;
         }
+        acceptBrowserShare(message, false);
+    }
+
+    private void acceptBrowserShare(ApplicationCodec.Result message, boolean streamed) {
+        if (streamed && browserShareRequest != null && browserShareRequest.kind == BrowserShareRequest.Kind.STOP) return;
         switch (message.status) {
             case "idle":
                 browserShareId = null;
@@ -944,11 +1079,13 @@ public final class CompanionController implements CompanionActions {
                 browserShare = new BrowserShare(BrowserShare.Status.ENDED, null, null);
                 break;
             case "frame":
+                if (streamed && Objects.equals(browserShareStoppedId, message.shareId)) break;
                 if (browserShareId != null && !browserShareId.equals(message.shareId)) {
                     // The server selected a new share; replace the old frame and bind Stop to the new UUID.
                     browserShare = BrowserShare.idle();
                 }
                 browserShareId = message.shareId;
+                browserShareStoppedId = null;
                 browserShareEndedNotice = false;
                 browserShare = new BrowserShare(BrowserShare.Status.FRAME, message.shareId, message.jpeg);
                 break;
@@ -1565,6 +1702,33 @@ public final class CompanionController implements CompanionActions {
         final long attempt;
         BrowserShareRequest(String request, Kind kind, String shareId, long owner, long attempt) {
             this.request = request; this.kind = kind; this.shareId = shareId; this.owner = owner; this.attempt = attempt;
+        }
+    }
+    private static final class BrowserShareSubscription {
+        final String request;
+        final long owner;
+        final long attempt;
+        boolean acknowledged;
+        BrowserShareSubscription(String request, long owner, long attempt) {
+            this.request = request; this.owner = owner; this.attempt = attempt;
+        }
+    }
+    private enum AndroidUpdateKind { CHECK, READ }
+    private static final class AndroidUpdateRequest<T> {
+        final String request;
+        final AndroidUpdateKind kind;
+        final String installedSha256;
+        final long versionCode;
+        final String artifactId;
+        final long offset;
+        final long owner;
+        final long attempt;
+        final AndroidUpdateCallback<T> callback;
+        Cancellable deadline;
+        AndroidUpdateRequest(String request, AndroidUpdateKind kind, String installedSha256, long versionCode,
+            String artifactId, long offset, long owner, long attempt, AndroidUpdateCallback<T> callback) {
+            this.request = request; this.kind = kind; this.installedSha256 = installedSha256; this.versionCode = versionCode;
+            this.artifactId = artifactId; this.offset = offset; this.owner = owner; this.attempt = attempt; this.callback = callback;
         }
     }
     private static final class Mutation {

@@ -8,7 +8,7 @@ import type {} from '@deepseek-ai/dsh-client-connection'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-deepseek-account'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
-import { installDesktopCompanionOwner } from '@deepseek-ai/dsh-companion-host'
+import { createAndroidUpdateProvider, installDesktopCompanionOwner } from '@deepseek-ai/dsh-companion-host'
 import type { Config as CompanionConfig } from '@deepseek-ai/dsh-companion-host'
 import { installDesktopCompanionControls, resolveDesktopCompanionConfig } from './companion.ts'
 import * as desktopOffice from './office.ts'
@@ -68,7 +68,9 @@ async function main(): Promise<void> {
     prepare(ctx) {
       control.browserPreview = installBrowserPreview(ctx, send)
       control.companionConfig = resolveDesktopCompanionConfig(process.env)
-      installDesktopCompanionOwner(ctx, { home: resolveDshHome(), signal: companionLife.signal, browserShare: phoneBrowserShare.request })
+      const home = resolveDshHome()
+      installDesktopCompanionOwner(ctx, { home, signal: companionLife.signal, browserShare: phoneBrowserShare.request,
+        androidUpdates: createAndroidUpdateProvider(home) })
       control.companion = installDesktopCompanionControls(ctx, control.companionConfig, companionLife, send)
       control.websiteMcp = installWebsiteMcpInspector(ctx, projectDir)
       const parent = control.websiteParent = installWebsiteParentChannel(ctx, send)

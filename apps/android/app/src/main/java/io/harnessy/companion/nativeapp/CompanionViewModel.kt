@@ -1,12 +1,20 @@
 package io.harnessy.companion.nativeapp
 
 import androidx.annotation.MainThread
+import android.content.Context
 import io.harnessy.companion.CompanionPlatform.OperationKind
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import io.harnessy.companion.nativeapp.update.AndroidUpdateCheckResult
+import io.harnessy.companion.nativeapp.update.AndroidUpdateEngine
+import io.harnessy.companion.nativeapp.update.AndroidUpdateInstallResult
+import io.harnessy.companion.nativeapp.update.AndroidUpdateOffer
+import io.harnessy.companion.nativeapp.update.AndroidUpdateSectionState
 import java.io.IOException
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,6 +33,7 @@ data class NativeUiState(
     val confirmation: Confirmation? = null,
     val workspaceExpansion: WorkspaceExpansion = WorkspaceExpansion(),
     val workspacePreferenceFailed: Boolean = false,
+    val androidUpdate: AndroidUpdateSectionState = AndroidUpdateSectionState.Idle,
 )
 
 /** UDF screen owner. Sensitive text lives only in repository/controller RAM, never SavedStateHandle. */
@@ -33,7 +42,9 @@ data class NativeUiState(
 class CompanionViewModel @Inject constructor(
     private val repository: CompanionRepository,
     private val preferences: NativePreferences,
+    @ApplicationContext private val context: Context,
 ) : ViewModel(), NativeChatActions {
+    private val androidUpdater = AndroidUpdateEngine(context, repository)
     private val mutableState = MutableStateFlow(NativeUiState(companion = repository.state.value))
     val state: StateFlow<NativeUiState> = mutableState.asStateFlow()
 
@@ -72,6 +83,46 @@ class CompanionViewModel @Inject constructor(
     fun stopBrowserShareViewing() = update { repository.stopBrowserShareViewing() }
     fun watchBrowserShare() = update { repository.watchBrowserShare() }
     fun stopBrowserShare(shareId: String) = update { repository.stopBrowserShare(shareId) }
+
+    fun checkAndroidUpdate() {
+        val update = state.value.androidUpdate
+        if (update == AndroidUpdateSectionState.Checking || update == AndroidUpdateSectionState.Installing) return
+        setAndroidUpdate(AndroidUpdateSectionState.Checking)
+        viewModelScope.launch {
+            try {
+                setAndroidUpdate(when (val result = androidUpdater.check()) {
+                    AndroidUpdateCheckResult.Current -> AndroidUpdateSectionState.Current
+                    is AndroidUpdateCheckResult.Available -> AndroidUpdateSectionState.Available(result.offer)
+                })
+            } catch (failure: CancellationException) { throw failure }
+            catch (_: Exception) { setAndroidUpdate(AndroidUpdateSectionState.Failed) }
+        }
+    }
+
+    fun installAndroidUpdate(offer: AndroidUpdateOffer) {
+        if (state.value.androidUpdate != AndroidUpdateSectionState.Available(offer)) return
+        setAndroidUpdate(AndroidUpdateSectionState.Installing)
+        viewModelScope.launch {
+            try {
+                when (val result = androidUpdater.install(offer)) {
+                    is AndroidUpdateInstallResult.PermissionRequired -> {
+                        setAndroidUpdate(AndroidUpdateSectionState.Available(offer))
+                        context.startActivity(result.settingsIntent)
+                    }
+                    AndroidUpdateInstallResult.ConfirmationRequested -> setAndroidUpdate(AndroidUpdateSectionState.AwaitingConfirmation)
+                }
+            } catch (failure: CancellationException) { throw failure }
+            catch (_: Exception) { setAndroidUpdate(AndroidUpdateSectionState.Failed) }
+        }
+    }
+
+    private fun setAndroidUpdate(update: AndroidUpdateSectionState) {
+        mutableState.value = state.value.copy(androidUpdate = update)
+    }
+
+    fun androidUpdateFinished(success: Boolean) {
+        setAndroidUpdate(if (success) AndroidUpdateSectionState.Current else AndroidUpdateSectionState.Failed)
+    }
 
     fun setTheme(theme: ThemePreference) {
         if (state.value.savingTheme) return

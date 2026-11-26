@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -30,7 +31,6 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.harnessy.companion.R
 import io.harnessy.companion.CompanionPlatform.OperationKind
@@ -46,12 +46,13 @@ fun NativeChatScreen(
     actions: NativeChatActions,
     openSettings: () -> Unit,
     resumeConnection: () -> Unit,
+    openBrowserShare: (() -> Unit)? = null,
 ) {
     val screen = state.screen
     when {
         !state.connectionPaused && state.foreground && (screen == null || screen.metadataLoading) -> LoadingPcScreen(openSettings)
         screen?.pc == null || state.connectionPaused -> LinkPcScreen(state, actions, openSettings, resumeConnection)
-        else -> PairedChatScreen(state, screen, actions, openSettings)
+        else -> PairedChatScreen(state, screen, actions, openSettings, openBrowserShare)
     }
 }
 
@@ -71,7 +72,7 @@ private fun LoadingPcScreen(openSettings: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CompanionTopBar(title: String, openSettings: () -> Unit) {
-    CenterAlignedTopAppBar(title = { Text(title, style = MaterialTheme.typography.titleMedium) }, actions = {
+    CenterAlignedTopAppBar(title = { NativeCompactHeaderTitle(title) }, actions = {
         NativeFloatingIconButton(Icons.Default.Settings, stringResource(R.string.native_settings),
             openSettings, testTag = "open_settings", iconSize = 18.dp)
     }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background))
@@ -106,8 +107,15 @@ private fun LinkPcScreen(state: CompanionState, actions: NativeChatActions, open
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun PairedChatScreen(state: CompanionState, screen: Screen, actions: NativeChatActions, openSettings: () -> Unit) {
+private fun PairedChatScreen(
+    state: CompanionState,
+    screen: Screen,
+    actions: NativeChatActions,
+    openSettings: () -> Unit,
+    openBrowserShare: (() -> Unit)?,
+) {
     val pc = screen.pc ?: return
+    val browserAction = openBrowserShare?.takeIf { pc.connection == Connection.ONLINE }
     val workspaceExpansion = WorkspaceExpansionControls(pc.id, state.workspaceExpansion,
         state.workspacePreferenceFailed, actions::setWorkspaceExpansion)
     BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -133,6 +141,14 @@ private fun PairedChatScreen(state: CompanionState, screen: Screen, actions: Nat
             keyboard?.hide()
             if (wide) wideNavigationVisible = false else scope.launch { drawer.close() }
         }
+        val openBrowserFromNavigation: (() -> Unit)? = browserAction?.let { action ->
+            if (wide) action else {
+                {
+                    scope.launch { drawer.close(); action() }
+                    Unit
+                }
+            }
+        }
         val sidebar = sidebarManagementActions(state, actions, closeSessions) { managementDialog = it }
         val refreshSidebar: () -> Unit = { actions.refresh(); actions.refreshManagementWorkspaces() }
         val chat: @Composable () -> Unit = {
@@ -140,16 +156,10 @@ private fun PairedChatScreen(state: CompanionState, screen: Screen, actions: Nat
                 topBar = {
                     CenterAlignedTopAppBar(
                         title = {
-                            if (screen.conversation.session == null) {
-                                Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainer) {
-                                    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surface,
-                                        shadowElevation = 1.dp) {
-                                        Text(stringResource(R.string.native_work), style = MaterialTheme.typography.labelLarge,
-                                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 7.dp))
-                                    }
-                                }
-                            } else Text(screen.conversation.session.title.ifBlank { stringResource(R.string.native_untitled_conversation) },
-                                style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            NativeCompactHeaderTitle(
+                                if (screen.conversation.session == null) stringResource(R.string.native_work)
+                                else screen.conversation.session.title.ifBlank { stringResource(R.string.native_untitled_conversation) },
+                            )
                         },
                         navigationIcon = {
                             if (!wide || !wideNavigationVisible) {
@@ -159,7 +169,12 @@ private fun PairedChatScreen(state: CompanionState, screen: Screen, actions: Nat
                         },
                         actions = {
                             NativeConnectionStatus(pc.connection)
-                            Spacer(Modifier.width(8.dp))
+                            if (wide && browserAction != null) {
+                                Spacer(Modifier.width(4.dp))
+                                NativeFloatingIconButton(Icons.Default.PlayArrow, stringResource(R.string.native_browser_share_title),
+                                    browserAction, testTag = "open_browser_share_top", iconSize = 18.dp)
+                            }
+                            Spacer(Modifier.width(4.dp))
                             NativeFloatingIconButton(Icons.Default.Settings, stringResource(R.string.native_settings),
                                 openSettings, testTag = "open_settings", iconSize = 18.dp)
                         },
@@ -187,7 +202,7 @@ private fun PairedChatScreen(state: CompanionState, screen: Screen, actions: Nat
                                     navigationFocus.requestFocus()
                                     keyboard?.hide()
                                     actions.selectSession(id)
-                                }, actions::loadMoreSessions, workspaceExpansion, sidebar),
+                                }, actions::loadMoreSessions, workspaceExpansion, sidebar, openBrowserFromNavigation),
                                 Modifier.statusBarsPadding().navigationBarsPadding().imePadding())
                         }
                         VerticalDivider()
@@ -203,7 +218,7 @@ private fun PairedChatScreen(state: CompanionState, screen: Screen, actions: Nat
                         SessionNavigationActions(refreshSidebar, { id ->
                             actions.selectSession(id)
                             scope.launch { drawer.close() }
-                        }, actions::loadMoreSessions, workspaceExpansion, sidebar), Modifier.fillMaxWidth().imePadding())
+                        }, actions::loadMoreSessions, workspaceExpansion, sidebar, openBrowserFromNavigation), Modifier.fillMaxWidth().imePadding())
                 }
             }) { chat() }
         }

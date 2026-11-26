@@ -25,6 +25,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import io.harnessy.companion.R
+import io.harnessy.companion.BuildConfig
+import io.harnessy.companion.nativeapp.update.AndroidUpdateOffer
+import io.harnessy.companion.nativeapp.update.AndroidUpdateSection
+import io.harnessy.companion.nativeapp.update.AndroidUpdateSectionActions
 import io.harnessy.companion.presentation.CompanionActions
 import io.harnessy.companion.presentation.DisplayModels.Connection
 import io.harnessy.companion.presentation.DisplayModels.Feedback
@@ -36,6 +40,8 @@ data class NativeSettingsActions(
     val pauseConnection: () -> Unit,
     val resumeConnection: () -> Unit,
     val openBrowserShare: () -> Unit = {},
+    val checkAndroidUpdate: () -> Unit = {},
+    val installAndroidUpdate: (AndroidUpdateOffer) -> Unit = {},
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,7 +53,7 @@ fun NativeSettingsScreen(state: NativeUiState, actions: CompanionActions, settin
     var detailsExpanded by remember { mutableStateOf(false) }
     var capabilitiesExpanded by remember { mutableStateOf(false) }
     Scaffold(topBar = {
-        CenterAlignedTopAppBar(title = { Text(stringResource(R.string.native_settings), style = MaterialTheme.typography.titleMedium) },
+        CenterAlignedTopAppBar(title = { NativeCompactHeaderTitle(stringResource(R.string.native_settings)) },
             navigationIcon = {
                 NativeFloatingIconButton(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.native_back),
                     settings.goBack, testTag = "back_to_chat")
@@ -111,6 +117,12 @@ fun NativeSettingsScreen(state: NativeUiState, actions: CompanionActions, settin
                                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
                                 modifier = Modifier.testTag("forget_pairing")) { Text(stringResource(R.string.forget_pairing)) }
                         }
+                    }
+                }
+                if (BuildConfig.ANDROID_UPDATES_ENABLED && pc?.connection == Connection.ONLINE) item {
+                    SettingsSurface {
+                        AndroidUpdateSection(state.androidUpdate,
+                            AndroidUpdateSectionActions(settings.checkAndroidUpdate, settings.installAndroidUpdate))
                     }
                 }
                 item {

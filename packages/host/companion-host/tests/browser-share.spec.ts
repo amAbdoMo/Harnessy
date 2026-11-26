@@ -1,12 +1,12 @@
 /** Paired-phone native browser-share dispatch; the Desktop provider is the only mocked boundary. */
 import { brandString } from '@deepseek-ai/dsh-brand'
 import {
-  parseApplicationRequest, parseApplicationResult, parseId,
+  parseAndroidUpdateOffer, parseApplicationRequest, parseApplicationResult, parseId,
 } from '@deepseek-ai/dsh-companion-protocol'
 import type { ApplicationResult, BrowserShareId, GrantId } from '@deepseek-ai/dsh-companion-protocol'
-import { expect, it, onTestFinished, describe } from 'vitest'
+import { expect, it, onTestFinished, describe, vi } from 'vitest'
 import { createApplicationDispatcher } from '../src/application-dispatch.ts'
-import type { BrowserShareHandler } from '../src/types.ts'
+import type { AndroidUpdateProvider, BrowserShareHandler } from '../src/types.ts'
 import { composition, config } from './composition.ts'
 
 const budget = config.budgets.application
@@ -22,18 +22,23 @@ class Barrier {
   release(): void { this.releasePromise.resolve(undefined) }
 }
 
-async function fixture(browserShare?: BrowserShareHandler) {
+async function fixture(browserShare?: BrowserShareHandler, androidUpdates?: AndroidUpdateProvider) {
   const current = { value: true }
+  const pushed: ApplicationResult[] = []
   const owner = await composition({ ...config, budgets: { ...config.budgets, application: { ...budget, maxResultBytes: 32_768 } } })
   const dispatcher = createApplicationDispatcher(owner.ctx, {
     signal: owner.owner.signal, requireCurrent: () => { if (!current.value) throw new Error('grant retired') },
     managementAccess: () => false, modelAccess: () => false, toolDetailsAccess: () => false,
     activationAccess: () => false, ...(browserShare === undefined ? {} : { browserShare }), grantId, generation: 1,
+    ...(androidUpdates === undefined ? {} : { androidUpdates }),
     budget: { ...budget, maxResultBytes: 32_768 }, maxWatches: 1, maxPendingRequests: 4, maxProgressBuffer: 2,
-    sendProgress: async () => {},
+    sendProgress: async (result) => { pushed.push(result) },
   })
   onTestFinished(async () => { current.value = false; owner.owner.abort(); await dispatcher.close(); await owner.close() })
-  return { current, dispatcher }
+  const dispatch = (type: string, fields?: object) => dispatcher.dispatch(parseApplicationRequest(JSON.stringify({
+    v: 1, type, requestId, ...fields,
+  }), { ...budget, maxResultBytes: 32_768 }))
+  return { current, dispatcher, pushed, dispatch }
 }
 
 function request(type: 'watchBrowserShare' | 'stopBrowserShare', id?: BrowserShareId) {
@@ -46,6 +51,31 @@ function browserResult(result: ApplicationResult) {
 }
 
 describe('native browser-share dispatch', () => {
+  it('pushes distinct frames under a single subscription and stops delivery after exact cancellation', async () => {
+    let jpeg = 'anBlZw=='
+    const f = await fixture(async () => ({ status: 'frame', shareId, jpeg }))
+    await expect(f.dispatch('subscribeBrowserShare')).resolves.toMatchObject({ status: 'idle' })
+    await vi.waitFor(() => { expect(f.pushed).toEqual([{ v: 1, type: 'browserShare', requestId, status: 'frame', shareId, jpeg }]) })
+    jpeg = 'bmV3'
+    await vi.waitFor(() => { expect(f.pushed.at(-1)).toMatchObject({ requestId, status: 'frame', jpeg }) })
+    await expect(f.dispatch('unsubscribeBrowserShare', { watchId: requestId })).resolves.toMatchObject({ status: 'ended' })
+    await f.dispatcher.close()
+    expect(f.pushed).toHaveLength(2)
+  })
+
+  it('only serves update chunks after matching the installed hash and a newer version', async () => {
+    const artifactId = 'a'.repeat(64)
+    const baseSha256 = 'b'.repeat(64)
+    const offer = parseAndroidUpdateOffer({
+      artifactId, baseSha256, targetSha256: 'c'.repeat(64), versionCode: 4, targetBytes: 1024, patchBytes: 8,
+    })
+    const f = await fixture(undefined, { offer: async () => offer, chunk: async () => 'SFlEMQAAAAA=' })
+    const read = () => f.dispatch('readAndroidUpdate', { artifactId, offset: 0 })
+    await expect(read()).resolves.toMatchObject({ type: 'error', code: 'notFound' })
+    await expect(f.dispatch('checkAndroidUpdate', { installedSha256: baseSha256, versionCode: 4 })).resolves.toMatchObject({ offer: null })
+    await expect(f.dispatch('checkAndroidUpdate', { installedSha256: baseSha256, versionCode: 3 })).resolves.toMatchObject({ offer })
+    await expect(read()).resolves.toMatchObject({ type: 'androidUpdateChunk', artifactId, offset: 0, data: 'SFlEMQAAAAA=' })
+  })
   it('reports idle without an optional native provider and ended for an exact stop', async () => {
     const f = await fixture()
     expect(await f.dispatcher.dispatch(request('watchBrowserShare'))).toEqual({

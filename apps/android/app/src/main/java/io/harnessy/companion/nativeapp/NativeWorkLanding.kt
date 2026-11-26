@@ -24,8 +24,8 @@ import io.harnessy.companion.presentation.DisplayModels.*
 /** Offers only already-loaded PC conversations; opening a row never creates or submits work. */
 @Composable
 internal fun NativeWorkLanding(screen: Screen, foreground: Boolean, actions: NativeChatActions, modifier: Modifier) {
-    LazyColumn(modifier.testTag("work_landing"), contentPadding = PaddingValues(bottom = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.Bottom)) {
+    LazyColumn(modifier.testTag("work_landing"), contentPadding = PaddingValues(top = 20.dp, bottom = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)) {
         if (screen.composer.review == null && screen.composer.feedback == Feedback.NONE) {
             recentConversations(screen.sessions, foreground, actions)
         }
@@ -46,16 +46,23 @@ internal fun NativeWorkLanding(screen: Screen, foreground: Boolean, actions: Nat
 }
 
 private fun LazyListScope.recentConversations(pane: SessionPane, foreground: Boolean, actions: NativeChatActions) {
-    item {
-        Text(stringResource(if (pane.rows.isEmpty()) R.string.native_choose_conversation else R.string.native_continue_pc),
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(horizontal = 20.dp).semantics { heading() })
+    item(key = "work_landing_header") {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(stringResource(R.string.native_work), style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier.semantics { heading() })
+            Text(stringResource(if (pane.rows.isEmpty()) R.string.native_select_explanation else R.string.native_continue_pc),
+                style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
-    if (pane.rows.isEmpty()) item {
-        Text(stringResource(R.string.native_select_explanation), style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 20.dp))
-    } else items(pane.rows.take(4), key = { it.id }) { row ->
-        RecentConversationRow(row, foreground) { actions.selectSession(row.id) }
+    if (pane.rows.isNotEmpty()) {
+        item(key = "work_landing_recents") {
+            Text(stringResource(R.string.native_recents), style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 20.dp).semantics { heading() })
+        }
+        items(pane.rows.take(4), key = { it.id }) { row ->
+            RecentConversationRow(row, foreground) { actions.selectSession(row.id) }
+        }
     }
 }
 

@@ -1,7 +1,8 @@
 /** Strict mobile JSON parsers; complete encoded messages pay the byte budget. */
 import { brandString } from '@deepseek-ai/dsh-brand'
 import type {
-  ApplicationBudget, ApplicationRequest, ApplicationResult, BrowserShareId, BrowserShareResult, HistoryRow, HistorySequence,
+  AndroidUpdateId, AndroidUpdateOffer, ApplicationBudget, ApplicationRequest, ApplicationResult,
+  BrowserShareId, BrowserShareResult, HistoryRow, HistorySequence,
   ManagementAction, ManagementResult, MobileModelChoice, MobileModelChoiceId, MobileModelRevision, MobileOperationId,
   MobileRequestId, MobileSessionId, MobileWorkspaceId, ModelSelectionResult, MutationIdentity, MutationRefusalCode, ReadCursor,
   SessionModelsResult, SessionOpenedResult, SessionSummary, SubmissionId, SubscriptionId, WorkspaceSummary,
@@ -13,6 +14,10 @@ export const MAX_MOBILE_JSON_BYTES = 49_152
 export const MAX_BROWSER_SHARE_JPEG_BYTES = 18_432
 /** Maximum standard-base64 characters carried by one native browser-share frame. */
 export const MAX_BROWSER_SHARE_JPEG_CHARS = 24_576
+/** Fixed raw delta bytes per authenticated update reply, except the final chunk. */
+export const ANDROID_UPDATE_CHUNK_BYTES = 12_288
+/** Maximum supported staged APK or delta length. */
+export const MAX_ANDROID_UPDATE_BYTES = 64 * 1024 * 1024
 
 const BROWSER_SHARE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 const BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/
@@ -69,6 +74,28 @@ function browserShareJpeg(value: unknown): string {
   const decoded = Buffer.from(result, 'base64')
   if (decoded.length === 0 || decoded.length > MAX_BROWSER_SHARE_JPEG_BYTES) fail()
   return result
+}
+function sha256(value: unknown): string {
+  const digest = text(value, 64, true)
+  if (!/^[0-9a-f]{64}$/u.test(digest)) fail()
+  return digest
+}
+function updateId(value: unknown): AndroidUpdateId { return brandString<AndroidUpdateId>(sha256(value)) }
+function versionCode(value: unknown): number { return integer(value, 1, 2_100_000_000) }
+function updateOffset(value: unknown): number {
+  const offset = integer(value, 0, MAX_ANDROID_UPDATE_BYTES - 1)
+  if (offset % ANDROID_UPDATE_CHUNK_BYTES !== 0) fail()
+  return offset
+}
+/** @param input - untrusted local manifest or wire offer. @returns Bounded Android delta metadata. */
+export function parseAndroidUpdateOffer(input: unknown): AndroidUpdateOffer {
+  const value = object(input)
+  exact(value, ['artifactId', 'baseSha256', 'targetSha256', 'versionCode', 'targetBytes', 'patchBytes'])
+  const targetBytes = integer(value.targetBytes, 1, MAX_ANDROID_UPDATE_BYTES)
+  return {
+    artifactId: updateId(value.artifactId), baseSha256: sha256(value.baseSha256), targetSha256: sha256(value.targetSha256),
+    versionCode: versionCode(value.versionCode), targetBytes, patchBytes: integer(value.patchBytes, 8, targetBytes - 1),
+  }
 }
 function workspaceId(value: unknown): MobileWorkspaceId { return brandString<MobileWorkspaceId>(token(value)) }
 function subscriptionId(value: unknown): SubscriptionId { return brandString<SubscriptionId>(fixed(value, 16)) }
@@ -353,8 +380,18 @@ export function parseApplicationRequest(json: string, budget: ApplicationBudget)
       exact(value, ['v', 'type', 'requestId', 'operationId', 'sessionId', 'title'])
       return { ...common, type: value.type, ...managementTarget(value), title: text(value.title, budget.maxTitleBytes) }
     case 'getSessionActivation':
+    case 'subscribeBrowserShare':
       exact(value, ['v', 'type', 'requestId'])
       return { ...common, type: value.type }
+    case 'unsubscribeBrowserShare':
+      exact(value, ['v', 'type', 'requestId', 'watchId'])
+      return { ...common, type: value.type, watchId: requestId(value.watchId) }
+    case 'checkAndroidUpdate':
+      exact(value, ['v', 'type', 'requestId', 'installedSha256', 'versionCode'])
+      return { ...common, type: value.type, installedSha256: sha256(value.installedSha256), versionCode: versionCode(value.versionCode) }
+    case 'readAndroidUpdate':
+      exact(value, ['v', 'type', 'requestId', 'artifactId', 'offset'])
+      return { ...common, type: value.type, artifactId: updateId(value.artifactId), offset: updateOffset(value.offset) }
     case 'watchBrowserShare':
       exact(value, ['v', 'type', 'requestId'], ['shareId'])
       return {
@@ -423,6 +460,17 @@ export function parseApplicationResult(json: string, budget: ApplicationBudget):
       if (typeof value.enabled !== 'boolean') fail()
       return { ...common, type: value.type, enabled: value.enabled }
     case 'browserShare': return browserShare(value)
+    case 'androidUpdate':
+      exact(value, ['v', 'type', 'requestId', 'offer'])
+      return { v: 1, type: value.type, requestId: requestId(value.requestId),
+        offer: value.offer === null ? null : parseAndroidUpdateOffer(value.offer) }
+    case 'androidUpdateChunk': {
+      exact(value, ['v', 'type', 'requestId', 'artifactId', 'offset', 'data'])
+      const data = text(value.data, ANDROID_UPDATE_CHUNK_BYTES * 4 / 3, true)
+      if (!BASE64.test(data) || Buffer.from(data, 'base64').toString('base64') !== data) fail()
+      return { v: 1, type: value.type, requestId: requestId(value.requestId),
+        artifactId: updateId(value.artifactId), offset: updateOffset(value.offset), data }
+    }
     case 'sessions': {
       exact(value, ['v', 'type', 'requestId', 'sessions'], ['cursor'])
       if (!Array.isArray(value.sessions) || value.sessions.length > budget.maxSessions) fail()

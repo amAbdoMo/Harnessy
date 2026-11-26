@@ -17,6 +17,7 @@ description: "原生 Kotlin／Compose Android 聊天、具备生命周期感知�
 - [模型选择](#model-selection)
 - [会话激活](#session-activation)
 - [实时浏览器共享](#live-browser-share)
+- [测试版应用更新](#staging-app-updates)
 - [配对与存储](#pairing-and-storage)
 - [读取与送达](#reads-and-delivery)
 - [限制与验证](#limits-and-verification)
@@ -70,9 +71,16 @@ Gradle 属性 `companion.pcModelSelection` 默认为 `true`。启用后，[模�
 <a id="live-browser-share"></a>
 ## 实时浏览器共享
 
-已配对电脑在线时，手机可在“设置 → 电脑连接”中打开**实时浏览器**；明确打开页面后会查找电脑已经开始的共享。[原生查看界面](<app/src/main/java/io/harnessy/companion/nativeapp/NativeBrowserShareScreen.kt>)仅使用现有加密伴侣通道，并且只在页面可见时请求有界 JPEG 帧；不会打开 WebView、Tailscale 路由或外部账号。
+已配对电脑在线时，可从工作区导航或**设置 → 电脑连接**打开**实时浏览器**。[原生查看界面](<app/src/main/java/io/harnessy/companion/nativeapp/NativeBrowserShareScreen.kt>)通过现有加密通道订阅明确共享的桌面标签页 JPEG 帧。电脑以每秒最多 15 帧为目标，跳过重复画面和受速率限制的帧。关闭查看界面时会释放订阅。兼容的旧版电脑支持逐帧请求。
 
 查看器解码同一共享的新帧时，会继续显示上一张已解码的画面。查看界面的**停止共享**绑定到当前帧携带的准确共享 UUID。停止确认必须返回 `ended`；超时、断连和生命周期退役会清除画面且不会重发停止修改。离开页面或 Activity 会丢弃 JPEG 与轮询状态。使用此页面前请先更新电脑；旧电脑版本会拒绝新的精确字段请求，Android 不会降级回退。
+
+<a id="staging-app-updates"></a>
+## 测试版应用更新
+
+已配对的测试版电脑在线时，打开**设置 → 应用更新 → 检查更新**，然后点按**更新**。电脑发送与已安装 APK 匹配的差量数据。Android 在本地重建并验证新版签名 APK，然后请求批准。如 Android 提示，请允许 Harnessy Dev 安装自己的更新。此更新方式保留已有应用数据和配对。
+
+构建新版 Debug APK 时使用 `-Pcompanion.versionCode=<higher-code>`，并保留已交付的原始 APK。在 Windows 测试版电脑上将 `JAVA_HOME` 指向 Android JDK，然后从测试版检出目录运行 `pnpm exec tsx apps/desktop/scripts/prepare-android-staging-update.ts --base <older-apk> --target <newer-apk>`。差量数据由测试版电脑通过加密伴侣连接提供。没有更新功能的旧版设备需要就地安装一次支持更新的 APK。
 
 <a id="pairing-and-storage"></a>
 ## 配对与存储

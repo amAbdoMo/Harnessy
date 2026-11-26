@@ -25,11 +25,19 @@
 | `submitText` | `sessionId,text,submissionId` | `submitted` | `sessionId,submissionId,admission:"inMemoryInbox"` |
 | `cancelRead` | `subscriptionId` | `cancelled` | `subscriptionId` |
 | `watchBrowserShare` | `shareId?` | `browserShare` | `status`；`frame` 还包含 `shareId,jpeg` |
+| `subscribeBrowserShare` | — | `browserShare` | 先返回 `idle`，随后发送关联的 `frame` 或 `ended` |
+| `unsubscribeBrowserShare` | `watchId` | `browserShare` | `ended` 确认释放匹配的订阅 |
 | `stopBrowserShare` | `shareId` | `browserShare` | `status`；停止请求绝不返回 `frame` |
+| `checkAndroidUpdate` | `installedSha256,versionCode` | `androidUpdate` | `offer` 或 `null` |
+| `readAndroidUpdate` | `artifactId,offset` | `androidUpdateChunk` | `artifactId,offset,data` |
 
 请求也可返回 `{v:1,type:"error",requestId,code}`，其中 `code` 只能是 `denied`、`notFound`、`limit`、`expired` 或 `unavailable`。实时读取发送 `{v:1,type:"progress",subscriptionId,sessionId,rows,status,cursor?}`，不包含请求 ID。手机接受结果前必须将结果类型、请求 ID、Session ID，以及提交或订阅 ID 与未完成操作关联；仅解析消息不能建立这种关联。
 
 `watchBrowserShare` 是 v1 的新增操作。Desktop 操作者必须先明确启动原生共享；已配对且完成认证的授权记录随后可以请求一帧，并可选地指定准确的小写 UUID 共享 ID，或省略它来发现当前共享。PC 没有提供方时返回 `idle`。`stopBrowserShare` 始终指定准确共享 ID，不能启动或替换共享。结果为 `idle`、`busy`、`ended` 或带共享 ID 与规范标准 Base64 JPEG 的 `frame`。一帧最多 24,576 个 Base64 字符，解码后最多 18,432 字节。此操作不提供操作员 RPC、凭据、模型路由或新的持久授权字段。旧对端会拒绝这些新增操作标签；Android 仅在明确的浏览器共享页面中发起请求。
+
+每个通道有一个订阅，订阅请求 ID 同时用作 `watchId`。推送帧携带该请求 ID。`ended` 推送清除当前共享，订阅保持开启以发现新的共享。取消订阅仅释放匹配的订阅。通道退出时取消所有推送。Host 跳过重复帧并限制所有手机通道的合计发送速率。
+
+Android 测试版的更新信息包含 `artifactId`、`baseSha256`、`targetSha256`、`versionCode`、`targetBytes` 和 `patchBytes`。每个哈希均为小写 SHA-256，差量文件的哈希也用作 `artifactId`。`versionCode` 范围为 1 至 2,100,000,000。签名目标 APK 最大为 64 MiB，差量文件必须更小。读取必须指定同一通道已提供的文件，偏移量按 12,288 字节对齐。数据采用规范标准 Base64，解码后最多为 12,288 字节。
 
 每条 Session 摘要仅包含 `sessionId,title,status`；`status` 为 `idle`、`queued`、`running` 或 `closed`。每条历史行仅包含 `role,seq,id,text`；`role` 为 `user`、`assistant`、`tool` 或 `notice`。工具行包含经批准的有界文本，不包含工具参数或任意结果投影。每批历史和进度行必须具有严格递增的序号及不重复的 ID。PC 和手机还必须使用 PC 签发的游标保持跨订阅批次的顺序。
 

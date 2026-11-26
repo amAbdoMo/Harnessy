@@ -115,6 +115,7 @@
     <string name="native_open_chat_resolve">我已检查此聊天的电脑状态</string>
     <string name="native_draft_limit">有太多聊天含未发送草稿。请先清空一个草稿，再开始另一个。已有草稿均已保留。</string>
     <string name="native_browser_share_title">实时浏览器</string>
+    <string name="native_browser_share_subtitle">查看电脑当前共享的浏览器</string>
     <string name="native_browser_share_waiting">正在等待共享浏览器…</string>
     <string name="native_browser_share_frame">共享的浏览器画面</string>
     <string name="native_browser_share_stop">停止共享</string>

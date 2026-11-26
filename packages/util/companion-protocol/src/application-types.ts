@@ -15,6 +15,8 @@ export type MobileModelChoiceId = Branded<'CompanionModelChoiceId'>
 export type MobileModelRevision = Branded<'CompanionModelRevision'>
 /** PC-minted UUID identifying the one native browser share currently visible to paired phones. */
 export type BrowserShareId = Branded<'BrowserShareId'>
+/** SHA-256 of a prepared Android delta and its exact artifact identifier. */
+export type AndroidUpdateId = Branded<'AndroidUpdateId'>
 /** Supported PC chat management operations; deletion is not a wire operation. */
 export type ManagementAction = 'create' | 'rename' | 'archive' | 'pin'
 /** Phone-generated 16-byte identifier scoped to authenticated grant plus Session. */
@@ -63,6 +65,12 @@ export type ApplicationRequest =
   | { readonly v: 1; readonly type: 'getSessionActivation'; readonly requestId: MobileRequestId }
   /** Observe the explicitly started native Desktop browser share; omission discovers the current share. */
   | { readonly v: 1; readonly type: 'watchBrowserShare'; readonly requestId: MobileRequestId; readonly shareId?: BrowserShareId }
+  /** Observe native frames until this channel retires or the phone cancels this request ID. */
+  | { readonly v: 1; readonly type: 'subscribeBrowserShare'; readonly requestId: MobileRequestId }
+  /** Retire the exact browser subscriber without stopping the Desktop share. */
+  | { readonly v: 1; readonly type: 'unsubscribeBrowserShare'; readonly requestId: MobileRequestId; readonly watchId: MobileRequestId }
+  | { readonly v: 1; readonly type: 'checkAndroidUpdate'; readonly requestId: MobileRequestId; readonly installedSha256: string; readonly versionCode: number }
+  | { readonly v: 1; readonly type: 'readAndroidUpdate'; readonly requestId: MobileRequestId; readonly artifactId: AndroidUpdateId; readonly offset: number }
   /** Stop only the exact native browser share selected by Desktop. */
   | { readonly v: 1; readonly type: 'stopBrowserShare'; readonly requestId: MobileRequestId; readonly shareId: BrowserShareId }
   /** Explicit existing-chat activation, never an effect of a read or history selection. */
@@ -175,6 +183,16 @@ export type BrowserShareResult = {
   | { readonly status: 'frame'; readonly shareId: BrowserShareId; readonly jpeg: string }
 )
 
+/** A delta from the exact installed APK to one newer signed APK. Byte lengths refer to whole files. */
+export interface AndroidUpdateOffer {
+  readonly artifactId: AndroidUpdateId
+  readonly baseSha256: string
+  readonly targetSha256: string
+  readonly versionCode: number
+  readonly targetBytes: number
+  readonly patchBytes: number
+}
+
 /** Existing-chat activation is applied only after writable ownership and targeted persistence settle. */
 export type SessionOpenedResult = MutationIdentity & { readonly type: 'sessionOpened' } & (
   | {
@@ -203,5 +221,14 @@ export type ApplicationResult =
   | SessionOpenedResult
   | SessionModelsResult
   | BrowserShareResult
+  | { readonly v: 1; readonly type: 'androidUpdate'; readonly requestId: MobileRequestId; readonly offer: AndroidUpdateOffer | null }
+  | {
+    readonly v: 1
+    readonly type: 'androidUpdateChunk'
+    readonly requestId: MobileRequestId
+    readonly artifactId: AndroidUpdateId
+    readonly offset: number
+    readonly data: string
+  }
   | ModelSelectionResult
   | ManagementResult

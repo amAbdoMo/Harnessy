@@ -6,7 +6,7 @@ import {
   encodeApplicationRequest, encodeApplicationResult, parseApplicationBudget, parseGeneration,
 } from '@deepseek-ai/dsh-companion-protocol'
 import type {
-  ApplicationBudget, ApplicationRequest, ApplicationResult, GrantId, MobileSessionId,
+  AndroidUpdateOffer, ApplicationBudget, ApplicationRequest, ApplicationResult, GrantId, MobileSessionId,
   MobileOperationId, ReadCursor, SubscriptionId, WorkspaceSummary,
 } from '@deepseek-ai/dsh-companion-protocol'
 import type {} from '@deepseek-ai/dsh-api-session-controller'
@@ -27,7 +27,8 @@ import type { ManagementRequest } from './session-management.ts'
 import { createSessionModels, rejectModelSelection } from './session-models.ts'
 import { executeSessionOpen, rejectSessionOpen } from './session-activation.ts'
 import type { SessionOpenRequest } from './session-activation.ts'
-import type { BrowserShareHandler, BrowserShareResponse } from './types.ts'
+import type { AndroidUpdateProvider, BrowserShareHandler, BrowserShareResponse } from './types.ts'
+import { createBrowserShareStream } from './browser-share-stream.ts'
 
 /** Explicit per-channel policy supplied by the service that owns authorization and transport. */
 export interface ApplicationDispatcherOptions {
@@ -45,6 +46,10 @@ export interface ApplicationDispatcherOptions {
   readonly activationAccess: () => boolean
   /** Optional Desktop-native provider; it never starts a share and is called only for paired grants. */
   readonly browserShare?: BrowserShareHandler
+  /** Reserve browser frame bytes against the Desktop relay socket shared by all paired phones. */
+  readonly allowBrowserFrame?: (jpeg: string) => boolean
+  /** Optional delta source from the Desktop owner's local home. */
+  readonly androidUpdates?: AndroidUpdateProvider
   readonly grantId: GrantId
   readonly generation: number
   readonly budget: ApplicationBudget
@@ -114,6 +119,11 @@ export function createApplicationDispatcher(
   const mutationOperations = new Set<MobileOperationId>()
   let closing: Promise<void> | undefined
   const models = createSessionModels(ctx, { budget, requireCurrent, modelAccess: options.modelAccess })
+  const browserStream = createBrowserShareStream({ signal, provider: options.browserShare, requireCurrent,
+    ...(options.allowBrowserFrame === undefined ? {} : { allowFrame: options.allowBrowserFrame }),
+    send: result => options.sendProgress(checked(result)) })
+  let androidOffer: AndroidUpdateOffer | undefined
+  let updateReadPending = false
 
   function requireCurrent(): void {
     if (signal.aborted) throw new RemoteError('gateway/cancelled', 'companion admission was cancelled', {})
@@ -308,6 +318,32 @@ export function createApplicationDispatcher(
       return checked({ v: 1, type: 'browserShare', requestId: request.requestId, status: 'ended' })
     }
     return checked({ v: 1, type: 'browserShare', requestId: request.requestId, ...response })
+  }
+
+  async function androidUpdate(
+    request: Extract<ApplicationRequest, { type: 'checkAndroidUpdate' | 'readAndroidUpdate' }>, read: ReadScope,
+  ): Promise<ApplicationResult> {
+    requireRead(read)
+    if (updateReadPending) throw new MobileViewError('limit')
+    updateReadPending = true
+    const { androidUpdates: updates } = options
+    try {
+      if (request.type === 'checkAndroidUpdate') {
+        androidOffer = undefined
+        const offer = await updates?.offer(request.installedSha256, read.signal)
+        requireRead(read)
+        if (offer?.baseSha256 === request.installedSha256 && offer.versionCode > request.versionCode) androidOffer = offer
+        return checked({ v: 1, type: 'androidUpdate', requestId: request.requestId, offer: androidOffer ?? null })
+      }
+      const offer = androidOffer
+      if (updates === undefined || offer?.artifactId !== request.artifactId || request.offset >= offer.patchBytes) {
+        throw new MobileViewError('notFound')
+      }
+      const data = await updates.chunk(offer, request.offset, read.signal)
+      requireRead(read)
+      return checked({ v: 1, type: 'androidUpdateChunk', requestId: request.requestId,
+        artifactId: offer.artifactId, offset: request.offset, data })
+    } finally { updateReadPending = false }
   }
 
   function toolDetailsRead(cwd: string, read: ReadScope): MobileHistoryOptions['toolDetails'] {
@@ -612,6 +648,16 @@ export function createApplicationDispatcher(
         enabled: options.activationAccess() })
       case 'watchBrowserShare':
       case 'stopBrowserShare': return browserShare(request, read)
+      case 'checkAndroidUpdate':
+      case 'readAndroidUpdate': return androidUpdate(request, read)
+      case 'subscribeBrowserShare': {
+        browserStream.start(request.requestId)
+        return checked({ v: 1, type: 'browserShare', requestId: request.requestId, status: 'idle' })
+      }
+      case 'unsubscribeBrowserShare': {
+        browserStream.stop(request.watchId)
+        return checked({ v: 1, type: 'browserShare', requestId: request.requestId, status: 'ended' })
+      }
       case 'openSession': return openSession(request, read)
       case 'listManagementWorkspaces': return managementCatalog(request, read)
       case 'createSession':
@@ -658,6 +704,7 @@ export function createApplicationDispatcher(
 
   function stopReaders(): void {
     models.close()
+    browserStream.stop()
     for (const owned of [...watches.values()]) owned.stop()
   }
   signal.addEventListener('abort', stopReaders, { once: true })
@@ -684,7 +731,7 @@ export function createApplicationDispatcher(
         stopReaders()
         lifetime.abort()
         signal.removeEventListener('abort', stopReaders)
-        await Promise.allSettled([...requests, ...sends])
+        await Promise.allSettled([...requests, ...sends, browserStream.close()])
         cursorKey.fill(0)
       })()
       return closing
