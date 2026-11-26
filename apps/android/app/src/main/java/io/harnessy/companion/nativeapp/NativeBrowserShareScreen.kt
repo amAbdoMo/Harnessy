@@ -30,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -69,7 +70,17 @@ private fun decodeBrowserShareFrame(encoded: String): ImageBitmap? {
     return bitmap.asImageBitmap()
 }
 
-private data class DecodedBrowserShareFrame(val shareId: String, val jpegBase64: String, val bitmap: ImageBitmap)
+/** Keeps a decoded image visible while replacing it within the same active share. */
+@Composable
+internal fun rememberBrowserShareFrame(shareId: String?, jpegBase64: String?): ImageBitmap? {
+    if (shareId == null || jpegBase64 == null) return null
+    return key(shareId) {
+        val frame by produceState<ImageBitmap?>(null, jpegBase64) {
+            withContext(Dispatchers.Default) { decodeBrowserShareFrame(jpegBase64) }?.let { value = it }
+        }
+        frame
+    }
+}
 
 /** Native, view-only browser share. The encrypted companion link is the only data source. */
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
@@ -93,16 +104,7 @@ fun NativeBrowserShareScreen(
         }
     }
 
-    val decodedFrame by produceState<DecodedBrowserShareFrame?>(null, share.shareId, share.jpegBase64) {
-        val sourceId = share.shareId
-        val sourceJpeg = share.jpegBase64
-        value = if (sourceId == null || sourceJpeg == null) null else {
-            withContext(Dispatchers.Default) {
-                decodeBrowserShareFrame(sourceJpeg)?.let { bitmap -> DecodedBrowserShareFrame(sourceId, sourceJpeg, bitmap) }
-            }
-        }
-    }
-    val currentFrame = decodedFrame?.takeIf { it.shareId == share.shareId && it.jpegBase64 == share.jpegBase64 }?.bitmap
+    val currentFrame = rememberBrowserShareFrame(share.shareId, share.jpegBase64)
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(

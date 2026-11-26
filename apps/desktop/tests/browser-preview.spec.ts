@@ -11,7 +11,8 @@ function fixture(profiles: readonly DesktopWebsiteProfile[] = []) {
   const owner = { isDestroyed: () => false, send: published } as Pick<WebContents, 'isDestroyed' | 'send'> as WebContents
   const jpeg = vi.fn(() => Buffer.from('jpeg'))
   const guest = {
-    isDestroyed: () => false, getURL: () => 'https://example.test/', getTitle: () => 'Example', isLoading: () => false,
+    isDestroyed: () => false, getURL: () => 'https://example.test/', getTitle: () => 'Example',
+    isLoading: vi.fn(() => false), isLoadingMainFrame: vi.fn(() => false),
     loadURL: vi.fn(async () => {}), executeJavaScript: vi.fn(async () => ({ text: 'Visible page', elements: [] })),
     capturePage: vi.fn(async () => ({ getSize: () => ({ width: 800, height: 450 }), toPNG: () => Buffer.from('png'),
       isEmpty: () => false, toJPEG: jpeg, resize: () => ({ toJPEG: jpeg }) })),
@@ -64,6 +65,21 @@ it('cannot start a phone share if local control changed during the pairing check
   paired.resolve(true)
   await expect(start).rejects.toThrow('page changed')
   await expect(f.preview.request({ type: 'phone-browser-share-watch', requestId: randomUUID() })).resolves.toMatchObject({ status: 'idle' })
+})
+
+it('keeps a phone share during embedded loads and ends it when the main page starts loading', async () => {
+  const f = fixture()
+  f.preview.bind(f.owner, f.lease, 'one')
+  await f.preview.control(f.owner, f.lease, true)
+  const share = await f.preview.beginPhoneShare(f.owner, f.lease, () => true, async () => true)
+  if (share === null) throw new Error('Expected Android share')
+  const watch = () => f.preview.request({ type: 'phone-browser-share-watch', requestId: randomUUID(), id: share.receipt })
+  f.guest.isLoading.mockReturnValue(true)
+  await expect(watch()).resolves.toMatchObject({ status: 'frame', shareId: share.receipt })
+  expect(f.published).not.toHaveBeenCalledWith(DESKTOP_IPC.browserRemoteShareEnded, share.receipt)
+  f.guest.isLoadingMainFrame.mockReturnValue(true)
+  await expect(watch()).resolves.toMatchObject({ status: 'ended' })
+  expect(f.published).toHaveBeenCalledWith(DESKTOP_IPC.browserRemoteShareEnded, share.receipt)
 })
 
 it('requires local human control for zoom and DevTools and closes DevTools on resume', async () => {

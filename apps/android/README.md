@@ -72,7 +72,7 @@ An eligible existing cold ordinary chat can be opened explicitly on the running 
 
 The paired phone exposes **Live browser** from Settings → PC connection while the paired PC is online; opening it explicitly discovers a share that the PC has already started. The [native viewer](<app/src/main/java/io/harnessy/companion/nativeapp/NativeBrowserShareScreen.kt>) uses the existing encrypted companion channel, requests bounded JPEG frames only while this screen is visible, and never opens a WebView, Tailscale route or external account.
 
-The viewer binds **Stop sharing** to the exact share UUID received with the current frame. A stop acknowledgement must report `ended`; timeouts, disconnects and lifecycle retirement clear the frame and do not resend the stop mutation. Leaving the screen or the Activity drops the JPEG and polling state. Update the PC before using this screen; old PC builds reject the new exact-field requests and the Android app does not downgrade them.
+The viewer keeps the last decoded frame visible while it decodes a replacement for the same share. The viewer binds **Stop sharing** to the exact share UUID received with the current frame. A stop acknowledgement must report `ended`; timeouts, disconnects and lifecycle retirement clear the frame and do not resend the stop mutation. Leaving the screen or the Activity drops the JPEG and polling state. Update the PC before using this screen; old PC builds reject the new exact-field requests and the Android app does not downgrade them.
 
 <a id="pairing-and-storage"></a>
 ## Pairing and storage

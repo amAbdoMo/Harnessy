@@ -72,7 +72,7 @@ Gradle 属性 `companion.pcModelSelection` 默认为 `true`。启用后，[模�
 
 已配对电脑在线时，手机可在“设置 → 电脑连接”中打开**实时浏览器**；明确打开页面后会查找电脑已经开始的共享。[原生查看界面](<app/src/main/java/io/harnessy/companion/nativeapp/NativeBrowserShareScreen.kt>)仅使用现有加密伴侣通道，并且只在页面可见时请求有界 JPEG 帧；不会打开 WebView、Tailscale 路由或外部账号。
 
-查看界面的**停止共享**绑定到当前帧携带的准确共享 UUID。停止确认必须返回 `ended`；超时、断连和生命周期退役会清除画面且不会重发停止修改。离开页面或 Activity 会丢弃 JPEG 与轮询状态。使用此页面前请先更新电脑；旧电脑版本会拒绝新的精确字段请求，Android 不会降级回退。
+查看器解码同一共享的新帧时，会继续显示上一张已解码的画面。查看界面的**停止共享**绑定到当前帧携带的准确共享 UUID。停止确认必须返回 `ended`；超时、断连和生命周期退役会清除画面且不会重发停止修改。离开页面或 Activity 会丢弃 JPEG 与轮询状态。使用此页面前请先更新电脑；旧电脑版本会拒绝新的精确字段请求，Android 不会降级回退。
 
 <a id="pairing-and-storage"></a>
 ## 配对与存储

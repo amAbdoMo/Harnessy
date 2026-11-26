@@ -195,11 +195,11 @@ export class DesktopBrowserPreview {
    */
   async captureRecordingFrame(owner: WebContents, lease: DesktopBrowserLeaseId, urlInput: unknown,
     documentInput: unknown, permitted: (guest: WebContents) => boolean): Promise<BrowserRecordingFrame> {
-    return this.captureFrame(owner, lease, urlInput, documentInput, permitted, false)
+    return this.captureFrame(owner, lease, urlInput, documentInput, permitted, 'recording')
   }
 
   private async captureFrame(owner: WebContents, lease: DesktopBrowserLeaseId, urlInput: unknown, documentInput: unknown,
-    permitted: (guest: WebContents) => boolean, phone: boolean): Promise<BrowserRecordingFrame> {
+    permitted: (guest: WebContents) => boolean, purpose: 'recording' | Share['audience']): Promise<BrowserRecordingFrame> {
     text(lease, 'recording tab identity', 128)
     const url = text(urlInput, 'recording URL', 4096)
     const tab = this.tab(owner, lease)
@@ -207,7 +207,10 @@ export class DesktopBrowserPreview {
     if (documentInput !== undefined && documentInput !== documentId) throw new Error('Browser recording page changed')
     const requireCurrent = (): void => {
       if (this.tab(owner, lease) !== tab || tab.recordingDocument !== documentId || !tab.control.humanMayAct
-        || !permitted(tab.guest) || tab.guest.isLoading() || tab.guest.getURL() !== url) throw new Error('Browser recording page is unavailable')
+        || !permitted(tab.guest) || tab.guest.getURL() !== url
+        || (purpose === 'recording' ? tab.guest.isLoading() : tab.guest.isLoadingMainFrame())) {
+        throw new Error('Browser capture page is unavailable')
+      }
     }
     if (!this.guests.allowsBrowserAddress(url) || tab.recordingCapturePending === true) throw new Error('Browser recording frame is unavailable')
     requireCurrent()
@@ -215,7 +218,7 @@ export class DesktopBrowserPreview {
     try {
       const image = await tab.guest.capturePage()
       requireCurrent()
-      const jpeg = phone
+      const jpeg = purpose === 'phone'
         ? jpegWithin(image, 480, 270, 44, PHONE_MAX_FRAME_BYTES) ?? jpegWithin(image, 240, 135, 28, PHONE_MAX_FRAME_BYTES)
         : jpegWithin(image, RECORDING_MAX_WIDTH, RECORDING_MAX_HEIGHT, 65, RECORDING_MAX_FRAME_BYTES)
       if (jpeg === undefined) throw new Error('Browser frame is empty or exceeds its byte limit')
@@ -302,7 +305,7 @@ export class DesktopBrowserPreview {
     const tab = share.tab
     return this.share === share && Date.now() < share.expiresAt && tab.recordingDocument === share.documentId
       && tab.control.humanMayAct && !tab.guest.isDestroyed() && share.permitted(tab.guest)
-      && !tab.guest.isLoading() && tab.guest.getURL() === share.urlAtStart
+      && !tab.guest.isLoadingMainFrame() && tab.guest.getURL() === share.urlAtStart
   }
 
   private async remoteShareFrame(audience: Share['audience'], id: unknown): Promise<object> {
@@ -316,7 +319,7 @@ export class DesktopBrowserPreview {
     share.nextFrameAt = now + REMOTE_SHARE_FRAME_INTERVAL_MS
     const { owner, lease } = share.tab
     try {
-      const frame = await this.captureFrame(owner, lease, share.urlAtStart, share.documentId, share.permitted, audience === 'phone')
+      const frame = await this.captureFrame(owner, lease, share.urlAtStart, share.documentId, share.permitted, audience)
       if (this.shareIsCurrent(share)) return { status: 'frame', shareId: share.id, jpeg: frame.jpeg }
     } catch (_error: unknown) {
       if (this.shareIsCurrent(share)) return { status: 'busy' }

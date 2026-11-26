@@ -142,14 +142,16 @@ function BrowserOrdinaryBody(props: BrowserBodyProps & {
       || requests.requests.some(request => request.status === 'granted')))
   const failure = state?.addressFailure
   const error = frame.error
-  const findAvailable = tab.visible && profileId === undefined && !humanAccessBlocked && frame.humanControl === true
-    && frame.address === 'observed' && !frame.loading && error === undefined && target !== undefined
+  const visiblePageKey = tab.visible && profileId === undefined && !humanAccessBlocked && frame.humanControl === true
+    && frame.address === 'observed' && error === undefined && target !== undefined
+    ? `${state?.addressRevision ?? 0}:${target.url}` : undefined
+  const findAvailable = visiblePageKey !== undefined && !frame.loading
   const zoom = tab.visible && !humanAccessBlocked && frame.humanControl === true && frame.address === 'observed'
     && !frame.loading && error === undefined && frame.zoomFactor !== undefined
     ? { factor: frame.zoomFactor, set: (factor: number) => props.setZoom(tab.id, factor) } : undefined
-  const pageKey = findAvailable && target !== undefined ? `${state?.addressRevision ?? 0}:${target.url}` : undefined
-  const recording = useBrowserRecording(frame.recordingSupported === true ? pageKey : undefined)
-  const share = useBrowserShare(frame.phoneShareSupported === true || frame.remoteShareSupported === true ? pageKey : undefined)
+  const recordingPageKey = frame.recordingSupported === true && !frame.loading ? visiblePageKey : undefined
+  const recording = useBrowserRecording(recordingPageKey)
+  const share = useBrowserShare(frame.phoneShareSupported === true || frame.remoteShareSupported === true ? visiblePageKey : undefined)
   const recordingBusy = recording.state?.phase === 'starting' || recording.state?.phase === 'recording' || recording.state?.phase === 'finishing'
   const sharingBusy = share.state?.phase === 'sharing' || share.state?.phase === 'starting'
   const commands: BrowserPageCommand[] = []
@@ -248,8 +250,8 @@ function BrowserOrdinaryBody(props: BrowserBodyProps & {
             addFeedback={props.addFeedback} zoom={zoom} commands={commands} trigger={actionsTrigger} t={t} />}
         </form>
         {findOpen && <BrowserFindBar tabId={tab.id} findInPage={findInPage} result={frame.findResult} onClose={closeFind} t={t} />}
-        {pageKey !== undefined && recording.state !== undefined && <BrowserCaptureBar recording={recording} t={t} />}
-        {pageKey !== undefined && share.state !== undefined && <BrowserShareBar share={share} t={t} />}
+        {recordingPageKey !== undefined && recording.state !== undefined && <BrowserCaptureBar recording={recording} t={t} />}
+        {visiblePageKey !== undefined && share.state !== undefined && <BrowserShareBar share={share} t={t} />}
         {profileId !== undefined && profiles === undefined && <p className={css.profileNotice}>{t('profiles.desktopOnly')}</p>}
         {sandboxed === false && <div className={css.sandboxWarning} role="status">{t('sandbox.warning')}</div>}
         {error !== undefined && <div className={css.failure} role="status">
