@@ -70,8 +70,9 @@ function loginFixture(cookieValue = 'signed-in', headlessSignIn = false) {
   const server = createServer((request, response) => {
     response.setHeader('cache-control', 'no-store')
     if (headlessSignIn && request.url === '/fixture-sign-in') {
-      response.setHeader('set-cookie', 'fixture_login=signed-in; HttpOnly; SameSite=Lax; Path=/; Max-Age=3600')
-      response.writeHead(303, { location: '/account' }).end()
+      response.setHeader('set-cookie', `fixture_login=${cookieValue}; HttpOnly; SameSite=Lax; Path=/; Max-Age=3600`)
+      response.setHeader('content-type', 'text/html; charset=utf-8')
+      response.end('<title>Fixture sign-in</title>')
       return
     }
     if (request.method === 'POST' && request.url === '/login') {
@@ -1348,7 +1349,7 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
         const cookies = browser === 'Helium' ? join(sourceProfile, 'Network', 'Cookies') : join(sourceProfile, 'cookies.sqlite')
         const profileName = browser + ' fixture'
         env.DEEPSEEK_API_KEY = 'fixture-key-not-an-external-credential'
-        const website = loginFixture('signed-in', browser === 'Zen')
+        const website = loginFixture('signed-in', true)
         const mcp = mcpFixture()
         const model = websiteModelFixture()
         let app: ElectronApplication | undefined
@@ -1366,11 +1367,9 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
               { executablePath: executable, env, headless: true })
             try {
               const tab = source.pages()[0]!
-              await tab.goto(origin)
-              await expect.poll(() => tab.locator('#state').textContent()).toBe('anonymous')
-              await tab.getByLabel('Username').fill('fixture-user')
-              await tab.getByLabel('Password').fill('fixture-password')
-              await tab.getByRole('button', { name: 'Sign in' }).click()
+              const issued = await source.request.get(origin + '/fixture-sign-in')
+              expect(issued.ok()).toBe(true)
+              await tab.goto(landing)
               await expect.poll(() => tab.locator('#state').textContent()).toBe('authenticated')
             } finally { await source.close() }
           }
@@ -1386,6 +1385,7 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
           app = active
           const page = await englishBrowserAcceptancePage(active)
           const composer = page.locator('[data-composer-input][contenteditable="true"]').last()
+          await composer.waitFor({ timeout: 120_000 })
           await composer.fill('Start the browser profile import fixture chat.')
           await composer.press('Enter')
           await page.locator('[data-chat-turn]').getByText('Website acceptance', { exact: true }).last().waitFor({ timeout: 60_000 })
@@ -1456,7 +1456,7 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
             if (server.listening) { try { await closeServer(server) } catch (error) { cleanupErrors.push(error) } }
           }
           if (cleanupErrors.length === 0) await removeOwned(root)
-          else throw new AggregateError([failure, ...cleanupErrors], 'Browser profile import fixture failed to close')
+          else throw new AggregateError([...(failure === undefined ? [] : [failure]), ...cleanupErrors], 'Browser profile import fixture failed to close')
         }
       },
     )

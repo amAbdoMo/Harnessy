@@ -28,14 +28,21 @@ function unprotectProfileKey(encrypted: Buffer): Buffer {
   const unprotect = crypt32.func('__stdcall', 'CryptUnprotectData', 'int',
     [koffi.pointer(blob), 'void *', 'void *', 'void *', 'void *', 'uint32', koffi.out(koffi.pointer(blob))])
   const free = kernel32.func('void * __stdcall LocalFree(void *memory)')
-  const output: { length: number; bytes: bigint | null } = { length: 0, bytes: null }
+  const keyBytes = koffi.array('uint8', KEY_BYTES, 'Typed')
+  const output: { length: number; bytes: unknown } = { length: 0, bytes: null }
   try {
     const ok = unprotect({ length: encrypted.length, bytes: encrypted }, null, null, null, null, CRYPTPROTECT_UI_FORBIDDEN, output)
     if (!ok || output.bytes === null || output.length !== KEY_BYTES) throw unsupportedProtection()
-    const plain = new Uint8Array(koffi.view(output.bytes, KEY_BYTES))
+    // Electron disallows unmanaged ArrayBuffer views, so the codec copies the native key bytes.
+    const plain: unknown = koffi.decode(output.bytes, keyBytes)
+    if (!(plain instanceof Uint8Array)) throw unsupportedProtection()
     try { return Buffer.from(plain) } finally { plain.fill(0) }
   } finally {
-    if (output.bytes !== null) free(output.bytes)
+    if (output.bytes !== null) {
+      try {
+        if (output.length === KEY_BYTES) koffi.encode(output.bytes, keyBytes, new Uint8Array(KEY_BYTES))
+      } finally { free(output.bytes) }
+    }
   }
 }
 
