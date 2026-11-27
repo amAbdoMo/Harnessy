@@ -305,6 +305,12 @@
   color: var(--dsw-alias-label-primary);
 }
 
+.defaultsDimensions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
 /* Native guest input must not consume a docking gesture's window events. */
 :global(html:has([data-dockkit-pointer])) .webview {
   pointer-events: none;

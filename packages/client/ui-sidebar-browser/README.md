@@ -54,7 +54,9 @@ On Desktop, **Stop loading** replaces **Reload** during a navigation. The **Page
 
 On Windows, press Ctrl+Shift+T to reopen the most recently closed ordinary or saved-profile browser tab in this chat. An ordinary tab opens at its last recorded address with fresh navigation history. A saved-profile tab opens at the profile’s current landing page. Recently closed addresses are available until the app closes.
 
-Open **Settings → Browser** to choose the starting zoom, viewport, and page appearance for new ordinary Desktop tabs. The viewport can fill the panel or use a phone or tablet size in portrait or landscape. **System** uses the current Desktop appearance. **Light** or **Dark** requests that color scheme from sites that support it. Choices save locally and carry over when Desktop restarts. Open tabs keep the choices they started with.
+Open **Settings → Browser** to choose the starting zoom, viewport, and page appearance for new ordinary Desktop tabs. The viewport can fill the panel or use a phone or tablet preset. Choose **Custom size**, enter width and height in pixels at 100% page zoom, then select **Save size**. **System** uses the current Desktop appearance. **Light** or **Dark** requests that color scheme from sites that support it. Choices save locally and carry over when Desktop restarts. Open tabs keep the choices they started with.
+
+Choose **Search engine** for text searches from the ordinary Desktop address bar. DuckDuckGo is the default. Enter a domain or a full HTTP(S) address to navigate directly. To open a single-word local hostname, include its protocol or port. **Open chat links in** controls whether web links in chat open in the built-in browser or the system browser.
 
 Choose **Default browser profile** in **Settings → Browser** to open that saved profile’s landing page when you select **Browser** in the right-sidebar guide or press the new-browser shortcut. Choose **No default profile** to open a blank ordinary tab. The preference saves on this desktop and is used for new tabs after a restart. Chat links and browser actions with an explicit address or account use their supplied navigation.
 

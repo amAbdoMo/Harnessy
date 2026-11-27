@@ -51,9 +51,10 @@ function textEvents(text: string): object[] {
  * Script only the marked conversation with advertised Website tools; unrelated title requests receive text.
  * Holds provider responses after completed tool results, keeping a genuine Agent turn open for Human gestures.
  * @param access - saved website admission exercised by this owned scenario.
+ * @param fallbackText - reply text for ordinary chat fixture prompts.
  * @returns an unbound loopback server, bounded-scenario observations and release/disposal controls.
  */
-export function websiteModelFixture(access: 'ask' | 'automatic' = 'ask') {
+export function websiteModelFixture(access: 'ask' | 'automatic' = 'ask', fallbackText = () => 'Website acceptance') {
   const requests: Record<string, unknown>[] = []
   const errors: string[] = []
   const held = new Map<Phase, { response: ServerResponse; events: object[] }>()
@@ -89,7 +90,7 @@ export function websiteModelFixture(access: 'ask' | 'automatic' = 'ask') {
         const tools: readonly unknown[] = Array.isArray(body.tools) ? body.tools : []
         const names = tools.filter(object).map(tool => tool.name).filter((name): name is string => typeof name === 'string')
         if (!JSON.stringify(body.messages).includes(marker) || !names.includes('website_profiles')) {
-          send(response, textEvents('Website acceptance'))
+          send(response, textEvents(fallbackText()))
           return
         }
         const call = (id: string, name: string, args: object = {}): object[] => {

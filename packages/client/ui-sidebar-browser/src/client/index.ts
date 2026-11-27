@@ -168,6 +168,7 @@ export function apply(ctx: Context): void {
   ctx.effect(() => ctx.locale.register(namespace, { zh, en }), 'ui-sidebar-browser.copy')
   if (profiles !== undefined) ctx.effect(() => ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section', id: 'browser', label: () => t('guide.title'), order: 35, locale: namespace,
+    children: { 'settings.browser.link-opening': { kind: 'single', scope: 'root' } },
     inject: (): BrowserDefaultsInjected => ({ hooks: { websiteProfiles }, reloadProfiles: profiles.commands.reload }),
   }, BrowserDefaultsSection)), 'ui-sidebar-browser.settings')
   ctx.effect(() => ctx.sidebarRightTabs.register({

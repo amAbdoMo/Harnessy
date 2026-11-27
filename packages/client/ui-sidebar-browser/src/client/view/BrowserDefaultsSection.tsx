@@ -1,8 +1,10 @@
 /** Settings for new Desktop Browser tabs. */
 import { useId, useState, type ReactNode } from 'react'
-import { Button, Select } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { InjectFace, PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
-import { BROWSER_APPEARANCES, BROWSER_VIEWPORTS, readBrowserDefaults, saveBrowserDefaults, ZOOM_PRESETS, type BrowserDefaults } from '../browser/defaults.ts'
+import { Button, Input, Select } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { InjectFace, PropsLocale, PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
+import { BROWSER_APPEARANCES, BROWSER_DIMENSION_BOUNDS, BROWSER_VIEWPORTS, browserDimension,
+  readBrowserDefaults, saveBrowserDefaults, ZOOM_PRESETS, type BrowserDefaults } from '../browser/defaults.ts'
+import { BROWSER_SEARCH_ENGINES } from '../browser/search.ts'
 import type { BrowserInjected } from '../browser/BrowserController.ts'
 import css from './Browser.module.css'
 
@@ -15,13 +17,17 @@ export type BrowserDefaultsInjected = Pick<BrowserInjected, 'hooks'> & { readonl
  * @param props - browser locale and profile catalog.
  * @returns the installation-local browser settings.
  */
-export function BrowserDefaultsSection({ t, useWebsiteProfiles, reloadProfiles }: PropsLocale<'sidebarBrowser'>
-  & InjectFace<BrowserDefaultsInjected>): ReactNode {
+export function BrowserDefaultsSection({ t, useWebsiteProfiles, reloadProfiles, renderSlot }: PropsLocale<'sidebarBrowser'>
+  & InjectFace<BrowserDefaultsInjected> & PropsRenderSlots<'settings.browser.link-opening'>): ReactNode {
   const id = useId()
   const [defaults, setDefaults] = useState(readBrowserDefaults)
+  const [widthText, setWidthText] = useState(() => String(defaults.customDimensions.width))
+  const [heightText, setHeightText] = useState(() => String(defaults.customDimensions.height))
   const [failed, setFailed] = useState(false)
   const profileState = useWebsiteProfiles(current => current)
   const selectedProfile = profileState.profiles.find(profile => profile.id === defaults.profileId)
+  const width = browserDimension(widthText)
+  const height = browserDimension(heightText)
   const save = (next: BrowserDefaults): void => {
     try { saveBrowserDefaults(next) }
     catch (_error: unknown) { setFailed(true); return }
@@ -66,6 +72,29 @@ export function BrowserDefaultsSection({ t, useWebsiteProfiles, reloadProfiles }
           if (viewport !== undefined) save({ ...defaults, viewport })
         }} />
     </div>
+    {defaults.viewport === 'custom' && <div className={css.profileField}>
+      <div className={css.defaultsDimensions}>
+        <div className={css.profileField}>
+          <label className={css.profileFieldLabel} htmlFor={`${id}-width`}>{t('defaults.width')}</label>
+          <Input id={`${id}-width`} value={widthText} inputMode="numeric" maxLength={4}
+            aria-invalid={width === undefined} aria-describedby={`${id}-dimension-hint`}
+            onChange={(event) => { setWidthText(event.currentTarget.value) }} />
+        </div>
+        <div className={css.profileField}>
+          <label className={css.profileFieldLabel} htmlFor={`${id}-height`}>{t('defaults.height')}</label>
+          <Input id={`${id}-height`} value={heightText} inputMode="numeric" maxLength={4}
+            aria-invalid={height === undefined} aria-describedby={`${id}-dimension-hint`}
+            onChange={(event) => { setHeightText(event.currentTarget.value) }} />
+        </div>
+      </div>
+      <span id={`${id}-dimension-hint`} className={css.profileFieldHint}>{t('defaults.dimensionHint', BROWSER_DIMENSION_BOUNDS)}</span>
+      <div className={css.profileActions}>
+        <Button size="sm" disabled={width === undefined || height === undefined
+          || (width === defaults.customDimensions.width && height === defaults.customDimensions.height)} onClick={() => {
+          if (width !== undefined && height !== undefined) save({ ...defaults, customDimensions: { width, height } })
+        }}>{t('defaults.applySize')}</Button>
+      </div>
+    </div>}
     <div className={css.profileField}>
       <label className={css.profileFieldLabel} htmlFor={`${id}-appearance`}>{t('defaults.appearance')}</label>
       <Select id={`${id}-appearance`} value={defaults.appearance}
@@ -75,6 +104,17 @@ export function BrowserDefaultsSection({ t, useWebsiteProfiles, reloadProfiles }
           if (appearance !== undefined) save({ ...defaults, appearance })
         }} />
     </div>
+    <div className={css.profileField}>
+      <label className={css.profileFieldLabel} htmlFor={`${id}-search`}>{t('defaults.search')}</label>
+      <Select id={`${id}-search`} value={defaults.searchEngine}
+        options={BROWSER_SEARCH_ENGINES.map(value => ({ value, label: t(`defaults.search.${value}`) }))}
+        onChange={(value) => {
+          const searchEngine = BROWSER_SEARCH_ENGINES.find(engine => engine === value)
+          if (searchEngine !== undefined) save({ ...defaults, searchEngine })
+        }} />
+      <span className={css.profileFieldHint}>{t('defaults.searchHint')}</span>
+    </div>
+    {renderSlot('settings.browser.link-opening', {})}
     {failed && <span className={css.profileFieldError} role="alert">{t('defaults.saveFailed')}</span>}
   </section>
 }

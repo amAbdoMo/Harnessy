@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseBrowserAddress } from '../src/client/browser/url.ts'
+import { browserAddressSubmission } from '../src/client/browser/search.ts'
 
 const APP = 'https://dsh.example'
 
@@ -48,5 +49,25 @@ describe('Browser address policy', () => {
     expect(parseBrowserAddress('https://example.test', 'not an origin')).toMatchObject({ ok: true })
     expect(parseBrowserAddress('https://example.test')).toMatchObject({ ok: true })
     expect(parseBrowserAddress('https://example.test', 'null')).toMatchObject({ ok: true })
+  })
+})
+
+describe('Desktop address-bar search', () => {
+  it('encodes the entire query for the selected provider', () => {
+    const query = ' window sizing & CSS? '
+    const bing = new URL(browserAddressSubmission(query, 'bing'))
+    const brave = new URL(browserAddressSubmission(query, 'brave'))
+    expect([bing.origin, brave.origin]).toEqual(['https://www.bing.com', 'https://search.brave.com'])
+    expect([bing.searchParams.get('q'), brave.searchParams.get('q')]).toEqual([query.trim(), query.trim()])
+    expect(new URL(browserAddressSubmission('viewport', 'duckduckgo')).searchParams.get('q')).toBe('viewport')
+  })
+
+  it('passes addresses to the URL validator, including rejected links and credentials', () => {
+    for (const value of ['example.com', 'localhost:3000', 'localhost', '[::1]:3000', 'intranet/docs',
+      'http://api:8000/path', 'file:///tmp/private.txt', 'user:secret@example.com', '', 'https://not a url']) {
+      expect(browserAddressSubmission(value, 'google')).toBe(value)
+    }
+    expect(parseBrowserAddress(browserAddressSubmission('https://user:secret@example.com', 'google'), APP))
+      .toEqual({ ok: false, reason: 'credentials' })
   })
 })

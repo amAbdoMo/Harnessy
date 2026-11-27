@@ -58,6 +58,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * item registrant; the shell neither declares nor renders it.)
      */
     'settings.section': { kind: 'list'; scope: 'root'; owner: SettingsSectionOwnerProps }
+    /** Link destination control in Desktop's Browser section, provided by the chat link owner. */
+    'settings.browser.link-opening': { kind: 'single'; scope: 'root' }
     /**
      * One page inside the Plugins settings section. The section owner renders
      * localized entry labels as tabs and mounts each contribution inside its

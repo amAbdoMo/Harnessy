@@ -520,6 +520,14 @@ async function englishBrowserAcceptancePage(app: ElectronApplication): Promise<P
   return page
 }
 
+async function openBrowserSettings(page: Page) {
+  await page.getByRole('button', { name: /No accounts saved/u }).click()
+  await page.getByRole('menuitem', { name: 'Settings', exact: true }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByRole('button', { name: 'Browser', exact: true }).click()
+  return dialog
+}
+
 async function attach(page: Page, reservation: DesktopBrowserReservation, url: string): Promise<number> {
   return page.evaluate(async ({ reservation, url }) => {
     const guest = document.createElement('webview')
@@ -681,13 +689,6 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
       app = await launchBrowserAcceptanceDesktop(env)
       return englishBrowserAcceptancePage(app)
     }
-    const settings = async (page: Page) => {
-      await page.getByRole('button', { name: /No accounts saved/u }).click()
-      await page.getByRole('menuitem', { name: 'Settings', exact: true }).click()
-      const dialog = page.getByRole('dialog')
-      await dialog.getByRole('button', { name: 'Browser', exact: true }).click()
-      return dialog
-    }
     const stateOf = (app: ElectronApplication, id: number) => app.evaluate(async ({ webContents }, nativeId) => {
       const guest = webContents.fromId(nativeId)!
       const state = await guest.executeJavaScript(`({ width: innerWidth, height: innerHeight,
@@ -744,7 +745,7 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
       await chat(page, 'Create the native browser defaults test session. Reply without tools.')
       const existing = await open(page, 'existing', false)
       await expect.poll(() => stateOf(app!, existing)).toMatchObject({ title: 'Browser defaults fixture', zoom: 1 })
-      const dialog = await settings(page)
+      const dialog = await openBrowserSettings(page)
       for (const [label, value] of [['Page zoom', '125%'], ['Viewport', 'Phone (portrait)'], ['Page appearance', 'Dark']] as const) {
         await dialog.getByRole('combobox', { name: label, exact: true }).click()
         await page.getByRole('option', { name: value, exact: true }).click()
@@ -762,7 +763,7 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
       await app!.evaluate(({ webContents }, id) => { webContents.fromId(id)!.closeDevTools() }, updated)
       await expect.poll(devToolsOpen).toBe(false)
       await expect.poll(() => stateOf(app!, updated)).toEqual(expected)
-      const profileSettings = await settings(page)
+      const profileSettings = await openBrowserSettings(page)
       const profilePicker = profileSettings.getByRole('combobox', { name: 'Default browser profile', exact: true })
       await profilePicker.click()
       await page.getByRole('option', { name: 'Preferred fixture', exact: true }).click()
@@ -774,7 +775,7 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
       app = undefined
 
       page = await launch()
-      const saved = await settings(page)
+      const saved = await openBrowserSettings(page)
       expect(await saved.getByRole('combobox', { name: 'Page zoom', exact: true }).innerText()).toContain('125%')
       expect(await saved.getByRole('combobox', { name: 'Viewport', exact: true }).innerText()).toContain('Phone (portrait)')
       expect(await saved.getByRole('combobox', { name: 'Page appearance', exact: true }).innerText()).toContain('Dark')
@@ -788,14 +789,14 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
       await expectPreferredProfile(page)
       expect(preferredCookies.slice(beforeRestart)).toContain('saved-default=yes')
       const profileGuest = await activeBrowserGuest(page)
-      const clear = await settings(page)
+      const clear = await openBrowserSettings(page)
       await clear.getByRole('combobox', { name: 'Default browser profile', exact: true }).click()
       await page.getByRole('option', { name: 'No default profile', exact: true }).click()
       await clear.getByRole('button', { name: 'Close', exact: true }).click()
       const afterRestart = await open(page, 'restarted', true)
       await expect.poll(() => stateOf(app!, afterRestart)).toEqual(expected)
       expect(await app!.evaluate(({ webContents }, id) => webContents.fromId(id)!.getURL(), profileGuest)).toBe(`${origin}/preferred`)
-      const change = await settings(page)
+      const change = await openBrowserSettings(page)
       await change.getByRole('combobox', { name: 'Page appearance', exact: true }).click()
       await page.getByRole('option', { name: 'Light', exact: true }).click()
       await change.getByRole('button', { name: 'Close', exact: true }).click()
@@ -814,6 +815,115 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
       if (failure === undefined && cleanupErrors.length === 0) await removeOwned(root)
       else cleanupErrors.push(new Error(`Native browser defaults acceptance retained diagnostics: ${root}`))
       if (cleanupErrors.length > 0) throw new AggregateError([...(failure === undefined ? [] : [failure]), ...cleanupErrors], 'Native browser defaults acceptance failed')
+    }
+  })
+  it.skipIf(process.platform !== 'win32')('applies Windows browser viewport, search and chat link settings', { timeout: 240_000, retry: 0 }, async () => {
+    expect(readClientBuildRecord(repository).environment.DSH_CLIENT_BUILD_PROFILE).toBe('custom-harness')
+    const root = mkdtempSync(join(tmpdir(), 'dsh-browser-preferences-'))
+    const env = childEnvironment(root)
+    env.DEEPSEEK_API_KEY = 'fixture-key-not-an-external-credential'
+    const website = createServer((_request, response) => {
+      response.setHeader('content-type', 'text/html; charset=utf-8')
+      response.end('<!doctype html><title>Browser preferences fixture</title>')
+    })
+    let origin = ''
+    const model = websiteModelFixture('ask', () => `[Open in Harnessy](${origin}/inside) · [Open in system browser](${origin}/outside)`)
+    let app: ElectronApplication | undefined
+    let failure: unknown
+    try {
+      origin = await listen(website)
+      const modelUrl = await listen(model.server)
+      await new DesktopProjectManager(resolveDesktopPaths(env.DSH_HOME, env.DSH_DESKTOP_PROFILE_DIR), { dsh: project }).applyRelease()
+      writeFileSync(join(env.DSH_DESKTOP_PROFILE_DIR!, 'cordis.patch.yml'),
+        '- id: webserver\n  config:\n    host: 127.0.0.1\n    port: 0\n'
+        + `- id: llm-deepseek\n  disabled: false\n  config:\n    baseURL: ${modelUrl}\n    thinking: disabled\n`
+        + '- id: agent-default-model\n  config:\n    provider: deepseek-official\n    model: deepseek-flash\n    reasoningEffort: off\n')
+      const desktop = await launchBrowserAcceptanceDesktop(env)
+      app = desktop
+      const page = await englishBrowserAcceptancePage(desktop)
+      const composer = page.locator('[data-composer-input][contenteditable="true"]').last()
+      await composer.waitFor({ timeout: 120_000 })
+      await composer.fill('Show two browser preference fixture links.')
+      await composer.press('Enter')
+      const internal = page.getByRole('link', { name: 'Open in Harnessy', exact: true })
+      const external = page.getByRole('link', { name: 'Open in system browser', exact: true })
+      await internal.waitFor({ timeout: 60_000 })
+
+      const dialog = await openBrowserSettings(page)
+      await dialog.getByRole('combobox', { name: 'Viewport', exact: true }).click()
+      await page.getByRole('option', { name: 'Custom size', exact: true }).click()
+      const width = dialog.getByRole('textbox', { name: 'Width (px)', exact: true })
+      const saveSize = dialog.getByRole('button', { name: 'Save size', exact: true })
+      await width.fill('100')
+      expect(await saveSize.isDisabled()).toBe(true)
+      await width.fill('932')
+      await dialog.getByRole('textbox', { name: 'Height (px)', exact: true }).fill('612')
+      await saveSize.click()
+      await dialog.getByRole('combobox', { name: 'Search engine', exact: true }).click()
+      await page.getByRole('option', { name: 'Bing', exact: true }).click()
+      await dialog.getByRole('button', { name: 'Harnessy Browser', exact: true }).waitFor()
+      await dialog.getByRole('button', { name: 'Close', exact: true }).click()
+      await dialog.waitFor({ state: 'hidden' })
+      await internal.click()
+
+      const guest = await activeBrowserGuest(page)
+      await expect.poll(() => desktop.evaluate(({ webContents }, id) => {
+        const contents = webContents.fromId(id)!
+        return contents.executeJavaScript('({width: innerWidth, height: innerHeight, address: location.href})')
+      }, guest)).toEqual({ width: 932, height: 612, address: `${origin}/inside` })
+      await desktop.evaluate(({ webContents }, id) => {
+        webContents.fromId(id)!.session.protocol.handle('https', (request) => {
+          const url = new URL(request.url)
+          const body = url.origin === 'https://www.bing.com' && url.pathname === '/search' ? url.searchParams.get('q') : null
+          return new Response(body, { status: body === null ? 404 : 200, headers: { 'content-type': 'text/plain' } })
+        })
+      }, guest)
+      const address = page.getByPlaceholder('Enter an HTTP(S) address', { exact: true }).filter({ visible: true })
+      await address.fill('window sizing & layout')
+      await address.press('Enter')
+      await expect.poll(() => desktop.evaluate(({ webContents }, id) => {
+        return webContents.fromId(id)!.executeJavaScript('document.body.innerText')
+      }, guest)).toBe('window sizing & layout')
+      const destination = await openBrowserSettings(page)
+      await destination.getByRole('button', { name: 'Harnessy Browser', exact: true }).click()
+      await page.getByRole('menuitem', { name: 'System browser', exact: true }).click()
+      await destination.getByRole('button', { name: 'Close', exact: true }).click()
+      await destination.waitFor({ state: 'hidden' })
+      const handoff = join(root, 'shell-handoff.txt')
+      await desktop.evaluate(({ shell }, { path, target }) => {
+        const open = shell.openExternal
+        shell.openExternal = async (url, options) => {
+          if (url !== target) return open(url, options)
+          shell.openExternal = open
+          process.getBuiltinModule('node:fs')!.writeFileSync(path, url)
+        }
+      }, { path: handoff, target: `${origin}/outside` })
+      const tabCount = await page.locator('[data-dockkit-tab-close]').count()
+      await external.click()
+      await expect.poll(() => readFile(handoff, 'utf8').catch(() => '')).toBe(`${origin}/outside`)
+      expect(await page.locator('[data-dockkit-tab-close]').count()).toBe(tabCount)
+      await stopDesktop(desktop, env)
+      app = undefined
+
+      app = await launchBrowserAcceptanceDesktop(env)
+      const restored = await openBrowserSettings(await englishBrowserAcceptancePage(app))
+      expect(await restored.getByRole('combobox', { name: 'Viewport', exact: true }).innerText()).toContain('Custom size')
+      expect(await restored.getByRole('textbox', { name: 'Width (px)', exact: true }).inputValue()).toBe('932')
+      expect(await restored.getByRole('textbox', { name: 'Height (px)', exact: true }).inputValue()).toBe('612')
+      expect(await restored.getByRole('combobox', { name: 'Search engine', exact: true }).innerText()).toContain('Bing')
+      await restored.getByRole('button', { name: 'System browser', exact: true }).waitFor()
+      expect(model.errors).toEqual([])
+    } catch (error) { failure = error; throw error }
+    finally {
+      model.dispose()
+      const cleanupErrors: unknown[] = []
+      if (app !== undefined) { try { await stopDesktop(app, env) } catch (error) { cleanupErrors.push(error) } }
+      for (const server of [website, model.server]) {
+        if (server.listening) { try { await closeServer(server) } catch (error) { cleanupErrors.push(error) } }
+      }
+      if (failure === undefined && cleanupErrors.length === 0) await removeOwned(root)
+      else cleanupErrors.push(new Error(`Native browser preference acceptance retained diagnostics: ${root}`))
+      if (cleanupErrors.length > 0) throw new AggregateError([...(failure === undefined ? [] : [failure]), ...cleanupErrors], 'Native browser preferences acceptance failed')
     }
   })
   it.skipIf(process.platform !== 'win32')('uses Windows Browser shortcuts to find text and reopen the last closed tab', { timeout: 240_000, retry: 0 }, async () => {

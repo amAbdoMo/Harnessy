@@ -4,7 +4,7 @@ import type { BrowserPage, BrowserPageOptions } from '../browser/BrowserPage.ts'
 import type { WebsiteRequestSession } from '../browser/WebsiteRequestSession.ts'
 import { ElectronWebViewImpl } from './ElectronWebViewImpl.ts'
 import { ElectronWebviewPresentation } from './ElectronWebviewPresentation.ts'
-import { BROWSER_VIEWPORTS, type BrowserDefaults } from '../browser/defaults.ts'
+import { browserViewportDimensions, type BrowserDefaults } from '../browser/defaults.ts'
 
 /**
  * Assemble an idle Electron provider; guest creation waits for mounting and navigation.
@@ -20,7 +20,7 @@ export function createElectronPage(options: BrowserPageOptions, bridge: DesktopB
   const presentation = new ElectronWebviewPresentation({
     mounted: () => { frame.attach() },
     unmounted: () => { frame.detach() },
-  }, defaults === undefined ? undefined : BROWSER_VIEWPORTS[defaults.viewport])
+  }, defaults === undefined ? undefined : browserViewportDimensions(defaults))
   const pageRequests = options.profileId === undefined || options.sessionId !== undefined
     ? undefined : requests?.createPage(options.profileId)
   const native = defaults === undefined ? undefined : { appearance: defaults.appearance, zoomFactor: defaults.zoomFactor }

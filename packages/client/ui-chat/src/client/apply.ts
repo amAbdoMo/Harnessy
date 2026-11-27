@@ -10,6 +10,7 @@ import { createSnapshotStore, type ObservableSnapshot } from '@deepseek-ai/dsh-c
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar-browser/client'
+import type { DesktopBrowserBridge } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
 import type {} from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 // The `file` entry of `SidebarRightResourceParamsMap`, which types `{ params: { line } }` below.
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar-documentpreview/client'
@@ -125,6 +126,8 @@ export function apply(ctx: Context): void {
   const chatStore = createChatStore()
   const chatScrollPositions = new Map<SessionId, ChatScrollPosition>()
   const chatSettings = ctx.configForms.get<ChatSettings>(CHAT_SETTINGS_NAMESPACE)
+  const { dshDesktop } = globalThis as typeof globalThis & { dshDesktop?: { browser?: DesktopBrowserBridge } }
+  const desktopBrowser = dshDesktop?.browser !== undefined
   const linkOpening = createSnapshotStore(chatSettings.getSnapshot().value?.linkOpening ?? DEFAULT_LINK_OPENING)
   ctx.effect(() => chatSettings.subscribe(() => {
     const accepted = chatSettings.getSnapshot().value?.linkOpening
@@ -143,13 +146,11 @@ export function apply(ctx: Context): void {
       getSnapshot: () => tabs.get('browser') !== undefined,
       subscribe: listener => tabs.subscribe(listener),
     }
-    scope.slots.inject('settings.general.item', () => scope.slots.register({
-      name: 'settings.general.item',
-      id: 'link-opening',
-      order: 17,
+    const linkPreference = {
       locale: NS,
       inject: (): LinkOpeningRowInjected => ({
         hooks: { linkOpening, browserAvailable },
+        desktopBrowser,
         setLinkOpening: (destination) => {
           linkOpening.set(destination)
           void chatSettings.set('linkOpening', destination).catch((_error: unknown) => {
@@ -157,6 +158,12 @@ export function apply(ctx: Context): void {
           })
         },
       }),
+    } as const
+    if (desktopBrowser) scope.slots.inject('settings.browser.link-opening', () => scope.slots.register({
+      name: 'settings.browser.link-opening', ...linkPreference,
+    }, LinkOpeningRow))
+    else scope.slots.inject('settings.general.item', () => scope.slots.register({
+      name: 'settings.general.item', id: 'link-opening', order: 17, ...linkPreference,
     }, LinkOpeningRow))
   })
   const transcriptView = new TranscriptViewPolicy(chatSettings, 'dshDesktop' in globalThis ? 'standard' : DEFAULT_TRANSCRIPT_VIEW_MODE)

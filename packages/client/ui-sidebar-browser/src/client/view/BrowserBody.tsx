@@ -20,6 +20,8 @@ import { openResponsiveTabParams, type BrowserResponsiveInjected } from '../resp
 import type { BrowserInjected } from '../browser/BrowserController.ts'
 import { emptyBrowserFrame } from '../browser/BrowserFrame.ts'
 import { currentBrowserTarget } from '../browser/BrowserPersistence.ts'
+import { readBrowserDefaults } from '../browser/defaults.ts'
+import { browserAddressSubmission } from '../browser/search.ts'
 import type { BrowserStore } from '../browser/store.ts'
 import { BrowserProfileBar } from './BrowserProfileBar.tsx'
 import { BrowserFeedback } from './BrowserFeedback.tsx'
@@ -222,7 +224,13 @@ function BrowserOrdinaryBody(props: BrowserOrdinaryBodyProps): ReactNode {
       if (preview !== undefined) tab.actions.openTab('browser', { params: preview, revealIfOpened: false })
     }
   const openExternal = externalUrl === undefined ? undefined : () => { window.open(externalUrl, '_blank', 'noopener,noreferrer') }
-  const submit = (event: FormEvent): void => { event.preventDefault(); if (!humanAccessBlocked) loadUrl(tab.id, draft) }
+  const submit = (event: FormEvent): void => {
+    event.preventDefault()
+    if (humanAccessBlocked) return
+    const destination = props.addFeedback !== undefined && profileId === undefined
+      ? browserAddressSubmission(draft, readBrowserDefaults().searchEngine) : draft
+    loadUrl(tab.id, destination)
+  }
 
   return (
     <div className={css.root}>
