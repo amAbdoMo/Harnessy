@@ -2,7 +2,7 @@
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BrowserTarget } from './url.ts'
 import type { BrowserViewport, BrowserAnnotationCapture, BrowserPickedElement, BrowserTabStatus } from '../../types.ts'
-import type { BrowserRecordingDocumentId, BrowserRecordingFrame } from '../../types.ts'
+import type { BrowserRecordingDocumentId, BrowserRecordingFrame, BrowserRecordingIndicators } from '../../types.ts'
 
 /** A loading failure, optionally carrying the underlying browser's diagnostic. */
 export interface BrowserLoadError {
@@ -66,7 +66,8 @@ export interface BrowserFrame extends HostObservable<BrowserFrameState> {
   /** Reload a committed page while bypassing Chromium's HTTP cache. */
   readonly hardReload?: () => void
   readonly capture?: () => Promise<BrowserAnnotationCapture>
-  readonly captureRecordingFrame?: (url: string, documentId?: BrowserRecordingDocumentId) => Promise<BrowserRecordingFrame>
+  readonly captureRecordingFrame?: (url: string, documentId?: BrowserRecordingDocumentId,
+    indicators?: BrowserRecordingIndicators) => Promise<BrowserRecordingFrame>
   /** @param audience - native Android app or private Web viewer. @returns The share, or null when pairing or setup is needed. */
   readonly beginRemoteShare?: (audience: 'phone' | 'web') => Promise<BrowserRemoteShareControl | null>
   readonly pick?: (point: { readonly x: number; readonly y: number }) => Promise<BrowserPickedElement | null>

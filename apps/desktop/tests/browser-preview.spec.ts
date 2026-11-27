@@ -138,6 +138,28 @@ it('fences recording and remote frames when control changes or the window is hid
   await expect(frame(recording.documentId)).rejects.toThrow('page changed')
 })
 
+it('returns opted-in click marks and masked typing only for the local recording', async () => {
+  const f = fixture()
+  f.preview.bind(f.owner, f.lease, 'one')
+  await f.preview.control(f.owner, f.lease, true)
+  const mouse = f.guest.on.mock.calls.find(([event]) => event === 'before-mouse-event')?.[1]
+  const keyboard = f.guest.on.mock.calls.find(([event]) => event === 'before-input-event')?.[1]
+  const settings = { clicks: true, keys: true }
+  const capture = (documentId?: string, indicators = settings) => f.preview.captureRecordingFrame(
+    f.owner, f.lease, 'https://example.test/', documentId, () => true, indicators)
+  const first = await capture()
+  mouse({}, { type: 'mouseDown', x: 400, y: 225 })
+  keyboard({}, { type: 'keyDown', key: 'p' })
+  await expect(capture(first.documentId)).resolves.toMatchObject({ marks: { click: { x: 0.5, y: 0.5 }, key: 'masked' } })
+  keyboard({}, { type: 'keyDown', key: 'Enter' })
+  await expect(capture(first.documentId)).resolves.toMatchObject({ marks: { key: 'Enter' } })
+  const share = await f.preview.beginPhoneShare(f.owner, f.lease, () => true, async () => true)
+  const phone = await f.preview.request({ type: 'phone-browser-share-watch', requestId: randomUUID(), id: share?.receipt })
+  expect(phone).toMatchObject({ status: 'frame' })
+  expect(phone).not.toHaveProperty('marks')
+  await expect(capture(first.documentId, { clicks: false, keys: false })).resolves.not.toHaveProperty('marks')
+})
+
 it.each(['web', 'phone'] as const)('stops only the matching %s share and discards a frame already being captured', async (audience) => {
   const f = fixture()
   f.preview.bind(f.owner, f.lease, 'one')

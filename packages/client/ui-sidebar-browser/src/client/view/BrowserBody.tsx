@@ -31,6 +31,7 @@ import { BrowserPageActions, type BrowserPageCommand } from './BrowserPageAction
 import { BrowserResponsiveBody } from './BrowserResponsiveBody.tsx'
 import { BrowserCaptureBar, BrowserShareBar } from './BrowserCaptureBar.tsx'
 import { canRecordBrowser, useBrowserRecording } from './useBrowserRecording.ts'
+import { BrowserRecordingSettings, readBrowserRecordingSettings } from './BrowserRecordingSettings.tsx'
 import { useBrowserShare } from './useBrowserShare.ts'
 import type {} from './BrowserProfilePicker.tsx'
 import css from './Browser.module.css'
@@ -92,6 +93,7 @@ function BrowserOrdinaryBody(props: BrowserBodyProps & {
   const [takeoverFailed, setTakeoverFailed] = useState(false)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [findPage, setFindPage] = useState<string>()
+  const [recordingSettingsOpen, setRecordingSettingsOpen] = useState(false)
   const actionsTrigger = useRef<HTMLButtonElement>(null)
   const annotationTrigger = useRef<HTMLButtonElement>(null)
   const previousFeedbackOpen = useRef(false)
@@ -161,7 +163,14 @@ function BrowserOrdinaryBody(props: BrowserBodyProps & {
   if (findAvailable && target !== undefined && frame.recordingSupported === true && !recordingBusy && !sharingBusy
     && recording.state?.phase !== 'ready' && canRecordBrowser()) {
     commands.push({ id: 'recording', label: t('recording.start'),
-      run: () => { recording.start(documentId => props.captureRecordingFrame(tab.id, target.url, documentId)) } })
+      run: () => {
+        const { frameRate, clicks, keys } = readBrowserRecordingSettings()
+        recording.start(
+          documentId => props.captureRecordingFrame(tab.id, target.url, documentId, { clicks, keys }),
+          Number(frameRate), t('recording.settings.maskedKey'),
+        )
+      } })
+    commands.push({ id: 'recording-settings', label: t('recording.settings'), run: () => { setRecordingSettingsOpen(true) } })
   }
   if (findAvailable && !sharingBusy && !recordingBusy) {
     if (frame.phoneShareSupported === true) commands.push({ id: 'phone-share', label: t('share.phoneStart'),
@@ -250,6 +259,8 @@ function BrowserOrdinaryBody(props: BrowserBodyProps & {
             addFeedback={props.addFeedback} zoom={zoom} commands={commands} trigger={actionsTrigger} t={t} />}
         </form>
         {findOpen && <BrowserFindBar tabId={tab.id} findInPage={findInPage} result={frame.findResult} onClose={closeFind} t={t} />}
+        {recordingSettingsOpen && recordingPageKey !== undefined && <BrowserRecordingSettings t={t}
+          close={() => { setRecordingSettingsOpen(false) }} />}
         {recordingPageKey !== undefined && recording.state !== undefined && <BrowserCaptureBar recording={recording} t={t} />}
         {visiblePageKey !== undefined && share.state !== undefined && <BrowserShareBar share={share} t={t} />}
         {profileId !== undefined && profiles === undefined && <p className={css.profileNotice}>{t('profiles.desktopOnly')}</p>}

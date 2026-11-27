@@ -48,6 +48,10 @@ it('exposes no arbitrary IPC, native objects, or Agent control through profile-w
   expect(ipc.invoke).toHaveBeenLastCalledWith(DESKTOP_IPC.browserOpenDevTools, RECEIPT.lease)
   await bridge.captureRecordingFrame?.(RECEIPT.lease, 'https://example.test/')
   expect(ipc.invoke).toHaveBeenLastCalledWith(DESKTOP_IPC.browserCaptureRecordingFrame, RECEIPT.lease, 'https://example.test/', undefined)
+  const indicators = { clicks: true, keys: false }
+  await bridge.captureRecordingFrame?.(RECEIPT.lease, 'https://example.test/', undefined, indicators)
+  expect(ipc.invoke).toHaveBeenLastCalledWith(DESKTOP_IPC.browserCaptureRecordingFrame, RECEIPT.lease,
+    'https://example.test/', undefined, indicators)
   await bridge.beginRemoteShare?.(RECEIPT.lease)
   expect(ipc.invoke).toHaveBeenLastCalledWith(DESKTOP_IPC.browserBeginRemoteShare, RECEIPT.lease)
   await bridge.beginPhoneShare?.(RECEIPT.lease)

@@ -1,7 +1,7 @@
 /** Electron navigation and guest lifetime, independent from DOM placement. */
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { BrowserAnnotationCapture, BrowserPickedElement, BrowserTabStatus, BrowserViewport, DesktopBrowserBridge, DesktopBrowserLeaseId, DesktopBrowserReservation } from '../../types.ts'
-import type { BrowserRecordingDocumentId, BrowserRecordingFrame } from '../../types.ts'
+import type { BrowserRecordingDocumentId, BrowserRecordingFrame, BrowserRecordingIndicators } from '../../types.ts'
 import type { ElectronWebviewPresentation, WebviewElement } from './ElectronWebviewPresentation.ts'
 import { emptyBrowserFrame, type BrowserFrame, type BrowserFrameState, type BrowserLoadError, type BrowserRemoteShareControl } from '../browser/BrowserFrame.ts'
 import type { BrowserPageOptions } from '../browser/BrowserPage.ts'
@@ -82,11 +82,12 @@ export class ElectronWebViewImpl implements BrowserFrame {
    * @param documentId - current native document identity after the first frame.
    * @returns a JPEG for that exact document under human control.
    */
-  captureRecordingFrame = async (url: string, documentId?: BrowserRecordingDocumentId): Promise<BrowserRecordingFrame> => {
+  captureRecordingFrame = async (url: string, documentId?: BrowserRecordingDocumentId,
+    indicators?: BrowserRecordingIndicators): Promise<BrowserRecordingFrame> => {
     const current = this.store.getSnapshot()
     if (this.bridge.captureRecordingFrame === undefined || this.options.profileId !== undefined || current.humanControl !== true
       || current.address !== 'observed' || current.loading || current.target?.url !== url) throw new Error('Browser recording is unavailable')
-    return this.bridge.captureRecordingFrame(this.currentLease(), url, documentId)
+    return this.bridge.captureRecordingFrame(this.currentLease(), url, documentId, indicators)
   }
 
   /** @param audience - paired Android app or private Web viewer. @returns Private share with exact stop operation. */

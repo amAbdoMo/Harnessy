@@ -1110,11 +1110,13 @@ async function main(): Promise<void> {
     assertProductSender(event)
     return captureBrowserAnnotation(browserPreview.guest(event.sender, lease))
   })
-  ipcMain.handle(DESKTOP_IPC.browserCaptureRecordingFrame, (event, lease: DesktopBrowserLeaseId, url: unknown, documentId: unknown) => {
-    assertProductSender(event)
-    return browserPreview.captureRecordingFrame(event.sender, lease, url, documentId, guest =>
-      mainWindow?.isVisible() === true && !mainWindow.isMinimized() && browserGuests.inspectRecordingBrowser(event.sender, lease) === guest)
-  })
+  ipcMain.handle(DESKTOP_IPC.browserCaptureRecordingFrame,
+    (event, lease: DesktopBrowserLeaseId, url: unknown, documentId: unknown, indicators: unknown) => {
+      assertProductSender(event)
+      const permitted = (guest: Electron.WebContents): boolean => mainWindow?.isVisible() === true
+        && !mainWindow.isMinimized() && browserGuests.inspectRecordingBrowser(event.sender, lease) === guest
+      return browserPreview.captureRecordingFrame(event.sender, lease, url, documentId, permitted, indicators)
+    })
   ipcMain.handle(DESKTOP_IPC.browserBeginRemoteShare, (event, lease: DesktopBrowserLeaseId) => {
     assertProductSender(event)
     const connection = phoneConnection.describe()

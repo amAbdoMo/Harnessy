@@ -252,7 +252,8 @@ export interface DesktopBrowserBridge {
   /** Capture the exact mounted native page for human annotations. */
   capture?(lease: DesktopBrowserLeaseId): Promise<BrowserAnnotationCapture>
   /** Capture one bounded JPEG from the human-controlled ordinary page, fenced by its native navigation and control. */
-  captureRecordingFrame?(lease: DesktopBrowserLeaseId, url: string, documentId?: BrowserRecordingDocumentId): Promise<BrowserRecordingFrame>
+  captureRecordingFrame?(lease: DesktopBrowserLeaseId, url: string, documentId?: BrowserRecordingDocumentId,
+    indicators?: BrowserRecordingIndicators): Promise<BrowserRecordingFrame>
   /** @param lease - exact human-controlled tab. @returns Private view link, or null when Phone Connection is disabled. */
   beginRemoteShare?(lease: DesktopBrowserLeaseId): Promise<BrowserRemoteShare | null>
   /** @param lease - exact human-controlled tab. @returns Share receipt, or null without a paired Android phone. */
@@ -310,10 +311,21 @@ export interface BrowserAnnotationCapture {
 /** One attached recording document and human control generation. */
 export type BrowserRecordingDocumentId = Branded<'BrowserRecordingDocumentId'>
 
+/** Optional local recording indicators, requested independently of the frame rate. */
+export interface BrowserRecordingIndicators {
+  readonly clicks: boolean
+  readonly keys: boolean
+}
+
 /** Bounded JPEG from the exact human-controlled document. */
 export interface BrowserRecordingFrame {
   readonly documentId: BrowserRecordingDocumentId
   readonly jpeg: string
+  /** Recent human input. Click coordinates are fractions of the captured viewport. Printable keys are masked. */
+  readonly marks?: {
+    readonly click?: { readonly x: number; readonly y: number }
+    readonly key?: string
+  }
 }
 
 /** An expiring view link that requires the existing private Web sign-in. */

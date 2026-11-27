@@ -2,7 +2,7 @@
 import type { NativeImage, WebContents } from 'electron'
 import { randomUUID } from 'node:crypto'
 import type { BrowserAgentOpenRequest, BrowserTabStatus, DesktopBrowserLeaseId, DesktopWebsiteProfile } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
-import type { BrowserPhoneShare, BrowserPhoneShareReceipt, BrowserRecordingDocumentId, BrowserRecordingFrame,
+import type { BrowserPhoneShare, BrowserPhoneShareReceipt, BrowserRecordingDocumentId, BrowserRecordingFrame, BrowserRecordingIndicators,
   BrowserRemoteShare } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
 import { BrowserTabControl } from './browser-tab-control.ts'
 import { setImmediate } from 'node:timers/promises'
@@ -17,7 +17,23 @@ interface Tab {
   nativeInput: boolean
   recordingDocument: BrowserRecordingDocumentId
   recordingCapturePending?: boolean
+  recordingInput?: RecordingInput
 }
+
+interface RecordingInput {
+  readonly options: BrowserRecordingIndicators
+  until: number
+  click?: { x: number; y: number; when: number }
+  key?: { label: string; when: number }
+}
+
+const RECORDING_INPUT_LIFETIME_MS = 700
+const RECORDING_MARK_DURATION_MS = 450
+const NAMED_RECORDING_KEYS = new Map([
+  ['Enter', 'Enter'], ['Escape', 'Esc'], ['Tab', 'Tab'], ['Backspace', 'Backspace'], ['Delete', 'Delete'],
+  ['Home', 'Home'], ['End', 'End'], ['PageUp', 'Page Up'], ['PageDown', 'Page Down'],
+  ['ArrowLeft', '←'], ['ArrowRight', '→'], ['ArrowUp', '↑'], ['ArrowDown', '↓'],
+])
 
 const RECORDING_MAX_WIDTH = 960
 const RECORDING_MAX_HEIGHT = 540
@@ -64,6 +80,25 @@ function phoneJpeg(image: NativeImage, highResolution: boolean): string | undefi
 }
 
 function recordingDocumentId(): BrowserRecordingDocumentId { return randomUUID() as BrowserRecordingDocumentId }
+
+function activeRecordingInput(tab: Tab): RecordingInput | undefined {
+  const input = tab.recordingInput
+  if (input !== undefined && input.until > Date.now() && tab.control.humanMayAct && !tab.nativeInput) return input
+  return undefined
+}
+
+function recordingMarks(input: RecordingInput, image: NativeImage): BrowserRecordingFrame['marks'] {
+  const now = Date.now()
+  const click = input.click
+  const key = input.key
+  const { width, height } = image.getSize()
+  const point = click !== undefined && now - click.when < RECORDING_MARK_DURATION_MS
+    && click.x >= 0 && click.x < width && click.y >= 0 && click.y < height
+    ? { x: click.x / width, y: click.y / height } : undefined
+  const label = key !== undefined && now - key.when < RECORDING_MARK_DURATION_MS ? key.label : undefined
+  if (point === undefined && label === undefined) return undefined
+  return { ...(point === undefined ? {} : { click: point }), ...(label === undefined ? {} : { key: label }) }
+}
 
 interface PendingOpen {
   readonly owner: WebContents
@@ -122,13 +157,28 @@ export class DesktopBrowserPreview {
     }
     const tab: Tab = { owner, lease, guest, control: new BrowserTabControl(sessionId), nativeInput: false,
       recordingDocument: recordingDocumentId() }
-    const changeDocument = (): void => { tab.recordingDocument = recordingDocumentId(); this.revokeShare(tab) }
+    const changeDocument = (): void => {
+      tab.recordingDocument = recordingDocumentId()
+      delete tab.recordingInput
+      this.revokeShare(tab)
+    }
     guest.on('did-start-navigation', (event) => { if (event.isMainFrame) changeDocument() })
     guest.on('did-navigate-in-page', (_event, _url, mainFrame) => {
       if (mainFrame) changeDocument()
     })
-    guest.on('before-input-event', (event) => { if (!tab.control.humanMayAct && !tab.nativeInput) event.preventDefault() })
-    guest.on('before-mouse-event', (event) => { if (!tab.control.humanMayAct && !tab.nativeInput) event.preventDefault() })
+    guest.on('before-input-event', (event, key) => {
+      if (!tab.control.humanMayAct && !tab.nativeInput) event.preventDefault()
+      const input = activeRecordingInput(tab)
+      if (input?.options.keys && key.type === 'keyDown' && !key.isAutoRepeat && !key.isComposing) {
+        const label = NAMED_RECORDING_KEYS.get(key.key) ?? 'masked'
+        input.key = { label, when: Date.now() }
+      }
+    })
+    guest.on('before-mouse-event', (event, mouse) => {
+      if (!tab.control.humanMayAct && !tab.nativeInput) event.preventDefault()
+      const input = activeRecordingInput(tab)
+      if (input?.options.clicks && mouse.type === 'mouseDown') input.click = { x: mouse.x, y: mouse.y, when: Date.now() }
+    })
     guest.on('devtools-opened', () => { if (!tab.control.humanMayAct) guest.closeDevTools() })
     this.tabs.set(lease, tab)
     this.changed(tab)
@@ -168,7 +218,10 @@ export class DesktopBrowserPreview {
     if (typeof human !== 'boolean') throw new Error('Invalid browser control choice')
     const tab = this.tab(owner, lease)
     if (!human) { this.guests.closeLocalDevTools(owner, lease); this.revokeShare(tab) }
-    if (tab.control.humanControl !== human) tab.recordingDocument = recordingDocumentId()
+    if (tab.control.humanControl !== human) {
+      tab.recordingDocument = recordingDocumentId()
+      delete tab.recordingInput
+    }
     const draining = tab.control.control(human)
     this.changed(tab)
     await draining
@@ -205,15 +258,22 @@ export class DesktopBrowserPreview {
    * @param urlInput - page address captured when the user started recording.
    * @param documentInput - document identity of the first frame, or undefined before that frame.
    * @param permitted - Main check for the ordinary guest and visible window.
+   * @param requestedIndicators - opt-in native marks for the sampled recording.
    * @returns a bounded JPEG for that document and human control generation.
    */
   async captureRecordingFrame(owner: WebContents, lease: DesktopBrowserLeaseId, urlInput: unknown,
-    documentInput: unknown, permitted: (guest: WebContents) => boolean): Promise<BrowserRecordingFrame> {
-    return this.captureFrame(owner, lease, urlInput, documentInput, permitted, 'recording')
+    documentInput: unknown, permitted: (guest: WebContents) => boolean, requestedIndicators?: unknown): Promise<BrowserRecordingFrame> {
+    const requested = requestedIndicators === undefined ? undefined : object(requestedIndicators)
+    if (requested !== undefined && (typeof requested.clicks !== 'boolean' || typeof requested.keys !== 'boolean')) {
+      throw new Error('Invalid browser recording indicators')
+    }
+    const indicators = requested === undefined ? undefined : { clicks: requested.clicks === true, keys: requested.keys === true }
+    return this.captureFrame(owner, lease, urlInput, documentInput, permitted, 'recording', false, indicators)
   }
 
   private async captureFrame(owner: WebContents, lease: DesktopBrowserLeaseId, urlInput: unknown, documentInput: unknown,
-    permitted: (guest: WebContents) => boolean, purpose: 'recording' | Share['audience'], highResolution = false): Promise<BrowserRecordingFrame> {
+    permitted: (guest: WebContents) => boolean, purpose: 'recording' | Share['audience'],
+    highResolution = false, indicators?: BrowserRecordingIndicators): Promise<BrowserRecordingFrame> {
     text(lease, 'recording tab identity', 128)
     const url = text(urlInput, 'recording URL', 4096)
     const tab = this.tab(owner, lease)
@@ -228,6 +288,14 @@ export class DesktopBrowserPreview {
     }
     if (!this.guests.allowsBrowserAddress(url) || tab.recordingCapturePending === true) throw new Error('Browser recording frame is unavailable')
     requireCurrent()
+    if (purpose === 'recording') {
+      if (indicators?.clicks || indicators?.keys) {
+        const previous = activeRecordingInput(tab)
+        tab.recordingInput = documentInput !== undefined && previous?.options.clicks === indicators.clicks
+          && previous.options.keys === indicators.keys ? previous : { options: indicators, until: 0 }
+        tab.recordingInput.until = Date.now() + RECORDING_INPUT_LIFETIME_MS
+      } else delete tab.recordingInput
+    }
     tab.recordingCapturePending = true
     try {
       const image = await tab.guest.capturePage()
@@ -236,7 +304,9 @@ export class DesktopBrowserPreview {
         ? phoneJpeg(image, highResolution)
         : jpegWithin(image, RECORDING_MAX_WIDTH, RECORDING_MAX_HEIGHT, 65, RECORDING_MAX_FRAME_BYTES)
       if (jpeg === undefined) throw new Error('Browser frame is empty or exceeds its byte limit')
-      return { documentId, jpeg }
+      const input = purpose === 'recording' ? activeRecordingInput(tab) : undefined
+      const marks = input === undefined ? undefined : recordingMarks(input, image)
+      return { documentId, jpeg, ...(marks === undefined ? {} : { marks }) }
     } finally { tab.recordingCapturePending = false }
   }
 

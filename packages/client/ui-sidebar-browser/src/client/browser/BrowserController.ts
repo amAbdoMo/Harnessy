@@ -3,7 +3,7 @@ import { createSnapshotStore, type BoundActions, type SnapshotStore } from '@dee
 import type { TabId } from '@deepseek-ai/dsh-client-ui-dockkit'
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BrowserAnnotationCapture, BrowserPickedElement, BrowserTabStatus, DesktopWebsiteProfileId, DesktopWebsiteRequestId } from '../../types.ts'
-import type { BrowserRecordingDocumentId, BrowserRecordingFrame } from '../../types.ts'
+import type { BrowserRecordingDocumentId, BrowserRecordingFrame, BrowserRecordingIndicators } from '../../types.ts'
 import type { WebsiteRequestPageState } from './WebsiteRequestPage.ts'
 import type { BrowserFrameState, BrowserRemoteShareControl } from './BrowserFrame.ts'
 import type { BrowserPage, BrowserPageFactory } from './BrowserPage.ts'
@@ -116,9 +116,10 @@ export class BrowserController implements HostObservable<BrowserControllerState>
    * @param documentId - native identity returned by the first frame.
    * @returns JPEG and current native document identity.
    */
-  captureRecordingFrame(url: string, documentId?: BrowserRecordingDocumentId): Promise<BrowserRecordingFrame> {
+  captureRecordingFrame(url: string, documentId?: BrowserRecordingDocumentId,
+    indicators?: BrowserRecordingIndicators): Promise<BrowserRecordingFrame> {
     if (this.disposed || this.page.frame.captureRecordingFrame === undefined) return Promise.reject(new Error('Browser recording is unavailable'))
-    return this.page.frame.captureRecordingFrame(url, documentId)
+    return this.page.frame.captureRecordingFrame(url, documentId, indicators)
   }
 
   /** Start private viewing for the current page.
@@ -333,7 +334,8 @@ export interface BrowserTabControllers {
   /** @param tabId - owning tab. @returns screenshot and page context. */
   capture(tabId: TabId): Promise<BrowserAnnotationCapture>
   /** @param tabId - owning tab. @param url - current page. @param documentId - authority for later frames. @returns one frame. */
-  captureRecordingFrame(tabId: TabId, url: string, documentId?: BrowserRecordingDocumentId): Promise<BrowserRecordingFrame>
+  captureRecordingFrame(tabId: TabId, url: string, documentId?: BrowserRecordingDocumentId,
+    indicators?: BrowserRecordingIndicators): Promise<BrowserRecordingFrame>
   /** @param tabId - owning tab. @param audience - paired phone or web. @returns An expiring share or setup required. */
   beginRemoteShare(tabId: TabId, audience: 'phone' | 'web'): Promise<BrowserRemoteShareControl | null>
   /** @param tabId - owning tab. @param point - viewport coordinates. @returns selected element. */
@@ -427,7 +429,7 @@ export function createBrowserControllers(actions: BoundActions<BrowserStore>, cr
   const controller = (id: TabId): BrowserController | undefined => controllers.get(id)?.controller
   return {
     capture: id => controller(id)?.capture() ?? Promise.reject(new Error('Browser tab is unavailable')),
-    captureRecordingFrame: (id, url, documentId) => controller(id)?.captureRecordingFrame(url, documentId)
+    captureRecordingFrame: (id, url, documentId, indicators) => controller(id)?.captureRecordingFrame(url, documentId, indicators)
       ?? Promise.reject(new Error('Browser recording is unavailable')),
     beginRemoteShare: (id, audience) => controller(id)?.beginRemoteShare(audience) ?? Promise.reject(new Error('Browser sharing is unavailable')),
     pick: (id, point) => controller(id)?.pick(point) ?? Promise.reject(new Error('Browser tab is unavailable')),
