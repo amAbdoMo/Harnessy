@@ -1,38 +1,20 @@
-/** Main-only import of ordinary persistent Firefox cookies for one approved website. */
+/** Main-only import of ordinary persistent Firefox and Zen cookies for one approved website. */
 import { stat } from 'node:fs/promises'
 import { basename } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import type { CookiesSetDetails } from 'electron'
-import { localBrowserDeviceOrigin } from './browser-certificates.ts'
 import { WebsiteProfileError } from './website-profile-errors.ts'
-
-const MAX_COOKIE_DATABASE_BYTES = 32 * 1024 * 1024
-const MAX_SITE_COOKIES = 256
-
-/** @param site - validated landing URL. @returns whether cookie transfer is available for this site. */
-export function canImportFirefoxWebsiteCookies(site: URL): boolean {
-  return (site.protocol === 'https:' && localBrowserDeviceOrigin(site.href) === undefined)
-    || (site.protocol === 'http:' && site.hostname === 'localhost')
-}
-
-function sameSite(value: unknown): NonNullable<CookiesSetDetails['sameSite']> {
-  switch (value) {
-    case 0: return 'no_restriction'
-    case 1: return 'lax'
-    case 2: return 'strict'
-    default: return 'unspecified'
-  }
-}
+import { canImportWebsiteCookies, importedWebsiteCookie, MAX_COOKIE_DATABASE_BYTES, MAX_SITE_COOKIES } from './website-cookie-import.ts'
 
 /**
- * Read the selected Firefox profile database without modifying it.
+ * Read the selected Firefox or Zen profile database without modifying it.
  * @param filename - native-picker selection, never a renderer-supplied path.
  * @param site - the approved destination. Parent domains and other sites are excluded.
  * @returns cookie settings kept in Main until they are installed in a new profile.
  */
 export async function readFirefoxWebsiteCookies(filename: string, site: URL): Promise<readonly CookiesSetDetails[]> {
-  if (!canImportFirefoxWebsiteCookies(site)) {
-    throw new WebsiteProfileError('session-import-site', 'Firefox import requires a secure website')
+  if (!canImportWebsiteCookies(site)) {
+    throw new WebsiteProfileError('session-import-site', 'Sign-in import requires a secure website')
   }
   let cookies: CookiesSetDetails[]
   try {
@@ -60,20 +42,12 @@ export async function readFirefoxWebsiteCookies(filename: string, site: URL): Pr
         LIMIT ?`).all(site.hostname, '.' + site.hostname, now * scale, MAX_SITE_COOKIES + 1)
       if (rows.length > MAX_SITE_COOKIES) throw new Error('Too many Firefox cookies for one site')
       cookies = rows.flatMap((row) => {
-        if (typeof row.name !== 'string' || typeof row.value !== 'string' || typeof row.path !== 'string'
-          || !row.path.startsWith('/') || /[\x00-\x1f\x7f]/u.test(row.path)
-          || typeof row.expiry !== 'number' || !Number.isSafeInteger(row.expiry)
-          || (row.isSecure !== 0 && row.isSecure !== 1) || (row.isHttpOnly !== 0 && row.isHttpOnly !== 1)
-          || (row.isSecure === 1 && site.protocol !== 'https:')) return []
-        const policy = sameSite(row.sameSite)
-        return [{
-          url: site.origin, name: row.name, value: row.value, path: row.path,
-          ...(row.host === '.' + site.hostname ? { domain: '.' + site.hostname } : {}),
-          secure: row.isSecure === 1, httpOnly: row.isHttpOnly === 1,
-          expirationDate: row.expiry / scale,
-          // Chromium rejects insecure SameSite=None cookies; leave those at its default.
-          sameSite: policy === 'no_restriction' && row.isSecure !== 1 ? 'unspecified' : policy,
-        }]
+        if (typeof row.expiry !== 'number' || !Number.isSafeInteger(row.expiry)) return []
+        const cookie = importedWebsiteCookie(site, {
+          host: row.host, name: row.name, value: row.value, path: row.path, expirationDate: row.expiry / scale,
+          secure: row.isSecure, httpOnly: row.isHttpOnly, sameSite: row.sameSite,
+        })
+        return cookie === undefined ? [] : [cookie]
       })
     } finally {
       db.close()

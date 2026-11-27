@@ -2,6 +2,7 @@
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
 import type {
+  DesktopWebsiteSessionImportSource,
   DesktopWebsiteAccess, DesktopWebsiteProfile, DesktopWebsiteProfileFailureReason, DesktopWebsiteProfileId, DesktopWebsiteProfileInput,
   DesktopWebsiteProfilesBridge, DesktopWebsiteSavedLogin,
 } from '../../types.ts'
@@ -34,15 +35,16 @@ export interface WebsiteProfilesState {
 
 /** Saved-profile operations; Resume belongs to the selected request, while account Takeover also revokes aliases. */
 export interface WebsiteProfileCommands {
-  /** Whether the carrier offers native Firefox sign-in import. */
-  readonly canImportFirefoxSession?: true
+  /** Sign-in sources offered by the current Desktop carrier. */
+  readonly sessionImportSources?: readonly DesktopWebsiteSessionImportSource[]
   /**
    * Save a user-confirmed pairing; the account starts under human control.
    * @param input - name, account label, site address, and MCP server name.
-   * @param importFirefoxSession - open the native Firefox session import.
+   * @param importFrom - browser for the optional native sign-in import.
    * @returns the saved profile, or undefined when the request failed and published its notice.
    */
-  create(this: void, input: DesktopWebsiteProfileInput, importFirefoxSession?: boolean): Promise<DesktopWebsiteProfile | undefined>
+  create(this: void, input: DesktopWebsiteProfileInput,
+    importFrom?: DesktopWebsiteSessionImportSource): Promise<DesktopWebsiteProfile | undefined>
   /** @param profile - saved account to retain. @param url - validated landing address. @returns whether saving succeeded. */
   setUrl(this: void, profile: DesktopWebsiteProfileId, url: string): Promise<boolean>
   /** @param profile - account whose reservations, including aliases, are revoked without clearing sign-in data. */
@@ -166,10 +168,10 @@ export function createWebsiteProfilesModel(profiles: DesktopWebsiteProfilesBridg
   }
 
   const commands: WebsiteProfileCommands = {
-    ...(profiles.canImportFirefoxSession ? { canImportFirefoxSession: true } : {}),
-    create: (input, importFirefoxSession) => operate(undefined,
-      () => importFirefoxSession ? profiles.create(input, true) : profiles.create(input),
-      created => ({ kind: importFirefoxSession ? 'imported' : 'created', seq: ++sequence, name: created.name })),
+    ...(profiles.sessionImportSources === undefined ? {} : { sessionImportSources: profiles.sessionImportSources }),
+    create: (input, importFrom) => operate(undefined,
+      () => importFrom === undefined ? profiles.create(input) : profiles.create(input, importFrom),
+      created => ({ kind: importFrom === undefined ? 'created' : 'imported', seq: ++sequence, name: created.name })),
     setUrl: async (profile, url) => (await operate(profile, async () => {
       await profiles.setUrl(profile, url)
       return true

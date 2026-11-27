@@ -12,7 +12,7 @@ export function websiteProfileFailureReason(error: unknown): DesktopWebsiteProfi
   switch (reason) {
     case 'invalid-name': case 'invalid-account-label': case 'invalid-url': case 'unsafe-url': case 'invalid-mcp-name':
     case 'mcp-unavailable': case 'host-unavailable': case 'cancelled': case 'profile-limit': case 'pairing-changed': case 'save-failed':
-    case 'session-import-empty': case 'session-import-failed': case 'session-import-site':
+    case 'session-import-empty': case 'session-import-failed': case 'session-import-site': case 'session-import-protection':
       return reason
     default: return 'unknown'
   }

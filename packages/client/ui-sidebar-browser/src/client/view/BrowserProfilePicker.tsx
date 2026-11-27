@@ -2,13 +2,13 @@
 import { useEffect, useId, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
-  Button, Checkbox, IconCheckOutlineRegular, IconUserOutlineRegular, Input, Menu, MenuItemButton, Modal, Select, Tooltip,
+  Button, IconCheckOutlineRegular, IconUserOutlineRegular, Input, Menu, MenuItemButton, Modal, Select, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { createWebsiteProfileDraftStore } from '../browser/profile-draft.ts'
 import type {
-  DesktopWebsiteControl, DesktopWebsiteProfile, DesktopWebsiteProfileId, DesktopWebsiteProfileInput,
+  DesktopWebsiteControl, DesktopWebsiteProfile, DesktopWebsiteProfileId, DesktopWebsiteProfileInput, DesktopWebsiteSessionImportSource,
 } from '../../types.ts'
 import type { BrowserInjected } from '../browser/BrowserController.ts'
 import type { WebsiteProfileCommands } from '../browser/profiles.ts'
@@ -100,8 +100,8 @@ export function BrowserProfilePicker({
     }]
     : [{ type: 'label', id: 'saved', text: t('profiles.saved') }]
 
-  const create = (input: DesktopWebsiteProfileInput, importFirefoxSession: boolean): void => {
-    void (importFirefoxSession ? profiles.create(input, true) : profiles.create(input)).then((created) => {
+  const create = (input: DesktopWebsiteProfileInput, importFrom: DesktopWebsiteSessionImportSource | undefined): void => {
+    void (importFrom === undefined ? profiles.create(input) : profiles.create(input, importFrom)).then((created) => {
       // A refused save keeps the form open for correction; its notice names the reason.
       if (created === undefined) return
       actions.discard()
@@ -164,7 +164,7 @@ export function BrowserProfilePicker({
       }} />}
       {dialog === 'create' && (
         <BrowserProfileCreate draft={draft} edit={actions.edit} creating={state.creating} onCreate={create} listMcpServers={listMcpServers}
-          canImportFirefoxSession={profiles.canImportFirefoxSession === true}
+          importSources={profiles.sessionImportSources ?? []}
           onClose={() => { actions.discard(); setDialog(undefined) }} t={t} />
       )}
     </>
@@ -172,25 +172,26 @@ export function BrowserProfilePicker({
 }
 
 /** The create form: a saved profile is a user-confirmed pairing, never a discovered one. */
-function BrowserProfileCreate({ draft, edit, creating, onCreate, onClose, listMcpServers, canImportFirefoxSession, t }: {
+function BrowserProfileCreate({ draft, edit, creating, onCreate, onClose, listMcpServers, importSources, t }: {
   readonly draft: DesktopWebsiteProfileInput
   readonly edit: BrowserProfilePickerProps['actions']['edit']
   readonly creating: boolean
-  readonly onCreate: (input: DesktopWebsiteProfileInput, importFirefoxSession: boolean) => void
+  readonly onCreate: (input: DesktopWebsiteProfileInput, importFrom: DesktopWebsiteSessionImportSource | undefined) => void
   readonly onClose: () => void
   readonly listMcpServers: BrowserProfilePickerInjected['listMcpServers']
-  readonly canImportFirefoxSession: boolean
+  readonly importSources: readonly DesktopWebsiteSessionImportSource[]
   readonly t: BrowserProfilePickerProps['t']
 }): ReactNode {
   const { name, accountLabel, url, mcpServerName } = draft
-  const [importFirefoxSession, setImportFirefoxSession] = useState(false)
-  const access = importFirefoxSession ? 'disabled' : draft.access ?? 'automatic'
+  const [importFrom, setImportFrom] = useState<DesktopWebsiteSessionImportSource>()
+  const access = importFrom === undefined ? draft.access ?? 'automatic' : 'disabled'
   const [submitted, setSubmitted] = useState(false)
   const [servers, setServers] = useState<readonly WebsiteMcpOption[] | 'loading' | 'failed'>('loading')
   const [attempt, setAttempt] = useState(0)
   const errorId = useId()
   const mcpId = useId()
   const mcpHintId = useId()
+  const importId = useId()
   useEffect(() => {
     let active = true
     void listMcpServers().then(
@@ -217,7 +218,7 @@ function BrowserProfileCreate({ draft, edit, creating, onCreate, onClose, listMc
     if (blocked) return
     setSubmitted(true)
     if (!resolved.ok) return
-    onCreate(resolved.value, importFirefoxSession)
+    onCreate(resolved.value, importFrom)
   }
   return (
     <Modal
@@ -238,7 +239,7 @@ function BrowserProfileCreate({ draft, edit, creating, onCreate, onClose, listMc
       }}>
         <div className={css.profileField}>
           <span className={css.profileFieldLabel}>{t('profiles.access')}</span>
-          <BrowserAccessPicker access={access} disabled={creating || importFirefoxSession} onChange={(choice) => { edit('access', choice) }} t={t} />
+          <BrowserAccessPicker access={access} disabled={creating || importFrom !== undefined} onChange={(choice) => { edit('access', choice) }} t={t} />
           <span className={css.profileFieldHint}>{t('profiles.access.hint')}</span>
         </div>
         <label className={css.profileField}>
@@ -257,10 +258,16 @@ function BrowserProfileCreate({ draft, edit, creating, onCreate, onClose, listMc
           <span className={css.profileFieldHint}>{t('profiles.create.urlHint')}</span>
           {fieldError('url')}
         </label>
-        {canImportFirefoxSession && <div className={css.profileField}>
-          <Checkbox checked={importFirefoxSession} disabled={creating} onChange={setImportFirefoxSession}
-            label={t('profiles.create.firefox')} />
-          {importFirefoxSession && <span className={css.profileFieldHint}>{t('profiles.create.firefoxHint')}</span>}
+        {importSources.length > 0 && <div className={css.profileField}>
+          <label htmlFor={importId} className={css.profileFieldLabel}>{t('profiles.sessionImport.label')}</label>
+          <Select id={importId} value={importFrom ?? ''} disabled={creating}
+            options={[{ value: '', label: t('profiles.sessionImport.none') },
+              ...importSources.map(value => ({ value, label: t(`profiles.sessionImport.${value}`) }))]}
+            onChange={(value) => { setImportFrom(importSources.find(source => source === value)) }} />
+          {importFrom !== undefined && <span className={css.profileFieldHint}>
+            {importFrom === 'helium' ? t('profiles.sessionImport.heliumHint')
+              : t('profiles.sessionImport.geckoHint', { browser: t(`profiles.sessionImport.${importFrom}`) })}
+          </span>}
         </div>}
         <div className={css.profileField}>
           <label htmlFor={mcpId} className={css.profileFieldLabel}>{t('profiles.create.mcp')}</label>

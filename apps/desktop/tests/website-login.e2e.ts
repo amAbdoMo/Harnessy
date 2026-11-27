@@ -33,7 +33,7 @@ import { browserPreviewModelFixture } from './browser-preview-model.fixture.ts'
 import { assertCleanWebsiteExit } from './website-shutdown.fixture.ts'
 
 // Reuse the Web acceptance lane's installed Playwright; no browser download is needed.
-const { _electron, firefox } = createRequire(new URL('../../web/package.json', import.meta.url))('playwright') as typeof import('../../web/node_modules/playwright/index.js')
+const { _electron, chromium, firefox } = createRequire(new URL('../../web/package.json', import.meta.url))('playwright') as typeof import('../../web/node_modules/playwright/index.js')
 const desktopRequire = createRequire(new URL('../package.json', import.meta.url))
 const electronExecutable = desktopRequire('electron') as string
 const pnpmEntry = join(dirname(desktopRequire.resolve('pnpm')), 'bin/pnpm.mjs')
@@ -66,9 +66,14 @@ async function closeServer(server: Server): Promise<void> {
   await closed
 }
 
-function loginFixture(cookieValue = 'signed-in') {
+function loginFixture(cookieValue = 'signed-in', headlessSignIn = false) {
   const server = createServer((request, response) => {
     response.setHeader('cache-control', 'no-store')
+    if (headlessSignIn && request.url === '/fixture-sign-in') {
+      response.setHeader('set-cookie', 'fixture_login=signed-in; HttpOnly; SameSite=Lax; Path=/; Max-Age=3600')
+      response.writeHead(303, { location: '/account' }).end()
+      return
+    }
     if (request.method === 'POST' && request.url === '/login') {
       let body = ''
       request.setEncoding('utf8')
@@ -503,6 +508,17 @@ async function applicationPage(app: ElectronApplication): Promise<Page> {
   return page
 }
 
+function launchBrowserAcceptanceDesktop(env: Record<string, string>): Promise<ElectronApplication> {
+  return _electron.launch({ executablePath: electronExecutable,
+    args: [desktop, '--lang=en-US', '--enable-logging=stderr'], env, cwd: desktop, timeout: 120_000 })
+}
+
+async function englishBrowserAcceptancePage(app: ElectronApplication): Promise<Page> {
+  const page = await applicationPage(app)
+  await page.evaluate(() => { (window as Window & { __DSH_LOCALE__?: { onChange(locale: string): void } }).__DSH_LOCALE__!.onChange('en') })
+  return page
+}
+
 async function attach(page: Page, reservation: DesktopBrowserReservation, url: string): Promise<number> {
   return page.evaluate(async ({ reservation, url }) => {
     const guest = document.createElement('webview')
@@ -661,11 +677,8 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
     let app: ElectronApplication | undefined
     let failure: unknown
     const launch = async (): Promise<Page> => {
-      app = await _electron.launch({ executablePath: electronExecutable,
-        args: [desktop, '--lang=en-US', '--enable-logging=stderr'], env, cwd: desktop, timeout: 120_000 })
-      const page = await applicationPage(app)
-      await page.evaluate(() => { (window as Window & { __DSH_LOCALE__?: { onChange(locale: string): void } }).__DSH_LOCALE__!.onChange('en') })
-      return page
+      app = await launchBrowserAcceptanceDesktop(env)
+      return englishBrowserAcceptancePage(app)
     }
     const settings = async (page: Page) => {
       await page.getByRole('button', { name: /No accounts saved/u }).click()
@@ -1319,103 +1332,135 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
     }
   })
 
-  it.skipIf(process.platform !== 'win32' || !existsSync(firefox.executablePath()))(
-    'opens signed in after importing a persistent cookie issued to Firefox',
-    { timeout: 240_000, retry: 0 },
-    async () => {
-      expect(readClientBuildRecord(repository).environment.DSH_CLIENT_BUILD_PROFILE).toBe('custom-harness')
-      const root = mkdtempSync(join(tmpdir(), 'dsh-firefox-profile-import-'))
-      const env = childEnvironment(root)
-      const firefoxProfile = join(root, 'firefox')
-      env.DEEPSEEK_API_KEY = 'fixture-key-not-an-external-credential'
-      const website = loginFixture()
-      const mcp = mcpFixture()
-      const model = websiteModelFixture()
-      let app: ElectronApplication | undefined
-      let failure: unknown
-      const cleanupErrors: unknown[] = []
-      try {
-        const origin = (await listen(website)).replace('127.0.0.1', 'localhost')
-        const source = await firefox.launchPersistentContext(firefoxProfile, { headless: true })
+  for (const browser of ['Firefox', 'Zen', 'Helium'] as const) {
+    const executable = browser === 'Zen' ? process.env.DSH_TEST_ZEN_EXECUTABLE
+      : browser === 'Helium' ? process.env.DSH_TEST_HELIUM_EXECUTABLE : firefox.executablePath()
+    it.skipIf(process.platform !== 'win32' || executable === undefined || !existsSync(executable))(
+      'opens and stays signed in after importing a persistent cookie issued to ' + browser,
+      { timeout: 240_000, retry: 0 },
+      async () => {
+        if (executable === undefined) throw new Error('Native source browser is unavailable')
+        expect(readClientBuildRecord(repository).environment.DSH_CLIENT_BUILD_PROFILE).toBe('custom-harness')
+        const root = mkdtempSync(join(tmpdir(), 'dsh-browser-profile-import-'))
+        const env = childEnvironment(root)
+        const sourceData = join(root, 'source-profile')
+        const sourceProfile = browser === 'Helium' ? join(sourceData, 'Default') : sourceData
+        const cookies = browser === 'Helium' ? join(sourceProfile, 'Network', 'Cookies') : join(sourceProfile, 'cookies.sqlite')
+        const profileName = browser + ' fixture'
+        env.DEEPSEEK_API_KEY = 'fixture-key-not-an-external-credential'
+        const website = loginFixture('signed-in', browser === 'Zen')
+        const mcp = mcpFixture()
+        const model = websiteModelFixture()
+        let app: ElectronApplication | undefined
+        let failure: unknown
+        const cleanupErrors: unknown[] = []
         try {
-          const tab = source.pages()[0]!
-          await tab.goto(origin)
-          await expect.poll(() => tab.locator('#state').textContent()).toBe('anonymous')
-          await tab.getByLabel('Username').fill('fixture-user')
-          await tab.getByLabel('Password').fill('fixture-password')
-          await tab.getByRole('button', { name: 'Sign in' }).click()
-          await expect.poll(() => tab.locator('#state').textContent()).toBe('authenticated')
-        } finally { await source.close() }
-        const cookies = join(firefoxProfile, 'cookies.sqlite')
-        const original = await readFile(cookies)
-        const modelUrl = await listen(model.server)
-        const mcpUrl = `${await listen(mcp.server)}/mcp`
-        await new DesktopProjectManager(resolveDesktopPaths(env.DSH_HOME, env.DSH_DESKTOP_PROFILE_DIR), { dsh: project }).applyRelease()
-        writeFileSync(join(env.DSH_DESKTOP_PROFILE_DIR!, 'cordis.patch.yml'),
-          '- id: webserver\n  config:\n    host: 127.0.0.1\n    port: 0\n'
-          + `- id: llm-deepseek\n  disabled: false\n  config:\n    baseURL: ${modelUrl}\n    thinking: disabled\n`
-          + '- id: agent-default-model\n  config:\n    provider: deepseek-official\n    model: deepseek-flash\n    reasoningEffort: off\n')
-        app = await _electron.launch({ executablePath: electronExecutable,
-          args: [desktop, '--lang=en-US', '--enable-logging=stderr'], env, cwd: desktop, timeout: 120_000 })
-        const page = await applicationPage(app)
-        await page.evaluate(() => { (window as Window & { __DSH_LOCALE__?: { onChange(locale: string): void } }).__DSH_LOCALE__!.onChange('en') })
-        const composer = page.locator('[data-composer-input][contenteditable="true"]').last()
-        await composer.fill('Start the Firefox profile import fixture chat.')
-        await composer.press('Enter')
-        await page.locator('[data-chat-turn]').getByText('Website acceptance', { exact: true }).last().waitFor({ timeout: 60_000 })
-        await configureMcp(page, mcpUrl)
-        await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click()
-        await page.locator('[data-sidebar-right-expand]').click()
-        await page.locator('[data-sidebar-right-guide-entry="browser"]').click()
-        await page.getByRole('button', { name: 'Saved website profiles', exact: true }).click()
-        await page.getByRole('menuitem', { name: 'New saved profile…', exact: true }).click()
-        const form = page.getByRole('dialog', { name: 'New saved profile', exact: true })
-        await form.getByLabel('Name', { exact: true }).fill('Firefox fixture')
-        await form.getByLabel('Site address', { exact: true }).fill(origin)
-        await form.getByRole('checkbox', { name: 'Import Firefox sign-in', exact: true }).check()
-        await form.getByRole('combobox', { name: 'MCP server', exact: true }).click()
-        await page.getByRole('option', { name: 'Website acceptance MCP (website_fixture)', exact: true }).click()
-        await app.evaluate(({ dialog }, path) => {
-          const open = dialog.showOpenDialog
-          dialog.showOpenDialog = async () => {
-            dialog.showOpenDialog = open
-            return { canceled: false, filePaths: [path] }
+          const origin = (await listen(website)).replace('127.0.0.1', 'localhost')
+          const landing = origin + '/account'
+          if (browser === 'Zen') {
+            mkdirSync(sourceProfile)
+            await runFile(executable, ['-no-remote', '-headless', '-profile', sourceProfile,
+              '-screenshot', join(root, 'source.png'), origin + '/fixture-sign-in'], { env, windowsHide: true, timeout: 45_000 })
+          } else {
+            const source = await (browser === 'Helium' ? chromium : firefox).launchPersistentContext(sourceData,
+              { executablePath: executable, env, headless: true })
+            try {
+              const tab = source.pages()[0]!
+              await tab.goto(origin)
+              await expect.poll(() => tab.locator('#state').textContent()).toBe('anonymous')
+              await tab.getByLabel('Username').fill('fixture-user')
+              await tab.getByLabel('Password').fill('fixture-password')
+              await tab.getByRole('button', { name: 'Sign in' }).click()
+              await expect.poll(() => tab.locator('#state').textContent()).toBe('authenticated')
+            } finally { await source.close() }
           }
-        }, cookies)
-        await form.getByRole('button', { name: 'Create', exact: true }).click()
-        const dialogUrl = 'dsh-app://shell/update-dialog.html'
-        await expect.poll(() => app!.windows().map(window => window.url())).toContain(dialogUrl)
-        const pairing = app.windows().find(window => window.url() === dialogUrl)!
-        await pairing.getByRole('button', { name: 'Confirm pairing', exact: true }).click()
-        await expect.poll(async () => Promise.all(app!.windows().map(window => window.title().catch(() => '')))).toContain('Import Firefox sign-in')
-        const consent = (await Promise.all(app.windows().map(async window => ({
-          window, title: await window.title().catch(() => ''),
-        })))).find(candidate => candidate.title === 'Import Firefox sign-in')!.window
-        expect(await consent.getByRole('dialog').innerText()).toContain(origin)
-        await consent.getByRole('button', { name: 'Import sign-in', exact: true }).click()
-        await page.getByText('Saved “Firefox fixture” with Firefox cookies.', { exact: false }).waitFor()
-        const guest = await activeBrowserGuest(page)
-        await expect.poll(() => state(app!, guest)).toBe('authenticated')
-        const profiles = await page.evaluate(() => (window as ProductWindow).dshDesktop!.browser.profiles.list())
-        expect(profiles).toMatchObject([{ name: 'Firefox fixture', access: 'disabled', control: 'human' }])
-        expect(await readFile(cookies)).toEqual(original)
-        expect(model.errors).toEqual([])
-        await stopDesktop(app, env)
-        app = undefined
-      } catch (error) { failure = error; throw error }
-      finally {
-        model.dispose()
-        if (app !== undefined) {
-          try { await stopDesktop(app, env) } catch (error) { cleanupErrors.push(error) }
+          const original = await readFile(cookies)
+          const modelUrl = await listen(model.server)
+          const mcpUrl = `${await listen(mcp.server)}/mcp`
+          await new DesktopProjectManager(resolveDesktopPaths(env.DSH_HOME, env.DSH_DESKTOP_PROFILE_DIR), { dsh: project }).applyRelease()
+          writeFileSync(join(env.DSH_DESKTOP_PROFILE_DIR!, 'cordis.patch.yml'),
+            '- id: webserver\n  config:\n    host: 127.0.0.1\n    port: 0\n'
+            + `- id: llm-deepseek\n  disabled: false\n  config:\n    baseURL: ${modelUrl}\n    thinking: disabled\n`
+            + '- id: agent-default-model\n  config:\n    provider: deepseek-official\n    model: deepseek-flash\n    reasoningEffort: off\n')
+          const active = await launchBrowserAcceptanceDesktop(env)
+          app = active
+          const page = await englishBrowserAcceptancePage(active)
+          const composer = page.locator('[data-composer-input][contenteditable="true"]').last()
+          await composer.fill('Start the browser profile import fixture chat.')
+          await composer.press('Enter')
+          await page.locator('[data-chat-turn]').getByText('Website acceptance', { exact: true }).last().waitFor({ timeout: 60_000 })
+          await configureMcp(page, mcpUrl)
+          await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click()
+          await page.locator('[data-sidebar-right-expand]').click()
+          await page.locator('[data-sidebar-right-guide-entry="browser"]').click()
+          await page.getByRole('button', { name: 'Saved website profiles', exact: true }).click()
+          await page.getByRole('menuitem', { name: 'New saved profile…', exact: true }).click()
+          const form = page.getByRole('dialog', { name: 'New saved profile', exact: true })
+          await form.getByLabel('Name', { exact: true }).fill(profileName)
+          await form.getByLabel('Site address', { exact: true }).fill(landing)
+          await form.getByRole('combobox', { name: 'Import sign-in from', exact: true }).click()
+          await page.getByRole('option', { name: browser, exact: true }).click()
+          await form.getByRole('combobox', { name: 'MCP server', exact: true }).click()
+          await page.getByRole('option', { name: 'Website acceptance MCP (website_fixture)', exact: true }).click()
+          await active.evaluate(({ dialog }, path) => {
+            const open = dialog.showOpenDialog
+            dialog.showOpenDialog = async () => {
+              dialog.showOpenDialog = open
+              return { canceled: false, filePaths: [path] }
+            }
+          }, browser === 'Helium' ? sourceProfile : cookies)
+          await form.getByRole('button', { name: 'Create', exact: true }).click()
+          const dialogUrl = 'dsh-app://shell/update-dialog.html'
+          await expect.poll(() => active.windows().map(window => window.url())).toContain(dialogUrl)
+          const pairing = active.windows().find(window => window.url() === dialogUrl)!
+          await pairing.getByRole('button', { name: 'Confirm pairing', exact: true }).click()
+          const consentTitle = 'Import ' + browser + ' sign-in'
+          await expect.poll(async () => Promise.all(active.windows().map(window => window.title().catch(() => '')))).toContain(consentTitle)
+          const consent = (await Promise.all(active.windows().map(async window => ({
+            window, title: await window.title().catch(() => ''),
+          })))).find(candidate => candidate.title === consentTitle)!.window
+          expect(await consent.getByRole('dialog').innerText()).toContain(origin)
+          await consent.getByRole('button', { name: 'Import sign-in', exact: true }).click()
+          await page.getByText('Saved “' + profileName + '” with imported sign-in cookies.', { exact: false }).waitFor()
+          const guest = await activeBrowserGuest(page)
+          await expect.poll(() => state(active, guest)).toBe('authenticated')
+          expect(await active.evaluate(({ webContents }, id) => webContents.fromId(id)!.getURL(), guest)).toBe(landing)
+          const profiles = await page.evaluate(() => (window as ProductWindow).dshDesktop!.browser.profiles.list())
+          expect(profiles).toMatchObject([{ name: profileName, url: landing, access: 'disabled', control: 'human' }])
+          expect(await readFile(cookies)).toEqual(original)
+          await stopDesktop(active, env)
+          app = undefined
+
+          app = await launchBrowserAcceptanceDesktop(env)
+          const reopened = await englishBrowserAcceptancePage(app)
+          await reopened.locator('[data-composer-input][contenteditable="true"]').last().waitFor({ timeout: 120_000 })
+          const expand = reopened.locator('[data-sidebar-right-expand]')
+          const profileMenu = reopened.getByRole('button', { name: 'Saved website profiles', exact: true })
+          if (await expand.isVisible()) await expand.click()
+          if (!await profileMenu.isVisible()) await reopened.locator('[data-sidebar-right-guide-entry="browser"]').click()
+          await profileMenu.click()
+          await reopened.getByRole('menuitem', { name: new RegExp(profileName, 'u') }).click()
+          const restored = await activeBrowserGuest(reopened)
+          await expect.poll(() => state(app!, restored)).toBe('authenticated')
+          expect(await app!.evaluate(({ webContents }, id) => webContents.fromId(id)!.getURL(), restored)).toBe(landing)
+          expect(model.errors).toEqual([])
+          await stopDesktop(app!, env)
+          app = undefined
+        } catch (error) { failure = error; throw error }
+        finally {
+          model.dispose()
+          if (app !== undefined) {
+            try { await stopDesktop(app, env) } catch (error) { cleanupErrors.push(error) }
+          }
+          for (const server of [website, mcp.server, model.server]) {
+            if (server.listening) { try { await closeServer(server) } catch (error) { cleanupErrors.push(error) } }
+          }
+          if (cleanupErrors.length === 0) await removeOwned(root)
+          else throw new AggregateError([failure, ...cleanupErrors], 'Browser profile import fixture failed to close')
         }
-        for (const server of [website, mcp.server, model.server]) {
-          if (server.listening) { try { await closeServer(server) } catch (error) { cleanupErrors.push(error) } }
-        }
-        if (cleanupErrors.length === 0) await removeOwned(root)
-        else throw new AggregateError([failure, ...cleanupErrors], 'Firefox profile import fixture failed to close')
-      }
-    },
-  )
+      },
+    )
+  }
 
   it.each(['none', 'ask', 'automatic'] as const)('uses stable preview tools through human takeover and resume with %s saved access', { timeout: 240_000, retry: 0 }, async (access) => {
     if (process.platform !== 'win32') throw new Error('Native acceptance requires an interactive Windows desktop')

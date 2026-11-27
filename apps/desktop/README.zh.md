@@ -50,7 +50,7 @@ Desktop Host 的稳定 `preview_*` 工具无需配对 MCP 服务器即可操作�
 
 ## 网站账号隔离
 
-Windows 桌面端新建网站配置时可[导入 Firefox 登录 Cookie](../../packages/client/ui-sidebar-browser/README.zh.md#use-this-package)。Main 在原生确认后读取文件，并在打开页面前将 Cookie 写入新配置的持久化分区。
+Windows 桌面端新建网站配置时可[导入 Firefox、Zen 或 Helium 登录会话](../../packages/client/ui-sidebar-browser/README.zh.md#use-this-package)。Main 确认网站后读取所选来源，并在打开页面前将 Cookie 写入新配置的持久化分区。
 
 保存的网站与账号关联使用独立的持久化 Electron 分区。网站签发的 Cookie 遵循网站的到期策略。用户在 Main 管理的对话框中确认网站、账号标签、MCP 命名空间及查询到的端点。如果查询期间 Host 不再活跃或 MCP 提供者变化，Host 会拒绝配对。元数据不含密码或 Cookie；登录后的 URL 与标题不会写入 Browser 导航存储。重启保留访问选项，但不创建请求授权。存储隔离不能阻止同一操作系统用户下的其他进程读取 Cookie。
 

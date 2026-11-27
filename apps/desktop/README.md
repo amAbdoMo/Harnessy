@@ -50,7 +50,7 @@ For website work, `preview_status` without a tab ID lists saved profiles and the
 
 ## Website account isolation
 
-Windows Desktop can [import Firefox sign-in cookies](../../packages/client/ui-sidebar-browser/README.md#use-this-package) while creating a saved website profile. Main reads the file after native confirmation and writes cookies into the new profile’s persistent partition before it opens.
+Windows Desktop can [import sign-ins from Firefox, Zen, or Helium](../../packages/client/ui-sidebar-browser/README.md#use-this-package) while creating a saved website profile. Main reads the selected source after confirming the site and writes the cookies to the new profile’s persistent partition before it opens.
 
 Saved website/account associations use separate persistent Electron partitions. Site-issued cookies follow the site's expiry policy. The user confirms the website, account label, MCP namespace and inspected endpoint in a Main-owned dialog. The Host rejects pairing if it becomes inactive or the MCP provider changes during inspection. Metadata contains no passwords or cookies; signed-in URLs and titles stay out of saved Browser navigation. Restart retains access choices but creates no request grant. Storage isolation does not protect cookies from other processes running as the same operating-system user.
 

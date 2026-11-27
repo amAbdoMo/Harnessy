@@ -64,7 +64,7 @@ Client 插件可以调用 `ctx.sidebarRight.openTab('browser', { params: { url }
 
 在**已保存的网站配置**中选择**导入浏览器配置**，可从导出的 HTML 书签文件选择一条书签，或从格式为 `{"version":1,"profiles":[{"name":"Example","url":"https://example.com/"}]}` 的 JSON 文件选择一条记录。选择一个网站，确认其名称和起始地址，再填写保存配置表单。请在新配置中单独登录。导入只读取名称和网站地址。
 
-在 Windows 桌面端，新建网站配置时可选择**导入 Firefox 登录会话**。退出 Firefox，在其配置目录中选择 `cookies.sqlite`，并在原生对话框中确认网站。Harnessy 仅复制此主机名下仍有效的持久 Cookie 到新配置。Firefox 容器、分区 Cookie、其他主机和 localStorage 等浏览器存储不在导入范围内。网站可能让导入的会话过期或拒绝会话，打开后请检查登录状态。智能体访问初始关闭。
+在 Windows 桌面端，新建网站配置时可选择**从浏览器导入登录会话**。退出源浏览器，Firefox 或 Zen 请选择配置目录中的 `cookies.sqlite`，Helium 请选择配置文件夹。在原生对话框中确认网站。Harnessy 仅复制此主机名下仍有效的持久 Cookie 到新配置。Helium 导入支持 Windows 同一用户的标准加密。容器和分区 Cookie、其他主机的 Cookie 以及 localStorage 等存储保留在源浏览器中。打开该网站，检查它是否接受复制的登录会话。智能体访问初始关闭。
 
 Chromium 拒绝信任网站证书的签发方时，标签页会提供重试及在系统浏览器中检查网址的操作。主框架收到有效的 HTTP 响应后会清除之前的错误。[Desktop 包](../../../apps/desktop/README.zh.md#local-https-devices)说明公共网站和本地设备的证书验证方式。
 

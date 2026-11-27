@@ -155,7 +155,10 @@ export interface DesktopWebsiteProfile {
 /** Non-secret profile failure categories translated by the Browser UI. */
 export type DesktopWebsiteProfileFailureReason = 'invalid-name' | 'invalid-account-label' | 'invalid-url' | 'unsafe-url'
   | 'invalid-mcp-name' | 'mcp-unavailable' | 'host-unavailable' | 'cancelled' | 'profile-limit' | 'pairing-changed'
-  | 'save-failed' | 'session-import-empty' | 'session-import-failed' | 'session-import-site' | 'unknown'
+  | 'save-failed' | 'session-import-empty' | 'session-import-failed' | 'session-import-site' | 'session-import-protection' | 'unknown'
+
+/** Browsers supported by the native, site-scoped sign-in importer. */
+export type DesktopWebsiteSessionImportSource = 'firefox' | 'zen' | 'helium'
 
 /** User-confirmed website/account association; authentication is entered directly in the page. */
 export interface DesktopWebsiteProfileInput {
@@ -169,13 +172,13 @@ export interface DesktopWebsiteProfileInput {
 
 /** User-only profile operations, never exposed through an agent's browser transport. */
 export interface DesktopWebsiteProfilesBridge {
-  /** Native Firefox sign-in import is available on Windows. */
-  readonly canImportFirefoxSession?: true
+  /** Native sign-in sources supported on this platform. */
+  readonly sessionImportSources?: readonly DesktopWebsiteSessionImportSource[]
   /** @returns profiles without passwords, cookies or filesystem paths. */
   list(this: void): Promise<readonly DesktopWebsiteProfile[]>
-  /** @param input - user-confirmed pairing. @param importFirefoxSession - open the native session import.
+  /** @param input - user-confirmed pairing. @param importFrom - browser for the optional native sign-in import.
    * @returns saved profile in human-control mode. */
-  create(this: void, input: DesktopWebsiteProfileInput, importFirefoxSession?: boolean): Promise<DesktopWebsiteProfile>
+  create(this: void, input: DesktopWebsiteProfileInput, importFrom?: DesktopWebsiteSessionImportSource): Promise<DesktopWebsiteProfile>
   /** @param profile - saved identity to retain. @param url - new landing address; Main confirms origin changes. */
   setUrl(this: void, profile: DesktopWebsiteProfileId, url: string): Promise<void>
   /** @param profile - approved profile identity. @returns one persistent guest reservation. */
