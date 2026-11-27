@@ -16,8 +16,8 @@ export function observeBrowserBridge(bridge: DesktopBrowserBridge,
   }
   return {
     ...bridge,
-    acquire: async (workspace, address) => {
-      const reservation = await bridge.acquire(workspace, address)
+    acquire: async (...args) => {
+      const reservation = await bridge.acquire(...args)
       current = reservation.lease
       viewport = undefined
       return reservation

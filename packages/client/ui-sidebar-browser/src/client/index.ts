@@ -6,6 +6,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
+import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
 import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
@@ -29,6 +30,8 @@ import { en, zh } from './locales.ts'
 import { createBrowserStore } from './browser/store.ts'
 import { createWebsiteProfileDraftStore } from './browser/profile-draft.ts'
 import { BrowserProfilePicker, type BrowserProfilePickerInjected } from './view/BrowserProfilePicker.tsx'
+import { BrowserDefaultsSection } from './view/BrowserDefaultsSection.tsx'
+import { readBrowserDefaults } from './browser/defaults.ts'
 
 export type { BrowserMode, BrowserResponsiveOwner, BrowserTabParams } from './responsive.ts'
 export type { BrowserBodyProps } from './view/BrowserBody.tsx'
@@ -149,6 +152,9 @@ export function apply(ctx: Context): void {
     })
   }), 'ui-sidebar-browser.agent-open')
   ctx.effect(() => ctx.locale.register(namespace, { zh, en }), 'ui-sidebar-browser.copy')
+  if (desktop !== undefined) ctx.effect(() => ctx.slots.inject('settings.section', () => ctx.slots.register({
+    name: 'settings.section', id: 'browser', label: () => t('guide.title'), order: 35, locale: namespace,
+  }, BrowserDefaultsSection)), 'ui-sidebar-browser.settings')
   ctx.effect(() => ctx.sidebarRightTabs.register({ ...browserDefinition(t), keepMounted: desktop !== undefined }), 'ui-sidebar-browser.type')
   const installFrames = (scope: Context): void => {
     const responsiveAvailable = {
@@ -167,8 +173,9 @@ export function apply(ctx: Context): void {
           requests.set(sessionId, session)
         }
         const bridge = leaseChanged === undefined ? desktop : observeBrowserBridge(desktop, leaseChanged)
+        const defaults = leaseChanged === undefined && options.profileId === undefined ? readBrowserDefaults() : undefined
         return createElectronPage(options, bridge,
-          signal => browserWorkspace(scope.workspaces.list, sessionId, signal), session)
+          signal => browserWorkspace(scope.workspaces.list, sessionId, signal), session, defaults)
       },
     }
     if (native !== undefined) scope.provide('nativeBrowser', native)

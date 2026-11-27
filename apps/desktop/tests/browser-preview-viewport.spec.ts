@@ -9,8 +9,9 @@ function fixture() {
   let devToolsOpened = false
   const debuggerApi = Object.assign(new EventEmitter(), {
     attach: vi.fn((_version: string) => { attached = true }),
+    detach: vi.fn(() => { attached = false; debuggerApi.emit('detach') }),
     isAttached: () => attached,
-    sendCommand: vi.fn(async (_method: string, _parameters: Readonly<Record<string, number | boolean>>) => ({})),
+    sendCommand: vi.fn(async (_method: string, _parameters: Readonly<Record<string, unknown>>) => ({})),
   })
   const lost = vi.fn()
   const metrics = new BrowserPreviewViewport({ debugger: debuggerApi, isDestroyed: () => false,
@@ -26,6 +27,24 @@ function fixture() {
     openDevTools: () => { devToolsOpened = true },
   }
 }
+
+it('suspends a page color scheme for DevTools and reapplies it on the same guest', async () => {
+  const f = fixture()
+  const parameters = { features: [{ name: 'prefers-color-scheme', value: 'dark' }] }
+  try {
+    await Promise.all([f.metrics.setAppearance('dark'), f.metrics.setAppearance('dark')])
+    expect(f.debuggerApi.sendCommand).toHaveBeenCalledExactlyOnceWith('Emulation.setEmulatedMedia', parameters)
+    expect(f.metrics.hasViewport).toBe(false)
+    f.metrics.suspendAppearance()
+    expect(f.debuggerApi.detach).toHaveBeenCalledOnce()
+    expect(f.lost).not.toHaveBeenCalled()
+    await f.metrics.setAppearance('dark')
+    expect(f.debuggerApi.sendCommand).toHaveBeenCalledTimes(2)
+    await f.metrics.set({ width: 390, height: 844, scale: 1 })
+    expect(f.metrics.hasViewport).toBe(true)
+    expect(f.debuggerApi.attach).toHaveBeenCalledTimes(2)
+  } finally { await f.metrics.dispose() }
+})
 
 it('uses fixed CSS metrics and native fit without device identity spoofing', async () => {
   const f = fixture()

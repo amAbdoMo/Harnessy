@@ -1082,9 +1082,9 @@ async function main(): Promise<void> {
     reportFatal(new Error(message), 'web-boot')
   })
 
-  ipcMain.handle(DESKTOP_IPC.browserAcquire, (event, workspace: unknown, addressHint: unknown) => {
+  ipcMain.handle(DESKTOP_IPC.browserAcquire, (event, workspace: unknown, addressHint: unknown, defaults: unknown) => {
     assertProductSender(event)
-    return browserGuests.acquire(event.sender, workspace, addressHint)
+    return browserGuests.acquire(event.sender, workspace, addressHint, defaults)
   })
   ipcMain.handle(DESKTOP_IPC.browserBind, (event, lease: DesktopBrowserLeaseId, sessionId: string | null) => {
     assertProductSender(event)

@@ -223,6 +223,12 @@ export interface BrowserViewport {
   readonly scale: number
 }
 
+/** Initial native presentation of an ordinary Desktop Browser tab. */
+export interface DesktopBrowserDefaults {
+  readonly zoomFactor: number
+  readonly appearance: 'system' | 'light' | 'dark'
+}
+
 /** Human toolbar and presentation actions; Main checks the exact lease and account reservation before execution. */
 export type DesktopBrowserHumanCommand = (
   | { readonly kind: 'navigate'; readonly url: string }
@@ -275,9 +281,10 @@ export interface DesktopBrowserBridge {
   /**
    * @param workspace - resolved storage account.
    * @param addressHint - latest pending address; Main alone selects the guest's storage Session.
+   * @param defaults - initial zoom and color scheme for an ordinary Browser tab.
    * @returns one approved guest reservation.
    */
-  acquire(workspace: string, addressHint?: string): Promise<DesktopBrowserReservation>
+  acquire(workspace: string, addressHint?: string, defaults?: DesktopBrowserDefaults): Promise<DesktopBrowserReservation>
   /**
    * @param lease - exact native guest.
    * @param command - Human action, including a deferred load.

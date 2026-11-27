@@ -28,9 +28,12 @@ it('exposes no arbitrary IPC, native objects, or Agent control through profile-w
   ])
   expect(Object.keys(bridge.requests).sort()).toEqual(['acknowledge', 'list', 'onChanged', 'onPrepared', 'prepare', 'resume', 'takeover', 'visible'])
   await bridge.acquire('cwd:/workspace', 'https://192.168.1.10/')
-  expect(ipc.invoke).toHaveBeenLastCalledWith(DESKTOP_IPC.browserAcquire, 'cwd:/workspace', 'https://192.168.1.10/')
+  expect(ipc.invoke).toHaveBeenLastCalledWith(DESKTOP_IPC.browserAcquire, 'cwd:/workspace', 'https://192.168.1.10/', undefined)
   await bridge.acquire('cwd:/workspace')
-  expect(ipc.invoke).toHaveBeenLastCalledWith(DESKTOP_IPC.browserAcquire, 'cwd:/workspace', undefined)
+  expect(ipc.invoke).toHaveBeenLastCalledWith(DESKTOP_IPC.browserAcquire, 'cwd:/workspace', undefined, undefined)
+  const defaults = { zoomFactor: 1.25, appearance: 'dark' } as const
+  await bridge.acquire('cwd:/workspace', undefined, defaults)
+  expect(ipc.invoke).toHaveBeenLastCalledWith(DESKTOP_IPC.browserAcquire, 'cwd:/workspace', undefined, defaults)
   await bridge.command(RECEIPT.lease, { kind: 'navigate', url: 'https://portal.example.test/next', revision: 9 })
   expect(ipc.invoke).toHaveBeenLastCalledWith(DESKTOP_IPC.browserCommand, RECEIPT.lease,
     { kind: 'navigate', url: 'https://portal.example.test/next', revision: 9 })

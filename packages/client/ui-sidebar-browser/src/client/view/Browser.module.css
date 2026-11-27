@@ -283,6 +283,28 @@
   -webkit-app-region: no-drag;
 }
 
+.fixedViewport {
+  position: relative;
+  flex: 0 0 auto;
+  margin: auto;
+  overflow: hidden;
+  background: var(--dsw-alias-bg-base);
+  outline: 1px solid var(--dsw-alias-border-l2);
+}
+
+.fixedViewportGuest {
+  position: absolute;
+  inset: 0 auto auto 0;
+  transform-origin: top left;
+}
+
+.defaultsHeading {
+  margin: 0;
+  font: var(--dsw-font-base-16);
+  font-weight: 600;
+  color: var(--dsw-alias-label-primary);
+}
+
 /* Native guest input must not consume a docking gesture's window events. */
 :global(html:has([data-dockkit-pointer])) .webview {
   pointer-events: none;

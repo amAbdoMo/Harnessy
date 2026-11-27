@@ -114,6 +114,7 @@ export class BrowserController implements HostObservable<BrowserControllerState>
    * Capture a frame of the human-controlled native page.
    * @param url - the recording's admitted address.
    * @param documentId - native identity returned by the first frame.
+   * @param indicators - optional click and key markers for the current recording.
    * @returns JPEG and current native document identity.
    */
   captureRecordingFrame(url: string, documentId?: BrowserRecordingDocumentId,

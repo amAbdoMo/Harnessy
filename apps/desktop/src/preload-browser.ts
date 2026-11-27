@@ -129,7 +129,7 @@ export function createDesktopBrowserBridge(): DesktopBrowserBridge {
       forget: id => ipcRenderer.invoke(DESKTOP_IPC.websiteProfilesForget, id) as Promise<void>,
       onChanged: (listener) => { profileListeners.add(listener); return () => { profileListeners.delete(listener) } },
     },
-    acquire: (workspace, addressHint) => ipcRenderer.invoke(DESKTOP_IPC.browserAcquire, workspace, addressHint) as ReturnType<DesktopBrowserBridge['acquire']>,
+    acquire: (workspace, addressHint, defaults) => ipcRenderer.invoke(DESKTOP_IPC.browserAcquire, workspace, addressHint, defaults) as ReturnType<DesktopBrowserBridge['acquire']>,
     command: (lease, command) => ipcRenderer.invoke(DESKTOP_IPC.browserCommand, lease, command) as Promise<void>,
     release: lease => ipcRenderer.invoke(DESKTOP_IPC.browserRelease, lease) as Promise<void>,
     onOpenRequested,

@@ -27,6 +27,7 @@
     { "path": "../ui-primitives" },
     { "path": "../ui-renderer" },
     { "path": "../ui-session" },
+    { "path": "../ui-settings/tsconfig.client.json" },
     { "path": "../ui-sidebar-right" },
     { "path": "../ui-conversation/tsconfig.client.json" },
     { "path": "../ui-slots" }

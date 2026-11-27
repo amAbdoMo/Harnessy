@@ -1,7 +1,7 @@
 /** Electron navigation and guest lifetime, independent from DOM placement. */
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { BrowserAnnotationCapture, BrowserPickedElement, BrowserTabStatus, BrowserViewport, DesktopBrowserBridge, DesktopBrowserLeaseId, DesktopBrowserReservation } from '../../types.ts'
-import type { BrowserRecordingDocumentId, BrowserRecordingFrame, BrowserRecordingIndicators } from '../../types.ts'
+import type { BrowserRecordingDocumentId, BrowserRecordingFrame, BrowserRecordingIndicators, DesktopBrowserDefaults } from '../../types.ts'
 import type { ElectronWebviewPresentation, WebviewElement } from './ElectronWebviewPresentation.ts'
 import { emptyBrowserFrame, type BrowserFrame, type BrowserFrameState, type BrowserLoadError, type BrowserRemoteShareControl } from '../browser/BrowserFrame.ts'
 import type { BrowserPageOptions } from '../browser/BrowserPage.ts'
@@ -38,6 +38,7 @@ export class ElectronWebViewImpl implements BrowserFrame {
   private readonly releases = new Set<Promise<void>>()
   private viewport: BrowserViewport | undefined
   private findRequest: number | undefined
+  private zoomOverride: number | undefined
   readonly setViewport?: (viewport: BrowserViewport) => void
 
   /**
@@ -46,11 +47,12 @@ export class ElectronWebViewImpl implements BrowserFrame {
    * @param workspace - resolves the storage account once for this frame lifetime.
    * @param presentation - tag and Sidebar placement adapter.
    * @param requests - page-local admission control for its actual native guest.
+   * @param defaults - initial zoom and color scheme for this ordinary tab.
    */
   constructor(private readonly options: BrowserPageOptions, private readonly bridge: DesktopBrowserBridge,
     private readonly workspace: (signal: AbortSignal) => Promise<string>,
     private readonly presentation: ElectronWebviewPresentation,
-    private readonly requests?: WebsiteRequestPage) {
+    private readonly requests?: WebsiteRequestPage, private readonly defaults?: DesktopBrowserDefaults) {
     // A saved-profile page has no restorable address: a signed-in address can
     // carry a one-time token, so its navigation is never written.
     this.checkpoint = options.profileId === undefined ? currentBrowserTarget(options.initial) : undefined
@@ -112,7 +114,10 @@ export class ElectronWebViewImpl implements BrowserFrame {
     if (this.bridge.setZoom === undefined) throw new Error('Browser zoom is unavailable')
     const lease = this.currentLease()
     const acknowledged = await this.bridge.setZoom(lease, factor)
-    if (this.lease === lease) this.store.set({ ...this.store.getSnapshot(), zoomFactor: acknowledged })
+    if (this.lease === lease) {
+      this.zoomOverride = acknowledged
+      this.store.set({ ...this.store.getSnapshot(), zoomFactor: acknowledged })
+    }
   }
 
   /** @returns After native inspector dispatch. */
@@ -424,7 +429,10 @@ export class ElectronWebViewImpl implements BrowserFrame {
     this.workspaceKey ??= await this.workspace(attachmentSignal)
     while (!attachmentSignal.aborted) {
       const addressHint = this.pending?.url
-      const reservation = await this.bridge.acquire(this.workspaceKey, addressHint)
+      const reservation = this.defaults === undefined ? await this.bridge.acquire(this.workspaceKey, addressHint)
+        : await this.bridge.acquire(this.workspaceKey, addressHint, {
+          ...this.defaults, zoomFactor: this.zoomOverride ?? this.defaults.zoomFactor,
+        })
       // The awaited reservation does not preserve the signal's earlier state.
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (attachmentSignal.aborted || addressHint === this.pending?.url) return reservation

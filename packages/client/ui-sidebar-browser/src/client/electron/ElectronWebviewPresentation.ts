@@ -26,12 +26,15 @@ export interface ElectronPresentationEvents {
   readonly unmounted: () => void
 }
 
-/** Owns tag creation and attachment, without measuring or following another element. */
+/** Owns tag attachment and fits fixed-size ordinary guests within the Sidebar. */
 export class ElectronWebviewPresentation implements BrowserPresentation {
   private element: WebviewElement | undefined
   private host: HTMLElement | undefined
+  private fit: ResizeObserver | undefined
+  private viewportBox: HTMLElement | undefined
 
-  constructor(private readonly events: ElectronPresentationEvents) {}
+  constructor(private readonly events: ElectronPresentationEvents,
+    private readonly dimensions?: { readonly width: number; readonly height: number }) {}
 
   /** @param viewportId - committed content container. @returns ends attachment and releases its guest. */
   mount(viewportId: string): () => void {
@@ -72,7 +75,29 @@ export class ElectronWebviewPresentation implements BrowserPresentation {
     if (this.host === undefined) throw new Error('Electron presentation: cannot attach without a content container')
     this.clear()
     this.element = element
-    this.host.append(element)
+    const host = this.host
+    const dimensions = this.dimensions
+    if (dimensions === undefined) { host.append(element); return }
+    const box = document.createElement('div')
+    box.className = css.fixedViewport as string
+    element.classList.add(css.fixedViewportGuest as string)
+    element.style.width = `${dimensions.width}px`
+    element.style.height = `${dimensions.height}px`
+    const fit = (width: number, height: number): void => {
+      if (width === 0 || height === 0) return
+      const scale = Math.min(1, width / dimensions.width, height / dimensions.height)
+      box.style.width = `${dimensions.width * scale}px`
+      box.style.height = `${dimensions.height * scale}px`
+      element.style.transform = `scale(${scale})`
+    }
+    fit(host.clientWidth, host.clientHeight)
+    box.append(element)
+    host.append(box)
+    this.viewportBox = box
+    this.fit = new ResizeObserver(([entry]) => {
+      if (entry !== undefined && this.viewportBox === box) fit(entry.contentRect.width, entry.contentRect.height)
+    })
+    this.fit.observe(host)
   }
 
   /**
@@ -85,8 +110,12 @@ export class ElectronWebviewPresentation implements BrowserPresentation {
 
   /** Destroy only the guest DOM; a replacement may use the same mounted container. */
   clear(): void {
+    this.fit?.disconnect()
+    this.fit = undefined
     this.element?.remove()
     this.element = undefined
+    this.viewportBox?.remove()
+    this.viewportBox = undefined
   }
 
   /** Destroy the guest DOM and release its content container. */

@@ -12,7 +12,7 @@ export interface BrowserPageCommand {
   readonly run: () => void | Promise<void>
 }
 
-const ZOOM_PRESETS = [50, 75, 90, 100, 110, 125, 150, 200, 300]
+import { ZOOM_PRESETS } from '../browser/defaults.ts'
 
 /**
  * Expose secondary actions for a native page.

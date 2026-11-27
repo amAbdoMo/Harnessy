@@ -2,7 +2,7 @@
 import { randomUUID } from 'node:crypto'
 import { setImmediate } from 'node:timers/promises'
 import { app, session, webContents, type BrowserWindow, type CookiesSetDetails, type Event as ElectronEvent, type Session, type WebContents } from 'electron'
-import type { BrowserViewport, DesktopBrowserLeaseId, DesktopBrowserOpenRequest, DesktopBrowserReacquireRequest, DesktopBrowserReservation, DesktopWebsiteProfileId } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
+import type { BrowserViewport, DesktopBrowserDefaults, DesktopBrowserLeaseId, DesktopBrowserOpenRequest, DesktopBrowserReacquireRequest, DesktopBrowserReservation, DesktopWebsiteProfileId } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
 import { DESKTOP_IPC } from './ipc.ts'
 import { bindBrowserCertificateErrors, localBrowserDeviceOrigin, type ConfirmBrowserCertificate } from './browser-certificates.ts'
 import { executeHumanBrowserCommand } from './browser-human-command.ts'
@@ -19,12 +19,14 @@ interface GuestLease {
   readonly partition: string
   readonly profile?: DesktopWebsiteProfileId
   readonly certificateOrigin?: string
+  readonly defaults?: DesktopBrowserDefaults
   attached: boolean
   invalidated: boolean
   navigationRevision: number
   devToolsRequested?: boolean
   devToolsFrontend?: WebContents
-  viewport?: BrowserPreviewViewport
+  presentation?: BrowserPreviewViewport
+  initializedZoom?: boolean
   invalidation?: Promise<void>
   release?: Promise<void> | undefined
   attachment?: Promise<WebContents | null>
@@ -33,6 +35,18 @@ interface GuestLease {
   closeGuest?: () => void
   releaseCertificates?: () => void
   releaseInput?: (() => void) | undefined
+}
+
+function parseBrowserDefaults(input: unknown): DesktopBrowserDefaults | undefined {
+  if (input === undefined) return undefined
+  if (typeof input !== 'object' || input === null || Object.keys(input).length !== 2
+    || !Object.hasOwn(input, 'appearance') || !('appearance' in input)
+    || (input.appearance !== 'system' && input.appearance !== 'light' && input.appearance !== 'dark')
+    || !Object.hasOwn(input, 'zoomFactor') || !('zoomFactor' in input) || typeof input.zoomFactor !== 'number'
+    || !Number.isFinite(input.zoomFactor) || input.zoomFactor < 0.5 || input.zoomFactor > 3) {
+    throw new Error('Desktop browser defaults rejected')
+  }
+  return { appearance: input.appearance, zoomFactor: input.zoomFactor }
 }
 
 interface NativeGuestDrain {
@@ -141,16 +155,18 @@ export class DesktopBrowserGuests {
    * @param owner - authenticated primary application WebContents.
    * @param workspace - workspace identity received over IPC.
    * @param addressHint - optional initial address; local HTTPS devices receive a lease-exclusive Session.
+   * @param input - optional renderer-supplied ordinary tab defaults.
    * @returns opaque lease and the partition approved for it.
    */
-  acquire(owner: WebContents, workspace: unknown, addressHint?: unknown): DesktopBrowserReservation {
+  acquire(owner: WebContents, workspace: unknown, addressHint?: unknown, input?: unknown): DesktopBrowserReservation {
     if (typeof workspace !== 'string' || workspace.length === 0 || workspace.length > 4096) {
       throw new Error('desktop browser: a workspace storage identity is required')
     }
     if (addressHint !== undefined && (typeof addressHint !== 'string' || Buffer.byteLength(addressHint, 'utf8') > 4096
       || !this.allowedNavigation(addressHint))) throw new Error('desktop browser: initial address rejected')
     const certificateOrigin = typeof addressHint === 'string' ? localBrowserDeviceOrigin(addressHint) : undefined
-    if (certificateOrigin !== undefined) return this.acquireLocalDevice(owner, certificateOrigin)
+    const defaults = parseBrowserDefaults(input)
+    if (certificateOrigin !== undefined) return this.acquireLocalDevice(owner, certificateOrigin, undefined, defaults)
     let partition = this.partitions.get(workspace)
     if (partition === undefined) {
       partition = `dsh-sidebar-browser-${randomUUID()}`
@@ -158,7 +174,8 @@ export class DesktopBrowserGuests {
       this.partitions.set(workspace, partition)
     }
     const lease = randomUUID() as DesktopBrowserLeaseId
-    this.leases.set(lease, { owner, partition, attached: false, invalidated: false, navigationRevision: 0 })
+    this.leases.set(lease, { owner, partition, attached: false, invalidated: false, navigationRevision: 0,
+      ...(defaults === undefined ? {} : { defaults }) })
     return { lease, partition }
   }
 
@@ -176,7 +193,7 @@ export class DesktopBrowserGuests {
    */
   inspectPreview(owner: WebContents, id: DesktopBrowserLeaseId): WebContents | undefined {
     const lease = this.leases.get(id)
-    if (lease === undefined || lease.owner !== owner || lease.profile !== undefined || lease.viewport === undefined
+    if (lease === undefined || lease.owner !== owner || lease.profile !== undefined || lease.presentation?.hasViewport !== true
       || !lease.attached || lease.invalidated || lease.release !== undefined || lease.guest === undefined
       || owner.isDestroyed() || lease.guest.isDestroyed()) return undefined
     return lease.guest
@@ -190,7 +207,7 @@ export class DesktopBrowserGuests {
    */
   cancelPreview(owner: WebContents, id: DesktopBrowserLeaseId, expected: WebContents): void {
     const lease = this.leases.get(id)
-    if (lease === undefined || lease.owner !== owner || lease.profile !== undefined || lease.viewport === undefined
+    if (lease === undefined || lease.owner !== owner || lease.profile !== undefined || lease.presentation?.hasViewport !== true
       || lease.guest !== expected || expected.isDestroyed()) return
     this.invalidate(id, lease)
     this.releaseInput(lease)
@@ -240,13 +257,23 @@ export class DesktopBrowserGuests {
    */
   openLocalDevTools(owner: WebContents, id: DesktopBrowserLeaseId): void {
     const { guest, lease } = this.manualToolGuest(owner, id)
-    if (lease.profile !== undefined || guest.debugger.isAttached()) throw new Error('Desktop browser DevTools unavailable')
+    if (lease.profile !== undefined) throw new Error('Desktop browser DevTools unavailable')
     if (lease.devToolsRequested || guest.isDevToolsOpened()) {
       guest.devToolsWebContents?.focus()
       return
     }
+    lease.presentation?.suspendAppearance()
+    if (guest.debugger.isAttached()) throw new Error('Desktop browser DevTools unavailable')
     lease.devToolsRequested = true
-    const closed = (): void => { lease.devToolsRequested = false; delete lease.devToolsFrontend }
+    const closed = (): void => {
+      lease.devToolsRequested = false
+      delete lease.devToolsFrontend
+      const appearance = lease.defaults?.appearance
+      if (lease.invalidated || lease.release !== undefined || guest.isDestroyed() || appearance === undefined || appearance === 'system') return
+      void lease.presentation?.setAppearance(appearance).catch((error: unknown) => {
+        console.error('Desktop browser appearance could not be restored', error)
+      })
+    }
     guest.once('devtools-closed', closed)
     try {
       // Electron creates the inspector in the guest session before its first request.
@@ -278,7 +305,7 @@ export class DesktopBrowserGuests {
   private manualToolGuest(owner: WebContents, id: DesktopBrowserLeaseId): { readonly guest: WebContents; readonly lease: GuestLease } {
     const guest = this.inspectBrowser(owner, id)
     const lease = this.leases.get(id)
-    if (guest === undefined || lease === undefined || lease.viewport !== undefined || !this.allowedNavigation(guest.getURL())
+    if (guest === undefined || lease === undefined || lease.presentation?.hasViewport === true || !this.allowedNavigation(guest.getURL())
       || (lease.profile !== undefined && this.websiteNavigation?.(owner, id) === false)) {
       throw new Error('Desktop browser page tools unavailable')
     }
@@ -291,7 +318,7 @@ export class DesktopBrowserGuests {
   /** @param owner - authenticated application renderer. @param id - exact lease. @returns a live ordinary guest for recording. */
   inspectRecordingBrowser(owner: WebContents, id: DesktopBrowserLeaseId): WebContents | undefined {
     const lease = this.leases.get(id)
-    if (lease === undefined || lease.profile !== undefined || lease.viewport !== undefined) return undefined
+    if (lease === undefined || lease.profile !== undefined || lease.presentation?.hasViewport === true) return undefined
     return this.inspectBrowser(owner, id)
   }
 
@@ -319,19 +346,31 @@ export class DesktopBrowserGuests {
       command = nativeCommand
     }
     const guest = lease.guest
-    const viewport = lease.viewport
+    const defaults = lease.defaults
+    const presentation = (): BrowserPreviewViewport => lease.presentation ??= new BrowserPreviewViewport(guest,
+      () => this.leases.get(key) === lease && !lease.invalidated && lease.release === undefined
+        && lease.guest === guest && !owner.isDestroyed(),
+      () => {
+        console.error('Desktop browser presentation debugger ownership lost')
+        void this.release(owner, key).catch((error: unknown) => { console.error('Desktop browser release failed', error) })
+      })
     return executeHumanBrowserCommand({
       navigationHistory: guest.navigationHistory,
-      ...(viewport === undefined ? {} : { navigationReady: () => viewport.settled() }),
-      ...(lease.profile !== undefined || lease.devToolsRequested ? {} : {
-        setViewport: (viewport: BrowserViewport) => {
-          lease.viewport ??= new BrowserPreviewViewport(guest, () => this.leases.get(key) === lease
-            && !lease.invalidated && lease.release === undefined && lease.guest === guest && !owner.isDestroyed(), () => {
-            console.error('Desktop browser viewport debugger ownership lost')
-            void this.release(owner, key).catch((error: unknown) => { console.error('Desktop browser viewport release failed', error) })
-          })
-          return lease.viewport.set(viewport)
+      ...(lease.presentation === undefined && defaults === undefined ? {} : {
+        navigationReady: async () => {
+          if (defaults !== undefined && !lease.initializedZoom) {
+            guest.setZoomMode('isolated')
+            guest.setZoomFactor(defaults.zoomFactor)
+            lease.initializedZoom = true
+          }
+          if (defaults !== undefined && defaults.appearance !== 'system' && !lease.devToolsRequested) {
+            await presentation().setAppearance(defaults.appearance)
+          }
+          await lease.presentation?.settled()
         },
+      }),
+      ...(lease.profile !== undefined || lease.devToolsRequested ? {} : {
+        setViewport: (viewport: BrowserViewport) => presentation().set(viewport),
       }),
       reload: () => { guest.reload() },
       stop: () => { guest.stop() },
@@ -363,7 +402,7 @@ export class DesktopBrowserGuests {
     if (lease.owner !== owner) throw new Error('desktop browser: guest belongs to another window')
     if (lease.release !== undefined) return lease.release
     const nativeClose = Promise.resolve().then(async () => {
-      const viewportDrain = lease.viewport?.dispose()
+      const presentationDrain = lease.presentation?.dispose()
       let guest = lease.guest
       if (guest === undefined && lease.attachment !== undefined) {
         let timer: ReturnType<typeof setTimeout> | undefined
@@ -392,7 +431,7 @@ export class DesktopBrowserGuests {
             if (lease.closeGuest !== undefined) lease.closeGuest()
             else closing.close({ waitForBeforeUnload: false })
           }
-          await Promise.race([Promise.all([destroyed, viewportDrain]), deadline])
+          await Promise.race([Promise.all([destroyed, presentationDrain]), deadline])
         } finally {
           clearTimeout(timer)
           if (onDestroyed !== undefined) closing.removeListener('destroyed', onDestroyed)
@@ -556,7 +595,7 @@ export class DesktopBrowserGuests {
     }
     guest.once('destroyed', destroyed)
     const reapplyViewport = (): void => {
-      const viewport = bound?.lease.viewport
+      const viewport = bound?.lease.presentation
       if (viewport === undefined || !usable()) return
       void viewport.reapply().catch((error: unknown) => {
         if (!usable()) return
@@ -699,11 +738,12 @@ export class DesktopBrowserGuests {
     return true
   }
 
-  private acquireLocalDevice(owner: WebContents, certificateOrigin: string, profile?: DesktopWebsiteProfileId): DesktopBrowserReservation {
+  private acquireLocalDevice(owner: WebContents, certificateOrigin: string, profile?: DesktopWebsiteProfileId,
+    defaults?: DesktopBrowserDefaults): DesktopBrowserReservation {
     const partition = `dsh-sidebar-local-${randomUUID()}`
     const lease = randomUUID() as DesktopBrowserLeaseId
     const entry: GuestLease = { owner, partition, certificateOrigin, ...(profile === undefined ? {} : { profile }),
-      attached: false, invalidated: false, navigationRevision: 0 }
+      attached: false, invalidated: false, navigationRevision: 0, ...(defaults === undefined ? {} : { defaults }) }
     this.leases.set(lease, entry)
     this.configureSession(session.fromPartition(partition), entry)
     return { lease, partition }

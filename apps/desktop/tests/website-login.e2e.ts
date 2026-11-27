@@ -642,6 +642,121 @@ describe('native dialog source helper', () => {
 })
 
 describe.skipIf(missing.length > 0)(`built Native Website login${missing.length ? ` (missing artifacts: ${missing.join(', ')})` : ''}`, () => {
+  it('opens new Browser tabs with saved defaults before and after restarting Desktop', { timeout: 300_000, retry: 0 }, async () => {
+    expect(process.platform).toBe('win32')
+    expect(readClientBuildRecord(repository).environment.DSH_CLIENT_BUILD_PROFILE).toBe('custom-harness')
+    const root = mkdtempSync(join(tmpdir(), 'dsh-browser-defaults-'))
+    const env = childEnvironment(root)
+    env.DEEPSEEK_API_KEY = 'fixture-key-not-an-external-credential'
+    const model = websiteModelFixture()
+    const website = createServer((_request, response) => {
+      response.setHeader('content-type', 'text/html')
+      response.end('<!doctype html><title>Browser defaults fixture</title><h1>Browser defaults fixture</h1>')
+    })
+    let app: ElectronApplication | undefined
+    let failure: unknown
+    const launch = async (): Promise<Page> => {
+      app = await _electron.launch({ executablePath: electronExecutable,
+        args: [desktop, '--lang=en-US', '--enable-logging=stderr'], env, cwd: desktop, timeout: 120_000 })
+      const page = await applicationPage(app)
+      await page.evaluate(() => { (window as Window & { __DSH_LOCALE__?: { onChange(locale: string): void } }).__DSH_LOCALE__!.onChange('en') })
+      return page
+    }
+    const settings = async (page: Page) => {
+      await page.getByRole('button', { name: /No accounts saved/u }).click()
+      await page.getByRole('menuitem', { name: 'Settings', exact: true }).click()
+      const dialog = page.getByRole('dialog')
+      await dialog.getByRole('button', { name: 'Browser', exact: true }).click()
+      return dialog
+    }
+    const stateOf = (app: ElectronApplication, id: number) => app.evaluate(async ({ webContents }, nativeId) => {
+      const guest = webContents.fromId(nativeId)!
+      const state = await guest.executeJavaScript(`({ width: innerWidth, height: innerHeight,
+        dark: matchMedia('(prefers-color-scheme: dark)').matches, title: document.title })`)
+      return { ...state, zoom: guest.getZoomFactor() }
+    }, id)
+    try {
+      const origin = await listen(website)
+      const modelUrl = await listen(model.server)
+      await new DesktopProjectManager(resolveDesktopPaths(env.DSH_HOME, env.DSH_DESKTOP_PROFILE_DIR), { dsh: project }).applyRelease()
+      writeFileSync(join(env.DSH_DESKTOP_PROFILE_DIR!, 'cordis.patch.yml'),
+        '- id: webserver\n  config:\n    host: 127.0.0.1\n    port: 0\n'
+        + `- id: llm-deepseek\n  disabled: false\n  config:\n    baseURL: ${modelUrl}\n    thinking: disabled\n`
+        + '- id: agent-default-model\n  config:\n    provider: deepseek-official\n    model: deepseek-flash\n    reasoningEffort: off\n')
+      const open = async (page: Page, address: string, newTab: boolean): Promise<number> => {
+        const right = page.locator('[data-rightbar-col]')
+        if (newTab) await right.getByRole('button', { name: 'New tab', exact: true }).click()
+        await page.locator('[data-sidebar-right-guide-entry="browser"]').click()
+        const input = right.getByRole('textbox', { name: 'Enter an HTTP(S) address', exact: true })
+        await input.fill(`${origin}/${address}`)
+        await input.press('Enter')
+        return activeBrowserGuest(page)
+      }
+      const chat = async (page: Page, prompt: string): Promise<void> => {
+        const composer = page.locator('[data-composer-input][contenteditable="true"]').last()
+        await composer.fill(prompt)
+        await composer.press('Enter')
+        await page.locator('[data-chat-turn]').getByText('Website acceptance', { exact: true }).last().waitFor({ timeout: 60_000 })
+        const expand = page.locator('[data-sidebar-right-expand]')
+        if (await expand.isVisible()) await expand.click()
+      }
+      let page = await launch()
+      await chat(page, 'Create the native browser defaults test session. Reply without tools.')
+      const existing = await open(page, 'existing', false)
+      await expect.poll(() => stateOf(app!, existing)).toMatchObject({ title: 'Browser defaults fixture', zoom: 1 })
+      const dialog = await settings(page)
+      for (const [label, value] of [['Page zoom', '125%'], ['Viewport', 'Phone (portrait)'], ['Page appearance', 'Dark']] as const) {
+        await dialog.getByRole('combobox', { name: label, exact: true }).click()
+        await page.getByRole('option', { name: value, exact: true }).click()
+      }
+      await dialog.getByRole('button', { name: 'Close', exact: true }).click()
+      const expected = { title: 'Browser defaults fixture', zoom: 1.25, width: 312, height: 675, dark: true }
+      const updated = await open(page, 'configured', true)
+      await expect.poll(() => stateOf(app!, updated)).toEqual(expected)
+      expect(await stateOf(app!, existing)).toMatchObject({ zoom: 1 })
+      const browser = page.locator('[data-rightbar-col]')
+      await browser.getByRole('button', { name: 'Page actions', exact: true }).click()
+      await page.getByRole('menuitem', { name: 'Open developer tools', exact: true }).click()
+      const devToolsOpen = () => app!.evaluate(({ webContents }, id) => webContents.fromId(id)!.isDevToolsOpened(), updated)
+      await expect.poll(devToolsOpen, { timeout: 15_000 }).toBe(true)
+      await app!.evaluate(({ webContents }, id) => { webContents.fromId(id)!.closeDevTools() }, updated)
+      await expect.poll(devToolsOpen).toBe(false)
+      await expect.poll(() => stateOf(app!, updated)).toEqual(expected)
+      await stopDesktop(app!, env)
+      app = undefined
+
+      page = await launch()
+      const saved = await settings(page)
+      expect(await saved.getByRole('combobox', { name: 'Page zoom', exact: true }).innerText()).toContain('125%')
+      expect(await saved.getByRole('combobox', { name: 'Viewport', exact: true }).innerText()).toContain('Phone (portrait)')
+      expect(await saved.getByRole('combobox', { name: 'Page appearance', exact: true }).innerText()).toContain('Dark')
+      await saved.getByRole('button', { name: 'Close', exact: true }).click()
+      await chat(page, 'Check browser defaults after a restart. Reply without tools.')
+      const right = page.locator('[data-rightbar-col]')
+      const tabStrip = right.getByRole('button', { name: 'New tab', exact: true })
+      const afterRestart = await open(page, 'restarted', await tabStrip.isVisible() && !await page.locator('[data-sidebar-right-guide-entry="browser"]').isVisible())
+      await expect.poll(() => stateOf(app!, afterRestart)).toEqual(expected)
+      const change = await settings(page)
+      await change.getByRole('combobox', { name: 'Page appearance', exact: true }).click()
+      await page.getByRole('option', { name: 'Light', exact: true }).click()
+      await change.getByRole('button', { name: 'Close', exact: true }).click()
+      const light = await open(page, 'light', true)
+      await expect.poll(() => stateOf(app!, light)).toEqual({ ...expected, dark: false })
+      expect(await stateOf(app!, afterRestart)).toMatchObject({ dark: true })
+      expect(model.errors).toEqual([])
+    } catch (error) { failure = error; throw error }
+    finally {
+      model.dispose()
+      const cleanupErrors: unknown[] = []
+      if (app !== undefined) { try { await stopDesktop(app, env) } catch (error) { cleanupErrors.push(error) } }
+      for (const server of [website, model.server]) {
+        if (server.listening) { try { await closeServer(server) } catch (error) { cleanupErrors.push(error) } }
+      }
+      if (failure === undefined && cleanupErrors.length === 0) await removeOwned(root)
+      else cleanupErrors.push(new Error(`Native browser defaults acceptance retained diagnostics: ${root}`))
+      if (cleanupErrors.length > 0) throw new AggregateError([...(failure === undefined ? [] : [failure]), ...cleanupErrors], 'Native browser defaults acceptance failed')
+    }
+  })
   it('native local TLS consent isolates tabs and reacquisition while preserving normal workspace cookies', { retry: 0, timeout: 420_000 }, async () => {
     if (process.platform !== 'win32') throw new Error('Native TLS acceptance requires an interactive Windows desktop')
     expect(readClientBuildRecord(repository).environment.DSH_CLIENT_BUILD_PROFILE,

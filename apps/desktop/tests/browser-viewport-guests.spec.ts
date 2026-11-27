@@ -37,7 +37,7 @@ function fixture(profile?: DesktopWebsiteProfileId) {
   let destroyed = false
   let attached = false
   const debuggerApi = Object.assign(new EventEmitter(), {
-    attach: vi.fn(() => { attached = true }), isAttached: () => attached,
+    attach: vi.fn(() => { attached = true }), detach: vi.fn(() => { attached = false }), isAttached: () => attached,
     sendCommand: vi.fn(async () => ({})),
   })
   const guest = Object.assign(new EventEmitter(), {
@@ -63,6 +63,17 @@ function fixture(profile?: DesktopWebsiteProfileId) {
     },
   }
 }
+
+it.each([
+  { zoomFactor: 0.49, appearance: 'light' }, { zoomFactor: 3.1, appearance: 'dark' },
+  { zoomFactor: Infinity, appearance: 'system' }, { zoomFactor: 1, appearance: 'sepia' },
+  { zoomFactor: 1, appearance: 'dark', theme: 'global' },
+])('rejects out-of-range or unknown browser defaults %#', async (defaults) => {
+  const f = fixture()
+  try {
+    expect(() => f.guests.acquire(f.owner, 'defaults-workspace', undefined, defaults)).toThrow('Desktop browser defaults rejected')
+  } finally { await f.dispose() }
+})
 
 it('rejects saved-account preview before its revision can displace Human navigation', async () => {
   const f = fixture('viewport-saved' as DesktopWebsiteProfileId)

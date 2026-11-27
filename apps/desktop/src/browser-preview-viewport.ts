@@ -1,5 +1,7 @@
-/** Lease-private Chromium metrics; fixed CSS layout and visual fit never grant page access. */
-import type { BrowserViewport } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
+/** Lease-private Chromium viewport and page color scheme overrides. */
+import type { BrowserViewport, DesktopBrowserDefaults } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
+
+type EmulationValue = number | boolean | readonly { name: string; value: string }[]
 
 interface MetricsGuest {
   isDestroyed(): boolean
@@ -7,7 +9,8 @@ interface MetricsGuest {
   readonly debugger: {
     attach(version: string): void
     isAttached(): boolean
-    sendCommand(method: string, parameters: Readonly<Record<string, number | boolean>>): Promise<object>
+    detach(): void
+    sendCommand(method: string, parameters: Readonly<Record<string, EmulationValue>>): Promise<object>
     on(event: 'detach', listener: () => void): void
     removeListener(event: 'detach', listener: () => void): void
   }
@@ -21,6 +24,7 @@ export class BrowserPreviewViewport {
   private detached = false
   private disposed = false
   private failure: Error | undefined
+  private appearance: Promise<void> | undefined
   private readonly onDetached = (): void => {
     this.detached = true
     if (!this.disposed && this.usable()) this.ownershipLost()
@@ -34,15 +38,43 @@ export class BrowserPreviewViewport {
   constructor(private readonly guest: MetricsGuest,
     private readonly usable: () => boolean, private readonly ownershipLost: () => void) {}
 
+  /** Whether viewport metrics are managed independently of the native window size. */
+  get hasViewport(): boolean { return this.viewport !== undefined }
+
   /** @param viewport - IPC-validated dimensions and fit. @returns after ordered Chromium acknowledgement. */
   set(viewport: BrowserViewport): Promise<void> {
     this.viewport = viewport
-    return this.enqueue(viewport)
+    return this.applyViewport(viewport)
   }
 
   /** @returns after the retained metrics are reapplied; unused guests never acquire a debugger. */
   reapply(): Promise<void> {
-    return this.viewport === undefined ? Promise.resolve() : this.enqueue(this.viewport)
+    return this.viewport === undefined ? Promise.resolve() : this.applyViewport(this.viewport)
+  }
+
+  /** @param appearance - page color scheme override. @returns after Chromium acknowledges the preference. */
+  setAppearance(appearance: Exclude<DesktopBrowserDefaults['appearance'], 'system'>): Promise<void> {
+    if (this.appearance !== undefined) return this.appearance
+    const operation = this.enqueue(async () => {
+      await this.guest.debugger.sendCommand('Emulation.setEmulatedMedia', {
+        features: [{ name: 'prefers-color-scheme', value: appearance }],
+      })
+    })
+    this.appearance = operation
+    void operation.catch((_error: unknown) => {
+      if (this.appearance === operation) this.appearance = undefined
+    })
+    return operation
+  }
+
+  /** Relinquish the color scheme connection before the local inspector takes ownership. */
+  suspendAppearance(): void {
+    if (this.hasViewport) return
+    this.appearance = undefined
+    if (!this.owned || !this.guest.debugger.isAttached()) return
+    this.owned = false
+    this.guest.debugger.removeListener('detach', this.onDetached)
+    this.guest.debugger.detach()
   }
 
   /** @returns after preceding metrics settle; navigation must check its lease again before dispatch. */
@@ -57,15 +89,21 @@ export class BrowserPreviewViewport {
     return this.tail
   }
 
-  private enqueue(viewport: BrowserViewport): Promise<void> {
-    const operation = this.tail.then(async () => {
-      if (this.disposed || !this.usable() || this.guest.isDestroyed()) throw new Error('Desktop browser viewport guest unavailable')
-      this.attachDebugger()
+  private applyViewport(viewport: BrowserViewport): Promise<void> {
+    return this.enqueue(async () => {
       await this.guest.debugger.sendCommand('Emulation.setDeviceMetricsOverride', {
         width: viewport.width, height: viewport.height, deviceScaleFactor: 1, mobile: false,
         scale: viewport.scale, screenWidth: viewport.width, screenHeight: viewport.height,
         positionX: 0, positionY: 0, dontSetVisibleSize: true,
       })
+    })
+  }
+
+  private enqueue(send: () => Promise<void>): Promise<void> {
+    const operation = this.tail.then(async () => {
+      if (this.disposed || !this.usable() || this.guest.isDestroyed()) throw new Error('Desktop browser viewport guest unavailable')
+      this.attachDebugger()
+      await send()
     })
     // Each caller observes its own rejection; the ordering barrier permits a subsequent explicit retry.
     this.tail = operation.then(() => { this.failure = undefined }, (error: unknown) => {
