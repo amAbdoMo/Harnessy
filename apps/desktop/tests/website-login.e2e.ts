@@ -649,8 +649,13 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
     const env = childEnvironment(root)
     env.DEEPSEEK_API_KEY = 'fixture-key-not-an-external-credential'
     const model = websiteModelFixture()
-    const website = createServer((_request, response) => {
+    const preferredCookies: string[] = []
+    const website = createServer((request, response) => {
       response.setHeader('content-type', 'text/html')
+      if (request.url === '/preferred') {
+        preferredCookies.push(request.headers.cookie ?? '')
+        response.setHeader('set-cookie', 'saved-default=yes; Path=/; Max-Age=3600')
+      }
       response.end('<!doctype html><title>Browser defaults fixture</title><h1>Browser defaults fixture</h1>')
     })
     let app: ElectronApplication | undefined
@@ -677,16 +682,30 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
     }, id)
     try {
       const origin = await listen(website)
+      const preferredId = randomUUID()
+      const userData = join(env.CUSTOM_HARNESS_CACHE_DIR!, 'DesktopUserData')
+      mkdirSync(userData, { recursive: true })
+      writeFileSync(join(userData, 'website-profiles.json'), JSON.stringify({ version: 2, profiles: [
+        { id: randomUUID(), name: 'Other fixture', path: 'other' },
+        { id: preferredId, name: 'Preferred fixture', path: 'preferred' },
+      ].map(({ id, name, path }) => ({
+        id, name, accountLabel: '', url: `${origin}/${path}`, mcpServerName: 'missing_server', access: 'ask',
+        loginConfirmed: false, cleanupPending: false, mcpBinding: { identity: 'a'.repeat(64), endpoint: `${origin}/mcp` },
+      })) }))
       const modelUrl = await listen(model.server)
       await new DesktopProjectManager(resolveDesktopPaths(env.DSH_HOME, env.DSH_DESKTOP_PROFILE_DIR), { dsh: project }).applyRelease()
       writeFileSync(join(env.DSH_DESKTOP_PROFILE_DIR!, 'cordis.patch.yml'),
         '- id: webserver\n  config:\n    host: 127.0.0.1\n    port: 0\n'
         + `- id: llm-deepseek\n  disabled: false\n  config:\n    baseURL: ${modelUrl}\n    thinking: disabled\n`
         + '- id: agent-default-model\n  config:\n    provider: deepseek-official\n    model: deepseek-flash\n    reasoningEffort: off\n')
-      const open = async (page: Page, address: string, newTab: boolean): Promise<number> => {
+      const openNew = async (page: Page, newTab: boolean): Promise<void> => {
         const right = page.locator('[data-rightbar-col]')
         if (newTab) await right.getByRole('button', { name: 'New tab', exact: true }).click()
         await page.locator('[data-sidebar-right-guide-entry="browser"]').click()
+      }
+      const open = async (page: Page, address: string, newTab: boolean): Promise<number> => {
+        await openNew(page, newTab)
+        const right = page.locator('[data-rightbar-col]')
         const input = right.getByRole('textbox', { name: 'Enter an HTTP(S) address', exact: true })
         await input.fill(`${origin}/${address}`)
         await input.press('Enter')
@@ -699,6 +718,13 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
         await page.locator('[data-chat-turn]').getByText('Website acceptance', { exact: true }).last().waitFor({ timeout: 60_000 })
         const expand = page.locator('[data-sidebar-right-expand]')
         if (await expand.isVisible()) await expand.click()
+      }
+      const expectPreferredProfile = async (page: Page): Promise<void> => {
+        const id = await activeBrowserGuest(page)
+        await expect.poll(() => app!.evaluate(({ webContents, session }, { id, preferredId }) => {
+          const guest = webContents.fromId(id)!
+          return { url: guest.getURL(), savedProfile: guest.session === session.fromPartition(`persist:dsh-website-${preferredId}`) }
+        }, { id, preferredId })).toEqual({ url: `${origin}/preferred`, savedProfile: true })
       }
       let page = await launch()
       await chat(page, 'Create the native browser defaults test session. Reply without tools.')
@@ -722,6 +748,14 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
       await app!.evaluate(({ webContents }, id) => { webContents.fromId(id)!.closeDevTools() }, updated)
       await expect.poll(devToolsOpen).toBe(false)
       await expect.poll(() => stateOf(app!, updated)).toEqual(expected)
+      const profileSettings = await settings(page)
+      const profilePicker = profileSettings.getByRole('combobox', { name: 'Default browser profile', exact: true })
+      await profilePicker.click()
+      await page.getByRole('option', { name: 'Preferred fixture', exact: true }).click()
+      await profileSettings.getByRole('button', { name: 'Close', exact: true }).click()
+      await openNew(page, true)
+      await expectPreferredProfile(page)
+      const beforeRestart = preferredCookies.length
       await stopDesktop(app!, env)
       app = undefined
 
@@ -730,12 +764,23 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
       expect(await saved.getByRole('combobox', { name: 'Page zoom', exact: true }).innerText()).toContain('125%')
       expect(await saved.getByRole('combobox', { name: 'Viewport', exact: true }).innerText()).toContain('Phone (portrait)')
       expect(await saved.getByRole('combobox', { name: 'Page appearance', exact: true }).innerText()).toContain('Dark')
+      const savedProfile = saved.getByRole('combobox', { name: 'Default browser profile', exact: true })
+      await expect.poll(() => savedProfile.innerText()).toContain('Preferred fixture')
       await saved.getByRole('button', { name: 'Close', exact: true }).click()
       await chat(page, 'Check browser defaults after a restart. Reply without tools.')
       const right = page.locator('[data-rightbar-col]')
       const tabStrip = right.getByRole('button', { name: 'New tab', exact: true })
-      const afterRestart = await open(page, 'restarted', await tabStrip.isVisible() && !await page.locator('[data-sidebar-right-guide-entry="browser"]').isVisible())
+      await openNew(page, await tabStrip.isVisible() && !await page.locator('[data-sidebar-right-guide-entry="browser"]').isVisible())
+      await expectPreferredProfile(page)
+      expect(preferredCookies.slice(beforeRestart)).toContain('saved-default=yes')
+      const profileGuest = await activeBrowserGuest(page)
+      const clear = await settings(page)
+      await clear.getByRole('combobox', { name: 'Default browser profile', exact: true }).click()
+      await page.getByRole('option', { name: 'No default profile', exact: true }).click()
+      await clear.getByRole('button', { name: 'Close', exact: true }).click()
+      const afterRestart = await open(page, 'restarted', true)
       await expect.poll(() => stateOf(app!, afterRestart)).toEqual(expected)
+      expect(await app!.evaluate(({ webContents }, id) => webContents.fromId(id)!.getURL(), profileGuest)).toBe(`${origin}/preferred`)
       const change = await settings(page)
       await change.getByRole('combobox', { name: 'Page appearance', exact: true }).click()
       await page.getByRole('option', { name: 'Light', exact: true }).click()

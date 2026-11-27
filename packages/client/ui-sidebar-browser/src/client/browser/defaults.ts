@@ -1,5 +1,5 @@
 /** Installation-local preferences for ordinary Desktop Browser tabs. */
-import type { DesktopBrowserDefaults } from '../../types.ts'
+import type { DesktopBrowserDefaults, DesktopWebsiteProfileId } from '../../types.ts'
 
 /** Page zoom choices shared by Settings and Page actions. */
 export const ZOOM_PRESETS = [50, 75, 90, 100, 110, 125, 150, 200, 300] as const
@@ -19,10 +19,12 @@ export const BROWSER_VIEWPORTS = {
 /** Browser defaults saved by Settings and captured when a tab is created. */
 export interface BrowserDefaults extends DesktopBrowserDefaults {
   readonly viewport: keyof typeof BROWSER_VIEWPORTS
+  readonly profileId: DesktopWebsiteProfileId | undefined
 }
 
 const STORAGE_KEY = 'dsh.browser.defaults'
-const INITIAL_DEFAULTS: BrowserDefaults = { zoomFactor: 1, viewport: 'fill', appearance: 'system' }
+const INITIAL_DEFAULTS: BrowserDefaults = { zoomFactor: 1, viewport: 'fill', appearance: 'system', profileId: undefined }
+const PROFILE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 
 /**
  * Read the current installation's browser settings.
@@ -35,10 +37,13 @@ export function readBrowserDefaults(): BrowserDefaults {
     const zoom = 'zoomFactor' in stored ? ZOOM_PRESETS.find(percent => percent / 100 === stored.zoomFactor) : undefined
     const appearance = 'appearance' in stored ? BROWSER_APPEARANCES.find(value => value === stored.appearance) : undefined
     const viewport = 'viewport' in stored ? Object.keys(BROWSER_VIEWPORTS).find(value => value === stored.viewport) : undefined
+    const profileId = 'profileId' in stored && typeof stored.profileId === 'string' && PROFILE_ID.test(stored.profileId)
+      ? stored.profileId as DesktopWebsiteProfileId : undefined
     return {
       zoomFactor: zoom === undefined ? INITIAL_DEFAULTS.zoomFactor : zoom / 100,
       appearance: appearance ?? INITIAL_DEFAULTS.appearance,
       viewport: (viewport as BrowserDefaults['viewport'] | undefined) ?? INITIAL_DEFAULTS.viewport,
+      profileId,
     }
   } catch (_error: unknown) { /* Unreadable preferences must not prevent opening a browser tab. */ }
   return INITIAL_DEFAULTS

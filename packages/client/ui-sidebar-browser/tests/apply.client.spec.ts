@@ -104,6 +104,23 @@ async function boot(platform: ShortcutPlatform = 'macos', runtime: 'desktop' | '
 }
 
 describe('ui-sidebar-browser apply', () => {
+  it('opens with the saved default profile and skips a profile removed from the catalog', async () => {
+    const id = '21ba59c1-6861-44a2-bce6-50a334dbaaf9' as DesktopWebsiteProfileId
+    const profiles = profileStubs()
+    profiles.list.mockResolvedValue([{
+      id, name: 'Work', accountLabel: '', url: 'https://work.example/', mcpServerName: 'website',
+      control: 'human', access: 'ask', hasSavedLogin: false,
+    }])
+    let selected = String(id)
+    vi.stubGlobal('localStorage', { getItem: () => JSON.stringify({ profileId: selected }) })
+    vi.stubGlobal('dshDesktop', { protocolVersion: 1, browser: { profiles, requests: requestStubs() } })
+    const h = await boot('windows')
+    const defaults = h.tabs.get(BROWSER_KIND)?.defaultParams
+    expect(defaults?.()).toEqual({ profileId: id })
+    selected = '37970c30-818d-4584-a029-4d2fb0450236'
+    await vi.waitFor(() => { expect(defaults?.()).toBeUndefined() })
+  })
+
   it('loads the profile picker from the MCP namespace when it becomes available', async () => {
     class RemoteFixture extends Service {
       constructor(ctx: Context) { super(ctx, 'remote') }

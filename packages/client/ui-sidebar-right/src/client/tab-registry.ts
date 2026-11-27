@@ -1,12 +1,9 @@
 /**
  * Stage one of tab-type registration: what a type IS.
  *
- * A registration is purely static — which addresses the type recognizes, how it
- * ranks against other types that recognize the same one, what the tab chip says,
- * and whether the type offers an entry box on the guide page. Nothing here is
- * per-tab, per-session, or a runtime hook: stage two is the keyed
- * `sidebar.right.pane.tab` registration that supplies the body under the same
- * `kind`, and everything a body needs at runtime arrives in its props.
+ * Stage one defines address recognition, ranking, tab titles, guide entries,
+ * and the initial parameters for page openings without explicit parameters.
+ * The keyed `sidebar.right.pane.tab` registration supplies the body.
  *
  * Address recognition follows VS Code's editor resolver: a glob declaration
  * narrows the candidates, an optional `canOpen` predicate vetoes, and the
@@ -28,6 +25,7 @@ import type { ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client
 import type { ComponentType } from 'react'
 import type { Context } from '@deepseek-ai/cordis'
 import type { IconProps } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { SidebarRightTabParams } from './contract/params.ts'
 import { notifySubscribers } from '@deepseek-ai/dsh-client-store'
 // The POSIX build: the browser bundle must not reach for node's `path`, and
 // addresses are `/`-separated regardless of the host platform.
@@ -90,7 +88,7 @@ export interface SidebarRightGuideBox extends SidebarRightGuideEntry {
 }
 
 
-/** One registered tab type: its static face, and nothing else. */
+/** One registered tab type and its page-opening defaults. */
 export interface SidebarRightTabDefinition {
   /**
    * This implementation's identity in the tab system, unique across every
@@ -104,6 +102,8 @@ export interface SidebarRightTabDefinition {
   readonly kind: string
   /** Each open by kind creates independent content; omission keeps one page per kind in each pane. */
   readonly multiple?: boolean
+  /** Resolve parameters once for an explicit page open with no supplied parameters. */
+  readonly defaultParams?: () => SidebarRightTabParams
   /** Lazily keep a visited body mounted through hiding, Session changes and docking; default false. */
   readonly keepMounted?: boolean
   /**

@@ -417,7 +417,8 @@ export class SidebarRightController implements ISidebarRight {
     const definition = this.tabs.get(kind)
     if (definition === undefined) throw new Error(`sidebarRight: no tab type is registered as "${kind}"`)
     const address = definition.multiple === true ? `${pageAddress(kind)}/${randomUUID()}` : pageAddress(kind)
-    this.place(sessionId, actions, { kind, contentId: address, title: definition.title(address) }, address, options, options.params)
+    const params = options.params ?? definition.defaultParams?.()
+    this.place(sessionId, actions, { kind, contentId: address, title: definition.title(address) }, address, options, params)
   }
 
   /** The steps both opens share: one store intent, and the navigation record for the tab it settles on. */

@@ -71,13 +71,31 @@ export function BrowserBody(props: BrowserBodyProps): ReactNode {
   if (responsiveAvailable && params?.responsiveOpenId !== undefined && params.profileId === undefined && params.previewId === undefined) {
     return <BrowserResponsiveBody tab={tab} fullscreen={sidebar.fullscreen} renderSlot={props.renderSlot} t={props.t} />
   }
+  if (props.profiles !== undefined && params?.profileId !== undefined && params.url === undefined) {
+    return <BrowserDefaultProfileBody {...props} tab={tab} responsiveAvailable={responsiveAvailable} profileId={params.profileId} />
+  }
   return <BrowserOrdinaryBody {...props} tab={tab} responsiveAvailable={responsiveAvailable} />
 }
 
-function BrowserOrdinaryBody(props: BrowserBodyProps & {
+type BrowserOrdinaryBodyProps = BrowserBodyProps & {
   readonly tab: ReturnType<BrowserBodyProps['useTabInfo']>['tab']
   readonly responsiveAvailable: boolean
-}): ReactNode {
+  readonly initialAddress?: string
+}
+
+function BrowserDefaultProfileBody(props: BrowserOrdinaryBodyProps & { readonly profileId: DesktopWebsiteProfile['id'] }): ReactNode {
+  const { useWebsiteProfiles, profileId, t, profiles } = props
+  const state = useWebsiteProfiles(current => current)
+  const profile = state.profiles.find(candidate => candidate.id === profileId)
+  if (profile !== undefined) return <BrowserOrdinaryBody {...props} initialAddress={profile.url} />
+  if (state.phase === 'failed') return <div className={css.failure} role="alert">
+    <div>{t('profiles.loadFailed')}</div>
+    <Button size="sm" variant="outline" onClick={() => { void profiles?.reload() }}>{t('retry')}</Button>
+  </div>
+  return <div className={css.start} role="status">{t(state.phase === 'loading' ? 'profiles.loading' : 'profiles.missing')}</div>
+}
+
+function BrowserOrdinaryBody(props: BrowserOrdinaryBodyProps): ReactNode {
   const {
     mount, loadUrl, restore, goBack, goForward, reload, setSandbox, profiles, useBrowserState, useStore, tab,
     setVisible, useWebsiteRequests, findInPage, stopLoading, hardReload,
@@ -86,7 +104,8 @@ function BrowserOrdinaryBody(props: BrowserBodyProps & {
   const params = tab.navigation.params as SidebarRightTabParamsFor<'browser'>
   const saved = useStore(state => state.byTab[tab.id])
   const initial = useRef(saved)
-  const initialUrl = useRef(params?.previewId === undefined && params?.responsiveOpenId === undefined ? params?.url : undefined)
+  const initialUrl = useRef(params?.previewId === undefined && params?.responsiveOpenId === undefined
+    ? params?.url ?? props.initialAddress : undefined)
   const profileId = params?.profileId
   const viewportId = useId()
   const [mountEpoch, setMountEpoch] = useState(0)

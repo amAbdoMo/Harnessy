@@ -30,7 +30,7 @@ import { en, zh } from './locales.ts'
 import { createBrowserStore } from './browser/store.ts'
 import { createWebsiteProfileDraftStore } from './browser/profile-draft.ts'
 import { BrowserProfilePicker, type BrowserProfilePickerInjected } from './view/BrowserProfilePicker.tsx'
-import { BrowserDefaultsSection } from './view/BrowserDefaultsSection.tsx'
+import { BrowserDefaultsSection, type BrowserDefaultsInjected } from './view/BrowserDefaultsSection.tsx'
 import { readBrowserDefaults } from './browser/defaults.ts'
 
 export type { BrowserMode, BrowserResponsiveOwner, BrowserTabParams } from './responsive.ts'
@@ -152,10 +152,22 @@ export function apply(ctx: Context): void {
     })
   }), 'ui-sidebar-browser.agent-open')
   ctx.effect(() => ctx.locale.register(namespace, { zh, en }), 'ui-sidebar-browser.copy')
-  if (desktop !== undefined) ctx.effect(() => ctx.slots.inject('settings.section', () => ctx.slots.register({
+  if (profiles !== undefined) ctx.effect(() => ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section', id: 'browser', label: () => t('guide.title'), order: 35, locale: namespace,
+    inject: (): BrowserDefaultsInjected => ({ hooks: { websiteProfiles }, reloadProfiles: profiles.commands.reload }),
   }, BrowserDefaultsSection)), 'ui-sidebar-browser.settings')
-  ctx.effect(() => ctx.sidebarRightTabs.register({ ...browserDefinition(t), keepMounted: desktop !== undefined }), 'ui-sidebar-browser.type')
+  ctx.effect(() => ctx.sidebarRightTabs.register({
+    ...browserDefinition(t),
+    keepMounted: desktop !== undefined,
+    ...(profiles === undefined ? {} : {
+      defaultParams: () => {
+        const { profileId } = readBrowserDefaults()
+        const { phase, profiles } = websiteProfiles.getSnapshot()
+        if (profileId === undefined || (phase === 'ready' && !profiles.some(profile => profile.id === profileId))) return undefined
+        return { profileId }
+      },
+    }),
+  }), 'ui-sidebar-browser.type')
   const installFrames = (scope: Context): void => {
     const responsiveAvailable = {
       getSnapshot: () => scope.slots.entries('sidebar.right.pane.tab.browser.responsive').length !== 0,
