@@ -9,6 +9,8 @@
 /** Simplified Chinese dictionary and key-set source of truth. */
 export const zh = {
   'command.close': '关闭当前页面／窗口',
+  'command.reopenClosed': '重新打开上次关闭的浏览器标签页',
+  'command.noClosedTab': '此会话没有可重新打开的标签页',
   'command.refresh': '刷新当前页面',
   'command.noRefresh': '当前页面不支持刷新',
   'command.toggle': '展开／收起右侧栏',
@@ -50,6 +52,8 @@ export type SidebarRightKey = keyof typeof zh
 /** English dictionary, checked against the Chinese key set. */
 export const en = {
   'command.close': 'Close current page or window',
+  'command.reopenClosed': 'Reopen last closed browser tab',
+  'command.noClosedTab': 'No closed tab to reopen in this chat',
   'command.refresh': 'Refresh current page',
   'command.noRefresh': 'This page cannot be refreshed',
   'command.toggle': 'Toggle right sidebar',

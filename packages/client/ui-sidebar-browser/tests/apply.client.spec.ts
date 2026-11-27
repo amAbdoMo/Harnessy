@@ -82,13 +82,14 @@ async function boot(platform: ShortcutPlatform = 'macos', runtime: 'desktop' | '
   const sidebar = { openTabs, mounted: createSnapshotStore<string | undefined>(undefined),
     commandTarget: vi.fn<() => typeof target | undefined>(() => target),
     openTabFromTarget: vi.fn(),
+    registerCloseHandler: vi.fn(() => () => {}),
     tabsIn: vi.fn((_session: string): { id: TabId; kind: string }[] => []),
     focusIn: vi.fn(), openTabIn: vi.fn(),
     tabDomain: { occurrence: vi.fn() },
   }
   const registry = new ShortcutRegistry(runtime, platform)
   ctx.provide('sidebarRight', sidebar as never)
-  ctx.provide('shortcuts', { register: (command: ShortcutCommand) => registry.register(command) } as never)
+  ctx.provide('shortcuts', { runtime, register: (command: ShortcutCommand) => registry.register(command) } as never)
   ctx.provide('sidebarRightTabs', tabs as never)
   const input = { insertQuote: vi.fn(() => true), focus: vi.fn() }
   const conversation = { attachFiles: vi.fn(() => true), input: { for: vi.fn(() => input) } }
@@ -290,6 +291,7 @@ describe('ui-sidebar-browser apply', () => {
         onOpenRequested: vi.fn(() => () => {}), onReacquireRequested: vi.fn(() => () => {}) },
     })
     const h = await boot()
+    expect(h.sidebar.registerCloseHandler).toHaveBeenCalledExactlyOnceWith(BROWSER_KIND, expect.any(Function))
     const notice = h.registered.find(entry => entry.id === 'browser.profile-notice')
     expect([notice?.name, notice?.locale, notice?.component]).toEqual(['shell.overlay', 'sidebarBrowser', BrowserProfileNotice])
     const bodyFace = h.registered.find(entry => entry.name === 'sidebar.right.pane.tab')!.inject as

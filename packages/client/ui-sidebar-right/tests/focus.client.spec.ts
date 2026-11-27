@@ -504,6 +504,26 @@ describe('sidebar keyboard commands', () => {
 })
 
 describe('page close and refresh', () => {
+  it('reopens the last explicitly closed restorable tab with Windows Ctrl+Shift+T', () => {
+    const h = harness()
+    const registry = new ShortcutRegistry('desktop', 'windows')
+    releases.push(registerSidebarShortcuts({ register: command => registry.register(command), runtime: 'desktop' },
+      h.controller, makeTranslate(en), vi.fn()))
+    for (const kind of ['files', 'terminal']) {
+      releases.push(h.controller.registerCloseHandler(kind, () => ({ params: undefined })))
+      h.controller.openTab(kind)
+      h.controller.close(h.controller.active()!.id)
+    }
+    const gesture = { code: 'KeyT', control: true, shift: true, alt: false, meta: false,
+      repeat: false, composing: false, defaultPrevented: false }
+    const context = { target: null, region: 'page' as const, modal: null }
+    expect(registry.dispatch(gesture, context, vi.fn()).status).toBe('handled')
+    expect(h.controller.active()?.kind).toBe('terminal')
+    expect(registry.dispatch(gesture, context, vi.fn()).status).toBe('handled')
+    expect(h.controller.active()?.kind).toBe('files')
+    expect(registry.dispatch(gesture, context, vi.fn()).status).toBe('blocked')
+  })
+
   it.each(['macos', 'windows'] as const)('closes two guide panes without closing the window on %s', (platform) => {
     const h = harness()
     h.controller.split()

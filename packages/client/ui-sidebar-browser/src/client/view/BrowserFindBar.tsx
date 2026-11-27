@@ -1,5 +1,5 @@
 /** Find text in the currently visible native page. */
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode, type RefObject } from 'react'
 import { IconChevronDownOutlineRegular, IconChevronUpOutlineRegular, IconCloseOutlineRegular, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import type { TabId } from '@deepseek-ai/dsh-client-ui-dockkit'
@@ -12,18 +12,18 @@ import css from './Browser.module.css'
  * @param props - current occurrence, search controls and match result.
  * @returns inline native search controls.
  */
-export function BrowserFindBar({ tabId, findInPage, result, onClose, t }: PropsLocale<'sidebarBrowser'> & {
+export function BrowserFindBar({ tabId, input, findInPage, result, onClose, t }: PropsLocale<'sidebarBrowser'> & {
   readonly tabId: TabId
+  readonly input: RefObject<HTMLInputElement>
   readonly findInPage: BrowserTabControllers['findInPage']
   readonly result: BrowserFindResult | 'failed' | undefined
   readonly onClose: () => void
 }): ReactNode {
-  const input = useRef<HTMLInputElement>(null)
   const [query, setQuery] = useState('')
   useEffect(() => {
     input.current?.focus()
     return () => { findInPage(tabId, '') }
-  }, [findInPage, tabId])
+  }, [findInPage, input, tabId])
   const matches = typeof result === 'object' ? result.matches : 0
   const step = (forward: boolean): void => {
     if (query !== '' && matches > 0) findInPage(tabId, query, forward)

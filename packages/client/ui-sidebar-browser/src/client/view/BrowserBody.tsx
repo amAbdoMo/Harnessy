@@ -1,5 +1,5 @@
 /** Common browser chrome; a presentation adapter attaches the page inside its content container. */
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import {
   Button,
@@ -113,6 +113,7 @@ function BrowserOrdinaryBody(props: BrowserOrdinaryBodyProps): ReactNode {
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [findPage, setFindPage] = useState<string>()
   const [recordingSettingsOpen, setRecordingSettingsOpen] = useState(false)
+  const findInput = useRef<HTMLInputElement>(null)
   const actionsTrigger = useRef<HTMLButtonElement>(null)
   const annotationTrigger = useRef<HTMLButtonElement>(null)
   const previousFeedbackOpen = useRef(false)
@@ -120,8 +121,6 @@ function BrowserOrdinaryBody(props: BrowserOrdinaryBodyProps): ReactNode {
     if (previousFeedbackOpen.current && !feedbackOpen) annotationTrigger.current?.focus()
     previousFeedbackOpen.current = feedbackOpen
   }, [feedbackOpen])
-  useEffect(() => tab.actions.bindCommands({ refresh: () => { if (!feedbackOpen) reload(tab.id) } }),
-    [tab.actions, tab.id, reload, feedbackOpen])
   const state = useBrowserState(tab.id)
   const requests = useWebsiteRequests(tab.id, current => current)
   const profileState = useWebsiteProfiles(current => current)
@@ -167,6 +166,15 @@ function BrowserOrdinaryBody(props: BrowserOrdinaryBodyProps): ReactNode {
     && frame.address === 'observed' && error === undefined && target !== undefined
     ? `${state?.addressRevision ?? 0}:${target.url}` : undefined
   const findAvailable = visiblePageKey !== undefined && !frame.loading
+  const findUrl = findAvailable ? target?.url : undefined
+  const openFind = useCallback(() => {
+    if (findUrl === undefined) return
+    setFindPage(findUrl)
+    findInput.current?.focus()
+  }, [findUrl])
+  useLayoutEffect(() => tab.actions.bindCommands({ refresh: () => { if (!feedbackOpen) reload(tab.id) },
+    ...(findUrl === undefined ? {} : { find: openFind }) }),
+  [tab.actions, tab.id, reload, feedbackOpen, findUrl, openFind])
   const zoom = tab.visible && !humanAccessBlocked && frame.humanControl === true && frame.address === 'observed'
     && !frame.loading && error === undefined && frame.zoomFactor !== undefined
     ? { factor: frame.zoomFactor, set: (factor: number) => props.setZoom(tab.id, factor) } : undefined
@@ -272,12 +280,13 @@ function BrowserOrdinaryBody(props: BrowserOrdinaryBodyProps): ReactNode {
           </details>}
           {props.addFeedback !== undefined && <BrowserPageActions visible={tab.visible} disabled={humanAccessBlocked}
             hasPage={frame.address === 'observed' && !frame.loading && error === undefined}
-            find={findAvailable ? () => { setFindPage(target?.url) } : undefined}
+            find={findAvailable ? openFind : undefined}
             responsivePreview={responsivePreview}
             hardReload={() => { hardReload(tab.id) }} capture={() => props.capture(tab.id)}
             addFeedback={props.addFeedback} zoom={zoom} commands={commands} trigger={actionsTrigger} t={t} />}
         </form>
-        {findOpen && <BrowserFindBar tabId={tab.id} findInPage={findInPage} result={frame.findResult} onClose={closeFind} t={t} />}
+        {findOpen && <BrowserFindBar tabId={tab.id} input={findInput} findInPage={findInPage}
+          result={frame.findResult} onClose={closeFind} t={t} />}
         {recordingSettingsOpen && recordingPageKey !== undefined && <BrowserRecordingSettings t={t}
           close={() => { setRecordingSettingsOpen(false) }} />}
         {recordingPageKey !== undefined && recording.state !== undefined && <BrowserCaptureBar recording={recording} t={t} />}

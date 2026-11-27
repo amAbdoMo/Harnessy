@@ -134,6 +134,8 @@ export interface SidebarRightTabPlacement {
 export interface SidebarRightTabCommands {
   /** Refresh this page through its existing resource owner. */
   readonly refresh?: () => void
+  /** Focus this page's search controls while it supports finding text. */
+  readonly find?: () => void
 }
 
 /** The actions one tab may take on itself; each acts on the session the tab is in. */

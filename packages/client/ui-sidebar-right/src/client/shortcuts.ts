@@ -40,6 +40,17 @@ export function registerSidebarShortcuts(shortcuts: Pick<Shortcuts, 'register' |
       return { status: 'handled', run: () => { if (sidebar.isTargetCurrent(target)) sidebar.toggleExpanded() } }
     },
   })]
+  if (shortcuts.runtime === 'desktop') disposers.push(shortcuts.register({
+    id: 'page.reopenClosed' as ShortcutCommandId, label: () => t('command.reopenClosed'), aliases: ['reopen browser tab'],
+    defaults: { 'desktop:windows': { code: 'KeyT', modifiers: ['primary', 'shift'] } },
+    regions: ['page', 'editable', 'terminal'], modals: [],
+    resolve: ({ target: element, modal }) => {
+      if (modal !== null) return { status: 'pass' }
+      const target = sidebar.commandTarget(element)
+      const reopen = target === undefined ? undefined : sidebar.prepareReopen(target)
+      return reopen === undefined ? { status: 'blocked', reason: t('command.noClosedTab') } : { status: 'handled', run: reopen }
+    },
+  }))
   for (const kind of ['split', 'fullscreen'] as const) {
     const binding: ShortcutBinding = kind === 'split' ? { code: 'Backslash', modifiers: ['primary'] }
       : { code: 'Enter', modifiers: ['primary', 'alt'] }

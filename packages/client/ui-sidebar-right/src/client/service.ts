@@ -40,7 +40,7 @@ import type { FloatRect, PaneId, TabId, TabRecord } from '@deepseek-ai/dsh-clien
 import { activeDockPaneId, canSplit, findContentTab, findPaneContentTab, dockPaneIds, findTabPane, getPane } from '@deepseek-ai/dsh-client-ui-dockkit'
 import type { BoundActions } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { SidebarRightNavigationParams, SidebarRightResourceParams, SidebarRightTabParamsFor } from './contract/params.ts'
+import type { SidebarRightNavigationParams, SidebarRightResourceParams, SidebarRightTabParams, SidebarRightTabParamsFor } from './contract/params.ts'
 import { pageAddress } from './contract/seed.ts'
 import type { SidebarRightTabClaim, SidebarRightTabRegistry } from './tab-registry.ts'
 import { canCloseTab, type SidebarRightState, type SurfaceState } from './stores.ts'
@@ -179,8 +179,8 @@ export interface SidebarRightOpenTabOptions<K extends string = string> extends S
 /** The scheme every resource address carries; anything else is not a resource this face opens. */
 const RESOURCE_SCHEME = 'dsh-resource://'
 
-/** Synchronous close/replacement hook; resource owners retain any background cleanup. */
-export type SidebarRightCloseHandler = (sessionId: SessionId, tab: TabRecord) => void
+/** Synchronous cleanup hook; optionally supply fresh navigation for reopening an explicitly closed tab. */
+export type SidebarRightCloseHandler = (sessionId: SessionId, tab: TabRecord) => void | { readonly params: SidebarRightTabParams }
 
 /** The outward right-Sidebar face (`ctx.sidebarRight`). */
 export interface ISidebarRight {
@@ -267,6 +267,7 @@ export class SidebarRightController implements ISidebarRight {
   private readonly adopted: ReadonlyMap<SessionId, Adoption>
   private readonly rooms: ReadonlyMap<SessionId, RoomRule>
   private readonly closeHandlers = new Map<string, SidebarRightCloseHandler>()
+  private recentlyClosed: { sessionId: SessionId; kind: string; params: SidebarRightTabParams }[] = []
 
   /**
    * Register resource cleanup before explicit removal. Failure preserves the tab.
@@ -277,7 +278,11 @@ export class SidebarRightController implements ISidebarRight {
   registerCloseHandler(kind: string, handler: SidebarRightCloseHandler): () => void {
     if (this.closeHandlers.has(kind)) throw new Error(`sidebarRight: close handler already registered for ${kind}`)
     this.closeHandlers.set(kind, handler)
-    return () => { if (this.closeHandlers.get(kind) === handler) this.closeHandlers.delete(kind) }
+    return () => {
+      if (this.closeHandlers.get(kind) !== handler) return
+      this.closeHandlers.delete(kind)
+      this.recentlyClosed = this.recentlyClosed.filter(entry => entry.kind !== kind)
+    }
   }
 
   /**
@@ -386,7 +391,11 @@ export class SidebarRightController implements ISidebarRight {
     if (actions === undefined || surface === undefined) return
     const tab = surface.layout.tabs[tabId]
     if (tab === undefined || !canCloseTab(surface, tabId)) return
-    this.removeAfterCleanup(sessionId, tab, () => { actions.closeTab(sessionId, tabId) })
+    const reopen = this.closeHandlers.get(tab.kind)?.(sessionId, tab)
+    actions.closeTab(sessionId, tabId)
+    if (reopen === undefined) return
+    this.recentlyClosed.push({ sessionId, kind: tab.kind, params: reopen.params })
+    if (this.recentlyClosed.length > 16) this.recentlyClosed.shift()
   }
 
   private removeAfterCleanup(sessionId: SessionId, tab: TabRecord, commit: () => void): void {
@@ -408,11 +417,11 @@ export class SidebarRightController implements ISidebarRight {
   }
 
   /** Place a page type in one session at the address pages are recorded under; an unregistered kind throws. */
-  private placeTab<K extends string>(
+  private placeTab(
     sessionId: SessionId,
     actions: SurfaceActions,
-    kind: K,
-    options: SidebarRightOpenTabOptions<K>,
+    kind: string,
+    options: SidebarRightPlacement & { readonly params?: SidebarRightTabParams },
   ): void {
     const definition = this.tabs.get(kind)
     if (definition === undefined) throw new Error(`sidebarRight: no tab type is registered as "${kind}"`)
@@ -544,8 +553,9 @@ export class SidebarRightController implements ISidebarRight {
    * Open from a captured pane using the guide's replacement and floating placement rules.
    * @param kind - registered page kind.
    * @param target - captured live pane and optional page.
+   * @param params - explicit fresh navigation to use when reopening a tab.
    */
-  openTabFromTarget(kind: string, target: SidebarRightTarget): void {
+  openTabFromTarget(kind: string, target: SidebarRightTarget, params?: SidebarRightTabParams): void {
     if (!this.isTargetCurrent(target)) return
     const { sessionId, actions } = this.require()
     this.host.openWithFocus(sessionId, () => {
@@ -554,13 +564,30 @@ export class SidebarRightController implements ISidebarRight {
         actions.setExpanded(sessionId, true)
         this.focus(tab.id)
       } else {
-        this.openTab(kind, {
+        this.placeTab(sessionId, actions, kind, {
+          ...(params === undefined ? {} : { params }),
           ...target.host === 'dock' ? { paneId: target.paneId } : {},
           ...tab?.kind === 'guide' ? { replaceTab: tab.id } : {},
         })
       }
       return this.mountedSurface()?.layout.activePaneId
     })
+  }
+
+  /**
+   * Resolve reopening the last restorable tab closed in this Session.
+   * @param target - captured destination pane in the on-screen Session.
+   * @returns an operation that still requires the pane and history entry to be current, when available.
+   */
+  prepareReopen(target: SidebarRightTarget): (() => void) | undefined {
+    const entry = this.recentlyClosed.findLast(candidate => candidate.sessionId === target.sessionId)
+    if (entry === undefined) return undefined
+    return () => {
+      const latest = this.recentlyClosed.findLast(candidate => candidate.sessionId === target.sessionId)
+      if (latest !== entry || !this.isTargetCurrent(target)) return
+      this.openTabFromTarget(entry.kind, target, entry.params)
+      this.recentlyClosed = this.recentlyClosed.filter(candidate => candidate !== entry)
+    }
   }
 
   /**

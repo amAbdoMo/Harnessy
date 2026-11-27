@@ -25,7 +25,7 @@ import type { NativeBrowser } from './browser/native-browser.ts'
 import type { DesktopBrowserBridge } from '../types.ts'
 import { browserWorkspace } from './electron/workspace.ts'
 import type { BrowserPageFactory } from './browser/BrowserPage.ts'
-import { BROWSER_ID, browserDefinition } from './definition.tsx'
+import { BROWSER_ID, BROWSER_KIND, browserDefinition } from './definition.tsx'
 import { en, zh } from './locales.ts'
 import { createBrowserStore } from './browser/store.ts'
 import { createWebsiteProfileDraftStore } from './browser/profile-draft.ts'
@@ -84,6 +84,20 @@ export function apply(ctx: Context): void {
       },
       /* jscpd:ignore-end */
     }), 'ui-sidebar-browser: shortcut')
+    if (ctx.shortcuts.runtime === 'desktop') ctx.effect(() => ctx.shortcuts.register({
+      id: 'browser.find' as ShortcutCommandId, label: () => t('find.label'), aliases: ['search current web page'],
+      defaults: { 'desktop:windows': { code: 'KeyF', modifiers: ['primary'] } },
+      regions: ['page', 'editable'], modals: [],
+      resolve: ({ target: element, modal }) => {
+        if (modal !== null) return { status: 'pass' }
+        const target = ctx.sidebarRight.focusedTarget(element)
+        const find = target?.occurrence?.commands.find
+        if (target === undefined || find === undefined) return { status: 'blocked', reason: t('shortcut.noFindPage') }
+        return { status: 'handled', run: () => {
+          if (ctx.sidebarRight.isTargetCurrent(target) && target.occurrence?.commands.find === find) find()
+        } }
+      },
+    }), 'ui-sidebar-browser: find shortcut')
   })
   const store = createBrowserStore()
   const openTabs = ctx.sidebarRight.openTabs
@@ -175,6 +189,14 @@ export function apply(ctx: Context): void {
     }
     const controllers = new Map<BrowserBodyProps['sessionId'], BrowserInjected & BrowserResponsiveInjected>()
     const requests = new Map<BrowserBodyProps['sessionId'], WebsiteRequestSession>()
+    if (desktop !== undefined) scope.effect(() => scope.sidebarRight.registerCloseHandler(BROWSER_KIND, (sessionId, tab) => {
+      const { params } = scope.sidebarRight.tabDomain.occurrence(sessionId, tab).navigation.getSnapshot()
+      const browser = params as BrowserTabParams | undefined
+      if (browser?.profileId !== undefined) return { params: { profileId: browser.profileId } }
+      if (browser?.previewId !== undefined || browser?.responsiveOpenId !== undefined) return
+      const url = controllers.get(sessionId)?.reopenAddress(tab.id) ?? browser?.url
+      return { params: url === undefined ? {} : { url } }
+    }), 'ui-sidebar-browser: record closed tabs')
     const native: NativeBrowser | undefined = desktop === undefined ? undefined : {
       createPage: ({ sessionId, options, leaseChanged }) => {
         let session = requests.get(sessionId)

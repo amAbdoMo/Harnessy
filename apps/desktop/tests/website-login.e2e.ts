@@ -816,6 +816,99 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
       if (cleanupErrors.length > 0) throw new AggregateError([...(failure === undefined ? [] : [failure]), ...cleanupErrors], 'Native browser defaults acceptance failed')
     }
   })
+  it.skipIf(process.platform !== 'win32')('uses Windows Browser shortcuts to find text and reopen the last closed tab', { timeout: 240_000, retry: 0 }, async () => {
+    expect(readClientBuildRecord(repository).environment.DSH_CLIENT_BUILD_PROFILE).toBe('custom-harness')
+    const root = mkdtempSync(join(tmpdir(), 'dsh-browser-shortcuts-'))
+    const env = childEnvironment(root)
+    env.DEEPSEEK_API_KEY = 'fixture-key-not-an-external-credential'
+    const model = websiteModelFixture()
+    const website = createServer((request, response) => {
+      response.setHeader('content-type', 'text/html; charset=utf-8')
+      response.end('<!doctype html><title>Browser shortcuts fixture</title>'
+        + (request.url === '/search' ? '<p>Searchable marker</p><p>Searchable marker</p>' : '<p>Other page</p>'))
+    })
+    let app: ElectronApplication | undefined
+    let failure: unknown
+    try {
+      const origin = await listen(website)
+      const modelUrl = await listen(model.server)
+      await new DesktopProjectManager(resolveDesktopPaths(env.DSH_HOME, env.DSH_DESKTOP_PROFILE_DIR), { dsh: project }).applyRelease()
+      writeFileSync(join(env.DSH_DESKTOP_PROFILE_DIR!, 'cordis.patch.yml'),
+        '- id: webserver\n  config:\n    host: 127.0.0.1\n    port: 0\n'
+        + `- id: llm-deepseek\n  disabled: false\n  config:\n    baseURL: ${modelUrl}\n    thinking: disabled\n`
+        + '- id: agent-default-model\n  config:\n    provider: deepseek-official\n    model: deepseek-flash\n    reasoningEffort: off\n')
+      const desktop = await launchBrowserAcceptanceDesktop(env)
+      app = desktop
+      const page = await englishBrowserAcceptancePage(desktop)
+      const composer = page.locator('[data-composer-input][contenteditable="true"]').last()
+      await composer.waitFor({ timeout: 120_000 })
+      await composer.fill('Start a chat to check browser shortcuts.')
+      await composer.press('Enter')
+      await page.locator('[data-chat-turn]').getByText('Website acceptance', { exact: true }).last().waitFor({ timeout: 60_000 })
+      await page.locator('[data-sidebar-right-expand]').click()
+      const browser = page.locator('[data-rightbar-col]')
+      const address = browser.getByPlaceholder('Enter an HTTP(S) address', { exact: true }).filter({ visible: true })
+      const navigate = async (url: string) => { await address.fill(url); await address.press('Enter') }
+      const activeUrl = async () => desktop.evaluate(({ webContents }, id) =>
+        webContents.fromId(id)?.getURL(), await activeBrowserGuest(page))
+      await page.locator('[data-sidebar-right-guide-entry="browser"]').click()
+      await navigate(`${origin}/other`)
+      await expect.poll(activeUrl).toBe(`${origin}/other`)
+      await browser.getByRole('button', { name: 'New tab', exact: true }).click()
+      await page.locator('[data-sidebar-right-guide-entry="browser"]').click()
+      await navigate(`${origin}/initial`)
+      await expect.poll(activeUrl).toBe(`${origin}/initial`)
+      const searchUrl = `${origin}/search`
+      await navigate(searchUrl)
+      await expect.poll(activeUrl).toBe(searchUrl)
+      const guest = await activeBrowserGuest(page)
+      await expect.poll(() => desktop.evaluate(({ webContents }, id) => webContents.fromId(id)!.isLoading(), guest)).toBe(false)
+      const webview = browser.locator('webview[data-sidebar-browser-frame]:visible')
+      await desktop.evaluate(({ BrowserWindow }) => {
+        BrowserWindow.getAllWindows().find(win => win.webContents.getURL().startsWith('dsh-app://app/'))!.focus()
+      })
+      await webview.click({ position: { x: 20, y: 20 } })
+      await expect.poll(() => desktop.evaluate(({ webContents }, id) => webContents.fromId(id)!.isFocused(), guest)).toBe(true)
+      await expect.poll(() => webview.evaluate(element => document.activeElement === element)).toBe(true)
+      await desktop.evaluate(({ webContents }, id) => {
+        const contents = webContents.fromId(id)!
+        contents.sendInputEvent({ type: 'keyDown', keyCode: 'F', modifiers: ['control'] })
+        contents.sendInputEvent({ type: 'keyUp', keyCode: 'F', modifiers: ['control'] })
+      }, guest)
+      const find = browser.getByRole('searchbox', { name: 'Find in page', exact: true })
+      const result = browser.getByRole('search').getByRole('status')
+      await find.fill('Searchable marker')
+      await expect.poll(() => result.innerText()).toMatch(/^[12] of 2$/u)
+      const selected = await result.innerText()
+      await find.press('Enter')
+      await expect.poll(() => result.innerText()).toBe(selected === '1 of 2' ? '2 of 2' : '1 of 2')
+      await find.press('Escape')
+      await browser.getByRole('tab', { selected: true }).getByRole('button', { name: 'Close', exact: true }).click()
+      await expect.poll(activeUrl).toBe(`${origin}/other`)
+      const survivingGuest = await activeBrowserGuest(page)
+      await webview.click({ position: { x: 20, y: 20 } })
+      await expect.poll(() => webview.evaluate(element => document.activeElement === element)).toBe(true)
+      await desktop.evaluate(({ webContents }, id) => {
+        const contents = webContents.fromId(id)!
+        contents.sendInputEvent({ type: 'keyDown', keyCode: 'T', modifiers: ['control', 'shift'] })
+        contents.sendInputEvent({ type: 'keyUp', keyCode: 'T', modifiers: ['control', 'shift'] })
+      }, survivingGuest)
+      await expect.poll(activeUrl).toBe(searchUrl)
+      expect(await activeBrowserGuest(page)).not.toBe(guest)
+      expect(model.errors).toEqual([])
+    } catch (error) { failure = error; throw error }
+    finally {
+      model.dispose()
+      const cleanupErrors: unknown[] = []
+      if (app !== undefined) { try { await stopDesktop(app, env) } catch (error) { cleanupErrors.push(error) } }
+      for (const server of [website, model.server]) {
+        if (server.listening) { try { await closeServer(server) } catch (error) { cleanupErrors.push(error) } }
+      }
+      if (failure === undefined && cleanupErrors.length === 0) await removeOwned(root)
+      else cleanupErrors.push(new Error(`Native browser shortcut acceptance retained diagnostics: ${root}`))
+      if (cleanupErrors.length > 0) throw new AggregateError([...(failure === undefined ? [] : [failure]), ...cleanupErrors], 'Native browser shortcut acceptance failed')
+    }
+  })
   it('native local TLS consent isolates tabs and reacquisition while preserving normal workspace cookies', { retry: 0, timeout: 420_000 }, async () => {
     if (process.platform !== 'win32') throw new Error('Native TLS acceptance requires an interactive Windows desktop')
     expect(readClientBuildRecord(repository).environment.DSH_CLIENT_BUILD_PROFILE,

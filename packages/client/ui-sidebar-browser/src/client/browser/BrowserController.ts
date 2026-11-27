@@ -102,6 +102,9 @@ export class BrowserController implements HostObservable<BrowserControllerState>
    */
   get requests(): BrowserPage['requests'] { return this.page.requests }
 
+  /** @returns last committed ordinary page address for a fresh tab. */
+  reopenAddress(): string | undefined { return currentBrowserTarget(this.checkpoint)?.url }
+
   /** Capture this tab for explicit visual feedback.
    * @returns PNG and page context.
    */
@@ -381,6 +384,8 @@ export interface BrowserTabControllers {
   hardReload(tabId: TabId): void
   /** @param tabId - owning tab. @param query - text to find, or empty to clear. @param forward - stepping direction. */
   findInPage(tabId: TabId, query: string, forward?: boolean): void
+  /** @param tabId - closing ordinary tab. @returns its last committed address. */
+  reopenAddress(tabId: TabId): string | undefined
   /** @param tabId - owning tab. @param factor - zoom from 0.5 to 3. @returns after native acknowledgement. */
   setZoom(tabId: TabId, factor: number): Promise<void>
   /** @param tabId - owning ordinary tab. @returns after native inspector dispatch. */
@@ -497,6 +502,7 @@ export function createBrowserControllers(actions: BoundActions<BrowserStore>, cr
     stopLoading: (id) => { controller(id)?.stopLoading() },
     hardReload: (id) => { controller(id)?.hardReload() },
     findInPage: (id, query, forward) => { controller(id)?.findInPage(query, forward) },
+    reopenAddress: id => controller(id)?.reopenAddress(),
     setZoom: (id, factor) => controller(id)?.setZoom(factor) ?? Promise.reject(new Error('Browser tab unavailable')),
     openDevTools: id => controller(id)?.openDevTools() ?? Promise.reject(new Error('Browser tab unavailable')),
     setSandbox: (id, enabled) => { controller(id)?.setSandbox(enabled) },
