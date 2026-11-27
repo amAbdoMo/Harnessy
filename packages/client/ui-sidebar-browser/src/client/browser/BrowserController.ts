@@ -102,7 +102,10 @@ export class BrowserController implements HostObservable<BrowserControllerState>
    */
   get requests(): BrowserPage['requests'] { return this.page.requests }
 
-  /** @returns last committed ordinary page address for a fresh tab. */
+  /**
+   * Read the navigation checkpoint to reopen this tab at its last page.
+   * @returns the ordinary page address, when recorded.
+   */
   reopenAddress(): string | undefined { return currentBrowserTarget(this.checkpoint)?.url }
 
   /** Capture this tab for explicit visual feedback.
