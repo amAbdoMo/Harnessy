@@ -426,12 +426,18 @@ async function stopHelper(helper: ReturnType<typeof nativeDialog>): Promise<void
 async function ownedTree(pid: number, env: Record<string, string>): Promise<number[]> {
   const { stdout } = await runFile(powershell(env), ['-NoProfile', '-NonInteractive', '-Command', `
 $all = @(Get-CimInstance Win32_Process)
-$owned = @(${pid})
+$root = $all | Where-Object { $_.ProcessId -eq ${pid} }
+if ($null -eq $root) { throw 'Owned Electron process is unavailable' }
+$owned = @($root)
 do {
-  $next = @($all | Where-Object { $_.ParentProcessId -in $owned -and $_.ProcessId -notin $owned } | ForEach-Object { $_.ProcessId })
+  $next = @(foreach ($candidate in $all) {
+    if ($candidate.ProcessId -in $owned.ProcessId) { continue }
+    $parent = $owned | Where-Object { $_.ProcessId -eq $candidate.ParentProcessId }
+    if ($null -ne $parent -and $candidate.CreationDate -ge $parent.CreationDate) { $candidate }
+  })
   $owned += $next
 } while ($next.Count -gt 0)
-$owned -join ','
+$owned.ProcessId -join ','
 `], { env, timeout: 15_000, windowsHide: true })
   return stdout.trim().split(',').map(Number)
 }
