@@ -30,12 +30,14 @@ export interface BrowserDefaults extends DesktopBrowserDefaults {
   readonly customDimensions: BrowserDimensions
   readonly searchEngine: BrowserSearchEngine
   readonly profileId: DesktopWebsiteProfileId | undefined
+  readonly autoShowFloatingPreview: boolean
 }
 
 const STORAGE_KEY = 'dsh.browser.defaults'
 const INITIAL_DEFAULTS: BrowserDefaults = {
   zoomFactor: 1, viewport: 'fill', appearance: 'system', profileId: undefined,
   customDimensions: { width: 1280, height: 720 }, searchEngine: 'duckduckgo',
+  autoShowFloatingPreview: true,
 }
 const PROFILE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 
@@ -83,6 +85,8 @@ export function readBrowserDefaults(): BrowserDefaults {
       searchEngine: searchEngine ?? INITIAL_DEFAULTS.searchEngine,
       customDimensions: width === undefined || height === undefined ? INITIAL_DEFAULTS.customDimensions : { width, height },
       profileId,
+      autoShowFloatingPreview: 'autoShowFloatingPreview' in stored && typeof stored.autoShowFloatingPreview === 'boolean'
+        ? stored.autoShowFloatingPreview : INITIAL_DEFAULTS.autoShowFloatingPreview,
     }
   } catch (_error: unknown) { /* Unreadable preferences must not prevent opening a browser tab. */ }
   return INITIAL_DEFAULTS

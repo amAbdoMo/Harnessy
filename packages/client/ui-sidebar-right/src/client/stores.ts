@@ -32,7 +32,7 @@ import type {
   DockMode, DockZone, FloatRect, History, LayoutOp, LayoutState, Mint, PaneId, SplitId, TabId, TabRecord,
 } from '@deepseek-ai/dsh-client-ui-dockkit'
 import {
-  activeDockPaneId, createInitialState, dockPaneIds, EMPTY_HISTORY, findContentTab, findPaneContentTab, findTabPane, getPane,
+  activeDockPaneId, createInitialState, dockPaneIds, EMPTY_HISTORY, findContentTab, findPaneContentTab, findTabPane, getPane, getTab,
   planDropTab, planDuplicateTab, planFloatTab, planOpenContent, planPlaceTab, planResizeSplit, planSetExpanded,
   planSetMode, planSettle, planSplitPane, planUnfloatPane, record, replay, stepBack, stepForward,
 } from '@deepseek-ai/dsh-client-ui-dockkit'
@@ -89,6 +89,8 @@ export interface OpenContentIntent {
   readonly paneId?: PaneId
   /** Split the target pane and put new content alone in the new pane. */
   readonly preferNewPane?: boolean
+  /** Open as a floating pane, keeping the sidebar at its current expansion. */
+  readonly floating?: boolean
   /** Take this tab's pane and slot, and close it in the same entry. */
   readonly replaceTab?: TabId
   /** Resource tabs reveal an existing identity by default; `false` permits duplicates. Pages always deduplicate within the target pane. */
@@ -237,7 +239,7 @@ type SidebarRightActions = {
   placeTab: (draft: SidebarRightState, sessionId: string, tabId: TabId, toPaneId: PaneId, index: number) => void
   dropTab: (draft: SidebarRightState, sessionId: string, tabId: TabId, paneId: PaneId, zone: DockZone) => void
   floatTab: (draft: SidebarRightState, sessionId: string, tabId: TabId, rect?: FloatRect) => void
-  unfloatPane: (draft: SidebarRightState, sessionId: string, paneId: PaneId) => void
+  unfloatPane: (draft: SidebarRightState, sessionId: string, paneId: PaneId, revealSidebar?: boolean) => void
   moveFloat: (draft: SidebarRightState, sessionId: string, paneId: PaneId, x: number, y: number) => void
   resizeFloat: (draft: SidebarRightState, sessionId: string, paneId: PaneId, rect: FloatRect) => void
   resizeSplit: (draft: SidebarRightState, sessionId: string, splitId: SplitId, sizes: readonly number[]) => void
@@ -262,10 +264,12 @@ function stepped(surface: SurfaceState, step: HistoryStepper): SurfaceState {
  * expansion of an empty column needs one, which can be long after the store was
  * built and in a language the user has since changed to.
  * @param seed - the registered default page, read at each mint.
+ * @param floatOnCollapse - current preference for the active docked tab's kind.
  * @returns the handle (spec, type, identity, and factory in one).
  */
 export function createSidebarRightStore(
   seed: () => SidebarRightSeed,
+  floatOnCollapse?: (kind: string) => boolean,
 ): EngineStoreHandle<SidebarRightState, SidebarRightActions> {
   const handle = defineStore<SidebarRightState, SidebarRightActions>({
     init: (): SidebarRightState => ({ bySession: {} }),
@@ -277,7 +281,13 @@ export function createSidebarRightStore(
         d.bySession = seat(d, sessionId, s => advance(s, state => planSetExpanded(state, expanded), seed))
       },
       toggleExpanded: (d, sessionId: string) => {
-        d.bySession = seat(d, sessionId, s => advance(s, state => planSetExpanded(state, !state.expanded), seed))
+        d.bySession = seat(d, sessionId, s => advance(s, (state, mint) => {
+          const ops = planSetExpanded(state, !state.expanded)
+          if (!state.expanded || floatOnCollapse === undefined) return ops
+          const tabId = getPane(state, activeDockPaneId(state)).activeTabId
+          if (tabId === undefined || !floatOnCollapse(getTab(state, tabId).kind)) return ops
+          return [...planFloatTab(state, mint, tabId).ops, ...ops]
+        }, seed))
       },
       // Switching presentation is recorded like any other change, so stepping
       // back through the sequence puts the surface back the way it was drawn.
@@ -308,7 +318,7 @@ export function createSidebarRightStore(
       openContent: (d, sessionId: string, intent, settled) => {
         d.bySession = seat(d, sessionId, s => advance(s, (state, mint) => {
           const { kind, contentId, title, replaceTab: replace } = intent
-          const ops: LayoutOp[] = [...planSetExpanded(state, true)]
+          const ops: LayoutOp[] = intent.floating === true ? [] : [...planSetExpanded(state, true)]
           // A replaced tab lends its pane and slot; one that floats cannot (a
           // floating pane holds one tab), so the new tab lands as if unplaced.
           const replaced = replace === undefined ? undefined : findTabPane(state, replace)
@@ -347,6 +357,9 @@ export function createSidebarRightStore(
               })
           ops.push(...planned.ops)
           if (replace !== undefined && replace !== planned.tabId) ops.push({ type: 'closeTab', tabId: replace })
+          if (intent.floating === true && (revealed === undefined || findTabPane(state, revealed).host === 'dock')) {
+            ops.push(...planFloatTab(state, mint, planned.tabId).ops)
+          }
           settled(planned.tabId)
           return ops
         }, seed))
@@ -399,12 +412,13 @@ export function createSidebarRightStore(
       },
       // A floating pane holds one tab; docking it back lands in the active
       // docked pane, and only a page is subject to the merge rule there.
-      unfloatPane: (d, sessionId: string, paneId: PaneId) => {
+      unfloatPane: (d, sessionId: string, paneId: PaneId, revealSidebar = false) => {
         d.bySession = seat(d, sessionId, s => advance(s, (state) => {
           const floated = getPane(state, paneId).tabs[0]
           const plan = (): readonly LayoutOp[] => planUnfloatPane(state, paneId)
           /* v8 ignore next -- a floating pane holds exactly one tab. */
-          return floated === undefined ? plan() : arriving(state, floated, activeDockPaneId(state), plan)
+          const dock = floated === undefined ? plan() : arriving(state, floated, activeDockPaneId(state), plan)
+          return revealSidebar ? [...dock, ...planSetExpanded(state, true)] : dock
         }, seed))
       },
       moveFloat: (d, sessionId: string, paneId: PaneId, x: number, y: number) => {

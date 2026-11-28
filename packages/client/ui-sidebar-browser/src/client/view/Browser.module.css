@@ -311,6 +311,13 @@
   gap: 12px;
 }
 
+.defaultsToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 /* Native guest input must not consume a docking gesture's window events. */
 :global(html:has([data-dockkit-pointer])) .webview {
   pointer-events: none;

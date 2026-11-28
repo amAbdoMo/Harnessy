@@ -153,6 +153,8 @@ export interface SidebarRightPlacement {
   readonly paneId?: PaneId
   /** Prefer a new pane for new content; use the target pane when splitting is unavailable. */
   readonly preferNewPane?: boolean
+  /** Present the content in a floating pane without opening a collapsed sidebar. */
+  readonly floating?: boolean
   /** Take this tab's place — its pane and its strip slot — and close it in the same step. */
   readonly replaceTab?: TabId
   /**
@@ -201,8 +203,8 @@ export interface ISidebarRight {
    * `canOpen` accept the address and the best band wins; with it, that kind's
    * type in force opens the address (its `canOpen` still applies). An address
    * outside `dsh-resource://`, or one no type will open, is a wiring mistake,
-   * not a user error, so it throws. The column expands in the same step,
-   * because content the user cannot see is not opened.
+   * not a user error, so it throws. The column expands in the same step unless
+   * `options.floating` presents the content outside the docked column.
    * @param address - a `dsh-resource://<type>/…` address.
    * @param options - placement, the opening type, and navigation parameters.
    */
@@ -442,7 +444,7 @@ export class SidebarRightController implements ISidebarRight {
     const surface = this.adopted.get(sessionId)?.store.getSnapshot().bySession[sessionId]
     const targetPane = surface === undefined ? undefined : placement.paneId ?? activeDockPaneId(surface.layout)
     const target = targetPane === undefined ? undefined : surface?.layout.nodes[targetPane]
-    const preferNewPane = placement.preferNewPane === true
+    const preferNewPane = placement.floating !== true && placement.preferNewPane === true
       && placement.replaceTab === undefined
       && surface !== undefined
       && target?.kind === 'pane'
@@ -458,6 +460,7 @@ export class SidebarRightController implements ISidebarRight {
       title: claim.title,
       ...placement.paneId === undefined ? {} : { paneId: placement.paneId },
       ...preferNewPane ? { preferNewPane: true } : {},
+      ...placement.floating === true ? { floating: true } : {},
       ...placement.replaceTab === undefined ? {} : { replaceTab: placement.replaceTab },
       ...placement.revealIfOpened === undefined ? {} : { revealIfOpened: placement.revealIfOpened },
     }, (tabId) => { this.tabDomain.navigate(sessionId, tabId, { address, params }) }) }
@@ -661,7 +664,7 @@ export class SidebarRightController implements ISidebarRight {
     const { sessionId, actions } = this.require()
     const autoFullscreen = this.host.autoFullscreen()
     const fullscreen = autoFullscreen || this.mountedSurface()?.layout.mode === 'fullscreen'
-    if (fullscreen && autoFullscreen) actions.setExpanded(sessionId, false)
+    if (fullscreen && autoFullscreen) actions.toggleExpanded(sessionId)
     actions.setMode(sessionId, fullscreen ? 'push' : 'fullscreen')
   }
 

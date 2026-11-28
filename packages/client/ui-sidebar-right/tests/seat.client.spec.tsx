@@ -986,7 +986,7 @@ describe('intentsFor — the kit\'s gestures as one session\'s store actions', (
     expect(actions.closeTab).toHaveBeenCalledWith(SESSION, TAB_1)
     expect(actions.duplicateTab).toHaveBeenCalledWith(SESSION, TAB_1)
     expect(actions.floatTab).toHaveBeenCalledWith(SESSION, TAB_1, rect)
-    expect(actions.unfloatPane).toHaveBeenCalledWith(SESSION, PANE_2)
+    expect(actions.unfloatPane).toHaveBeenCalledWith(SESSION, PANE_2, true)
     expect(actions.placeTab).toHaveBeenCalledWith(SESSION, TAB_1, PANE_1, 0)
     expect(actions.dropTab).toHaveBeenCalledWith(SESSION, TAB_1, PANE_1, 'right')
     expect(actions.moveFloat).toHaveBeenCalledWith(SESSION, PANE_2, 30, 40)

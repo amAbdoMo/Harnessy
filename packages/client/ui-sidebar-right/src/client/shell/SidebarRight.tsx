@@ -171,7 +171,7 @@ export function intentsFor(sessionId: SessionId, actions: Store['actions'], open
     closeTab: closeTab ?? ((tabId) => { actions.closeTab(sessionId, tabId) }),
     duplicateTab: (tabId) => { actions.duplicateTab(sessionId, tabId) },
     floatTab: (tabId, rect?: FloatRect) => { actions.floatTab(sessionId, tabId, rect) },
-    unfloatPane: (paneId) => { actions.unfloatPane(sessionId, paneId) },
+    unfloatPane: (paneId) => { actions.unfloatPane(sessionId, paneId, true) },
     placeTab: (tabId, toPaneId, index) => { actions.placeTab(sessionId, tabId, toPaneId, index) },
     dropTab: (tabId, paneId, zone) => { actions.dropTab(sessionId, tabId, paneId, zone) },
     moveFloat: (paneId, x, y) => { actions.moveFloat(sessionId, paneId, x, y) },

@@ -823,7 +823,7 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
       if (cleanupErrors.length > 0) throw new AggregateError([...(failure === undefined ? [] : [failure]), ...cleanupErrors], 'Native browser defaults acceptance failed')
     }
   })
-  it.skipIf(process.platform !== 'win32')('applies Windows browser viewport, search and chat link settings', { timeout: 240_000, retry: 0 }, async () => {
+  it.skipIf(process.platform !== 'win32')('applies Windows browser preferences and keeps the preview visible when the sidebar closes', { timeout: 240_000, retry: 0 }, async () => {
     expect(readClientBuildRecord(repository).environment.DSH_CLIENT_BUILD_PROFILE).toBe('custom-harness')
     const root = mkdtempSync(join(tmpdir(), 'dsh-browser-preferences-'))
     const env = childEnvironment(root)
@@ -867,6 +867,8 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
       await saveSize.click()
       await dialog.getByRole('combobox', { name: 'Search engine', exact: true }).click()
       await page.getByRole('option', { name: 'Bing', exact: true }).click()
+      const autoFloat = dialog.getByRole('switch', { name: 'Auto-show floating preview', exact: true })
+      expect(await autoFloat.getAttribute('aria-checked')).toBe('true')
       await dialog.getByRole('button', { name: 'Harnessy Browser', exact: true }).waitFor()
       await dialog.getByRole('button', { name: 'Close', exact: true }).click()
       await dialog.waitFor({ state: 'hidden' })
@@ -877,6 +879,17 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
         const contents = webContents.fromId(id)!
         return contents.executeJavaScript('({width: innerWidth, height: innerHeight, address: location.href})')
       }, guest)).toEqual({ width: 932, height: 612, address: `${origin}/inside` })
+      await desktop.evaluate(({ webContents }, id) => webContents.fromId(id)!.executeJavaScript('window.fixtureState = "kept"'), guest)
+      const collapse = page.getByRole('button', { name: 'Collapse right sidebar', exact: true })
+      const floatingBrowser = page.locator('[data-dockkit-float]').filter({ has: page.locator('webview[data-sidebar-browser-frame]') })
+      await collapse.click()
+      await floatingBrowser.locator('webview').waitFor({ state: 'visible' })
+      await collapse.waitFor({ state: 'hidden' })
+      expect(await activeBrowserGuest(page)).toBe(guest)
+      expect(await desktop.evaluate(({ webContents }, id) => webContents.fromId(id)!.executeJavaScript('window.fixtureState'), guest)).toBe('kept')
+      await floatingBrowser.getByRole('button', { name: 'Send back to the sidebar', exact: true }).click()
+      await collapse.waitFor({ state: 'visible' })
+      expect(await activeBrowserGuest(page)).toBe(guest)
       await desktop.evaluate(({ webContents }, id) => {
         webContents.fromId(id)!.session.protocol.handle('https', (request) => {
           const url = new URL(request.url)
@@ -891,10 +904,15 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
         return webContents.fromId(id)!.executeJavaScript('document.body.innerText')
       }, guest)).toBe('window sizing & layout')
       const destination = await openBrowserSettings(page)
+      await autoFloat.click()
+      expect(await autoFloat.getAttribute('aria-checked')).toBe('false')
       await destination.getByRole('button', { name: 'Harnessy Browser', exact: true }).click()
       await page.getByRole('menuitem', { name: 'System browser', exact: true }).click()
       await destination.getByRole('button', { name: 'Close', exact: true }).click()
       await destination.waitFor({ state: 'hidden' })
+      await collapse.click()
+      await page.locator('webview[data-sidebar-browser-frame]').waitFor({ state: 'hidden' })
+      expect(await floatingBrowser.count()).toBe(0)
       const handoff = join(root, 'shell-handoff.txt')
       await desktop.evaluate(({ shell }, { path, target }) => {
         const open = shell.openExternal
@@ -917,6 +935,7 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
       expect(await restored.getByRole('textbox', { name: 'Width (px)', exact: true }).inputValue()).toBe('932')
       expect(await restored.getByRole('textbox', { name: 'Height (px)', exact: true }).inputValue()).toBe('612')
       expect(await restored.getByRole('combobox', { name: 'Search engine', exact: true }).innerText()).toContain('Bing')
+      expect(await restored.getByRole('switch', { name: 'Auto-show floating preview', exact: true }).getAttribute('aria-checked')).toBe('false')
       await restored.getByRole('button', { name: 'System browser', exact: true }).waitFor()
       expect(model.errors).toEqual([])
     } catch (error) { failure = error; throw error }
@@ -1723,6 +1742,11 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
       await expect.poll(() => { expect(script.errors).toEqual([]); return script.held.has('agent-observed') }, { timeout: 60_000 }).toBe(true)
       const nativeId = await activeBrowserGuest(page)
       expect(await app.evaluate(({ webContents }, id) => webContents.fromId(id)!.getTitle(), nativeId)).toBe('Agent edited page')
+      const floated = page.locator('[data-dockkit-float]').filter({ has: page.locator('webview[data-sidebar-browser-frame]') })
+      await floated.locator('webview').waitFor({ state: 'visible' })
+      expect(await page.locator('[data-sidebar-right-open]').count()).toBe(0)
+      await floated.getByRole('button', { name: 'Send back to the sidebar', exact: true }).click()
+      expect(await activeBrowserGuest(page)).toBe(nativeId)
       const browser = page.locator('[data-rightbar-col]')
       if (access === 'automatic') {
         await browser.getByRole('button', { name: 'Saved website profiles', exact: true }).click()

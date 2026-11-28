@@ -1,6 +1,6 @@
 /** Settings for new Desktop Browser tabs. */
 import { useId, useState, type ReactNode } from 'react'
-import { Button, Input, Select } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, Input, Select, Switch } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 import { BROWSER_APPEARANCES, BROWSER_DIMENSION_BOUNDS, BROWSER_VIEWPORTS, browserDimension,
   readBrowserDefaults, saveBrowserDefaults, ZOOM_PRESETS, type BrowserDefaults } from '../browser/defaults.ts'
@@ -115,6 +115,14 @@ export function BrowserDefaultsSection({ t, useWebsiteProfiles, reloadProfiles, 
       <span className={css.profileFieldHint}>{t('defaults.searchHint')}</span>
     </div>
     {renderSlot('settings.browser.link-opening', {})}
+    <div className={css.profileField}>
+      <div className={css.defaultsToggle}>
+        <span className={css.profileFieldLabel}>{t('defaults.autoShowFloatingPreview')}</span>
+        <Switch label={t('defaults.autoShowFloatingPreview')} checked={defaults.autoShowFloatingPreview}
+          onChange={(autoShowFloatingPreview) => { save({ ...defaults, autoShowFloatingPreview }) }} />
+      </div>
+      <span className={css.profileFieldHint}>{t('defaults.autoShowFloatingPreviewHint')}</span>
+    </div>
     {failed && <span className={css.profileFieldError} role="alert">{t('defaults.saveFailed')}</span>}
   </section>
 }

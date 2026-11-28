@@ -16,8 +16,8 @@ import { pageAddress } from '../src/client/contract/seed.ts'
 
 const SESSION = 's-test'
 
-function harness() {
-  const instance = createSidebarRightStore(() => ({ kind: 'guide', title: 'Start' })).create()
+function harness(floatOnCollapse?: (kind: string) => boolean) {
+  const instance = createSidebarRightStore(() => ({ kind: 'guide', title: 'Start' }), floatOnCollapse).create()
   instance.actions.open(SESSION)
   const surface = () => {
     const held = instance.getSnapshot().bySession[SESSION]
@@ -37,6 +37,47 @@ function harness() {
 }
 
 describe('createSidebarRightStore — the sequence', () => {
+  it('moves only the active eligible tab when the sidebar collapses', () => {
+    let autoFloat = true
+    const { actions, expand, layout, guide, entries } = harness(kind => kind === 'browser' && autoFloat)
+    expand()
+    const start = guide()
+    const browser = vi.fn<(tab: TabId) => void>()
+    actions.openContent(SESSION, { kind: 'browser', contentId: 'sidebar://browser/one', title: 'Preview' }, browser)
+    const tab = browser.mock.calls[0]![0]
+    const before = layout()
+    const count = entries()
+    actions.toggleExpanded(SESSION)
+    expect(layout().expanded).toBe(false)
+    expect(findTabPane(layout(), tab).host).toBe('float')
+    expect(findTabPane(layout(), start).host).toBe('dock')
+    expect(entries()).toBe(count + 1)
+    actions.undo(SESSION)
+    expect(layout()).toEqual(before)
+    autoFloat = false
+    actions.toggleExpanded(SESSION)
+    expect(layout().expanded).toBe(false)
+    expect(findTabPane(layout(), tab).host).toBe('dock')
+  })
+
+  it('opens a floating preview over a collapsed sidebar and expands the sidebar when Dock is used', () => {
+    const { actions, layout, entries } = harness()
+    const preview = { kind: 'browser', contentId: 'sidebar://browser/one', title: 'Preview', floating: true }
+    const opened = vi.fn<(tab: TabId) => void>()
+    actions.openContent(SESSION, preview, opened)
+    const tab = opened.mock.calls[0]![0]
+    const pane = findTabPane(layout(), tab)
+    expect(pane.host).toBe('float')
+    expect(layout().expanded).toBe(false)
+    expect(entries()).toBe(1)
+    actions.openContent(SESSION, preview, opened)
+    expect(opened).toHaveBeenLastCalledWith(tab)
+    expect(layout().floats).toEqual([pane.id])
+    actions.unfloatPane(SESSION, pane.id, true)
+    expect(layout().expanded).toBe(true)
+    expect(findTabPane(layout(), tab).host).toBe('dock')
+  })
+
   it.each(['left', 'right'] as const)('splits one pane at its %s edge and records the tab move as one reversible intent', (zone) => {
     const { actions, layout, entries, guide, expand } = harness()
     expand()

@@ -106,6 +106,8 @@ export interface SidebarRightTabDefinition {
   readonly defaultParams?: () => SidebarRightTabParams
   /** Lazily keep a visited body mounted through hiding, Session changes and docking; default false. */
   readonly keepMounted?: boolean
+  /** Whether the active docked tab should float when the user collapses the sidebar. */
+  readonly floatOnCollapse?: () => boolean
   /**
    * Resource-address globs this type recognizes; omit for a page type, which is
    * opened by kind and recognizes no address.

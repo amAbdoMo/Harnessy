@@ -163,6 +163,7 @@ export function apply(ctx: Context): void {
     ctx.sidebarRight.openTabIn(request.sessionId as BrowserBodyProps['sessionId'], 'browser', {
       params: { url: request.url, openRequestId: request.requestId,
         ...(request.profileId === undefined ? {} : { profileId: request.profileId }) }, revealIfOpened: false,
+      floating: readBrowserDefaults().autoShowFloatingPreview,
     })
   }), 'ui-sidebar-browser.agent-open')
   ctx.effect(() => ctx.locale.register(namespace, { zh, en }), 'ui-sidebar-browser.copy')
@@ -174,6 +175,7 @@ export function apply(ctx: Context): void {
   ctx.effect(() => ctx.sidebarRightTabs.register({
     ...browserDefinition(t),
     keepMounted: desktop !== undefined,
+    ...(desktop === undefined ? {} : { floatOnCollapse: () => readBrowserDefaults().autoShowFloatingPreview }),
     ...(profiles === undefined ? {} : {
       defaultParams: () => {
         const { profileId } = readBrowserDefaults()
