@@ -1767,7 +1767,7 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
         await expect.poll(() => { expect(script.errors).toEqual([]); return script.held.has('project-denied') }, { timeout: 30_000 }).toBe(true)
         expect(await app.evaluate(({ webContents }, id) => webContents.fromId(id)!.getTitle(), nativeId)).toBe('Agent edited page')
         expect(await activeBrowserGuest(page)).toBe(nativeId)
-        await browser.getByRole('button', { name: 'Take control', exact: true }).click()
+        await browser.locator('form').getByRole('button', { name: 'Take control', exact: true }).click()
         await browser.getByRole('button', { name: 'Resume agent', exact: true }).waitFor()
         await browser.getByRole('button', { name: 'Page actions', exact: true }).click()
         await page.getByRole('menuitem', { name: 'Find in page', exact: true }).click()
