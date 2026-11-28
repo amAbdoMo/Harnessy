@@ -1,5 +1,5 @@
 /** Preload forwards only named Browser operations; request subscriptions contain callback failures and support disposal. */
-import type { DesktopWebsiteHostSnapshot, DesktopWebsiteRequestReceipt } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
+import type { BrowserProjectId, DesktopWebsiteHostSnapshot, DesktopWebsiteRequestReceipt } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
 import { beforeEach, expect, it, onTestFinished, vi } from 'vitest'
 import { DESKTOP_IPC } from '../src/ipc.ts'
 
@@ -24,9 +24,15 @@ it('exposes no arbitrary IPC, native objects, or Agent control through profile-w
   expect(Object.keys(bridge).sort()).toEqual([
     'acquire', 'beginPhoneShare', 'beginRemoteShare', 'bind', 'capture', 'captureRecordingFrame', 'command', 'completeOpen', 'control', 'endRemoteShare',
     'onAgentOpen', 'onControlChanged', 'onOpenRequested', 'onReacquireRequested', 'onRemoteShareEnded', 'openDevTools',
-    'pick', 'profiles', 'release', 'requests', 'setZoom', 'status',
+    'pick', 'profiles', 'projectAccess', 'release', 'requests', 'setZoom', 'status',
   ])
   expect(Object.keys(bridge.requests).sort()).toEqual(['acknowledge', 'list', 'onChanged', 'onPrepared', 'prepare', 'resume', 'takeover', 'visible'])
+  expect(Object.keys(bridge.projectAccess ?? {}).sort()).toEqual(['list', 'set'])
+  await bridge.projectAccess?.list()
+  expect(ipc.invoke).toHaveBeenLastCalledWith(DESKTOP_IPC.browserProjectAccessList)
+  const project = '63eba1c9-8858-4415-88f4-37ac332adef3' as BrowserProjectId
+  await bridge.projectAccess?.set(project, false)
+  expect(ipc.invoke).toHaveBeenLastCalledWith(DESKTOP_IPC.browserProjectAccessSet, project, false)
   await bridge.acquire('cwd:/workspace', 'https://192.168.1.10/')
   expect(ipc.invoke).toHaveBeenLastCalledWith(DESKTOP_IPC.browserAcquire, 'cwd:/workspace', 'https://192.168.1.10/', undefined)
   await bridge.acquire('cwd:/workspace')

@@ -66,6 +66,7 @@ import { readApplicationDialogTheme } from './application-dialog-theme.ts'
 import { readDesktopRuntime } from './runtime-tree.ts'
 import { DesktopBrowserGuests } from './browser-guests.ts'
 import { DesktopBrowserPreview } from './browser-preview.ts'
+import { BrowserProjectAccess, browserProjectId } from './browser-project-access.ts'
 import type { DesktopBrowserLeaseId } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
 import { captureBrowserAnnotation, pickBrowserElement } from './browser-annotation.ts'
 import { DesktopDevicePreviews } from './device-preview.ts'
@@ -601,7 +602,9 @@ async function main(): Promise<void> {
   }, account => websiteAuthority.requests.revokeAccount(account), websiteCredentials)
   let websiteHost: DesktopHostProcess | undefined
   let previewHost: DesktopHostProcess | undefined
-  const browserPreview = new DesktopBrowserPreview(browserGuests, () => mainWindow?.webContents, () => websiteProfiles.list())
+  const browserProjectAccess = new BrowserProjectAccess(join(app.getPath('userData'), 'browser-project-access.json'))
+  const browserPreview = new DesktopBrowserPreview(browserGuests, () => mainWindow?.webContents, () => websiteProfiles.list(),
+    project => browserProjectAccess.allows(project))
   const devicePreviews = new DesktopDevicePreviews({ window: () => mainWindow, currentHost: () => previewHost,
     guest: (owner, lease) => browserGuests.inspectPreview(owner, lease),
     cancelGuest: (owner, lease, guest) => { browserGuests.cancelPreview(owner, lease, guest) },
@@ -1091,6 +1094,16 @@ async function main(): Promise<void> {
   ipcMain.handle(DESKTOP_IPC.browserBind, (event, lease: DesktopBrowserLeaseId, sessionId: string | null) => {
     assertProductSender(event)
     browserPreview.bind(event.sender, lease, sessionId)
+  })
+  ipcMain.handle(DESKTOP_IPC.browserProjectAccessList, (event) => {
+    assertProductSender(event)
+    return browserProjectAccess.list()
+  })
+  ipcMain.handle(DESKTOP_IPC.browserProjectAccessSet, (event, input: unknown, enabled: unknown) => {
+    assertProductSender(event)
+    const projectId = browserProjectId(input)
+    if (typeof enabled !== 'boolean') throw new Error('Invalid project browser access choice')
+    return browserProjectAccess.set(projectId, enabled, () => { browserPreview.revokeProject(projectId) })
   })
   ipcMain.handle(DESKTOP_IPC.browserControl, (event, lease: DesktopBrowserLeaseId, human: boolean) => {
     assertProductSender(event)

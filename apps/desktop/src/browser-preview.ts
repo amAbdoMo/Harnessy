@@ -1,13 +1,16 @@
 /** Native browser tab inventory, chat ownership and private Host operation routing. */
 import type { NativeImage, WebContents } from 'electron'
 import { randomUUID } from 'node:crypto'
-import type { BrowserAgentOpenRequest, BrowserTabStatus, DesktopBrowserLeaseId, DesktopWebsiteProfile } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
+import type { BrowserAgentOpenRequest, BrowserProjectId, BrowserTabStatus, DesktopBrowserLeaseId, DesktopWebsiteProfile } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
 import type { BrowserPhoneShare, BrowserPhoneShareReceipt, BrowserRecordingDocumentId, BrowserRecordingFrame, BrowserRecordingIndicators,
   BrowserRemoteShare } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
 import { BrowserTabControl } from './browser-tab-control.ts'
 import { setImmediate } from 'node:timers/promises'
 import type { DesktopBrowserGuests } from './browser-guests.ts'
 import { DESKTOP_IPC } from './ipc.ts'
+import { browserProjectId } from './browser-project-access.ts'
+
+const PROJECT_ACCESS_DISABLED = 'Agent browser access is off for this project. You can change it in Settings → Browser.'
 
 interface Tab {
   readonly owner: WebContents
@@ -128,16 +131,18 @@ function selector(input: unknown): string { return text(input, 'selector', 4096)
 export class DesktopBrowserPreview {
   private readonly tabs = new Map<DesktopBrowserLeaseId, Tab>()
   private readonly openings = new Map<string, PendingOpen>()
-  private readonly calls = new Map<string, AbortController>()
+  private readonly calls = new Map<string, { projectId: BrowserProjectId | undefined; cancellation: AbortController }>()
   private share: Share | undefined
 
   /** @param guests - native lease owner. @param window - current authenticated primary renderer.
    * @param profiles - saved account inventory; returned metadata never includes credentials.
+   * @param allowsProject - current Main-owned policy for the Host's project identity.
    */
   constructor(private readonly guests: Pick<DesktopBrowserGuests,
     'inspectBrowser' | 'onInvalidated' | 'allowsBrowserAddress' | 'command' | 'setZoom' | 'openLocalDevTools' | 'closeLocalDevTools'>,
   private readonly window: () => WebContents | undefined,
-  private readonly profiles: () => Promise<readonly DesktopWebsiteProfile[]>) {
+  private readonly profiles: () => Promise<readonly DesktopWebsiteProfile[]>,
+  private readonly allowsProject?: (projectId: BrowserProjectId) => Promise<boolean>) {
     guests.onInvalidated((_owner, lease) => {
       const tab = this.tabs.get(lease)
       this.tabs.delete(lease)
@@ -434,12 +439,14 @@ export class DesktopBrowserPreview {
       this.stopRemoteShare('phone', packet.id)
       return { type: 'phone-browser-share-result', requestId, status: 'ended' }
     }
-    if (packet.type === 'browser-preview-cancel') { this.calls.get(requestId)?.abort(); return undefined }
+    if (packet.type === 'browser-preview-cancel') { this.calls.get(requestId)?.cancellation.abort(); return undefined }
     if (packet.type !== 'browser-preview' || this.calls.has(requestId)) throw new Error('Invalid browser preview request')
     const cancellation = new AbortController()
-    this.calls.set(requestId, cancellation)
     try {
       const sessionId = text(packet.sessionId, 'chat identity', 4096)
+      const projectId = packet.projectId === undefined ? undefined : browserProjectId(packet.projectId)
+      this.calls.set(requestId, { projectId, cancellation })
+      if (projectId !== undefined) await this.checkProject(projectId)
       const operation = object(packet.operation)
       if (Buffer.byteLength(JSON.stringify(operation)) > 128 * 1024) throw new Error('Browser operation exceeds its size limit')
       const result = await this.run(sessionId, operation, requestId, cancellation.signal)
@@ -452,10 +459,25 @@ export class DesktopBrowserPreview {
     } finally { this.calls.delete(requestId) }
   }
 
+  private async checkProject(projectId: BrowserProjectId): Promise<void> {
+    if (this.allowsProject === undefined) throw new Error('Project browser access is unavailable')
+    const allowed = await this.allowsProject(projectId).catch((cause: unknown) => {
+      throw new Error('Could not verify agent browser access for this project', { cause })
+    })
+    if (!allowed) throw new Error(PROJECT_ACCESS_DISABLED)
+  }
+
+  /** @param projectId - project whose disable was durably saved; fences queued actions and native results. */
+  revokeProject(projectId: BrowserProjectId): void {
+    for (const call of this.calls.values()) {
+      if (call.projectId === projectId) call.cancellation.abort(new Error(PROJECT_ACCESS_DISABLED))
+    }
+  }
+
   /** Cancel old Host invocations and pending openings; tab ownership remains attached to its chat. */
   retireHost(): void {
     if (this.share !== undefined) this.finishShare(this.share)
-    for (const cancellation of this.calls.values()) cancellation.abort()
+    for (const call of this.calls.values()) call.cancellation.abort()
     for (const opening of this.openings.values()) opening.reject(new Error('Browser Host retired'))
     this.openings.clear()
   }
@@ -478,7 +500,7 @@ export class DesktopBrowserPreview {
     return tab.control.act(sessionId, async () => {
       signal.throwIfAborted()
       this.tab(owner, lease)
-      const result = await this.action(tab, operation)
+      const result = await this.action(tab, operation, signal)
       signal.throwIfAborted()
       return result
     })
@@ -502,7 +524,7 @@ export class DesktopBrowserPreview {
     })
     if (this.openings.size >= 32) throw new Error('Too many pending browser openings')
     const completion = Promise.withResolvers<Tab>()
-    const abort = () =>{  completion.reject(new Error('Browser opening was canceled')) }
+    const abort = () => { completion.reject(signal.reason instanceof Error ? signal.reason : new Error('Browser opening was canceled')) }
     const timer = setTimeout(() =>{  completion.reject(new Error('Browser tab did not attach within 30 seconds')) }, 30_000)
     this.openings.set(requestId, { owner, sessionId, resolve: completion.resolve, reject: completion.reject })
     signal.addEventListener('abort', abort, { once: true })
@@ -515,7 +537,7 @@ export class DesktopBrowserPreview {
     } finally { clearTimeout(timer); signal.removeEventListener('abort', abort); this.openings.delete(requestId) }
   }
 
-  private async action(tab: Tab, operation: Record<string, unknown>): Promise<unknown> {
+  private async action(tab: Tab, operation: Record<string, unknown>, signal: AbortSignal): Promise<unknown> {
     switch (operation.kind) {
       case 'navigate': {
         const url = text(operation.url, 'URL', 4096)
@@ -533,7 +555,7 @@ export class DesktopBrowserPreview {
       }
       case 'act': {
         tab.nativeInput = true
-        try { await this.input(tab.guest, operation); await setImmediate() }
+        try { await this.input(tab.guest, operation, signal); await setImmediate() }
         finally { tab.nativeInput = false }
         return { attempted: true }
       }
@@ -547,10 +569,11 @@ export class DesktopBrowserPreview {
     }
   }
 
-  private async input(guest: WebContents, operation: Record<string, unknown>): Promise<void> {
+  private async input(guest: WebContents, operation: Record<string, unknown>, signal: AbortSignal): Promise<void> {
     if (operation.action === 'drag') {
       const source = JSON.stringify(selector(operation.source)), target = JSON.stringify(selector(operation.target))
       const coordinates: unknown = await guest.executeJavaScript(`(()=>{const source=document.querySelector(${source}),target=document.querySelector(${target});if(!source||!target)throw new Error('Browser drag element was not found');const a=source.getBoundingClientRect(),b=target.getBoundingClientRect();return {x:a.x+a.width/2,y:a.y+a.height/2,targetX:b.x+b.width/2,targetY:b.y+b.height/2}})()`, false)
+      signal.throwIfAborted()
       const points = object(coordinates)
       const x = number(points.x, 'x'), y = number(points.y, 'y'), targetX = number(points.targetX, 'targetX'), targetY = number(points.targetY, 'targetY')
       guest.sendInputEvent({ type: 'mouseMove', x, y })

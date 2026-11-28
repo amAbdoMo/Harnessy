@@ -27,6 +27,8 @@ export const DESKTOP_IPC = {
   browserBind: 'dsh-desktop:browser-bind',
   browserControl: 'dsh-desktop:browser-control',
   browserStatus: 'dsh-desktop:browser-status',
+  browserProjectAccessList: 'dsh-desktop:browser-project-access-list',
+  browserProjectAccessSet: 'dsh-desktop:browser-project-access-set',
   browserSetZoom: 'dsh-desktop:browser-set-zoom',
   browserOpenDevTools: 'dsh-desktop:browser-open-devtools',
   browserCapture: 'dsh-desktop:browser-capture',

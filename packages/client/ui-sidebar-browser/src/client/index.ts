@@ -170,7 +170,8 @@ export function apply(ctx: Context): void {
   if (profiles !== undefined) ctx.effect(() => ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section', id: 'browser', label: () => t('guide.title'), order: 35, locale: namespace,
     children: { 'settings.browser.link-opening': { kind: 'single', scope: 'root' } },
-    inject: (): BrowserDefaultsInjected => ({ hooks: { websiteProfiles }, reloadProfiles: profiles.commands.reload }),
+    inject: (): BrowserDefaultsInjected => ({ hooks: { websiteProfiles }, reloadProfiles: profiles.commands.reload,
+      projectAccess: desktop?.projectAccess, projects: ctx.get('workspaces')?.list }),
   }, BrowserDefaultsSection)), 'ui-sidebar-browser.settings')
   ctx.effect(() => ctx.sidebarRightTabs.register({
     ...browserDefinition(t),

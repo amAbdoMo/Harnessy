@@ -70,6 +70,10 @@ export function createDesktopBrowserBridge(): DesktopBrowserBridge {
     }
   })
   return {
+    projectAccess: {
+      list: () => ipcRenderer.invoke(DESKTOP_IPC.browserProjectAccessList) as ReturnType<NonNullable<DesktopBrowserBridge['projectAccess']>['list']>,
+      set: (projectId, enabled) => ipcRenderer.invoke(DESKTOP_IPC.browserProjectAccessSet, projectId, enabled) as ReturnType<NonNullable<DesktopBrowserBridge['projectAccess']>['set']>,
+    },
     bind: (lease, sessionId) => ipcRenderer.invoke(DESKTOP_IPC.browserBind, lease, sessionId) as Promise<void>,
     control: (lease, human) => ipcRenderer.invoke(DESKTOP_IPC.browserControl, lease, human) as Promise<void>,
     status: lease => ipcRenderer.invoke(DESKTOP_IPC.browserStatus, lease) as ReturnType<NonNullable<DesktopBrowserBridge['status']>>,

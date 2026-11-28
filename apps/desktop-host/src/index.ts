@@ -27,6 +27,7 @@ import { installDevicePreviewController } from './device-preview-controller.ts'
 import { installDevicePreviewParentChannel } from './device-preview-parent.ts'
 import { installDevicePreviewTools } from './device-preview-tools.ts'
 import { installBrowserPreview } from './browser-preview.ts'
+import { browserPreviewProject } from './browser-preview-project.ts'
 import { installBrowserShare } from './browser-share.ts'
 import { createPhoneBrowserShare } from './phone-browser-share.ts'
 
@@ -66,7 +67,7 @@ async function main(): Promise<void> {
     patchFiles: [],
     args: desktopWebArguments(remote),
     prepare(ctx) {
-      control.browserPreview = installBrowserPreview(ctx, send)
+      control.browserPreview = installBrowserPreview(ctx, send, agent => browserPreviewProject(ctx, agent))
       control.companionConfig = resolveDesktopCompanionConfig(process.env)
       const home = resolveDshHome()
       installDesktopCompanionOwner(ctx, { home, signal: companionLife.signal, browserShare: phoneBrowserShare.request,

@@ -52,6 +52,7 @@ class BrowserPreviewModel extends LlmAdapter {
       { name: 'preview_evaluate', args: { tabId: 'fixture-tab', expression: 'document.title' } },
       { name: 'preview_snapshot', args: { tabId: 'fixture-tab' } },
       { name: 'preview_evaluate', args: { tabId: 'fixture-tab', expression: 'document.title' } },
+      { name: 'preview_open', args: { url: 'https://browser.example/', reuseExistingTab: false } },
     ]
     const call = calls[index]
     if (call !== undefined) {
@@ -66,7 +67,8 @@ class BrowserPreviewModel extends LlmAdapter {
     assert.ok(messages.includes('A human controls this browser tab'))
     assert.ok(messages.includes('Observed during takeover'))
     assert.ok(messages.includes('Resumed browser agent'))
-    yield { type: 'text-delta', index: 0, text: 'Observed during takeover; resumed on the same browser tab without saved-profile preparation.' }
+    assert.ok(messages.includes('Agent browser access is off for this project'))
+    yield { type: 'text-delta', index: 0, text: 'Observed the page during takeover and resumed on the same tab. The project setting then blocked opening another tab.' }
     yield { type: 'finish', reason: { kind: 'stop' } }
   }
 }

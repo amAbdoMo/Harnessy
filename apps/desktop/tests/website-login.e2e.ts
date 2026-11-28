@@ -4,6 +4,7 @@
  * guest attachment uses the shipped lease/partition handshake, not a fake bridge.
  * Requires an interactive Windows desktop and completed Host/Desktop builds.
  * DSH_TEST_DESKTOP_PROJECT selects a prepared runtime in place of the development project.
+ * DSH_TEST_STAGING_RUNTIME runs the scenarios against a verified Staging generation.
  * The Agent scenario uses an owned Messages provider, genuine Session/tool execution and live consent.
  */
 import { execFile, spawn, type ChildProcess } from 'node:child_process'
@@ -35,12 +36,13 @@ import { assertCleanWebsiteExit } from './website-shutdown.fixture.ts'
 // Reuse the Web acceptance lane's installed Playwright; no browser download is needed.
 const { _electron, chromium, firefox } = createRequire(new URL('../../web/package.json', import.meta.url))('playwright') as typeof import('../../web/node_modules/playwright/index.js')
 const desktopRequire = createRequire(new URL('../package.json', import.meta.url))
-const electronExecutable = desktopRequire('electron') as string
-const pnpmEntry = join(dirname(desktopRequire.resolve('pnpm')), 'bin/pnpm.mjs')
-const desktop = dirname(fileURLToPath(new URL('../package.json', import.meta.url)))
+const staging = process.env.DSH_TEST_STAGING_RUNTIME
+const desktop = staging === undefined ? dirname(fileURLToPath(new URL('../package.json', import.meta.url))) : join(staging, 'app')
+const electronExecutable = staging === undefined ? desktopRequire('electron') as string : join(staging, 'electron/electron.exe')
+const primaryRuntime = staging === undefined ? join(desktop, '.desktop-build/targets/win-x64/runtime/primary-runtime') : join(staging, 'runtime/primary-runtime')
+const pnpmEntry = staging === undefined ? join(dirname(desktopRequire.resolve('pnpm')), 'bin/pnpm.mjs') : join(primaryRuntime, 'dependencies/pnpm/bin/pnpm.mjs')
 const repository = fileURLToPath(new URL('../../../', import.meta.url))
-const project = process.env.DSH_TEST_DESKTOP_PROJECT ?? join(desktop, '.desktop-build/development/project')
-const primaryRuntime = join(desktop, '.desktop-build/targets/win-x64/runtime/primary-runtime')
+const project = process.env.DSH_TEST_DESKTOP_PROJECT ?? join(desktop, staging === undefined ? '.desktop-build/development/project' : 'dsh')
 const artifacts = [join(desktop, 'lib/main.js'), join(desktop, 'lib/preload-app.cjs'),
   join(repository, 'apps/desktop-host/lib/index.js'), join(project, 'desktop-runtime.json'),
   join(primaryRuntime, 'dependencies/node/bin/node.exe')]
@@ -906,6 +908,9 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
       const destination = await openBrowserSettings(page)
       await autoFloat.click()
       expect(await autoFloat.getAttribute('aria-checked')).toBe('false')
+      const projectAccess = destination.getByRole('switch', { name: 'Allow agent browser access', exact: true })
+      await projectAccess.click()
+      await expect.poll(() => projectAccess.getAttribute('aria-checked')).toBe('false')
       await destination.getByRole('button', { name: 'Harnessy Browser', exact: true }).click()
       await page.getByRole('menuitem', { name: 'System browser', exact: true }).click()
       await destination.getByRole('button', { name: 'Close', exact: true }).click()
@@ -936,6 +941,7 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
       expect(await restored.getByRole('textbox', { name: 'Height (px)', exact: true }).inputValue()).toBe('612')
       expect(await restored.getByRole('combobox', { name: 'Search engine', exact: true }).innerText()).toContain('Bing')
       expect(await restored.getByRole('switch', { name: 'Auto-show floating preview', exact: true }).getAttribute('aria-checked')).toBe('false')
+      await expect.poll(() => restored.getByRole('switch', { name: 'Allow agent browser access', exact: true }).getAttribute('aria-checked')).toBe('false')
       await restored.getByRole('button', { name: 'System browser', exact: true }).waitFor()
       expect(model.errors).toEqual([])
     } catch (error) { failure = error; throw error }
@@ -1707,7 +1713,7 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
     const cleanupErrors: unknown[] = []
     try {
       const origin = await listen(website)
-      model = browserPreviewModelFixture(origin)
+      model = browserPreviewModelFixture(origin, access === 'none')
       const modelUrl = await listen(model.server)
       await new DesktopProjectManager(resolveDesktopPaths(env.DSH_HOME, env.DSH_DESKTOP_PROFILE_DIR), { dsh: project }).applyRelease()
       writeFileSync(join(env.DSH_DESKTOP_PROFILE_DIR!, 'cordis.patch.yml'),
@@ -1748,6 +1754,35 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
       await floated.getByRole('button', { name: 'Send back to the sidebar', exact: true }).click()
       expect(await activeBrowserGuest(page)).toBe(nativeId)
       const browser = page.locator('[data-rightbar-col]')
+      if (access === 'none') {
+        let settings = await openBrowserSettings(page)
+        const projectToggle = settings.getByRole('switch', { name: 'Allow agent browser access', exact: true })
+        await projectToggle.waitFor()
+        expect(await settings.getByRole('combobox', { name: 'Project', exact: true }).innerText()).toContain('Default workspace')
+        expect(await projectToggle.getAttribute('aria-checked')).toBe('true')
+        await projectToggle.click()
+        await expect.poll(() => projectToggle.getAttribute('aria-checked')).toBe('false')
+        await settings.getByRole('button', { name: 'Close', exact: true }).click()
+        script.release('agent-observed')
+        await expect.poll(() => { expect(script.errors).toEqual([]); return script.held.has('project-denied') }, { timeout: 30_000 }).toBe(true)
+        expect(await app.evaluate(({ webContents }, id) => webContents.fromId(id)!.getTitle(), nativeId)).toBe('Agent edited page')
+        expect(await activeBrowserGuest(page)).toBe(nativeId)
+        await browser.getByRole('button', { name: 'Take control', exact: true }).click()
+        await browser.getByRole('button', { name: 'Resume agent', exact: true }).waitFor()
+        await browser.getByRole('button', { name: 'Page actions', exact: true }).click()
+        await page.getByRole('menuitem', { name: 'Find in page', exact: true }).click()
+        const find = browser.getByRole('searchbox', { name: 'Find in page', exact: true })
+        await find.fill('Native preview page')
+        await browser.getByText('1 of 1', { exact: true }).waitFor()
+        await page.screenshot({ path: join(repository, '.artifacts/browser-tools-native.png') })
+        await find.press('Escape')
+        expect(await find.count()).toBe(0)
+        settings = await openBrowserSettings(page)
+        expect(await projectToggle.getAttribute('aria-checked')).toBe('false')
+        await projectToggle.click()
+        await expect.poll(() => projectToggle.getAttribute('aria-checked')).toBe('true')
+        await settings.getByRole('button', { name: 'Close', exact: true }).click()
+      }
       if (access === 'automatic') {
         await browser.getByRole('button', { name: 'Saved website profiles', exact: true }).click()
         await page.getByRole('menuitem', { name: 'New saved profile…', exact: true }).click()
@@ -1758,23 +1793,14 @@ describe.skipIf(missing.length > 0)(`built Native Website login${missing.length 
         expect(await form.getByRole('combobox', { name: 'MCP server', exact: true }).innerText()).toContain('website_fixture')
         await form.getByRole('button', { name: 'Cancel', exact: true }).click()
       }
-      await browser.getByRole('button', { name: 'Take control', exact: true }).first().click()
+      if (access !== 'none') await browser.getByRole('button', { name: 'Take control', exact: true }).first().click()
       await browser.getByRole('button', { name: 'Resume agent', exact: true }).waitFor()
-      script.release('agent-observed')
+      script.release(access === 'none' ? 'project-denied' : 'agent-observed')
       await expect.poll(() => { expect(script.errors).toEqual([]); return script.held.has('human-observed') }, { timeout: 30_000 }).toBe(true)
       expect(script.denied).toBe(true)
       expect(script.observedDuringHuman).toBe(true)
       expect(await app.evaluate(({ webContents }, id) => webContents.fromId(id)!.getTitle(), nativeId)).toBe('Agent edited page')
       if (access === 'none') {
-        await browser.getByRole('button', { name: 'Page actions', exact: true }).click()
-        await page.getByRole('menuitem', { name: 'Find in page', exact: true }).click()
-        const find = browser.getByRole('searchbox', { name: 'Find in page', exact: true })
-        await find.fill('Native preview page')
-        await browser.getByText('1 of 1', { exact: true }).waitFor()
-        await page.screenshot({ path: join(repository, '.artifacts/browser-tools-native.png') })
-        await find.press('Escape')
-        expect(await find.count()).toBe(0)
-
         const actions = browser.getByRole('button', { name: 'Page actions', exact: true })
         await actions.click()
         await page.getByRole('menuitem', { name: 'Zoom (100%)', exact: true }).click()

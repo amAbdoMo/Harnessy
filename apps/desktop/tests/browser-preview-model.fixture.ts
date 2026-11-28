@@ -17,8 +17,10 @@ function parsedResult(block: Record<string, unknown>): Record<string, unknown> {
   return parsed
 }
 
-/** @param url - owned public fixture address. @returns provider, phase barriers and its inspected native results. */
-export function browserPreviewModelFixture(url: string) {
+/** @param url - owned public fixture address. @param checkProjectAccess - exercise project revocation during the turn.
+ * @returns provider, phase barriers and its inspected native results.
+ */
+export function browserPreviewModelFixture(url: string, checkProjectAccess = false) {
   const marker = 'NATIVE_BROWSER_PREVIEW_ACCEPTANCE'
   const errors: string[] = []
   const requests: Record<string, unknown>[] = []
@@ -87,7 +89,20 @@ export function browserPreviewModelFixture(url: string) {
         const changed = toolResult(body, 'preview_changed')
         if (changed) {
           if (changed.is_error === true || parsedResult(changed).value !== 'Agent edited page') throw new Error('Initial evaluation failed')
-          hold('agent-observed', response, call('preview_denied', 'preview_evaluate', { tabId, expression: "document.title='UNSAFE human mutation'" })); return
+          const humanDenied = call('preview_denied', 'preview_evaluate', { tabId, expression: "document.title='UNSAFE human mutation'" })
+          if (!checkProjectAccess) { hold('agent-observed', response, humanDenied); return }
+          const action = toolResult(body, 'preview_project_action')
+          const opening = toolResult(body, 'preview_project_open')
+          if (action === undefined) {
+            hold('agent-observed', response, call('preview_project_action', 'preview_evaluate', { tabId, expression: "document.title='UNSAFE project mutation'" })); return
+          }
+          for (const blocked of [action, ...(opening === undefined ? [] : [opening])]) {
+            if (blocked.is_error !== true || !JSON.stringify(blocked.content).includes('Agent browser access is off for this project')) {
+              throw new Error('Browser action did not report the project restriction')
+            }
+          }
+          if (opening === undefined) { send(response, call('preview_project_open', 'preview_open', { url, reuseExistingTab: false })); return }
+          hold('project-denied', response, humanDenied); return
         }
         const opening = toolResult(body, 'preview_opened')
         if (opening) {

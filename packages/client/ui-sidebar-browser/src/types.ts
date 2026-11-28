@@ -1,6 +1,19 @@
 /** Type-only Electron bridge declarations shared by the desktop shell and browser provider. */
 import type { Branded, BrandedNumber } from '@deepseek-ai/dsh-brand'
 
+/** Carries the WorkspaceId brand across the native bridge. */
+export type BrowserProjectId = Branded<'WorkspaceId'>
+
+/** Main-owned preference operations for agent use of the built-in Browser. */
+export interface BrowserProjectAccessBridge {
+  /** @returns projects with native agent browser access turned off. */
+  list(): Promise<readonly BrowserProjectId[]>
+  /** @param projectId - target project. @param enabled - desired access.
+   * @returns the committed list of disabled projects.
+   */
+  set(projectId: BrowserProjectId, enabled: boolean): Promise<readonly BrowserProjectId[]>
+}
+
 /** Main-issued identity of one guest reservation. */
 export type DesktopBrowserLeaseId = Branded<'DesktopBrowserLeaseId'>
 
@@ -248,6 +261,8 @@ export type DesktopBrowserHumanCommand = (
 
 /** Origin-scoped operations; no Electron objects or arbitrary IPC cross this interface. */
 export interface DesktopBrowserBridge {
+  /** Installation-local access preferences, when the desktop shell provides them. */
+  readonly projectAccess?: BrowserProjectAccessBridge
   /** Bind a mounted tab to its chat; null leaves a manually opened tab unclaimed. */
   bind?(lease: DesktopBrowserLeaseId, sessionId: string | null): Promise<void>
   /** Take human control or resume the tab's owning agent, draining prior actions. */

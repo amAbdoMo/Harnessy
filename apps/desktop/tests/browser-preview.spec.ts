@@ -2,11 +2,12 @@
 import type { WebContents } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { expect, it, vi } from 'vitest'
-import type { DesktopBrowserLeaseId, DesktopWebsiteProfile } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
+import type { BrowserProjectId, DesktopBrowserLeaseId, DesktopWebsiteProfile } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
 import { DesktopBrowserPreview } from '../src/browser-preview.ts'
 import { DESKTOP_IPC } from '../src/ipc.ts'
+import { browserProjectId } from '../src/browser-project-access.ts'
 
-function fixture(profiles: readonly DesktopWebsiteProfile[] = []) {
+function fixture(profiles: readonly DesktopWebsiteProfile[] = [], allowsProject?: (id: BrowserProjectId) => Promise<boolean>) {
   const published = vi.fn()
   const owner = { isDestroyed: () => false, send: published } as Pick<WebContents, 'isDestroyed' | 'send'> as WebContents
   const jpeg = vi.fn((_quality: number) => Buffer.from('jpeg'))
@@ -28,11 +29,49 @@ function fixture(profiles: readonly DesktopWebsiteProfile[] = []) {
   const closeLocalDevTools = vi.fn()
   const preview = new DesktopBrowserPreview({ inspectBrowser, onInvalidated: () => () => {},
     command: async () => {}, setZoom, openLocalDevTools, closeLocalDevTools,
-    allowsBrowserAddress: url => url.startsWith('https://example.test/') }, () => owner, async () => profiles)
-  const request = (sessionId: string, operation: object, requestId = randomUUID()) => preview.request({ type: 'browser-preview', requestId, sessionId, operation })
+    allowsBrowserAddress: url => url.startsWith('https://example.test/') }, () => owner, async () => profiles, allowsProject)
+  const request = (sessionId: string, operation: object, requestId = randomUUID(), projectId?: BrowserProjectId) =>
+    preview.request({ type: 'browser-preview', requestId, sessionId, operation, projectId })
   return { owner, guest, preview, lease, request, inspectBrowser, published, setZoom, openLocalDevTools, closeLocalDevTools,
     resize, jpeg }
 }
+
+it('blocks all native agent operations for the disabled project before accessing the page', async () => {
+  const disabled = browserProjectId(randomUUID())
+  const allowed = browserProjectId(randomUUID())
+  const f = fixture([], async project => project !== disabled)
+  f.preview.bind(f.owner, f.lease, 'one')
+  for (const kind of ['status', 'open', 'navigate', 'act', 'evaluate', 'resize', 'snapshot']) {
+    await expect(f.request('one', { kind, tabId: f.lease }, randomUUID(), disabled)).resolves.toMatchObject({
+      ok: false, error: expect.stringContaining('Agent browser access is off for this project'),
+    })
+  }
+  expect(f.guest.loadURL).not.toHaveBeenCalled()
+  expect(f.guest.executeJavaScript).not.toHaveBeenCalled()
+  expect(f.guest.sendInputEvent).not.toHaveBeenCalled()
+  expect(f.published).not.toHaveBeenCalledWith(DESKTOP_IPC.browserAgentOpen, expect.anything())
+  await expect(f.request('one', { kind: 'evaluate', tabId: f.lease, expression: 'document.title' }, randomUUID(), allowed))
+    .resolves.toMatchObject({ ok: true })
+  await f.preview.control(f.owner, f.lease, true)
+  expect(f.preview.guest(f.owner, f.lease)).toBe(f.guest)
+})
+
+it('withdraws pending results and queued clicks immediately, including if access is re-enabled', async () => {
+  const project = browserProjectId(randomUUID())
+  const f = fixture([], async () => true)
+  f.preview.bind(f.owner, f.lease, 'one')
+  const evaluation = Promise.withResolvers<{ text: string; elements: never[] }>()
+  f.guest.executeJavaScript.mockReturnValueOnce(evaluation.promise)
+  const running = f.request('one', { kind: 'evaluate', tabId: f.lease, expression: 'document.title' }, randomUUID(), project)
+  await vi.waitFor(() => expect(f.guest.executeJavaScript).toHaveBeenCalledTimes(1))
+  const queued = f.request('one', { kind: 'act', tabId: f.lease, action: 'click', x: 10, y: 10 }, randomUUID(), project)
+  f.preview.revokeProject(project)
+  evaluation.resolve({ text: 'Fixture', elements: [] })
+  for (const result of [running, queued]) await expect(result).resolves.toMatchObject({ ok: false, error: expect.stringContaining('access is off') })
+  expect(f.guest.sendInputEvent).not.toHaveBeenCalled()
+  await expect(f.request('one', { kind: 'act', tabId: f.lease, action: 'click', x: 10, y: 10 }, randomUUID(), project))
+    .resolves.toMatchObject({ ok: true })
+})
 
 it('shows and stops an Android share only through the paired-phone carrier', async () => {
   const f = fixture()

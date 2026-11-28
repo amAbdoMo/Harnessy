@@ -1,6 +1,8 @@
 /** Stable preview tools for chat-owned native browser tabs, independent from saved-site MCP pairings. */
 import { randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
+import type { Agent } from '@deepseek-ai/dsh-agent'
+import type { BrowserProjectId } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
 import { defineTool, type ToolExecution } from '@deepseek-ai/dsh-tools'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import { isJsonValue, type JsonValue } from '@deepseek-ai/dsh-util-values'
@@ -16,8 +18,12 @@ export interface BrowserPreviewChannel {
   close(): void
 }
 
-/** @param ctx - tool and lifecycle owner. @param send - exact Main IPC sender. @returns registered browser tools and transport. */
-export function installBrowserPreview(ctx: Context, send: (message: object) => Promise<void>): BrowserPreviewChannel {
+/** @param ctx - tool and lifecycle owner. @param send - exact Main IPC sender.
+ * @param projectFor - resolves native caller ownership on the Desktop Host.
+ * @returns registered browser tools and transport.
+ */
+export function installBrowserPreview(ctx: Context, send: (message: object) => Promise<void>,
+  projectFor?: (agent: Agent) => Promise<BrowserProjectId | undefined>): BrowserPreviewChannel {
   const pending = new Map<string, { resolve: (value: JsonValue) => void; reject: (error: Error) => void }>()
   const images = new WeakMap<ToolExecution, ContentBlock[]>()
   let closed = false
@@ -26,6 +32,9 @@ export function installBrowserPreview(ctx: Context, send: (message: object) => P
       const agent = execution.agent
       if (closed || agent === undefined || ctx.agents.get(agent.id) !== agent) throw new Error('Browser work requires a current owning chat')
       execution.signal.throwIfAborted()
+      const projectId = await projectFor?.(agent)
+      execution.signal.throwIfAborted()
+      if (closed || ctx.agents.get(agent.id) !== agent) throw new Error('Browser caller is no longer current')
       if (pending.size >= 64) throw new Error('Too many pending browser requests')
       const requestId = randomUUID()
       const completion = Promise.withResolvers<JsonValue>()
@@ -43,7 +52,8 @@ export function installBrowserPreview(ctx: Context, send: (message: object) => P
       })
       try {
         const [, result] = await Promise.all([
-          send({ type: 'browser-preview', requestId, sessionId: agent.session.id, operation }), completion.promise,
+          send({ type: 'browser-preview', requestId, sessionId: agent.session.id, operation,
+            ...(projectId === undefined ? {} : { projectId }) }), completion.promise,
         ])
         execution.signal.throwIfAborted()
         if (ctx.agents.get(agent.id) !== agent) throw new Error('Browser caller is no longer current')

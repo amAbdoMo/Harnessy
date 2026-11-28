@@ -20,8 +20,8 @@ assert.ok(['record', 'refresh', 'replay'].includes(mode), 'Unknown snapshot mode
 const recording = mode === 'record'
 const updating = mode !== 'replay'
 
-it('desktop preview finds a saved site’s MCP tools and observes browser takeover', async () => {
-  const prompts = recording ? ['Read the saved site through its MCP server. Then observe the browser during human takeover and after the agent resumes.']
+it('desktop preview observes human takeover and reports a disabled project', async () => {
+  const prompts = recording ? ['Read the saved site through its MCP server. Observe the browser during human takeover and after the agent resumes. Then check what happens when the project disables browser access.']
     : parseSessionLog(await readFile(fixtureFile, 'utf8'))
       .filter(event => event.type === 'user/message' && event.data.source?.kind === 'user')
       .map(event => {
@@ -40,7 +40,7 @@ it('desktop preview finds a saved site’s MCP tools and observes browser takeov
     mode: recording ? 'record' : 'replay', fixtureFile, privateDriver: driver,
     env: { DEEPSEEK_API_KEY: undefined, OPENAI_API_KEY: undefined, ANTHROPIC_API_KEY: undefined },
   })
-  expect(driver.operations).toBe(4)
+  expect(driver.operations).toBe(5)
   expect(result.rawStdout).not.toContain('session/request_permission')
   expect(result.sessionLogs).toHaveLength(1)
   const log = result.sessionLogs[0]
@@ -49,6 +49,7 @@ it('desktop preview finds a saved site’s MCP tools and observes browser takeov
   expect(log.content).toContain('WordPress fixture site')
   expect(log.content).toContain('Observed during takeover')
   expect(log.content).toContain('A human controls this browser tab')
+  expect(log.content).toContain('Agent browser access is off for this project')
   expect(log.content).not.toContain('approval/asked')
   expect(log.content).not.toContain('approval/decided')
   const ctx = { cwd: result.cwd, cwdAliases: result.cwdAliases, sessionIds: [log.id] }
@@ -100,10 +101,14 @@ function browserPreviewDriver(): NonNullable<RunOptions['privateDriver']> & { op
         assert.equal(operation.kind, 'snapshot')
         await send({ type: 'browser-preview-result', requestId: input.requestId, ok: true,
           result: { ...status, page: { text: 'Observed during takeover', elements: [], frames: [] } } })
-      } else {
-        assert.equal(index, 3)
+      } else if (index === 3) {
         assert.equal(operation.kind, 'evaluate')
         await send({ type: 'browser-preview-result', requestId: input.requestId, ok: true, result: { value: 'Resumed browser agent' } })
+      } else {
+        assert.equal(index, 4)
+        assert.equal(operation.kind, 'open')
+        await send({ type: 'browser-preview-result', requestId: input.requestId, ok: false,
+          error: 'Agent browser access is off for this project. You can change it in Settings → Browser.' })
       }
     },
   }

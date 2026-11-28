@@ -6,18 +6,25 @@ import { BROWSER_APPEARANCES, BROWSER_DIMENSION_BOUNDS, BROWSER_VIEWPORTS, brows
   readBrowserDefaults, saveBrowserDefaults, ZOOM_PRESETS, type BrowserDefaults } from '../browser/defaults.ts'
 import { BROWSER_SEARCH_ENGINES } from '../browser/search.ts'
 import type { BrowserInjected } from '../browser/BrowserController.ts'
+import type { WorkspaceSource } from '@deepseek-ai/dsh-api-workspace-controller/client'
+import type { BrowserProjectAccessBridge } from '../../types.ts'
+import { BrowserProjectAccess } from './BrowserProjectAccess.tsx'
 import css from './Browser.module.css'
 
 const viewportChoices = Object.keys(BROWSER_VIEWPORTS) as BrowserDefaults['viewport'][]
 
 /** Profile catalog and refresh command for the default-profile picker. */
-export type BrowserDefaultsInjected = Pick<BrowserInjected, 'hooks'> & { readonly reloadProfiles: () => Promise<void> }
+export type BrowserDefaultsInjected = Pick<BrowserInjected, 'hooks'> & {
+  readonly reloadProfiles: () => Promise<void>
+  readonly projectAccess: BrowserProjectAccessBridge | undefined
+  readonly projects: WorkspaceSource | undefined
+}
 
 /** Render browser settings with the current saved-profile choices.
  * @param props - browser locale and profile catalog.
  * @returns the installation-local browser settings.
  */
-export function BrowserDefaultsSection({ t, useWebsiteProfiles, reloadProfiles, renderSlot }: PropsLocale<'sidebarBrowser'>
+export function BrowserDefaultsSection({ t, useWebsiteProfiles, reloadProfiles, renderSlot, projectAccess, projects }: PropsLocale<'sidebarBrowser'>
   & InjectFace<BrowserDefaultsInjected> & PropsRenderSlots<'settings.browser.link-opening'>): ReactNode {
   const id = useId()
   const [defaults, setDefaults] = useState(readBrowserDefaults)
@@ -124,5 +131,6 @@ export function BrowserDefaultsSection({ t, useWebsiteProfiles, reloadProfiles, 
       <span className={css.profileFieldHint}>{t('defaults.autoShowFloatingPreviewHint')}</span>
     </div>
     {failed && <span className={css.profileFieldError} role="alert">{t('defaults.saveFailed')}</span>}
+    {projectAccess !== undefined && projects !== undefined && <BrowserProjectAccess t={t} access={projectAccess} projects={projects} />}
   </section>
 }
